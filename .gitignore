@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+.env
+.env.*
+!.env.example
+.svelte-kit/
+build/
+.netlify/
+supabase/.temp/
+# scratch di superpowers: non fa parte del progetto
+.superpowers/
