@@ -30,6 +30,8 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
 
 - unità della famiglia: metrico oppure imperiale britannico, con conversioni;
 - lingua dell'utente: italiano oppure inglese britannico, dalla prima versione;
+- ricette pubblicabili solo con i testi richiesti disponibili in entrambe le lingue;
+  se manca una traduzione la ricetta resta in bozza;
 - tutte le operazioni dell'app disponibili anche tramite MCP; browser ammesso per
   collegare l'account e per eventuali nuove autenticazioni;
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
@@ -187,7 +189,8 @@ un piatto o è nel ricettario, e lo vedono tutti, o non c'è.
 Il catalogo aggiornato vive nel database. Un curatore può chiedere al proprio agente di
 aggiungere una ricetta: l'agente raccoglie le informazioni e fa le domande necessarie.
 La ricetta entra nel catalogo solo quando il servizio verifica che tutti i dati richiesti
-sono presenti e validi. Gli ingredienti non vengono mai dedotti dal nome del piatto.
+sono presenti e validi, compresi i testi in italiano e inglese britannico. Gli ingredienti
+non vengono mai dedotti dal nome del piatto.
 
 Il lavoro incompleto può essere **salvato come bozza** e ripreso in seguito. Le bozze
 sono visibili anche in una sezione dell'app dedicata alla curatela e non vengono proposte
@@ -719,9 +722,10 @@ dalle famiglie.
 
 Il salvataggio di una bozza applica controlli sui dati forniti senza richiedere i campi
 ancora mancanti. La pubblicazione applica invece l'intera validazione. Campi obbligatori
-per tipo di fonte, traduzioni richieste e trattamento delle ricette pregresse incomplete
-vanno esplicitati prima dell'implementazione (sezione 15). La collaborazione fra
-curatori deve gestire i conflitti senza sovrascrivere silenziosamente le modifiche
+per tipo di fonte e trattamento delle ricette pregresse incomplete vanno esplicitati
+prima dell'implementazione (sezione 15). È già confermato che i testi richiesti devono
+essere disponibili in italiano e inglese britannico prima della pubblicazione.
+La collaborazione fra curatori deve gestire i conflitti senza sovrascrivere silenziosamente le modifiche
 altrui; il meccanismo sarà precisato nel design.
 
 **Percorso manuale web confermato, a bassa priorità:**
@@ -809,6 +813,8 @@ non viene risincronizzato automaticamente come seconda fonte di verità. L'impor
 iniziale legge `../meal_planner/ricettario/ricette.yaml`, mappa ingredienti e unità,
 prepara schede da rivedere e un **report delle ambiguità**, senza inventare valori.
 Solo le schede che soddisfano le regole concordate entrano nel catalogo.
+Anche le ricette importate devono avere i testi richiesti in entrambe le lingue:
+quelle in attesa di traduzione restano bozze da completare.
 
 Voti B, `storico` ed esclusioni nelle `note` del formato di origine diventano i **dati
 della famiglia di Federico**, separati dal catalogo. Conversione dei voti: B=1, BB=3,
@@ -858,7 +864,9 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   conservazione dei riferimenti dai pasti e assenza di modifiche a dati e ruoli familiari.
   Il collaudo comprende l'effettivo recupero da una copia di backup, non solo la sua creazione.
 - **Lingue**: copertura di italiano e inglese britannico, identità stabili del catalogo,
-  formattazione e gestione delle traduzioni mancanti secondo la politica concordata.
+  formattazione e rifiuto della pubblicazione quando manca un testo richiesto in una
+  delle due lingue, anche per importazione e percorso manuale. Una bozza può invece
+  essere salvata e ripresa con traduzioni ancora mancanti.
 - **MCP**: parità di operazioni, permessi, validazione, attribuzione, conflitti e limiti
   rispetto al web; isolamento fra utenti e famiglie; riconnessione e accessi revocati;
   esportazioni effettivamente utilizzabili nei client supportati.
@@ -932,11 +940,21 @@ seguono le ricette nel database autorevole. È proposta una preparazione e revis
 delle traduzioni durante la curatela, anche con l'aiuto dell'agente, anziché tradurre
 nuovamente ogni volta che si apre una ricetta.
 
-Restano da concordare: obbligatorietà di entrambe le lingue al salvataggio, revisione
-delle traduzioni suggerite, comportamento per quelle mancanti e trattamento dei testi
-liberi degli utenti. La proposta iniziale è conservare i testi liberi come scritti e
-mostrare l'originale italiano quando manca una traduzione del catalogo. I collegamenti
-alle fonti esterne e i titoli bibliografici non diventano traduzioni dei siti o dei libri.
+**Pubblicazione bilingue confermata:** i testi richiesti di una ricetta devono essere
+disponibili sia in italiano sia in inglese britannico prima della pubblicazione.
+Questo comprende nome e descrizione della ricetta e i nomi degli ingredienti collegati;
+le identità e le quantità sono condivise fra le due lingue. La regola vale per nuove
+ricette, modifiche e importazioni e viene verificata dal server in ogni canale.
+Le traduzioni mancanti sono segnalate nella bozza e impediscono di pubblicarla: mostrare
+l'originale italiano non è un'alternativa alla completezza del catalogo pubblicato.
+
+Nel percorso MCP l'agente può aiutare a preparare le traduzioni; nel percorso manuale
+il curatore le inserisce senza funzionalità AI dell'app. Le modalità di revisione delle
+traduzioni suggerite restano da definire. Anche il trattamento dei testi liberi degli
+utenti è da concordare: la proposta iniziale è conservarli come scritti. Questi testi,
+le trascrizioni originali delle fonti e i titoli bibliografici sono distinti dai testi
+localizzati obbligatori. I collegamenti alle fonti non diventano traduzioni dei siti o
+dei libri.
 
 ### 13. MCP e guida al collegamento
 
@@ -1023,11 +1041,11 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|---|
 | Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
 | Cancellazione | Conferme, ultimo amministratore dell'app o di una famiglia, destino dei dati condivisi e delle attribuzioni, revoca degli accessi MCP | Sezioni 2, 7 e 13 |
-| Completezza delle ricette | Campi obbligatori per ogni fonte, ingredienti mancanti nelle ricette pregresse, traduzioni necessarie e momento della conferma del curatore | Sezioni 8 e 12 |
+| Completezza delle ricette | Campi obbligatori per ogni fonte, ingredienti mancanti nelle ricette pregresse e momento della conferma del curatore; entrambe le lingue già obbligatorie per pubblicare | Sezioni 8 e 12 |
 | Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; condivisione delle bozze e percorso manuale web già confermati | Sezione 8 |
 | Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
 | Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
-| Lingue | Traduzioni mancanti, revisione, testi liberi, impostazione iniziale della lingua e ricerca multilingue | Sezione 12 |
+| Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
 | MCP | Client iniziali, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
 | Prototipo | Perimetro, fedeltà, flussi e dati dimostrativi, scelte di superficie e criteri di review | Sezione 14 |
@@ -1041,3 +1059,4 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 3 ottobre 2026 | Aggiunti unità metriche/imperiali britanniche, lingua personale italiano/inglese britannico, parità MCP, ruolo di curatore e inserimento guidato, catalogo autorevole nel database, guida MCP, amministrazione globale degli utenti e codice in inglese. Confermati ruoli globali cumulabili senza accesso automatico ai contenuti familiari. Stabiliti prototipo prima dell'implementazione e questo documento come riferimento unico aggiornato a ogni nuova scelta |
 | 3 ottobre 2026, prosecuzione | Confermate bozze persistenti visibili in una sezione dell'app, possibilità per ogni curatore di modificare l'intero ricettario e necessità di backup e ripristino. La completezza è richiesta per pubblicare nel catalogo, mentre le bozze possono essere incomplete. Il ripristino della singola ricetta spetta ai curatori, quello dell'intero catalogo agli amministratori dell'app |
 | 3 ottobre 2026, curatela manuale | Confermate bozze condivise e modificabili da tutti i curatori. Aggiunto il percorso manuale web senza AI per creare, modificare, verificare nuovamente e pubblicare ricette; ultima priorità di implementazione (M6). Upload da file registrato come opzione da definire |
+| 3 ottobre 2026, traduzioni | Confermati italiano e inglese britannico entrambi obbligatori per pubblicare una ricetta; traduzioni mancanti mantengono la scheda in bozza, anche per l'importazione |
