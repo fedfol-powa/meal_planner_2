@@ -13,7 +13,9 @@ settimana successiva, lo lascia rivedere e modificare ai membri della famiglia (
 traccia di chi ha cambiato cosa) e genera liste della spesa effimere dai pasti scelti.
 Il ricettario è unico e ha il database come fonte di verità. I curatori possono
 aggiungere ricette tramite il proprio agente MCP, con raccolta guidata delle informazioni
-e salvataggio solo quando sono complete. La pianificazione automatica è a regole;
+e pubblicazione solo quando sono complete; il lavoro incompleto si conserva in bozze
+visibili anche nell'app. Possono modificare l'intero ricettario, con requisiti di backup
+e ripristino definiti nella specifica. La pianificazione automatica è a regole;
 al suo interno l'AI può comparire solo come giudice opzionale tra settimane già valide.
 
 ## Documento unico di riferimento

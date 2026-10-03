@@ -33,7 +33,13 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
 - tutte le operazioni dell'app disponibili anche tramite MCP; browser ammesso per
   collegare l'account e per eventuali nuove autenticazioni;
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
-  e salvataggio della ricetta solo quando le informazioni richieste sono complete;
+  e pubblicazione della ricetta solo quando le informazioni richieste sono complete;
+- bozze persistenti, riprendibili e visibili anche in una sezione dell'app, separate
+  dal catalogo pubblicato;
+- ogni curatore può modificare l'intero ricettario, comprese le ricette degli altri
+  curatori; occorre gestire backup e ripristino per recuperare errori imprevisti;
+- ripristino di una singola ricetta accessibile ai curatori; ripristino dell'intero
+  catalogo da backup riservato agli amministratori dell'app;
 - database come fonte di verità del ricettario; YAML per importazione ed esportazione;
 - pagina web di istruzioni MCP, con comandi o configurazioni copiabili;
 - amministratore dell'app, inizialmente Federico, con possibilità di aggiungerne altri
@@ -180,6 +186,16 @@ aggiungere una ricetta: l'agente raccoglie le informazioni e fa le domande neces
 La ricetta entra nel catalogo solo quando il servizio verifica che tutti i dati richiesti
 sono presenti e validi. Gli ingredienti non vengono mai dedotti dal nome del piatto.
 
+Il lavoro incompleto può essere **salvato come bozza** e ripreso in seguito. Le bozze
+sono visibili anche in una sezione dell'app dedicata alla curatela e non vengono proposte
+nei menu né usate per la spesa finché non sono pubblicate. La visibilità delle bozze
+fra curatori diversi è ancora da concordare.
+
+Ogni curatore può modificare **tutto il ricettario**, anche le ricette inserite da altri.
+Il sistema deve consentire il recupero dagli errori tramite backup e ripristino; il
+curatore può tornare a una versione precedente di una ricetta, mentre il recupero
+dell'intero catalogo è riservato agli amministratori dell'app (sezione 8).
+
 ### Lingua e unità di misura
 
 Ogni persona sceglie la propria lingua: **italiano o inglese britannico**. La scelta
@@ -207,6 +223,9 @@ Una pagina riservata agli amministratori dell'app permette di gestire **gli uten
 gli inviti di tutta l'applicazione**: invitare persone, cambiare ruoli e cancellare
 utenti. Deve comprendere l'assegnazione del ruolo di curatore e la possibilità di
 nominare altri amministratori dell'app. Le stesse operazioni sono disponibili via MCP.
+
+Gli amministratori dell'app possono inoltre ripristinare l'intero ricettario da backup.
+Questo recupero riguarda il catalogo, senza ripristinare i dati privati delle famiglie.
 
 Gli inviti all'app e quelli a una famiglia hanno scopi distinti. Le regole precise di
 assegnazione dei ruoli, cancellazione e protezione dell'ultimo amministratore saranno
@@ -281,8 +300,9 @@ Il modello seguente conserva i concetti approvati e usa nomi tecnici inglesi. I 
 dettagli di schema sono una proposta da verificare dopo il prototipo; il piano M1a
 precedente non è una migrazione pronta da applicare.
 
-**Catalogo** (lettura per gli utenti autenticati; aggiunta tramite operazioni autorizzate
-ai curatori e validate sul server):
+**Catalogo** (lettura delle ricette pubblicate per gli utenti autenticati; aggiunta e
+modifica dell'intero ricettario tramite operazioni autorizzate ai curatori e validate
+sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 | Tabella | Campi principali |
 |---|---|
@@ -292,6 +312,9 @@ ai curatori e validate sul server):
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
 | `recipe_ingredients` | `recipe_id`, `ingredient_id`, `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni |
 | `books` | `id`, `title`: titolo bibliografico originale |
+| `recipe_drafts` | Proposta: `id`, `created_by`, `updated_by`, `updated_at`, dati parziali e riferimento opzionale alla ricetta pubblicata da modificare. Bozze persistenti separate dal catalogo; permessi fra curatori da concordare |
+| `recipe_revisions` | Proposta: `recipe_id`, `version`, contenuto completo della versione, autore, data e canale; base per confrontare e ripristinare una ricetta senza perdere lo storico |
+| Backup del catalogo | Copie recuperabili del ricettario e delle sue dipendenze; frequenza, conservazione, collocazione e procedura da definire nel design operativo |
 
 **Utenti, ruoli globali e amministrazione:**
 
@@ -357,9 +380,13 @@ nel percorso di primo accesso.
 
 **Ruoli globali:**
 
-- `recipe_curator`: aggiunge ricette complete al catalogo tramite il percorso guidato MCP;
+- `recipe_curator`: salva e riprende bozze, pubblica ricette complete e modifica l'intero
+  ricettario, anche le ricette inserite da altri. Le bozze hanno una sezione nell'app;
+  il percorso guidato resta disponibile tramite MCP. Può ripristinare una versione
+  precedente di una singola ricetta;
 - `app_admin`: gestisce utenti, ruoli e inviti dell'app, inclusa la nomina di altri
-  amministratori e la cancellazione degli utenti; inizialmente assegnato a Federico.
+  amministratori e la cancellazione degli utenti; può ripristinare l'intero catalogo
+  da backup. Inizialmente assegnato a Federico.
 
 **Separazione confermata:** il ruolo di amministratore di famiglia non concede ruoli
 globali. `recipe_curator` e `app_admin` sono indipendenti e cumulabili; un amministratore
@@ -621,6 +648,9 @@ requisito.
   nominare altri amministratori e cancellare utenti. Le operazioni devono essere
   disponibili anche via MCP. La nomina iniziale di Federico sarà prevista nella
   configurazione iniziale, con identità verificata; i dettagli si definiscono nel piano.
+- **Recupero del ricettario**: il ripristino completo da backup è riservato agli
+  amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
+  i curatori hanno invece il ripristino della singola ricetta.
 - **Wizard della famiglia nuova**:
   - nome;
   - matrice commensali;
@@ -661,16 +691,25 @@ della loro assenza da un file YAML.
    chiede quelle mancanti. La guida non deve dipendere dalla memoria di un singolo agente.
 3. La validazione sul server restituisce campi mancanti e incoerenze in forma strutturata,
    così l'agente può proseguire con domande mirate.
+   Le informazioni parziali possono essere salvate in una bozza persistente e recuperate
+   in una sessione successiva; restano escluse dal catalogo pubblicato.
 4. Proposta di interazione: prima del salvataggio l'agente presenta la scheda completa
    al curatore per la conferma, comprese le traduzioni predisposte.
-5. Il server verifica nuovamente ruolo, completezza e validità al momento della scrittura
-   e salva la ricetta con i suoi ingredienti e riferimenti in modo atomico. Un errore
-   non deve lasciare una ricetta parzialmente inserita nel catalogo.
+5. Il server verifica nuovamente ruolo, completezza e validità al momento della
+   pubblicazione e salva la ricetta con i suoi ingredienti e riferimenti in modo atomico.
+   Un errore non deve lasciare una ricetta parzialmente inserita nel catalogo.
 
-Il requisito di salvataggio solo a informazioni complete è vincolante; la persistenza
-eventuale di una bozza separata dal catalogo è ancora da decidere. Anche campi obbligatori
+**Bozze persistenti confermate:** una bozza ammette informazioni incomplete e sopravvive
+alla conversazione con l'agente. È consultabile nella sezione di curatela dell'app e
+recuperabile tramite MCP. Salvare una bozza non pubblica una ricetta: la completezza
+resta vincolante per l'ingresso nel catalogo utilizzato dalle famiglie.
+
+Il salvataggio di una bozza applica controlli sui dati forniti senza richiedere i campi
+ancora mancanti. La pubblicazione applica invece l'intera validazione. Campi obbligatori
 per tipo di fonte, traduzioni richieste e trattamento delle ricette pregresse incomplete
-vanno esplicitati prima dell'implementazione (sezione 15).
+vanno esplicitati prima dell'implementazione (sezione 15). Sono ancora da concordare la
+visibilità delle bozze fra curatori, la collaborazione sulla stessa bozza e le azioni
+di modifica previste direttamente nella sezione web, oltre alla consultazione richiesta.
 
 **Ingredienti e fonti:** solo dati verificati sulla fonte o forniti dal curatore,
 trascritti per `base_servings`, mai dedotti dal nome del piatto. Un validatore strutturale
@@ -684,11 +723,44 @@ pianificatore e dati della fonte coerenti con il tipo. La stessa logica serve l'
 MCP, le eventuali operazioni web del curatore e l'importazione. I test di questa logica
 sono eseguiti in CI; la CI non sostituisce la validazione di ogni scrittura sul server.
 
-**Aggiornamenti e archiviazione:** resta necessario conservare leggibili i menu che
-usano una ricetta. La precedente archiviazione automatica per assenza dal YAML è
-eliminata; il percorso di modifica e archiviazione dei curatori e l'eventuale storico
-delle versioni sono proposte da definire nel relativo design. La cancellazione del
-curatore non implica la cancellazione delle ricette che ha contribuito.
+**Modifica dell'intero ricettario confermata:** ogni curatore può modificare le ricette
+di qualunque autore. Le modifiche pubblicate devono rispettare gli stessi controlli
+di completezza, unità, riferimenti e fonti delle nuove ricette. È proposta una bozza di
+revisione per lavorare su una ricetta pubblicata senza esporre dati incompleti alle
+famiglie; gestione dei conflitti fra curatori e comportamento dei pasti pregressi
+rispetto alle versioni successive sono da definire nel design.
+
+**Archiviazione:** resta necessario conservare leggibili i menu che usano una ricetta.
+La precedente archiviazione automatica per assenza dal YAML è eliminata; il percorso
+esplicito di archiviazione è da definire. La cancellazione del curatore non implica
+la cancellazione delle ricette che ha contribuito.
+
+**Backup e ripristino richiesti:** il ricettario deve poter essere recuperato dopo
+modifiche errate o eventi imprevisti. Il design deve coprire ricette, ingredienti,
+traduzioni, fonti, riferimenti ai libri e bozze, mantenendo coerenti i collegamenti con
+i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di backup.
+
+**Recupero su due livelli:** la divisione dei permessi è confermata. Il funzionamento
+dettagliato seguente è la proposta da precisare nel design:
+
+- **Singola ricetta:** mantenere versioni con autore e data, confrontarle e ripristinare
+  quella scelta come nuova revisione. L'operazione non elimina le revisioni successive
+  dallo storico e non modifica le altre ricette. Accessibile ai curatori.
+- **Intero catalogo:** copie di backup recuperabili con procedura di ripristino,
+  anteprima dell'impatto e verifica della coerenza. Il ripristino complessivo è riservato
+  agli amministratori dell'app, perché può annullare modifiche di più
+  curatori. Il recupero del catalogo non deve riavvolgere menu, voti, utenti o permessi
+  delle famiglie e non concede accesso ai loro contenuti.
+
+Storico delle revisioni e backup hanno scopi distinti: il primo permette di correggere
+un contributo, il secondo deve coprire anche la perdita o il danneggiamento dei dati.
+Frequenza e conservazione delle copie, perdita massima di lavoro accettabile, tempi di
+recupero e modalità operative si definiscono prima dell'uso del catalogo in produzione.
+La procedura dovrà essere provata con un ripristino in un ambiente di verifica.
+
+Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
+stessi permessi e controlli. Il design distinguerà queste azioni dai compiti operativi
+di backup dell'infrastruttura.
 
 **YAML per importazione ed esportazione:** formato di scambio con chiavi tecniche in
 inglese, da precisare nel piano. Un export rappresenta il catalogo a una certa data;
@@ -728,9 +800,17 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   membro non amministratore non gestisce inviti e impostazioni della famiglia. I test
   dei privilegi globali seguiranno la matrice dei permessi concordata.
 - **Ricettario**: validazione con casi validi, mancanti e incoerenti; mancata scrittura
-  di schede incomplete anche se l'agente prova a salvarle; atomicità del salvataggio;
+  di schede incomplete nel catalogo pubblicato anche se l'agente prova a pubblicarle;
+  salvataggio e ripresa delle bozze da MCP e consultazione dal web, senza renderle
+  disponibili nei menu o nella spesa; modifica di ricette di altri curatori, con
+  controllo dei conflitti; atomicità della pubblicazione;
   import con i casi presi dal ricettario attuale e nessuna sovrascrittura dei contributi
   già presenti. Cambi di codice ed esportazioni non devono sostituire il catalogo.
+- **Recupero del catalogo**: ripristino di una singola ricetta e di un backup completo
+  rispettivamente da curatori e amministratori dell'app, con rifiuto delle operazioni
+  non autorizzate; coerenza fra ricette, ingredienti, traduzioni e bozze;
+  conservazione dei riferimenti dai pasti e assenza di modifiche a dati e ruoli familiari.
+  Il collaudo comprende l'effettivo recupero da una copia di backup, non solo la sua creazione.
 - **Lingue**: copertura di italiano e inglese britannico, identità stabili del catalogo,
   formattazione e gestione delle traduzioni mancanti secondo la politica concordata.
 - **MCP**: parità di operazioni, permessi, validazione, attribuzione, conflitti e limiti
@@ -825,8 +905,8 @@ verificati con la documentazione aggiornata prima dell'implementazione.
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
 | Spesa | Selezionare pasti, generare e rivedere la lista temporanea, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; preferenze personali e operazioni sull'account |
-| Curatela | Conoscere i requisiti, validare le informazioni raccolte e salvare una ricetta completa con il ruolo di curatore |
-| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e cancellazione utenti con il ruolo di amministratore dell'app |
+| Curatela | Conoscere i requisiti, salvare e riprendere bozze, validare e pubblicare ricette complete, modificare ricette di qualunque autore e ripristinare una versione precedente di una singola ricetta |
+| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti, cancellazione utenti e ripristino dell'intero catalogo da backup con il ruolo di amministratore dell'app |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
 sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
@@ -865,7 +945,10 @@ non è ancora stato creato; la directory proposta è `prototype/`.
 - famiglia, membri e inviti, preferenze personali e della famiglia;
 - cambio lingua e sistema di misura osservabile nei dati mostrati;
 - pagina di collegamento MCP e rappresentazione del percorso guidato del curatore;
-- pagina di amministrazione dell'app, con elenco utenti, ruoli, inviti e cancellazione;
+- sezione bozze nell'app, ripresa del lavoro e pubblicazione; modifica di una ricetta
+  di un altro curatore e rappresentazione del recupero da errore;
+- pagina di amministrazione dell'app, con elenco utenti, ruoli, inviti, cancellazione
+  e percorso di ripristino dell'intero catalogo;
 - stati significativi: dati mancanti, nessun risultato, permessi insufficienti e conflitti.
 
 Proposta: simulare le integrazioni per rivedere l'esperienza prima di collegare servizi
@@ -889,7 +972,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
 | Cancellazione | Conferme, ultimo amministratore dell'app o di una famiglia, destino dei dati condivisi e delle attribuzioni, revoca degli accessi MCP | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Campi obbligatori per ogni fonte, ingredienti mancanti nelle ricette pregresse, traduzioni necessarie e momento della conferma del curatore | Sezioni 8 e 12 |
-| Ciclo di curatela | Persistenza di bozze separate dal catalogo, modifica e archiviazione delle ricette, storico e gestione di contributi simultanei | Sezione 8 |
+| Ciclo di curatela | Visibilità e collaborazione fra curatori sulle bozze, azioni web sulle bozze, revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei | Sezione 8 |
+| Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
 | Lingue | Traduzioni mancanti, revisione, testi liberi, impostazione iniziale della lingua e ricerca multilingue | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
 | MCP | Client iniziali, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
@@ -902,3 +986,4 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|
 | 29 settembre 2026 | Approvata la base funzionale e tecnica dell'app, con pianificatore a regole e rilascio per fasi |
 | 3 ottobre 2026 | Aggiunti unità metriche/imperiali britanniche, lingua personale italiano/inglese britannico, parità MCP, ruolo di curatore e inserimento guidato, catalogo autorevole nel database, guida MCP, amministrazione globale degli utenti e codice in inglese. Confermati ruoli globali cumulabili senza accesso automatico ai contenuti familiari. Stabiliti prototipo prima dell'implementazione e questo documento come riferimento unico aggiornato a ogni nuova scelta |
+| 3 ottobre 2026, prosecuzione | Confermate bozze persistenti visibili in una sezione dell'app, possibilità per ogni curatore di modificare l'intero ricettario e necessità di backup e ripristino. La completezza è richiesta per pubblicare nel catalogo, mentre le bozze possono essere incomplete. Il ripristino della singola ricetta spetta ai curatori, quello dell'intero catalogo agli amministratori dell'app |
