@@ -1198,6 +1198,10 @@ La review non ha dimostrato incompatibilità che impongano di cambiare stack o r
 a MCP. Il prototipo può servire proprio a confrontare le alternative ancora aperte;
 non deve presentare come definitivi comportamenti che non sono stati concordati.
 
+**Ripresa concordata con l'utente:** al termine della review del 3 ottobre è confermato
+che il prossimo passo sarà iniziare dal prototipo. I casi emersi dalla review guideranno
+la sua progettazione e le decisioni ancora aperte, prima dei nuovi piani del prodotto.
+
 I rilievi seguenti sono **aperti**. Le raccomandazioni sono proposte di revisione e non
 sostituiscono i requisiti confermati finché non viene concordata e integrata la soluzione.
 
