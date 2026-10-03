@@ -35,7 +35,10 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
   e pubblicazione della ricetta solo quando le informazioni richieste sono complete;
 - bozze persistenti, riprendibili e visibili anche in una sezione dell'app, separate
-  dal catalogo pubblicato;
+  dal catalogo pubblicato, condivise e modificabili da tutti i curatori;
+- percorso manuale web per creare, modificare, verificare e pubblicare ricette,
+  comprese quelle in bozza, senza funzionalità AI. Priorità bassa: da implementare
+  dopo le altre funzionalità; eventuale caricamento da file da definire;
 - ogni curatore può modificare l'intero ricettario, comprese le ricette degli altri
   curatori; occorre gestire backup e ripristino per recuperare errori imprevisti;
 - ripristino di una singola ricetta accessibile ai curatori; ripristino dell'intero
@@ -188,8 +191,15 @@ sono presenti e validi. Gli ingredienti non vengono mai dedotti dal nome del pia
 
 Il lavoro incompleto può essere **salvato come bozza** e ripreso in seguito. Le bozze
 sono visibili anche in una sezione dell'app dedicata alla curatela e non vengono proposte
-nei menu né usate per la spesa finché non sono pubblicate. La visibilità delle bozze
-fra curatori diversi è ancora da concordare.
+nei menu né usate per la spesa finché non sono pubblicate. Sono condivise e modificabili
+da tutti i curatori, mostrando autore e ultima modifica.
+
+È previsto anche un **percorso manuale nell'app**, da realizzare per ultimo: un curatore
+può compilare una ricetta, salvare o modificare una bozza, far verificare i dati,
+correggere i problemi segnalati e pubblicare quando tutti i requisiti sono soddisfatti.
+Questo percorso non usa AI: il sistema controlla i dati inseriti. È da valutare anche
+un caricamento da file. La consultazione delle bozze nell'app resta prevista già nel
+percorso iniziale di curatela MCP.
 
 Ogni curatore può modificare **tutto il ricettario**, anche le ricette inserite da altri.
 Il sistema deve consentire il recupero dagli errori tramite backup e ripristino; il
@@ -312,7 +322,7 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
 | `recipe_ingredients` | `recipe_id`, `ingredient_id`, `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni |
 | `books` | `id`, `title`: titolo bibliografico originale |
-| `recipe_drafts` | Proposta: `id`, `created_by`, `updated_by`, `updated_at`, dati parziali e riferimento opzionale alla ricetta pubblicata da modificare. Bozze persistenti separate dal catalogo; permessi fra curatori da concordare |
+| `recipe_drafts` | Proposta: `id`, `created_by`, `updated_by`, `updated_at`, dati parziali e riferimento opzionale alla ricetta pubblicata da modificare. Bozze persistenti separate dal catalogo, condivise e modificabili da tutti i curatori |
 | `recipe_revisions` | Proposta: `recipe_id`, `version`, contenuto completo della versione, autore, data e canale; base per confrontare e ripristinare una ricetta senza perdere lo storico |
 | Backup del catalogo | Copie recuperabili del ricettario e delle sue dipendenze; frequenza, conservazione, collocazione e procedura da definire nel design operativo |
 
@@ -381,9 +391,10 @@ nel percorso di primo accesso.
 **Ruoli globali:**
 
 - `recipe_curator`: salva e riprende bozze, pubblica ricette complete e modifica l'intero
-  ricettario, anche le ricette inserite da altri. Le bozze hanno una sezione nell'app;
-  il percorso guidato resta disponibile tramite MCP. Può ripristinare una versione
-  precedente di una singola ricetta;
+  ricettario, anche le ricette e le bozze inserite da altri. Le bozze hanno una sezione
+  nell'app; il percorso guidato è disponibile tramite MCP e il percorso manuale web
+  viene realizzato nell'ultima fase. Può ripristinare una versione precedente di una
+  singola ricetta;
 - `app_admin`: gestisce utenti, ruoli e inviti dell'app, inclusa la nomina di altri
   amministratori e la cancellazione degli utenti; può ripristinare l'intero catalogo
   da backup. Inizialmente assegnato a Federico.
@@ -701,15 +712,45 @@ della loro assenza da un file YAML.
 
 **Bozze persistenti confermate:** una bozza ammette informazioni incomplete e sopravvive
 alla conversazione con l'agente. È consultabile nella sezione di curatela dell'app e
-recuperabile tramite MCP. Salvare una bozza non pubblica una ricetta: la completezza
-resta vincolante per l'ingresso nel catalogo utilizzato dalle famiglie.
+recuperabile tramite MCP. Tutti i curatori possono consultare e modificare le bozze
+degli altri; autore e ultima modifica sono visibili. Salvare una bozza non pubblica
+una ricetta: la completezza resta vincolante per l'ingresso nel catalogo utilizzato
+dalle famiglie.
 
 Il salvataggio di una bozza applica controlli sui dati forniti senza richiedere i campi
 ancora mancanti. La pubblicazione applica invece l'intera validazione. Campi obbligatori
 per tipo di fonte, traduzioni richieste e trattamento delle ricette pregresse incomplete
-vanno esplicitati prima dell'implementazione (sezione 15). Sono ancora da concordare la
-visibilità delle bozze fra curatori, la collaborazione sulla stessa bozza e le azioni
-di modifica previste direttamente nella sezione web, oltre alla consultazione richiesta.
+vanno esplicitati prima dell'implementazione (sezione 15). La collaborazione fra
+curatori deve gestire i conflitti senza sovrascrivere silenziosamente le modifiche
+altrui; il meccanismo sarà precisato nel design.
+
+**Percorso manuale web confermato, a bassa priorità:**
+
+1. Il curatore crea una ricetta da un modulo oppure apre una bozza esistente, anche
+   iniziata tramite MCP o da un altro curatore.
+2. Inserisce o modifica i dati e può salvare la bozza incompleta.
+3. Richiede la verifica: il servizio controlla dati, completezza e coerenza e mostra
+   campi mancanti ed errori, usando gli stessi validatori del percorso MCP.
+4. Corregge i dati e può ripetere la verifica. Una modifica rende non più valido il
+   precedente esito di verifica per la pubblicazione.
+5. Pubblica la ricetta completa; il server riesegue sempre i controlli sull'ultima
+   versione e verifica i permessi, indipendentemente da precedenti verifiche positive.
+
+Non sono usate funzionalità AI nel percorso manuale: niente compilazione, classificazione
+o traduzione automatica tramite modelli. I dati e le traduzioni richiesti sono inseriti
+dal curatore. La verifica automatica applica regole deterministiche e non certifica
+da sola che ingredienti e quantità siano stati trascritti correttamente dalla fonte.
+
+**Caricamento da file, opzione da definire:** se incluso, deve leggere uno dei formati
+concordati senza AI e portare i dati in una bozza verificabile e modificabile, applicando
+gli stessi controlli del modulo. Formati, numero di ricette per file, errori di lettura
+e duplicati saranno definiti nel design di questa funzione. L'upload non pubblica
+direttamente nel catalogo e non sostituisce la verifica dei dati.
+
+Il percorso manuale, inclusa la modifica web delle bozze e l'eventuale upload, viene
+implementato dopo le altre funzionalità (M6). La sezione web per consultare le bozze e
+il lavoro guidato tramite MCP restano parte della curatela iniziale. Una stessa bozza
+deve poter passare da MCP al modulo manuale e viceversa, senza creare copie distinte.
 
 **Ingredienti e fonti:** solo dati verificati sulla fonte o forniti dal curatore,
 trascritti per `base_servings`, mai dedotti dal nome del piatto. Un validatore strutturale
@@ -720,7 +761,7 @@ canonica, anche se i nomi sono in lingue diverse.
 **Validazione condivisa:** schema, identificatori unici, riferimenti a ingredienti e
 libri esistenti, quantità e unità ammesse, porzioni di riferimento, attributi del
 pianificatore e dati della fonte coerenti con il tipo. La stessa logica serve l'aggiunta
-MCP, le eventuali operazioni web del curatore e l'importazione. I test di questa logica
+MCP, le operazioni manuali web del curatore e l'importazione. I test di questa logica
 sono eseguiti in CI; la CI non sostituisce la validazione di ogni scrittura sul server.
 
 **Modifica dell'intero ricettario confermata:** ogni curatore può modificare le ricette
@@ -806,6 +847,11 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   controllo dei conflitti; atomicità della pubblicazione;
   import con i casi presi dal ricettario attuale e nessuna sovrascrittura dei contributi
   già presenti. Cambi di codice ed esportazioni non devono sostituire il catalogo.
+- **Curatela manuale (M6)**: creazione, modifica di bozze anche altrui, verifica ripetuta
+  dopo una correzione e pubblicazione con gli stessi vincoli di MCP; nessuna chiamata a
+  servizi AI; ripresa della stessa bozza fra web e MCP e gestione dei conflitti. Se
+  previsto l'upload, file non validi e duplicati non devono provocare pubblicazioni
+  parziali o sovrascritture implicite.
 - **Recupero del catalogo**: ripristino di una singola ricetta e di un backup completo
   rispettivamente da curatori e amministratori dell'app, con rifiuto delle operazioni
   non autorizzate; coerenza fra ricette, ingredienti, traduzioni e bozze;
@@ -844,10 +890,13 @@ il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
 | **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì, generazione su richiesta anche via MCP. Poi, come esperimento separato, giudice AI opzionale | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
 | **M4 Lista della spesa** | Selezione, consolidamento, conversioni, PDF, condivisione, Bring!, esportazioni MCP | Si prepara la spesa nella lingua personale e nelle unità della famiglia |
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
+| **M6 Curatela manuale — ultima priorità** | Modulo web senza AI per creare, modificare, verificare e pubblicare ricette, modifica e nuova verifica delle bozze condivise; eventuale upload da file da definire | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
 
 Lingue, unità e parità web/MCP sono requisiti trasversali: ogni funzione introdotta li
 rispetta dalla sua prima versione. La collocazione delle attività nella roadmap non
 rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
+La priorità finale di M6 riguarda il modulo manuale e l'eventuale upload, non la
+consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
 
 ### 11. Convivenza con il progetto di origine
 
@@ -947,6 +996,9 @@ non è ancora stato creato; la directory proposta è `prototype/`.
 - pagina di collegamento MCP e rappresentazione del percorso guidato del curatore;
 - sezione bozze nell'app, ripresa del lavoro e pubblicazione; modifica di una ricetta
   di un altro curatore e rappresentazione del recupero da errore;
+- rappresentazione del futuro percorso manuale senza AI, con modifica, verifica e
+  correzione di una bozza condivisa; la sua presenza nel prototipo non anticipa la
+  priorità di implementazione M6;
 - pagina di amministrazione dell'app, con elenco utenti, ruoli, inviti, cancellazione
   e percorso di ripristino dell'intero catalogo;
 - stati significativi: dati mancanti, nessun risultato, permessi insufficienti e conflitti.
@@ -972,7 +1024,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
 | Cancellazione | Conferme, ultimo amministratore dell'app o di una famiglia, destino dei dati condivisi e delle attribuzioni, revoca degli accessi MCP | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Campi obbligatori per ogni fonte, ingredienti mancanti nelle ricette pregresse, traduzioni necessarie e momento della conferma del curatore | Sezioni 8 e 12 |
-| Ciclo di curatela | Visibilità e collaborazione fra curatori sulle bozze, azioni web sulle bozze, revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei | Sezione 8 |
+| Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; condivisione delle bozze e percorso manuale web già confermati | Sezione 8 |
+| Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
 | Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
 | Lingue | Traduzioni mancanti, revisione, testi liberi, impostazione iniziale della lingua e ricerca multilingue | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
@@ -987,3 +1040,4 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 29 settembre 2026 | Approvata la base funzionale e tecnica dell'app, con pianificatore a regole e rilascio per fasi |
 | 3 ottobre 2026 | Aggiunti unità metriche/imperiali britanniche, lingua personale italiano/inglese britannico, parità MCP, ruolo di curatore e inserimento guidato, catalogo autorevole nel database, guida MCP, amministrazione globale degli utenti e codice in inglese. Confermati ruoli globali cumulabili senza accesso automatico ai contenuti familiari. Stabiliti prototipo prima dell'implementazione e questo documento come riferimento unico aggiornato a ogni nuova scelta |
 | 3 ottobre 2026, prosecuzione | Confermate bozze persistenti visibili in una sezione dell'app, possibilità per ogni curatore di modificare l'intero ricettario e necessità di backup e ripristino. La completezza è richiesta per pubblicare nel catalogo, mentre le bozze possono essere incomplete. Il ripristino della singola ricetta spetta ai curatori, quello dell'intero catalogo agli amministratori dell'app |
+| 3 ottobre 2026, curatela manuale | Confermate bozze condivise e modificabili da tutti i curatori. Aggiunto il percorso manuale web senza AI per creare, modificare, verificare nuovamente e pubblicare ricette; ultima priorità di implementazione (M6). Upload da file registrato come opzione da definire |
