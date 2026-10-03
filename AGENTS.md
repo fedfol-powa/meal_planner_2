@@ -37,6 +37,9 @@ lo estendono e lo rispettano; non devono diventare fonti parallele dei requisiti
 - **Prossimo artefatto: prototipo dell'app nel repository**, da concordare e rivedere
   con l'utente prima dell'implementazione del prodotto. La review deve rivalutare
   funzionalità e architettura e consolidarle nella specifica.
+- Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
+  prototipo esplorativo possibile; rilievi aperti da risolvere prima delle relative
+  fasi di implementazione. Le raccomandazioni del revisore non sono decisioni approvate.
 - Il piano **M1a Ricettario e catalogo**
   (`progetto/superpowers/plans/2026-09-29-m1a-ricettario-e-catalogo.md`) è superato nelle
   parti incompatibili con i nuovi requisiti e non va eseguito come scritto.

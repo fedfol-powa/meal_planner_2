@@ -5,6 +5,8 @@ Ultimo aggiornamento: 3 ottobre 2026
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre.
 Il prossimo artefatto è il prototipo, ancora da costruire e approvare; il design di
 dettaglio evolve insieme alla sua revisione.
+Review avversariale indipendente del 3 ottobre: adatto a un prototipo esplorativo,
+non ancora pronto per l'implementazione; rilievi e decisioni conseguenti nella sezione 17.
 Repository: `fedfol-powa/meal_planner_2` (privato)
 Progetto di origine: `fedfol-powa/meal_planner` (resta attivo, vedi "Convivenza")
 
@@ -1152,10 +1154,10 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
+| Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale; possibilità di rientro di un membro rimosso usando un invito ancora valido (review R2) | Sezione 7 |
 | Cancellazione | Forma della conferma e del passaggio da MCP al web, dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Campi specifici per ogni fonte e momento della conferma del curatore; ingredienti, quantità e unità applicabili, porzioni ed entrambe le lingue già obbligatori per pubblicare. Rappresentazione nello storico importato delle ricette ancora in bozza, senza esporre le bozze alle famiglie | Sezioni 8, 11 e 12 |
-| Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; condivisione delle bozze e percorso manuale web già confermati | Sezione 8 |
+| Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; versione della ricetta associata ai pasti già scelti (review R1). Condivisione delle bozze e percorso manuale web già confermati | Sezioni 2, 5 e 8 |
 | Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
 | Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
@@ -1163,6 +1165,9 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
 | Prototipo | Perimetro, fedeltà, flussi e dati dimostrativi, scelte di superficie e criteri di review | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
+| Calendario | Settimana iniziale di una famiglia nuova, istante in cui un pasto diventa passato; separazione fra generazione e chiusure scadute, recupero delle chiusure saltate (review R3) | Sezioni 2, 4 e 5 |
+| Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
+| Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
 ### 16. Registro delle revisioni
 
@@ -1177,3 +1182,96 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 3 ottobre 2026, client MCP | Scelti Codex CLI, Claude Code, ChatGPT e Claude Desktop come client obiettivo della prima versione, con guida dedicata e verifica tecnica per ciascuno |
 | 3 ottobre 2026, cancellazioni | Confermate le regole per cancellare utenti: protezione dell'ultimo amministratore dell'app, successore nelle famiglie con altri membri, eliminazione della famiglia dell'unico membro, conservazione delle ricette pubblicate e revoca degli accessi. Aggiunto al ruolo di amministratore della famiglia il diritto di eliminarla senza cancellare gli account dei membri |
 | 3 ottobre 2026, eccezione MCP | Eliminazione delle famiglie riservata all'app web: MCP restituisce un URL e l'utente completa l'operazione nella pagina dedicata. La restrizione copre anche la cancellazione di account che comporterebbe l'eliminazione di una famiglia |
+| 3 ottobre 2026, review avversariale | Riesame indipendente della revisione `e473472`: direzione di prodotto adatta al prototipo esplorativo, implementazione ancora subordinata alle decisioni e correzioni della sezione 17. Nessuna soluzione proposta dal revisore è automaticamente una decisione approvata |
+
+### 17. Review avversariale del 3 ottobre 2026
+
+**Perimetro:** revisore indipendente con contesto nuovo, senza la conversazione di
+progettazione; lettura integrale della specifica alla revisione
+`e47347200045f1a82ad5b296fad4b95ead45f6f9`, confronto con la base `0ff8a66`, AGENTS,
+README e dati pertinenti del progetto di origine. Il revisore ha lavorato in sola
+lettura. I rilievi sostanziali sono stati ricontrollati nel testo e negli esempi
+dell'origine prima di essere registrati qui.
+
+**Verdetto:** pronto per un **prototipo esplorativo**, non pronto per l'implementazione.
+La review non ha dimostrato incompatibilità che impongano di cambiare stack o rinunciare
+a MCP. Il prototipo può servire proprio a confrontare le alternative ancora aperte;
+non deve presentare come definitivi comportamenti che non sono stati concordati.
+
+I rilievi seguenti sono **aperti**. Le raccomandazioni sono proposte di revisione e non
+sostituiscono i requisiti confermati finché non viene concordata e integrata la soluzione.
+
+**R1 — Impatto alto: versioni delle ricette e significato del ripristino.**
+Sezioni 2, 5 e 8. Uno slot che conserva solo l'identità della ricetta potrebbe mostrare
+ingredienti e dosi nuovi dopo una modifica del curatore, anche quando la famiglia ha
+già fatto la spesa. Inoltre un backup precedente alla creazione di una ricetta non può
+sostituire semplicemente il catalogo se menu e voti ormai la referenziano. Ripristinare
+traduzioni o dati di ingredienti condivisi potrebbe cambiare altre ricette, mentre il
+recupero singolo promette di non farlo. È una decisione di prodotto ancora aperta,
+non un'impossibilità tecnica dimostrata. Occorre scegliere la versione usata dai pasti,
+il destino delle ricette successive al backup e l'ambito delle dipendenze ripristinate.
+**Quando:** rappresentare i casi in P0, chiudere la semantica prima dello schema M1.
+
+**R2 — Impatto alto sul controllo degli accessi: rientro dopo rimozione.**
+Sezione 7. Gli inviti familiari sono riutilizzabili per sette giorni: secondo il flusso
+descritto, un membro rimosso potrebbe riaprire un invito ancora valido e rientrare.
+L'esistenza di questo percorso deriva dalle regole scritte; l'aspettativa che la
+rimozione debba impedirlo è un'inferenza da confermare con l'utente. Va deciso se la
+rimozione richieda una nuova autorizzazione esplicita per tornare, anche in presenza di
+più inviti validi. **Quando:** scenario in P0 e regola chiusa prima di M1.
+
+**R3 — Impatto medio: generazione su richiesta e chiusura delle settimane.**
+Sezioni 2, 4 e 5. Il worker chiude la settimana precedente e la generazione su richiesta
+usa la stessa funzione: eseguire letteralmente questo flusso il lunedì può anticipare
+la chiusura rispetto al mercoledì previsto. Se tutte le esecuzioni di un mercoledì
+falliscono, manca inoltre una regola per chiudere le settimane scadute più vecchie e
+per rappresentarne lo stato. Raccomandazione: distinguere generazione richiesta e
+chiusura di tutte le settimane effettivamente scadute, con condizioni proprie. Sono
+da precisare anche il target della prima generazione e l'istante in cui un pasto passa.
+**Quando:** comportamento visibile in P0; orchestrazione e recupero prima di M3.
+
+**R4 — Impatto medio: mappature dell'import che i dati reali richiedono.**
+Sezioni 3, 8 e 11. Nell'origine `pasta-tonno` e `lenticchie-comidista` risultano
+`collaudata: true` senza apparizioni in `storico`; esistono inoltre ricette `casa` con
+URL, mentre il nuovo tipo `home` indica assenza di fonte esterna. Conservare soltanto
+voti, storico ed esclusioni perderebbe la familiarità iniziale; copiare il tipo senza
+analizzarne la provenienza potrebbe perdere collegamenti. Il report delle ambiguità
+deve coprire questi casi, senza inventare pasti passati o cambiare la fonte degli
+ingredienti. Non è un errore di un import già implementato: è un requisito da precisare
+nel contratto di import. **Quando:** prima dell'importazione M1; non blocca P0.
+
+**R5 — Impatto basso, solo per il giudice opzionale: pasti liberi deducibili.**
+Sezione 3. Trasmettere giorno e tipo di pasto di ogni ricetta permette di dedurre gli
+slot liberi mancanti in una settimana completa, mentre il testo promette di non inviare
+quali pasti sono liberi. Va chiarito se il divieto riguardi il testo libero oppure
+anche la posizione degli slot; nel secondo caso occorre adeguare il payload.
+**Quando:** prima dell'esperimento del giudice in M3; non blocca P0 o M1.
+
+**Verifiche tecniche da portare nei piani, senza nuove decisioni implicite:**
+
+- La revoca degli accessi richiesta dalla sezione 7 deve coprire anche token già
+  emessi, letture del catalogo e sessioni MCP. La documentazione Supabase consultata
+  dal revisore tramite Context7 precisa che eliminare un utente non invalida subito
+  tutti i suoi JWT: la cancellazione dell'account non basta da sola a realizzare il
+  requisito. [Gestione utenti Supabase](https://supabase.com/docs/guides/auth/managing-user-data).
+- Il recupero applicativo del catalogo deve essere distinto dal ripristino dell'intero
+  database, per rispettare l'indipendenza dei dati familiari richiesta in R1.
+  [Backup Supabase](https://supabase.com/docs/guides/platform/backups).
+- Prima di M3 serve una classificazione unica di vincoli rigidi, obiettivi e deroghe:
+  `weekly_max`, massimi degli intervalli e venerdì pesce devono avere esiti verificabili
+  quando non soddisfacibili. I limiti di runtime dichiarati non sostituiscono la misura
+  del carico reale del pianificatore.
+- Restano da verificare effettivamente i quattro client MCP, il contesto web richiesto
+  per eliminare famiglie, le esportazioni e i ritentativi. Il prototipo simulato non
+  dimostra questi comportamenti tecnici.
+
+**Aspetti risultati coerenti:** fonte unica dei requisiti; database autorevole;
+separazione fra bozze e pubblicato; nuova validazione al momento della pubblicazione;
+ruoli globali distinti da quelli familiari; eccezione MCP estesa alle cancellazioni
+indirette; conversioni senza arrotondamenti cumulativi né equivalenze massa/volume
+inventate; implementazione manuale differita deliberatamente a M6.
+
+**Limiti della review:** nessuna implementazione o integrazione reale eseguita; nessuna
+certificazione della compatibilità MCP o del deploy. Non sono stati rivalidati criteri
+nutrizionali o prezzi dei fornitori AI. Le decisioni già elencate come aperte nella
+sezione 15 non sono state automaticamente classificate come difetti.
