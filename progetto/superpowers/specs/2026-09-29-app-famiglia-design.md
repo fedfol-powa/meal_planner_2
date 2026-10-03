@@ -37,6 +37,8 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
   esplicite come "q.b.", senza usarle per sostituire dati mancanti;
 - tutte le operazioni dell'app disponibili anche tramite MCP; browser ammesso per
   collegare l'account e per eventuali nuove autenticazioni;
+- client MCP obiettivo della prima versione: Codex CLI, Claude Code, ChatGPT e Claude
+  Desktop, con istruzioni dedicate e compatibilità da verificare nel design tecnico;
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
   e pubblicazione della ricetta solo quando le informazioni richieste sono complete;
 - bozze persistenti, riprendibili e visibili anche in una sezione dell'app, separate
@@ -888,7 +890,10 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   essere salvata e ripresa con traduzioni ancora mancanti.
 - **MCP**: parità di operazioni, permessi, validazione, attribuzione, conflitti e limiti
   rispetto al web; isolamento fra utenti e famiglie; riconnessione e accessi revocati;
-  esportazioni effettivamente utilizzabili nei client supportati.
+  esportazioni effettivamente utilizzabili nei client supportati. Verifica del
+  collegamento e dei percorsi previsti su ciascuno dei quattro client obiettivo:
+  Codex CLI, Claude Code, ChatGPT e Claude Desktop, registrando versioni o modalità
+  provate ed eventuali limitazioni emerse.
 - **Amministrazione dell'app**: accesso alla pagina e agli strumenti MCP riservato al
   ruolo autorizzato; assegnazione e revoca di ruoli, nomina di altri amministratori,
   inviti e cancellazione di utenti secondo le regole concordate, compresi i casi
@@ -983,6 +988,14 @@ non accesso generico alle tabelle. È proposto un server remoto collegabile all'
 protocollo di autenticazione, trasporto, hosting e compatibilità dei client saranno
 verificati con la documentazione aggiornata prima dell'implementazione.
 
+**Client obiettivo confermati per la prima versione:** Codex CLI, Claude Code, ChatGPT
+e Claude Desktop. Questa scelta definisce il perimetro da supportare e documentare;
+non attesta una compatibilità già verificata. Il design tecnico deve verificare per
+ciascuno collegamento, autenticazione, operazioni di lettura e scrittura, rispetto dei
+ruoli e consegna delle esportazioni. Le differenze emerse devono essere riportate nella
+guida e risolte o concordate prima del rilascio, senza ridurre implicitamente il requisito
+di parità delle operazioni.
+
 | Ambito | Operazioni da coprire tramite MCP |
 |---|---|
 | Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare |
@@ -1006,15 +1019,17 @@ un modello o un fornitore AI al client MCP.
 **Pagina web di istruzioni:**
 
 - spiega cosa permette il collegamento e quali operazioni dipendono dal ruolo;
-- offre istruzioni per ciascun client supportato, con indirizzo MCP e comandi o
-  configurazioni copiabili quando il client usa questa modalità;
+- offre percorsi distinti per Codex CLI, Claude Code, ChatGPT e Claude Desktop, con
+  indirizzo MCP e comandi o configurazioni copiabili quando il client usa questa
+  modalità, oppure passaggi nell'interfaccia quando previsti;
 - spiega accesso e autorizzazione nel browser, ammessi dall'utente, ed eventuale
   riautenticazione;
 - include un esempio per verificare il collegamento e un esempio del flusso del curatore;
 - descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
 
-Client iniziali e comandi effettivi vanno verificati nel relativo design: la specifica
-non assume che tutti gli agenti abbiano lo stesso comando o le stesse capacità di
+I client iniziali sono scelti; comandi e modalità di collegamento effettivi vanno
+verificati nel relativo design. La specifica non assume che tutti gli agenti abbiano
+lo stesso comando o le stesse capacità di
 gestione di file. Il prototipo distinguerà gli esempi dalle istruzioni operative finali.
 
 ### 14. Prototipo e consolidamento del design
@@ -1066,7 +1081,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
-| MCP | Client iniziali, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
+| MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
 | Prototipo | Perimetro, fedeltà, flussi e dati dimostrativi, scelte di superficie e criteri di review | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
 
@@ -1080,3 +1095,4 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 3 ottobre 2026, curatela manuale | Confermate bozze condivise e modificabili da tutti i curatori. Aggiunto il percorso manuale web senza AI per creare, modificare, verificare nuovamente e pubblicare ricette; ultima priorità di implementazione (M6). Upload da file registrato come opzione da definire |
 | 3 ottobre 2026, traduzioni | Confermati italiano e inglese britannico entrambi obbligatori per pubblicare una ricetta; traduzioni mancanti mantengono la scheda in bozza, anche per l'importazione |
 | 3 ottobre 2026, ingredienti | Confermati elenco verificato degli ingredienti, quantità e unità quando applicabili e porzioni di riferimento come requisiti di pubblicazione anche per le ricette pregresse. Ammessi "q.b." espliciti; i dati mancanti mantengono la ricetta in bozza |
+| 3 ottobre 2026, client MCP | Scelti Codex CLI, Claude Code, ChatGPT e Claude Desktop come client obiettivo della prima versione, con guida dedicata e verifica tecnica per ciascuno |
