@@ -1,15 +1,50 @@
-# App Famiglia: design
+# App Famiglia: requisiti e design
 
-Data: 29 settembre 2026
-Stato: spec approvata dall'utente il 29 settembre 2026
+Creato: 29 settembre 2026
+Ultimo aggiornamento: 3 ottobre 2026
+Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre.
+Il prossimo artefatto è il prototipo, ancora da costruire e approvare; il design di
+dettaglio evolve insieme alla sua revisione.
 Repository: `fedfol-powa/meal_planner_2` (privato)
 Progetto di origine: `fedfol-powa/meal_planner` (resta attivo, vedi "Convivenza")
 
-Questa spec descrive **comportamenti e dati**, non superfici. Forma, posizione e tipo di
-elemento dell'interfaccia (barre, icone, pulsanti, schermate, gesti) si decidono in una fase
-dedicata di design delle superfici, prima di implementare le viste. Dove il testo cita
-un'interazione ("si vota", "si segnala"), definisce cosa deve essere possibile, non come
-appare.
+## Come usare e aggiornare questo documento
+
+Questo è il **documento unico di riferimento per i requisiti e il design completo**,
+versionato in Git. Ogni scelta concordata durante brainstorming, prototipazione, design
+di dettaglio o implementazione aggiorna le sezioni interessate di questo documento.
+Le decisioni superate si ritrovano nella cronologia Git, non in requisiti contraddittori
+lasciati attivi nel testo.
+
+`AGENTS.md` contiene il metodo di lavoro e rimanda qui per il prodotto. Piani, prototipo
+e documenti di approfondimento devono essere coerenti con questa specifica e non possono
+diventare fonti alternative delle decisioni. Ogni piano indica quali sezioni realizza;
+la revisione verifica sia il risultato sia l'allineamento della specifica.
+
+La Parte 1 descrive l'app per chi la usa; la Parte 2 descrive dati, comportamenti e
+architettura. Le scelte sulle superfici entreranno nello stesso documento dopo la review
+del prototipo, con riferimenti ai relativi file nel repository. Gli aspetti ancora da
+concordare sono elencati nella sezione 15 e non vanno trattati come decisioni approvate.
+
+**Decisioni confermate il 3 ottobre 2026:**
+
+- unità della famiglia: metrico oppure imperiale britannico, con conversioni;
+- lingua dell'utente: italiano oppure inglese britannico, dalla prima versione;
+- tutte le operazioni dell'app disponibili anche tramite MCP; browser ammesso per
+  collegare l'account e per eventuali nuove autenticazioni;
+- ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
+  e salvataggio della ricetta solo quando le informazioni richieste sono complete;
+- database come fonte di verità del ricettario; YAML per importazione ed esportazione;
+- pagina web di istruzioni MCP, con comandi o configurazioni copiabili;
+- amministratore dell'app, inizialmente Federico, con possibilità di aggiungerne altri
+  e pagina per gestire ruoli, inviti e cancellazione degli utenti;
+- ruoli globali di curatore e amministratore separati e cumulabili; l'amministratore
+  può assegnarli entrambi, senza ottenere accesso ai contenuti delle altre famiglie;
+- tutto il codice in inglese; conversazione e documentazione di progetto in italiano;
+- prima prototipo nel repository e review con l'utente, poi verifica e adeguamento delle
+  scelte funzionali e architetturali, quindi piani e implementazione dell'app.
+
+L'approvazione dei requisiti non equivale all'approvazione di un piano di implementazione.
 
 ---
 
@@ -35,8 +70,12 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   la Famiglia la amministra e invia agli altri un link d'invito (anche su WhatsApp). Una
   persona può far parte di più Famiglie, per esempio dei nonni o di genitori separati.
 - **Chiunque può iscriversi** e creare la propria Famiglia.
-- **Il curatore del ricettario** (Federico) aggiunge le ricette nuove, con l'aiuto dell'AI.
-  Le famiglie usano il ricettario ma non lo modificano.
+- **Il curatore del ricettario** è un ruolo assegnabile a un utente. Può collegare il
+  proprio agente tramite MCP e aggiungere ricette con un percorso guidato. Essere membro
+  o amministratore di una famiglia, da solo, non abilita questa funzione.
+- **L'amministratore dell'app** gestisce utenti, ruoli e inviti a livello dell'intera
+  applicazione. Inizialmente è Federico; il sistema deve permettere di aggiungerne altri.
+  È distinto dall'amministratore di una singola famiglia.
 
 ### Quando apri l'app
 
@@ -136,13 +175,52 @@ ingredienti verificati sulla fonte. Le ricette di un libro vengono proposte solo
 famiglie che dichiarano di avere quel libro. Non ci sono ricette private di una famiglia:
 un piatto o è nel ricettario, e lo vedono tutti, o non c'è.
 
+Il catalogo aggiornato vive nel database. Un curatore può chiedere al proprio agente di
+aggiungere una ricetta: l'agente raccoglie le informazioni e fa le domande necessarie.
+La ricetta entra nel catalogo solo quando il servizio verifica che tutti i dati richiesti
+sono presenti e validi. Gli ingredienti non vengono mai dedotti dal nome del piatto.
+
+### Lingua e unità di misura
+
+Ogni persona sceglie la propria lingua: **italiano o inglese britannico**. La scelta
+riguarda l'esperienza dell'app, comprese le informazioni del ricettario e della spesa;
+il trattamento dei testi liberi della famiglia è da concordare (sezione 12).
+
+Ogni famiglia sceglie il **sistema metrico o quello imperiale britannico**. Le quantità
+devono essere convertite di conseguenza nei pasti, nella spesa e nelle esportazioni.
+La lingua e le unità sono indipendenti: si può usare l'inglese con misure metriche.
+
+### Usare l'app attraverso il proprio agente
+
+Un utente può collegare un agente compatibile tramite MCP e usare tutte le operazioni
+dell'app attraverso di esso: consultazione, modifiche, voti, spesa, impostazioni e
+gestione della famiglia. Curatori e amministratori dell'app accedono anche alle
+operazioni previste per i loro ruoli. I permessi sono gli stessi dell'accesso web.
+
+Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
+deve poter avvenire tramite l'agente. Una pagina dell'app spiega il collegamento per i
+client supportati, con istruzioni e comandi o configurazioni da copiare.
+
+### Amministrare l'app
+
+Una pagina riservata agli amministratori dell'app permette di gestire **gli utenti e
+gli inviti di tutta l'applicazione**: invitare persone, cambiare ruoli e cancellare
+utenti. Deve comprendere l'assegnazione del ruolo di curatore e la possibilità di
+nominare altri amministratori dell'app. Le stesse operazioni sono disponibili via MCP.
+
+Gli inviti all'app e quelli a una famiglia hanno scopi distinti. Le regole precise di
+assegnazione dei ruoli, cancellazione e protezione dell'ultimo amministratore saranno
+verificate nel design di questo percorso e riportate qui (sezioni 7 e 15).
+
 ### Cosa l'app non fa (per ora)
 
-- Non inventa ricette e non usa l'AI per scegliere i piatti. L'AI, se attiva, fa solo da
-  giudice tra settimane già valide.
-- Non permette alle famiglie di aggiungere ricette.
-- Non tiene uno storico completo delle modifiche visibile nell'app (solo l'ultima).
-- Non manda notifiche.
+- Non inventa ingredienti o ricette. Nella generazione automatica del menu l'AI, se
+  attiva, fa solo da giudice tra settimane già valide. Questo vincolo non impedisce
+  all'agente dell'utente di aiutarlo nelle modifiche manuali o nella cura del ricettario.
+- Non permette di aggiungere ricette senza il ruolo di curatore.
+- Non espone uno storico completo delle modifiche ai pasti (si mostra solo l'ultima).
+- Non manda notifiche sui menu; restano i messaggi previsti per accesso, inviti e
+  segnalazione degli errori del job all'operatore del servizio.
 
 ---
 
@@ -150,26 +228,44 @@ un piatto o è nel ricettario, e lo vedono tutti, o non c'è.
 
 ### 1. Architettura
 
+Lo stack di riferimento resta SvelteKit, Netlify, Supabase e TypeScript. L'aumento delle
+operazioni server e l'introduzione di MCP vanno verificati dopo il prototipo, prima di
+confermare la distribuzione dei componenti e scrivere i nuovi piani.
+
+**Struttura logica proposta**, da precisare nei piani successivi al prototipo:
+
 ```
 meal_planner_2/
-├── ricettario/ricette.yaml       catalogo curato (git, pull request)
-├── ricettario/ingredienti.yaml   anagrafica ingredienti canonici
-├── pianificatore/                modulo TypeScript puro: regole, punteggio, scalatura, lista
+├── prototype/                    prototipo da costruire, conservato nel repository
+├── planner/                      modulo TypeScript puro: regole, punteggio, scalatura, lista
+├── application/                  operazioni condivise da app web e MCP
+├── catalog/                      schema, validazione e gestione del ricettario
+├── mcp/                          accesso MCP alle operazioni applicative
 ├── app/                          SvelteKit, mobile-first, installabile (PWA)
 ├── supabase/migrations/          schema SQL e policy RLS
 ├── supabase/functions/           Edge Function del job settimanale
-├── scripts/                      validazione e sync del ricettario, import iniziale
+├── scripts/                      importazione, esportazione e verifiche
 └── progetto/                     spec, piani, regole di progetto
 ```
 
-- **Hosting app: Netlify** (adapter SvelteKit ufficiale). Serve l'app e poche funzioni
-  server: generazione della lista, pagina temporanea per Bring!.
+- **Hosting app: Netlify** (adapter SvelteKit ufficiale), come scelta di riferimento.
+  Il backend deve coprire anche catalogo, operazioni condivise, amministrazione e accesso
+  MCP. Trasporto e collocazione del server MCP si decidono dopo la verifica architetturale.
 - **Supabase**: Postgres, Auth, RLS, `pg_cron`, Edge Functions. Il repository è già
   collegato all'organizzazione Supabase tramite l'integrazione GitHub: nel M1 si verifica
   come applica le migrazioni (branch di produzione, cartella) e ci si allinea.
-- **Il modulo `pianificatore/`** è TypeScript senza dipendenze di runtime, così lo importano
+- **Il modulo `planner/`** è TypeScript senza dipendenze di runtime, così lo importano
   sia l'Edge Function (Deno) sia l'app (Node): una sola implementazione per bozza,
   suggerimenti, avvisi, scalatura e lista.
+- **Il database è la fonte di verità del catalogo.** Le scritture avvengono attraverso
+  operazioni autorizzate e validate sul server. Importazioni ed esportazioni YAML non
+  costituiscono una seconda copia modificabile da sincronizzare automaticamente.
+- **App e MCP condividono le operazioni di dominio.** Permessi, validazione, limiti,
+  conflitti e attribuzione delle modifiche devono avere lo stesso comportamento.
+- **Lingua del codice:** identificatori, nomi tecnici di file e directory, tabelle,
+  colonne, enum, API, strumenti MCP, commenti e test in inglese. Le etichette visibili
+  sono localizzate; il nome visualizzato di una ricetta o di un ingrediente non è un
+  identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani.
 - **Motivazioni delle scelte** (decise in conversazione il 28-29 settembre 2026):
   - Supabase invece di Django o Firebase: login, inviti e isolamento tra famiglie garantito
     dal database (RLS); il modello è relazionale.
@@ -181,63 +277,100 @@ meal_planner_2/
 
 ### 2. Modello dei dati
 
-**Catalogo** (lettura per gli utenti autenticati, scrittura solo dalla sync):
+Il modello seguente conserva i concetti approvati e usa nomi tecnici inglesi. I nuovi
+dettagli di schema sono una proposta da verificare dopo il prototipo; il piano M1a
+precedente non è una migrazione pronta da applicare.
+
+**Catalogo** (lettura per gli utenti autenticati; aggiunta tramite operazioni autorizzate
+ai curatori e validate sul server):
 
 | Tabella | Campi principali |
 |---|---|
-| `ricette` | slug, nome, descrizione, tipo (`web`/`youtube`/`libro`/`casa`), url, libro (id, pagine), tempo_min, porzioni_base, proteina, carboidrato, verdure (bool), categoria, pasto (`pranzo`/`cena`/`entrambi`), stagioni, pesante (bool), tag, archiviata. Tutte le ricette sono globali: non esistono ricette private di una famiglia. `casa` indica una ricetta senza fonte esterna, visibile a tutti come le altre |
-| `ingredienti` | slug, nome, reparto, dispensa (bool), sinonimi |
-| `ricetta_ingredienti` | ricetta, ingrediente, quantita (numero o null), unita, testo originale, opzionale, principale (bool) |
-| `libri` | id, titolo |
+| `recipes` | `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `archived_at`, `created_by`, `updated_by`, `updated_at`. Tutte le ricette sono globali. `home` indica una ricetta senza fonte esterna |
+| `recipe_translations` | `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
+| `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua |
+| `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
+| `recipe_ingredients` | `recipe_id`, `ingredient_id`, `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni |
+| `books` | `id`, `title`: titolo bibliografico originale |
+
+**Utenti, ruoli globali e amministrazione:**
+
+| Tabella o concetto | Campi principali / responsabilità |
+|---|---|
+| `profiles` | `user_id`, `display_name`, `locale` (`it-IT`/`en-GB`) |
+| `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`) |
+| `app_invitations` | Inviti gestiti dall'amministrazione dell'app: destinatario, autore, stato e regole di accettazione da definire; distinti dagli inviti a una famiglia |
+| Tracciamento del catalogo e dell'amministrazione | Proposta: autore, data, operazione e canale (`web`/`mcp`/`import`), con regole di conservazione da definire |
 
 **Per famiglia** (RLS: si vede e si scrive solo nella propria famiglia):
 
 | Tabella | Campi principali |
 |---|---|
-| `famiglie` | nome, impostazioni (vedi sotto), creata_il |
-| `membri` | famiglia, utente, ruolo (`admin`/`membro`), entrato_il |
-| `inviti` | token casuale, famiglia, creato_da, scade_il (7 giorni), revocato |
-| `famiglia_libri` | famiglia, libro: i libri posseduti |
-| `esclusioni` | famiglia, ricetta, motivo, creata_da, creata_il: "non proporre più" |
-| `ingredienti_famiglia` | famiglia, ingrediente, livello (`evita`/`limita`), max_settimana |
-| `settimane` | famiglia, inizio (lunedì), generata_il, chiusa_il. Unica per (famiglia, inizio) |
-| `slot` | settimana, giorno, pasto, ricetta o testo libero, porzioni, nota, cucinata (`true`/`false`/null), modificato_da (null = app), modificato_il |
-| `modifiche_slot` | slot, autore, prima (jsonb), dopo (jsonb), il: registro append-only |
-| `voti` | utente, ricetta, stelle (1-5), il. Unico per (utente, ricetta) |
-| `job_settimanali` | famiglia, settimana_target, stato, tentativi, errore, aggiornato_il |
-| `liste_temporanee` | token casuale, voci (jsonb), scade_il (30 minuti) |
+| `families` | `name`, `settings` (vedi sotto), `created_at` |
+| `family_members` | `family_id`, `user_id`, `role` (`family_admin`/`member`), `joined_at` |
+| `family_invitations` | `token`, `family_id`, `created_by`, `expires_at` (7 giorni), `revoked_at` |
+| `family_books` | `family_id`, `book_id`: libri posseduti |
+| `recipe_exclusions` | `family_id`, `recipe_id`, `reason`, `created_by`, `created_at`: "non proporre più" |
+| `family_ingredients` | `family_id`, `ingredient_id`, `restriction` (`avoid`/`limit`), `weekly_max` |
+| `weeks` | `family_id`, `starts_on` (lunedì), `generated_at`, `closed_at`. Unica per (`family_id`, `starts_on`) |
+| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `cooked` (`true`/`false`/null), `updated_by` (null = app), `updated_at` |
+| `meal_changes` | `meal_slot_id`, `actor_id`, `before` (jsonb), `after` (jsonb), `created_at`: registro append-only |
+| `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
+| `weekly_jobs` | `family_id`, `target_week`, `status`, `attempts`, `error`, `updated_at` |
+| `temporary_lists` | `token`, `items` (jsonb), `expires_at` (30 minuti), per l'esportazione Bring! |
 
 **Viste:**
 
-- `punteggio_famiglia`: media delle stelle dei membri attuali per ricetta;
-- `punteggio_globale`: media anonima su tutte le famiglie, usata solo per l'avvio a freddo.
+- `family_scores`: media delle stelle dei membri attuali per ricetta;
+- `global_scores`: media anonima su tutte le famiglie, usata solo per l'avvio a freddo.
 
-**Stato della settimana**, derivato dalle date più `chiusa_il`:
+**Stato della settimana**, derivato dalle date più `closed_at`:
 
-- `bozza` prima del lunedì;
-- `in_corso` dal lunedì alla domenica;
-- `da_chiudere` dal lunedì al mercoledì successivi;
-- `chiusa` dopo `chiusa_il`.
+- `draft` prima del lunedì;
+- `in_progress` dal lunedì alla domenica;
+- `pending_close` dal lunedì al mercoledì successivi;
+- `closed` dopo `closed_at`.
 
-Alla chiusura gli slot con `cucinata = null` diventano `true`.
+Alla chiusura gli slot con `cooked = null` diventano `true`.
 
-**Impostazioni della famiglia** (`famiglie.impostazioni`, jsonb validato):
+**Impostazioni della famiglia** (`families.settings`, jsonb validato):
 
 - matrice commensali per giorno e pasto, con porzioni di default;
-- slot fissi (`libero` con testo, per esempio sabato cena e domenica pranzo);
+- slot fissi (`free` con testo, per esempio sabato cena e domenica pranzo);
 - limiti di tempo per slot (per esempio lunedì e mercoledì cena al massimo 15 minuti);
 - regole di pasto: pasta solo a pranzo; pesce almeno una volta il venerdì; niente pesce
   fresco il lunedì;
 - quota note/nuove (default 7/5 ± 1 su 12 pasti);
 - intervalli settimanali per gruppo alimentare (sezione 3);
-- pesi del punteggio.
+- pesi del punteggio;
+- sistema di misura (`measurement_system`): `metric` oppure `uk_imperial`.
 
-**Ruoli:**
+**Preferenze personali** (`profiles`): lingua `it-IT` oppure `en-GB`, indipendente dalla
+famiglia e dal suo sistema di misura. Rilevamento iniziale e valori predefiniti da definire
+nel percorso di primo accesso.
 
-- `membro`: legge la famiglia, modifica gli slot, vota, gestisce le esclusioni;
-- `admin`: in più gestisce inviti, membri e impostazioni. L'ultimo admin non può uscire
-  senza nominarne un altro;
-- nessun utente scrive nel catalogo.
+**Ruoli nella famiglia:**
+
+- `member`: legge la propria famiglia, modifica gli slot, vota, gestisce le esclusioni;
+- `family_admin`: in più gestisce inviti, membri e impostazioni di quella famiglia.
+  L'ultimo amministratore della famiglia non può uscire senza nominarne un altro.
+
+**Ruoli globali:**
+
+- `recipe_curator`: aggiunge ricette complete al catalogo tramite il percorso guidato MCP;
+- `app_admin`: gestisce utenti, ruoli e inviti dell'app, inclusa la nomina di altri
+  amministratori e la cancellazione degli utenti; inizialmente assegnato a Federico.
+
+**Separazione confermata:** il ruolo di amministratore di famiglia non concede ruoli
+globali. `recipe_curator` e `app_admin` sono indipendenti e cumulabili; un amministratore
+dell'app può assegnare entrambi. Essere `app_admin` non concede automaticamente i permessi
+del curatore né accesso a menu, note e contenuti delle altre famiglie. Per operare sui
+contenuti di una famiglia occorre esserne membro, con i relativi permessi. La gestione
+globale degli account e degli inviti deve rispettare questo confine.
+
+In qualunque canale le operazioni verificano i permessi sul server, non soltanto la
+visibilità dei comandi nell'interfaccia. I controlli di accesso ai dati familiari devono
+valere anche per le operazioni eseguite da amministratori dell'app.
 
 ### 3. Pianificatore
 
@@ -255,7 +388,7 @@ Alla chiusura gli slot con `cucinata = null` diventano `true`.
 
 - limiti dello slot: tempo, pasto adatto, niente pesce fresco il lunedì, niente pasta a cena;
 - esclusioni, ricette archiviate, libri non posseduti;
-- ingrediente `evita` come ingrediente non opzionale;
+- ingrediente con restrizione `avoid` come ingrediente non opzionale;
 - stessa ricetta usata nelle ultime 2 settimane;
 - punteggio famiglia ≤ 2 stelle, salvo mancanza di alternative.
 
@@ -270,7 +403,7 @@ Alla chiusura gli slot con `cucinata = null` diventano `true`.
   distanza in pasti. La finestra è mobile e attraversa le settimane;
 - **quota note/nuove**: "nota" vuol dire cucinata da questa famiglia almeno una volta. La
   quota si applica da quando la famiglia ha almeno 10 ricette cucinate;
-- **ingredienti `limita`**: penalità, e al massimo `max_settimana` volte.
+- **ingredienti con restrizione `limit`**: penalità, e al massimo `weekly_max` volte.
 
 **Intervalli di default per gruppo alimentare** sui pasti pianificati della settimana.
 Sono derivati dalle frequenze CREA 2018 per l'adulto, pensate per 14 pasti, e adattati ai
@@ -330,7 +463,7 @@ requisito.
 - **Ricaduta.** Se il giudice è spento, non risponde entro il timeout (per esempio 10
   secondi), fallisce o restituisce qualcosa di non valido, si tiene la candidata con il
   punteggio a regole più alto. La bozza non dipende mai dal giudice.
-- **Fornitore intercambiabile.** Un'interfaccia `Giudice` (candidate → punteggi) con
+- **Fornitore intercambiabile.** Un'interfaccia `Judge` (candidate → punteggi) con
   un'implementazione per fornitore, scelta da configurazione. I candidati da provare sono
   Jev (jevmodel.org, API di scoring a $0,042 per milione di token in ingresso, pubblica dal
   21 settembre 2026, multilingue in beta) e un modello piccolo ospitato come Claude Haiku
@@ -345,18 +478,21 @@ requisito.
 - `pg_cron` in Supabase lavora in UTC. Il job è pianificato ogni ora il mercoledì tra le
   17:00 e le 22:00 UTC. Il codice controlla di essere dopo le 20:00 Europe/Rome, così l'ora
   legale non richiede di cambiare il cron.
-- **Dispatcher**: crea in modo idempotente una riga in `job_settimanali` per ogni famiglia
+- **Dispatcher**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
   e per il lunedì successivo.
 - **Worker**: invoca l'Edge Function **una volta per famiglia**, perché i limiti di Supabase
   sono 2 secondi di CPU per richiesta e 150 secondi di durata sul piano Free. Per ogni
   famiglia, in un'unica transazione:
-  1. chiude la settimana precedente (`chiusa_il`, e `cucinata` null → true);
+  1. chiude la settimana precedente (`closed_at`, e `cooked` null → true);
   2. genera la bozza, se la settimana non esiste già. Con il giudice attivo genera le
      candidate e chiama il giudice fuori dalla transazione: l'attesa della risposta è I/O e
      non consuma i 2 secondi di CPU.
 - **Errori**: un errore riguarda solo la sua famiglia. Si ritenta all'esecuzione successiva
-  fino all'ultima finestra utile. Alla fine arriva un'email al curatore con le famiglie
-  ancora senza bozza.
+  fino all'ultima finestra utile. Alla fine arriva un'email al referente operativo del
+  servizio con le famiglie ancora senza bozza. Questo destinatario va configurato
+  esplicitamente: assegnare il nuovo ruolo di curatore non abilita a ricevere segnalazioni
+  sulle altre famiglie. Contenuti e accessi operativi devono rispettare la separazione
+  dei ruoli della sezione 2.
 - **Generazione su richiesta** (wizard della famiglia nuova, oppure "rigenera" se la bozza
   manca): stessa funzione, al massimo 3 volte a settimana per famiglia.
 
@@ -369,9 +505,10 @@ requisito.
 - **Contenuto di un pasto**, in ogni vista che lo mostra: nome e descrizione breve della
   ricetta, porzioni,
   voto (sotto), ingredienti scalati. Se la ricetta è `web` o `youtube` c'è il collegamento
-  all'`url` della fonte, che si apre fuori dall'app senza passare il referrer (come fa oggi
-  il sito del progetto di origine con `Referrer-Policy: no-referrer`). Per `libro` si
-  mostrano titolo e pagine; per `casa` nessun collegamento. Per gli slot liberi, il testo.
+  al `source_url` della fonte, che si apre fuori dall'app senza passare il referrer
+  (come fa oggi il sito del progetto di origine con `Referrer-Policy: no-referrer`).
+  Per `book` si mostrano titolo e pagine; per `home` nessun collegamento. Per gli slot
+  liberi, il testo.
 
 - **Cosa è modificabile**:
   - la bozza, per intero;
@@ -380,7 +517,7 @@ requisito.
 - **Azioni sullo slot**: cambia ricetta (suggerimenti o ricerca con filtri), proponimene un
   altro, cambia porzioni, scambia con un altro slot, segna libero con testo, nota, non proporre
   più, vota.
-- **Voto**: è sulla ricetta (`voti`: utente × ricetta), non sullo slot. È sempre possibile,
+- **Voto**: è sulla ricetta (`ratings`: utente × ricetta), non sullo slot. È sempre possibile,
   dallo slot di qualsiasi settimana o dalla scheda della ricetta nel catalogo, e non dipende
   dallo stato della settimana. Votare non segna nessuno slot come cucinato.
 - **Voto sempre visibile**: ogni volta che l'interfaccia mostra una ricetta (slot,
@@ -394,46 +531,72 @@ requisito.
   un'altra schermata (da 1 a 5, più "togli il mio voto"). Il salvataggio aggiorna subito
   media e proprio voto in quella vista. È un unico componente riusato in tutte le viste; la
   sua forma si decide nel design delle superfici.
-- **Tracciabilità**: ogni scrittura aggiorna `modificato_da` e `modificato_il` e aggiunge
-  una riga a `modifiche_slot`. L'interfaccia mostra solo l'ultima modifica.
-- **Concorrenza**: blocco ottimistico su `modificato_il`. Se lo slot è cambiato nel
+- **Tracciabilità**: ogni scrittura aggiorna `updated_by` e `updated_at` e aggiunge
+  una riga a `meal_changes`, anche quando arriva da MCP. L'interfaccia mostra solo
+  l'ultima modifica. È proposta l'indicazione del canale web o MCP insieme all'autore.
+- **Concorrenza**: blocco ottimistico su `updated_at`. Se lo slot è cambiato nel
   frattempo si mostra la versione nuova con l'autore, e si sceglie se sovrascrivere. Niente
   realtime in v1: aggiornamento all'apertura e a richiesta dell'utente.
 - **Offline**: l'ultima settimana caricata resta consultabile in sola lettura.
 
 ### 6. Scalatura e lista della spesa
 
-- **Scalatura**: quantità × porzioni dello slot ÷ `porzioni_base`. Arrotondamenti:
-  - grammi alla decina (a 5 g sotto i 50 g);
-  - ml come i grammi;
-  - pezzi e spicchi al mezzo superiore;
-  - cucchiai e cucchiaini al mezzo.
-- **Unità**:
-  - scalabili: `g`, `kg`, `ml`, `l`, `pz`, `spicchio`, `cucchiaio`, `cucchiaino`;
-  - solo elencate: `mazzetto`, `pizzico`, `q.b.`.
+- **Scalatura**: quantità × porzioni dello slot ÷ `base_servings`.
+- **Sistema scelto dalla famiglia**: metrico oppure imperiale britannico, anche nei
+  risultati MCP. La lingua dell'utente non cambia il sistema di misura.
+- **Conversioni**: masse tra g/kg e once/libbre; volumi tra ml/l e misure imperiali
+  britanniche. Le unità britanniche devono essere identificate senza confonderle con
+  quelle statunitensi. L'elenco esatto, i fattori e gli arrotondamenti saranno verificati
+  su fonti di riferimento e confermati nel design delle conversioni.
+- **Proposta per i calcoli**: conservare i valori della fonte e usare una rappresentazione
+  comune per scalare e sommare quantità compatibili. Convertire e arrotondare solo per
+  la presentazione, dopo il consolidamento della spesa. Cambiare la preferenza non
+  modifica i dati della ricetta e non introduce conversioni ripetute sui valori salvati.
+- **Dimensioni diverse**: non convertire massa in volume senza un'equivalenza verificata
+  per quello specifico ingrediente. Conteggi, unità domestiche ambigue e quantità non
+  numeriche mantengono il loro significato; la traduzione dell'etichetta non basta a
+  stabilire una conversione. Il trattamento di cucchiai, cucchiaini, bicchieri e
+  confezioni sarà esplicitato nel design prima dell'importazione.
+- **Arrotondamenti metrici della base approvata**, da verificare nel prototipo insieme
+  alla nuova pipeline di calcolo: grammi alla decina (a 5 g sotto i 50 g), ml come i
+  grammi, pezzi e spicchi al mezzo superiore, cucchiai e cucchiaini al mezzo. La regola
+  si applica alla presentazione, non ai valori intermedi da sommare.
+- **Codici delle unità**: in inglese o simboli standard; etichette localizzate. Il
+  vecchio elenco italiano e quello esteso del piano M1a vanno sostituiti con un elenco
+  unico validato, comprendente le unità effettivamente usate dalle fonti.
 - **Generazione della lista**:
   1. si parte dagli slot selezionati;
   2. si scalano gli ingredienti;
-  3. si consolida per ingrediente canonico, convertendo g↔kg e ml↔l; le unità
+  3. si consolida per ingrediente canonico, convertendo le unità compatibili; le unità
      incompatibili restano sulla stessa voce ("2 pz + 300 g");
-  4. si escludono gli ingredienti `dispensa` e quelli `evita` della famiglia, che vengono
-     segnalati a parte;
+  4. si escludono gli ingredienti con `is_pantry` e quelli con restrizione `avoid`
+     della famiglia, che vengono segnalati a parte;
   5. si segnano gli opzionali;
   6. si raggruppa per reparto nell'ordine standard;
-  7. le ricette senza ingredienti vanno in "Ingredienti non registrati".
+  7. le ricette pregresse senza ingredienti, se ammesse dopo la revisione dell'import,
+     vanno in "Ingredienti non registrati";
+  8. si presentano le quantità nel sistema della famiglia e i testi nella lingua
+     dell'utente che genera la lista, con gli arrotondamenti concordati.
 - **Scorciatoie di selezione**: "da oggi a domenica", "tutta la prossima settimana". "Solo
-  quelli non ancora in lista" usa soltanto memoria locale del browser.
+  quelli non ancora in lista" usa memoria temporanea del client. Il percorso MCP deve
+  avere un equivalente esplicito per passare le selezioni precedenti; questa memoria
+  non può dipendere esclusivamente dal browser.
 - **Effimera**: la lista non si salva in database, tranne nel caso di Bring!. Si possono
   togliere voci prima di esportare.
 - **Esportazioni**:
   - PDF di una pagina;
   - Web Share API, con testo semplice;
-  - Bring!: si salva in `liste_temporanee` con un token casuale e si apre
-    `https://api.getbring.com/rest/bringrecipes/deeplink?url=<app>/spesa/<token>&source=web`.
-    La pagina `/spesa/<token>` è pubblica e `noindex`, e contiene solo il JSON-LD
+  - Bring!: si salva in `temporary_lists` con un token casuale e si apre
+    `https://api.getbring.com/rest/bringrecipes/deeplink?url=<app>/shopping-lists/<token>&source=web`.
+    La pagina `/shopping-lists/<token>` è pubblica e `noindex`, e contiene solo il JSON-LD
     `schema.org/Recipe` con `recipeIngredient` nel formato "quantità nome", senza nome della
     famiglia né giorni. Scade dopo 30 minuti; un cron la pulisce. È lo stesso meccanismo
     di `scripts/sito_lib.py` nel progetto di origine.
+
+  Tramite MCP si devono ottenere gli stessi contenuti esportabili: PDF, testo e
+  collegamento Bring!. La consegna di file e collegamenti dipende dalle capacità del
+  client e verrà provata nel design MCP; il requisito non implica poter comandare
+  direttamente l'interfaccia di condivisione del dispositivo da qualunque agente.
 
 ### 7. Account, Famiglia, inviti
 
@@ -441,61 +604,103 @@ requisito.
 - **SMTP personalizzato** (per esempio Resend): il servizio email di default di Supabase
   manda al massimo 2 email all'ora ed è solo per le prove. Con un SMTP personalizzato il
   limite parte da 30 all'ora ed è configurabile.
-- **Inviti**:
-  - link `/invito/<token>`, valido 7 giorni, riusabile fino alla scadenza, revocabile;
+- **Inviti alla famiglia**:
+  - link `/invite/<token>`, valido 7 giorni, riusabile fino alla scadenza, revocabile;
   - chi lo apre si iscrive se non ha un account ed entra nella famiglia; se ne fa già parte,
     non cambia niente;
   - token scaduto o revocato: messaggio chiaro con l'invito a chiedere un link nuovo
-    all'admin.
+    all'amministratore della famiglia.
+- **Inviti all'app**: gestibili dagli amministratori dell'app nella pagina di
+  amministrazione e tramite MCP. Permettono di invitare un utente al servizio; l'eventuale
+  assegnazione di ruoli o appartenenza a una famiglia deve essere esplicita. Scadenza,
+  riutilizzo, reinvio e revoca sono da definire nel design. L'iscrizione aperta della
+  specifica di base resta prevista: aggiungere inviti non la rende automaticamente
+  riservata ai soli invitati.
+- **Amministrazione globale**: pagina riservata agli `app_admin` per consultare e gestire
+  utenti e inviti, cambiare i ruoli degli utenti, assegnare il ruolo di curatore,
+  nominare altri amministratori e cancellare utenti. Le operazioni devono essere
+  disponibili anche via MCP. La nomina iniziale di Federico sarà prevista nella
+  configurazione iniziale, con identità verificata; i dettagli si definiscono nel piano.
 - **Wizard della famiglia nuova**:
   - nome;
   - matrice commensali;
   - slot fissi;
   - ingredienti da evitare o limitare;
   - libri posseduti;
+  - sistema di misura della famiglia;
   - obiettivi, con i default CREA;
   - "Genera la prima settimana adesso".
 - **Rimozione di un membro**: i suoi voti escono dalla media; le tracce diventano "ex
   membro".
-- **Cancellazione dell'account**: rimuove voti e dati personali.
+- **Preferenze personali**: la lingua è modificabile dall'utente nelle proprie
+  impostazioni e tramite MCP, indipendentemente dalle impostazioni della famiglia.
+- **Cancellazione dell'account**: rimuove voti e dati personali. Deve essere possibile
+  anche per un amministratore dell'app cancellare un utente. Il design deve specificare
+  cosa accade alle famiglie di cui era l'ultimo amministratore, alle attribuzioni di
+  ricette e modifiche, agli inviti e agli accessi MCP. La cancellazione di una persona
+  non deve essere confusa con la sola rimozione da una famiglia.
+- **Ultimo amministratore dell'app**: proposta da confermare nel design dei ruoli,
+  impedire la rimozione o retrocessione dell'ultimo `app_admin` senza un successore.
 - **Privacy**: informativa, dati minimi (email, nome visualizzato, dati della famiglia).
 - **Limiti di frequenza**: iscrizioni (rate limit di Supabase Auth) e generazioni su
   richiesta.
 
-### 8. Ricettario: formato, validazione, sync
+### 8. Ricettario: database, curatori, validazione e scambio dati
 
-- `ricettario/ingredienti.yaml`: slug, nome, reparto, dispensa, sinonimi (per esempio
-  "ceci lessati" e "ceci già cotti" → `ceci-cotti`).
-- `ricettario/ricette.yaml`: le schede con gli attributi strutturati della sezione 2. Gli
-  ingredienti hanno la forma
-  `{ingrediente: ceci-cotti, quantita: 200, unita: g, testo: "Ceci già cotti 200 g"}`.
-  Resta la regola del progetto di origine: ingredienti solo se verificati sulla fonte o
-  forniti dal curatore, trascritti per `porzioni_base`, mai dedotti.
-- **Validazione in CI** (bloccante sulla pull request):
-  - schema e slug unici;
-  - ingredienti presenti nell'anagrafica e unità ammesse;
-  - `porzioni_base` presente quando ci sono ingredienti;
-  - attributi del pianificatore completi;
-  - `url` presente e valido per `web` e `youtube`.
+**Fonte di verità confermata:** il catalogo autorevole è nel database Supabase. Le
+ricette nuove si salvano mediante operazioni applicative autorizzate, senza dover aprire
+una pull request. Lo schema, i validatori e le migrazioni restano codice versionato in
+Git. Un merge di codice non sostituisce il catalogo e non archivia ricette sulla base
+della loro assenza da un file YAML.
 
-  Una scheda tolta dal YAML non si cancella mai dal database: la sync la archivia, così i
-  menu che la usano restano leggibili.
-- **Sync**: GitHub Action al merge su `main`. Esegue un upsert idempotente in una sola
-  transazione, con la service key tenuta nei secret di GitHub. Le schede sparite dal YAML
-  diventano `archiviata`. Se qualcosa fallisce il database resta com'era.
-- **Import iniziale**:
-  1. lo script legge `../meal_planner/ricettario/ricette.yaml`;
-  2. mappa i nomi degli ingredienti sull'anagrafica e interpreta numero e unità;
-  3. produce la bozza nel nuovo formato più un **report di ciò che non sa interpretare con
-     sicurezza**, che non si inventa;
-  4. il report si rivede a mano, curatore e AI.
+**Aggiunta guidata tramite MCP:**
 
-  Voti B, `storico` ed esclusioni nelle `note` diventano i **dati della famiglia del
-  curatore**, in un seed separato che non entra mai nel catalogo. Conversione dei voti:
-  B=1, BB=3, BBB=4, BBBB=5 stelle, come voto del curatore.
-- **Ricette nuove**: stesso flusso di oggi con Claude Code, ma su questo repository. Si
-  legge la fonte, si trascrive, si mappa sull'anagrafica (aggiungendo gli ingredienti
-  nuovi), si compilano gli attributi, si valida, si apre la pull request, si fa il merge.
+1. Il curatore collega il proprio agente e indica la ricetta e la sua fonte, oppure
+   fornisce direttamente le informazioni per una ricetta di casa.
+2. Il servizio espone i dati richiesti e i vincoli; l'agente raccoglie le informazioni e
+   chiede quelle mancanti. La guida non deve dipendere dalla memoria di un singolo agente.
+3. La validazione sul server restituisce campi mancanti e incoerenze in forma strutturata,
+   così l'agente può proseguire con domande mirate.
+4. Proposta di interazione: prima del salvataggio l'agente presenta la scheda completa
+   al curatore per la conferma, comprese le traduzioni predisposte.
+5. Il server verifica nuovamente ruolo, completezza e validità al momento della scrittura
+   e salva la ricetta con i suoi ingredienti e riferimenti in modo atomico. Un errore
+   non deve lasciare una ricetta parzialmente inserita nel catalogo.
+
+Il requisito di salvataggio solo a informazioni complete è vincolante; la persistenza
+eventuale di una bozza separata dal catalogo è ancora da decidere. Anche campi obbligatori
+per tipo di fonte, traduzioni richieste e trattamento delle ricette pregresse incomplete
+vanno esplicitati prima dell'implementazione (sezione 15).
+
+**Ingredienti e fonti:** solo dati verificati sulla fonte o forniti dal curatore,
+trascritti per `base_servings`, mai dedotti dal nome del piatto. Un validatore strutturale
+non prova la correttezza della trascrizione: la provenienza e le verifiche devono far
+parte del percorso di curatela. Ingredienti equivalenti si collegano alla stessa entità
+canonica, anche se i nomi sono in lingue diverse.
+
+**Validazione condivisa:** schema, identificatori unici, riferimenti a ingredienti e
+libri esistenti, quantità e unità ammesse, porzioni di riferimento, attributi del
+pianificatore e dati della fonte coerenti con il tipo. La stessa logica serve l'aggiunta
+MCP, le eventuali operazioni web del curatore e l'importazione. I test di questa logica
+sono eseguiti in CI; la CI non sostituisce la validazione di ogni scrittura sul server.
+
+**Aggiornamenti e archiviazione:** resta necessario conservare leggibili i menu che
+usano una ricetta. La precedente archiviazione automatica per assenza dal YAML è
+eliminata; il percorso di modifica e archiviazione dei curatori e l'eventuale storico
+delle versioni sono proposte da definire nel relativo design. La cancellazione del
+curatore non implica la cancellazione delle ricette che ha contribuito.
+
+**YAML per importazione ed esportazione:** formato di scambio con chiavi tecniche in
+inglese, da precisare nel piano. Un export rappresenta il catalogo a una certa data;
+non viene risincronizzato automaticamente come seconda fonte di verità. L'import
+iniziale legge `../meal_planner/ricettario/ricette.yaml`, mappa ingredienti e unità,
+prepara schede da rivedere e un **report delle ambiguità**, senza inventare valori.
+Solo le schede che soddisfano le regole concordate entrano nel catalogo.
+
+Voti B, `storico` ed esclusioni nelle `note` del formato di origine diventano i **dati
+della famiglia di Federico**, separati dal catalogo. Conversione dei voti: B=1, BB=3,
+BBB=4, BBBB=5 stelle, come voto di Federico. I nomi italiani citati qui sono campi
+dell'input preesistente, non nomi da usare nel nuovo codice.
 
 ### 9. Test
 
@@ -503,7 +708,7 @@ requisito.
   - test unitari per regola su un catalogo di prova;
   - test di proprietà: su centinaia di semi, zero violazioni dei vincoli rigidi e ogni slot
     pieno o segnato "nessuna ricetta adatta";
-  - **report di qualità**: `scripts/report-pianificatore` genera 20 settimane con i dati
+  - **report di qualità**: `scripts/planner-report` genera 20 settimane con i dati
     reali della famiglia del curatore e riporta violazioni, gruppi rispetto agli
     intervalli, quota note/nuove, coppie simili più vicine e ripetizioni. Va guardato prima
     di attivare il job.
@@ -515,36 +720,185 @@ requisito.
     un test alla cieca di qualche settimana sulla famiglia del curatore (due proposte senza
     sapere quale ha scelto il giudice). Se il giudice non vince in modo chiaro, resta
     spento.
-- **Scalatura e lista**: casi tabellari su unità, arrotondamenti, non scalabili, sinonimi,
-  unità incompatibili, `dispensa` ed `evita`.
+- **Scalatura e lista**: casi tabellari su unità, arrotondamenti finali, non scalabili,
+  sinonimi, unità incompatibili, `is_pantry` e `avoid`; conversioni metriche e imperiali
+  britanniche, indipendenza dalla lingua, cambio di preferenza senza alterare i dati.
 - **RLS**: test contro il Supabase locale. Un membro della famiglia A non legge né scrive
-  niente della famiglia B; nessun utente scrive nel catalogo; un membro non admin non
-  gestisce inviti e impostazioni.
-- **Ricettario**: validazione con casi validi e non validi; import con i casi presi dal
-  ricettario attuale.
+  niente della famiglia B; un utente senza ruolo di curatore non aggiunge ricette; un
+  membro non amministratore non gestisce inviti e impostazioni della famiglia. I test
+  dei privilegi globali seguiranno la matrice dei permessi concordata.
+- **Ricettario**: validazione con casi validi, mancanti e incoerenti; mancata scrittura
+  di schede incomplete anche se l'agente prova a salvarle; atomicità del salvataggio;
+  import con i casi presi dal ricettario attuale e nessuna sovrascrittura dei contributi
+  già presenti. Cambi di codice ed esportazioni non devono sostituire il catalogo.
+- **Lingue**: copertura di italiano e inglese britannico, identità stabili del catalogo,
+  formattazione e gestione delle traduzioni mancanti secondo la politica concordata.
+- **MCP**: parità di operazioni, permessi, validazione, attribuzione, conflitti e limiti
+  rispetto al web; isolamento fra utenti e famiglie; riconnessione e accessi revocati;
+  esportazioni effettivamente utilizzabili nei client supportati.
+- **Amministrazione dell'app**: accesso alla pagina e agli strumenti MCP riservato al
+  ruolo autorizzato; assegnazione e revoca di ruoli, nomina di altri amministratori,
+  inviti e cancellazione di utenti secondo le regole concordate, compresi i casi
+  dell'ultimo amministratore e delle famiglie prive di altri amministratori.
 - **End to end** (Playwright): iscrizione, creazione della famiglia, invito, modifica di uno
-  slot, voto, generazione della lista con pagina Bring!.
+  slot, voto, generazione della lista con pagina Bring!, cambio lingua e unità,
+  collegamento MCP e operazioni di curatela e amministrazione.
 
 ### 10. Fasi di rilascio
 
-Ogni fase ha il suo piano di implementazione in `progetto/superpowers/plans/`. Prima di
-implementare le viste di una fase, a partire dalla prima vista di M1, si fa il design delle
-superfici che quella fase introduce, e lo approva l'utente.
+**Ordine confermato il 3 ottobre:** prima costruire e concordare il prototipo dell'app,
+salvato nel repository; poi verificare le scelte funzionali e architetturali alla luce
+del prototipo; infine aggiornare e approvare i piani prima dell'implementazione dell'app.
+
+Ogni fase ha il suo piano in `progetto/superpowers/plans/` e rimanda alle sezioni di questa
+specifica. Il piano del 29 settembre per M1a è **superato nelle parti su Git come fonte
+del catalogo, sincronizzazione, permessi e codice italiano** e non va eseguito come
+scritto. M1b non è ancora stato scritto. La nuova ripartizione di M1 sarà definita dopo
+il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
 
 | Fase | Contenuto | Risultato |
 |---|---|---|
-| **M1 Fondamenta** | Repository, schema e RLS, Auth, Famiglia, inviti, formato del ricettario con validazione e sync, import iniziale con revisione del report, seed della famiglia del curatore, vista della settimana in sola lettura | Si entra, si vede il ricettario e lo storico della propria famiglia |
-| **M2 Modifica e voti** | Azioni sugli slot, suggerimenti, avvisi, "cambiato da", stelline e media, "non proporre più", creazione manuale di una settimana | La famiglia del curatore pianifica nell'app a mano con i suggerimenti |
-| **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì (chiusura e bozza), generazione su richiesta. Poi, come esperimento separato, giudice AI opzionale con valutazione | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
-| **M4 Lista della spesa** | Selezione, consolidamento, PDF, condivisione, Bring! | Si fa la spesa dall'app |
+| **P0 Prototipo e revisione** | Prototipo nel repository, review dei flussi e delle superfici, riesame funzionale e architetturale, consolidamento della specifica e dei nuovi piani | Un'esperienza concordata guida l'implementazione |
+| **M1 Fondamenta** | Schema e RLS, Auth, famiglie e inviti, catalogo nel database, import e revisione, dati iniziali di Federico, preferenze di lingua e unità, ruoli globali, accesso MCP e relativa guida. Ripartizione di curatela e amministrazione da precisare nel nuovo piano | Si entra e si consulta il ricettario e la propria famiglia; i percorsi autorizzati sono disponibili anche via MCP |
+| **M2 Modifica e voti** | Azioni sugli slot, suggerimenti, avvisi, ultima modifica, stelline e media, esclusioni, creazione manuale di una settimana, con equivalenti MCP | La famiglia pianifica a mano dall'app o dall'agente |
+| **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì, generazione su richiesta anche via MCP. Poi, come esperimento separato, giudice AI opzionale | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
+| **M4 Lista della spesa** | Selezione, consolidamento, conversioni, PDF, condivisione, Bring!, esportazioni MCP | Si prepara la spesa nella lingua personale e nelle unità della famiglia |
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
+
+Lingue, unità e parità web/MCP sono requisiti trasversali: ogni funzione introdotta li
+rispetta dalla sua prima versione. La collocazione delle attività nella roadmap non
+rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
 
 ### 11. Convivenza con il progetto di origine
 
 - `meal_planner` resta com'è: YAML, PDF e sito Netlify pubblicato da `main`. Questa app è
   separata, con il suo repository, il suo sito Netlify e il suo progetto Supabase.
 - Il ricettario del progetto di origine è la fonte dell'import iniziale. Fino allo
-  spegnimento del vecchio flusso, lo script di import è **rilanciabile**: importa come
-  bozza le schede nuove per slug e non tocca quelle già importate. Così una ricetta aggiunta
-  nel vecchio repository può arrivare anche qui, passando dallo stesso report.
+  spegnimento del vecchio flusso, lo script di import è **rilanciabile**: prepara per la
+  revisione solo le schede nuove, riconosciute tramite lo slug di origine, e non tocca
+  quelle già importate o curate nel database. La corrispondenza con l'identità originale
+  deve essere conservata anche se cambiano nome, lingua o identificatori nel nuovo
+  catalogo. Una ricetta aggiunta nel vecchio repository può arrivare qui attraverso
+  revisione e validazione, senza una sincronizzazione automatica che sovrascriva i dati.
 - Quando spegnere il vecchio flusso lo decide l'utente, dopo M4.
+
+### 12. Lingue e contenuti tradotti
+
+**Confermato:** lingua scelta per utente, italiano e inglese britannico nella prima
+versione. Il sistema di misura appartiene invece alla famiglia; nessuna scelta impone
+automaticamente l'altra. Le nuove pagine di guida MCP e amministrazione fanno parte
+dell'esperienza tradotta.
+
+**Ambito del design proposto:**
+
+- testi dell'interfaccia, messaggi di errore, avvisi, impostazioni, ruoli e reparti;
+- nomi e descrizioni delle ricette, ingredienti e relativi sinonimi di ricerca;
+- contenuti della lista della spesa ed esportazioni nella lingua di chi li genera;
+- date, numeri, plurali e nomi delle unità coerenti con la lingua selezionata;
+- identificatori e codici tecnici stabili in inglese, indipendenti dalle traduzioni,
+  utilizzabili allo stesso modo dal web e da MCP.
+
+Le stringhe dell'interfaccia possono vivere nel codice; le traduzioni del catalogo
+seguono le ricette nel database autorevole. È proposta una preparazione e revisione
+delle traduzioni durante la curatela, anche con l'aiuto dell'agente, anziché tradurre
+nuovamente ogni volta che si apre una ricetta.
+
+Restano da concordare: obbligatorietà di entrambe le lingue al salvataggio, revisione
+delle traduzioni suggerite, comportamento per quelle mancanti e trattamento dei testi
+liberi degli utenti. La proposta iniziale è conservare i testi liberi come scritti e
+mostrare l'originale italiano quando manca una traduzione del catalogo. I collegamenti
+alle fonti esterne e i titoli bibliografici non diventano traduzioni dei siti o dei libri.
+
+### 13. MCP e guida al collegamento
+
+**Requisito:** ogni operazione disponibile nell'app deve avere un equivalente MCP per
+lo stesso utente e con gli stessi permessi. Il server espone operazioni applicative,
+non accesso generico alle tabelle. È proposto un server remoto collegabile all'account;
+protocollo di autenticazione, trasporto, hosting e compatibilità dei client saranno
+verificati con la documentazione aggiornata prima dell'implementazione.
+
+| Ambito | Operazioni da coprire tramite MCP |
+|---|---|
+| Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare |
+| Pasti e ricettario | Consultare oggi e settimane, cercare e leggere ricette, ingredienti e voti |
+| Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi o non cucinati, note ed esclusioni |
+| Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
+| Spesa | Selezionare pasti, generare e rivedere la lista temporanea, ottenere PDF, testo e collegamento Bring! |
+| Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; preferenze personali e operazioni sull'account |
+| Curatela | Conoscere i requisiti, validare le informazioni raccolte e salvare una ricetta completa con il ruolo di curatore |
+| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e cancellazione utenti con il ruolo di amministratore dell'app |
+
+Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
+sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
+dall'agente non concede quel ruolo. Risultati ed errori devono permettere all'agente di
+mostrare gli stessi avvisi e risolvere gli stessi conflitti previsti dal web.
+
+Un agente può assistere il curatore o l'utente nelle operazioni manuali, ma il
+pianificatore automatico resta il sistema a regole della sezione 3. L'app non impone
+un modello o un fornitore AI al client MCP.
+
+**Pagina web di istruzioni:**
+
+- spiega cosa permette il collegamento e quali operazioni dipendono dal ruolo;
+- offre istruzioni per ciascun client supportato, con indirizzo MCP e comandi o
+  configurazioni copiabili quando il client usa questa modalità;
+- spiega accesso e autorizzazione nel browser, ammessi dall'utente, ed eventuale
+  riautenticazione;
+- include un esempio per verificare il collegamento e un esempio del flusso del curatore;
+- descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
+
+Client iniziali e comandi effettivi vanno verificati nel relativo design: la specifica
+non assume che tutti gli agenti abbiano lo stesso comando o le stesse capacità di
+gestione di file. Il prototipo distinguerà gli esempi dalle istruzioni operative finali.
+
+### 14. Prototipo e consolidamento del design
+
+**Confermato:** il primo artefatto da costruire è un prototipo dell'app conservato nel
+repository e sottoposto a review dell'utente, prima dell'implementazione del prodotto.
+La review deve poter cambiare sia funzionalità sia scelte architetturali. Il prototipo
+non è ancora stato creato; la directory proposta è `prototype/`.
+
+**Perimetro proposto da concordare nel piano del prototipo:**
+
+- navigazione provabile da telefono e desktop, con dati dimostrativi;
+- pasti di oggi, settimana e revisione, ricerca e scheda ricetta, voti e lista della spesa;
+- famiglia, membri e inviti, preferenze personali e della famiglia;
+- cambio lingua e sistema di misura osservabile nei dati mostrati;
+- pagina di collegamento MCP e rappresentazione del percorso guidato del curatore;
+- pagina di amministrazione dell'app, con elenco utenti, ruoli, inviti e cancellazione;
+- stati significativi: dati mancanti, nessun risultato, permessi insufficienti e conflitti.
+
+Proposta: simulare le integrazioni per rivedere l'esperienza prima di collegare servizi
+reali. La review del prototipo non certifica la compatibilità di un client MCP, il
+funzionamento dell'autenticazione o l'applicazione dei permessi: questi richiedono le
+successive verifiche tecniche.
+
+**Criterio di passaggio all'implementazione:** review del prototipo, decisioni riportate
+nelle sezioni pertinenti di questo documento, verifica dell'architettura risultante,
+piani aggiornati e approvati, scelta del metodo di esecuzione. Le decisioni sulle
+superfici entreranno qui insieme ai riferimenti ai file del prototipo approvato.
+
+### 15. Decisioni da completare nel design
+
+Questa sezione è parte della specifica di lavoro: rende visibili le scelte ancora aperte,
+non autorizza a risolverle implicitamente durante l'implementazione. Quando una scelta
+viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
+
+| Tema | Decisione da concordare | Dove confluisce |
+|---|---|---|
+| Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
+| Cancellazione | Conferme, ultimo amministratore dell'app o di una famiglia, destino dei dati condivisi e delle attribuzioni, revoca degli accessi MCP | Sezioni 2, 7 e 13 |
+| Completezza delle ricette | Campi obbligatori per ogni fonte, ingredienti mancanti nelle ricette pregresse, traduzioni necessarie e momento della conferma del curatore | Sezioni 8 e 12 |
+| Ciclo di curatela | Persistenza di bozze separate dal catalogo, modifica e archiviazione delle ricette, storico e gestione di contributi simultanei | Sezione 8 |
+| Lingue | Traduzioni mancanti, revisione, testi liberi, impostazione iniziale della lingua e ricerca multilingue | Sezione 12 |
+| Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
+| MCP | Client iniziali, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
+| Prototipo | Perimetro, fedeltà, flussi e dati dimostrativi, scelte di superficie e criteri di review | Sezione 14 |
+| Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
+
+### 16. Registro delle revisioni
+
+| Data | Decisioni consolidate |
+|---|---|
+| 29 settembre 2026 | Approvata la base funzionale e tecnica dell'app, con pianificatore a regole e rilascio per fasi |
+| 3 ottobre 2026 | Aggiunti unità metriche/imperiali britanniche, lingua personale italiano/inglese britannico, parità MCP, ruolo di curatore e inserimento guidato, catalogo autorevole nel database, guida MCP, amministrazione globale degli utenti e codice in inglese. Confermati ruoli globali cumulabili senza accesso automatico ai contenuti familiari. Stabiliti prototipo prima dell'implementazione e questo documento come riferimento unico aggiornato a ogni nuova scelta |

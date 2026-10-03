@@ -1,5 +1,13 @@
 # M1a Ricettario e catalogo: piano di implementazione
 
+> **Stato al 3 ottobre 2026: da ripianificare, non eseguire come scritto.**
+> Il catalogo ha ora il database come fonte di verità; sono richiesti curatori e
+> amministratori dell'app, accesso MCP, lingua personale, conversioni metriche/imperiali
+> britanniche e codice interamente in inglese. Il prossimo artefatto è il prototipo,
+> seguito da review funzionale e architetturale. I requisiti correnti sono nel
+> [documento unico di requisiti e design](../specs/2026-09-29-app-famiglia-design.md).
+> Il contenuto sottostante resta come riferimento storico e non prevale sulla specifica.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Portare il ricettario del progetto di origine nel nuovo formato strutturato, validato in CI, e sincronizzarlo in un catalogo Supabase leggibile solo dagli utenti autenticati.
