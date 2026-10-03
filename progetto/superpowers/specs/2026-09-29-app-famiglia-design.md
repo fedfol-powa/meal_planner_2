@@ -32,6 +32,9 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
 - lingua dell'utente: italiano oppure inglese britannico, dalla prima versione;
 - ricette pubblicabili solo con i testi richiesti disponibili in entrambe le lingue;
   se manca una traduzione la ricetta resta in bozza;
+- ingredienti verificati, quantità e unità quando applicabili e porzioni di riferimento
+  obbligatori per pubblicare, anche per le ricette importate; ammesse indicazioni
+  esplicite come "q.b.", senza usarle per sostituire dati mancanti;
 - tutte le operazioni dell'app disponibili anche tramite MCP; browser ammesso per
   collegare l'account e per eventuali nuove autenticazioni;
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
@@ -190,7 +193,10 @@ Il catalogo aggiornato vive nel database. Un curatore può chiedere al proprio a
 aggiungere una ricetta: l'agente raccoglie le informazioni e fa le domande necessarie.
 La ricetta entra nel catalogo solo quando il servizio verifica che tutti i dati richiesti
 sono presenti e validi, compresi i testi in italiano e inglese britannico. Gli ingredienti
-non vengono mai dedotti dal nome del piatto.
+non vengono mai dedotti dal nome del piatto. Elenco verificato degli ingredienti,
+quantità e unità quando applicabili e porzioni di riferimento sono necessari anche per
+pubblicare una ricetta importata dal vecchio progetto. Le indicazioni esplicite come
+"q.b." restano ammesse.
 
 Il lavoro incompleto può essere **salvato come bozza** e ripreso in seguito. Le bozze
 sono visibili anche in una sezione dell'app dedicata alla curatela e non vengono proposte
@@ -614,9 +620,7 @@ requisito.
      della famiglia, che vengono segnalati a parte;
   5. si segnano gli opzionali;
   6. si raggruppa per reparto nell'ordine standard;
-  7. le ricette pregresse senza ingredienti, se ammesse dopo la revisione dell'import,
-     vanno in "Ingredienti non registrati";
-  8. si presentano le quantità nel sistema della famiglia e i testi nella lingua
+  7. si presentano le quantità nel sistema della famiglia e i testi nella lingua
      dell'utente che genera la lista, con gli arrotondamenti concordati.
 - **Scorciatoie di selezione**: "da oggi a domenica", "tutta la prossima settimana". "Solo
   quelli non ancora in lista" usa memoria temporanea del client. Il percorso MCP deve
@@ -722,11 +726,11 @@ dalle famiglie.
 
 Il salvataggio di una bozza applica controlli sui dati forniti senza richiedere i campi
 ancora mancanti. La pubblicazione applica invece l'intera validazione. Campi obbligatori
-per tipo di fonte e trattamento delle ricette pregresse incomplete vanno esplicitati
-prima dell'implementazione (sezione 15). È già confermato che i testi richiesti devono
-essere disponibili in italiano e inglese britannico prima della pubblicazione.
-La collaborazione fra curatori deve gestire i conflitti senza sovrascrivere silenziosamente le modifiche
-altrui; il meccanismo sarà precisato nel design.
+specifici per tipo di fonte vanno esplicitati prima dell'implementazione (sezione 15).
+Sono già obbligatori per pubblicare ingredienti verificati, quantità e unità quando
+applicabili, porzioni di riferimento e testi richiesti in italiano e inglese britannico.
+La collaborazione fra curatori deve gestire i conflitti senza sovrascrivere
+silenziosamente le modifiche altrui; il meccanismo sarà precisato nel design.
 
 **Percorso manuale web confermato, a bassa priorità:**
 
@@ -761,6 +765,17 @@ trascritti per `base_servings`, mai dedotti dal nome del piatto. Un validatore s
 non prova la correttezza della trascrizione: la provenienza e le verifiche devono far
 parte del percorso di curatela. Ingredienti equivalenti si collegano alla stessa entità
 canonica, anche se i nomi sono in lingue diverse.
+
+**Completezza degli ingredienti confermata:** per pubblicare occorrono un elenco
+verificato degli ingredienti, quantità e unità quando applicabili e `base_servings`
+positivo, corrispondente alle porzioni per cui sono fornite le quantità. Questo vale
+per ogni fonte, comprese le ricette da libro o di casa, e per l'importazione del
+ricettario precedente. Se questi dati mancano, la ricetta resta in bozza.
+
+Indicazioni non numeriche esplicite, come "q.b.", sono ammesse quando risultano dalla
+fonte o dai dati forniti dal curatore: vengono elencate senza inventare una quantità
+numerica. Una quantità ignota non può essere trasformata in "q.b." per superare la
+validazione. La pubblicazione richiede anche entrambe le lingue (sezione 12).
 
 **Validazione condivisa:** schema, identificatori unici, riferimenti a ingredienti e
 libri esistenti, quantità e unità ammesse, porzioni di riferimento, attributi del
@@ -812,9 +827,10 @@ inglese, da precisare nel piano. Un export rappresenta il catalogo a una certa d
 non viene risincronizzato automaticamente come seconda fonte di verità. L'import
 iniziale legge `../meal_planner/ricettario/ricette.yaml`, mappa ingredienti e unità,
 prepara schede da rivedere e un **report delle ambiguità**, senza inventare valori.
-Solo le schede che soddisfano le regole concordate entrano nel catalogo.
-Anche le ricette importate devono avere i testi richiesti in entrambe le lingue:
-quelle in attesa di traduzione restano bozze da completare.
+Solo le schede che soddisfano le regole concordate entrano nel catalogo. Le ricette
+importate prive di ingredienti verificati, quantità e unità richieste, porzioni di
+riferimento o testi in entrambe le lingue restano bozze da completare; non sono
+pubblicate con una deroga per i dati pregressi.
 
 Voti B, `storico` ed esclusioni nelle `note` del formato di origine diventano i **dati
 della famiglia di Federico**, separati dal catalogo. Conversione dei voti: B=1, BB=3,
@@ -848,6 +864,9 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   dei privilegi globali seguiranno la matrice dei permessi concordata.
 - **Ricettario**: validazione con casi validi, mancanti e incoerenti; mancata scrittura
   di schede incomplete nel catalogo pubblicato anche se l'agente prova a pubblicarle;
+  blocco della pubblicazione senza ingredienti, quantità o unità richieste e porzioni
+  di riferimento, anche per l'importazione; accettazione di "q.b." documentato e
+  distinzione rispetto a una quantità ignota;
   salvataggio e ripresa delle bozze da MCP e consultazione dal web, senza renderle
   disponibili nei menu o nella spesa; modifica di ricette di altri curatori, con
   controllo dei conflitti; atomicità della pubblicazione;
@@ -1041,7 +1060,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|---|
 | Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
 | Cancellazione | Conferme, ultimo amministratore dell'app o di una famiglia, destino dei dati condivisi e delle attribuzioni, revoca degli accessi MCP | Sezioni 2, 7 e 13 |
-| Completezza delle ricette | Campi obbligatori per ogni fonte, ingredienti mancanti nelle ricette pregresse e momento della conferma del curatore; entrambe le lingue già obbligatorie per pubblicare | Sezioni 8 e 12 |
+| Completezza delle ricette | Campi specifici per ogni fonte e momento della conferma del curatore; ingredienti, quantità e unità applicabili, porzioni ed entrambe le lingue già obbligatori per pubblicare. Rappresentazione nello storico importato delle ricette ancora in bozza, senza esporre le bozze alle famiglie | Sezioni 8, 11 e 12 |
 | Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; condivisione delle bozze e percorso manuale web già confermati | Sezione 8 |
 | Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
 | Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
@@ -1060,3 +1079,4 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 3 ottobre 2026, prosecuzione | Confermate bozze persistenti visibili in una sezione dell'app, possibilità per ogni curatore di modificare l'intero ricettario e necessità di backup e ripristino. La completezza è richiesta per pubblicare nel catalogo, mentre le bozze possono essere incomplete. Il ripristino della singola ricetta spetta ai curatori, quello dell'intero catalogo agli amministratori dell'app |
 | 3 ottobre 2026, curatela manuale | Confermate bozze condivise e modificabili da tutti i curatori. Aggiunto il percorso manuale web senza AI per creare, modificare, verificare nuovamente e pubblicare ricette; ultima priorità di implementazione (M6). Upload da file registrato come opzione da definire |
 | 3 ottobre 2026, traduzioni | Confermati italiano e inglese britannico entrambi obbligatori per pubblicare una ricetta; traduzioni mancanti mantengono la scheda in bozza, anche per l'importazione |
+| 3 ottobre 2026, ingredienti | Confermati elenco verificato degli ingredienti, quantità e unità quando applicabili e porzioni di riferimento come requisiti di pubblicazione anche per le ricette pregresse. Ammessi "q.b." espliciti; i dati mancanti mantengono la ricetta in bozza |
