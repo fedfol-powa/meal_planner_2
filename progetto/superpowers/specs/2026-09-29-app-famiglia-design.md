@@ -35,8 +35,9 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
 - ingredienti verificati, quantità e unità quando applicabili e porzioni di riferimento
   obbligatori per pubblicare, anche per le ricette importate; ammesse indicazioni
   esplicite come "q.b.", senza usarle per sostituire dati mancanti;
-- tutte le operazioni dell'app disponibili anche tramite MCP; browser ammesso per
-  collegare l'account e per eventuali nuove autenticazioni;
+- operazioni dell'app disponibili anche tramite MCP, con l'eccezione dell'eliminazione
+  di una famiglia: esecuzione solo nell'app web e risposta MCP con URL alla pagina
+  dedicata. Browser previsto anche per collegare l'account e riautenticarsi;
 - client MCP obiettivo della prima versione: Codex CLI, Claude Code, ChatGPT e Claude
   Desktop, con istruzioni dedicate e compatibilità da verificare nel design tecnico;
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
@@ -56,8 +57,8 @@ concordare sono elencati nella sezione 15 e non vanno trattati come decisioni ap
   e pagina per gestire ruoli, inviti e cancellazione degli utenti;
 - ruoli globali di curatore e amministratore separati e cumulabili; l'amministratore
   può assegnarli entrambi, senza ottenere accesso ai contenuti delle altre famiglie;
-- l'amministratore di una famiglia può eliminare la famiglia che amministra, anche
-  tramite MCP; questa operazione non cancella gli account dei membri;
+- l'amministratore di una famiglia può eliminare la famiglia che amministra solo
+  dall'app web; questa operazione non cancella gli account dei membri;
 - l'ultimo amministratore dell'app non può essere cancellato o retrocesso senza un
   successore. Prima di cancellare l'ultimo amministratore di una famiglia con altri
   membri occorre nominarne un altro; cancellando l'unico membro si elimina la famiglia;
@@ -91,8 +92,9 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   la Famiglia la amministra e invia agli altri un link d'invito (anche su WhatsApp). Una
   persona può far parte di più Famiglie, per esempio dei nonni o di genitori separati.
 - **L'amministratore della famiglia** gestisce membri, inviti e impostazioni di quella
-  famiglia e può eliminarla. Eliminare una famiglia rimuove i suoi dati per tutti i
-  membri, ma conserva gli account delle persone e le altre famiglie a cui appartengono.
+  famiglia e può eliminarla dall'app web. Eliminare una famiglia rimuove i suoi dati
+  per tutti i membri, ma conserva gli account delle persone e le altre famiglie a cui
+  appartengono.
 - **Chiunque può iscriversi** e creare la propria Famiglia.
 - **Il curatore del ricettario** è un ruolo assegnabile a un utente. Può collegare il
   proprio agente tramite MCP e aggiungere ricette con un percorso guidato. Essere membro
@@ -237,10 +239,16 @@ La lingua e le unità sono indipendenti: si può usare l'inglese con misure metr
 
 ### Usare l'app attraverso il proprio agente
 
-Un utente può collegare un agente compatibile tramite MCP e usare tutte le operazioni
+Un utente può collegare un agente compatibile tramite MCP e usare le operazioni
 dell'app attraverso di esso: consultazione, modifiche, voti, spesa, impostazioni e
 gestione della famiglia. Curatori e amministratori dell'app accedono anche alle
 operazioni previste per i loro ruoli. I permessi sono gli stessi dell'accesso web.
+
+**Eccezione confermata:** eliminare una famiglia richiede l'app web. Se lo chiede
+all'agente, MCP non esegue l'eliminazione e restituisce un URL per aprire la pagina
+appropriata e confermare esplicitamente l'operazione. Aprire il link non cancella nulla.
+La stessa regola vale quando cancellare un account comporterebbe l'eliminazione di
+una famiglia di cui la persona è l'unico membro.
 
 Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
 deve poter avvenire tramite l'agente. Una pagina dell'app spiega il collegamento per i
@@ -251,7 +259,9 @@ client supportati, con istruzioni e comandi o configurazioni da copiare.
 Una pagina riservata agli amministratori dell'app permette di gestire **gli utenti e
 gli inviti di tutta l'applicazione**: invitare persone, cambiare ruoli e cancellare
 utenti. Deve comprendere l'assegnazione del ruolo di curatore e la possibilità di
-nominare altri amministratori dell'app. Le stesse operazioni sono disponibili via MCP.
+nominare altri amministratori dell'app. Le stesse operazioni sono disponibili via MCP,
+salvo le cancellazioni di account che eliminerebbero anche una famiglia: in quel caso
+MCP rimanda alla pagina dell'app, senza eseguire la cancellazione.
 
 Gli amministratori dell'app possono inoltre ripristinare l'intero ricettario da backup.
 Questo recupero riguarda il catalogo, senza ripristinare i dati privati delle famiglie.
@@ -405,8 +415,9 @@ nel percorso di primo accesso.
 
 - `member`: legge la propria famiglia, modifica gli slot, vota, gestisce le esclusioni;
 - `family_admin`: in più gestisce inviti, membri e impostazioni di quella famiglia e
-  può eliminarla, sia dal web sia tramite MCP. Finché la famiglia resta attiva, l'ultimo
-  amministratore non può uscire o perdere il ruolo senza nominarne un altro. Se è
+  può eliminarla esclusivamente dall'app web; MCP fornisce il collegamento alla pagina
+  dedicata. Finché la famiglia resta attiva, l'ultimo amministratore non può uscire
+  o perdere il ruolo senza nominarne un altro. Se è
   l'unico membro, può eliminare la famiglia; la cancellazione del suo account la
   elimina insieme ai relativi dati, secondo le regole della sezione 7.
 
@@ -705,12 +716,16 @@ requisito.
   evitare cancellazioni parziali. Il trattamento delle attribuzioni, degli inviti
   ancora aperti e delle bozze condivise si completa nel design, senza cancellare
   implicitamente i contributi pubblicati dell'utente.
+  Se la cancellazione comporta l'eliminazione di almeno una famiglia, una richiesta
+  MCP restituisce soltanto il collegamento alla pagina appropriata dell'app e non
+  effettua cancellazioni parziali o complete. La restrizione vale sia per l'utente
+  che cancella il proprio account sia per l'amministratore che cancella un altro utente.
 - **Ultimo amministratore dell'app, regola confermata**: non può essere cancellato o
   perdere il ruolo `app_admin` finché non viene nominato un successore. Il vincolo vale
   anche per la cancellazione del proprio account e per le operazioni via MCP.
 - **Eliminazione della famiglia, permesso confermato**: un `family_admin` può eliminare
-  la famiglia che amministra, anche se ha altri membri. Rimuove la famiglia e i suoi
-  dati, compresi menu, note, impostazioni, appartenenze e inviti familiari; interrompe
+  la famiglia che amministra, anche se ha altri membri, **solo dall'app web**. Rimuove
+  la famiglia e i suoi dati, compresi menu, note, impostazioni, appartenenze e inviti familiari; interrompe
   i relativi job e impedisce ulteriori accessi a quella famiglia da web e MCP.
   Gli account dei membri, i loro voti personali, le altre famiglie, il ricettario e i
   ruoli globali restano invariati. L'azione non richiede di nominare un successore,
@@ -718,8 +733,12 @@ requisito.
   ruolo di amministratore dell'app non conferisce questo permesso su qualunque famiglia.
   Resta distinta la cancellazione automatica di una famiglia rimasta senza membri
   quando si elimina il suo unico utente, descritta sopra.
-  Proposta di interazione da verificare nel prototipo: conferma esplicita che identifica
-  la famiglia e chiarisce la rimozione dei dati per tutti i suoi membri.
+  L'utente apre la pagina dedicata e conferma esplicitamente l'operazione. La pagina
+  identifica la famiglia e chiarisce la rimozione dei dati per tutti i suoi membri.
+  MCP restituisce un esito che richiede un'azione nell'app con il relativo URL, senza
+  eseguire l'eliminazione. Il link è soltanto una navigazione: non contiene un comando
+  che cancelli dati all'apertura. La pagina richiede l'accesso e verifica nuovamente
+  i permessi al momento della conferma. La forma dell'interazione si rivede nel prototipo.
 - **Privacy**: informativa, dati minimi (email, nome visualizzato, dati della famiglia).
 - **Limiti di frequenza**: iscrizioni (rate limit di Supabase Auth) e generazioni su
   richiesta.
@@ -918,7 +937,8 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   delle due lingue, anche per importazione e percorso manuale. Una bozza può invece
   essere salvata e ripresa con traduzioni ancora mancanti.
 - **MCP**: parità di operazioni, permessi, validazione, attribuzione, conflitti e limiti
-  rispetto al web; isolamento fra utenti e famiglie; riconnessione e accessi revocati;
+  rispetto al web, salvo l'eliminazione delle famiglie riservata all'app; isolamento
+  fra utenti e famiglie; riconnessione e accessi revocati;
   esportazioni effettivamente utilizzabili nei client supportati. Verifica del
   collegamento e dei percorsi previsti su ciascuno dei quattro client obiettivo:
   Codex CLI, Claude Code, ChatGPT e Claude Desktop, registrando versioni o modalità
@@ -930,10 +950,13 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   sono altri membri, eliminazione della famiglia dell'unico membro e revoca degli
   accessi MCP dell'utente cancellato. Il catalogo pubblicato rimane disponibile.
 - **Eliminazione della famiglia**: permesso limitato agli amministratori di quella
-  famiglia, applicato dal server anche via MCP; rimozione dei dati e degli accessi
-  familiari senza cancellare account, voti personali o altre famiglie. Il solo ruolo
+  famiglia ed esecuzione riservata all'app web, con controllo sul server; rimozione
+  dei dati e degli accessi familiari senza cancellare account, voti personali o altre famiglie. Il solo ruolo
   `app_admin` e il ruolo `member` non autorizzano l'operazione diretta. Verificare anche
   famiglia con più membri e job in corso, senza lasciare una famiglia parzialmente attiva.
+  Da MCP si ottiene soltanto l'URL, senza eliminazioni, anche tentando la cancellazione
+  dell'account dell'unico membro. Aprire il link non ha effetti di scrittura; il
+  completamento richiede autenticazione, permessi validi e conferma nella pagina web.
 - **End to end** (Playwright): iscrizione, creazione della famiglia, invito, modifica di uno
   slot, voto, generazione della lista con pagina Bring!, cambio lingua e unità,
   collegamento MCP e operazioni di curatela e amministrazione.
@@ -960,8 +983,9 @@ il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
 | **M6 Curatela manuale — ultima priorità** | Modulo web senza AI per creare, modificare, verificare e pubblicare ricette, modifica e nuova verifica delle bozze condivise; eventuale upload da file da definire | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
 
-Lingue, unità e parità web/MCP sono requisiti trasversali: ogni funzione introdotta li
-rispetta dalla sua prima versione. La collocazione delle attività nella roadmap non
+Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
+rispetta dalla sua prima versione, con l'eccezione esplicita dell'eliminazione delle
+famiglie, per cui MCP restituisce il link all'app. La collocazione delle attività nella roadmap non
 rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
 La priorità finale di M6 riguarda il modulo manuale e l'eventuale upload, non la
 consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
@@ -1019,7 +1043,8 @@ dei libri.
 ### 13. MCP e guida al collegamento
 
 **Requisito:** ogni operazione disponibile nell'app deve avere un equivalente MCP per
-lo stesso utente e con gli stessi permessi. Il server espone operazioni applicative,
+lo stesso utente e con gli stessi permessi, **tranne l'eliminazione di una famiglia**,
+che MCP può soltanto indirizzare alla pagina dell'app. Il server espone operazioni applicative,
 non accesso generico alle tabelle. È proposto un server remoto collegabile all'account;
 protocollo di autenticazione, trasporto, hosting e compatibilità dei client saranno
 verificati con la documentazione aggiornata prima dell'implementazione.
@@ -1029,8 +1054,8 @@ e Claude Desktop. Questa scelta definisce il perimetro da supportare e documenta
 non attesta una compatibilità già verificata. Il design tecnico deve verificare per
 ciascuno collegamento, autenticazione, operazioni di lettura e scrittura, rispetto dei
 ruoli e consegna delle esportazioni. Le differenze emerse devono essere riportate nella
-guida e risolte o concordate prima del rilascio, senza ridurre implicitamente il requisito
-di parità delle operazioni.
+guida e risolte o concordate prima del rilascio, senza introdurre altre eccezioni
+implicite alla copertura delle operazioni.
 
 | Ambito | Operazioni da coprire tramite MCP |
 |---|---|
@@ -1039,14 +1064,27 @@ di parità delle operazioni.
 | Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi o non cucinati, note ed esclusioni |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
 | Spesa | Selezionare pasti, generare e rivedere la lista temporanea, ottenere PDF, testo e collegamento Bring! |
-| Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; eliminare una famiglia di cui si è amministratori; preferenze personali e cancellazione del proprio account con i vincoli previsti |
+| Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
 | Curatela | Conoscere i requisiti, salvare e riprendere bozze, validare e pubblicare ricette complete, modificare ricette di qualunque autore e ripristinare una versione precedente di una singola ricetta |
-| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti, cancellazione utenti e ripristino dell'intero catalogo da backup con il ruolo di amministratore dell'app |
+| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo da backup; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
 sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
 dall'agente non concede quel ruolo. Risultati ed errori devono permettere all'agente di
 mostrare gli stessi avvisi e risolvere gli stessi conflitti previsti dal web.
+
+**Eliminazione della famiglia: passaggio obbligatorio all'app.** Una richiesta MCP
+non esegue né prepara una cancellazione automatica; restituisce un risultato
+strutturato che spiega la necessità di aprire l'app e contiene l'URL della pagina
+appropriata. L'utente deve aprirla, autenticarsi se necessario e confermare. La pagina
+verifica i permessi, senza considerarli concessi dal possesso del link.
+
+La restrizione deve essere applicata sul server e coprire anche le cancellazioni
+indirette tramite eliminazione dell'account dell'unico membro. Nascondere un comando
+nella lista degli strumenti non basta: il design deve distinguere il contesto di
+accesso web da quello MCP in modo verificabile, senza fidarsi di un parametro con cui
+l'agente dichiara il canale della richiesta. Le altre operazioni rimangono disponibili
+via MCP secondo i ruoli già concordati.
 
 Un agente può assistere il curatore o l'utente nelle operazioni manuali, ma il
 pianificatore automatico resta il sistema a regole della sezione 3. L'app non impone
@@ -1060,6 +1098,8 @@ un modello o un fornitore AI al client MCP.
   modalità, oppure passaggi nell'interfaccia quando previsti;
 - spiega accesso e autorizzazione nel browser, ammessi dall'utente, ed eventuale
   riautenticazione;
+- chiarisce che l'eliminazione delle famiglie si completa soltanto nell'app, tramite
+  il collegamento restituito dall'agente;
 - include un esempio per verificare il collegamento e un esempio del flusso del curatore;
 - descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
 
@@ -1080,8 +1120,9 @@ non è ancora stato creato; la directory proposta è `prototype/`.
 - navigazione provabile da telefono e desktop, con dati dimostrativi;
 - pasti di oggi, settimana e revisione, ricerca e scheda ricetta, voti e lista della spesa;
 - famiglia, membri e inviti, preferenze personali e della famiglia; eliminazione della
-  famiglia da parte del suo amministratore e differenza rispetto alla cancellazione
-  di un account, con i vincoli sull'ultimo amministratore;
+  famiglia da parte del suo amministratore solo nell'app, con passaggio dal link
+  restituito da MCP; differenza rispetto alla cancellazione di un account, con i
+  vincoli sull'ultimo amministratore e sull'eliminazione indiretta delle famiglie;
 - cambio lingua e sistema di misura osservabile nei dati mostrati;
 - pagina di collegamento MCP e rappresentazione del percorso guidato del curatore;
 - sezione bozze nell'app, ripresa del lavoro e pubblicazione; modifica di una ricetta
@@ -1112,7 +1153,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
 | Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale | Sezione 7 |
-| Cancellazione | Interazioni di conferma, dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore dell'app, successione familiare, eliminazione della famiglia dell'unico membro e facoltà del suo amministratore di eliminarla | Sezioni 2, 7 e 13 |
+| Cancellazione | Forma della conferma e del passaggio da MCP al web, dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Campi specifici per ogni fonte e momento della conferma del curatore; ingredienti, quantità e unità applicabili, porzioni ed entrambe le lingue già obbligatori per pubblicare. Rappresentazione nello storico importato delle ricette ancora in bozza, senza esporre le bozze alle famiglie | Sezioni 8, 11 e 12 |
 | Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; condivisione delle bozze e percorso manuale web già confermati | Sezione 8 |
 | Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
@@ -1134,4 +1175,5 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 3 ottobre 2026, traduzioni | Confermati italiano e inglese britannico entrambi obbligatori per pubblicare una ricetta; traduzioni mancanti mantengono la scheda in bozza, anche per l'importazione |
 | 3 ottobre 2026, ingredienti | Confermati elenco verificato degli ingredienti, quantità e unità quando applicabili e porzioni di riferimento come requisiti di pubblicazione anche per le ricette pregresse. Ammessi "q.b." espliciti; i dati mancanti mantengono la ricetta in bozza |
 | 3 ottobre 2026, client MCP | Scelti Codex CLI, Claude Code, ChatGPT e Claude Desktop come client obiettivo della prima versione, con guida dedicata e verifica tecnica per ciascuno |
-| 3 ottobre 2026, cancellazioni | Confermate le regole per cancellare utenti: protezione dell'ultimo amministratore dell'app, successore nelle famiglie con altri membri, eliminazione della famiglia dell'unico membro, conservazione delle ricette pubblicate e revoca degli accessi. Aggiunto al ruolo di amministratore della famiglia il diritto di eliminarla da web e MCP, senza cancellare gli account dei membri |
+| 3 ottobre 2026, cancellazioni | Confermate le regole per cancellare utenti: protezione dell'ultimo amministratore dell'app, successore nelle famiglie con altri membri, eliminazione della famiglia dell'unico membro, conservazione delle ricette pubblicate e revoca degli accessi. Aggiunto al ruolo di amministratore della famiglia il diritto di eliminarla senza cancellare gli account dei membri |
+| 3 ottobre 2026, eccezione MCP | Eliminazione delle famiglie riservata all'app web: MCP restituisce un URL e l'utente completa l'operazione nella pagina dedicata. La restrizione copre anche la cancellazione di account che comporterebbe l'eliminazione di una famiglia |
