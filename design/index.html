@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="it" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Menu 5–11 ottobre 2026 · Famiglia</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cpath fill='%23067a46' d='M0 0h40v40H0z'/%3E%3Ctext fill='white' x='9' y='30' font-family='Helvetica,Arial,sans-serif' font-size='32' font-weight='bold'%3Ef%3C/text%3E%3C/svg%3E">
+  <style>
+    @font-face { font-family: "Reference Agrandir"; src: url("assets/hellofresh/fonts/agrandir-regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "Reference Agrandir Tight"; src: url("assets/hellofresh/fonts/agrandir-tight-bold.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "Reference Roboto"; src: url("assets/hellofresh/fonts/roboto-regular.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+    @font-face { font-family: "Reference Roboto"; src: url("assets/hellofresh/fonts/roboto-bold.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+    :root {
+      color-scheme: light;
+      --canvas: #faf8f3;
+      --paper: #fff;
+      --ink: #232323;
+      --muted: #676767;
+      --rule: #e4e4e4;
+      --green: #067a46;
+      --soft-green: #eef5e8;
+      --text-font: "Reference Roboto", Helvetica, Arial, sans-serif;
+      --meal-title-font: "Reference Agrandir", Verdana, sans-serif;
+      --heading-font: "Reference Agrandir Tight", Verdana, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; height: 100dvh; overflow: hidden; background: var(--canvas); color: var(--ink); font: 400 1rem/1.5 var(--text-font); font-synthesis: none; }
+    a { color: inherit; }
+    button, input, summary, a { -webkit-tap-highlight-color: transparent; }
+    button, input { font: inherit; }
+    a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+    ::selection { color: #fff; background: var(--green); }
+    .shell { width: min(100%, 1200px); height: 100%; min-height: 0; margin-inline: auto; display: flex; flex-direction: column; }
+    .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .symbol-library { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .skip-link { position: fixed; left: 16px; top: -80px; z-index: 10; padding: 12px 20px; border-radius: 8px; color: #fff; background: var(--ink); }
+    .skip-link:focus { top: 12px; }
+    .app-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .app-view { flex: 1; min-height: 0; }
+    .calendar { display: flex; flex-direction: column; }
+    .day-navigation { flex: none; padding: max(12px, env(safe-area-inset-top)) 24px 12px; background: var(--canvas); }
+    .day-links { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--ink); border-radius: 8px; overflow: hidden; }
+    .day-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 60px; padding: 10px 6px; border-right: 1px solid var(--ink); color: var(--ink); text-decoration: none; }
+    .day-link:last-child { border-right: 0; }
+    .day-link:hover { background: #f0ede5; }
+    .day-link[aria-current="location"] { color: #fff; background: var(--ink); }
+    .day-link:focus-visible { outline-offset: -4px; }
+    .day-link[aria-current="location"]:focus-visible { outline-color: #fff; }
+    .day-link span { font-size: 0.75rem; line-height: 1.3; }
+    .day-link strong { font-size: 1.125rem; line-height: 1.3; font-weight: 700; }
+    .week-track { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: 100%; grid-template-rows: minmax(0, 1fr); overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+    .week-track::-webkit-scrollbar { display: none; }
+    .week-track:focus-visible { outline: 2px solid var(--green); outline-offset: -3px; }
+    .day { position: relative; min-width: 0; min-height: 0; height: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-content: start; align-items: start; overflow-y: auto; overflow-x: hidden; scroll-snap-align: start; scroll-snap-stop: always; overscroll-behavior-y: contain; padding: 8px 24px 28px; }
+    .meal { min-width: 0; background: var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / 10%); }
+    .meal-media { position: relative; aspect-ratio: 16 / 9; background: #e6e2d7; }
+    .meal-photo { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .meal-label { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 6px 10px; border-radius: 4px; color: var(--green); background: var(--soft-green); font: 700 0.75rem/1.3 var(--text-font); letter-spacing: 0.035em; text-transform: uppercase; }
+    .meal-media .meal-label { position: absolute; left: 16px; top: 16px; color: #fff; background: var(--green); }
+    .meal-heading { padding: 20px 20px 0; }
+    .meal-content { padding: 20px; }
+    .meal h3 { margin: 0 0 12px; font: 400 1.375rem/1.3 var(--meal-title-font); overflow-wrap: anywhere; }
+    .recipe-link { display: block; position: relative; padding-right: 24px; text-decoration: none; }
+    .recipe-link:hover { color: var(--green); }
+    .recipe-link .icon { position: absolute; top: 6px; right: 0; width: 16px; height: 16px; }
+    .description { margin: 0 0 20px; color: #454545; font-size: 1rem; line-height: 1.5; }
+    .meal-meta { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; font-size: 0.875rem; font-weight: 700; line-height: 1.5; }
+    .meal-meta .icon { width: 16px; height: 16px; }
+    .meal-source { margin: 0 0 20px; color: var(--muted); font-size: 0.8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+    .ingredients summary { display: flex; align-items: center; justify-content: center; gap: 6px; position: relative; min-height: 44px; padding: 10px 36px; border-radius: 8px; color: #fff; background: var(--ink); font: 700 0.875rem/1.5 var(--text-font); cursor: pointer; list-style: none; }
+    .ingredients summary:hover { background: #414141; }
+    .ingredients summary::-webkit-details-marker { display: none; }
+    .ingredients summary::after { content: ""; position: absolute; right: 18px; top: 16px; width: 8px; height: 8px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+    .ingredients[open] summary::after { top: 20px; transform: rotate(225deg); }
+    .ingredient-count { font-weight: 400; }
+    .ingredient-list { margin: 14px 0 0; padding: 0; list-style: none; }
+    .ingredient-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+    .ingredient-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+    .ingredient-quantity { max-width: 11ch; text-align: right; font-weight: 700; }
+    .meal-free { background: #f0f3ea; box-shadow: none; border: 1px solid #dce4d2; }
+    .free-mark { display: inline-block; margin: 0 0 12px; color: var(--green); font-size: 0.875rem; }
+    .no-script { margin: 16px; padding: 16px; background: var(--paper); }
+    .bottom-navigation { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 16px max(8px, env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--rule); }
+    .navigation-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 56px; color: var(--muted); font-size: 0.75rem; line-height: 1.3; text-decoration: none; border-radius: 8px; }
+    .navigation-icon { display: grid; place-items: center; width: 48px; height: 30px; border-radius: 8px; }
+    .navigation-item .icon { width: 22px; height: 22px; }
+    .navigation-item[aria-current="page"] { color: var(--green); font-weight: 700; }
+    .navigation-item[aria-current="page"] .navigation-icon { background: var(--soft-green); }
+    .navigation-item:focus-visible { outline-offset: -3px; }
+    .secondary-view { overflow-y: auto; padding: 0 24px 24px; }
+    .section-intro { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin: 0; padding: max(20px, env(safe-area-inset-top)) 0 20px; color: #454545; font-size: 0.875rem; }
+    .section-intro a { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 14px; border: 1px solid var(--ink); border-radius: 8px; color: var(--ink); font-weight: 700; text-decoration: none; }
+    #recipe-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .recipe-row { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); background: var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / 10%); }
+    .recipe-row.has-photo { grid-template-columns: 112px minmax(0, 1fr); }
+    .recipe-thumbnail { display: block; width: 112px; height: 100%; min-height: 160px; object-fit: cover; }
+    .recipe-content { padding: 16px; }
+    .recipe-row h2 { margin: 0 0 8px; font: 400 1.125rem/1.35 var(--meal-title-font); }
+    .recipe-row p { margin: 0 0 10px; color: var(--muted); font-size: 0.8125rem; }
+    .recipe-row a { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--green); font-size: 0.875rem; font-weight: 700; text-underline-offset: 3px; }
+    .recipe-row a .icon { width: 15px; height: 15px; }
+    .shopping-group { margin-bottom: 20px; padding: 20px; background: var(--paper); box-shadow: 0 1px 3px rgb(0 0 0 / 10%); }
+    .shopping-group h2 { margin: 10px 0 18px; font: 400 1.25rem/1.3 var(--heading-font); }
+    .shopping-meal-type { display: inline-block; margin: 0; padding: 4px 8px; border-radius: 4px; color: var(--green); background: var(--soft-green); font: 700 0.75rem/1.5 var(--text-font); text-transform: uppercase; letter-spacing: 0.035em; }
+    .shopping-items { margin: 0; padding: 0; list-style: none; }
+    .shopping-item { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: start; gap: 12px; min-height: 48px; padding: 12px 0; border-top: 1px solid var(--rule); cursor: pointer; }
+    .shopping-item input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--green); }
+    .shopping-item:has(input:checked) .shopping-name { color: var(--muted); text-decoration: line-through; }
+    .shopping-quantity { max-width: 10ch; text-align: right; font-weight: 700; }
+
+    @media (max-width: 767px) {
+      .day-navigation { padding-inline: 16px; }
+      .day-link { flex-direction: column; gap: 3px; min-height: 58px; padding-inline: 2px; }
+      .day { grid-template-columns: minmax(0, 1fr); padding: 8px 16px 24px; gap: 20px; }
+      .meal-content { padding: 18px; }
+      .meal-heading { padding: 18px 18px 0; }
+      .meal h3 { font-size: 1.25rem; }
+      .secondary-view { padding-inline: 16px; }
+      #recipe-list { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+      .shopping-group { padding: 16px; }
+    }
+    @media (max-width: 359px) {
+      .day-navigation { padding-inline: 12px; }
+      .day { padding-inline: 12px; }
+      .secondary-view { padding-inline: 12px; }
+      .recipe-row.has-photo { grid-template-columns: 88px minmax(0, 1fr); }
+      .recipe-thumbnail { width: 88px; }
+      .recipe-content { padding: 12px; }
+      .shopping-item { gap: 8px; font-size: 0.875rem; }
+    }
+    @media print {
+      :root { --canvas: #fff; --ink: #232323; }
+      body { height: auto; overflow: visible; }
+      .shell { width: 100%; height: auto; display: block; }
+      .app-content, .app-view, .calendar { display: block; height: auto; overflow: visible; }
+      .day-navigation, .bottom-navigation, .skip-link, .meal-photo, .recipe-thumbnail, .section-intro a, .recipe-row a { display: none; }
+      .meal-media { display: block; aspect-ratio: auto; background: none; }
+      .meal-media .meal-label { position: static; color: var(--ink); background: none; padding: 8px 0 0; }
+      .week-track { display: block; height: auto; overflow: visible; }
+      .day { display: block; height: auto; overflow: visible; padding: 0 0 16px; }
+      .day-title { position: static; width: auto; height: auto; margin: 16px 0; overflow: visible; clip-path: none; white-space: normal; font: 400 1.25rem/1.3 var(--heading-font); }
+      .meal, .recipe-row, .shopping-group { box-shadow: none; border-bottom: 1px solid #bbb; break-inside: avoid; }
+      .meal-content, .meal-heading, .recipe-content, .shopping-group { padding: 8px 0; }
+      .meal h3 { font-size: 1.125rem; }
+      .description, .meal-source { margin-bottom: 8px; }
+      .ingredients summary { justify-content: start; min-height: 0; padding: 8px 0; color: #232323; background: none; }
+      .ingredients summary::after { display: none; }
+      .ingredient-list { columns: 2; column-gap: 24px; }
+      .ingredient-list li { break-inside: avoid; padding-block: 4px; font-size: 0.875rem; }
+      .secondary-view { padding: 0; }
+      #recipe-list, .recipe-row.has-photo { display: block; }
+    }
+  </style>
+</head>
+<body id="top">
+  <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 19 19 5M5 5h14v14"/></symbol>
+    <symbol id="icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M3 5h18v16H3ZM3 10h18M8 2v6M16 2v6M7 14h3M14 14h3M7 18h3"/></symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24"><path d="M12 5v16M12 5C8 2 5 3 2 4v15c4-1 7-1 10 2 3-3 6-3 10-2V4c-3-1-6-2-10 1Z"/></symbol>
+    <symbol id="icon-bag" viewBox="0 0 24 24"><path d="M4 7h16l1 14H3ZM8 8V6a4 4 0 0 1 8 0v2"/></symbol>
+  </svg>
+  <a class="skip-link" href="#app-content" data-copy="skip">Vai al contenuto</a>
+  <div class="shell">
+    <main class="app-content" id="app-content" tabindex="-1" aria-labelledby="calendar-month">
+      <h1 class="visually-hidden" id="calendar-month">Ottobre 2026</h1>
+      <section class="calendar app-view" id="menu-view" aria-label="Menu">
+        <nav class="day-navigation" aria-label="Giorni della settimana"><div class="day-links" id="day-links"></div></nav>
+        <div class="week-track" id="week" tabindex="0" role="region" aria-label="Pasti della settimana"></div>
+        <noscript><p class="no-script">Per visualizzare questa prova del menu, abilita JavaScript nel browser.</p></noscript>
+      </section>
+      <section class="secondary-view app-view" id="recipes-view" aria-label="Ricettario" hidden>
+        <p class="section-intro" data-copy="recipesIntro">Le ricette di questa settimana.</p>
+        <div id="recipe-list"></div>
+      </section>
+      <section class="secondary-view app-view" id="shopping-view" aria-label="Spesa" hidden>
+        <p class="section-intro"><span id="shopping-context"></span><a href="#menu" data-copy="changeDay">Cambia giorno</a></p>
+        <div id="shopping-list"></div>
+      </section>
+    </main>
+    <nav class="bottom-navigation" aria-label="Navigazione principale">
+      <a class="navigation-item" href="#menu" data-view="menu" aria-current="page" aria-controls="menu-view"><span class="navigation-icon"><svg class="icon" aria-hidden="true"><use href="#icon-calendar"/></svg></span><span data-copy="menu">Menu</span></a>
+      <a class="navigation-item" href="#recipes" data-view="recipes" aria-controls="recipes-view"><span class="navigation-icon"><svg class="icon" aria-hidden="true"><use href="#icon-book"/></svg></span><span data-copy="recipes">Ricettario</span></a>
+      <a class="navigation-item" href="#shopping" data-view="shopping" aria-controls="shopping-view"><span class="navigation-icon"><svg class="icon" aria-hidden="true"><use href="#icon-bag"/></svg></span><span data-copy="shopping">Spesa</span></a>
+    </nav>
+  </div>
+
+  <script type="application/json" id="menu-data">{
+  "locale": "it-IT",
+  "startsOn": "2026-10-05",
+  "endsOn": "2026-10-11",
+  "days": [
+    {
+      "date": "2026-10-05",
+      "meals": [
+        {
+          "id": "wrap-fagioli-neri-cheddar",
+          "type": "lunch",
+          "name": "Wrap di fagioli neri e cheddar",
+          "description": "Salta i fagioli con cipolla e aglio; farcisci le tortillas con cheddar, lattuga, pomodoro e salsa di yogurt e salsa messicana.",
+          "details": "15-20 min · 2 porzioni",
+          "sourceLabel": "dinner-mom.com",
+          "sourceUrl": "https://www.dinner-mom.com/spicy-black-bean-wraps/",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "2",
+              "name": "Tortillas grandi per burrito"
+            },
+            {
+              "quantity": "circa 213 g",
+              "name": "Fagioli neri scolati e sciacquati"
+            },
+            {
+              "quantity": "1/4",
+              "name": "Cipolla dorata"
+            },
+            {
+              "quantity": "1 spicchio",
+              "name": "Aglio"
+            },
+            {
+              "quantity": "4 cucchiai",
+              "name": "Salsa messicana delicata"
+            },
+            {
+              "quantity": "2 cucchiai",
+              "name": "Yogurt greco"
+            },
+            {
+              "quantity": "4 cucchiai",
+              "name": "Lattuga tagliata"
+            },
+            {
+              "quantity": "4 cucchiai",
+              "name": "Cheddar grattugiato"
+            },
+            {
+              "quantity": "1/2",
+              "name": "Pomodori tipo Roma"
+            }
+          ]
+        },
+        {
+          "id": "erbazzone-uova-strapazzate-stracchino",
+          "type": "dinner",
+          "name": "Erbazzone, uova strapazzate e stracchino",
+          "description": "Cuoci l'erbazzone in forno seguendo la confezione; prepara le uova strapazzate e servi con lo stracchino.",
+          "details": "Secondo confezione · 2 porzioni",
+          "sourceLabel": "Ricetta di casa",
+          "sourceUrl": "",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "1",
+              "name": "Erbazzone congelato"
+            },
+            {
+              "quantity": "4",
+              "name": "Uova"
+            },
+            {
+              "quantity": "250 g",
+              "name": "Stracchino"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-06",
+      "meals": [
+        {
+          "id": "pasta-zucca-salsiccia-robiola",
+          "type": "lunch",
+          "name": "Pasta zucca, salsiccia e robiola",
+          "description": "Rosola salsiccia e cipolla, cuoci la zucca 10 min, manteca con robiola e acqua di cottura.",
+          "details": "30 min · 3 porzioni",
+          "sourceLabel": "fattoincasadabenedetta.it",
+          "sourceUrl": "https://www.fattoincasadabenedetta.it/ricetta/pasta-zucca-e-salsiccia/",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "240 g",
+              "name": "Rigatoni"
+            },
+            {
+              "quantity": "300 g",
+              "name": "Zucca pulita a pezzetti"
+            },
+            {
+              "quantity": "150 g",
+              "name": "Salsiccia"
+            },
+            {
+              "quantity": "3/8",
+              "name": "Cipolla dorata"
+            },
+            {
+              "quantity": "75 g",
+              "name": "Robiola"
+            }
+          ]
+        },
+        {
+          "id": "riso-ceci-spinaci-mandorle",
+          "type": "dinner",
+          "name": "Riso alla curcuma con ceci e spinaci",
+          "description": "Cuoci il basmati alla curcuma; salta ceci e spinaci con pomodori, brodo e crema di mandorle, poi servi sul riso.",
+          "details": "25 min · 4 porzioni",
+          "sourceLabel": "theflexitarian.co.uk",
+          "sourceUrl": "https://theflexitarian.co.uk/recipe-items/spinach-with-chickpea-rice-bowl/",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "2",
+              "name": "Cipolla rossa piccola"
+            },
+            {
+              "quantity": "6 spicchi",
+              "name": "Aglio"
+            },
+            {
+              "quantity": "4",
+              "name": "Pomodori"
+            },
+            {
+              "quantity": "1 cucchiaio",
+              "name": "Zenzero fresco grattugiato"
+            },
+            {
+              "quantity": "500 ml",
+              "name": "Brodo vegetale"
+            },
+            {
+              "quantity": "4 cucchiai",
+              "name": "Crema di mandorle croccante"
+            },
+            {
+              "quantity": "400 g",
+              "name": "Spinacini freschi"
+            },
+            {
+              "quantity": "400 g",
+              "name": "Ceci in scatola"
+            },
+            {
+              "quantity": "1/2-1 cucchiaino",
+              "name": "Garam masala"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Succo di limone"
+            },
+            {
+              "quantity": "350 g",
+              "name": "Riso basmati"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Mandorle tritate"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Coriandolo fresco"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-07",
+      "meals": [
+        {
+          "id": "pasta-robiola-speck",
+          "type": "lunch",
+          "name": "Pasta robiola e speck",
+          "description": "Rosola lo speck a cubetti, stufa il cipollotto nello stesso fondo e manteca la pasta con la robiola e l'acqua di cottura.",
+          "details": "30 min · 3 porzioni",
+          "sourceLabel": "ricette.giallozafferano.it",
+          "sourceUrl": "https://ricette.giallozafferano.it/Pasta-robiola-e-speck.html",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "300 g",
+              "name": "Fusilloni"
+            },
+            {
+              "quantity": "150 g",
+              "name": "Speck a cubetti"
+            },
+            {
+              "quantity": "190 g",
+              "name": "Robiola"
+            },
+            {
+              "quantity": "75 g",
+              "name": "Cipollotti"
+            }
+          ]
+        },
+        {
+          "id": "hamburger-cavallo",
+          "type": "dinner",
+          "name": "Hamburger di carne di cavallo",
+          "description": "Cuoci gli hamburger di cavallo e servili nel panino.",
+          "details": "15 min · 2 porzioni",
+          "sourceLabel": "Ricetta di casa",
+          "sourceUrl": "",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "2",
+              "name": "Hamburger di cavallo"
+            },
+            {
+              "quantity": "2",
+              "name": "Panini per hamburger"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "meals": [
+        {
+          "id": "spaghetti-riso-tofu-verdure-wok",
+          "type": "lunch",
+          "name": "Spaghetti di riso al wok con tofu e verdure",
+          "description": "Salta verdure e tofu affumicato, unisci gli spaghetti di riso e condisci con soia, salsa barbecue e sesamo.",
+          "details": "30 min · 3 porzioni",
+          "sourceLabel": "pasticciandoconlafranca.it",
+          "sourceUrl": "https://www.pasticciandoconlafranca.it/2020/primi-piatti/spaghetti-di-riso-con-tofu-e-verdure/",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "3 matasse",
+              "name": "Spaghetti di riso"
+            },
+            {
+              "quantity": "1 panetto",
+              "name": "Tofu affumicato"
+            },
+            {
+              "quantity": "100 g",
+              "name": "Germogli di soia"
+            },
+            {
+              "quantity": "2",
+              "name": "Zucchine"
+            },
+            {
+              "quantity": "2",
+              "name": "Carote"
+            },
+            {
+              "quantity": "1",
+              "name": "Cipolla dorata"
+            },
+            {
+              "quantity": "1/2",
+              "name": "Peperoni rossi"
+            },
+            {
+              "quantity": "1 cucchiaio",
+              "name": "Salsa barbecue"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Salsa di soia"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Semi di sesamo"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Prezzemolo"
+            }
+          ]
+        },
+        {
+          "id": "pollo-corn-flakes",
+          "type": "dinner",
+          "name": "Petto di pollo ai corn flakes",
+          "description": "Impana il pollo nei corn flakes alla paprika, friggi in padella e servi con salsa di yogurt, maionese e limone.",
+          "details": "25 min · 4 porzioni",
+          "sourceLabel": "ricette.giallozafferano.it",
+          "sourceUrl": "https://ricette.giallozafferano.it/Petto-di-pollo-ai-corn-flakes.html",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "800 g",
+              "name": "Petto di pollo"
+            },
+            {
+              "quantity": "100 g",
+              "name": "Corn flakes non zuccherati"
+            },
+            {
+              "quantity": "3",
+              "name": "Uova"
+            },
+            {
+              "quantity": "50 g",
+              "name": "Latte intero"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Farina 00"
+            },
+            {
+              "quantity": "150 g",
+              "name": "Yogurt bianco naturale"
+            },
+            {
+              "quantity": "50 g",
+              "name": "Maionese"
+            },
+            {
+              "quantity": "50 g",
+              "name": "Succo di limone"
+            },
+            {
+              "quantity": "1 limone",
+              "name": "Scorza di limone"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Erba cipollina"
+            },
+            {
+              "quantity": "1 l",
+              "name": "Olio di semi di girasole"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-09",
+      "meals": [
+        {
+          "id": "pasta-ricotta-zafferano",
+          "type": "lunch",
+          "name": "Pasta cremosa ricotta e zafferano",
+          "description": "Stempera la ricotta con zafferano e acqua di cottura, condisci gli spaghettoni e completa con pepe e salvia.",
+          "details": "15 min · 3 porzioni",
+          "sourceLabel": "ricette.giallozafferano.it",
+          "sourceUrl": "https://ricette.giallozafferano.it/Pasta-cremosa-ricotta-e-zafferano.html",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "240 g",
+              "name": "Spaghettoni"
+            },
+            {
+              "quantity": "190 g",
+              "name": "Ricotta vaccina"
+            },
+            {
+              "quantity": "1 e 1/2 bustine",
+              "name": "Zafferano"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Salvia"
+            }
+          ]
+        },
+        {
+          "id": "branzino-barbecue",
+          "type": "dinner",
+          "name": "Filetti di branzino al barbecue",
+          "description": "Cuoci i filetti di branzino a partire dalla pelle, 3 minuti per lato, con olio, sale e pepe.",
+          "details": "30 min · 4 porzioni",
+          "sourceLabel": "Ricetta di casa",
+          "sourceUrl": "",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "800 g",
+              "name": "Filetti di branzino"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "meals": [
+        {
+          "id": "pasta-crema-peperoni",
+          "type": "lunch",
+          "name": "Pasta alla crema di peperoni",
+          "description": "Stufa i peperoni con cipolla, frullali con ricotta e latte e manteca i paccheri con la crema.",
+          "details": "30 min · 4 porzioni",
+          "sourceLabel": "fattoincasadabenedetta.it",
+          "sourceUrl": "https://www.fattoincasadabenedetta.it/ricetta/pasta-alla-crema-di-peperoni/",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "350 g",
+              "name": "Paccheri"
+            },
+            {
+              "quantity": "2",
+              "name": "Peperoni rossi"
+            },
+            {
+              "quantity": "100 g",
+              "name": "Ricotta vaccina"
+            },
+            {
+              "quantity": "100 ml",
+              "name": "Latte intero"
+            },
+            {
+              "quantity": "1/2",
+              "name": "Cipolla dorata"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Prezzemolo"
+            }
+          ]
+        },
+        {
+          "id": "",
+          "type": "dinner",
+          "name": "Cena libera",
+          "description": "",
+          "details": "",
+          "sourceLabel": "",
+          "sourceUrl": "",
+          "isFree": true,
+          "ingredients": []
+        }
+      ]
+    },
+    {
+      "date": "2026-10-11",
+      "meals": [
+        {
+          "id": "",
+          "type": "lunch",
+          "name": "Pizza da asporto",
+          "description": "",
+          "details": "",
+          "sourceLabel": "",
+          "sourceUrl": "",
+          "isFree": true,
+          "ingredients": []
+        },
+        {
+          "id": "sovracosce-pollo-griglia",
+          "type": "dinner",
+          "name": "Sovracosce di pollo alla griglia",
+          "description": "Al mattino marina il pollo con limone, olio e spezie per 6 ore; alla sera cuoci al barbecue 4 minuti per lato.",
+          "details": "30 min + marinatura · 4 porzioni",
+          "sourceLabel": "Ricetta di casa",
+          "sourceUrl": "",
+          "isFree": false,
+          "ingredients": [
+            {
+              "quantity": "800 g",
+              "name": "Sovracosce di pollo disossate e spellate"
+            },
+            {
+              "quantity": "q.b.",
+              "name": "Limone"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+</script>
+  <script>
+    "use strict";
+    const messages = {
+      "it-IT": {
+        skip: "Vai al contenuto",
+        lunch: "Pranzo", dinner: "Cena", ingredients: "Ingredienti", free: "Pasto libero",
+        dayNavigation: "Giorni della settimana", week: "Pasti della settimana",
+        menu: "Menu", recipes: "Ricettario", shopping: "Spesa", mainNavigation: "Navigazione principale",
+        recipesIntro: "Le ricette di questa settimana.", viewInMenu: "Vedi nel menu", changeDay: "Cambia giorno",
+        shoppingFor: "Per", noIngredients: "Non ci sono ingredienti da comprare per questo giorno."
+      },
+      "en-GB": {
+        skip: "Skip to content",
+        lunch: "Lunch", dinner: "Dinner", ingredients: "Ingredients", free: "Free meal",
+        dayNavigation: "Days of the week", week: "Meals for the week",
+        menu: "Menu", recipes: "Recipes", shopping: "Shopping", mainNavigation: "Main navigation",
+        recipesIntro: "The recipes on this week’s menu.", viewInMenu: "View on the menu", changeDay: "Change day",
+        shoppingFor: "For", noIngredients: "There are no ingredients to buy for this day."
+      }
+    };
+    const menu = JSON.parse(document.getElementById("menu-data").textContent);
+    const locale = menu.locale;
+    const copy = messages[locale];
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+    const icon = name => `<svg class="icon" aria-hidden="true"><use href="#icon-${name}"/></svg>`;
+    const dateValue = value => new Date(`${value}T12:00:00`);
+    const formatDate = (value, options) => new Intl.DateTimeFormat(locale, options).format(dateValue(value));
+    document.documentElement.lang = locale;
+    document.querySelectorAll("[data-copy]").forEach(element => { element.textContent = copy[element.dataset.copy]; });
+    document.querySelector(".day-navigation").setAttribute("aria-label", copy.dayNavigation);
+    document.querySelector(".bottom-navigation").setAttribute("aria-label", copy.mainNavigation);
+    const monthTitle = formatDate(menu.startsOn, { month: "long", year: "numeric" });
+    document.getElementById("calendar-month").textContent = monthTitle;
+
+
+
+    const recipeImages = {
+  "wrap-fagioli-neri-cheddar": "assets/recipe-images/wrap-fagioli-neri-cheddar.jpg",
+  "pasta-zucca-salsiccia-robiola": "assets/recipe-images/pasta-zucca-salsiccia-robiola.jpg",
+  "riso-ceci-spinaci-mandorle": "assets/recipe-images/riso-ceci-spinaci-mandorle.jpg",
+  "pasta-robiola-speck": "assets/recipe-images/pasta-robiola-speck.jpg",
+  "spaghetti-riso-tofu-verdure-wok": "assets/recipe-images/spaghetti-riso-tofu-verdure-wok.jpg",
+  "pollo-corn-flakes": "assets/recipe-images/pollo-corn-flakes.jpg",
+  "pasta-ricotta-zafferano": "assets/recipe-images/pasta-ricotta-zafferano.jpg",
+  "pasta-crema-peperoni": "assets/recipe-images/pasta-crema-peperoni.jpg"
+};
+
+    function renderMeal(meal, date) {
+      const title = escapeHtml(meal.name);
+      const titleContent = meal.sourceUrl ? `<a class="recipe-link" href="${escapeHtml(meal.sourceUrl)}" target="_blank" rel="noopener noreferrer">${title} ${icon("arrow")}</a>` : title;
+      const ingredientRows = meal.ingredients.map(item => `<li><span>${escapeHtml(item.name)}</span><span class="ingredient-quantity">${escapeHtml(item.quantity)}</span></li>`).join("");
+      const headingId = `meal-${date}-${meal.type}`;
+      const photo = recipeImages[meal.id];
+      return `<article class="meal${meal.isFree ? " meal-free" : ""}" data-type="${meal.type}" aria-labelledby="${headingId}">
+        ${photo ? `<div class="meal-media"><img class="meal-photo" src="${photo}" alt="" loading="${date === menu.startsOn ? "eager" : "lazy"}" decoding="async"><p class="meal-label">${copy[meal.type]}</p></div>` : `<div class="meal-heading"><p class="meal-label">${copy[meal.type]}</p></div>`}
+        <div class="meal-content">
+        ${meal.isFree ? `<span class="free-mark">${copy.free}</span>` : ""}
+        <h3 id="${headingId}">${titleContent}</h3>
+        ${meal.description ? `<p class="description">${escapeHtml(meal.description)}</p>` : ""}
+        ${meal.details ? `<p class="meal-meta">${icon("clock")}<span>${escapeHtml(meal.details)}</span></p>` : ""}
+        ${meal.sourceLabel ? `<p class="meal-source">${escapeHtml(meal.sourceLabel)}</p>` : ""}
+        ${meal.ingredients.length ? `<details class="ingredients"><summary aria-label="${escapeHtml(`${copy.ingredients}: ${meal.name}`)}">${copy.ingredients}<span class="ingredient-count">(${meal.ingredients.length})</span></summary><ul class="ingredient-list">${ingredientRows}</ul></details>` : ""}
+        </div>
+      </article>`;
+    }
+
+    const weekTrack = document.getElementById("week");
+    weekTrack.setAttribute("aria-label", copy.week);
+    document.getElementById("day-links").innerHTML = menu.days.map((day, index) => `<a class="day-link" href="#day-${day.date}" ${index === 0 ? 'aria-current="location"' : ""} aria-label="${escapeHtml(formatDate(day.date, { weekday: "long", day: "numeric", month: "long" }))}"><span>${formatDate(day.date, { weekday: "short" }).replace(".", "").toLocaleUpperCase(locale)}</span><strong>${formatDate(day.date, { day: "numeric" })}</strong></a>`).join("");
+    weekTrack.innerHTML = menu.days.map(day => `<section class="day" id="day-${day.date}" aria-labelledby="heading-${day.date}"><h2 class="day-title visually-hidden" id="heading-${day.date}">${formatDate(day.date, { weekday: "long", day: "numeric", month: "long" })}</h2>${day.meals.map(meal => renderMeal(meal, day.date)).join("")}</section>`).join("");
+
+    const sections = [...document.querySelectorAll(".day")];
+    const dayLinks = [...document.querySelectorAll(".day-link")];
+    const viewPanels = { menu: document.getElementById("menu-view"), recipes: document.getElementById("recipes-view"), shopping: document.getElementById("shopping-view") };
+    const navigationItems = [...document.querySelectorAll(".navigation-item")];
+    Object.entries(viewPanels).forEach(([name, panel]) => panel.setAttribute("aria-label", copy[name]));
+    const checkedIngredients = new Set();
+    let activeView = "menu";
+    let activeDayIndex = 0;
+    let printing = false;
+    function markActiveDay(index) {
+      activeDayIndex = Math.max(0, Math.min(sections.length - 1, index));
+      dayLinks.forEach((link, linkIndex) => {
+        if (linkIndex === activeDayIndex) link.setAttribute("aria-current", "location");
+        else link.removeAttribute("aria-current");
+      });
+    }
+    function goToDay(index) {
+      markActiveDay(index);
+      weekTrack.scrollTo({ left: activeDayIndex * weekTrack.clientWidth, behavior: "instant" });
+    }
+    dayLinks.forEach((link, index) => link.addEventListener("click", event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      goToDay(index);
+    }));
+    let scrollFrame = false;
+    weekTrack.addEventListener("scroll", () => {
+      if (printing || activeView !== "menu" || scrollFrame) return;
+      scrollFrame = true;
+      requestAnimationFrame(() => {
+        if (!printing && activeView === "menu" && weekTrack.clientWidth) markActiveDay(Math.round(weekTrack.scrollLeft / weekTrack.clientWidth));
+        scrollFrame = false;
+      });
+    }, { passive: true });
+    weekTrack.addEventListener("keydown", event => {
+      if (event.target !== weekTrack || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const index = event.key === "Home" ? 0 : event.key === "End" ? sections.length - 1 : activeDayIndex + (event.key === "ArrowRight" ? 1 : -1);
+      goToDay(index);
+    });
+    let trackWidth = weekTrack.clientWidth;
+    new ResizeObserver(() => {
+      const nextWidth = weekTrack.clientWidth;
+      if (nextWidth !== trackWidth) {
+        trackWidth = nextWidth;
+        if (!printing && activeView === "menu" && nextWidth > 0) goToDay(activeDayIndex);
+      }
+    }).observe(weekTrack);
+    function openLinkedDay() {
+      const index = sections.findIndex(section => `#${section.id}` === location.hash);
+      if (index >= 0) {
+        activateView("menu");
+        goToDay(index);
+      } else {
+        const requestedView = location.hash.slice(1);
+        if (Object.hasOwn(viewPanels, requestedView)) activateView(requestedView);
+        else if (!location.hash) activateView("menu");
+      }
+    }
+    window.addEventListener("hashchange", openLinkedDay);
+
+    function renderRecipeList() {
+      const recipes = new Map();
+      menu.days.forEach(day => day.meals.forEach(meal => {
+        if (!meal.isFree && !recipes.has(meal.id)) recipes.set(meal.id, { meal, date: day.date });
+      }));
+      document.getElementById("recipe-list").innerHTML = [...recipes.values()].map(({ meal, date }) => {
+        const photo = recipeImages[meal.id];
+        return `<article class="recipe-row${photo ? " has-photo" : ""}">${photo ? `<img class="recipe-thumbnail" src="${photo}" alt="" loading="lazy" decoding="async">` : ""}<div class="recipe-content"><h2>${escapeHtml(meal.name)}</h2><p>${escapeHtml(meal.details)}</p><a href="#day-${date}">${copy.viewInMenu} ${icon("arrow")}</a></div></article>`;
+      }).join("");
+    }
+    function renderShoppingList() {
+      const day = menu.days[activeDayIndex];
+      document.getElementById("shopping-context").textContent = `${copy.shoppingFor} ${formatDate(day.date, { weekday: "long", day: "numeric", month: "long" })}`;
+      document.getElementById("shopping-list").innerHTML = day.meals.filter(meal => meal.ingredients.length).map(meal => `<section class="shopping-group"><p class="shopping-meal-type">${copy[meal.type]}</p><h2>${escapeHtml(meal.name)}</h2><ul class="shopping-items">${meal.ingredients.map((item, index) => {
+        const key = `${day.date}-${meal.type}-${index}`;
+        return `<li><label class="shopping-item"><input type="checkbox" data-ingredient="${key}" ${checkedIngredients.has(key) ? "checked" : ""}><span class="shopping-name">${escapeHtml(item.name)}</span><span class="shopping-quantity">${escapeHtml(item.quantity)}</span></label></li>`;
+      }).join("")}</ul></section>`).join("") || `<p>${copy.noIngredients}</p>`;
+    }
+    document.getElementById("shopping-list").addEventListener("change", event => {
+      const input = event.target;
+      if (!input.matches("input[data-ingredient]")) return;
+      if (input.checked) checkedIngredients.add(input.dataset.ingredient);
+      else checkedIngredients.delete(input.dataset.ingredient);
+    });
+    function activateView(name) {
+      activeView = name;
+      Object.entries(viewPanels).forEach(([key, panel]) => { panel.hidden = key !== name; });
+      navigationItems.forEach(link => {
+        if (link.dataset.view === name) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+      });
+      document.getElementById("calendar-month").textContent = name === "menu" ? monthTitle : copy[name];
+      if (name === "shopping") renderShoppingList();
+      if (name === "menu") {
+        goToDay(activeDayIndex);
+        requestAnimationFrame(() => { if (activeView === "menu" && !printing) goToDay(activeDayIndex); });
+      }
+    }
+
+    const ingredientPanels = [...document.querySelectorAll(".ingredients")];
+    let beforePrintState;
+    window.addEventListener("beforeprint", () => {
+      if (printing) return;
+      beforePrintState = { panels: ingredientPanels.map(panel => panel.open), dayIndex: activeDayIndex, scrollTops: sections.map(section => section.scrollTop), viewScrollTops: Object.fromEntries(Object.entries(viewPanels).map(([name, panel]) => [name, panel.scrollTop])) };
+      printing = true;
+      ingredientPanels.forEach(panel => { panel.open = true; });
+    });
+    window.addEventListener("afterprint", () => {
+      if (!beforePrintState) return;
+      ingredientPanels.forEach((panel, index) => { panel.open = beforePrintState.panels[index]; });
+      printing = false;
+      if (activeView === "menu") goToDay(beforePrintState.dayIndex);
+      sections.forEach((section, index) => { section.scrollTop = beforePrintState.scrollTops[index]; });
+      Object.entries(viewPanels).forEach(([name, panel]) => { panel.scrollTop = beforePrintState.viewScrollTops[name]; });
+      beforePrintState = undefined;
+    });
+
+    renderRecipeList();
+    openLinkedDay();
+  </script>
+</body>
+</html>

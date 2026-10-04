@@ -9,3 +9,5 @@ build/
 supabase/.temp/
 # scratch di superpowers: non fa parte del progetto
 .superpowers/
+# Local Git worktrees
+.worktrees/

@@ -1,0 +1,171 @@
+{
+  "fonts": [
+    {
+      "file": "assets/hellofresh/fonts/agrandir-regular.woff2",
+      "source": "https://www.hellofresh.com/assets/fonts/agrandir-v1/Agrandir-HelloFresh_Regular.woff2",
+      "bytes": 23704
+    },
+    {
+      "file": "assets/hellofresh/fonts/agrandir-tight-bold.woff2",
+      "source": "https://www.hellofresh.com/assets/fonts/vds/agrandir-tight-bold/agrandir-tight-bold.woff2",
+      "bytes": 20068
+    },
+    {
+      "file": "assets/hellofresh/fonts/roboto-regular.woff2",
+      "source": "https://www.hellofresh.com/assets/fonts/vds/roboto-regular/roboto-regular.woff2",
+      "bytes": 18996
+    },
+    {
+      "file": "assets/hellofresh/fonts/roboto-bold.woff2",
+      "source": "https://www.hellofresh.com/assets/fonts/vds/roboto-bold/roboto-bold.woff2",
+      "bytes": 63596
+    }
+  ],
+  "recipeImages": [
+    {
+      "id": "wrap-fagioli-neri-cheddar",
+      "source": "https://www.dinner-mom.com/spicy-black-bean-wraps/",
+      "images": [
+        "https://www.dinner-mom.com/wp-content/uploads/2024/04/black-bean-wraps.jpg"
+      ]
+    },
+    {
+      "id": "pasta-zucca-salsiccia-robiola",
+      "source": "https://www.fattoincasadabenedetta.it/ricetta/pasta-zucca-e-salsiccia/",
+      "images": [
+        "https://www.fattoincasadabenedetta.it/wp-content/uploads/2020/12/PASTA-ZUCCA-SALSICCIA-sito2.jpg"
+      ]
+    },
+    {
+      "id": "riso-ceci-spinaci-mandorle",
+      "source": "https://theflexitarian.co.uk/recipe-items/spinach-with-chickpea-rice-bowl/",
+      "images": [
+        "https://theflexitarian.co.uk/wp-content/uploads/2024/05/LR-Spinach-with-Chickpea-Rice-Bowl-v8-©-Annabelle-Randles-The-Flexitarian.jpg"
+      ]
+    },
+    {
+      "id": "pasta-robiola-speck",
+      "source": "https://ricette.giallozafferano.it/Pasta-robiola-e-speck.html",
+      "images": [
+        "https://www.giallozafferano.it/images/234-23457/Pasta-robiola-e-speck_650x433_wm.jpg"
+      ]
+    },
+    {
+      "id": "spaghetti-riso-tofu-verdure-wok",
+      "source": "https://www.pasticciandoconlafranca.it/2020/primi-piatti/spaghetti-di-riso-con-tofu-e-verdure/",
+      "images": [
+        "https://www.pasticciandoconlafranca.it/wp-content/uploads/2020/03/spaghetti-di-riso-con-tofu-e-verdure-pasticciandoconlafranca.jpg",
+        "https://www.pasticciandoconlafranca.it/wp-content/uploads/2020/03/spaghetti-di-riso-con-tofu-e-verdure-pasticciandoconlafranca.jpg"
+      ]
+    },
+    {
+      "id": "pollo-corn-flakes",
+      "source": "https://ricette.giallozafferano.it/Petto-di-pollo-ai-corn-flakes.html",
+      "images": [
+        "https://www.giallozafferano.it/images/156-15653/Petto-di-pollo-ai-corn-flakes_650x433_wm.jpg"
+      ]
+    },
+    {
+      "id": "pasta-ricotta-zafferano",
+      "source": "https://ricette.giallozafferano.it/Pasta-cremosa-ricotta-e-zafferano.html",
+      "images": [
+        "https://www.giallozafferano.it/images/359-35987/Pasta-cremosa-ricotta-e-zafferano_650x433_wm.jpg"
+      ]
+    },
+    {
+      "id": "pasta-crema-peperoni",
+      "source": "https://www.fattoincasadabenedetta.it/ricetta/pasta-alla-crema-di-peperoni/",
+      "images": [
+        "https://www.fattoincasadabenedetta.it/wp-content/uploads/2019/09/PASTA-CON-CREMA-DI-PEPERONI-sito2.jpg"
+      ]
+    }
+  ],
+  "downloadedImages": [
+    {
+      "id": "wrap-fagioli-neri-cheddar",
+      "file": "assets/recipe-images/wrap-fagioli-neri-cheddar.jpg",
+      "source": "https://www.dinner-mom.com/spicy-black-bean-wraps/",
+      "imageUrl": "https://www.dinner-mom.com/wp-content/uploads/2024/04/black-bean-wraps.jpg",
+      "bytes": 130361
+    },
+    {
+      "id": "pasta-zucca-salsiccia-robiola",
+      "file": "assets/recipe-images/pasta-zucca-salsiccia-robiola.jpg",
+      "source": "https://www.fattoincasadabenedetta.it/ricetta/pasta-zucca-e-salsiccia/",
+      "imageUrl": "https://www.fattoincasadabenedetta.it/wp-content/uploads/2020/12/PASTA-ZUCCA-SALSICCIA-sito2.jpg",
+      "bytes": 82904
+    },
+    {
+      "id": "riso-ceci-spinaci-mandorle",
+      "file": "assets/recipe-images/riso-ceci-spinaci-mandorle.jpg",
+      "source": "https://theflexitarian.co.uk/recipe-items/spinach-with-chickpea-rice-bowl/",
+      "imageUrl": "https://theflexitarian.co.uk/wp-content/uploads/2024/05/LR-Spinach-with-Chickpea-Rice-Bowl-v8-©-Annabelle-Randles-The-Flexitarian.jpg",
+      "bytes": 206051
+    },
+    {
+      "id": "pasta-robiola-speck",
+      "file": "assets/recipe-images/pasta-robiola-speck.jpg",
+      "source": "https://ricette.giallozafferano.it/Pasta-robiola-e-speck.html",
+      "imageUrl": "https://www.giallozafferano.it/images/234-23457/Pasta-robiola-e-speck_650x433_wm.jpg",
+      "bytes": 301478
+    },
+    {
+      "id": "spaghetti-riso-tofu-verdure-wok",
+      "file": "assets/recipe-images/spaghetti-riso-tofu-verdure-wok.jpg",
+      "source": "https://www.pasticciandoconlafranca.it/2020/primi-piatti/spaghetti-di-riso-con-tofu-e-verdure/",
+      "imageUrl": "https://www.pasticciandoconlafranca.it/wp-content/uploads/2020/03/spaghetti-di-riso-con-tofu-e-verdure-pasticciandoconlafranca.jpg",
+      "bytes": 221777
+    },
+    {
+      "id": "pollo-corn-flakes",
+      "file": "assets/recipe-images/pollo-corn-flakes.jpg",
+      "source": "https://ricette.giallozafferano.it/Petto-di-pollo-ai-corn-flakes.html",
+      "imageUrl": "https://www.giallozafferano.it/images/156-15653/Petto-di-pollo-ai-corn-flakes_650x433_wm.jpg",
+      "bytes": 389441
+    },
+    {
+      "id": "pasta-ricotta-zafferano",
+      "file": "assets/recipe-images/pasta-ricotta-zafferano.jpg",
+      "source": "https://ricette.giallozafferano.it/Pasta-cremosa-ricotta-e-zafferano.html",
+      "imageUrl": "https://www.giallozafferano.it/images/359-35987/Pasta-cremosa-ricotta-e-zafferano_650x433_wm.jpg",
+      "bytes": 342993
+    },
+    {
+      "id": "pasta-crema-peperoni",
+      "file": "assets/recipe-images/pasta-crema-peperoni.jpg",
+      "source": "https://www.fattoincasadabenedetta.it/ricetta/pasta-alla-crema-di-peperoni/",
+      "imageUrl": "https://www.fattoincasadabenedetta.it/wp-content/uploads/2019/09/PASTA-CON-CREMA-DI-PEPERONI-sito2.jpg",
+      "bytes": 69979
+    }
+  ],
+  "observedOn": "2026-10-04",
+  "referencePages": [
+    "https://www.hellofresh.com/",
+    "https://www.hellofresh.com/menus"
+  ],
+  "observedStyles": {
+    "canvas": "#faf8f3",
+    "textAndPrimaryButton": "#232323",
+    "brandGreen": "#067a46",
+    "cardBackground": "#ffffff",
+    "cardShadow": "0 1px 3px rgba(0,0,0,0.1)",
+    "menuCardRadius": "0px",
+    "primaryButtonRadius": "8px",
+    "primaryButtonPadding": "12px 24px",
+    "menuTitleFont": "Agrandir Regular",
+    "headingFont": "Agrandir Tight Bold",
+    "bodyFont": "Roboto",
+    "menuCardTitleSample": "16px / 24px, weight 400",
+    "homeHeadingSample": "32px / 40px"
+  },
+  "adaptations": [
+    "Existing day swipe and bottom navigation retained without header.",
+    "Meal titles use 20px on mobile for the family menu.",
+    "Recipe photos come from each original recipe source, not from HelloFresh.",
+    "Home recipes and free meals without a source photo remain text cards.",
+    "Navigation green and pale green states adapt the reference palette."
+  ],
+  "approvedOn": "2026-10-04",
+  "approvedGuide": "../../design.md",
+  "role": "research-evidence"
+}
