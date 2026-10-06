@@ -1,0 +1,18 @@
+/* Values from design/design.md (approved 2026-10-04). */
+:root {
+	color-scheme: light;
+	--canvas: #faf8f3;
+	--paper: #fff;
+	--ink: #232323;
+	--body-text: #454545;
+	--muted: #676767;
+	--rule: #e4e4e4;
+	--green: #067a46;
+	--soft-green: #eef5e8;
+	--free-surface: #f0f3ea;
+	--free-border: #dce4d2;
+	--card-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+	--text-font: 'Reference Roboto', Helvetica, Arial, sans-serif;
+	--meal-title-font: 'Reference Agrandir', Verdana, sans-serif;
+	--heading-font: 'Reference Agrandir Tight', Verdana, sans-serif;
+}

@@ -1,0 +1,4 @@
+@font-face { font-family: 'Reference Agrandir'; src: url('/assets/fonts/agrandir-regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Reference Agrandir Tight'; src: url('/assets/fonts/agrandir-tight-bold.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Reference Roboto'; src: url('/assets/fonts/roboto-regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Reference Roboto'; src: url('/assets/fonts/roboto-bold.woff2') format('woff2'); font-weight: 700; font-style: normal; font-display: swap; }
