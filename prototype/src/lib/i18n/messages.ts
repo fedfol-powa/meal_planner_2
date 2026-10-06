@@ -1,7 +1,9 @@
+import { enCuration, itCuration } from './messages-curation';
 import { enFamily, itFamily } from './messages-family';
 
 const it = {
 	...itFamily,
+	...itCuration,
 	skip: 'Vai al contenuto',
 	'nav.main': 'Navigazione principale',
 	'nav.menu': 'Menu',
@@ -219,6 +221,7 @@ export type MessageKey = keyof typeof it;
 
 const en: Record<MessageKey, string> = {
 	...enFamily,
+	...enCuration,
 	skip: 'Skip to content',
 	'nav.main': 'Main navigation',
 	'nav.menu': 'Menu',

@@ -1,8 +1,8 @@
-import { DEPARTMENTS, type DemoDatabase, type Department, type Family, type IsoDate, type Locale, type MealSlot, type MealType, type ShoppingListSlot } from '#lib/domain/types.ts';
+import { DEPARTMENTS, type DemoDatabase, type Department, type Family, type IsoDate, type LocalDateTime, type Locale, type MealSlot, type MealType, type ShoppingListSlot } from '#lib/domain/types.ts';
 import { translate } from '#lib/i18n/translate.ts';
 import { addQuantity, emptyCombined, formatCombined, type CombinedQuantity } from '#lib/units/combine.ts';
 import { formatQuantity } from '#lib/units/format.ts';
-import { familyFor, localeOf, localized, recipeSummary, scaledIngredients } from './access';
+import { familyFor, localeOf, localized, recipeForSlot, recipeSummary, scaledIngredients } from './access';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { visibleWeeks } from './meals';
 
@@ -55,7 +55,7 @@ export function buildShoppingList(db: DemoDatabase, ctx: OperationContext, slotI
 		if (!slot) return fail('not_found');
 		slots.push(slot);
 	}
-	return ok(computeShoppingList(db, family, localeOf(db, ctx), slots));
+	return ok(computeShoppingList(db, family, localeOf(db, ctx), slots, ctx.now));
 }
 
 export function familySlotMap(db: DemoDatabase, ctx: OperationContext, family: Family): Map<string, MealSlot> {
@@ -63,7 +63,8 @@ export function familySlotMap(db: DemoDatabase, ctx: OperationContext, family: F
 }
 
 /** The calculation itself, on current slots or on the copy kept by a closed list. */
-export function computeShoppingList(db: DemoDatabase, family: Family, locale: Locale, input: ShoppingListSlot[]): ShoppingListView {
+/** Past meals use the recipe version they were eaten with (review R1, round 5). */
+export function computeShoppingList(db: DemoDatabase, family: Family, locale: Locale, input: ShoppingListSlot[], now: LocalDateTime): ShoppingListView {
 	const system = family.measurementSystem;
 	const slots = [...input].sort(byDateAndMeal);
 
@@ -73,7 +74,7 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 	let mealCount = 0;
 
 	for (const slot of slots) {
-		const recipe = slot.recipeId ? db.recipes.find((r) => r.id === slot.recipeId) : undefined;
+		const recipe = recipeForSlot(db, slot, now);
 		if (!recipe) continue;
 		const recipeName = recipeSummary(db, recipe, locale).name;
 		const scaled = scaledIngredients(db, recipe, slot.servings, locale);

@@ -1,6 +1,6 @@
 import type { DemoDatabase, Family, MealSlot, SlotContent, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OpErrorCode, type OperationContext, type OpResult } from './context';
-import { familyFor, localeOf, visibleRecipe } from './access';
+import { catalogueRecipe, familyFor, localeOf, visibleRecipe } from './access';
 import { sameContent, slotContent, writeSlot } from './change-log';
 import { mealView, visibleWeeks } from './meals';
 import type { MealView } from './views';
@@ -47,7 +47,7 @@ function edit(
 const withRecipe = (slot: MealSlot, recipeId: string): SlotContent => ({ ...slotContent(slot), recipeId, freeText: null });
 
 export function replaceMealRecipe(db: DemoDatabase, ctx: OperationContext, slotId: string, recipeId: string): OpResult<RevisionResult> {
-	return edit(db, ctx, slotId, (slot, family) => (visibleRecipe(db, family, recipeId) ? withRecipe(slot, recipeId) : 'not_found'));
+	return edit(db, ctx, slotId, (slot, family) => (catalogueRecipe(db, family, recipeId) ? withRecipe(slot, recipeId) : 'not_found'));
 }
 
 export function setMealServings(db: DemoDatabase, ctx: OperationContext, slotId: string, servings: number): OpResult<RevisionResult> {

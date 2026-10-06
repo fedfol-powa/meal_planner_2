@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createInitial } from '#lib/store/persistence.ts';
 import type { DemoDatabase } from '#lib/domain/types.ts';
 import type { OperationContext } from './context';
-import { getRecipeDetail, listDraftRecipes, normalizeForSearch, rateRecipe, searchRecipes } from './recipes';
+import { getRecipeDetail, normalizeForSearch, rateRecipe, searchRecipes } from './recipes';
 
 let db: DemoDatabase;
 const ctx = (over: Partial<OperationContext> = {}): OperationContext => ({
@@ -150,17 +150,6 @@ describe('localised non-numeric quantities and reversed sorting', () => {
 });
 
 describe('drafts for curators', () => {
-	it('lists drafts only for curators, with what is missing', () => {
-		const result = listDraftRecipes(db, ctx(), {});
-		if (!result.ok) throw new Error(result.error);
-		expect(result.value.map((i) => i.recipe.id).sort()).toEqual(['crema-zucchine-cannellini', 'insalata-farro-tonno', 'polpettine-tacchino-skottle', 'salmone-skottle-fagiolini-patate']);
-		expect(result.value[0].missing.length).toBeGreaterThan(0);
-		expect(listDraftRecipes(db, ctx({ userId: 'user-anna' }), {})).toEqual({ ok: false, error: 'forbidden' });
-	});
-	it('filters drafts with the same search text', () => {
-		const result = listDraftRecipes(db, ctx(), { text: 'tacchino' });
-		expect(result.ok && result.value.map((i) => i.recipe.id)).toEqual(['polpettine-tacchino-skottle']);
-	});
 	it('opens a draft detail for curators only, flagging missing data', () => {
 		const detail = getRecipeDetail(db, ctx(), 'polpettine-tacchino-skottle');
 		if (!detail.ok) throw new Error(detail.error);

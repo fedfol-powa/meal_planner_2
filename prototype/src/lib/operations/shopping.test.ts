@@ -103,7 +103,7 @@ describe('shoppingExport', () => {
 		const list = value(buildShoppingList(db, ctx(), ['2026-10-07-dinner', '2026-10-09-lunch']));
 		const arranged = arrangeShoppingList(list, new Set());
 		const out = shoppingExport(arranged, new Set(['panini-per-hamburger']), 'it-IT');
-		expect(out.bringItems).toEqual(['q.b. Salvia', '2 Hamburger di cavallo', '190 g Ricotta vaccina', '240 g Spaghettoni']);
+		expect(out.bringItems).toEqual(['1 Pomodori', 'q.b. Salvia', '2 Hamburger di cavallo', '190 g Ricotta vaccina', '240 g Spaghettoni']);
 		expect(out.text.split('\n')[0]).toBe('Lista della spesa · 2 pasti');
 		expect(out.text).toContain('Macelleria\n• 2 Hamburger di cavallo');
 		expect(out.text).not.toContain('Panini');

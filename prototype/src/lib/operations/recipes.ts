@@ -1,7 +1,8 @@
+import { plainCopy } from '#lib/domain/recipe-content.ts';
 import { isMealPast, isWeekVisible } from '#lib/domain/calendar.ts';
-import type { DemoDatabase, IsoDate, Locale, MealType, MeasurementSystem, ProteinGroup, Recipe } from '#lib/domain/types.ts';
+import type { DemoDatabase, IsoDate, LocalDateTime, Locale, MealType, MeasurementSystem, ProteinGroup, Recipe, RecipeStatus } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
-import { familyFor, isCurator, localeOf, localized, missingData, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe, type MissingData } from './access';
+import { familyFor, isCurator, localeOf, localized, missingData, ratingSummary, recipeSummary, scaledIngredients, versionForSlot, visibleRecipe, catalogueRecipe, type MissingData } from './access';
 import type { RatingSummary, RecipeSummary, ScaledIngredient } from './views';
 
 export interface RecipeQuery {
@@ -41,13 +42,6 @@ function lastEatenOf(db: DemoDatabase, familyId: string, ctx: OperationContext, 
 // Descending order with missing values last.
 const desc = <T extends string | number>(a: T | null, b: T | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? 1 : -1);
 
-export interface DraftListItem {
-	recipe: RecipeSummary;
-	missing: MissingData[];
-	servings: number | null;
-	ingredients: ScaledIngredient[] | null;
-}
-
 export interface RecipeDetail {
 	recipe: RecipeSummary;
 	isDraft: boolean;
@@ -58,6 +52,10 @@ export interface RecipeDetail {
 	rating: RatingSummary;
 	history: { date: IsoDate; mealType: MealType }[];
 	measurementSystem: MeasurementSystem;
+	/** Opened from a past meal eaten with an older version (review R1): that version is shown. */
+	shownVersion: { version: number; current: number } | null;
+	/** Curators only (round 5): status, version and the draft open on the recipe. */
+	curation: { status: RecipeStatus; version: number; archivedByName: string | null; archivedAt: LocalDateTime | null; draftId: string | null } | null;
 }
 
 export function normalizeForSearch(text: string): string {
@@ -74,31 +72,13 @@ function matchesText(db: DemoDatabase, recipe: Recipe, locale: Locale, needle: s
 	return haystack.some((value) => normalizeForSearch(value).includes(needle));
 }
 
-/** Drafts for the curators' section at the top of the catalogue (spec section 8). */
-export function listDraftRecipes(db: DemoDatabase, ctx: OperationContext, query: Pick<RecipeQuery, 'text'>): OpResult<DraftListItem[]> {
-	if (!familyFor(db, ctx) || !isCurator(db, ctx)) return fail('forbidden');
-	const locale = localeOf(db, ctx);
-	const needle = normalizeForSearch(query.text ?? '');
-	return ok(
-		db.recipes
-			.filter((r) => r.status === 'draft' && matchesText(db, r, locale, needle))
-			.map((r) => ({
-				recipe: recipeSummary(db, r, locale),
-				missing: missingData(db, r),
-				servings: r.baseServings,
-				ingredients: r.baseServings ? scaledIngredients(db, r, r.baseServings, locale) : null
-			}))
-			.sort((a, b) => a.recipe.name.localeCompare(b.recipe.name, locale))
-	);
-}
-
 export function searchRecipes(db: DemoDatabase, ctx: OperationContext, query: RecipeQuery): OpResult<RecipeListItem[]> {
 	const family = familyFor(db, ctx);
 	if (!family) return fail('forbidden');
 	const locale = localeOf(db, ctx);
 	const needle = normalizeForSearch(query.text ?? '');
 	const items = db.recipes
-		.filter((r) => visibleRecipe(db, family, r.id))
+		.filter((r) => catalogueRecipe(db, family, r.id))
 		.filter((r) => !query.mealType || r.mealType === query.mealType || r.mealType === 'both')
 		.filter((r) => !query.maxMinutes || (r.durationMinutes !== null && r.durationMinutes <= query.maxMinutes))
 		.filter((r) => !query.proteinGroup || r.proteinGroup === query.proteinGroup)
@@ -124,12 +104,19 @@ export function searchRecipes(db: DemoDatabase, ctx: OperationContext, query: Re
 	return ok(query.reversed ? items.reverse() : items);
 }
 
-export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeId: string, servings?: number): OpResult<RecipeDetail> {
+/** `slotId`: opened from that meal, which shows the version it was eaten with when past (review R1). */
+export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeId: string, servings?: number, slotId?: string): OpResult<RecipeDetail> {
 	const family = familyFor(db, ctx);
 	if (!family) return fail('forbidden');
+	const curator = isCurator(db, ctx);
 	const draft = db.recipes.find((r) => r.id === recipeId && r.status === 'draft');
-	const recipe = visibleRecipe(db, family, recipeId) ?? (draft && isCurator(db, ctx) ? draft : null);
-	if (!recipe) return fail('not_found');
+	const current = visibleRecipe(db, family, recipeId) ?? (draft && curator ? draft : null);
+	if (!current) return fail('not_found');
+	const slot = slotId ? db.weeks.filter((w) => w.familyId === family.id).flatMap((w) => w.slots).find((s) => s.id === slotId && s.recipeId === recipeId) : undefined;
+	const inForce = slot ? versionForSlot(db, slot, ctx.now) : null;
+	const recipe = inForce && inForce.version !== current.version ? { ...current, ...plainCopy(inForce.content) } : current;
+	const shownVersion = recipe !== current && inForce ? { version: inForce.version, current: current.version } : null;
+	const openDraft = curator ? db.recipeDrafts.find((d) => d.recipeId === recipeId) ?? null : null;
 	const locale = localeOf(db, ctx);
 	const base = recipe.baseServings;
 	const chosen = servings && Number.isInteger(servings) && servings > 0 ? servings : (base ?? 1);
@@ -149,7 +136,17 @@ export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeI
 		ingredients: scaledIngredients(db, recipe, chosen, locale) ?? [],
 		rating: ratingSummary(db, family, ctx.userId, recipeId),
 		history,
-		measurementSystem: family.measurementSystem
+		measurementSystem: family.measurementSystem,
+		shownVersion,
+		curation: curator
+			? {
+					status: current.status,
+					version: current.version,
+					archivedByName: current.archivedBy ? db.users.find((u) => u.id === current.archivedBy)?.displayName ?? null : null,
+					archivedAt: current.archivedAt,
+					draftId: openDraft?.id ?? null
+				}
+			: null
 	});
 }
 

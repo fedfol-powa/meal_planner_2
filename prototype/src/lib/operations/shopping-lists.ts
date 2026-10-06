@@ -95,7 +95,7 @@ export function syncShoppingLists(db: DemoDatabase, ctx: OperationContext): bool
 
 function detail(db: DemoDatabase, ctx: OperationContext, { family, week, list }: Found): ShoppingListDetail {
 	const locale = localeOf(db, ctx);
-	const view = arrangeShoppingList(computeShoppingList(db, family, locale, week.slots), new Set(list?.addedBack ?? []));
+	const view = arrangeShoppingList(computeShoppingList(db, family, locale, week.slots, ctx.now), new Set(list?.addedBack ?? []));
 	const departments: ShoppingListDetail['departments'] = view.departments.map((group) => ({
 		department: group.department,
 		manual: [],

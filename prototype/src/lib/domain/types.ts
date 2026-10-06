@@ -4,7 +4,8 @@ export type MeasurementSystem = 'metric' | 'uk_imperial';
 export type MealType = 'lunch' | 'dinner';
 export type RecipeMealType = MealType | 'both';
 export type SourceType = 'web' | 'youtube' | 'book' | 'home';
-export type RecipeStatus = 'published' | 'draft';
+/** archived (round 5): out of the catalogue and suggestions, still readable from meals; reversible. */
+export type RecipeStatus = 'published' | 'draft' | 'archived';
 export type ProteinGroup = 'fish' | 'white_meat' | 'meat' | 'legumes' | 'eggs' | 'vegetarian';
 export type GlobalRole = 'recipe_curator' | 'app_admin';
 export type FamilyRole = 'family_admin' | 'member';
@@ -76,6 +77,59 @@ export interface Recipe {
 	photo: string | null;
 	/** Day the recipe entered the catalogue (created_at). */
 	addedOn: IsoDate;
+	createdBy: string;
+	/** Current published version; 0 for a recipe never published (draft). */
+	version: number;
+	archivedBy: string | null;
+	archivedAt: LocalDateTime | null;
+}
+
+/** What curators edit and versions keep (round 5); photo, tags and dates stay on the recipe. */
+export const RECIPE_CONTENT_FIELDS = [
+	'name', 'description', 'sourceType', 'sourceUrl', 'bookId', 'bookPages', 'durationMinutes', 'baseServings', 'mealType', 'proteinGroup', 'ingredients'
+] as const;
+export type RecipeContentField = (typeof RECIPE_CONTENT_FIELDS)[number];
+export type RecipeContent = Pick<Recipe, RecipeContentField>;
+
+/** recipe_versions: append-only history of published contents (spec section 8, review R1). */
+export interface RecipeVersion {
+	recipeId: string;
+	version: number;
+	content: RecipeContent;
+	publishedBy: string;
+	publishedAt: LocalDateTime;
+	/** Set when the version republishes an older one. */
+	restoredFrom: number | null;
+}
+
+/** One save of a draft; overwritten saves stay here, recoverable (round 5, conflicts). */
+export interface DraftRevision {
+	revision: number;
+	content: RecipeContent;
+	savedBy: string;
+	savedAt: LocalDateTime;
+}
+
+/**
+ * recipe_drafts: shared by every curator. "new" belongs to a recipe never published (status draft, which
+ * past meals may cite); "revision" works on a published recipe without exposing it to families.
+ */
+export interface RecipeDraft {
+	id: string;
+	recipeId: string;
+	kind: 'new' | 'revision';
+	/** Published version the revision started from; null for a new recipe. */
+	baseVersion: number | null;
+	content: RecipeContent;
+	createdBy: string;
+	createdAt: LocalDateTime;
+	updatedBy: string;
+	updatedAt: LocalDateTime;
+	/** Grows at every save: a save based on an older revision is a conflict. */
+	revision: number;
+	/** Revision that passed the full check; publishing needs it equal to revision. */
+	verifiedRevision: number | null;
+	history: DraftRevision[];
 }
 
 export interface User {
@@ -271,4 +325,6 @@ export interface DemoDatabase {
 	shoppingLists: ShoppingList[];
 	invitations: FamilyInvitation[];
 	removals: FamilyRemoval[];
+	recipeVersions: RecipeVersion[];
+	recipeDrafts: RecipeDraft[];
 }

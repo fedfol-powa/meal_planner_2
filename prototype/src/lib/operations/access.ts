@@ -1,4 +1,7 @@
-import type { DemoDatabase, Family, Locale, Recipe, Translated } from '#lib/domain/types.ts';
+import { plainCopy } from '#lib/domain/recipe-content.ts';
+import { MEAL_PAST_AT, isMealPast } from '#lib/domain/calendar.ts';
+import { summarize, validateForPublish, type MissingData } from '#lib/domain/recipe-validation.ts';
+import type { DemoDatabase, Family, LocalDateTime, Locale, MealSlot, Recipe, RecipeVersion, Translated } from '#lib/domain/types.ts';
 import { scaleQuantity } from '#lib/units/scale.ts';
 import type { OperationContext } from './context';
 import type { RatingSummary, RecipeSummary, ScaledIngredient } from './views';
@@ -16,19 +19,11 @@ export function isCurator(db: DemoDatabase, ctx: OperationContext): boolean {
 	return db.users.find((u) => u.id === ctx.userId)?.globalRoles.includes('recipe_curator') ?? false;
 }
 
-export type MissingData = 'ingredients' | 'baseServings' | 'translation';
+export type { MissingData };
 
-/** What keeps a recipe in draft (spec section 8): checked again at publication. */
+/** What keeps a recipe in draft (spec section 8): the publication check, in short. */
 export function missingData(db: DemoDatabase, recipe: Recipe): MissingData[] {
-	const missing: MissingData[] = [];
-	if (recipe.ingredients.length === 0) missing.push('ingredients');
-	if (!recipe.baseServings) missing.push('baseServings');
-	const untranslated =
-		!recipe.name['en-GB'] ||
-		!recipe.description['en-GB'] ||
-		recipe.ingredients.some((l) => (l.text && !l.text['en-GB']) || !db.ingredients.find((i) => i.id === l.ingredientId)?.name['en-GB']);
-	if (untranslated) missing.push('translation');
-	return missing;
+	return summarize(validateForPublish(db, recipe));
 }
 
 export function localized(text: Translated, locale: Locale): { text: string; missing: boolean } {
@@ -36,12 +31,40 @@ export function localized(text: Translated, locale: Locale): { text: string; mis
 	return value ? { text: value, missing: false } : { text: text['it-IT'], missing: true };
 }
 
-/** Published recipes, excluding books the family does not own (spec section 3). */
+/**
+ * Published or archived recipes, excluding books the family does not own (spec section 3): what meals can
+ * open and rate. Archived recipes stay readable from meals (round 5).
+ */
 export function visibleRecipe(db: DemoDatabase, family: Family, recipeId: string): Recipe | null {
 	const recipe = db.recipes.find((r) => r.id === recipeId);
-	if (!recipe || recipe.status !== 'published') return null;
+	if (!recipe || recipe.status === 'draft') return null;
 	if (recipe.bookId && !family.bookIds.includes(recipe.bookId)) return null;
 	return recipe;
+}
+
+/** Visible and in the catalogue: what search, suggestions and recipe changes may offer. */
+export function catalogueRecipe(db: DemoDatabase, family: Family, recipeId: string): Recipe | null {
+	const recipe = visibleRecipe(db, family, recipeId);
+	return recipe?.status === 'published' ? recipe : null;
+}
+
+/** The version published at that moment (review R1); the first one for earlier moments, null without versions. */
+export function versionAt(db: DemoDatabase, recipeId: string, at: LocalDateTime): RecipeVersion | null {
+	const versions = db.recipeVersions.filter((v) => v.recipeId === recipeId).sort((a, b) => a.version - b.version);
+	return versions.filter((v) => v.publishedAt <= at).at(-1) ?? versions[0] ?? null;
+}
+
+/** Version of a past meal (review R1, round 5): the one in force when it became past; null for other meals. */
+export function versionForSlot(db: DemoDatabase, slot: Pick<MealSlot, 'date' | 'mealType' | 'recipeId'>, now: LocalDateTime): RecipeVersion | null {
+	if (!slot.recipeId || !isMealPast(slot.date, slot.mealType, now)) return null;
+	return versionAt(db, slot.recipeId, `${slot.date}T${MEAL_PAST_AT[slot.mealType]}`);
+}
+
+/** The recipe as a meal shows it: past meals keep their version, the others follow the current one. */
+export function recipeForSlot(db: DemoDatabase, slot: Pick<MealSlot, 'date' | 'mealType' | 'recipeId'>, now: LocalDateTime): Recipe | null {
+	const recipe = slot.recipeId ? db.recipes.find((r) => r.id === slot.recipeId) ?? null : null;
+	const inForce = recipe && versionForSlot(db, slot, now);
+	return recipe && inForce && inForce.version !== recipe.version ? { ...recipe, ...plainCopy(inForce.content) } : recipe;
 }
 
 export function ratingSummary(db: DemoDatabase, family: Family, userId: string, recipeId: string): RatingSummary {

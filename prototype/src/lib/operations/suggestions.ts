@@ -2,7 +2,7 @@ import { addDays, isMealPast } from '#lib/domain/calendar.ts';
 import type { DemoDatabase, Family, MealSlot, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { fitsSettings } from './constraints';
-import { familyFor, localeOf, localized, ratingSummary, recipeSummary, visibleRecipe } from './access';
+import { familyFor, localeOf, localized, ratingSummary, recipeSummary, catalogueRecipe } from './access';
 import type { SuggestionView } from './views';
 
 /**
@@ -59,7 +59,7 @@ export function rankCandidates(db: DemoDatabase, ctx: OperationContext, slot: Me
 		.filter((g) => g !== null);
 
 	return db.recipes
-		.filter((r) => visibleRecipe(db, family, r.id))
+		.filter((r) => catalogueRecipe(db, family, r.id))
 		.filter((r) => r.mealType === slot.mealType || r.mealType === 'both')
 		.filter((r) => !taken.has(r.id) && !excluded.has(r.id))
 		// Round 4: suggestions respect the family settings, as the planner would.

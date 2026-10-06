@@ -1,4 +1,5 @@
-import type { DemoDatabase, FamilySettings, Rating, SlotSetting } from '#lib/domain/types.ts';
+import { contentOf } from '#lib/domain/recipe-content.ts';
+import { type DemoDatabase, type FamilySettings, type Rating, type Recipe, type RecipeContent, type RecipeDraft, type SlotSetting } from '#lib/domain/types.ts';
 import { defaultSettings } from '#lib/domain/settings.ts';
 import type { OperationContext } from '#lib/operations/context.ts';
 import { addManualItem, getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
@@ -6,7 +7,8 @@ import data from './generated.json';
 
 // Demo people: Federico from the origin project, the others invented for the prototype.
 export function createSeedDatabase(): DemoDatabase {
-	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients' | 'shoppingLists' | 'invitations' | 'removals'> & {
+	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'recipes' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients' | 'shoppingLists' | 'invitations' | 'removals' | 'recipeVersions' | 'recipeDrafts'> & {
+		recipes: Omit<Recipe, 'createdBy' | 'version' | 'archivedBy' | 'archivedAt'>[];
 		federicoRatings: { recipeId: string; stars: number }[];
 	};
 	const ratings: Rating[] = generated.federicoRatings.map((r) => ({ userId: 'user-federico', ...r }));
@@ -31,7 +33,8 @@ export function createSeedDatabase(): DemoDatabase {
 			{ id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', globalRoles: ['recipe_curator', 'app_admin'] },
 			{ id: 'user-anna', displayName: 'Anna', email: 'anna@example.com', locale: 'it-IT', globalRoles: [] },
 			{ id: 'user-tom', displayName: 'Tom', email: 'tom@example.com', locale: 'en-GB', globalRoles: [] },
-			{ id: 'user-lucia', displayName: 'Lucia', email: 'lucia@example.com', locale: 'it-IT', globalRoles: [] },
+			// Round 5: curator too, for changes to other curators' recipes and conflicts.
+			{ id: 'user-lucia', displayName: 'Lucia', email: 'lucia@example.com', locale: 'it-IT', globalRoles: ['recipe_curator'] },
 			// Round 4: removed from the Folloni family after receiving a link still valid (review R2).
 			{ id: 'user-marco', displayName: 'Marco', email: 'marco@example.com', locale: 'it-IT', globalRoles: [] },
 			// Round 4: new user without families.
@@ -70,7 +73,7 @@ export function createSeedDatabase(): DemoDatabase {
 		],
 		books: generated.books,
 		ingredients: generated.ingredients,
-		recipes: generated.recipes,
+		recipes: generated.recipes.map((r) => ({ ...r, createdBy: 'user-federico', version: r.status === 'published' ? 1 : 0, archivedBy: null, archivedAt: null })),
 		weeks,
 		ratings,
 		exclusions: [],
@@ -84,8 +87,11 @@ export function createSeedDatabase(): DemoDatabase {
 			{ token: 'folloni-old9x', familyId: 'family-main', createdBy: 'user-federico', createdAt: '2026-09-15T08:00', expiresAt: '2026-09-22T08:00', revokedAt: null },
 			{ token: 'folloni-rev4t', familyId: 'family-main', createdBy: 'user-federico', createdAt: '2026-10-02T09:00', expiresAt: '2026-10-09T09:00', revokedAt: '2026-10-02T18:00' }
 		],
-		removals: [{ familyId: 'family-main', userId: 'user-marco', removedBy: 'user-federico', removedAt: '2026-10-03T10:00' }]
+		removals: [{ familyId: 'family-main', userId: 'user-marco', removedBy: 'user-federico', removedAt: '2026-10-03T10:00' }],
+		recipeVersions: [],
+		recipeDrafts: []
 	};
+	addDemoCuration(db);
 	addDemoShoppingLists(db);
 	return db;
 }
@@ -123,4 +129,67 @@ function addDemoShoppingLists(db: DemoDatabase) {
 	const anna = at('user-anna', '2026-10-05T19:05');
 	for (const id of ['fusilloni', 'speck-da-tagliare-a-cubetti', 'panini-per-hamburger']) value(toggleShoppingItem(db, anna, '2026-10-05', id));
 	value(addManualItem(db, at('user-anna', '2026-10-05T19:10'), '2026-10-05', 'Detersivo per i piatti'));
+}
+
+const IMPORTED_AT = '2026-09-29T10:00';
+
+function draftOf(recipeId: string, kind: RecipeDraft['kind'], content: RecipeContent, by: string, at: string, baseVersion: number | null): RecipeDraft {
+	return {
+		id: `draft-${recipeId}`, recipeId, kind, baseVersion, content, createdBy: by, createdAt: at, updatedBy: by, updatedAt: at,
+		revision: 1, verifiedRevision: null, history: [{ revision: 1, content: structuredClone(content), savedBy: by, savedAt: at }]
+	};
+}
+
+// Round 5, invented for the prototype (dimostrativo): version 1 of every published recipe at the import,
+// a second version of the horse burgers by Lucia (review R1: past meals keep version 1), the imported
+// drafts, a half-done new draft and a verified revision by Lucia, one archived recipe.
+function addDemoCuration(db: DemoDatabase) {
+	for (const recipe of db.recipes.filter((r) => r.status === 'published'))
+		db.recipeVersions.push({ recipeId: recipe.id, version: 1, content: contentOf(recipe), publishedBy: 'user-federico', publishedAt: `${recipe.addedOn}T09:00`, restoredFrom: null });
+
+	const burgers = db.recipes.find((r) => r.id === 'hamburger-cavallo');
+	if (burgers) {
+		burgers.description = {
+			'it-IT': 'Cuoci gli hamburger di cavallo e servili nel panino con fette di pomodoro.',
+			'en-GB': 'Cook the horse meat burgers and serve them in buns with sliced tomato.'
+		};
+		burgers.ingredients.push({ ingredientId: 'pomodori', quantity: { kind: 'amount', value: 2, unit: 'piece' }, sourceText: '2', text: null, isOptional: false });
+		burgers.version = 2;
+		db.recipeVersions.push({ recipeId: burgers.id, version: 2, content: contentOf(burgers), publishedBy: 'user-lucia', publishedAt: '2026-10-06T10:00', restoredFrom: null });
+	}
+
+	for (const recipe of db.recipes.filter((r) => r.status === 'draft'))
+		db.recipeDrafts.push(draftOf(recipe.id, 'new', contentOf(recipe), 'user-federico', IMPORTED_AT, null));
+
+	const soup: Recipe = {
+		id: 'vellutata-zucca-ceci', status: 'draft',
+		name: { 'it-IT': 'Vellutata di zucca e ceci', 'en-GB': null },
+		description: { 'it-IT': 'Zucca e ceci frullati con il brodo vegetale, crostini a parte.', 'en-GB': null },
+		sourceType: 'home', sourceUrl: null, bookId: null, bookPages: null, durationMinutes: 35, baseServings: null,
+		ingredients: [
+			{ ingredientId: 'zucca-pulita', quantity: { kind: 'amount', value: 600, unit: 'g' }, sourceText: '600 g', text: null, isOptional: false },
+			{ ingredientId: 'ceci-precotti', quantity: { kind: 'amount', value: 240, unit: 'g' }, sourceText: '240 g', text: null, isOptional: false }
+		],
+		mealType: 'dinner', proteinGroup: 'legumes', tags: [], photo: null, addedOn: '2026-10-05',
+		createdBy: 'user-lucia', version: 0, archivedBy: null, archivedAt: null
+	};
+	db.recipes.push(soup);
+	db.recipeDrafts.push(draftOf(soup.id, 'new', contentOf(soup), 'user-lucia', '2026-10-05T21:40', null));
+
+	const omelette = db.recipes.find((r) => r.id === 'omelette-spinaci-montasio');
+	if (omelette) {
+		const content = contentOf(omelette);
+		content.mealType = 'both';
+		content.description = {
+			'it-IT': 'Cuoci le uova in padella, farcisci con spinacini e Montasio e ripiega. Va bene anche a pranzo.',
+			'en-GB': 'Cook the eggs in a pan, fill with baby spinach and Montasio and fold over. Fine for lunch too.'
+		};
+		const revision = draftOf(omelette.id, 'revision', content, 'user-lucia', '2026-10-06T09:15', omelette.version);
+		revision.id = `revision-${omelette.id}`;
+		revision.verifiedRevision = 1;
+		db.recipeDrafts.push(revision);
+	}
+
+	const archived = db.recipes.find((r) => r.id === 'riso-curry-giappone');
+	if (archived) Object.assign(archived, { status: 'archived', archivedBy: 'user-federico', archivedAt: '2026-10-04T17:00' });
 }
