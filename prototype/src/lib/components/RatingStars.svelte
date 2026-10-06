@@ -45,13 +45,13 @@
 
 <style>
 	.rating { margin: 0 0 16px; font-size: 0.875rem; }
-	.row { display: flex; align-items: center; gap: 12px; }
+	.row { display: flex; align-items: center; gap: 8px; }
 	.average { display: flex; align-items: baseline; gap: 4px; margin: 0; min-width: 3.5ch; }
 	.value { font: 700 1.5rem/1 var(--text-font); color: var(--ink); }
 	.value.muted { color: var(--muted); }
 	.count { color: var(--muted); font-size: 0.8125rem; }
 	.stars { display: inline-flex; margin: 0; padding: 0; border: 0; }
-	.star { display: grid; place-items: center; width: 40px; height: 44px; color: var(--ink); cursor: pointer; }
+	.star { display: grid; place-items: center; width: 44px; height: 44px; color: var(--ink); cursor: pointer; }
 	.star .icon { width: 26px; height: 26px; }
 	.star.filled .icon { fill: var(--green); stroke: var(--green); }
 	.star:has(input:focus-visible) { outline: 3px solid var(--green); outline-offset: -3px; border-radius: 8px; }

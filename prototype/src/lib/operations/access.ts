@@ -12,6 +12,25 @@ export function localeOf(db: DemoDatabase, ctx: OperationContext): Locale {
 	return db.users.find((u) => u.id === ctx.userId)?.locale ?? 'it-IT';
 }
 
+export function isCurator(db: DemoDatabase, ctx: OperationContext): boolean {
+	return db.users.find((u) => u.id === ctx.userId)?.globalRoles.includes('recipe_curator') ?? false;
+}
+
+export type MissingData = 'ingredients' | 'baseServings' | 'translation';
+
+/** What keeps a recipe in draft (spec section 8): checked again at publication. */
+export function missingData(db: DemoDatabase, recipe: Recipe): MissingData[] {
+	const missing: MissingData[] = [];
+	if (recipe.ingredients.length === 0) missing.push('ingredients');
+	if (!recipe.baseServings) missing.push('baseServings');
+	const untranslated =
+		!recipe.name['en-GB'] ||
+		!recipe.description['en-GB'] ||
+		recipe.ingredients.some((l) => (l.text && !l.text['en-GB']) || !db.ingredients.find((i) => i.id === l.ingredientId)?.name['en-GB']);
+	if (untranslated) missing.push('translation');
+	return missing;
+}
+
 export function localized(text: Translated, locale: Locale): { text: string; missing: boolean } {
 	const value = text[locale];
 	return value ? { text: value, missing: false } : { text: text['it-IT'], missing: true };

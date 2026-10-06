@@ -15,7 +15,7 @@
 	{#each items as item (item.href)}
 		<a class="navigation-item" href={item.href} aria-current={current(item.href) ? 'page' : undefined}>
 			<span class="navigation-icon"><svg class="icon" aria-hidden="true"><use href="#icon-{item.icon}" /></svg></span>
-			<span>{app.t(item.label)}</span>
+			<span class="visually-hidden">{app.t(item.label)}</span>
 		</a>
 	{/each}
 </nav>

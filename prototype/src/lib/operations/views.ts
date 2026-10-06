@@ -52,6 +52,8 @@ export interface MealView {
 	cooked: boolean | null;
 	canMarkNotCooked: boolean;
 	canRate: boolean;
+	/** Published and visible, or a draft opened by a curator. */
+	canOpenRecipe: boolean;
 	rating: RatingSummary | null;
 	/** userName is null when the author is no longer a member ("former member"). */
 	lastChange: { userName: string | null; at: LocalDateTime } | null;
@@ -78,9 +80,12 @@ export interface RecipeCardView {
 	kind: 'recipe' | 'free' | 'empty';
 	recipe: RecipeSummary | null;
 	freeText: string | null;
-	servings: number;
+	/** null when the recipe has no reference servings yet (draft). */
+	servings: number | null;
 	ingredients: ScaledIngredient[] | null;
 	note: string | null;
+	/** Short notice shown as is, e.g. what a draft is missing. */
+	notice?: string;
 	isPast: boolean;
 	cooked: boolean | null;
 	canMarkNotCooked: boolean;

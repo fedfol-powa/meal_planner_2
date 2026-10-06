@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STORAGE_KEY, createInitial, loadPersisted, savePersisted } from './persistence';
-import { applyScenario } from './scenarios';
+import { applyScenario, familyForUser } from './scenarios';
 
 const storageWith = (value: string | null) => ({ getItem: (key: string) => (key === STORAGE_KEY ? value : null) });
 
@@ -67,5 +67,14 @@ describe('scenarios', () => {
 	it('empty_today removes the slots of the simulated day', () => {
 		const s = applyScenario('empty_today');
 		expect(s.db.weeks.flatMap((w) => w.slots).some((slot) => slot.date === '2026-10-06')).toBe(false);
+	});
+});
+
+describe('familyForUser', () => {
+	it('keeps the current family when the new user belongs to it, else the first family of the user', () => {
+		const db = createInitial().db;
+		expect(familyForUser(db, 'user-federico', 'family-grandparents')).toBe('family-grandparents');
+		expect(familyForUser(db, 'user-anna', 'family-grandparents')).toBe('family-main');
+		expect(familyForUser(db, 'user-lucia', 'family-main')).toBe('family-grandparents');
 	});
 });

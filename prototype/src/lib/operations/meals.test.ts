@@ -131,3 +131,17 @@ describe('invalid or hidden days', () => {
 		expect(resolveWeekStart(db, ctx(), [null, '2026-08-03'], '2026-10-05')).toBe('2026-10-05');
 	});
 });
+
+describe('draft recipes in past meals', () => {
+	it('lets curators open the draft but not members, and nobody rate it', () => {
+		const slot = db.weeks.find((w) => w.startsOn === '2026-09-28')!.slots.find((s) => s.id === '2026-09-29-lunch')!;
+		slot.recipeId = 'polpettine-tacchino-skottle';
+		const meal = (userId: string) => {
+			const view = getWeekView(db, ctx({ userId }), '2026-09-28');
+			if (!view.ok) throw new Error(view.error);
+			return view.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-09-29-lunch')!;
+		};
+		expect(meal('user-federico')).toMatchObject({ canOpenRecipe: true, canRate: false, ingredients: null });
+		expect(meal('user-anna')).toMatchObject({ canOpenRecipe: false, canRate: false });
+	});
+});

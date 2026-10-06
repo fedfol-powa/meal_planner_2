@@ -58,7 +58,7 @@
 			<p class="description">{recipe.description}</p>
 			<div class="meta-row">
 				<p class="meal-meta">
-					{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{' · '}{/if}{app.t('meal.servings', { count: meal.servings })}
+					{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{/if}{#if recipe.durationMinutes && meal.servings}{' · '}{/if}{#if meal.servings}{meal.servings === 1 ? app.t('meal.oneServing') : app.t('meal.servings', { count: meal.servings })}{/if}
 				</p>
 				{#if sourceLine}<p class="meal-source" title={sourceLine}><span aria-hidden="true">{truncate(sourceLine, SOURCE_MAX_CHARS)}</span><span class="visually-hidden">{sourceLine}</span></p>{/if}
 			</div>
@@ -68,6 +68,7 @@
 			<p class="meta-line">{app.t('meal.changedBy', { name: meal.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, meal.lastChange.at) })}</p>
 		{/if}
 		{#if meal.note}<p class="meta-line"><strong>{app.t('meal.note')}:</strong> {meal.note}</p>{/if}
+		{#if meal.notice}<p class="meta-line notice">{meal.notice}</p>{/if}
 	</div>
 
 	{#if meal.kind === 'recipe' && recipe}

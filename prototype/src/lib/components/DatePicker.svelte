@@ -104,7 +104,7 @@
 	.nav:disabled { opacity: 0.3; cursor: not-allowed; }
 	.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 	.weekday { padding: 4px 0; color: var(--muted); font-size: 0.75rem; text-align: center; text-transform: uppercase; }
-	.day { min-height: 40px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); cursor: pointer; }
+	.day { min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); cursor: pointer; }
 	.day:hover:not(:disabled) { background: #f0ede5; }
 	.day[aria-pressed='true'] { color: #fff; background: var(--ink); }
 	.day:disabled { color: var(--rule); font-weight: 400; cursor: not-allowed; }

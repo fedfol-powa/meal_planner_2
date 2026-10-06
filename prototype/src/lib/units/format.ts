@@ -18,6 +18,9 @@ const UNIT_LABELS: Record<Locale, Record<PresentedUnit, [string, string]>> = {
 	}
 };
 
+const FRACTION_UNITS = new Set<PresentedUnit>(['piece', 'clove', 'tbsp', 'tsp', 'slice', 'pinch', 'lb', 'pint']);
+const FRACTIONS: Record<number, string> = { 25: '¼', 50: '½', 75: '¾' };
+
 export function formatQuantity(
 	q: Quantity,
 	sourceText: string,
@@ -27,8 +30,13 @@ export function formatQuantity(
 	if (q.kind === 'to_taste') return translate(locale, 'quantity.toTaste');
 	if (q.kind === 'text') return sourceText;
 	const { value, unit } = roundForDisplay(presentAmount(q.value, q.unit, system));
-	const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
 	const [singular, plural] = UNIT_LABELS[locale][unit];
-	const label = value === 1 ? singular : plural;
+	const fraction = FRACTION_UNITS.has(unit) ? FRACTIONS[Math.round((value % 1) * 100)] : undefined;
+	// Countable units read better as "½ spicchio", "1½ spicchi" than as decimals.
+	const number =
+		fraction !== undefined
+			? `${Math.floor(value) || ''}${fraction}`
+			: new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value);
+	const label = value <= 1 ? singular : plural;
 	return label ? `${number} ${label}` : number;
 }

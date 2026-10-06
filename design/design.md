@@ -210,7 +210,8 @@ orizzontalmente con aggancio al giorno; il tocco sul selettore porta alla stessa
 colonna. Dentro il giorno si scorre in verticale. Pranzo e cena sono in colonna
 sotto 768 px e affiancati da 768 px; il calendario resta visibile.
 
-La navbar è sempre in basso, con icone e testo. Dal 6 ottobre 2026 le voci sono
+La navbar è sempre in basso. Dal 6 ottobre 2026 mostra solo le icone, più grandi,
+con il nome di ogni voce conservato per i lettori di schermo; le voci sono
 **Menu, Ricettario** e una voce per famiglia, account, cambio di famiglia e funzioni
 dei ruoli, con etichetta «Tu» / «You» (confermata nella review del primo giro). La Spesa non è più una voce della navbar: il suo punto d'ingresso si decide nel
 percorso Spesa.

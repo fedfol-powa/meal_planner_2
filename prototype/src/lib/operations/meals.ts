@@ -1,7 +1,7 @@
 import { isIsoDate, isMealPast, isWeekVisible, mondayOf, weekDates } from '#lib/domain/calendar.ts';
 import type { DemoDatabase, Family, IsoDate, Locale, MealSlot, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
-import { familyFor, localeOf, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
+import { familyFor, isCurator, localeOf, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
 import type { DayView, MealView, OpeningTarget, WeekView } from './views';
 
 const MEAL_ORDER = { lunch: 0, dinner: 1 } as const;
@@ -52,6 +52,7 @@ function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, local
 		cooked,
 		canMarkNotCooked: kind === 'recipe' && isPast,
 		canRate: recipe ? visibleRecipe(db, family, recipe.id) !== null : false,
+		canOpenRecipe: recipe ? visibleRecipe(db, family, recipe.id) !== null || (recipe.status === 'draft' && isCurator(db, ctx)) : false,
 		rating: recipe ? ratingSummary(db, family, ctx.userId, recipe.id) : null,
 		lastChange: slot.updatedBy && slot.updatedAt ? { userName: author, at: slot.updatedAt } : null
 	};

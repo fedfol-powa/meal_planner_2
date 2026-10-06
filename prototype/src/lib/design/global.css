@@ -61,7 +61,10 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 .bottom-navigation { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 16px max(8px, env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--rule); }
 .navigation-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 56px; color: var(--muted); font-size: 0.75rem; line-height: 1.3; text-decoration: none; border-radius: 8px; }
 .navigation-icon { display: grid; place-items: center; width: 48px; height: 30px; border-radius: 8px; }
-.navigation-item .icon { width: 22px; height: 22px; }
+.navigation-item .icon { width: 26px; height: 26px; }
+/* Labels hidden since the round 1 review; the accessible name stays. */
+.navigation-item { min-height: 52px; }
+.navigation-icon { width: 56px; height: 40px; }
 .navigation-item[aria-current="page"] { color: var(--green); font-weight: 700; }
 .navigation-item[aria-current="page"] .navigation-icon { background: var(--soft-green); }
 .navigation-item:focus-visible { outline-offset: -3px; }

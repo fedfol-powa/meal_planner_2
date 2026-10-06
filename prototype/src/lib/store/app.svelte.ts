@@ -4,7 +4,7 @@ import type { MessageKey } from '#lib/i18n/messages.ts';
 import { translate, type MessageParams } from '#lib/i18n/translate.ts';
 import type { OperationContext } from '#lib/operations/context.ts';
 import { createInitial, loadPersisted, savePersisted, type Persisted, type ScenarioId } from './persistence';
-import { applyScenario } from './scenarios';
+import { applyScenario, familyForUser } from './scenarios';
 
 function safeStorage(): Storage | null {
 	try {
@@ -38,8 +38,7 @@ class AppState {
 	switchUser(userId: string) {
 		this.update((s) => {
 			s.settings.userId = userId;
-			const family = s.db.families.find((f) => f.members.some((m) => m.userId === userId));
-			if (family) s.settings.familyId = family.id;
+			s.settings.familyId = familyForUser(s.db, userId, s.settings.familyId);
 		});
 		this.selectedDate = null;
 	}

@@ -43,7 +43,15 @@
 						<a class="recipe-link" href={d.recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{d.recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
 					{:else}{d.recipe.name}{/if}
 				</h1>
-				<RatingStars summary={d.rating} recipeId={d.recipe.id} recipeName={d.recipe.name} />
+				{#if d.isDraft}
+					<p class="draft-notice" role="note">
+						<span class="label-chip neutral">{app.t('recipe.draft')}</span>
+						{app.t('recipe.draftNotice')}
+						{app.t('recipe.missingLabel', { items: d.missing.map((m) => app.t(`recipe.missing.${m}` as const)).join(', ') })}
+					</p>
+				{:else}
+					<RatingStars summary={d.rating} recipeId={d.recipe.id} recipeName={d.recipe.name} />
+				{/if}
 				<p class="description">{d.recipe.description}</p>
 				<p class="meal-meta">
 					{#if d.recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: d.recipe.durationMinutes })}{/if}{#if d.recipe.durationMinutes && d.recipe.proteinGroup}{' · '}{/if}{#if d.recipe.proteinGroup}{app.t(`group.${d.recipe.proteinGroup}` as const)}{/if}
@@ -54,6 +62,7 @@
 					<p class="meal-source">{app.t('source.home')}</p>
 				{/if}
 
+				{#if d.baseServings && d.ingredients.length}
 				<div class="servings">
 					<span>{app.t('recipe.servingsLabel')}</span>
 					<button type="button" class="step" aria-label={app.t('recipe.lessServings')} disabled={d.servings <= 1} onclick={() => setServings(d.servings - 1)}>−</button>
@@ -62,6 +71,9 @@
 				</div>
 				<p class="meta-line">{app.t('recipe.baseServings', { count: d.baseServings })}</p>
 				<IngredientList ingredients={d.ingredients} system={d.measurementSystem} label={d.recipe.name} collapsible={false} />
+				{:else}
+					<p class="meta-line">{app.t('meal.ingredientsMissing')}</p>
+				{/if}
 
 				<h2 class="history-title">{app.t('recipe.history')}</h2>
 				{#if d.history.length}
@@ -83,6 +95,7 @@
 	.servings { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; font-weight: 700; }
 	.step { width: 44px; height: 44px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); font: 700 1.25rem/1 var(--text-font); cursor: pointer; }
 	.step:disabled { opacity: 0.3; cursor: not-allowed; }
+	.draft-notice { display: grid; gap: 6px; justify-items: start; margin: 0 0 14px; padding: 12px; background: var(--free-surface); border: 1px solid var(--free-border); font-size: 0.875rem; }
 	.history-title { margin: 24px 0 8px; font: 400 1.25rem/1.3 var(--heading-font); }
 	.history { margin: 0; padding: 0; list-style: none; }
 	.history li { padding: 8px 0; border-bottom: 1px solid var(--rule); }

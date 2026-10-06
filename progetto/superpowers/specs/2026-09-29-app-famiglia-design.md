@@ -784,7 +784,11 @@ della loro assenza da un file YAML.
 
 **Bozze persistenti confermate:** una bozza ammette informazioni incomplete e sopravvive
 alla conversazione con l'agente. È consultabile nella sezione di curatela dell'app e
-recuperabile tramite MCP. Tutti i curatori possono consultare e modificare le bozze
+recuperabile tramite MCP. Dal 6 ottobre 2026 la sezione di curatela per la
+consultazione è in testa al ricettario: una sezione "Bozze" collassabile, visibile
+solo ai curatori, con i dati che mancano per pubblicare. Un pasto passato che usa una
+ricetta in bozza mostra nome e descrizione; la scheda si apre solo ai curatori e il
+voto non è disponibile finché la ricetta non è pubblicata. Tutti i curatori possono consultare e modificare le bozze
 degli altri; autore e ultima modifica sono visibili. Salvare una bozza non pubblica
 una ricetta: la completezza resta vincolante per l'ingresso nel catalogo utilizzato
 dalle famiglie.
@@ -1188,7 +1192,7 @@ ordinamento (nome, voto, aggiunte di recente, mangiate di recente), con una frec
 per invertire l'ordine scelto; nessun filtro per stagione. Nella scheda
 ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
 ingredienti (dettagli in `design/design.md`).
-La navbar mostra icone ed etichette,
+La navbar mostra solo icone, con nomi accessibili,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative
 viste del prototipo; le altre funzioni vanno declinate nello stesso linguaggio.
@@ -1273,7 +1277,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
-| 6 ottobre 2026, review del primo giro (in corso) | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata |
+| 6 ottobre 2026, review del primo giro (in corso) | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

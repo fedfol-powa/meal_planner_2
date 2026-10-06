@@ -154,10 +154,10 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
   traduzioni del catalogo.
 - **Classificazioni dimostrative:** pasto adatto ricavato dallo storico, gruppo
   alimentare dai tag, durata dal testo del tempo.
-- **Settimane:** 21 settembre chiusa, 28 settembre da chiudere, 5 ottobre in corso; la
-  bozza del 12 ottobre è generata dallo script con una scelta semplice, non dal
-  pianificatore, e lascia vuota la cena di mercoledì 14 per mostrare "nessuna ricetta
-  adatta". Diventa visibile dopo mercoledì 7 ottobre alle 20:00 (data simulata).
+- **Settimane:** 21 e 28 settembre e 5 ottobre dai menu di origine; la settimana del
+  12 ottobre è generata dallo script con una scelta semplice, non dal pianificatore, e
+  lascia vuota la cena di mercoledì 14 per mostrare "nessuna ricetta adatta". Diventa
+  visibile dopo mercoledì 7 ottobre alle 20:00 (data simulata).
 - **Persone:** Federico (curatore e amministratore dell'app, amministratore della
   Famiglia Folloni, membro dei Nonni), Anna e Tom (membri; Tom usa l'inglese), Lucia
   (amministratrice dei Nonni, famiglia senza settimane e senza libri). Voti di Federico
@@ -206,6 +206,13 @@ e 17, rilievo R3) e in `design.md`:
 - Risposte: etichetta «Tu» confermata (domanda 2); filtro per stagione escluso
   (domanda 7); quantità non numeriche tradotte nella lingua dell'utente e richieste
   per pubblicare (domanda 6, prima parte).
+- Bozze (domanda 5): sezione "Bozze" in testa al ricettario, collassabile, solo per i
+  curatori, con l'elenco dei dati mancanti; la scheda della bozza si apre solo per i
+  curatori, anche dai menu passati; per i membri niente scheda né voto.
+- Navbar con sole icone (nome accessibile conservato).
+- Correzioni scelte prima di chiudere: aree di tocco da 44 px, frazioni scritte
+  "½ spicchio" / "1½ spicchi", cambio utente che resta sulla famiglia corrente se
+  possibile, README del prototipo.
 
 ### Rotte e componenti del giro
 

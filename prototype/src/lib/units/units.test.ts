@@ -61,8 +61,8 @@ describe('formatQuantity', () => {
 	it('never shows zero for small amounts', () => {
 		expect(formatQuantity(amount(2, 'g'), '', 'metric', 'it-IT')).toBe('2 g');
 		expect(formatQuantity(amount(0.2, 'g'), '', 'metric', 'it-IT')).toBe('1 g');
-		expect(formatQuantity(amount(1 / 3, 'clove'), '', 'metric', 'it-IT')).toBe('0,5 spicchi');
-		expect(formatQuantity(amount(0.1, 'tbsp'), '', 'metric', 'en-GB')).toBe('0.5 tbsp');
+		expect(formatQuantity(amount(1 / 3, 'clove'), '', 'metric', 'it-IT')).toBe('½ spicchio');
+		expect(formatQuantity(amount(0.1, 'tbsp'), '', 'metric', 'en-GB')).toBe('½ tbsp');
 	});
 	it('shows fractions of a kilo or litre in grams or millilitres', () => {
 		expect(formatQuantity({ kind: 'amount', value: 0.25, unit: 'kg' }, '', 'metric', 'it-IT')).toBe('250 g');
@@ -71,9 +71,15 @@ describe('formatQuantity', () => {
 		expect(formatQuantity({ kind: 'amount', value: 1.5, unit: 'kg' }, '', 'metric', 'it-IT')).toBe('1,5 kg');
 	});
 	it('rounds pieces and cloves up to the half', () => {
-		expect(formatQuantity(amount(1.2, 'clove'), '', 'metric', 'it-IT')).toBe('1,5 spicchi');
+		expect(formatQuantity(amount(1.2, 'clove'), '', 'metric', 'it-IT')).toBe('1½ spicchi');
 		expect(formatQuantity(amount(1, 'clove'), '', 'metric', 'en-GB')).toBe('1 clove');
 		expect(formatQuantity(amount(0.75, 'piece'), '', 'metric', 'it-IT')).toBe('1');
+	});
+	it('writes halves and quarters of countable units as fractions', () => {
+		expect(formatQuantity(amount(0.75, 'piece'), '', 'metric', 'it-IT')).toBe('1');
+		expect(formatQuantity(amount(0.5, 'piece'), '', 'metric', 'en-GB')).toBe('½');
+		expect(formatQuantity(amount(2.5, 'tbsp'), '', 'metric', 'it-IT')).toBe('2½ cucchiai');
+		expect(formatQuantity(amount(37, 'g'), '', 'metric', 'it-IT')).toBe('35 g');
 	});
 	it('localises to taste and keeps free text', () => {
 		expect(formatQuantity({ kind: 'to_taste' }, 'q.b.', 'metric', 'en-GB')).toBe('to taste');
