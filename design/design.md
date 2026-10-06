@@ -180,15 +180,21 @@ footer decorativo. Il giorno compare nel selettore superiore, senza ripeterne nu
 o contatori nel contenuto. Il selettore ha bordo scuro da 1 px e raggio di 8 px;
 il giorno attivo ha fondo scuro e testo bianco.
 
+Accanto al selettore, dal 6 ottobre 2026, un'icona calendario apre un mese navigabile
+per scegliere qualunque giorno con menu, anche passato; il giorno scelto è scuro come
+nel selettore e i giorni senza menu sono disattivati. Non ci sono frecce o intervalli
+di settimana sopra il selettore, né etichette di stato della settimana.
+
 Un giorno occupa una colonna della larghezza disponibile. Le colonne si scorrono
 orizzontalmente con aggancio al giorno; il tocco sul selettore porta alla stessa
 colonna. Dentro il giorno si scorre in verticale. Pranzo e cena sono in colonna
 sotto 768 px e affiancati da 768 px; il calendario resta visibile.
 
-La navbar è sempre in basso, con **Menu, Ricettario e Spesa**, icone e testo,
-più una quarta voce concordata il 6 ottobre 2026 per famiglia, account, cambio di
-famiglia e funzioni dei ruoli; l'etichetta (provvisoriamente «Tu» / «You») si
-conferma nella review del primo giro del prototipo.
+La navbar è sempre in basso, con icone e testo. Dal 6 ottobre 2026 le voci sono
+**Menu, Ricettario** e una voce per famiglia, account, cambio di famiglia e funzioni
+dei ruoli (etichetta provvisoria «Tu» / «You», da confermare nella review del primo
+giro). La Spesa non è più una voce della navbar: il suo punto d'ingresso si decide nel
+percorso Spesa.
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva
 il giorno scelto nel menu. Famiglia, preferenze, curatela, amministrazione e

@@ -3012,6 +3012,26 @@ intermedia") prima dell'attività 11.
 
 ---
 
+### Attività 10b: adeguamenti dopo la tappa intermedia
+
+Approvata dall'utente il 6 ottobre 2026. Specifica, `design.md` e `percorsi.md` sono
+già aggiornati.
+
+- [ ] Test prima: in `calendar.test.ts` tolti i test di `weekStatus` e
+  `automaticCloseAt`; in `meals.test.ts` vista settimana senza `status`, `previous`,
+  `next`; "non cucinato" possibile su un pasto passato di una settimana di settembre e
+  rifiutato su un pasto futuro; un pasto passato con `cooked` null vale cucinato; nuova
+  `getMenuDates(db, ctx): OpResult<IsoDate[]>` con i soli giorni che hanno slot,
+  ordinati, escluse le settimane non ancora generate.
+- [ ] Codice: `calendar.ts` senza stati e chiusura; `WeekView` senza `status`,
+  `previous`, `next`; `Week.closedAt` rimosso da tipi, script e dati; `getMenuDates`;
+  rimossi `WeekHeader`, chip "Passato" e chiavi di testo inutilizzate; nuovo
+  `DatePicker.svelte` (icona calendario accanto ai sette giorni, mese navigabile, solo
+  giorni con menu selezionabili, giorno scelto scuro); navbar a tre voci e rimozione di
+  `/shopping`; pulsante "Prova" in basso a destra sopra la navbar.
+- [ ] Verifica: vitest, check, build, browser a 320, 390 e 1440 px; nuova anteprima
+  sulla rete locale; commit.
+
 ### Attività 11: operazioni del Ricettario e dei voti
 
 **File:**
@@ -3735,8 +3755,13 @@ Avviare la review con l'utente seguendo il ciclo di `design/percorsi.md` e compi
 ## Esito della tappa intermedia
 
 Raggiunta il 6 ottobre 2026 (attività 1–9 completate, 67 test verdi, verifica a 320,
-390 e 1440 px). Anteprima: `http://192.168.178.64:8766/menu`. Osservazioni
-dell'utente: in attesa.
+390 e 1440 px). Anteprima: `http://192.168.178.64:8766/menu`.
+
+Osservazioni dell'utente e decisioni (dettaglio in `design/percorsi.md`): nessun vincolo
+né stato per settimana e nessuna chiusura; via le etichette non informative; calendario
+accanto ai giorni al posto delle frecce, solo giorni con menu; Spesa fuori dalla navbar,
+ingresso da decidere nel percorso Spesa. Adeguamenti nell'attività 10b, approvata
+dall'utente.
 
 ## Esito della review
 

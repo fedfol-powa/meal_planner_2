@@ -54,7 +54,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | # | Percorso | Contenuto | Giro | Stato |
 |---|---|---|---|---|
 | 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a quattro voci, dati demo, strumenti di prova | 1 | Tappa intermedia |
-| 1 | Menu | Oggi, settimana e suoi stati, schede dei pasti, pasti liberi e vuoti | 1 | Tappa intermedia |
+| 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Tappa intermedia rivista |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | In sviluppo |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
 | 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
@@ -110,16 +110,15 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
 
 ### Tappa intermedia: Fondamenta e Menu
 
-- **Fondamenta:** navbar Menu, Ricettario e Spesa del riferimento più la quarta voce
-  «Tu»; Spesa e «Tu» con avviso "disponibile in un prossimo giro"; token, font e componenti riorganizzati; strumenti
+- **Fondamenta:** navbar Menu, Ricettario e «Tu» (la Spesa è uscita dalla navbar alla
+  tappa intermedia); «Tu» con le destinazioni future; token, font e componenti riorganizzati; strumenti
   di prova, lingua e sistema di misura funzionanti su tutto ciò che esiste.
 - **Apertura** (specifica, sezione 5): pasti di oggi; altrimenti il primo giorno futuro
   con pasti; senza settimane, invito simulato a generare la prima.
-- **Calendario:** giorni a scorrimento orizzontale come nel riferimento, più il
-  passaggio alla settimana precedente e alla successiva, bozza compresa.
-- **Stati della settimana** (sezione 2), distinguibili non solo con il colore: bozza
-  modificabile "in revisione fino a domenica"; in corso con pasti passati distinti dai
-  futuri; da chiudere con possibilità di segnare "non cucinato"; chiusa in sola lettura.
+- **Calendario:** giorni a scorrimento orizzontale come nel riferimento; accanto al
+  selettore un'icona calendario per scegliere qualunque giorno con menu, anche passato.
+- **Nessuno stato della settimana** (sezione 2, decisione della tappa intermedia):
+  nessuna etichetta o messaggio di stato; "non cucinato" su ogni pasto passato.
 - **Schede dei pasti:** con foto, senza foto, pasto libero, slot vuoto "nessuna ricetta
   adatta"; fonte web o YouTube, libro con titolo e pagine, ricetta di casa.
 - **Ingredienti** scalati sulle porzioni dello slot, nelle unità della famiglia
@@ -171,6 +170,20 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
 
 Dati mancanti (ricetta senza foto o descrizione), nessun risultato, modalità offline
 simulata in sola lettura.
+
+### Esito della tappa intermedia (6 ottobre 2026)
+
+Osservazioni dell'utente e decisioni, registrate nella specifica (sezioni 2, 4, 5, 14
+e 17, rilievo R3) e in `design.md`:
+
+- nessun vincolo per settimana e nessuna chiusura: ogni settimana si modifica allo
+  stesso modo; i pasti passati contano come cucinati salvo "non cucinato";
+- evitare le etichette che non sono dati (stato della settimana, "Passato", messaggi
+  di spiegazione);
+- niente frecce e intervallo della settimana in alto: icona calendario accanto al
+  selettore dei giorni, con selezionabili solo i giorni che hanno un menu;
+- Spesa fuori dalla navbar; il punto d'ingresso, probabilmente dal Menu con la
+  selezione dei pasti, si decide nel percorso Spesa.
 
 ### Fuori dal giro
 

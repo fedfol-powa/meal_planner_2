@@ -135,11 +135,14 @@ spesa.
 
 ### Una settimana tipo
 
-**Mercoledì sera** l'app prepara la bozza del menu della settimana che comincia il lunedì
+**Mercoledì sera** l'app prepara il menu della settimana che comincia il lunedì
 dopo: dodici pasti circa, con i pasti liberi già segnati (per esempio "sabato sera fuori",
 "domenica pizza").
 
-**Da giovedì a domenica** tutti i membri della Famiglia possono rivedere la bozza:
+Da quel momento tutti i membri della Famiglia possono rivederlo e cambiarlo. Non ci sono
+finestre o vincoli per settimana: si può intervenire allo stesso modo sulla settimana
+appena preparata, su quella in corso e su quelle passate, per esempio per correggere
+cosa si è mangiato o rifare la spesa di un menu vecchio. Su qualsiasi pasto si può:
 
 - cambiare un piatto scegliendo tra cinque suggerimenti o cercando nel ricettario;
 - chiedere "proponimene un altro";
@@ -151,11 +154,9 @@ dopo: dodici pasti circa, con i pasti liberi già segnati (per esempio "sabato s
 Ogni piatto mostra chi l'ha cambiato per ultimo e quando ("cambiato da Anna, venerdì
 21:30"), così si sa sempre a chi chiedere.
 
-**Durante la settimana** si possono ancora cambiare i pasti che non sono ancora arrivati.
-Se un pasto passato non è stato cucinato, lo si segna.
-
-**Il mercoledì dopo** l'app chiude la settimana precedente (fino ad allora si può ancora
-segnare un pasto come non cucinato) e prepara la bozza successiva. Il ciclo ricomincia.
+Un pasto passato conta come cucinato, a meno che qualcuno non lo segni come non
+cucinato; lo si può fare in qualsiasi momento. Il mercoledì successivo l'app prepara la
+settimana dopo e il ciclo ricomincia.
 
 ### Come sceglie i piatti
 
@@ -384,7 +385,7 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `family_books` | `family_id`, `book_id`: libri posseduti |
 | `recipe_exclusions` | `family_id`, `recipe_id`, `reason`, `created_by`, `created_at`: "non proporre più" |
 | `family_ingredients` | `family_id`, `ingredient_id`, `restriction` (`avoid`/`limit`), `weekly_max` |
-| `weeks` | `family_id`, `starts_on` (lunedì), `generated_at`, `closed_at`. Unica per (`family_id`, `starts_on`) |
+| `weeks` | `family_id`, `starts_on` (lunedì), `generated_at`. Unica per (`family_id`, `starts_on`) |
 | `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `cooked` (`true`/`false`/null), `updated_by` (null = app), `updated_at` |
 | `meal_changes` | `meal_slot_id`, `actor_id`, `before` (jsonb), `after` (jsonb), `created_at`: registro append-only |
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
@@ -396,14 +397,11 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 - `family_scores`: media delle stelle dei membri attuali per ricetta;
 - `global_scores`: media anonima su tutte le famiglie, usata solo per l'avvio a freddo.
 
-**Stato della settimana**, derivato dalle date più `closed_at`:
-
-- `draft` prima del lunedì;
-- `in_progress` dal lunedì alla domenica;
-- `pending_close` dal lunedì al mercoledì successivi;
-- `closed` dopo `closed_at`.
-
-Alla chiusura gli slot con `cooked = null` diventano `true`.
+**Nessuno stato della settimana, deciso il 6 ottobre 2026.** Le settimane non hanno
+fasi (bozza, in corso, da chiudere, chiusa) né chiusura: ogni settimana si consulta e si
+modifica allo stesso modo. `cooked` vale `false` solo quando un membro segna il pasto
+come non cucinato; per un pasto passato `null` equivale a cucinato, anche nello storico
+usato dal pianificatore. Una settimana generata è visibile da `generated_at`.
 
 **Impostazioni della famiglia** (`families.settings`, jsonb validato):
 
@@ -563,11 +561,10 @@ requisito.
   e per il lunedì successivo.
 - **Worker**: invoca l'Edge Function **una volta per famiglia**, perché i limiti di Supabase
   sono 2 secondi di CPU per richiesta e 150 secondi di durata sul piano Free. Per ogni
-  famiglia, in un'unica transazione:
-  1. chiude la settimana precedente (`closed_at`, e `cooked` null → true);
-  2. genera la bozza, se la settimana non esiste già. Con il giudice attivo genera le
-     candidate e chiama il giudice fuori dalla transazione: l'attesa della risposta è I/O e
-     non consuma i 2 secondi di CPU.
+  famiglia genera la settimana successiva in un'unica transazione, se non esiste già.
+  Con il giudice attivo genera le candidate e chiama il giudice fuori dalla transazione:
+  l'attesa della risposta è I/O e non consuma i 2 secondi di CPU. Non c'è chiusura della
+  settimana precedente (decisione del 6 ottobre 2026, sezione 2).
 - **Errori**: un errore riguarda solo la sua famiglia. Si ritenta all'esecuzione successiva
   fino all'ultima finestra utile. Alla fine arriva un'email al referente operativo del
   servizio con le famiglie ancora senza bozza. Questo destinatario va configurato
@@ -591,14 +588,18 @@ requisito.
   Per `book` si mostrano titolo e pagine; per `home` nessun collegamento. Per gli slot
   liberi, il testo.
 
-- **Cosa è modificabile**:
-  - la bozza, per intero;
-  - la settimana in corso, solo per i pasti non ancora passati;
-  - dopo il pasto, solo "non cucinata" (fino alla chiusura della settimana).
+- **Cosa è modificabile, deciso il 6 ottobre 2026:** tutto, in ogni settimana visibile,
+  passata, in corso o futura. Nessuna azione dipende dalla settimana. "Non cucinato" ha
+  senso solo per i pasti passati ed è disponibile in qualsiasi momento.
   - **Istante in cui un pasto diventa passato, confermato il 6 ottobre 2026:** il
     pranzo alle 15:30 e la cena alle 23:00, nell'ora locale della famiglia
-    (Europe/Rome nei dati demo). Fuso orario della famiglia ed eventuale
-    personalizzazione degli orari da valutare nel percorso Famiglia e account.
+    (Europe/Rome nei dati demo). Serve solo a stabilire quando un pasto conta come
+    cucinato e quando si può segnare "non cucinato"; non blocca modifiche. Fuso orario
+    della famiglia ed eventuale personalizzazione degli orari da valutare nel percorso
+    Famiglia e account.
+- **Navigazione fra i giorni:** accanto al selettore dei sette giorni un'icona apre un
+  calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
+  senza menu non sono selezionabili.
 - **Azioni sullo slot**: cambia ricetta (suggerimenti o ricerca con filtri), proponimene un
   altro, cambia porzioni, scambia con un altro slot, segna libero con testo, nota, non proporre
   più, vota.
@@ -1172,10 +1173,12 @@ dimensioni, pesi, spazi e stati sono definiti nella guida.
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
 scorrere lateralmente, con selettore superiore sincronizzato; il giorno attivo è
 scuro con testo bianco. Nessuna ripetizione del numero del giorno o contatori nel
-contenuto. La navbar inferiore mostra Menu, Ricettario e Spesa con icone ed etichette
-più, dal 6 ottobre 2026, una quarta voce per famiglia, account, cambio di famiglia e
-funzioni dei ruoli (curatela, amministrazione, istruzioni MCP), con etichetta da
-confermare nella review del primo giro;
+contenuto. Dal 6 ottobre 2026 la navbar inferiore mostra Menu, Ricettario e una voce
+per famiglia, account, cambio di famiglia e funzioni dei ruoli (curatela,
+amministrazione, istruzioni MCP), con etichetta da confermare nella review del primo
+giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
+decide nel percorso Spesa. Il selettore dei giorni ha accanto un'icona calendario.
+La navbar mostra icone ed etichette,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative
 viste del prototipo; le altre funzioni vanno declinate nello stesso linguaggio.
@@ -1238,7 +1241,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
 | Prototipo | Flussi, stati e componenti di ciascun percorso, da chiudere giro per giro; linguaggio visivo, metodo, ordine dei percorsi e architettura del prototipo già concordati (`design/percorsi.md`) | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
-| Calendario | Settimana iniziale di una famiglia nuova; fuso orario della famiglia (istante in cui un pasto diventa passato confermato nella sezione 5); separazione fra generazione e chiusure scadute, recupero delle chiusure saltate (review R3) | Sezioni 2, 4 e 5 |
+| Calendario | Settimana iniziale di una famiglia nuova; fuso orario della famiglia (istante in cui un pasto diventa passato confermato nella sezione 5); generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
 | Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
@@ -1259,6 +1262,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 4 ottobre 2026, linguaggio visivo definitivo | Approvato il linguaggio derivato dallo studio HelloFresh e rappresentato in `design/index.html`: guida vincolante in `design/design.md`, istruzioni per gli agenti e materiale approvato consolidato in `design/`. Il futuro prototipo deve riusare questa base; flussi e servizi restano soggetti alla specifica e ai piani successivi |
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
+| 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
@@ -1309,6 +1313,9 @@ per rappresentarne lo stato. Raccomandazione: distinguere generazione richiesta 
 chiusura di tutte le settimane effettivamente scadute, con condizioni proprie. Sono
 da precisare anche il target della prima generazione e l'istante in cui un pasto passa.
 **Quando:** comportamento visibile in P0; orchestrazione e recupero prima di M3.
+**Aggiornamento del 6 ottobre 2026:** le chiusure delle settimane sono state eliminate
+(sezione 2) e l'istante del pasto passato è deciso (sezione 5); resta aperta solo la
+parte su generazione su richiesta e prima generazione.
 
 **R4 — Impatto medio: mappature dell'import che i dati reali richiedono.**
 Sezioni 3, 8 e 11. Nell'origine `pasta-tonno` e `lenticchie-comidista` risultano
