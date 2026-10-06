@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import DaySelector from '#lib/components/DaySelector.svelte';
 	import MealCard from '#lib/components/MealCard.svelte';
+	import RatingStars from '#lib/components/RatingStars.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
@@ -65,6 +66,12 @@
 	});
 </script>
 
+{#snippet mealRating(meal: MealView)}
+	{#if meal.recipe && meal.rating}
+		<RatingStars summary={meal.rating} recipeId={meal.recipe.id} recipeName={meal.recipe.name} variant={app.settings.ratingVariant} />
+	{/if}
+{/snippet}
+
 {#if !opening.ok}
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.forbidden')} /></section>
 {:else if opening.value.kind === 'no_weeks'}
@@ -90,7 +97,7 @@
 				<section class="day" id="day-{day.date}" aria-labelledby="heading-{day.date}">
 					<h2 class="day-title visually-hidden" id="heading-{day.date}">{formatDayLong(app.locale, day.date)}</h2>
 					{#each day.meals as meal (meal.slotId)}
-						<MealCard {meal} system={week.measurementSystem} onToggleCooked={toggleCooked} />
+						<MealCard {meal} system={week.measurementSystem} rating={mealRating} onToggleCooked={toggleCooked} />
 					{:else}
 						<StateNotice title={app.t('menu.dayEmpty')} />
 					{/each}

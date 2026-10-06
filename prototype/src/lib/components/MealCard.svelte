@@ -57,7 +57,7 @@
 				{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{' · '}{/if}{app.t('meal.servings', { count: meal.servings })}
 			</p>
 			{#if sourceLine}<p class="meal-source">{sourceLine}</p>{/if}
-			{#if rating}{@render rating(meal)}{:else}<p class="meta-line rating-text">{ratingText}</p>{/if}
+			{#if rating && meal.canRate}{@render rating(meal)}{:else}<p class="meta-line rating-text">{ratingText}</p>{/if}
 			<p><a class="link-inline" href="/recipes/{recipe.id}?from=menu&day={meal.date}">{app.t('meal.details')}</a></p>
 		{/if}
 
