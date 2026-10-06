@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { formatDayLong } from '#lib/i18n/dates.ts';
-	import { excludeRecipe, getFreeTextSuggestions, includeRecipe, MAX_FREE_TEXT, MAX_NOTE, proposeAnother, replaceMealRecipe, setMealFree, setMealNote, setMealServings, swapMeals } from '#lib/operations/revision.ts';
+	import { excludeRecipe, getFreeTextSuggestions, includeRecipe, MAX_FREE_TEXT, MAX_NOTE, replaceMealRecipe, setMealFree, setMealNote, swapMeals } from '#lib/operations/revision.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
 	import type { MealView, WeekView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 	import BottomSheet from './BottomSheet.svelte';
-	import MealActionList, { type EditorStage } from './MealActionList.svelte';
+	import type { EditorStage } from './MealActionList.svelte';
 	import RecipePicker from './RecipePicker.svelte';
 	import SwapPicker from './SwapPicker.svelte';
 
@@ -21,6 +21,7 @@
 	const stageTitle = $derived.by(() => {
 		if (stage === 'swap') return app.t('revision.swapTitle');
 		if (stage === 'exclude') return app.t('revision.exclude');
+		if (stage === 'picker' && meal?.kind === 'recipe') return app.t('revision.change');
 		return title;
 	});
 
@@ -70,33 +71,42 @@
 		}
 		app.update(() => {});
 		excluded = null;
-		onStage('menu');
 	}
 </script>
 
 <BottomSheet open={meal !== null} title={stageTitle} {onClose}>
 	{#if meal}
-		{#if stage === 'menu'}
-			<MealActionList
-				{meal}
-				onOpen={onStage}
-				onAnother={() => done(app.applyRevision(proposeAnother(app.db, app.ctx, meal.slotId), app.t('toast.changed')))}
-				onServings={(n) => app.applyRevision(setMealServings(app.db, app.ctx, meal.slotId, n), app.t('toast.servings', { count: n }))}
-			/>
-		{:else if stage === 'picker'}
+		{#if stage === 'picker'}
 			{#if excluded}
 				<p class="excluded" role="status">
 					<span>{app.t('toast.excluded', { recipe: excluded.name })}</span>
 					<button type="button" onclick={undoExclusion}>{app.t('toast.undo')}</button>
 				</p>
 			{/if}
-			<RecipePicker slotId={meal.slotId} mealType={meal.mealType} currentRecipeId={meal.recipe?.id ?? null} onPick={(id) => done(app.applyRevision(replaceMealRecipe(app.db, app.ctx, meal.slotId, id), app.t('toast.changed')))} />
+			<RecipePicker slotId={meal.slotId} mealType={meal.mealType} currentRecipeId={meal.recipe?.id ?? null} onPick={(id) => done(app.applyRevision(replaceMealRecipe(app.db, app.ctx, meal.slotId, id), app.t('toast.changed')))}>
+				{#snippet actions()}
+					<ul class="other">
+						<li>
+							<button type="button" disabled={app.settings.offline} onclick={() => onStage('free')}>
+								<svg class="icon" aria-hidden="true"><use href="#icon-free" /></svg>{meal.kind === 'free' ? app.t('revision.editFree') : app.t('revision.free')}
+							</button>
+						</li>
+						{#if meal.kind === 'recipe' && meal.canRate && !excluded}
+							<li>
+								<button type="button" disabled={app.settings.offline} onclick={() => onStage('exclude')}>
+									<svg class="icon" aria-hidden="true"><use href="#icon-ban" /></svg>{app.t('revision.exclude')}
+								</button>
+							</li>
+						{/if}
+					</ul>
+				{/snippet}
+			</RecipePicker>
 		{:else if stage === 'swap'}
 			<SwapPicker {week} slotId={meal.slotId} onPick={(other) => done(app.applyRevision(swapMeals(app.db, app.ctx, meal.slotId, other), app.t('toast.swapped')))} />
 		{:else if stage === 'exclude' && meal.recipe}
 			<p class="body">{app.t('revision.excludeBody', { recipe: meal.recipe.name })}</p>
 			<div class="buttons">
-				<button type="button" class="text-button" onclick={() => onStage('menu')}>{app.t('common.back')}</button>
+				<button type="button" class="text-button" onclick={() => onStage('picker')}>{app.t('common.back')}</button>
 				<button type="button" class="text-button primary" disabled={app.settings.offline} onclick={exclude}>{app.t('revision.excludeConfirm')}</button>
 			</div>
 		{:else if stage === 'free'}
@@ -108,7 +118,7 @@
 					<div class="chips">{#each freeSuggestions as text (text)}<button type="button" class="chip" aria-pressed={freeText === text} onclick={() => (freeText = text)}>{text}</button>{/each}</div>
 				{/if}
 				<div class="buttons">
-					<button type="button" class="text-button" onclick={() => onStage('menu')}>{app.t('common.back')}</button>
+					<button type="button" class="text-button" onclick={() => onStage('picker')}>{app.t('common.back')}</button>
 					<button type="submit" class="text-button primary" disabled={!freeText.trim() || app.settings.offline}>{app.t('common.save')}</button>
 				</div>
 			</form>
@@ -128,6 +138,10 @@
 </BottomSheet>
 
 <style>
+	.other { margin: 0; padding: 0; list-style: none; }
+	.other li + li { border-top: 1px solid var(--rule); }
+	.other button { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 0; border: 0; background: none; color: var(--ink); font: 400 1rem/1.3 var(--text-font); text-align: left; cursor: pointer; }
+	.other button:disabled { color: var(--muted); cursor: not-allowed; }
 	.excluded { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; padding: 4px 4px 4px 12px; border: 1px solid var(--free-border); border-radius: 8px; background: var(--free-surface); font-size: 0.875rem; }
 	.excluded span { flex: 1; }
 	.excluded button { min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--green); font: 700 0.875rem/1 var(--text-font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

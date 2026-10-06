@@ -71,8 +71,7 @@ class AppState {
 
 	/** Variants are a tester's choice, not demo data: they survive resets and scenarios. */
 	#keepVariants(next: Persisted): Persisted {
-		const { revisionEntry, suggestionLayout } = this.settings;
-		Object.assign(next.settings, { revisionEntry, suggestionLayout });
+		next.settings.suggestionLayout = this.settings.suggestionLayout;
 		return next;
 	}
 

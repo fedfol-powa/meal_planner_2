@@ -7,7 +7,7 @@
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import MealActionList, { type EditorStage } from '#lib/components/MealActionList.svelte';
 	import MealEditor from '#lib/components/MealEditor.svelte';
-	import { proposeAnother, setMealServings } from '#lib/operations/revision.ts';
+	import { setMealServings } from '#lib/operations/revision.ts';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import type { MessageKey } from '#lib/i18n/messages.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
@@ -132,15 +132,13 @@
 							card={toCard(meal)}
 							system={week.measurementSystem}
 							onToggleCooked={toggleCooked}
-							onEdit={() => openEditor(meal.slotId, 'menu')}
-							editPanel={app.settings.revisionEntry === 'panel' ? actionsPanel : undefined}
+							editPanel={actionsPanel}
 							onChooseRecipe={() => openEditor(meal.slotId, 'picker')}
 						/>
 						{#snippet actionsPanel()}
 							<MealActionList
 								{meal}
 								onOpen={(stage) => openEditor(meal.slotId, stage)}
-								onAnother={() => app.applyRevision(proposeAnother(app.db, app.ctx, meal.slotId), app.t('toast.changed'))}
 								onServings={(n) => app.applyRevision(setMealServings(app.db, app.ctx, meal.slotId, n), app.t('toast.servings', { count: n }))}
 							/>
 						{/snippet}
@@ -151,7 +149,7 @@
 			{/each}
 		</div>
 	</section>
-	<MealEditor meal={editingMeal} {week} stage={editing?.stage ?? 'menu'} onStage={(stage) => editing && (editing = { ...editing, stage })} onClose={() => (editing = null)} />
+	<MealEditor meal={editingMeal} {week} stage={editing?.stage ?? 'picker'} onStage={(stage) => editing && (editing = { ...editing, stage })} onClose={() => (editing = null)} />
 {:else}
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.notFound')} /></section>
 {/if}

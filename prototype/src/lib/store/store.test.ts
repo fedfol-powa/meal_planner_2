@@ -24,21 +24,21 @@ describe('loadPersisted', () => {
 		expect(loadPersisted(null).settings.userId).toBe('user-federico');
 	});
 	it('falls back to the seed on corrupt JSON', () => {
-		expect(loadPersisted(storageWith('{not json')).version).toBe(6);
+		expect(loadPersisted(storageWith('{not json')).version).toBe(7);
 	});
 	it('discards data saved by the previous version', () => {
-		const old = { ...createInitial(), version: 5 };
-		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(6);
+		const old = { ...createInitial(), version: 6 };
+		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(7);
 	});
 	it('falls back to the seed on another version', () => {
 		expect(loadPersisted(storageWith(JSON.stringify({ version: 0, db: {}, settings: {} }))).db.users.length).toBe(4);
 	});
 	it('falls back to the seed when getItem throws', () => {
 		const throwing = { getItem: () => { throw new Error('SecurityError'); } };
-		expect(loadPersisted(throwing).version).toBe(6);
+		expect(loadPersisted(throwing).version).toBe(7);
 	});
 	it('falls back to the seed when settings point to unknown users or families', () => {
-		const broken = { version: 6, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
+		const broken = { version: 7, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
 		expect(loadPersisted(storageWith(JSON.stringify(broken))).db.users.length).toBe(4);
 	});
 	it('falls back to the seed on a malformed time', () => {
@@ -48,8 +48,8 @@ describe('loadPersisted', () => {
 	});
 	it('falls back to the seed on an unknown variant', () => {
 		const other = createInitial();
-		(other.settings as { revisionEntry: string }).revisionEntry = 'modal';
-		expect(loadPersisted(storageWith(JSON.stringify(other))).settings.revisionEntry).toBe('sheet');
+		(other.settings as { suggestionLayout: string }).suggestionLayout = 'grid';
+		expect(loadPersisted(storageWith(JSON.stringify(other))).settings.suggestionLayout).toBe('list');
 	});
 	it('round-trips a saved value', () => {
 		let stored: string | null = null;

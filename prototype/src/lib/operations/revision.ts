@@ -3,7 +3,6 @@ import { fail, ok, type OpErrorCode, type OperationContext, type OpResult } from
 import { familyFor, localeOf, visibleRecipe } from './access';
 import { sameContent, slotContent, writeSlot } from './change-log';
 import { mealView, visibleWeeks } from './meals';
-import { nextSuggestion } from './suggestions';
 import type { MealView } from './views';
 
 /** Meal actions of spec section 5. The last save wins (round 2, provisional decision 4). */
@@ -49,14 +48,6 @@ const withRecipe = (slot: MealSlot, recipeId: string): SlotContent => ({ ...slot
 
 export function replaceMealRecipe(db: DemoDatabase, ctx: OperationContext, slotId: string, recipeId: string): OpResult<RevisionResult> {
 	return edit(db, ctx, slotId, (slot, family) => (visibleRecipe(db, family, recipeId) ? withRecipe(slot, recipeId) : 'not_found'));
-}
-
-export function proposeAnother(db: DemoDatabase, ctx: OperationContext, slotId: string): OpResult<RevisionResult> {
-	return edit(db, ctx, slotId, (slot) => {
-		const next = nextSuggestion(db, ctx, slot.id);
-		if (!next.ok) return next.error;
-		return next.value ? withRecipe(slot, next.value) : 'no_candidates';
-	});
 }
 
 export function setMealServings(db: DemoDatabase, ctx: OperationContext, slotId: string, servings: number): OpResult<RevisionResult> {

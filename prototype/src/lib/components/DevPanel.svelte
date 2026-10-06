@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
 	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
-	import type { RevisionEntry, ScenarioId, SuggestionLayout } from '#lib/store/persistence.ts';
-	import { proposeAnother } from '#lib/operations/revision.ts';
+	import type { ScenarioId, SuggestionLayout } from '#lib/store/persistence.ts';
+	import { replaceMealRecipe } from '#lib/operations/revision.ts';
+	import { getSuggestions } from '#lib/operations/suggestions.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -16,8 +17,11 @@
 		const slot = app.db.weeks.filter((w) => w.familyId === app.settings.familyId).flatMap((w) => w.slots).find((s) => s.date === day);
 		const name = app.db.users.find((u) => u.id === other?.userId)?.displayName;
 		if (!other || !slot || !name) return (otherChange = app.t('dev.otherChangeNone'));
-		const result = proposeAnother(app.db, { ...app.ctx, userId: other.userId, offline: false }, slot.id);
-		if (!result.ok) return (otherChange = app.t('dev.otherChangeNone'));
+		const ctx = { ...app.ctx, userId: other.userId, offline: false };
+		const suggestion = getSuggestions(app.db, ctx, slot.id);
+		const recipeId = suggestion.ok ? suggestion.value.items[0]?.recipe.id : undefined;
+		const result = recipeId ? replaceMealRecipe(app.db, ctx, slot.id, recipeId) : null;
+		if (!result?.ok) return (otherChange = app.t('dev.otherChangeNone'));
 		app.update(() => {});
 		otherChange = app.t('dev.otherChangeDone', { name, meal: app.t(`meal.${slot.mealType}` as const) });
 	}
@@ -70,12 +74,6 @@
 		</label>
 		<button type="button" class="text-button" onclick={() => app.setScenario(scenario)}>{app.t('dev.applyScenario')}</button>
 	</div>
-	<label>{app.t('dev.revisionEntry')}
-		<select value={app.settings.revisionEntry} onchange={(e) => { const v = e.currentTarget.value as RevisionEntry; app.update((s) => (s.settings.revisionEntry = v)); }}>
-			<option value="sheet">{app.t('dev.revisionEntry.sheet')}</option>
-			<option value="panel">{app.t('dev.revisionEntry.panel')}</option>
-		</select>
-	</label>
 	<label>{app.t('dev.suggestionLayout')}
 		<select value={app.settings.suggestionLayout} onchange={(e) => { const v = e.currentTarget.value as SuggestionLayout; app.update((s) => (s.settings.suggestionLayout = v)); }}>
 			<option value="list">{app.t('dev.suggestionLayout.list')}</option>

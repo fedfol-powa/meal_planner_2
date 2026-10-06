@@ -3,11 +3,9 @@ import { createInitial } from '#lib/store/persistence.ts';
 import type { DemoDatabase } from '#lib/domain/types.ts';
 import type { OperationContext } from './context';
 import { setMealCooked } from './meals';
-import { rankCandidates } from './suggestions';
 import {
 	excludeRecipe,
 	includeRecipe,
-	proposeAnother,
 	replaceMealRecipe,
 	setMealFree,
 	setMealNote,
@@ -67,7 +65,6 @@ describe('replaceMealRecipe', () => {
 describe('guards on every write', () => {
 	const writes = [
 		(c: OperationContext) => replaceMealRecipe(db, c, '2026-10-07-dinner', 'frittata-forno-bietole-ricotta'),
-		(c: OperationContext) => proposeAnother(db, c, '2026-10-07-dinner'),
 		(c: OperationContext) => setMealServings(db, c, '2026-10-07-dinner', 3),
 		(c: OperationContext) => swapMeals(db, c, '2026-10-07-dinner', '2026-10-08-dinner'),
 		(c: OperationContext) => setMealFree(db, c, '2026-10-07-dinner', 'Pizza'),
@@ -85,19 +82,6 @@ describe('guards on every write', () => {
 
 	it('does not reach slots of a week not yet visible', () => {
 		expect(setMealNote(db, ctx(), '2026-10-14-lunch', 'x')).toEqual({ ok: false, error: 'not_found' });
-	});
-});
-
-describe('proposeAnother', () => {
-	it('moves to the next ranked candidate', () => {
-		const ranked = rankCandidates(db, ctx(), slotOf('2026-10-07-dinner')).map((c) => c.recipeId);
-		expect(value(proposeAnother(db, ctx(), '2026-10-07-dinner')).meal.recipe?.id).toBe(ranked[0]);
-		expect(value(proposeAnother(db, ctx(), '2026-10-07-dinner')).meal.recipe?.id).toBe(ranked[1]);
-	});
-
-	it('reports no candidates', () => {
-		for (const r of db.recipes) db.exclusions.push({ familyId: 'family-main', recipeId: r.id, createdBy: 'user-anna', createdAt: '2026-10-06T10:00' });
-		expect(proposeAnother(db, ctx(), '2026-10-07-dinner')).toEqual({ ok: false, error: 'no_candidates' });
 	});
 });
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
+	import { untrack, type Snippet } from 'svelte';
 	import type { MealType } from '#lib/domain/types.ts';
 	import { formatAverage } from '#lib/i18n/dates.ts';
 	import { searchRecipes, type RecipeQuery } from '#lib/operations/recipes.ts';
@@ -8,13 +8,30 @@
 	import { app } from '#lib/store/app.svelte.ts';
 	import RecipeFilters from './RecipeFilters.svelte';
 
-	let { slotId, mealType, currentRecipeId, onPick }: { slotId: string; mealType: MealType; currentRecipeId: string | null; onPick: (recipeId: string) => void } = $props();
+	let { slotId, mealType, currentRecipeId, onPick, actions }: {
+		slotId: string;
+		mealType: MealType;
+		currentRecipeId: string | null;
+		onPick: (recipeId: string) => void;
+		/** Other ways to change the meal (free meal, don't suggest again), under the suggestions. */
+		actions?: Snippet;
+	} = $props();
 
 	const MAX_RESULTS = 30;
-	const suggestions = $derived.by(() => {
-		const result = getSuggestions(app.db, app.ctx, slotId);
-		return result.ok ? result.value : [];
+	// "Proponimene altri" shows the next five candidates in this view (round 2 review).
+	let offset = $state(0);
+	const page = $derived.by(() => {
+		const result = getSuggestions(app.db, app.ctx, slotId, offset);
+		return result.ok ? result.value : { items: [], nextOffset: 0 };
 	});
+	const suggestions = $derived(page.items);
+	let suggestionList: HTMLElement | undefined = $state();
+	let suggestionSection: HTMLElement | undefined = $state();
+	function more() {
+		offset = page.nextOffset;
+		suggestionList?.scrollTo?.({ left: 0 });
+		suggestionSection?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+	}
 	// Starts on the slot's meal (the picker is mounted per slot); results appear once the user types or changes a filter.
 	let query = $state<RecipeQuery>(untrack(() => ({ mealType })));
 	const searching = $derived(!!query.text || query.mealType !== mealType || !!query.maxMinutes || !!query.proteinGroup || !!query.minStars || !!query.sort);
@@ -45,12 +62,12 @@
 	</li>
 {/snippet}
 
-<section aria-labelledby="{slotId}-suggestions">
+<section class="suggestions" aria-labelledby="{slotId}-suggestions" bind:this={suggestionSection}>
 	<h3 id="{slotId}-suggestions" class="picker-title">{app.t('revision.suggestions')}</h3>
 	{#if suggestions.length === 0}
-		<p class="meta-line">{app.t('error.noCandidates')}</p>
+		<p class="meta-line">{app.t('revision.noCandidates')}</p>
 	{:else if app.settings.suggestionLayout === 'cards'}
-		<ul class="cards">
+		<ul class="cards" bind:this={suggestionList}>
 			{#each suggestions as s (s.recipe.id)}
 				<li>
 					<button type="button" class="card" aria-label={app.t('revision.pick', { recipe: s.recipe.name })} onclick={() => onPick(s.recipe.id)}>
@@ -68,7 +85,13 @@
 	{:else}
 		<ul class="rows">{#each suggestions as s (s.recipe.id)}{@render row(s.recipe, s.rating)}{/each}</ul>
 	{/if}
+	{#if suggestions.length && (page.nextOffset !== 0 || offset !== 0)}
+		<button type="button" class="text-button more" onclick={more}>
+			<svg class="icon" aria-hidden="true"><use href="#icon-shuffle" /></svg>{app.t('revision.another')}
+		</button>
+	{/if}
 	<p class="simulated">{app.t('revision.simulated')}</p>
+	{#if actions}<div class="other-actions">{@render actions()}</div>{/if}
 </section>
 
 <section class="search" aria-labelledby="{slotId}-search">
@@ -99,6 +122,9 @@
 	.card img, .card-no-photo { display: block; width: 100%; aspect-ratio: 3 / 1; object-fit: cover; background: #e6e2d7; }
 	.card-text { padding: 12px 14px 14px; }
 	.description { color: var(--body-text); font-size: 0.875rem; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	.suggestions { scroll-margin-top: 72px; }
+	.more { width: 100%; margin-top: 8px; }
+	.other-actions { margin-top: 12px; border-top: 1px solid var(--rule); }
 	.simulated { margin: 6px 0 0; color: var(--muted); font-size: 0.75rem; font-style: italic; }
 	.search { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--rule); }
 	.search :global(.filters) { margin-bottom: 8px; }

@@ -307,14 +307,16 @@ solo dopo la review del giro, perché alcune ne cambiano il testo (avvisi, conco
 5. Scambio con qualunque pasto della stessa settimana; si spostano piatto (o testo
    libero) e nota, le porzioni restano allo slot.
 
-Default del piano: "proponimene un altro" sostituisce subito; "Annulla" per alcuni
-secondi dopo ogni modifica; nota visibile a tutta la famiglia, fino a 200 caratteri.
+Default del piano: "Annulla" per alcuni secondi dopo ogni modifica; nota visibile a
+tutta la famiglia, fino a 200 caratteri. "Proponimene un altro" sostituiva subito il
+piatto; nella review è diventato "Proponimene altri" (vedi sotto).
 
 ### Varianti nel pannello Prova
 
-- **Ingresso alle azioni:** foglio dal basso (`sheet`) o pannello sotto la scheda
-  (`panel`).
-- **Suggerimenti:** lista compatta (`list`) o schede scorrevoli (`cards`).
+- **Ingresso alle azioni:** foglio dal basso o pannello sotto la scheda; scelto il
+  pannello nella review, la variante a foglio è stata tolta.
+- **Suggerimenti:** lista compatta (`list`) o schede scorrevoli (`cards`), ancora da
+  scegliere.
 
 ### Suggerimenti simulati
 
@@ -322,7 +324,8 @@ Il pianificatore non c'è. Candidati: ricette visibili alla famiglia, adatte al 
 non escluse, non presenti nella settimana né nelle due precedenti. Punteggio: media
 della famiglia (3 senza voti), più 0,1 per settimana dall'ultima volta (al massimo 1),
 meno 1 se il gruppo proteico coincide con il pasto prima o dopo; parità per nome.
-"Proponimene un altro" prende il candidato che segue il piatto attuale.
+I suggerimenti si mostrano cinque alla volta; "Proponimene altri" passa ai cinque
+successivi e alla fine ricomincia dai primi.
 
 ### Rotte, componenti e operazioni del giro
 
@@ -333,13 +336,13 @@ meno 1 se il gruppo proteico coincide con il pasto prima o dopo; parità per nom
   `SwapPicker`, `BottomSheet`, `ServingsStepper` (riusato nella scheda ricetta),
   `UndoToast`. `RecipeCard` ha l'icona di modifica nel footer, anche per pasti liberi
   e vuoti; lo slot vuoto ha "Scegli una ricetta".
-- **Operazioni simulate:** `rankCandidates`, `getSuggestions`, `nextSuggestion`
-  (`suggestions.ts`); `replaceMealRecipe`, `proposeAnother`, `setMealServings`,
+- **Operazioni simulate:** `rankCandidates`, `getSuggestions` a pagine
+  (`suggestions.ts`); `replaceMealRecipe`, `setMealServings`,
   `swapMeals`, `setMealFree`, `setMealNote`, `excludeRecipe`, `includeRecipe`,
   `undoMealChanges`, `getFreeTextSuggestions` (`revision.ts`). Ogni scrittura, compreso
   "non cucinato", passa da un registro delle modifiche (`mealChanges`, bozza di
   `meal_changes`).
-- **Pannello Prova:** varianti di ingresso alle azioni e dei suggerimenti; "Un altro
+- **Pannello Prova:** variante dei suggerimenti; "Un altro
   membro cambia un pasto del giorno" per vedere l'ultima modifica e il limite
   dell'annullamento.
 
@@ -350,17 +353,17 @@ meno 1 se il gruppo proteico coincide con il pasto prima o dopo; parità per nom
 - Cambiare piatto o scambiare azzera "non cucinato": riguardava il piatto di prima.
 - L'annullamento dell'esclusione compare dentro il foglio, sopra i suggerimenti,
   perché l'avviso in basso resterebbe dietro al foglio.
-- Nella variante a pannello solo l'elenco delle azioni sta nella scheda; scelta della
-  ricetta, scambio, pasto libero, nota ed esclusione si aprono comunque nel foglio.
+- Nel pannello sotto la matita ci sono solo porzioni e voci di primo livello; cambio
+  ricetta, scambio, pasto libero, nota ed esclusione si aprono in un foglio dal basso.
 - Le porzioni si salvano quando si smette di toccare − e + (meno di un secondo), così
   un solo "Annulla" ripristina tutta la regolazione.
 - Nei suggerimenti il voto si vede (media, numero di voti, proprio voto) ma non si
-  esprime; si vota dalla scheda.
+  esprime; si vota dalla scheda (confermato nella review).
 
 ### Domande per la review
 
 1. Varianti: foglio dal basso o pannello nella scheda; suggerimenti in lista o a schede.
-2. Default: "proponimene un altro" immediato, "Annulla" per 6 secondi, nota fino a 200
+2. Default: "Annulla" per 6 secondi, nota fino a 200
    caratteri, proposte rapide del pasto libero.
 3. Voto nei suggerimenti solo da leggere: va bene o si deve poter votare anche lì
    (la specifica, sezione 5, chiede di poter votare da ogni voto mostrato)?
@@ -371,3 +374,16 @@ meno 1 se il gruppo proteico coincide con il pasto prima o dopo; parità per nom
    deve tornare l'autore precedente?
 6. Decisioni provvisorie della preparazione (avvisi, concorrenza, canale, scambio,
    "non proporre più"): confermarle e portarle nella specifica.
+
+### Review del giro (6 ottobre 2026, in corso)
+
+- **Ingresso alle azioni:** scelto il pannello dentro la scheda, aperto dalla matita;
+  tolta la variante a foglio.
+- **Voto nei suggerimenti** solo visualizzato: da riportare nella specifica,
+  sezione 5, che oggi chiede di poter votare da ogni voto mostrato.
+- **Pannello sotto la matita**, raccolto e riordinato: Porzioni, Cambia ricetta,
+  Scambia con un altro pasto, Nota.
+- **Cambia ricetta** contiene i suggerimenti, "Proponimene altri" (rigenera altri
+  cinque suggerimenti tra cui scegliere, dentro la stessa vista, senza sostituire il
+  piatto), "Segna come pasto libero", "Non proporre più" e la ricerca nel ricettario.
+- Ancora aperte: forma dei suggerimenti (lista o schede) e domande 2, 4, 5 e 6.

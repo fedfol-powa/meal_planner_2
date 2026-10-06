@@ -77,32 +77,27 @@ export function rankCandidates(db: DemoDatabase, ctx: OperationContext, slot: Me
 		.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, locale));
 }
 
-export function getSuggestions(db: DemoDatabase, ctx: OperationContext, slotId: string): OpResult<SuggestionView[]> {
+export interface SuggestionPage {
+	items: SuggestionView[];
+	/** Offset of the page shown by "Proponimene altri"; 0 when it wraps to the start. */
+	nextOffset: number;
+}
+
+/** Five suggestions from `offset` in the ranking, without the current dish (spec section 3). */
+export function getSuggestions(db: DemoDatabase, ctx: OperationContext, slotId: string, offset = 0): OpResult<SuggestionPage> {
 	const family = familyFor(db, ctx);
 	if (!family) return fail('forbidden');
 	const found = findSlot(db, family, slotId);
 	if (!found) return fail('not_found');
 	const locale = localeOf(db, ctx);
-	return ok(
-		rankCandidates(db, ctx, found.slot)
-			.filter((c) => c.recipeId !== found.slot.recipeId)
-			.slice(0, SUGGESTION_COUNT)
-			.map((c) => {
-				const recipe = db.recipes.find((r) => r.id === c.recipeId)!;
-				return { recipe: recipeSummary(db, recipe, locale), rating: ratingSummary(db, family, ctx.userId, recipe.id) };
-			})
-	);
-}
-
-/** "Proponimene un altro": the candidate after the current dish, wrapping to the first. */
-export function nextSuggestion(db: DemoDatabase, ctx: OperationContext, slotId: string): OpResult<string | null> {
-	const family = familyFor(db, ctx);
-	if (!family) return fail('forbidden');
-	const found = findSlot(db, family, slotId);
-	if (!found) return fail('not_found');
-	const ranked = rankCandidates(db, ctx, found.slot).map((c) => c.recipeId);
-	if (ranked.length === 0) return ok(null);
-	const position = found.slot.recipeId ? ranked.indexOf(found.slot.recipeId) : -1;
-	const next = ranked[(position + 1) % ranked.length];
-	return ok(next === found.slot.recipeId ? null : next);
+	const ranked = rankCandidates(db, ctx, found.slot).filter((c) => c.recipeId !== found.slot.recipeId);
+	const start = Number.isInteger(offset) && offset > 0 && offset < ranked.length ? offset : 0;
+	const end = start + SUGGESTION_COUNT;
+	return ok({
+		items: ranked.slice(start, end).map((c) => {
+			const recipe = db.recipes.find((r) => r.id === c.recipeId)!;
+			return { recipe: recipeSummary(db, recipe, locale), rating: ratingSummary(db, family, ctx.userId, recipe.id) };
+		}),
+		nextOffset: end < ranked.length ? end : 0
+	});
 }

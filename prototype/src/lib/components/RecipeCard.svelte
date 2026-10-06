@@ -8,12 +8,11 @@
 	import IngredientList from './IngredientList.svelte';
 	import RatingStars from './RatingStars.svelte';
 
-	let { card: meal, system, onToggleCooked, onEdit, editPanel, onChooseRecipe }: {
+	let { card: meal, system, onToggleCooked, editPanel, onChooseRecipe }: {
 		card: RecipeCardView;
 		system: MeasurementSystem;
 		onToggleCooked?: (key: string) => void;
-		/** Meal actions (menu only): opens the sheet, or toggles `editPanel` in the panel variant. */
-		onEdit?: () => void;
+		/** Meal actions under the pencil (menu only), panel chosen in the round 2 review. */
 		editPanel?: Snippet;
 		/** Empty slot: straight to the recipe picker. */
 		onChooseRecipe?: () => void;
@@ -82,7 +81,7 @@
 		{#if meal.notice}<p class="meta-line notice">{meal.notice}</p>{/if}
 	</div>
 
-	{#if (meal.kind === 'recipe' && recipe) || onEdit}
+	{#if (meal.kind === 'recipe' && recipe) || editPanel}
 		<div class="meal-footer">
 			{#if recipe && meal.detailHref}
 				<a class="footer-action" href={meal.detailHref} aria-label={app.t('meal.details')}>
@@ -104,8 +103,8 @@
 					<svg class="icon" aria-hidden="true"><use href="#icon-not-cooked" /></svg>
 				</button>
 			{/if}
-			{#if onEdit}
-				<button type="button" class="footer-action" aria-expanded={editPanel ? expanded === 'actions' : undefined} aria-haspopup={editPanel ? undefined : 'dialog'} aria-label={app.t('meal.edit')} onclick={() => (editPanel ? toggle('actions') : onEdit())}>
+			{#if editPanel}
+				<button type="button" class="footer-action" aria-expanded={expanded === 'actions'} aria-label={app.t('meal.edit')} onclick={() => toggle('actions')}>
 					<svg class="icon" aria-hidden="true"><use href="#icon-edit" /></svg>
 				</button>
 			{/if}

@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	export type EditorStage = 'menu' | 'picker' | 'swap' | 'free' | 'note' | 'exclude';
+	export type EditorStage = 'picker' | 'swap' | 'free' | 'note' | 'exclude';
 </script>
 
 <script lang="ts">
@@ -8,11 +8,10 @@
 	import { app } from '#lib/store/app.svelte.ts';
 	import ServingsStepper from './ServingsStepper.svelte';
 
-	// Same list in the bottom sheet and in the card panel (round 2 variants).
-	let { meal, onOpen, onAnother, onServings }: {
+	// Panel under the pencil, order agreed in the round 2 review: servings, change recipe, swap, note.
+	let { meal, onOpen, onServings }: {
 		meal: MealView;
-		onOpen: (stage: Exclude<EditorStage, 'menu'>) => void;
-		onAnother: () => void;
+		onOpen: (stage: EditorStage) => void;
 		onServings: (servings: number) => void;
 	} = $props();
 
@@ -31,46 +30,29 @@
 		clearTimeout(timer);
 		timer = setTimeout(flush, SAVE_DELAY_MS);
 	}
-	// Closing the sheet or panel saves what is still pending.
+	// Closing the panel saves what is still pending.
 	$effect(() => flush);
 </script>
 
 <ul class="actions">
-	<li>
-		<button type="button" disabled={offline} onclick={() => onOpen('picker')}>
-			<svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg>{meal.kind === 'recipe' ? app.t('revision.change') : app.t('meal.chooseRecipe')}
-		</button>
-	</li>
-	<li>
-		<button type="button" disabled={offline} onclick={onAnother}>
-			<svg class="icon" aria-hidden="true"><use href="#icon-shuffle" /></svg>{app.t('revision.another')}
-		</button>
-	</li>
 	{#if meal.kind === 'recipe'}
 		<li class="stepper-row"><ServingsStepper value={pending ?? meal.servings} max={MAX_SERVINGS} disabled={offline} onChange={stepServings} /></li>
 	{/if}
 	<li>
-		<button type="button" disabled={offline} onclick={() => onOpen('swap')}>
+		<button type="button" disabled={offline} aria-haspopup="dialog" onclick={() => onOpen('picker')}>
+			<svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg>{meal.kind === 'recipe' ? app.t('revision.change') : app.t('meal.chooseRecipe')}
+		</button>
+	</li>
+	<li>
+		<button type="button" disabled={offline} aria-haspopup="dialog" onclick={() => onOpen('swap')}>
 			<svg class="icon" aria-hidden="true"><use href="#icon-swap" /></svg>{app.t('revision.swap')}
 		</button>
 	</li>
 	<li>
-		<button type="button" disabled={offline} onclick={() => onOpen('free')}>
-			<svg class="icon" aria-hidden="true"><use href="#icon-free" /></svg>{meal.kind === 'free' ? app.t('revision.editFree') : app.t('revision.free')}
-		</button>
-	</li>
-	<li>
-		<button type="button" disabled={offline} onclick={() => onOpen('note')}>
+		<button type="button" disabled={offline} aria-haspopup="dialog" onclick={() => onOpen('note')}>
 			<svg class="icon" aria-hidden="true"><use href="#icon-note" /></svg>{meal.note ? app.t('revision.editNote') : app.t('revision.addNote')}
 		</button>
 	</li>
-	{#if meal.kind === 'recipe' && meal.canRate}
-		<li>
-			<button type="button" disabled={offline} onclick={() => onOpen('exclude')}>
-				<svg class="icon" aria-hidden="true"><use href="#icon-ban" /></svg>{app.t('revision.exclude')}
-			</button>
-		</li>
-	{/if}
 </ul>
 {#if offline}<p class="meta-line">{app.t('offline.blocked')}</p>{/if}
 
