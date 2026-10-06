@@ -198,8 +198,8 @@ review finale.
 
 - [x] `npm test`, `npm run check`, prova nel browser a 320, 390 e 1440 px in italiano e
   inglese.
-- [ ] `npm run preview:lan` e prova dell'utente su iPhone: scelta delle due varianti.
-- [ ] Tenere le varianti scelte, togliere le altre e le relative impostazioni; esito in
+- [x] `npm run preview:lan` e prova dell'utente su iPhone: scelta delle due varianti.
+- [x] Tenere le varianti scelte, togliere le altre e le relative impostazioni; esito in
   questo piano e in `design/percorsi.md`. Commit.
 
 ### Attività 7: porzioni, scambio, pasto libero e nota
@@ -223,7 +223,7 @@ review finale.
 - [ ] Confronto visivo con `design/index.html`.
 - [x] `design/percorsi.md`: rotte, componenti e operazioni del giro; domande per la
   review. README del prototipo aggiornato.
-- [ ] Pubblicazione sulla rete locale e review con l'utente; esito qui e in
+- [x] Pubblicazione sulla rete locale e review con l'utente; esito qui e in
   `design/percorsi.md`, decisioni nella specifica. Commit di chiusura.
 
 ## Domande per la review
@@ -243,3 +243,14 @@ Eseguito in sessione senza sotto-agenti. Le decisioni della preparazione sono
 registrate come provvisorie in `design/percorsi.md` e passano nella specifica dopo la
 review. Scelte prese durante lo sviluppo e domande per la review: `design/percorsi.md`,
 "Giro 2".
+
+## Esito della review (6 ottobre 2026)
+
+Approvato dall'utente. Scelti il pannello nella scheda e i suggerimenti in schede
+scorrevoli; pannello riordinato (porzioni, cambia ricetta, scambia, nota); in "Cambia
+ricetta" pasto libero e "non proporre più" in cima, poi suggerimenti con "Proponimene
+altri" (cinque nuovi suggerimenti nella stessa vista, al posto della sostituzione
+immediata) e ricerca; voto nei suggerimenti solo visualizzato. Confermati default e
+decisioni della preparazione, ora nella specifica (sezioni 1, 3, 5, 14 e 16) e in
+`design/design.md`. Il confronto visivo separato con `design/index.html` non è stato
+fatto: le superfici nuove sono state viste dall'utente su iPhone.

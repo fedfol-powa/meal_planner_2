@@ -3,7 +3,7 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo giro approvato il 6 ottobre 2026; secondo giro in corso.
+primo e secondo giro approvati il 6 ottobre 2026; prossimo percorso: Spesa.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -56,7 +56,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a tre voci, dati demo, strumenti di prova | 1 | Approvato il 6 ottobre 2026 |
 | 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Approvato il 6 ottobre 2026 |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
-| 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | In corso |
+| 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
@@ -280,8 +280,8 @@ nella specifica (sezioni 2, 4, 5, 8, 12 e 14) e in `design.md`.
 
 ## Giro 2: percorso 3
 
-Stato: piano approvato il 6 ottobre 2026, esecuzione in questa sessione senza tappa
-intermedia; le varianti si scelgono nella review finale.
+Stato: approvato dall'utente il 6 ottobre 2026, dopo la review; decisioni riportate
+nella specifica (sezioni 1, 3, 5, 14 e 16) e in `design.md`.
 Piano: [2026-10-06-prototipo-giro-2.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-2.md).
 
 ### Perimetro
@@ -291,10 +291,10 @@ ricerca, "proponimene un altro", porzioni, scambio, pasto libero, nota, "non pro
 più"; ultima modifica e annullamento. Valgono per pasti passati, in corso e futuri e
 per slot liberi e vuoti; con l'offline simulato sono disattivate.
 
-### Decisioni della preparazione (provvisorie)
+### Decisioni della preparazione
 
-Date dall'utente il 6 ottobre 2026. Si provano nel prototipo e passano nella specifica
-solo dopo la review del giro, perché alcune ne cambiano il testo (avvisi, concorrenza).
+Date dall'utente il 6 ottobre 2026, provate nel prototipo e confermate nella review;
+ora sono nella specifica.
 
 1. "Non proporre più" sul pasto apre subito la scelta tra i cinque suggerimenti.
    L'elenco delle esclusioni è del percorso 5.
@@ -315,8 +315,8 @@ piatto; nella review è diventato "Proponimene altri" (vedi sotto).
 
 - **Ingresso alle azioni:** foglio dal basso o pannello sotto la scheda; scelto il
   pannello nella review, la variante a foglio è stata tolta.
-- **Suggerimenti:** lista compatta (`list`) o schede scorrevoli (`cards`), ancora da
-  scegliere.
+- **Suggerimenti:** lista compatta o schede scorrevoli; scelte le schede, la lista è
+  stata tolta. Il pannello Prova non ha più varianti di questo giro.
 
 ### Suggerimenti simulati
 
@@ -342,7 +342,7 @@ successivi e alla fine ricomincia dai primi.
   `undoMealChanges`, `getFreeTextSuggestions` (`revision.ts`). Ogni scrittura, compreso
   "non cucinato", passa da un registro delle modifiche (`mealChanges`, bozza di
   `meal_changes`).
-- **Pannello Prova:** variante dei suggerimenti; "Un altro
+- **Pannello Prova:** "Un altro
   membro cambia un pasto del giorno" per vedere l'ultima modifica e il limite
   dell'annullamento.
 
@@ -375,7 +375,7 @@ successivi e alla fine ricomincia dai primi.
 6. Decisioni provvisorie della preparazione (avvisi, concorrenza, canale, scambio,
    "non proporre più"): confermarle e portarle nella specifica.
 
-### Review del giro (6 ottobre 2026, in corso)
+### Review del giro (6 ottobre 2026, chiusa con approvazione)
 
 - **Ingresso alle azioni:** scelto il pannello dentro la scheda, aperto dalla matita;
   tolta la variante a foglio.
@@ -386,4 +386,8 @@ successivi e alla fine ricomincia dai primi.
 - **Cambia ricetta** contiene i suggerimenti, "Proponimene altri" (rigenera altri
   cinque suggerimenti tra cui scegliere, dentro la stessa vista, senza sostituire il
   piatto), "Segna come pasto libero", "Non proporre più" e la ricerca nel ricettario.
-- Ancora aperte: forma dei suggerimenti (lista o schede) e domande 2, 4, 5 e 6.
+- **Suggerimenti** in schede scorrevoli; "Segna come pasto libero" e "Non proporre
+  più" in cima a Cambia ricetta, prima dei suggerimenti.
+- Confermati i default (Annulla per 6 secondi, nota fino a 200 caratteri, proposte
+  rapide del pasto libero), la regola simulata dei suggerimenti, l'autore
+  dell'annullamento come ultima modifica e le decisioni della preparazione.

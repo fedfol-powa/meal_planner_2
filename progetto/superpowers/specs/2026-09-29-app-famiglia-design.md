@@ -144,15 +144,17 @@ finestre o vincoli per settimana: si può intervenire allo stesso modo sulla set
 appena preparata, su quella in corso e su quelle passate, per esempio per correggere
 cosa si è mangiato o rifare la spesa di un menu vecchio. Su qualsiasi pasto si può:
 
-- cambiare un piatto scegliendo tra cinque suggerimenti o cercando nel ricettario;
-- chiedere "proponimene un altro";
 - cambiare il numero di porzioni;
-- scambiare due pasti tra loro o segnarne uno come libero;
+- cambiare un piatto scegliendo tra cinque suggerimenti, chiedendone altri cinque con
+  "proponimene altri", o cercando nel ricettario;
+- segnarlo come pasto libero;
+- scambiarlo con un altro pasto della stessa settimana;
 - scrivere una nota;
-- dire "non proporre più" per un piatto che non si vuole rivedere.
+- dire "non proporre più" per un piatto che non si vuole rivedere, e scegliere subito
+  con cosa sostituirlo.
 
 Ogni piatto mostra chi l'ha cambiato per ultimo e quando ("cambiato da Anna, venerdì
-21:30"), così si sa sempre a chi chiedere.
+21:30"), così si sa sempre a chi chiedere. Subito dopo una modifica la si può annullare.
 
 Un pasto passato conta come cucinato, a meno che qualcuno non lo segni come non
 cucinato; lo si può fare in qualsiasi momento. Il mercoledì successivo l'app prepara la
@@ -178,8 +180,9 @@ le regole.
   proporre più", i pasti liberi, i tempi massimi di certe serate e le regole della Famiglia
   (per esempio "venerdì pesce", "niente pasta a cena").
 
-Quando un membro cambia un piatto a mano l'app non blocca niente: segnala soltanto cosa non
-torna nella settimana ("venerdì senza pesce", "legumi solo una volta").
+Quando un membro cambia un piatto a mano l'app non blocca e non segnala niente: le regole
+servono a comporre il menu e i suggerimenti, non a giudicare le scelte della Famiglia
+(deciso il 6 ottobre 2026).
 
 ### Le stelline
 
@@ -189,8 +192,9 @@ può cambiare idea quando vuole. Il voto della Famiglia su un piatto è la media
 suoi membri. È quello che l'app usa per scegliere.
 
 Il voto si vede sempre, ovunque compaia un piatto: nel menu, nei suggerimenti, nella ricerca
-e nella scheda del piatto. Si vedono la media della Famiglia e il proprio voto. Da lì si vota,
-o si cambia il proprio voto, direttamente.
+e nella scheda del piatto. Si vedono la media della Famiglia e il proprio voto. Dal menu e
+dalla scheda si vota, o si cambia il proprio voto, direttamente; nei suggerimenti il voto
+si legge soltanto.
 
 ### La lista della spesa
 
@@ -325,7 +329,7 @@ meal_planner_2/
   come applica le migrazioni (branch di produzione, cartella) e ci si allinea.
 - **Il modulo `planner/`** è TypeScript senza dipendenze di runtime, così lo importano
   sia l'Edge Function (Deno) sia l'app (Node): una sola implementazione per bozza,
-  suggerimenti, avvisi, scalatura e lista.
+  suggerimenti, scalatura e lista.
 - **Il database è la fonte di verità del catalogo.** Le scritture avvengono attraverso
   operazioni autorizzate e validate sul server. Importazioni ed esportazioni YAML non
   costituiscono una seconda copia modificabile da sincronizzare automaticamente.
@@ -522,8 +526,10 @@ requisito.
 **Riuso durante la revisione:**
 
 - **suggerimenti**: lo stesso punteggio con gli altri slot fissati, i migliori 5;
-- **"proponimene un altro"**: il miglior candidato successivo;
-- **avvisi di settimana**: le stesse regole, applicate come controlli.
+- **"proponimene altri"**: i 5 candidati successivi nella stessa classifica; finita la
+  classifica si ricomincia dai primi. Non sostituisce il piatto: si sceglie tra i nuovi.
+
+Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026).
 
 **Giudice AI (opzionale, sperimentale).** È l'unico ruolo dell'AI nella pianificazione.
 
@@ -533,7 +539,7 @@ requisito.
   vedono: per esempio tre piatti pesanti di fila anche dentro gli intervalli, o una
   settimana monotona per colori, consistenze e tipi di piatto.
 - **Cosa non fa.** Non propone né sostituisce piatti, non tocca singoli slot, non
-  interviene su suggerimenti, "proponimene un altro" e avvisi (restano solo a regole). Non
+  interviene su suggerimenti e "proponimene altri" (restano solo a regole). Non
   può rendere valida una settimana che viola un vincolo: vede solo candidate già valide.
 - **Dati inviati.** Solo dati anonimi della settimana: per ogni pasto giorno, pasto, nome
   del piatto, gruppi alimentari, categoria, tempo e porzioni; più il riassunto delle ultime
@@ -600,9 +606,21 @@ requisito.
 - **Navigazione fra i giorni:** sopra il selettore dei sette giorni il mese e un'icona
   aprono un calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
   senza menu non sono selezionabili.
-- **Azioni sullo slot**: cambia ricetta (suggerimenti o ricerca con filtri), proponimene un
-  altro, cambia porzioni, scambia con un altro slot, segna libero con testo, nota, non proporre
-  più, vota.
+- **Azioni sullo slot**, confermate nel secondo giro del prototipo (6 ottobre 2026):
+  cambia porzioni; cambia ricetta (cinque suggerimenti, "proponimene altri", ricerca con
+  filtri), segna libero con testo, non proporre più; scambia con un altro slot della
+  stessa settimana; nota; vota. Valgono per pasti passati, in corso e futuri e per slot
+  liberi e vuoti.
+  - **Scambio:** si spostano ricetta o testo libero e nota; le porzioni restano allo slot,
+    perché dipendono da chi c'è quel giorno. Scambiare o cambiare piatto azzera "non
+    cucinato".
+  - **Non proporre più:** aggiunge l'esclusione per la famiglia e apre subito la scelta
+    del sostituto; i pasti già pianificati con quella ricetta non cambiano. L'elenco delle
+    esclusioni si gestisce nel percorso Famiglia e account.
+  - **Nota:** testo libero fino a 200 caratteri, visibile a tutta la famiglia.
+  - **Annulla:** dopo ogni modifica, per alcuni secondi, si può annullare. Ripristina solo
+    le proprie modifiche e solo se lo slot non è cambiato di nuovo; l'annullamento è a
+    sua volta una modifica registrata.
 - **Voto**: è sulla ricetta (`ratings`: utente × ricetta), non sullo slot. È sempre possibile,
   dallo slot di qualsiasi settimana o dalla scheda della ricetta nel catalogo, e non dipende
   dallo stato della settimana. Votare non segna nessuno slot come cucinato.
@@ -614,15 +632,18 @@ requisito.
   - il voto dell'utente corrente, distinto dalla media, oppure "non hai votato".
 
   Dal voto mostrato si vota o si cambia il proprio voto direttamente, senza passare da
-  un'altra schermata (da 1 a 5, più "togli il mio voto"). Il salvataggio aggiorna subito
+  un'altra schermata (da 1 a 5, più "togli il mio voto"); fanno eccezione i suggerimenti,
+  dove il voto è solo visualizzato (deciso il 6 ottobre 2026). Il salvataggio aggiorna subito
   media e proprio voto in quella vista. È un unico componente riusato in tutte le viste; la
   sua forma si decide nel design delle superfici.
 - **Tracciabilità**: ogni scrittura aggiorna `updated_by` e `updated_at` e aggiunge
   una riga a `meal_changes`, anche quando arriva da MCP. L'interfaccia mostra solo
-  l'ultima modifica. È proposta l'indicazione del canale web o MCP insieme all'autore.
-- **Concorrenza**: blocco ottimistico su `updated_at`. Se lo slot è cambiato nel
-  frattempo si mostra la versione nuova con l'autore, e si sceglie se sovrascrivere. Niente
-  realtime in v1: aggiornamento all'apertura e a richiesta dell'utente.
+  l'ultima modifica, con persona e momento; il canale (web o MCP) resta nel registro e
+  non si mostra (deciso il 6 ottobre 2026).
+- **Concorrenza, decisa il 6 ottobre 2026:** vince l'ultimo salvataggio, senza avviso di
+  conflitto; il registro `meal_changes` conserva tutte le modifiche e l'ultima modifica
+  mostrata dice chi ha cambiato il pasto. Niente realtime in v1: aggiornamento
+  all'apertura e a richiesta dell'utente.
 - **Offline**: l'ultima settimana caricata resta consultabile in sola lettura.
 
 ### 6. Scalatura e lista della spesa
@@ -996,7 +1017,7 @@ il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
 |---|---|---|
 | **P0 Prototipo e revisione** | Prototipo nel repository, review dei flussi e delle superfici, riesame funzionale e architetturale, consolidamento della specifica e dei nuovi piani | Un'esperienza concordata guida l'implementazione |
 | **M1 Fondamenta** | Schema e RLS, Auth, famiglie e inviti, catalogo nel database, import e revisione, dati iniziali di Federico, preferenze di lingua e unità, ruoli globali, accesso MCP e relativa guida. Ripartizione di curatela e amministrazione da precisare nel nuovo piano | Si entra e si consulta il ricettario e la propria famiglia; i percorsi autorizzati sono disponibili anche via MCP |
-| **M2 Modifica e voti** | Azioni sugli slot, suggerimenti, avvisi, ultima modifica, stelline e media, esclusioni, creazione manuale di una settimana, con equivalenti MCP | La famiglia pianifica a mano dall'app o dall'agente |
+| **M2 Modifica e voti** | Azioni sugli slot, suggerimenti, annullamento, ultima modifica, stelline e media, esclusioni, creazione manuale di una settimana, con equivalenti MCP | La famiglia pianifica a mano dall'app o dall'agente |
 | **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì, generazione su richiesta anche via MCP. Poi, come esperimento separato, giudice AI opzionale | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
 | **M4 Lista della spesa** | Selezione, consolidamento, conversioni, PDF, condivisione, Bring!, esportazioni MCP | Si prepara la spesa nella lingua personale e nelle unità della famiglia |
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
@@ -1092,7 +1113,7 @@ implicite alla copertura delle operazioni.
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
 sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
 dall'agente non concede quel ruolo. Risultati ed errori devono permettere all'agente di
-mostrare gli stessi avvisi e risolvere gli stessi conflitti previsti dal web.
+mostrare gli stessi errori previsti dal web.
 
 **Eliminazione della famiglia: passaggio obbligatorio all'app.** Una richiesta MCP
 non esegue né prepara una cancellazione automatica; restituisce un risultato
@@ -1156,6 +1177,13 @@ attraversano nelle schermate e vi rimanda.
 
 **Primo giro approvato il 6 ottobre 2026:** Fondamenta, Menu e Ricettario e voti, con
 il perimetro descritto in `design/percorsi.md` e il prototipo in `prototype/`.
+
+**Secondo giro approvato il 6 ottobre 2026:** Revisione dei pasti. Le azioni si aprono
+dalla matita nel footer della scheda, in un pannello sotto la scheda con porzioni,
+cambia ricetta, scambia e nota; cambio ricetta, scambio, pasto libero, nota ed
+esclusione si completano in un foglio dal basso. "Cambia ricetta" mostra in cima pasto
+libero e "non proporre più", poi i suggerimenti in schede scorrevoli con
+"proponimene altri" e infine la ricerca. Dopo ogni modifica un avviso offre "Annulla".
 
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
@@ -1280,6 +1308,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
+| 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
