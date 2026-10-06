@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
 	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
-	import type { RatingVariant, ScenarioId } from '#lib/store/persistence.ts';
+	import type { PhotoLayout, RatingVariant, ScenarioId } from '#lib/store/persistence.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -59,6 +59,12 @@
 		<legend>{app.t('dev.ratingVariant')}</legend>
 		{#each ['row', 'inline', 'panel'] as const as variant (variant)}
 			<label class="check"><input type="radio" name="rating-variant" value={variant} checked={app.settings.ratingVariant === variant} onchange={() => app.update((s) => (s.settings.ratingVariant = variant as RatingVariant))} />{app.t(`dev.ratingVariant.${variant}` as const)}</label>
+		{/each}
+	</fieldset>
+	<fieldset>
+		<legend>{app.t('dev.photoLayout')}</legend>
+		{#each ['thumbnail', 'banner', 'wide'] as const as layout (layout)}
+			<label class="check"><input type="radio" name="photo-layout" value={layout} checked={app.settings.photoLayout === layout} onchange={() => app.update((s) => (s.settings.photoLayout = layout as PhotoLayout))} />{app.t(`dev.photoLayout.${layout}` as const)}</label>
 		{/each}
 	</fieldset>
 	<p class="meta-line">{app.t('dev.demoData')}</p>

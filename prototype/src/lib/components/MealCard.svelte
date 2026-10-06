@@ -20,6 +20,7 @@
 		if (recipe.sourceUrl) return new URL(recipe.sourceUrl).hostname.replace(/^www\./, '');
 		return app.t('source.home');
 	});
+	const layout = $derived(recipe?.photo ? app.settings.photoLayout : null);
 	const averageText = $derived(meal.rating?.familyAverage != null ? formatAverage(app.locale, meal.rating.familyAverage) : '–');
 
 	function toggle(section: 'rating' | 'ingredients') {
@@ -27,12 +28,12 @@
 	}
 </script>
 
-<article class="meal" class:meal-free={meal.kind !== 'recipe'} class:is-past={meal.isPast} aria-labelledby={headingId}>
+<article class="meal layout-{layout ?? 'none'}" class:meal-free={meal.kind !== 'recipe'} class:is-past={meal.isPast} aria-labelledby={headingId}>
 	{#snippet label()}<span class="meal-label">{app.t(`meal.${meal.mealType}` as const)}</span>{/snippet}
 
-	{#if recipe?.photo}
+	{#if recipe?.photo && layout !== 'thumbnail'}
 		<div class="meal-media"><img class="meal-photo" src={recipe.photo} alt="" loading="lazy" decoding="async" />{@render label()}</div>
-	{:else}
+	{:else if layout !== 'thumbnail'}
 		<div class="meal-heading">{@render label()}</div>
 	{/if}
 
@@ -46,16 +47,34 @@
 			<h3 id={headingId}>{app.t('meal.empty.title')}</h3>
 			<p class="description">{app.t('meal.empty.body')}</p>
 		{:else if recipe}
-			<h3 id={headingId}>
-				{#if recipe.sourceUrl}
-					<a class="recipe-link" href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
-				{:else}{recipe.name}{/if}
-			</h3>
+			{#snippet title()}
+				<h3 id={headingId}>
+					{#if recipe.sourceUrl}
+						<a class="recipe-link" href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
+					{:else}{recipe.name}{/if}
+				</h3>
+			{/snippet}
+			{#snippet meta()}
+				<p class="meal-meta">
+					{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{' · '}{/if}{app.t('meal.servings', { count: meal.servings })}
+				</p>
+			{/snippet}
+			{#if layout === 'thumbnail' && recipe.photo}
+				<!-- Thumbnail layout: square photo beside label, title and timing (like the reference recipe rows). -->
+				<div class="thumb-row">
+					<img class="thumb" src={recipe.photo} alt="" loading="lazy" decoding="async" />
+					<div class="thumb-text">
+						{@render label()}
+						{@render title()}
+						{@render meta()}
+					</div>
+				</div>
+			{:else}
+				{@render title()}
+			{/if}
 			{#if recipe.translationMissing}<p class="meta-line">({app.t('meal.translationMissing')})</p>{/if}
 			<p class="description">{recipe.description}</p>
-			<p class="meal-meta">
-				{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{' · '}{/if}{app.t('meal.servings', { count: meal.servings })}
-			</p>
+			{#if layout !== 'thumbnail'}{@render meta()}{/if}
 			{#if sourceLine}<p class="meal-source">{sourceLine}</p>{/if}
 		{/if}
 
@@ -103,6 +122,17 @@
 
 <style>
 	.status-row { margin: 0 0 12px; }
+	.layout-banner .meal-media { aspect-ratio: 3 / 1; }
+	.thumb-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: start; margin-bottom: 12px; }
+	.thumb { display: block; width: 96px; height: 96px; object-fit: cover; }
+	.thumb-text :global(.meal-label) { margin-bottom: 6px; }
+	.thumb-text h3 { margin-bottom: 6px; font-size: 1.125rem; }
+	.thumb-text .meal-meta { margin: 0; }
+	.layout-thumbnail .description { margin-bottom: 12px; }
+	@media (min-width: 768px) {
+		.thumb-row { grid-template-columns: 120px minmax(0, 1fr); }
+		.thumb { width: 120px; height: 120px; }
+	}
 	.is-past .meal-photo { filter: grayscale(0.4); opacity: 0.85; }
 	.meal-content { padding-bottom: 14px; }
 	.meal-content :global(.meal-source) { margin-bottom: 0; }
