@@ -3,7 +3,7 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo giro da pianificare.
+primo giro approvato il 6 ottobre 2026; secondo giro in corso.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -56,7 +56,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a tre voci, dati demo, strumenti di prova | 1 | Approvato il 6 ottobre 2026 |
 | 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Approvato il 6 ottobre 2026 |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
-| 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
+| 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | In corso |
 | 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
@@ -277,3 +277,49 @@ nella specifica (sezioni 2, 4, 5, 8, 12 e 14) e in `design.md`.
   annullato al tocco di un giorno, messaggio d'errore del voto sempre "offline",
   chiave degli ingredienti nelle liste, URL della fonte non validato, carattere
   invisibile nell'espressione che toglie gli accenti.
+
+## Giro 2: percorso 3
+
+Stato: piano approvato il 6 ottobre 2026, esecuzione in questa sessione senza tappa
+intermedia; le varianti si scelgono nella review finale.
+Piano: [2026-10-06-prototipo-giro-2.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-2.md).
+
+### Perimetro
+
+Azioni sul pasto (specifica, sezione 5): cambia ricetta con cinque suggerimenti o con la
+ricerca, "proponimene un altro", porzioni, scambio, pasto libero, nota, "non proporre
+più"; ultima modifica e annullamento. Valgono per pasti passati, in corso e futuri e
+per slot liberi e vuoti; con l'offline simulato sono disattivate.
+
+### Decisioni della preparazione (provvisorie)
+
+Date dall'utente il 6 ottobre 2026. Si provano nel prototipo e passano nella specifica
+solo dopo la review del giro, perché alcune ne cambiano il testo (avvisi, concorrenza).
+
+1. "Non proporre più" sul pasto apre subito la scelta tra i cinque suggerimenti.
+   L'elenco delle esclusioni è del percorso 5.
+2. Nessun avviso di settimana: le modifiche a mano sono libere e silenziose; i
+   suggerimenti tengono comunque conto del resto della settimana.
+3. Ultima modifica con sola persona e momento, senza canale; niente sui pasti mai
+   toccati.
+4. Concorrenza: vince l'ultimo salvataggio, senza avviso di conflitto; il registro
+   delle modifiche conserva tutto.
+5. Scambio con qualunque pasto della stessa settimana; si spostano piatto (o testo
+   libero) e nota, le porzioni restano allo slot.
+
+Default del piano: "proponimene un altro" sostituisce subito; "Annulla" per alcuni
+secondi dopo ogni modifica; nota visibile a tutta la famiglia, fino a 200 caratteri.
+
+### Varianti nel pannello Prova
+
+- **Ingresso alle azioni:** foglio dal basso (`sheet`) o pannello sotto la scheda
+  (`panel`).
+- **Suggerimenti:** lista compatta (`list`) o schede scorrevoli (`cards`).
+
+### Suggerimenti simulati
+
+Il pianificatore non c'è. Candidati: ricette visibili alla famiglia, adatte al pasto,
+non escluse, non presenti nella settimana né nelle due precedenti. Punteggio: media
+della famiglia (3 senza voti), più 0,1 per settimana dall'ultima volta (al massimo 1),
+meno 1 se il gruppo proteico coincide con il pasto prima o dopo; parità per nome.
+"Proponimene un altro" prende il candidato che segue il piatto attuale.
