@@ -103,7 +103,8 @@ nel piano del primo giro.
 
 ## Giro 1: percorsi 0, 1 e 2
 
-Stato: da pianificare. Piano: da scrivere. Tappa intermedia concordata dopo
+Stato: piano scritto, in attesa di approvazione. Piano:
+[2026-10-06-prototipo-giro-1.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-1.md). Tappa intermedia concordata dopo
 Fondamenta e Menu, per un controllo veloce prima del Ricettario.
 
 ### Tappa intermedia: Fondamenta e Menu
@@ -129,7 +130,7 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
 
 - **Ricettario** (sezione 8): catalogo demo completo, ricerca per nome e ingrediente
   nella lingua dell'utente, filtri essenziali (pasto, tempo, gruppo alimentare,
-  stagione, voto), stato "nessun risultato" con invito ad allargare i filtri; esclusione
+  voto; la stagione è rinviata perché i dati di origine non la contengono), stato "nessun risultato" con invito ad allargare i filtri; esclusione
   delle ricette da libri non posseduti.
 - **Scheda ricetta:** foto o testo, descrizione, durata, porzioni di riferimento,
   fonte, ingredienti con selettore di porzioni, ultime volte in cui la famiglia l'ha
