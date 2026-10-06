@@ -185,12 +185,15 @@ orizzontalmente con aggancio al giorno; il tocco sul selettore porta alla stessa
 colonna. Dentro il giorno si scorre in verticale. Pranzo e cena sono in colonna
 sotto 768 px e affiancati da 768 px; il calendario resta visibile.
 
-La navbar è sempre in basso, con **Menu, Ricettario e Spesa**, icone e testo.
+La navbar è sempre in basso, con **Menu, Ricettario e Spesa**, icone e testo,
+più una quarta voce concordata il 6 ottobre 2026 per famiglia, account, cambio di
+famiglia e funzioni dei ruoli; l'etichetta (provvisoriamente «Tu» / «You») si
+conferma nella review del primo giro del prototipo.
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva
-il giorno scelto nel menu. Ulteriori destinazioni per famiglia, preferenze,
-curatela e amministrazione vanno collocate nel piano dei flussi, mantenendo questo
-linguaggio: il riferimento non contiene ancora quelle funzioni.
+il giorno scelto nel menu. Famiglia, preferenze, curatela, amministrazione e
+istruzioni MCP si raggiungono dalla quarta voce; i loro flussi sono descritti in
+[percorsi.md](percorsi.md), mantenendo questo linguaggio.
 
 ## Spazi, controlli e accessibilità
 

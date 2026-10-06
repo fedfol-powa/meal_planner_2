@@ -53,7 +53,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 
 | # | Percorso | Contenuto | Giro | Stato |
 |---|---|---|---|---|
-| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, dati demo, strumenti di prova | 1 | Da pianificare |
+| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a quattro voci, dati demo, strumenti di prova | 1 | Da pianificare |
 | 1 | Menu | Oggi, settimana e suoi stati, schede dei pasti, pasti liberi e vuoti | 1 | Da pianificare |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Da pianificare |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
@@ -108,8 +108,8 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
 
 ### Tappa intermedia: Fondamenta e Menu
 
-- **Fondamenta:** navbar Menu, Ricettario e Spesa del riferimento; Spesa con avviso
-  "disponibile in un prossimo giro"; token, font e componenti riorganizzati; strumenti
+- **Fondamenta:** navbar Menu, Ricettario e Spesa del riferimento più la quarta voce
+  «Tu»; Spesa e «Tu» con avviso "disponibile in un prossimo giro"; token, font e componenti riorganizzati; strumenti
   di prova, lingua e sistema di misura funzionanti su tutto ciò che esiste.
 - **Apertura** (specifica, sezione 5): pasti di oggi; altrimenti il primo giorno futuro
   con pasti; senza settimane, invito simulato a generare la prima.
@@ -150,14 +150,17 @@ simulata in sola lettura.
 Azioni di modifica dei pasti, suggerimenti, avvisi e conflitti; Spesa; impostazioni e
 famiglia; curatela.
 
-### Domande da chiudere nella preparazione
+### Domande della preparazione, chiuse il 6 ottobre 2026
 
-1. Posizione dell'ingresso a famiglia e account, anche come segnaposto, dato che il
-   riferimento non ha header.
-2. Istante in cui un pasto diventa passato (sezione 15, "Calendario"; rilievo R3):
-   orario fisso per pranzo e cena oppure fine del giorno.
-3. Forma del voto nella scheda del pasto: diretto oppure in un piccolo pannello;
-   eventualmente da confrontare con due varianti nel prototipo.
+1. **Ingresso a famiglia e account:** quarta voce della navbar, etichetta provvisoria
+   «Tu» / «You» da confermare in review; porta a famiglia, preferenze, cambio di
+   famiglia e funzioni dei ruoli. Nel giro 1 è un segnaposto con l'elenco delle
+   destinazioni future. Registrato in `design.md` e nella sezione 14.
+2. **Pasto passato:** pranzo alle 15:30 e cena alle 23:00, ora locale della famiglia
+   (specifica, sezione 5). Visibile cambiando la data simulata.
+3. **Forma del voto:** si costruiscono due varianti del componente, stelle dirette
+   nella scheda e riepilogo compatto con pannello, selezionabili dal pannello di prova;
+   la scelta si fa in review.
 
 ### Esito della review
 
