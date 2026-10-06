@@ -7,7 +7,6 @@
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import MealActionList, { type EditorStage } from '#lib/components/MealActionList.svelte';
 	import MealEditor from '#lib/components/MealEditor.svelte';
-	import FamilySwitcher from '#lib/components/FamilySwitcher.svelte';
 	import SetupCard from '#lib/components/SetupCard.svelte';
 	import { errorKey } from '#lib/i18n/errors.ts';
 	import { roleOf } from '#lib/operations/family.ts';
@@ -108,7 +107,6 @@
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.forbidden')} /></section>
 {:else if opening.value.kind === 'no_weeks'}
 	<section class="secondary-view app-view">
-		<FamilySwitcher />
 		<StateNotice title={app.t('menu.noWeeks.title')} body={app.t(isAdmin ? 'menu.noWeeks.body' : 'menu.noWeeks.member')}>
 			{#if isAdmin}<button type="button" class="text-button primary" disabled={app.settings.offline} onclick={generate}>{app.t('menu.noWeeks.action')}</button>{/if}
 		</StateNotice>
@@ -117,7 +115,6 @@
 	<section class="calendar app-view" aria-label={app.t('nav.menu')}>
 		<nav class="day-navigation" aria-label={app.t('menu.days')}>
 			<SetupCard />
-			<FamilySwitcher />
 			<div class="menu-toolbar">
 				<button type="button" class="month-button" data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
 				<div class="toolbar-actions">

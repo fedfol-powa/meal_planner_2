@@ -108,21 +108,6 @@
 		</label>
 		<button type="button" class="text-button" onclick={() => app.setScenario(scenario)}>{app.t('dev.applyScenario')}</button>
 	</div>
-	<fieldset>
-		<legend>{app.t('dev.variants')}</legend>
-		<label>{app.t('dev.variant.familySwitch')}
-			<select value={app.variants.familySwitch} onchange={(e) => { const v = e.currentTarget.value as 'you' | 'menu'; app.update((s) => (s.settings.variants.familySwitch = v)); }}>
-				<option value="you">{app.t('dev.variant.familySwitch.you')}</option>
-				<option value="menu">{app.t('dev.variant.familySwitch.menu')}</option>
-			</select>
-		</label>
-		<label>{app.t('dev.variant.dangerConfirm')}
-			<select value={app.variants.dangerConfirm} onchange={(e) => { const v = e.currentTarget.value as 'button' | 'type'; app.update((s) => (s.settings.variants.dangerConfirm = v)); }}>
-				<option value="button">{app.t('dev.variant.dangerConfirm.button')}</option>
-				<option value="type">{app.t('dev.variant.dangerConfirm.type')}</option>
-			</select>
-		</label>
-	</fieldset>
 	<div class="row">
 		<label>{app.t('dev.invite')}
 			<select bind:value={inviteToken}>
@@ -133,7 +118,7 @@
 		<button type="button" class="text-button" disabled={!inviteToken} onclick={() => openLink(`/invite/${inviteToken}`)}>{app.t('dev.open.link')}</button>
 	</div>
 	{#if app.family}
-		<button type="button" class="text-button" onclick={() => openLink(`/you/family/delete?family=${app.family!.id}`)}>{app.t('dev.deleteLink')}</button>
+		<button type="button" class="text-button" onclick={() => openLink(`/profile/family/delete?family=${app.family!.id}`)}>{app.t('dev.deleteLink')}</button>
 	{/if}
 	<button type="button" class="text-button" onclick={simulateOtherChange}>{app.t('dev.otherChange')}</button>
 	{#if otherChange}<p class="meta-line" role="status">{otherChange}</p>{/if}
@@ -158,7 +143,5 @@
 	.row { display: flex; align-items: end; gap: 8px; }
 	.row label { flex: 1; margin: 0; }
 	.row { margin-bottom: 14px; }
-	fieldset { margin: 0 0 14px; padding: 10px 12px 0; border: 1px dashed var(--muted); border-radius: 8px; }
-	legend { padding: 0 4px; font-size: 0.875rem; font-weight: 700; }
 	.text-button { margin-bottom: 8px; }
 </style>

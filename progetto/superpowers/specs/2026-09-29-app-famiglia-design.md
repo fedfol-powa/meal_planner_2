@@ -1,7 +1,7 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 6 ottobre 2026 (terzo giro del prototipo approvato)
+Ultimo aggiornamento: 6 ottobre 2026 (quarto giro del prototipo approvato)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -101,6 +101,8 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
 - **La Famiglia.** È il gruppo di persone che mangia insieme e condivide il menu. Chi crea
   la Famiglia la amministra e invia agli altri un link d'invito (anche su WhatsApp). Una
   persona può far parte di più Famiglie, per esempio dei nonni o di genitori separati.
+  Chi apre il link entra come membro dopo una conferma esplicita; chi è stato rimosso
+  da una famiglia può tornare solo con un link nuovo, creato dopo la rimozione.
 - **L'amministratore della famiglia** gestisce membri, inviti e impostazioni di quella
   famiglia e può eliminarla dall'app web. Eliminare una famiglia rimuove i suoi dati
   per tutti i membri, ma conserva gli account delle persone e le altre famiglie a cui
@@ -392,7 +394,8 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 |---|---|
 | `families` | `name`, `settings` (vedi sotto), `created_at` |
 | `family_members` | `family_id`, `user_id`, `role` (`family_admin`/`member`), `joined_at` |
-| `family_invitations` | `token`, `family_id`, `created_by`, `expires_at` (7 giorni), `revoked_at` |
+| `family_invitations` | `token`, `family_id`, `created_by`, `created_at`, `expires_at` (7 giorni), `revoked_at` |
+| `family_removals` | `family_id`, `user_id`, `removed_by`, `removed_at`: rimozioni di membri; un invito creato prima di `removed_at` non fa rientrare quella persona (review R2, deciso il 6 ottobre 2026) |
 | `family_books` | `family_id`, `book_id`: libri posseduti |
 | `recipe_exclusions` | `family_id`, `recipe_id`, `reason`, `created_by`, `created_at`: "non proporre più" |
 | `family_ingredients` | `family_id`, `ingredient_id`, `restriction` (`avoid`/`limit`), `weekly_max` |
@@ -427,8 +430,18 @@ cambiandolo. Una settimana generata è visibile da `generated_at`.
   fresco il lunedì;
 - quota note/nuove (default 7/5 ± 1 su 12 pasti);
 - intervalli settimanali per gruppo alimentare (sezione 3);
-- pesi del punteggio;
+- pesi del punteggio (non mostrati nell'interfaccia);
 - sistema di misura (`measurement_system`): `metric` oppure `uk_imperial`.
+
+Nell'app (quarto giro del prototipo) le impostazioni si vedono tutte tranne i pesi del
+punteggio: le modificano solo gli amministratori della famiglia, i membri le leggono;
+si salvano a ogni modifica e valgono per le generazioni successive e per i
+suggerimenti, senza cambiare i menu già fatti. Quota note/nuove e intervalli per
+gruppo alimentare stanno in una sezione «Avanzate» chiusa. Le regole di pasto si
+scelgono da tre modelli (un gruppo almeno una volta in un giorno, mai un gruppo in un
+giorno, un tipo di piatto solo a pranzo), senza regole in testo libero. Una famiglia
+nuova parte con tutti i pranzi e le cene pianificati per 2 porzioni, senza pasti
+fissi, limiti, regole, ingredienti evitati né libri, e con gli intervalli CREA.
 
 **Preferenze personali** (`profiles`): lingua `it-IT` oppure `en-GB`, indipendente dalla
 famiglia e dal suo sistema di misura. Rilevamento iniziale e valori predefiniti da definire
@@ -536,7 +549,9 @@ requisito.
 
 **Riuso durante la revisione:**
 
-- **suggerimenti**: lo stesso punteggio con gli altri slot fissati, i migliori 5;
+- **suggerimenti**: lo stesso punteggio con gli altri slot fissati, i migliori 5; come
+  nella generazione, rispettano tempi massimi, regole di pasto, ingredienti evitati e
+  massimi settimanali della famiglia (la ricerca nel ricettario resta libera);
 - **"proponimene altri"**: i 5 candidati successivi nella stessa classifica; finita la
   classifica si ricomincia dai primi. Non sostituisce il piatto: si sceglie tra i nuovi.
 
@@ -590,6 +605,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   dei ruoli della sezione 2.
 - **Generazione su richiesta** (wizard della famiglia nuova, oppure "rigenera" se la bozza
   manca): stessa funzione, al massimo 3 volte a settimana per famiglia.
+- **Prima generazione di una famiglia nuova** (deciso il 6 ottobre 2026): riempie i
+  pasti non ancora passati da oggi a domenica; se è già passato mercoledì alle 20:00
+  genera anche la settimana successiva, come avrebbe fatto il job.
 
 ### 5. Revisione e modifiche
 
@@ -746,10 +764,17 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   limite parte da 30 all'ora ed è configurabile.
 - **Inviti alla famiglia**:
   - link `/invite/<token>`, valido 7 giorni, riusabile fino alla scadenza, revocabile;
-  - chi lo apre si iscrive se non ha un account ed entra nella famiglia; se ne fa già parte,
-    non cambia niente;
+    gli amministratori lo creano, lo condividono e lo revocano dalla pagina dei membri,
+    dove vedono i link attivi con autore e scadenza; i membri vedono a chi chiederlo;
+  - la pagina dell'invito si legge anche senza accesso (famiglia e chi invita); chi lo
+    apre si iscrive se non ha un account ed entra nella famiglia con una conferma
+    esplicita; se ne fa già parte, non cambia niente;
   - token scaduto o revocato: messaggio chiaro con l'invito a chiedere un link nuovo
-    all'amministratore della famiglia.
+    all'amministratore della famiglia;
+  - **rientro dopo la rimozione** (review R2, deciso il 6 ottobre 2026): un membro
+    rimosso non rientra con un link creato prima della rimozione, anche se ancora
+    valido; gli stessi link restano validi per gli altri. Vede lo stesso messaggio di
+    un link non più valido. L'uscita volontaria non blocca i link.
 - **Inviti all'app**: gestibili dagli amministratori dell'app nella pagina di
   amministrazione e tramite MCP. Permettono di invitare un utente al servizio; l'eventuale
   assegnazione di ruoli o appartenenza a una famiglia deve essere esplicita. Scadenza,
@@ -764,19 +789,26 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Recupero del ricettario**: il ripristino completo da backup è riservato agli
   amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
   i curatori hanno invece il ripristino della singola ricetta.
-- **Wizard della famiglia nuova**:
-  - nome;
-  - matrice commensali;
-  - slot fissi;
-  - ingredienti da evitare o limitare;
-  - libri posseduti;
-  - sistema di misura della famiglia;
-  - obiettivi, con i default CREA;
-  - "Genera la prima settimana adesso".
-- **Rimozione di un membro**: i suoi voti escono dalla media; le tracce diventano "ex
-  membro".
-- **Preferenze personali**: la lingua è modificabile dall'utente nelle proprie
+- **Primo accesso** (quarto giro del prototipo): email con link di accesso o Google; a
+  un'email nuova si chiede solo il nome. Lingua iniziale dal browser (italiano →
+  `it-IT`, altrimenti `en-GB`), modificabile già nella pagina di accesso. Senza
+  famiglie l'utente sceglie "Crea la tua famiglia" o apre il link d'invito ricevuto.
+- **Wizard della famiglia nuova** (minimo, deciso il 6 ottobre 2026): nome e sistema di
+  misura, poi "Genera la prima settimana". Commensali, pasti fissi, ingredienti, libri
+  e obiettivi partono dai default (sezione 2) e si sistemano dalle impostazioni; dopo
+  la prima generazione il Menu mostra una sola volta, agli amministratori, una scheda
+  richiudibile con "Invita la famiglia" e "Sistema le impostazioni".
+- **Vista Profilo**: quarta voce della navbar, con famiglia corrente (membri e inviti,
+  impostazioni, "non proporre più"), elenco delle proprie famiglie (un tocco cambia la
+  famiglia mostrata) e "Crea un'altra famiglia", account e preferenze.
+- **Rimozione di un membro**: la decide un amministratore con una conferma che ne
+  spiega gli effetti; i suoi voti escono dalla media; le tracce diventano "ex membro".
+- **Uscita dalla famiglia**: libera per i membri; l'ultimo amministratore con altri
+  membri nomina il successore nello stesso passaggio; l'unico membro deve eliminare la
+  famiglia.
+- **Preferenze personali**: nome e lingua, modificabili dall'utente nelle proprie
   impostazioni e tramite MCP, indipendentemente dalle impostazioni della famiglia.
+  Da qui si esce dall'account e si apre la cancellazione.
 - **Cancellazione dell'account, regole confermate**: possibile da parte dell'utente
   stesso e degli amministratori dell'app. Rimuove dati personali e voti e revoca gli
   accessi dell'utente, compresi quelli MCP. Le ricette pubblicate restano nel catalogo.
@@ -809,7 +841,18 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   MCP restituisce un esito che richiede un'azione nell'app con il relativo URL, senza
   eseguire l'eliminazione. Il link è soltanto una navigazione: non contiene un comando
   che cancelli dati all'apertura. La pagina richiede l'accesso e verifica nuovamente
-  i permessi al momento della conferma. La forma dell'interazione si rivede nel prototipo.
+  i permessi al momento della conferma. Forma decisa nel quarto giro del prototipo:
+  pagina `/profile/family/delete?family=<id>`, raggiungibile dalle impostazioni, con
+  nome della famiglia, membri coinvolti, dati cancellati e dati che restano, e un
+  pulsante di conferma dopo il riepilogo; un membro vede che solo un amministratore
+  può eliminarla.
+- **Pagina di cancellazione dell'account** (quarto giro del prototipo): elenca,
+  famiglia per famiglia, se continua senza l'utente, se serve scegliere un successore
+  (scelta sulla pagina stessa) o se viene eliminata; spiega cosa si cancella (nome,
+  email, voti, accessi anche MCP, link d'invito creati ancora attivi) e cosa resta
+  (ricette pubblicate, modifiche ai menu come "ex membro"). Il pulsante resta
+  disattivato finché manca un successore o l'utente è l'ultimo amministratore
+  dell'app.
 - **Privacy**: informativa, dati minimi (email, nome visualizzato, dati della famiglia).
 - **Limiti di frequenza**: iscrizioni (rate limit di Supabase Auth) e generazioni su
   richiesta.
@@ -1234,6 +1277,14 @@ navbar con il Menu aperto porta a oggi. Dopo tre revisioni nel giro sono state
 scartate la scelta dei pasti, le liste fatte a mano, l'elenco delle liste e lo storico
 (dettagli in `design/percorsi.md`).
 
+**Quarto giro approvato il 6 ottobre 2026:** Famiglia e account. Primo accesso
+simulato, wizard minimo con prima generazione, pagina dell'invito, vista Profilo,
+membri e inviti, impostazioni della famiglia (griglia «Chi mangia quando» con pasti
+fissi e tempi per pasto, regole a modelli, ingredienti, libri, unità, «Avanzate»),
+"non proporre più", preferenze, uscita, eliminazione della famiglia e cancellazione
+dell'account su pagine dedicate con conferma a pulsante. Le azioni irreversibili usano
+un pulsante rosso. Dettagli in `design/percorsi.md`.
+
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
 su iPhone. Il materiale approvato è raccolto in `design/`:
@@ -1261,8 +1312,8 @@ scorrere lateralmente, con selettore superiore sincronizzato; il giorno attivo �
 scuro con testo bianco. Nessuna ripetizione del numero del giorno o contatori nel
 contenuto. Dal 6 ottobre 2026 la navbar inferiore mostra Menu, Ricettario e una voce
 per famiglia, account, cambio di famiglia e funzioni dei ruoli (curatela,
-amministrazione, istruzioni MCP), con etichetta «Tu» / «You» confermata nella review
-del primo giro; la Spesa esce dalla navbar e si apre dal Menu (terzo giro). Sopra il
+amministrazione, istruzioni MCP), con etichetta «Profilo» / «Profile» (rinominata
+nella review del quarto giro); la Spesa esce dalla navbar e si apre dal Menu (terzo giro). Sopra il
 selettore dei giorni una barra con il mese e le icone di azione (calendario e borsa
 della spesa); la scheda del pasto ha un footer a icone
 per scheda ricetta, voto, ingredienti e modifica (dal secondo giro; "non cucinato" è
@@ -1325,8 +1376,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale; possibilità di rientro di un membro rimosso usando un invito ancora valido (review R2) | Sezione 7 |
-| Cancellazione | Forma della conferma e del passaggio da MCP al web, dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
+| Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale. Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2) | Sezione 7 |
+| Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Campi specifici per ogni fonte e momento della conferma del curatore; ingredienti, quantità e unità applicabili, porzioni ed entrambe le lingue già obbligatori per pubblicare. Rappresentazione nello storico importato delle ricette ancora in bozza, senza esporre le bozze alle famiglie | Sezioni 8, 11 e 12 |
 | Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; versione della ricetta associata ai pasti già scelti (review R1). Condivisione delle bozze e percorso manuale web già confermati | Sezioni 2, 5 e 8 |
 | Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
@@ -1336,7 +1387,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
 | Prototipo | Flussi, stati e componenti di ciascun percorso, da chiudere giro per giro; linguaggio visivo, metodo, ordine dei percorsi e architettura del prototipo già concordati (`design/percorsi.md`) | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
-| Calendario | Settimana iniziale di una famiglia nuova; fuso orario della famiglia (istante in cui un pasto diventa passato confermato nella sezione 5); generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate) | Sezioni 2, 4 e 5 |
+| Calendario | Fuso orario della famiglia (istante in cui un pasto diventa passato confermato nella sezione 5); generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
 | Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
@@ -1361,6 +1412,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, "non cucinato" tolto | Ogni pasto passato conta come mangiato; un pasto sbagliato si corregge cambiandone il piatto o segnandolo libero. Tolto il campo `cooked` di `meal_slots`; lo storico del pianificatore usa tutti i pasti passati con ricetta |
 | 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda (porzioni, cambia ricetta, nota), con pasto libero, esclusione e scambio dentro "Cambia ricetta" |
 | 6 ottobre 2026, terzo giro del prototipo approvato | Spesa: una lista per settimana con tutti i pasti, aperta dal Menu, senza scelta dei pasti, altre liste o archivio; persistente e condivisa, con spunte che valgono per "ce l'ho già" e "comprato", voci libere e modifica offline con coda locale; quantità che seguono i pasti, pezzi interi, unità di acquisto e tazze USA tramite equivalenze per ingrediente; voci distinte solo per prodotti diversi; esportazioni nel menu "…". Tolta la scorciatoia "solo quelli non ancora in lista" |
+| 6 ottobre 2026, quarto giro del prototipo approvato | Famiglia e account: rientro dopo la rimozione solo con un link nuovo (R2); impostazioni tutte visibili tranne i pesi, con «Avanzate» e regole a modelli; wizard minimo (nome e unità) e prima generazione da oggi a domenica più la settimana successiva dopo mercoledì alle 20:00; vista «Tu» rinominata «Profilo», con cambio di famiglia; pagine dedicate per eliminare la famiglia e cancellare l'account con conferma a pulsante; pulsanti rossi per le azioni irreversibili; i suggerimenti rispettano le impostazioni della famiglia |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
@@ -1402,6 +1454,9 @@ L'esistenza di questo percorso deriva dalle regole scritte; l'aspettativa che la
 rimozione debba impedirlo è un'inferenza da confermare con l'utente. Va deciso se la
 rimozione richieda una nuova autorizzazione esplicita per tornare, anche in presenza di
 più inviti validi. **Quando:** scenario in P0 e regola chiusa prima di M1.
+**Decisione del 6 ottobre 2026 (quarto giro del prototipo):** la rimozione si registra
+e nessun link creato prima di essa fa rientrare quella persona; serve un link nuovo.
+Regola in sezione 7, tabella `family_removals` in sezione 2.
 
 **R3 — Impatto medio: generazione su richiesta e chiusura delle settimane.**
 Sezioni 2, 4 e 5. Il worker chiude la settimana precedente e la generazione su richiesta

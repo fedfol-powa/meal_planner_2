@@ -185,7 +185,7 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
 - [x] Confronto visivo con `design/index.html`.
 - [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
-- [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
+- [x] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`; alla chiusura, decisioni nella specifica (sezioni 2, 7, 15
       e 17 per R2, parte funzionale) e voci "Utenti e inviti", "Cancellazione" e
       "Calendario" della sezione 15 aggiornate per quanto chiarito.
@@ -215,3 +215,11 @@ Due correzioni emerse dalla prova: le scritture dopo un `push` nello stato reatt
 (la prima generazione lasciava i pasti vuoti) e la copia delle impostazioni senza
 `structuredClone`. Scelte prese durante lo sviluppo e domande per la review in
 `design/percorsi.md`, "Giro 4".
+
+## Esito della review (6 ottobre 2026)
+
+Approvato dall'utente. Unica modifica: la vista «Tu» diventa «Profilo» («Profile»), con
+le rotte sotto `/profile`. Confermati i default provati (cambio di famiglia dalla
+vista Profilo, conferma delle eliminazioni con il pulsante): tolte le altre varianti.
+Decisioni riportate nella specifica (sezioni 2, 3, 4, 7, 14, 15, 16 e 17) e in
+`design/design.md`; esito in `design/percorsi.md`, "Giro 4".

@@ -22,7 +22,7 @@
 
 <section class="secondary-view app-view" aria-labelledby="exclusions-title">
 	<div class="page-column">
-		<PageHeader back="/you" backLabel={app.t('nav.you')} title={app.t('you.exclusions')} titleId="exclusions-title" />
+		<PageHeader back="/profile" backLabel={app.t('nav.profile')} title={app.t('profile.exclusions')} titleId="exclusions-title" />
 		{#if !result.ok}
 			<StateNotice title={app.t(errorKey(result.error))} />
 		{:else if result.value.length === 0}

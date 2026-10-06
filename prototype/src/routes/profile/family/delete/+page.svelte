@@ -20,13 +20,13 @@
 		const next = app.db.families.find((f) => f.members.some((m) => m.userId === app.user.id));
 		app.switchFamily(app.settings.familyId === familyId ? next?.id ?? null : app.settings.familyId);
 		app.notify(app.t('deleteFamily.done', { family: name }));
-		goto(app.family ? '/you' : '/welcome');
+		goto(app.family ? '/profile' : '/welcome');
 	}
 </script>
 
 <section class="secondary-view app-view" aria-labelledby="delete-title">
 	<div class="page-column">
-		<PageHeader back="/you/family/settings" backLabel={app.t('you.settings')} title={app.t('settings.deleteFamily')} titleId="delete-title" />
+		<PageHeader back="/profile/family/settings" backLabel={app.t('profile.settings')} title={app.t('settings.deleteFamily')} titleId="delete-title" />
 		{#if !view.ok}
 			<StateNotice title={app.t(errorKey(view.error))} />
 		{:else}
@@ -40,7 +40,7 @@
 				</ul>
 				<p class="meta-line">{app.t('deleteFamily.kept')}</p>
 				{#if v.canDelete}
-					<ConfirmDanger label={app.t('deleteFamily.confirm', { family: v.name })} expected={v.name} disabled={app.settings.offline} onConfirm={confirm} />
+					<ConfirmDanger label={app.t('deleteFamily.confirm', { family: v.name })} disabled={app.settings.offline} onConfirm={confirm} />
 				{:else}
 					<p class="blocked" role="status">{app.t('deleteFamily.adminOnly')}</p>
 				{/if}

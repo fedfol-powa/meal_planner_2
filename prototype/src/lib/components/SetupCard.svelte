@@ -15,8 +15,8 @@
 	<aside class="setup" aria-label={app.t('setup.title')}>
 		<p>{app.t('setup.title')}</p>
 		<div class="links">
-			<a class="link-inline" href="/you/family">{app.t('setup.invite')}</a>
-			<a class="link-inline" href="/you/family/settings">{app.t('setup.settings')}</a>
+			<a class="link-inline" href="/profile/family">{app.t('setup.invite')}</a>
+			<a class="link-inline" href="/profile/family/settings">{app.t('setup.settings')}</a>
 		</div>
 		<button type="button" class="close" aria-label={app.t('common.close')} disabled={app.settings.offline} onclick={dismiss}>×</button>
 	</aside>

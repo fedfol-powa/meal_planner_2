@@ -23,7 +23,7 @@
 
 <section class="secondary-view app-view" aria-labelledby="account-delete-title">
 	<div class="page-column">
-		<PageHeader back="/you/preferences" backLabel={app.t('you.preferences')} title={app.t('account.delete')} titleId="account-delete-title" />
+		<PageHeader back="/profile/preferences" backLabel={app.t('profile.preferences')} title={app.t('account.delete')} titleId="account-delete-title" />
 		{#if !plan.ok}
 			<StateNotice title={app.t(errorKey(plan.error))} />
 		{:else}
@@ -53,7 +53,7 @@
 				<p>{app.t('account.whatGoesBody')}</p>
 				{#if p.openInvitations}<p>{app.t('account.invitations', { count: p.openInvitations })}</p>{/if}
 				<p class="meta-line">{app.t('account.whatStays')}</p>
-				<ConfirmDanger label={app.t('account.deleteConfirm')} expected={app.t('account.typeWord')} disabled={!ready || app.settings.offline} onConfirm={confirm} />
+				<ConfirmDanger label={app.t('account.deleteConfirm')} disabled={!ready || app.settings.offline} onConfirm={confirm} />
 			</section>
 		{/if}
 	</div>

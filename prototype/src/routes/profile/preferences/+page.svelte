@@ -28,7 +28,7 @@
 
 <section class="secondary-view app-view" aria-labelledby="preferences-title">
 	<div class="page-column">
-		<PageHeader back="/you" backLabel={app.t('nav.you')} title={app.t('you.preferences')} titleId="preferences-title" />
+		<PageHeader back="/profile" backLabel={app.t('nav.profile')} title={app.t('profile.preferences')} titleId="preferences-title" />
 		<section class="settings-card">
 			<label class="field">{app.t('preferences.name')}
 				<input type="text" maxlength={DISPLAY_NAME_MAX} bind:value={name} disabled={app.settings.offline} onchange={() => name.trim() !== app.user.displayName && save({ displayName: name })} />
@@ -44,7 +44,7 @@
 		</section>
 		<button type="button" class="text-button" onclick={signOut}>{app.t('account.signOut')}</button>
 		<div class="danger-zone">
-			<a class="text-button danger-outline" href="/you/account/delete">{app.t('account.delete')}</a>
+			<a class="text-button danger-outline" href="/profile/account/delete">{app.t('account.delete')}</a>
 		</div>
 	</div>
 </section>

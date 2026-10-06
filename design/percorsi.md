@@ -3,8 +3,7 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo, secondo e terzo giro approvati il 6 ottobre 2026; quarto giro (Famiglia e account)
-in corso.
+primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026; prossimo percorso: Curatela.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -59,7 +58,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
-| 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | In corso |
+| 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
 | 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
@@ -622,7 +621,8 @@ lista settimanale con archiviazione delle revisioni precedenti.
 
 ## Giro 4: percorso 5
 
-Stato: sviluppato il 6 ottobre 2026, in attesa della review su iPhone.
+Stato: approvato dall'utente il 6 ottobre 2026; decisioni riportate nella specifica
+(sezioni 2, 3, 4, 7, 14, 15, 16 e 17) e in `design.md`.
 Piano: [2026-10-06-prototipo-giro-4.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-4.md).
 
 ### Perimetro
@@ -645,7 +645,7 @@ famiglia, uscita, eliminazione della famiglia e cancellazione dell'account.
 5. **Prima generazione:** pasti non ancora passati da oggi a domenica; dopo mercoledì
    alle 20:00 anche la settimana successiva, come farebbe il job.
 
-I default proposti (vista «Tu», default della famiglia nuova, griglia dei commensali,
+I default proposti (vista «Tu», poi «Profilo», default della famiglia nuova, griglia dei commensali,
 regole a modelli, pagine dedicate per eliminazione e cancellazione, primo accesso
 simulato) sono nel piano del giro.
 
@@ -669,7 +669,7 @@ simulato) sono nel piano del giro.
   pagina chiesta), `/welcome/family` (wizard), `/invite/[token]`, `/you`,
   `/you/family` (membri e inviti), `/you/family/settings`, `/you/family/exclusions`,
   `/you/family/delete?family=` (anche il link che darebbe MCP), `/you/preferences`,
-  `/you/account/delete`. Senza accesso ogni pagina rimanda a `/welcome`; senza
+  `/you/account/delete` (dopo la review sotto `/profile`). Senza accesso ogni pagina rimanda a `/welcome`; senza
   famiglia Menu, Ricettario e Spesa rimandano alla scelta iniziale.
 - **Componenti nuovi:** `PageHeader`, `Stepper`, `ConfirmDanger` (le due varianti),
   `ShareLinkSheet`, `DinersGrid`, `MealRules`, `IngredientRestrictions`, `SetupCard`,
@@ -721,3 +721,16 @@ simulato) sono nel piano del giro.
 6. Pulsanti di eliminazione in rosso: si aggiunge il colore alla guida visiva?
 7. Testi di spiegazione nelle impostazioni (sotto il titolo e nelle sezioni): tenerli
    o toglierli?
+
+### Review del giro (6 ottobre 2026, chiusa con approvazione)
+
+- La vista «Tu» si chiama **«Profilo»** («Profile»); rotte spostate da `/you` a
+  `/profile`.
+- Tutto il resto approvato così com'era: confermati i default provati, cioè cambio di
+  famiglia dalla vista Profilo e conferma delle eliminazioni con il pulsante dopo il
+  riepilogo (tolte le varianti dal Menu e con il nome da scrivere, e la relativa
+  impostazione salvata); scheda «Il primo menu è pronto»; tre modelli di regola;
+  riepilogo della cancellazione dell'account; pulsanti rossi per le azioni
+  irreversibili (aggiunti a `design.md`); testi di spiegazione nelle impostazioni.
+- Decisioni della preparazione confermate e riportate nella specifica: R2 chiuso,
+  impostazioni visibili tranne i pesi, wizard minimo, prima generazione.

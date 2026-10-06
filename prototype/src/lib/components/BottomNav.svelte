@@ -8,7 +8,7 @@
 	const items: { href: string; icon: string; label: MessageKey; also?: string }[] = [
 		{ href: '/menu', icon: 'calendar', label: 'nav.menu', also: '/shopping' },
 		{ href: '/recipes', icon: 'book', label: 'nav.recipes' },
-		{ href: '/you', icon: 'user', label: 'nav.you' }
+		{ href: '/profile', icon: 'user', label: 'nav.profile' }
 	];
 	const under = (href: string) => page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 	const current = (item: (typeof items)[number]) => under(item.href) || (!!item.also && under(item.also));

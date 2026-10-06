@@ -38,7 +38,6 @@ class AppState {
 	get ctx(): OperationContext {
 		return { userId: this.settings.userId ?? '', familyId: this.settings.familyId ?? '', channel: 'web', now: this.settings.now, offline: this.settings.offline };
 	}
-	get variants() { return this.settings.variants; }
 
 	/** Shows another of the user's families (or none), keeping the rest of the session. */
 	switchFamily(familyId: string | null) {
@@ -98,15 +97,13 @@ class AppState {
 	}
 
 	reset() {
-		const variants = this.settings.variants;
 		this.#state = createInitial();
-		this.#state.settings.variants = variants;
 		this.selectedDate = null;
 		this.#save();
 	}
 
 	setScenario(id: ScenarioId) {
-		this.#state = applyScenario(id, { variants: this.settings.variants, guestLocale: this.settings.guestLocale });
+		this.#state = applyScenario(id, { guestLocale: this.settings.guestLocale });
 		this.selectedDate = null;
 		this.#save();
 	}

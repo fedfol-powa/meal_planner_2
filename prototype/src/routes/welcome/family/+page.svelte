@@ -31,7 +31,7 @@
 
 <section class="secondary-view app-view" aria-labelledby="wizard-title">
 	<div class="page-column narrow">
-		<PageHeader back={hasFamilies ? '/you' : '/welcome'} backLabel={hasFamilies ? app.t('nav.you') : app.t('common.back')} title={app.t('wizard.title')} titleId="wizard-title" />
+		<PageHeader back={hasFamilies ? '/profile' : '/welcome'} backLabel={hasFamilies ? app.t('nav.profile') : app.t('common.back')} title={app.t('wizard.title')} titleId="wizard-title" />
 		<form class="settings-card" onsubmit={submit}>
 			<label class="field">{app.t('wizard.name')}
 				<input type="text" maxlength={FAMILY_NAME_MAX} placeholder={app.t('wizard.namePlaceholder')} bind:value={name} required />

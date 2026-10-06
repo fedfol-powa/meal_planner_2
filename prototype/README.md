@@ -43,8 +43,7 @@ Il pulsante "Prova" (in basso a destra) non fa parte dell'app: cambia utente e r
 famiglia, lingua, unità, data e ora simulate, scenario, modalità offline e azzera i
 dati demo. Simula anche un altro membro che cambia un pasto (giro 2) o spunta una
 voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e scenario
-«Primo accesso», varianti del cambio di famiglia e della conferma delle eliminazioni,
-apertura dei link d'invito demo e del link di eliminazione della famiglia.
+«Primo accesso», apertura dei link d'invito demo e del link di eliminazione della famiglia.
 
 ## Struttura
 
@@ -54,6 +53,6 @@ apertura dei link d'invito demo e del link di eliminazione della famiglia.
 spesa in `shopping.ts` e liste salvate in `shopping-lists.ts`, famiglia e account in
 `family.ts`, `invitations.ts`, `onboarding.ts`, `account.ts`) ·
 `src/lib/store` stato e persistenza · `src/lib/components` componenti ·
-`src/routes` viste (`/menu`, `/shopping/[week]`, `/recipes`, `/recipes/[id]`, `/you` e sottopagine,
+`src/routes` viste (`/menu`, `/shopping/[week]`, `/recipes`, `/recipes/[id]`, `/profile` e sottopagine,
 `/welcome`, `/welcome/family`, `/invite/[token]`).
 Il progetto usa SvelteKit 3: alias `#lib/...` con estensione esplicita.

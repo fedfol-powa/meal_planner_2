@@ -39,7 +39,7 @@
 
 <section class="secondary-view app-view" aria-labelledby="settings-title">
 	<div class="page-column">
-		<PageHeader back="/you" backLabel={app.t('nav.you')} title={app.t('you.settings')} titleId="settings-title" />
+		<PageHeader back="/profile" backLabel={app.t('nav.profile')} title={app.t('profile.settings')} titleId="settings-title" />
 		{#if !family}
 			<StateNotice title={app.t('error.forbidden')} />
 		{:else}
@@ -107,7 +107,7 @@
 
 			{#if roleOf(family, app.user.id) === 'family_admin'}
 				<div class="danger-zone">
-					<a class="text-button danger-outline" href="/you/family/delete?family={family.id}">{app.t('settings.deleteFamily')}</a>
+					<a class="text-button danger-outline" href="/profile/family/delete?family={family.id}">{app.t('settings.deleteFamily')}</a>
 				</div>
 			{/if}
 		{/if}

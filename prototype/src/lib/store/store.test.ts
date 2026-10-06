@@ -12,7 +12,6 @@ describe('seed', () => {
 		expect(initial.settings).not.toHaveProperty('ratingVariant');
 		expect(initial.settings).toMatchObject({ userId: 'user-federico', familyId: 'family-main', now: '2026-10-06T12:00', offline: false, scenario: 'standard' });
 		expect(initial.db.users.map((u) => u.id)).toEqual(['user-federico', 'user-anna', 'user-tom', 'user-lucia', 'user-marco', 'user-giulia']);
-		expect(initial.settings.variants).toEqual({ familySwitch: 'you', dangerConfirm: 'button' });
 	});
 	it('records the Monday dinner change by Federico and a change by Anna', () => {
 		const week = createInitial().db.weeks.find((w) => w.startsOn === '2026-10-05')!;
@@ -35,21 +34,21 @@ describe('loadPersisted', () => {
 		expect(loadPersisted(null).settings.userId).toBe('user-federico');
 	});
 	it('falls back to the seed on corrupt JSON', () => {
-		expect(loadPersisted(storageWith('{not json')).version).toBe(18);
+		expect(loadPersisted(storageWith('{not json')).version).toBe(19);
 	});
 	it('discards data saved by the previous version', () => {
-		const old = { ...createInitial(), version: 17 };
-		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(18);
+		const old = { ...createInitial(), version: 18 };
+		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(19);
 	});
 	it('falls back to the seed on another version', () => {
 		expect(loadPersisted(storageWith(JSON.stringify({ version: 0, db: {}, settings: {} }))).db.users.length).toBe(6);
 	});
 	it('falls back to the seed when getItem throws', () => {
 		const throwing = { getItem: () => { throw new Error('SecurityError'); } };
-		expect(loadPersisted(throwing).version).toBe(18);
+		expect(loadPersisted(throwing).version).toBe(19);
 	});
 	it('falls back to the seed when settings point to unknown users or families', () => {
-		const broken = { version: 18, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
+		const broken = { version: 19, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
 		expect(loadPersisted(storageWith(JSON.stringify(broken))).db.users.length).toBe(6);
 	});
 	it('falls back to the seed on a malformed time', () => {

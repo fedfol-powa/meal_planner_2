@@ -74,13 +74,13 @@
 		const next = app.db.families.find((f) => f.members.some((m) => m.userId === app.user.id));
 		app.switchFamily(next?.id ?? null);
 		app.notify(app.t('members.left', { family: name }));
-		goto(next ? '/you' : '/welcome');
+		goto(next ? '/profile' : '/welcome');
 	}
 </script>
 
 <section class="secondary-view app-view" aria-labelledby="members-title">
 	<div class="page-column">
-		<PageHeader back="/you" backLabel={app.t('nav.you')} title={app.t('you.members')} titleId="members-title" />
+		<PageHeader back="/profile" backLabel={app.t('nav.profile')} title={app.t('profile.members')} titleId="members-title" />
 		{#if !overview.ok}
 			<StateNotice title={app.t(errorKey(overview.error))} />
 		{:else}
@@ -91,7 +91,7 @@
 					{#each o.members as m (m.userId)}
 						<li>
 							<span class="row-main">{m.isMe ? app.t('members.you', { name: m.name }) : m.name}<small>{app.t('members.since', { time: formatDayMonth(app.locale, m.joinedAt.slice(0, 10)) })}</small></span>
-							<span class="label-chip" class:neutral={m.role === 'member'}>{app.t(`you.role.${m.role}` as const)}</span>
+							<span class="label-chip" class:neutral={m.role === 'member'}>{app.t(`profile.role.${m.role}` as const)}</span>
 							{#if isAdmin && !m.isMe}
 								<button type="button" class="icon-button" aria-label={app.t('members.actions', { name: m.name })} disabled={app.settings.offline} onclick={() => openMember(m)}><svg class="icon" aria-hidden="true"><use href="#icon-more" /></svg></button>
 							{/if}
@@ -140,7 +140,7 @@
 			<BottomSheet open={leaving} title={app.t('members.leaveTitle', { family: o.name })} onClose={() => (leaving = false)}>
 				{#if alone}
 					<p>{app.t('error.soleMember')}</p>
-					<a class="text-button wide" href="/you/family/delete?family={o.id}">{app.t('settings.deleteFamily')}</a>
+					<a class="text-button wide" href="/profile/family/delete?family={o.id}">{app.t('settings.deleteFamily')}</a>
 				{:else if lastAdmin}
 					<p>{app.t('members.leaveSuccessor')}</p>
 					<fieldset>

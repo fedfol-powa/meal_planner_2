@@ -232,7 +232,8 @@ sotto 768 px e affiancati da 768 px; il calendario resta visibile.
 La navbar è sempre in basso. Dal 6 ottobre 2026 mostra solo le icone, più grandi,
 con il nome di ogni voce conservato per i lettori di schermo; le voci sono
 **Menu, Ricettario** e una voce per famiglia, account, cambio di famiglia e funzioni
-dei ruoli, con etichetta «Tu» / «You» (confermata nella review del primo giro). La Spesa non è più una voce della navbar: si apre dalla borsa nella barra del Menu.
+dei ruoli, con etichetta «Profilo» / «Profile» (era «Tu» / «You»; rinominata nella
+review del quarto giro). La Spesa non è più una voce della navbar: si apre dalla borsa nella barra del Menu.
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva
 il giorno scelto nel menu; un tocco su Menu quando il Menu è già aperto porta a oggi
@@ -279,3 +280,27 @@ destra e una freccia che apre i pasti di provenienza; la voce spuntata è barrat
 sezione "Altro" termina con una riga "+" per aggiungere una voce libera; "Non in
 lista" è una sezione richiudibile in fondo. Nessuna riga di avanzamento o di ultima
 modifica sotto il titolo. Su schermi larghi la pagina è una colonna di 720 px.
+
+## Profilo, famiglia e account (quarto giro, approvato il 6 ottobre 2026)
+
+- **Vista Profilo:** nome in Agrandir Tight 28 px ed email sotto; poi schede bianche
+  (`settings-card`) con titolo di sezione e righe da almeno 52 px separate da linee
+  sottili (`row-list`, `row-link`): icona a sinistra, testo con sottotitolo grigio,
+  freccia a destra. La famiglia mostrata ha un segno di spunta verde.
+- **Pagine secondarie** come la spesa: freccia e nome della destinazione, titolo,
+  colonna di 720 px su schermi larghi.
+- **Moduli:** etichetta in grassetto 14 px sopra il campo; campi e select alti 44 px,
+  bordo scuro, raggio 8 px; scelte con radio e caselle verdi da 20 px.
+- **Griglia «Chi mangia quando»:** una riga per giorno, colonne Pranzo e Cena; ogni
+  cella è un pulsante da 48 px con porzioni (icona persona), il testo del pasto fisso
+  in verde su fondo dei pasti liberi, oppure "—" se non pianificato; il tempo massimo
+  in verde con l'orologio. Il tocco apre un foglio dal basso.
+- **Contatori:** − valore + con pulsanti da 44 px, come le porzioni.
+- **Azioni irreversibili:** pulsante rosso `#B3261E` (testo bianco) per la conferma
+  finale, versione a contorno rosso per l'ingresso alla pagina o al foglio; stanno in
+  fondo alla vista, separati dal resto. Nessuna parola da scrivere per confermare.
+- **Pagine di ingresso** (accesso, wizard, invito): senza navbar, colonna di 420 px,
+  marchio "App Famiglia" in verde maiuscolo, titolo in Agrandir Tight 28 px, pulsanti
+  a tutta larghezza.
+- **Scheda dopo la prima generazione:** riquadro compatto sopra la barra del mese, con
+  i colori dei pasti liberi, due link e la ×.

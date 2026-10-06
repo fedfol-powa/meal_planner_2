@@ -8,7 +8,7 @@ export function familyForUser(db: DemoDatabase, userId: string | null, currentFa
 	return (families.find((f) => f.id === currentFamilyId) ?? families[0])?.id ?? null;
 }
 
-export function applyScenario(id: ScenarioId, keep?: Pick<Persisted['settings'], 'variants' | 'guestLocale'>): Persisted {
+export function applyScenario(id: ScenarioId, keep?: Pick<Persisted['settings'], 'guestLocale'>): Persisted {
 	const state = createInitial();
 	state.settings.scenario = id;
 	if (keep) Object.assign(state.settings, keep);

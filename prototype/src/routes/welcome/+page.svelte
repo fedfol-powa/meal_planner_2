@@ -21,7 +21,7 @@
 	});
 
 	$effect(() => {
-		if (app.signedIn && (app.family || next?.startsWith('/invite/') || next?.startsWith('/you'))) goto(next ?? '/menu', { replaceState: true });
+		if (app.signedIn && (app.family || next?.startsWith('/invite/') || next?.startsWith('/profile'))) goto(next ?? '/menu', { replaceState: true });
 	});
 
 	function sendLink(event: SubmitEvent) {
@@ -97,7 +97,7 @@
 			<a class="text-button primary wide" href="/welcome/family">{app.t('welcome.noFamily.create')}</a>
 			<p class="meta-line hint">{app.t('welcome.noFamily.invited')}</p>
 			<div class="footer-links">
-				<a class="link-inline" href="/you/preferences">{app.t('you.preferences')}</a>
+				<a class="link-inline" href="/profile/preferences">{app.t('profile.preferences')}</a>
 				<button type="button" class="link-button" onclick={() => app.signOut()}>{app.t('account.signOut')}</button>
 			</div>
 		{/if}
