@@ -3,7 +3,7 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo e secondo giro approvati il 6 ottobre 2026; prossimo percorso: Spesa.
+primo e secondo giro approvati il 6 ottobre 2026; terzo giro (Spesa) in corso.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -57,7 +57,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Approvato il 6 ottobre 2026 |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
-| 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
+| 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | 3 | In sviluppo |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
@@ -395,3 +395,37 @@ successivi e alla fine ricomincia dai primi.
 - Confermati i default (Annulla per 6 secondi, nota fino a 200 caratteri, proposte
   rapide del pasto libero), la regola simulata dei suggerimenti, l'autore
   dell'annullamento come ultima modifica e le decisioni della preparazione.
+
+## Giro 3: percorso 4
+
+Stato: piano approvato il 6 ottobre 2026, in sviluppo.
+Piano: [2026-10-06-prototipo-giro-3.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-3.md).
+
+### Perimetro
+
+Spesa (specifica, sezione 6, e "La lista della spesa"): scelta dei pasti, lista
+consolidata per reparto con le unità della famiglia, voci tolte perché già in casa,
+dispensa ed evitati a parte, opzionali, esportazioni simulate (testo condiviso, PDF,
+Bring!). La lista è effimera: vive solo nella vista.
+
+### Decisioni della preparazione (provvisorie)
+
+Date dall'utente il 6 ottobre 2026; entrano nella specifica alla chiusura del giro.
+
+1. Icona carrello nella barra del mese del Menu, accanto al calendario; apre la vista
+   Spesa con i pasti per giorno, una casella per pasto, scorciatoie e "Genera lista".
+2. La lista serve a prepararsi e a esportare: un tocco su una voce la toglie ("ce l'ho
+   già") e la si può ripristinare; niente spunta in negozio.
+3. Dispensa ed evitati in una sezione richiudibile "Non in lista", in fondo; un tocco
+   aggiunge la voce alla lista.
+4. Selezione di partenza: i pasti non ancora passati da ora a domenica; se non ne
+   restano, tutta la settimana successiva. Pasti liberi e vuoti non selezionabili.
+   Si toglie la scorciatoia "solo quelli non ancora in lista" (sezione 6).
+5. Voce della lista con quantità e nome; una freccia mostra i pasti di provenienza.
+
+### Simulazione dei dati
+
+Reparti, ingredienti di dispensa e duplicati evidenti ricondotti a un solo ingrediente
+sono classificati a mano in `prototype/scripts/demo-ingredients.json`, **dimostrativi**;
+gli opzionali si ricavano dai nomi con "facoltativo"; la Famiglia Folloni evita un
+ingrediente scelto per la prova.
