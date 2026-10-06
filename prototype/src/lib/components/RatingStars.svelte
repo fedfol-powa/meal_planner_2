@@ -13,7 +13,7 @@
 	const familyText = $derived(
 		summary.familyAverage === null
 			? app.t('rating.none')
-			: `${formatAverage(app.locale, summary.familyAverage)} · ${summary.familyCount === 1 ? app.t('rating.oneVote') : app.t('rating.votes', { count: summary.familyCount })}`
+			: `★ ${formatAverage(app.locale, summary.familyAverage)} · ${summary.familyCount === 1 ? app.t('rating.oneVote') : app.t('rating.votes', { count: summary.familyCount })}`
 	);
 
 	function rate(stars: number | null) {
@@ -42,14 +42,14 @@
 
 <div class="rating">
 	{#if variant === 'inline'}
-		<p class="family"><span>{app.t('rating.family')}</span> <strong>★ {familyText}</strong></p>
+		<p class="family"><span>{app.t('rating.family')}</span> <strong>{familyText}</strong></p>
 		<div class="mine">
 			<span>{summary.myStars === null ? app.t('rating.notRated') : app.t('rating.mine')}</span>
 			{@render stars()}
 		</div>
 	{:else}
 		<button type="button" class="summary" aria-expanded={open} aria-label={app.t('rating.open', { recipe: recipeName })} onclick={() => (open = !open)}>
-			<span>★ {familyText}</span>
+			<span>{familyText}</span>
 			<span>{summary.myStars === null ? app.t('rating.notRated') : app.t('rating.you', { stars: summary.myStars })}</span>
 			<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg>
 		</button>
