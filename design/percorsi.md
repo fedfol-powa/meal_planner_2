@@ -614,5 +614,7 @@ lista settimanale con archiviazione delle revisioni precedenti.
   tolleranza di 0,1 (2,06 → 2). Equivalenze con ambito "shopping" in
   `prototype/scripts/demo-unit-equivalences.json`. Limite noto: scorza e succo dello
   stesso limone si sommano.
+- **Menu nella navbar:** da un'altra vista riporta al giorno da cui si era partiti; un
+  tocco con il Menu già aperto porta a oggi (o al primo giorno con pasti).
 - **Indietro uniforme:** freccia e nome della destinazione ("Menu", "Ricettario")
   anche nella scheda ricetta.

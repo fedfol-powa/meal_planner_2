@@ -236,7 +236,8 @@ dei ruoli, con etichetta «Tu» / «You» (confermata nella review del primo gir
 percorso Spesa.
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva
-il giorno scelto nel menu. Famiglia, preferenze, curatela, amministrazione e
+il giorno scelto nel menu; un tocco su Menu quando il Menu è già aperto porta a oggi
+(o al primo giorno con pasti, come all'apertura), decisione del 6 ottobre 2026. Famiglia, preferenze, curatela, amministrazione e
 istruzioni MCP si raggiungono dalla quarta voce; i loro flussi sono descritti in
 [percorsi.md](percorsi.md), mantenendo questo linguaggio.
 
