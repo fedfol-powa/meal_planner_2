@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { messages } from './messages';
 import { translate } from './translate';
-import { formatAverage, formatChangeTime, formatDayShort, formatWeekRange } from './dates';
+import { formatAverage, formatChangeTime, formatDayMonth, formatDayShort, formatWeekRange } from './dates';
 
 describe('messages', () => {
 	it('has the same keys in both locales', () => {
@@ -33,6 +33,10 @@ describe('dates', () => {
 	it('formats change time with weekday', () => {
 		expect(formatChangeTime('it-IT', '2026-10-02T21:30')).toBe('venerdì 21:30');
 		expect(formatChangeTime('en-GB', '2026-10-02T21:30')).toBe('Friday 21:30');
+	});
+	it('formats day and month without weekday, for hints that already name the weekday', () => {
+		expect(formatDayMonth('it-IT', '2026-10-07')).toBe('7 ottobre');
+		expect(formatDayMonth('en-GB', '2026-10-11')).toBe('11 October');
 	});
 	it('formats averages with one decimal', () => {
 		expect(formatAverage('it-IT', 4.333)).toBe('4,3');

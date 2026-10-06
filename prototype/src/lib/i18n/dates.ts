@@ -26,6 +26,10 @@ export function formatDayLong(locale: Locale, date: IsoDate): string {
 	}).format(asUtc(date));
 }
 
+export function formatDayMonth(locale: Locale, date: IsoDate): string {
+	return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(asUtc(date));
+}
+
 export function formatWeekRange(locale: Locale, startsOn: IsoDate): string {
 	// Built by hand: Intl formatRange pads days in it-IT ("05–11 ott").
 	const end = addDays(startsOn, 6);
