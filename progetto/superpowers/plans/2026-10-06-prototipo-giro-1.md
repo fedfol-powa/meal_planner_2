@@ -3734,7 +3734,9 @@ Avviare la review con l'utente seguendo il ciclo di `design/percorsi.md` e compi
 
 ## Esito della tappa intermedia
 
-Da compilare all'attività 10.
+Raggiunta il 6 ottobre 2026 (attività 1–9 completate, 67 test verdi, verifica a 320,
+390 e 1440 px). Anteprima: `http://192.168.178.64:8766/menu`. Osservazioni
+dell'utente: in attesa.
 
 ## Esito della review
 

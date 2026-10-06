@@ -53,9 +53,9 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 
 | # | Percorso | Contenuto | Giro | Stato |
 |---|---|---|---|---|
-| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a quattro voci, dati demo, strumenti di prova | 1 | Da pianificare |
-| 1 | Menu | Oggi, settimana e suoi stati, schede dei pasti, pasti liberi e vuoti | 1 | Da pianificare |
-| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Da pianificare |
+| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a quattro voci, dati demo, strumenti di prova | 1 | Tappa intermedia |
+| 1 | Menu | Oggi, settimana e suoi stati, schede dei pasti, pasti liberi e vuoti | 1 | Tappa intermedia |
+| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | In sviluppo |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
 | 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
@@ -103,7 +103,8 @@ nel piano del primo giro.
 
 ## Giro 1: percorsi 0, 1 e 2
 
-Stato: piano scritto, in attesa di approvazione. Piano:
+Stato: in corso, tappa intermedia raggiunta il 6 ottobre 2026 (Fondamenta e Menu).
+Piano approvato, esecuzione in questa sessione:
 [2026-10-06-prototipo-giro-1.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-1.md). Tappa intermedia concordata dopo
 Fondamenta e Menu, per un controllo veloce prima del Ricettario.
 
@@ -140,6 +141,31 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
   "non hai votato", voto da 1 a 5 e "togli il mio voto" sul posto, aggiornamento
   immediato.
 - **Collegamenti** fra pasto e scheda ricetta, conservando il giorno scelto.
+
+### Dati dimostrativi
+
+- **Fonti, in sola lettura:** `../meal_planner/ricettario/ricette.yaml` e i menu delle
+  settimane del 21 e 28 settembre e del 5 ottobre 2026; le settimane precedenti citano
+  ricette archiviate e sono escluse. Le regole di conversione sono nel piano del giro,
+  attività 4, e nello script `prototype/scripts/build-demo-data.ts`.
+- **Ricette:** 56, di cui 4 in bozza perché senza ingredienti o porzioni di riferimento;
+  le bozze non compaiono nel ricettario e nei menu passati mostrano "ingredienti non
+  ancora disponibili". I testi inglesi di ricette e ingredienti
+  (`prototype/scripts/demo-translations.en-GB.json`) sono **dimostrativi**, non
+  traduzioni del catalogo.
+- **Classificazioni dimostrative:** pasto adatto ricavato dallo storico, gruppo
+  alimentare dai tag, durata dal testo del tempo.
+- **Settimane:** 21 settembre chiusa, 28 settembre da chiudere, 5 ottobre in corso; la
+  bozza del 12 ottobre è generata dallo script con una scelta semplice, non dal
+  pianificatore, e lascia vuota la cena di mercoledì 14 per mostrare "nessuna ricetta
+  adatta". Diventa visibile dopo mercoledì 7 ottobre alle 20:00 (data simulata).
+- **Persone:** Federico (curatore e amministratore dell'app, amministratore della
+  Famiglia Folloni, membro dei Nonni), Anna e Tom (membri; Tom usa l'inglese), Lucia
+  (amministratrice dei Nonni, famiglia senza settimane e senza libri). Voti di Federico
+  dal progetto di origine, quelli di Anna e Tom inventati.
+- **Limiti noti:** quantità non numeriche mostrate come nella fonte italiana anche in
+  inglese; fattori imperiali provvisori; il titolo della scheda apre la fonte come nel
+  riferimento approvato e la scheda ricetta ha un link separato.
 
 ### Stati trasversali del giro
 
