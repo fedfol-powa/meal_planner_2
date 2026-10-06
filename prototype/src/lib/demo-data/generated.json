@@ -7701,7 +7701,7 @@
 					"quantity": {
 						"kind": "amount",
 						"value": 0.5,
-						"unit": "us_cup"
+						"unit": "piece"
 					},
 					"sourceText": "1/2 cup (circa 1/2 cipolla media)",
 					"text": null,
@@ -7733,8 +7733,8 @@
 					"ingredientId": "salsa-messicana-pronta",
 					"quantity": {
 						"kind": "amount",
-						"value": 0.5,
-						"unit": "us_cup"
+						"value": 118.29411825,
+						"unit": "ml"
 					},
 					"sourceText": "1/2 cup",
 					"text": null,
@@ -7744,8 +7744,8 @@
 					"ingredientId": "yogurt-greco-o-panna-acida",
 					"quantity": {
 						"kind": "amount",
-						"value": 0.25,
-						"unit": "us_cup"
+						"value": 59.147059125,
+						"unit": "ml"
 					},
 					"sourceText": "1/4 cup",
 					"text": null,
@@ -7755,8 +7755,8 @@
 					"ingredientId": "lattuga-tagliata-o-spezzettata",
 					"quantity": {
 						"kind": "amount",
-						"value": 0.5,
-						"unit": "us_cup"
+						"value": 36,
+						"unit": "g"
 					},
 					"sourceText": "1/2 cup",
 					"text": null,
@@ -7766,8 +7766,8 @@
 					"ingredientId": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
 					"quantity": {
 						"kind": "amount",
-						"value": 0.5,
-						"unit": "us_cup"
+						"value": 56.5,
+						"unit": "g"
 					},
 					"sourceText": "1/2 cup",
 					"text": null,

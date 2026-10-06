@@ -53,9 +53,14 @@ describe('combine quantities', () => {
 		expect(exceeds(before, before)).toBe(false);
 	});
 
-	it('converts US cups of American sources to millilitres', () => {
-		expect(formatCombined(combine([amount(0.5, 'us_cup')]), 'metric', 'it-IT')).toBe('120 ml');
-		expect(formatCombined(combine([amount(0.5, 'us_cup')], [amount(100, 'ml')]), 'metric', 'it-IT')).toBe('220 ml');
-		expect(formatCombined(combine([amount(0.5, 'us_cup')]), 'uk_imperial', 'en-GB')).toBe('4 fl oz');
+	it('never converts a US cup by itself: only per-ingredient equivalences do (build step)', () => {
+		expect(formatCombined(combine([amount(0.5, 'us_cup')]), 'metric', 'it-IT')).toBe('½ tazza USA');
+		expect(formatCombined(combine([amount(0.5, 'us_cup')], [amount(100, 'ml')]), 'metric', 'en-GB')).toBe('½ US cup + 100 ml');
+	});
+
+	it('rounds pieces up to whole ones for shopping', () => {
+		const c = combine([amount(0.5, 'piece')], [amount(1.25, 'clove')]);
+		expect(formatCombined(c, 'metric', 'it-IT')).toBe('½ + 1½ spicchi');
+		expect(formatCombined(c, 'metric', 'it-IT', { wholePieces: true })).toBe('1 + 1½ spicchi');
 	});
 });

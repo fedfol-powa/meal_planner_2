@@ -172,7 +172,7 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 			id,
 			name: ingredient ? localized(ingredient.name, locale).text : id,
 			department: ingredient?.department ?? 'other',
-			quantity: formatCombined(entry.combined, system, locale),
+			quantity: formatCombined(entry.combined, system, locale, { wholePieces: true }),
 			combined: entry.combined,
 			isOptional: entry.optional,
 			sources: entry.sources,

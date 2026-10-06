@@ -544,12 +544,19 @@ del giro, "Seconda revisione".
 2. Due liste settimanali aperte da mercoledì a domenica: l'ordine e l'etichetta bastano?
 3. Il conteggio dei pasti della settimanale include quelli già passati: va bene?
 
-### Tazze americane (6 ottobre 2026, decisione dell'utente nella prova)
+### Tazze americane e pezzi interi (6 ottobre 2026, decisioni dell'utente nella prova)
 
-Le dosi in "cup" delle fonti americane (oggi solo il wrap di fagioli neri) si
-riconoscono come tazza USA, volume di 236,6 ml (fattore NIST, provvisorio come gli
-altri della voce "Misure"): si mostrano e si sommano in ml (½ cup → 120 ml; 4 fl oz
-in imperiale). Una nota finale tra parentesi nella quantità ("circa ½ cipolla media")
-resta solo nel testo della fonte; per lo stesso motivo "15 cucchiai (per rosolare le
-melanzane)" ora è una quantità in cucchiai. Da portare nella specifica, sezione 6, alla
-chiusura del giro.
+- **Tazze (cup) delle fonti americane:** come i siti di ricette che pubblicano in
+  grammi (tabelle di peso per ingrediente, per esempio King Arthur) e come chiede la
+  sezione 6, una tazza si converte solo con un'equivalenza verificata per quello
+  specifico ingrediente, conservando il testo della fonte. Se la fonte dà il
+  conteggio si usa quello ("½ cup (circa ½ cipolla media)" → ½ cipolla); i solidi in
+  grammi da fonti verificate (cheddar grattugiato 113 g a tazza, King Arthur; lattuga
+  iceberg sminuzzata 72 g, USDA FoodData Central); liquidi e salse in ml (236,6 ml,
+  NIST). Senza equivalenza la quantità resta "½ tazza USA" e la ricetta resta in bozza.
+  Equivalenze dimostrative in `prototype/scripts/demo-unit-equivalences.json`, da
+  confermare dal curatore. Una nota finale tra parentesi nella quantità resta solo nel
+  testo della fonte ("15 cucchiai (per rosolare le melanzane)" ora è in cucchiai).
+- **Pezzi interi nella lista della spesa:** i pezzi si arrotondano per eccesso
+  (½ peperone → 1); nella scheda del pasto, nella ricetta e nella provenienza delle
+  voci restano le frazioni per cucinare.

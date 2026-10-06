@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { parseQuantity } from '../src/lib/units/parse.ts';
-import type { Book, Department, Ingredient, MealSlot, MealType, Recipe, RecipeMealType, Week } from '../src/lib/domain/types.ts';
+import type { Book, Department, Ingredient, Quantity, UnitCode, MealSlot, MealType, Recipe, RecipeMealType, Week } from '../src/lib/domain/types.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const origin = resolve(root, '../../meal_planner');
@@ -19,6 +19,9 @@ const classification = JSON.parse(readFileSync(resolve(root, 'scripts/demo-ingre
 	departments: Record<Department, string[]>;
 	pantry: string[];
 	canonical: Record<string, string>;
+};
+const equivalences = JSON.parse(readFileSync(resolve(root, 'scripts/demo-unit-equivalences.json'), 'utf8')) as {
+	us_cup: Record<string, { unit: UnitCode; per: number; source: string }>;
 };
 const departmentOf = new Map(Object.entries(classification.departments).flatMap(([dep, ids]) => ids.map((id) => [id, dep as Department])));
 const pantry = new Set(classification.pantry);
@@ -75,6 +78,13 @@ const addedOnOf = (r: OriginRecipe) => {
 	return first ?? lastAdded;
 };
 
+// US cups become pieces, grams or millilitres only with a verified equivalence for that ingredient.
+function withEquivalence(ingredientId: string, quantity: Quantity): Quantity {
+	if (quantity.kind !== 'amount' || quantity.unit !== 'us_cup') return quantity;
+	const eq = equivalences.us_cup[ingredientId];
+	return eq ? { kind: 'amount', value: quantity.value * eq.per, unit: eq.unit } : quantity;
+}
+
 const recipes: Recipe[] = originRecipes.map((r) => {
 	const en = translations.recipes[r.id];
 	const lines = (r.ingredienti ?? []).map((line) => {
@@ -92,7 +102,7 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 			});
 		}
 		const sourceText = String(line.quantita);
-		const quantity = parseQuantity(sourceText);
+		const quantity = withEquivalence(id, parseQuantity(sourceText));
 		const text = quantity.kind === 'text' ? { 'it-IT': sourceText, 'en-GB': translations.quantities[sourceText] ?? null } : null;
 		const isOptional = /facoltativ|opzional/i.test(line.nome);
 		return { ingredientId: id, quantity, sourceText, text, isOptional, enName, name: line.nome };
@@ -103,7 +113,9 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 		for (const line of lines) if (!line.enName) missing.ingredients[line.name] = '';
 		for (const line of lines) if (line.text && !line.text['en-GB']) missing.quantities[line.sourceText] = '';
 	}
-	const complete = hasData && !!en && lines.every((l) => l.enName && (!l.text || l.text['en-GB']));
+	// A cup left without equivalence keeps the recipe in draft (quantity to be completed by a curator).
+	const complete =
+		hasData && !!en && lines.every((l) => l.enName && (!l.text || l.text['en-GB']) && !(l.quantity.kind === 'amount' && l.quantity.unit === 'us_cup'));
 	let bookId: string | null = null;
 	if (r.libro) {
 		bookId = slug(r.libro.titolo);

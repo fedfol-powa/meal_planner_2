@@ -1,7 +1,6 @@
 import type { CombinedQuantity, Locale, MeasurementSystem, Quantity, UnitCode } from '#lib/domain/types.ts';
 import { translate } from '#lib/i18n/translate.ts';
 import { formatQuantity } from './format';
-import { ML_PER_US_CUP } from './present';
 
 // Provisional factor, same as present.ts (spec section 15, "Misure").
 const G_PER_OZ = 28.349523125;
@@ -14,7 +13,6 @@ function common(value: number, unit: UnitCode): { value: number; unit: UnitCode 
 	if (unit === 'kg') return { value: value * 1000, unit: 'g' };
 	if (unit === 'oz') return { value: value * G_PER_OZ, unit: 'g' };
 	if (unit === 'l') return { value: value * 1000, unit: 'ml' };
-	if (unit === 'us_cup') return { value: value * ML_PER_US_CUP, unit: 'ml' };
 	return { value, unit };
 }
 
@@ -29,9 +27,13 @@ export function addQuantity(c: CombinedQuantity, q: Quantity, text: string): Com
 	return { ...c, amounts };
 }
 
-/** Converts and rounds only now, after the sum (spec section 6). */
-export function formatCombined(c: CombinedQuantity, system: MeasurementSystem, locale: Locale): string {
-	const parts = c.amounts.map(({ value, unit }) => {
+/**
+ * Converts and rounds only now, after the sum (spec section 6). With wholePieces, pieces are rounded
+ * up to whole ones: in a shopping list ½ pepper means buying one.
+ */
+export function formatCombined(c: CombinedQuantity, system: MeasurementSystem, locale: Locale, { wholePieces = false } = {}): string {
+	const parts = c.amounts.map(({ value: raw, unit }) => {
+		const value = wholePieces && unit === 'piece' ? Math.ceil(raw - 1e-9) : raw;
 		const large = (unit === 'g' || unit === 'ml') && value >= 1000;
 		const shown: Quantity = { kind: 'amount', value: large ? value / 1000 : value, unit: large ? (unit === 'g' ? 'kg' : 'l') : unit };
 		return formatQuantity(shown, '', system, locale);

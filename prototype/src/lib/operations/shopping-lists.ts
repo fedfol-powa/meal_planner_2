@@ -106,7 +106,7 @@ function detail(db: DemoDatabase, ctx: OperationContext, family: Family, list: S
 			return {
 				...item,
 				checked: !!check && !grew,
-				previousQuantity: grew && check ? formatCombined(check.quantity, family.measurementSystem, locale) : null
+				previousQuantity: grew && check ? formatCombined(check.quantity, family.measurementSystem, locale, { wholePieces: true }) : null
 			};
 		})
 	}));

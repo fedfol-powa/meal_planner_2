@@ -18,7 +18,7 @@ const UNIT_LABELS: Record<Locale, Record<PresentedUnit, [string, string]>> = {
 	}
 };
 
-const FRACTION_UNITS = new Set<PresentedUnit>(['piece', 'clove', 'tbsp', 'tsp', 'slice', 'pinch', 'lb', 'pint']);
+const FRACTION_UNITS = new Set<PresentedUnit>(['us_cup', 'piece', 'clove', 'tbsp', 'tsp', 'slice', 'pinch', 'lb', 'pint']);
 const FRACTIONS: Record<number, string> = { 25: '¼', 50: '½', 75: '¾' };
 
 export function formatQuantity(

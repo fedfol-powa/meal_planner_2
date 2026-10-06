@@ -42,6 +42,13 @@ describe('generated demo data', () => {
 		expect(byId.get('sale')?.isPantry).toBe(true);
 		expect(byId.get('uovo')?.canonicalId).toBe('uova');
 	});
+	it('converts US cups only through a per-ingredient equivalence, keeping the source text', () => {
+		const wrap = recipes.find((r) => r.id === 'wrap-fagioli-neri-cheddar')!;
+		const line = (id: string) => wrap.ingredients.find((l) => l.ingredientId === id)!;
+		expect(line('cipolla-a-dadini')).toMatchObject({ quantity: { kind: 'amount', value: 0.5, unit: 'piece' }, sourceText: '1/2 cup (circa 1/2 cipolla media)' });
+		expect(line('lattuga-tagliata-o-spezzettata').quantity).toEqual({ kind: 'amount', value: 36, unit: 'g' });
+		expect(recipes.flatMap((r) => r.ingredients).some((l) => l.quantity.kind === 'amount' && l.quantity.unit === 'us_cup')).toBe(false);
+	});
 	it('marks optional lines from the source wording', () => {
 		const line = recipes.flatMap((r) => r.ingredients).find((l) => l.ingredientId === 'prezzemolo-opzionale');
 		expect(line?.isOptional).toBe(true);
