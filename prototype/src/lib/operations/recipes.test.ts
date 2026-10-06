@@ -1,0 +1,91 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createInitial } from '#lib/store/persistence.ts';
+import type { DemoDatabase } from '#lib/domain/types.ts';
+import type { OperationContext } from './context';
+import { getRecipeDetail, normalizeForSearch, rateRecipe, searchRecipes } from './recipes';
+
+let db: DemoDatabase;
+const ctx = (over: Partial<OperationContext> = {}): OperationContext => ({
+	userId: 'user-federico', familyId: 'family-main', channel: 'web', now: '2026-10-06T12:00', offline: false, ...over
+});
+const ids = (result: ReturnType<typeof searchRecipes>) => (result.ok ? result.value.map((i) => i.recipe.id) : []);
+
+beforeEach(() => { db = createInitial().db; });
+
+describe('normalizeForSearch', () => {
+	it('ignores case and accents', () => {
+		expect(normalizeForSearch('Perché POLLO')).toBe('perche pollo');
+	});
+});
+
+describe('searchRecipes', () => {
+	it('lists only published recipes, sorted by name', () => {
+		const all = ids(searchRecipes(db, ctx(), {}));
+		expect(all.length).toBe(db.recipes.filter((r) => r.status === 'published').length);
+		expect(all).not.toContain('polpettine-tacchino-skottle');
+	});
+	it('matches names and ingredients without accents or case', () => {
+		expect(ids(searchRecipes(db, ctx(), { text: 'POLLO' }))).toContain('wok-pollo-peperoni-riso-basmati');
+		expect(ids(searchRecipes(db, ctx(), { text: 'basmati' }))).toContain('wok-pollo-peperoni-riso-basmati');
+	});
+	it('searches in the user language', () => {
+		expect(ids(searchRecipes(db, ctx({ userId: 'user-tom' }), { text: 'chicken' }))).toContain('wok-pollo-peperoni-riso-basmati');
+	});
+	it('hides book recipes from families without the book', () => {
+		const bookIds = db.recipes.filter((r) => r.bookId && r.status === 'published').map((r) => r.id);
+		const grandparents = ids(searchRecipes(db, ctx({ familyId: 'family-grandparents' }), {}));
+		for (const id of bookIds) expect(grandparents).not.toContain(id);
+	});
+	it('filters by meal, time, group and minimum stars', () => {
+		const result = searchRecipes(db, ctx(), { mealType: 'dinner', maxMinutes: 30, proteinGroup: 'white_meat', minStars: 1 });
+		if (!result.ok) throw new Error(result.error);
+		for (const item of result.value) {
+			expect(['dinner', 'both']).toContain(item.recipe.mealType);
+			expect(item.recipe.durationMinutes ?? Infinity).toBeLessThanOrEqual(30);
+			expect(item.recipe.proteinGroup).toBe('white_meat');
+			expect(item.rating.familyAverage ?? 0).toBeGreaterThanOrEqual(1);
+		}
+	});
+	it('returns an empty list when nothing matches', () => {
+		expect(ids(searchRecipes(db, ctx(), { text: 'zzzz' }))).toEqual([]);
+	});
+});
+
+describe('getRecipeDetail', () => {
+	it('scales to the requested servings and lists recent meals', () => {
+		const detail = getRecipeDetail(db, ctx(), 'wok-pollo-peperoni-riso-basmati', 3);
+		if (!detail.ok) throw new Error(detail.error);
+		expect(detail.value.baseServings).toBe(6);
+		expect(detail.value.ingredients[0].quantity).toEqual({ kind: 'amount', value: 150, unit: 'g' });
+		expect(detail.value.history.every((h) => h.date <= '2026-10-06')).toBe(true);
+	});
+	it('defaults to base servings and refuses drafts', () => {
+		const detail = getRecipeDetail(db, ctx(), 'wok-pollo-peperoni-riso-basmati');
+		expect(detail.ok && detail.value.servings).toBe(6);
+		expect(getRecipeDetail(db, ctx(), 'polpettine-tacchino-skottle')).toEqual({ ok: false, error: 'not_found' });
+	});
+});
+
+describe('rateRecipe', () => {
+	it('sets, changes and removes the own rating, updating the family average', () => {
+		const id = 'wok-pollo-peperoni-riso-basmati';
+		const set = rateRecipe(db, ctx({ userId: 'user-tom' }), id, 2);
+		expect(set.ok && set.value.myStars).toBe(2);
+		const changed = rateRecipe(db, ctx({ userId: 'user-tom' }), id, 5);
+		expect(changed.ok && changed.value.myStars).toBe(5);
+		const removed = rateRecipe(db, ctx({ userId: 'user-tom' }), id, null);
+		expect(removed.ok && removed.value.myStars).toBeNull();
+		expect(db.ratings.filter((r) => r.userId === 'user-tom' && r.recipeId === id)).toHaveLength(0);
+	});
+	it('shows no ratings after the only rating is removed', () => {
+		db.ratings = db.ratings.filter((r) => r.recipeId !== 'wok-pollo-peperoni-riso-basmati');
+		rateRecipe(db, ctx(), 'wok-pollo-peperoni-riso-basmati', 4);
+		const removed = rateRecipe(db, ctx(), 'wok-pollo-peperoni-riso-basmati', null);
+		expect(removed.ok && removed.value).toEqual({ familyAverage: null, familyCount: 0, myStars: null });
+	});
+	it('rejects invalid stars and offline use', () => {
+		expect(rateRecipe(db, ctx(), 'wok-pollo-peperoni-riso-basmati', 6)).toEqual({ ok: false, error: 'invalid' });
+		expect(rateRecipe(db, ctx(), 'wok-pollo-peperoni-riso-basmati', 2.5)).toEqual({ ok: false, error: 'invalid' });
+		expect(rateRecipe(db, ctx({ offline: true }), 'wok-pollo-peperoni-riso-basmati', 3)).toEqual({ ok: false, error: 'offline' });
+	});
+});
