@@ -495,7 +495,10 @@ da cui si riapre; nessun segno "già in lista" nella scelta dei pasti; voci libe
   nello storico resta la data di chiusura); voce libera dall'ultima riga della sezione "Altro" (campo con "+", sempre
   presente nelle liste aperte; richiesta dell'utente nella prova); casella condivisa; se una voce spuntata aumenta, torna
   da spuntare con "prima: …"; "Spesa fatta" ed "Elimina la lista" in fondo, con
-  "Annulla" nell'avviso; una lista chiusa è in sola lettura, con "Riapri".
+  "Annulla" nell'avviso; una lista chiusa è in sola lettura, con "Riapri". Dopo la
+  prova tutte le azioni della lista stanno nel menu "…" in alto a destra: Modifica
+  pasti, Condividi, PDF, Bring!, Spesa fatta (o Riapri), Elimina la lista; niente più
+  pulsanti in fondo.
 - **Esportazioni:** escludono le voci spuntate e includono le voci libere in "Altro".
 - **Operazioni simulate** (`prototype/src/lib/operations/shopping-lists.ts`):
   `getShoppingLists`, `getShoppingListDetail`, `createShoppingList`,

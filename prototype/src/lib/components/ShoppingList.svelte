@@ -27,6 +27,35 @@
 	let sheet = $state<'text' | 'bring' | null>(null);
 	let copied = $state(false);
 	let newItem = $state('');
+	let menuOpen = $state(false);
+	let menuButton: HTMLButtonElement | undefined = $state();
+	let menuPanel: HTMLDivElement | undefined = $state();
+
+	// Every list action lives in the "…" menu (prova su iPhone): it closes before acting.
+	function run(action: () => unknown) {
+		menuOpen = false;
+		action();
+	}
+
+	$effect(() => {
+		if (!menuOpen) return;
+		const onPointer = (e: PointerEvent) => {
+			const target = e.target as Node;
+			if (!menuPanel?.contains(target) && !menuButton?.contains(target)) menuOpen = false;
+		};
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') {
+				menuOpen = false;
+				menuButton?.focus();
+			}
+		};
+		document.addEventListener('pointerdown', onPointer);
+		document.addEventListener('keydown', onKey);
+		return () => {
+			document.removeEventListener('pointerdown', onPointer);
+			document.removeEventListener('keydown', onKey);
+		};
+	});
 
 	const open = $derived(list.status === 'open');
 	const canEdit = $derived(open && !app.settings.offline);
@@ -130,7 +159,34 @@
 		`${formatDayShort(app.locale, s.date)} ${formatDayNumber(app.locale, s.date)} · ${app.t(`meal.${s.mealType}`)} · ${s.recipeName}`;
 </script>
 
-<h1 class="print-only print-title">{title}</h1>
+<header class="page-header">
+	<div class="title-row no-print">
+		<a class="page-back" href="/shopping">‹ {app.t('shopping.back')}</a>
+		<div class="menu-wrap">
+			<button bind:this={menuButton} type="button" class="menu-toggle" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={app.t('shopping.actions')} onclick={() => (menuOpen = !menuOpen)}>
+				<span aria-hidden="true">…</span>
+			</button>
+			{#if menuOpen}
+				<div class="menu" role="menu" bind:this={menuPanel}>
+					{#if open}
+						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(() => goto(`/shopping/new?list=${list.id}`))}>{app.t('shopping.editMeals')}</button>
+					{/if}
+					<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(share)}>{app.t('shopping.share')}</button>
+					<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(() => window.print())}>{app.t('shopping.pdf')}</button>
+					<button type="button" role="menuitem" disabled={nothingLeft || app.settings.offline} onclick={() => run(() => (sheet = 'bring'))}>{app.t('shopping.bring')}{#if app.settings.offline}<small> · {app.t('shopping.bringOffline')}</small>{/if}</button>
+					{#if open}
+						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(done)}>{app.t('shopping.done')}</button>
+					{:else}
+						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(reopen)}>{app.t('shopping.reopen')}</button>
+					{/if}
+					<button type="button" role="menuitem" class="danger" disabled={app.settings.offline} onclick={() => run(remove)}>{app.t('shopping.delete')}</button>
+				</div>
+			{/if}
+		</div>
+	</div>
+	{#if list.weekly}<span class="label-chip no-print">{app.t('shopping.weekly')}</span>{/if}
+	<h1 class="page-title" id="list-title">{title}</h1>
+</header>
 
 {#if !open}
 	<p class="notice no-print">{app.t('shopping.closedNotice')}</p>
@@ -214,23 +270,7 @@
 	</details>
 {/if}
 
-<div class="list-actions no-print">
-	{#if open}
-		<button type="button" class="text-button" disabled={app.settings.offline} onclick={done}>{app.t('shopping.done')}</button>
-	{:else}
-		<button type="button" class="text-button" disabled={app.settings.offline} onclick={reopen}>{app.t('shopping.reopen')}</button>
-	{/if}
-	<button type="button" class="text-button danger" disabled={app.settings.offline} onclick={remove}>{app.t('shopping.delete')}</button>
-</div>
-
-<div class="action-bar no-print">
-	{#if nothingLeft}<p class="all-removed" role="status">{app.t('shopping.allRemoved')}</p>{/if}
-	<div class="exports">
-		<button type="button" class="text-button primary" disabled={nothingLeft} onclick={share}>{app.t('shopping.share')}</button>
-		<button type="button" class="text-button" disabled={nothingLeft} onclick={() => window.print()}>{app.t('shopping.pdf')}</button>
-		<button type="button" class="text-button" disabled={nothingLeft || app.settings.offline} title={app.settings.offline ? app.t('shopping.bringOffline') : undefined} onclick={() => (sheet = 'bring')}>{app.t('shopping.bring')}</button>
-	</div>
-</div>
+{#if nothingLeft}<p class="notice no-print" role="status">{app.t('shopping.allRemoved')}</p>{/if}
 
 <BottomSheet open={sheet === 'text'} title={app.t('shopping.shareSheet.title')} onClose={() => (sheet = null)}>
 	<p class="sheet-note">{app.t('shopping.shareSheet.body')}</p>
@@ -247,6 +287,17 @@
 </BottomSheet>
 
 <style>
+	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+	.menu-wrap { position: relative; }
+	.menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 1.5rem/1 var(--text-font); cursor: pointer; }
+	.menu-toggle[aria-expanded='true'] { color: var(--green); }
+	.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; display: flex; flex-direction: column; min-width: 220px; padding: 6px 0; background: var(--paper); border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 15%); }
+	.menu button { min-height: 44px; padding: 10px 16px; border: 0; background: none; color: var(--ink); font: 400 1rem/1.3 var(--text-font); text-align: left; cursor: pointer; }
+	.menu button:hover:not(:disabled) { background: var(--canvas); }
+	.menu button:disabled { color: var(--muted); cursor: not-allowed; }
+	.menu small { font-size: 0.75rem; }
+	.menu .danger { color: #a3261b; border-top: 1px solid var(--rule); }
+	.label-chip { margin-top: 4px; }
 	.shopping-group h2 { margin: 0 0 12px; }
 	.row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; border-top: 1px solid var(--rule); }
 	.row .shopping-item { border-top: 0; }
@@ -273,22 +324,15 @@
 	.excluded-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: 12px; min-height: 48px; border-top: 1px solid var(--rule); color: var(--body-text); }
 	.excluded-row small { color: var(--muted); font-size: 0.8125rem; }
 	.add { width: 44px; height: 44px; border: 0; background: none; color: var(--green); font: 400 1.5rem/1 var(--text-font); cursor: pointer; }
-	.list-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 20px; }
-	.danger { color: #a3261b; border-color: #a3261b; }
-	.action-bar { position: sticky; bottom: 0; padding: 12px 0 4px; background: var(--canvas); }
-	.exports { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; }
-	.exports .text-button { min-height: 48px; }
-	.all-removed { margin: 0 0 8px; color: var(--body-text); font-size: 0.875rem; }
 	.sheet-note { margin: 8px 0 12px; color: var(--body-text); font-size: 0.875rem; }
 	textarea { width: 100%; padding: 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 0.875rem/1.5 var(--text-font); resize: vertical; }
 	.wide { width: 100%; margin: 12px 0 4px; }
 	.bring-items { margin: 0; padding: 0; list-style: none; }
 	.bring-items li { padding: 8px 0; border-bottom: 1px solid var(--rule); }
-	.print-only { display: none; }
 	@media print {
 		@page { margin: 12mm; }
-		.print-only { display: block; }
-		.print-title { margin: 0 0 8px; font: 400 1.125rem/1.3 var(--heading-font); }
+		.page-header { padding: 0; }
+		.page-title { margin: 0 0 8px; font-size: 1.125rem; }
 		.no-print, .done, .previous, .shopping-item input { display: none !important; }
 		.row { grid-template-columns: 1fr; border-top: 0; }
 		.shopping-group { margin: 0 0 4px; padding: 0 0 4px; }

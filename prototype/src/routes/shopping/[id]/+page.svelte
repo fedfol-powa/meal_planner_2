@@ -11,29 +11,13 @@
 	const list = $derived(result.ok ? result.value : null);
 </script>
 
-<section class="secondary-view app-view shopping" aria-labelledby="list-title">
+<section class="secondary-view app-view" aria-labelledby="list-title">
 	<div class="page-column">
-		<header class="page-header no-print">
-			<div class="title-row">
-				<a class="page-back" href="/shopping">‹ {app.t('shopping.back')}</a>
-				{#if list?.status === 'open' && !app.settings.offline}
-					<a class="page-back" href="/shopping/new?list={list.id}">{app.t('shopping.editMeals')}</a>
-				{/if}
-			</div>
-			{#if list}
-				{#if list.weekly}<span class="label-chip">{app.t('shopping.weekly')}</span>{/if}
-				<h1 class="page-title" id="list-title">{list.name}</h1>
-			{/if}
-		</header>
 		{#if !result.ok}
+			<header class="page-header"><a class="page-back" href="/shopping">‹ {app.t('shopping.back')}</a></header>
 			<StateNotice title={app.t(errorKey(result.error))} />
 		{:else if list}
 			<ShoppingList {list} />
 		{/if}
 	</div>
 </section>
-
-<style>
-	.shopping { padding-bottom: 0; }
-	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-</style>
