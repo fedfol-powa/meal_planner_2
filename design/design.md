@@ -177,6 +177,14 @@ stella scelta. Gli ingredienti aperti sono una lista con quantità allineate a d
 separatori da 1 px. Il pulsante scuro a tutta larghezza del riferimento resta per le
 liste che non stanno in una scheda del menu.
 
+**Ricettario e scheda ricetta (6 ottobre 2026).** Le schede del ricettario usano lo
+stesso componente del menu: sul banner l'etichetta è il gruppo alimentare, il footer
+ha scheda, voto e ingredienti alle porzioni della fonte. Sopra l'elenco: campo di
+ricerca e, a destra, un'icona senza riquadro che apre e chiude filtri e ordinamento;
+l'icona è verde su fondo verde chiaro quando un filtro o un ordinamento diverso dal
+nome è attivo. Nella scheda ricetta il titolo è sempre il collegamento alla fonte,
+seguito da voto in riga, descrizione, durata, porzioni, ingredienti e storico.
+
 Usare immagini della ricetta con provenienza verificabile. Le foto del riferimento
 sono state prese dalle pagine fonte dei piatti; le ricette di casa senza fotografia
 rimangono schede di testo. Non dedurre ingredienti o informazioni nutrizionali dalle

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
 	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
-	import type { RatingVariant, ScenarioId } from '#lib/store/persistence.ts';
+	import type { ScenarioId } from '#lib/store/persistence.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -55,12 +55,6 @@
 		<button type="button" class="text-button" onclick={() => app.setScenario(scenario)}>{app.t('dev.applyScenario')}</button>
 	</div>
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
-	<fieldset>
-		<legend>{app.t('dev.ratingVariant')}</legend>
-		{#each ['row', 'inline', 'panel'] as const as variant (variant)}
-			<label class="check"><input type="radio" name="rating-variant" value={variant} checked={app.settings.ratingVariant === variant} onchange={() => app.update((s) => (s.settings.ratingVariant = variant as RatingVariant))} />{app.t(`dev.ratingVariant.${variant}` as const)}</label>
-		{/each}
-	</fieldset>
 	<p class="meta-line">{app.t('dev.demoData')}</p>
 	<button type="button" class="text-button" onclick={() => app.reset()}>{app.t('dev.reset')}</button>
 </dialog>
@@ -73,8 +67,7 @@
 	.dev-panel::backdrop { background: rgb(0 0 0 / 30%); }
 	header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 	h2 { margin: 0; font: 400 1.25rem/1.3 var(--heading-font); }
-	label, fieldset { display: grid; gap: 4px; margin: 0 0 14px; font-size: 0.875rem; font-weight: 700; }
-	fieldset { border: 0; padding: 0; }
+	label { display: grid; gap: 4px; margin: 0 0 14px; font-size: 0.875rem; font-weight: 700; }
 	select, input[type='datetime-local'] { min-height: 44px; padding: 8px; border: 1px solid var(--ink); border-radius: 8px; background: #fff; font-weight: 400; }
 	.check { display: flex; align-items: center; gap: 8px; font-weight: 400; min-height: 44px; }
 	.row { display: flex; align-items: end; gap: 8px; }

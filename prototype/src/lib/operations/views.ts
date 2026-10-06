@@ -69,3 +69,23 @@ export interface WeekView {
 }
 
 export type OpeningTarget = { kind: 'no_weeks' } | { kind: 'day'; date: IsoDate; weekStartsOn: IsoDate };
+
+/** What a recipe card shows, built from a menu slot or a catalogue item (same component). */
+export interface RecipeCardView {
+	key: string;
+	/** Chip on the photo: meal type in the menu, food group in the catalogue. */
+	label: string | null;
+	kind: 'recipe' | 'free' | 'empty';
+	recipe: RecipeSummary | null;
+	freeText: string | null;
+	servings: number;
+	ingredients: ScaledIngredient[] | null;
+	note: string | null;
+	isPast: boolean;
+	cooked: boolean | null;
+	canMarkNotCooked: boolean;
+	canRate: boolean;
+	rating: RatingSummary | null;
+	lastChange: { userName: string | null; at: LocalDateTime } | null;
+	detailHref: string | null;
+}

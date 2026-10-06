@@ -95,3 +95,36 @@ describe('rateRecipe', () => {
 		expect(rateRecipe(db, ctx({ offline: true }), 'wok-pollo-peperoni-riso-basmati', 3)).toEqual({ ok: false, error: 'offline' });
 	});
 });
+
+describe('recipe list for cards and sorting', () => {
+	const list = (over: Partial<OperationContext> = {}, sort?: 'name' | 'rating' | 'added' | 'lastEaten') => {
+		const result = searchRecipes(db, ctx(over), sort ? { sort } : {});
+		if (!result.ok) throw new Error(result.error);
+		return result.value;
+	};
+	it('gives each item its base servings, scaled ingredients and last eaten day', () => {
+		const wok = list().find((i) => i.recipe.id === 'wok-pollo-peperoni-riso-basmati')!;
+		expect(wok.servings).toBe(6);
+		expect(wok.ingredients[0].quantity).toEqual({ kind: 'amount', value: 300, unit: 'g' });
+		expect(wok.lastEaten).toBe('2026-10-04');
+		expect(wok.addedOn).toBe('2026-09-07');
+	});
+	it('ignores meals not yet eaten and meals marked not cooked for last eaten', () => {
+		expect(list().find((i) => i.recipe.id === 'riso-ceci-spinaci-mandorle')!.lastEaten).toBeNull();
+		expect(list({ now: '2026-10-06T23:00' }).find((i) => i.recipe.id === 'riso-ceci-spinaci-mandorle')!.lastEaten).toBe('2026-10-06');
+	});
+	it('sorts by rating, best first, unrated last', () => {
+		const averages = list({}, 'rating').map((i) => i.rating.familyAverage);
+		const rated = averages.filter((a) => a !== null) as number[];
+		expect(rated).toEqual([...rated].sort((a, b) => b - a));
+		expect(averages.indexOf(null)).toBe(rated.length);
+	});
+	it('sorts by date added and by last eaten, most recent first, never eaten last', () => {
+		const added = list({}, 'added').map((i) => i.addedOn);
+		expect(added).toEqual([...added].sort().reverse());
+		const eaten = list({}, 'lastEaten').map((i) => i.lastEaten);
+		const dated = eaten.filter((d) => d !== null) as string[];
+		expect(dated).toEqual([...dated].sort().reverse());
+		expect(eaten.slice(dated.length).every((d) => d === null)).toBe(true);
+	});
+});

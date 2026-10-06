@@ -1820,7 +1820,8 @@
 				"wok",
 				"riso"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "salmone-skottle-fagiolini-patate",
@@ -1847,7 +1848,8 @@
 				"skottle",
 				"patate"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "pasta-melanzane-pomodoro-ricotta",
@@ -1944,7 +1946,8 @@
 				"pasta",
 				"vegetariano"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "polpettine-tacchino-skottle",
@@ -1970,7 +1973,8 @@
 				"carne",
 				"skottle"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "insalata-farro-tonno",
@@ -1999,7 +2003,8 @@
 				"veloce",
 				"pranzo-al-sacco"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "frittata-forno-bietole-ricotta",
@@ -2063,7 +2068,8 @@
 				"vegetariano",
 				"forno"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "noodles-wok-uova-verdure",
@@ -2179,7 +2185,8 @@
 				"wok",
 				"vegetariano"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "merluzzo-pomodoro-olive-cous-cous",
@@ -2274,7 +2281,8 @@
 			"tags": [
 				"pesce"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "wrap-frittata-hummus",
@@ -2429,7 +2437,8 @@
 				"vegetariano",
 				"pranzo-al-sacco"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "gamberi-zucchine-skottle",
@@ -2509,7 +2518,8 @@
 				"skottle",
 				"veloce"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "crema-zucchine-cannellini",
@@ -2535,7 +2545,8 @@
 				"legumi",
 				"vegetariano"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-07"
 		},
 		{
 			"id": "uova-pomodoro-padella",
@@ -2619,7 +2630,8 @@
 				"veloce",
 				"padella"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "polpette-melanzane-forno",
@@ -2723,7 +2735,8 @@
 				"vegetariano",
 				"forno"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "pappardelle-alfredo",
@@ -2778,7 +2791,8 @@
 				"vegetariano",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "pasta-pesto-genovese",
@@ -2822,7 +2836,8 @@
 				"vegetariano",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "hamburger-cavallo",
@@ -2870,7 +2885,8 @@
 				"barbecue",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "pasta-tonno",
@@ -2957,7 +2973,8 @@
 				"pesce",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "spaghetti-pomodoro",
@@ -3026,7 +3043,8 @@
 				"vegetariano",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "pasta-sugo-pesce",
@@ -3090,7 +3108,8 @@
 				"pesce",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "penne-baffo",
@@ -3183,7 +3202,8 @@
 				"pasta",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "pasta-zucca-salsiccia-robiola",
@@ -3278,7 +3298,8 @@
 				"autunno",
 				"ricetta-di-casa"
 			],
-			"photo": "/assets/recipe-images/pasta-zucca-salsiccia-robiola.jpg"
+			"photo": "/assets/recipe-images/pasta-zucca-salsiccia-robiola.jpg",
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "orecchiette-broccoli",
@@ -3349,7 +3370,8 @@
 				"vegetariano",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "pasta-crema-peperoni",
@@ -3443,7 +3465,8 @@
 				"vegetariano",
 				"ricetta-di-casa"
 			],
-			"photo": "/assets/recipe-images/pasta-crema-peperoni.jpg"
+			"photo": "/assets/recipe-images/pasta-crema-peperoni.jpg",
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "bistecche-tonno-skottle",
@@ -3487,7 +3510,8 @@
 				"skottle",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "branzino-barbecue",
@@ -3524,7 +3548,8 @@
 				"barbecue",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "sovracosce-pollo-griglia",
@@ -3569,7 +3594,8 @@
 				"skottle",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "burrito-vegan",
@@ -3698,7 +3724,8 @@
 				"pranzo-al-sacco",
 				"libro"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "caviale-melanzane-panino",
@@ -3805,7 +3832,8 @@
 				"freddo",
 				"libro"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "riso-curry-giappone",
@@ -3911,7 +3939,8 @@
 				"riso",
 				"libro"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-14"
 		},
 		{
 			"id": "omelette-spinaci-montasio",
@@ -3988,7 +4017,8 @@
 				"veloce",
 				"padella"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "straccetti-pollo-limone",
@@ -4086,7 +4116,8 @@
 				"pollo",
 				"padella"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "riso-lenticchie-zucca",
@@ -4165,7 +4196,8 @@
 				"riso",
 				"autunno"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "riso-wok-broccoli-gamberi",
@@ -4248,7 +4280,8 @@
 				"riso",
 				"wok"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "riso-cantonese-casa",
@@ -4348,7 +4381,8 @@
 				"carne",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-21"
 		},
 		{
 			"id": "zuppa-fagioli-veloce-guanciale",
@@ -4412,7 +4446,8 @@
 				"carne",
 				"autunno"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "piadine-pollo-hummus-carote",
@@ -4482,7 +4517,8 @@
 				"pane-wrap",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "orata-padella-patate-pomodorini",
@@ -4562,7 +4598,8 @@
 				"padella",
 				"patate"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "lonza-maiale-limone",
@@ -4649,7 +4686,8 @@
 				"veloce",
 				"padella"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "fettine-pizzaiola-prezzemolo",
@@ -4710,7 +4748,8 @@
 				"carne",
 				"padella"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "lenticchie-comidista",
@@ -4834,7 +4873,8 @@
 				"autunno",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-09-28"
 		},
 		{
 			"id": "pasta-robiola-speck",
@@ -4897,7 +4937,8 @@
 				"pasta",
 				"carne"
 			],
-			"photo": "/assets/recipe-images/pasta-robiola-speck.jpg"
+			"photo": "/assets/recipe-images/pasta-robiola-speck.jpg",
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "pasta-ricotta-zafferano",
@@ -4957,7 +4998,8 @@
 				"vegetariano",
 				"veloce"
 			],
-			"photo": "/assets/recipe-images/pasta-ricotta-zafferano.jpg"
+			"photo": "/assets/recipe-images/pasta-ricotta-zafferano.jpg",
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "couscous-verdure-tonno",
@@ -5066,7 +5108,8 @@
 				"freddo",
 				"pranzo-al-sacco"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "couscous-verdure",
@@ -5210,7 +5253,8 @@
 				"freddo",
 				"pranzo-al-sacco"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "pappardelle-salsiccia-porri",
@@ -5299,7 +5343,8 @@
 				"carne",
 				"autunno"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "pollo-corn-flakes",
@@ -5430,7 +5475,8 @@
 				"pollo",
 				"padella"
 			],
-			"photo": "/assets/recipe-images/pollo-corn-flakes.jpg"
+			"photo": "/assets/recipe-images/pollo-corn-flakes.jpg",
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "piadine-bresaola-stracchino-pesto-rosso",
@@ -5518,7 +5564,8 @@
 				"veloce",
 				"padella"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "riso-ceci-spinaci-mandorle",
@@ -5709,7 +5756,8 @@
 				"padella",
 				"veloce"
 			],
-			"photo": "/assets/recipe-images/riso-ceci-spinaci-mandorle.jpg"
+			"photo": "/assets/recipe-images/riso-ceci-spinaci-mandorle.jpg",
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "spaghetti-riso-tofu-verdure-wok",
@@ -5836,7 +5884,8 @@
 				"vegetariano",
 				"wok"
 			],
-			"photo": "/assets/recipe-images/spaghetti-riso-tofu-verdure-wok.jpg"
+			"photo": "/assets/recipe-images/spaghetti-riso-tofu-verdure-wok.jpg",
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "paccheri-radicchio-bresaola-ricotta-noci",
@@ -5910,7 +5959,8 @@
 				"autunno",
 				"adattata-da-foto"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "ditali-cremosi-zucca-ceci",
@@ -5981,7 +6031,8 @@
 				"autunno",
 				"adattata-da-foto"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "trofie-funghi-piselli-ricotta",
@@ -6054,7 +6105,8 @@
 				"autunno",
 				"adattata-da-foto"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "fusilli-ricotta-spinaci-noci",
@@ -6126,7 +6178,8 @@
 				"autunno",
 				"adattata-da-foto"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "wrap-fagioli-neri-cheddar",
@@ -6234,7 +6287,8 @@
 				"veloce",
 				"padella"
 			],
-			"photo": "/assets/recipe-images/wrap-fagioli-neri-cheddar.jpg"
+			"photo": "/assets/recipe-images/wrap-fagioli-neri-cheddar.jpg",
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "erbazzone-uova-strapazzate-stracchino",
@@ -6287,7 +6341,8 @@
 				"forno",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		},
 		{
 			"id": "sandwich-uova-mozzarella-pomodoro-tacchino",
@@ -6370,7 +6425,8 @@
 				"padella",
 				"ricetta-di-casa"
 			],
-			"photo": null
+			"photo": null,
+			"addedOn": "2026-10-05"
 		}
 	],
 	"weeks": [

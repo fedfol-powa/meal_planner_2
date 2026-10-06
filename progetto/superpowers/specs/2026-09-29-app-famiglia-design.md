@@ -356,7 +356,7 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 | Tabella | Campi principali |
 |---|---|
-| `recipes` | `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `archived_at`, `created_by`, `updated_by`, `updated_at`. Tutte le ricette sono globali. `home` indica una ricetta senza fonte esterna |
+| `recipes` | `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `archived_at`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna |
 | `recipe_translations` | `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
 | `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua |
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
@@ -1180,7 +1180,11 @@ giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Me
 decide nel percorso Spesa. Sopra il selettore dei giorni una barra con il mese e le
 icone di azione (calendario, in seguito spesa); la scheda del pasto ha un footer a icone
 per scheda ricetta, voto, ingredienti e, sui pasti passati, "non cucinato"; foto in
-banner basso 3:1 e fonte sulla riga del tempo, troncata (dettagli in `design/design.md`).
+banner basso 3:1 e fonte sulla riga del tempo, troncata. Le schede del ricettario usano
+lo stesso componente; il ricettario ha ricerca, un'icona che apre filtri e
+ordinamento (nome, voto, aggiunte di recente, mangiate di recente). Nella scheda
+ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
+ingredienti (dettagli in `design/design.md`).
 La navbar mostra icone ed etichette,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative

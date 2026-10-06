@@ -57,6 +57,8 @@ export interface Recipe {
 	proteinGroup: ProteinGroup | null;
 	tags: string[];
 	photo: string | null;
+	/** Day the recipe entered the catalogue (created_at). */
+	addedOn: IsoDate;
 }
 
 export interface User {

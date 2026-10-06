@@ -59,6 +59,14 @@ function durationOf(text: string | null | undefined): number | null {
 	return numbers?.length ? Math.max(...numbers) : null;
 }
 
+// Demo "added on": first week the recipe appears in the origin menus, else the previous recipe's (file order).
+let lastAdded = '2026-09-07';
+const addedOnOf = (r: OriginRecipe) => {
+	const first = r.storico.map((s) => s.settimana).sort()[0];
+	if (first) lastAdded = first;
+	return first ?? lastAdded;
+};
+
 const recipes: Recipe[] = originRecipes.map((r) => {
 	const en = translations.recipes[r.id];
 	const lines = (r.ingredienti ?? []).map((line) => {
@@ -93,7 +101,8 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 		mealType: mealTypeOf(r),
 		proteinGroup: PROTEIN_TAGS.find(([tag]) => r.tag.includes(tag))?.[1] ?? null,
 		tags: r.tag,
-		photo: existsSync(resolve(imagesDir, `${r.id}.jpg`)) ? `/assets/recipe-images/${r.id}.jpg` : null
+		photo: existsSync(resolve(imagesDir, `${r.id}.jpg`)) ? `/assets/recipe-images/${r.id}.jpg` : null,
+		addedOn: addedOnOf(r)
 	};
 });
 

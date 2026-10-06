@@ -37,15 +37,22 @@
 		<article class="meal">
 			{#if d.recipe.photo}<div class="meal-media"><img class="meal-photo" src={d.recipe.photo} alt="" /></div>{/if}
 			<div class="meal-content">
-				<h1 class="title">{d.recipe.name}</h1>
+				<!-- Order agreed in review: title (source link), rating, description, timing, servings, ingredients. -->
+				<h1 class="title">
+					{#if d.recipe.sourceUrl}
+						<a class="recipe-link" href={d.recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{d.recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
+					{:else}{d.recipe.name}{/if}
+				</h1>
+				<RatingStars summary={d.rating} recipeId={d.recipe.id} recipeName={d.recipe.name} />
 				<p class="description">{d.recipe.description}</p>
-				<p class="meal-meta">{#if d.recipe.durationMinutes}{app.t('meal.minutes', { count: d.recipe.durationMinutes })}{' · '}{/if}{#if d.recipe.proteinGroup}{app.t(`group.${d.recipe.proteinGroup}` as const)}{/if}</p>
-				<p class="meal-source">
-					{#if d.recipe.sourceType === 'book' && d.recipe.bookTitle}{app.t('source.book', { title: d.recipe.bookTitle, pages: d.recipe.bookPages ?? '—' })}
-					{:else if d.recipe.sourceUrl}<a class="link-inline" href={d.recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{app.t('source.open')} ↗</a>
-					{:else}{app.t('source.home')}{/if}
+				<p class="meal-meta">
+					{#if d.recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: d.recipe.durationMinutes })}{/if}{#if d.recipe.durationMinutes && d.recipe.proteinGroup}{' · '}{/if}{#if d.recipe.proteinGroup}{app.t(`group.${d.recipe.proteinGroup}` as const)}{/if}
 				</p>
-				<RatingStars summary={d.rating} recipeId={d.recipe.id} recipeName={d.recipe.name} variant={app.settings.ratingVariant} size="large" />
+				{#if d.recipe.sourceType === 'book' && d.recipe.bookTitle}
+					<p class="meal-source">{app.t('source.book', { title: d.recipe.bookTitle, pages: d.recipe.bookPages ?? '—' })}</p>
+				{:else if !d.recipe.sourceUrl}
+					<p class="meal-source">{app.t('source.home')}</p>
+				{/if}
 
 				<div class="servings">
 					<span>{app.t('recipe.servingsLabel')}</span>
@@ -71,6 +78,8 @@
 	.detail { padding-top: max(16px, env(safe-area-inset-top)); }
 	.back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; text-decoration: none; }
 	.title { margin: 0 0 12px; font: 400 1.375rem/1.3 var(--meal-title-font); overflow-wrap: anywhere; }
+	.title :global(.recipe-link .icon) { top: 8px; }
+	.detail :global(.rating) { margin-bottom: 14px; }
 	.servings { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; font-weight: 700; }
 	.step { width: 44px; height: 44px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); font: 700 1.25rem/1 var(--text-font); cursor: pointer; }
 	.step:disabled { opacity: 0.3; cursor: not-allowed; }

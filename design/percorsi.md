@@ -196,6 +196,12 @@ e 17, rilievo R3) e in `design.md`:
 - Foto troppo alta (circa metà della scheda): provate miniatura laterale, banner 3:1 e
   16:9; scelto il **banner basso 3:1**.
 - Fonte spostata sulla riga di durata e porzioni, a destra, troncata a 22 caratteri.
+- Scheda ricetta: titolo sempre collegato alla fonte (risponde alla domanda 3), poi
+  voto, descrizione, porzioni e ingredienti.
+- Ricettario: icona che apre e chiude filtri e ordinamento (nome, voto, aggiunte di
+  recente, mangiate di recente); schede con lo stesso componente del menu.
+- Voto: tenuta solo la variante in riga; tolte le altre dal pannello di prova.
+- Dati demo: data di aggiunta = prima settimana della ricetta nei menu di origine.
 
 ### Rotte e componenti del giro
 

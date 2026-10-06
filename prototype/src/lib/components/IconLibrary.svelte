@@ -12,4 +12,5 @@
 	<symbol id="icon-recipe" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6ZM14 3v5h5M9 13h7M9 17h5"/></symbol>
 	<symbol id="icon-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
 	<symbol id="icon-not-cooked" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M4 4l16 16"/></symbol>
+	<symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
 </svg>

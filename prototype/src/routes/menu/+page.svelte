@@ -2,14 +2,14 @@
 	import { tick } from 'svelte';
 	import { page } from '$app/state';
 	import DaySelector from '#lib/components/DaySelector.svelte';
-	import MealCard from '#lib/components/MealCard.svelte';
+	import RecipeCard from '#lib/components/RecipeCard.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import type { MessageKey } from '#lib/i18n/messages.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
 	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart, setMealCooked } from '#lib/operations/meals.ts';
-	import type { MealView } from '#lib/operations/views.ts';
+	import type { MealView, RecipeCardView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	let track: HTMLDivElement | undefined = $state();
@@ -63,7 +63,18 @@
 		app.selectedDate = date;
 	}
 
-	function toggleCooked(meal: MealView) {
+	function toCard(meal: MealView): RecipeCardView {
+		return {
+			...meal,
+			key: meal.slotId,
+			label: app.t(`meal.${meal.mealType}` as const),
+			detailHref: meal.recipe ? `/recipes/${meal.recipe.id}?from=menu&day=${meal.date}` : null
+		};
+	}
+
+	function toggleCooked(slotId: string) {
+		const meal = week?.days.flatMap((d) => d.meals).find((m) => m.slotId === slotId);
+		if (!meal) return;
 		const result = setMealCooked(app.db, app.ctx, meal.slotId, meal.cooked === false ? null : false);
 		actionError = result.ok ? null : (`error.${result.error === 'not_allowed' ? 'notAllowed' : result.error === 'not_found' ? 'notFound' : result.error}` as MessageKey);
 		if (result.ok) app.update(() => {});
@@ -104,7 +115,7 @@
 				<section class="day" id="day-{day.date}" aria-labelledby="heading-{day.date}">
 					<h2 class="day-title visually-hidden" id="heading-{day.date}">{formatDayLong(app.locale, day.date)}</h2>
 					{#each day.meals as meal (meal.slotId)}
-						<MealCard {meal} system={week.measurementSystem} onToggleCooked={toggleCooked} />
+						<RecipeCard card={toCard(meal)} system={week.measurementSystem} onToggleCooked={toggleCooked} />
 					{:else}
 						<StateNotice title={app.t('menu.dayEmpty')} />
 					{/each}
