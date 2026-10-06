@@ -1,0 +1,46 @@
+import type { Locale, MeasurementSystem, Quantity, UnitCode } from '#lib/domain/types.ts';
+import { translate } from '#lib/i18n/translate.ts';
+import { formatQuantity } from './format';
+
+// Provisional factor, same as present.ts (spec section 15, "Misure").
+const G_PER_OZ = 28.349523125;
+
+/** Quantities of one ingredient summed per dimension: masses in g, volumes in ml, counts per unit. */
+export interface CombinedQuantity {
+	amounts: { value: number; unit: UnitCode }[];
+	/** Non-numeric quantities, kept as written (deduplicated). */
+	texts: string[];
+	toTaste: boolean;
+}
+
+export const emptyCombined = (): CombinedQuantity => ({ amounts: [], texts: [], toTaste: false });
+
+function common(value: number, unit: UnitCode): { value: number; unit: UnitCode } {
+	if (unit === 'kg') return { value: value * 1000, unit: 'g' };
+	if (unit === 'oz') return { value: value * G_PER_OZ, unit: 'g' };
+	if (unit === 'l') return { value: value * 1000, unit: 'ml' };
+	return { value, unit };
+}
+
+export function addQuantity(c: CombinedQuantity, q: Quantity, text: string): CombinedQuantity {
+	if (q.kind === 'to_taste') return { ...c, toTaste: true };
+	if (q.kind === 'text') return c.texts.includes(text) ? c : { ...c, texts: [...c.texts, text] };
+	const next = common(q.value, q.unit);
+	const found = c.amounts.find((a) => a.unit === next.unit);
+	const amounts = found
+		? c.amounts.map((a) => (a === found ? { ...a, value: a.value + next.value } : a))
+		: [...c.amounts, next];
+	return { ...c, amounts };
+}
+
+/** Converts and rounds only now, after the sum (spec section 6). */
+export function formatCombined(c: CombinedQuantity, system: MeasurementSystem, locale: Locale): string {
+	const parts = c.amounts.map(({ value, unit }) => {
+		const large = (unit === 'g' || unit === 'ml') && value >= 1000;
+		const shown: Quantity = { kind: 'amount', value: large ? value / 1000 : value, unit: large ? (unit === 'g' ? 'kg' : 'l') : unit };
+		return formatQuantity(shown, '', system, locale);
+	});
+	parts.push(...c.texts);
+	if (c.toTaste) parts.push(translate(locale, 'quantity.toTaste'));
+	return parts.join(' + ');
+}
