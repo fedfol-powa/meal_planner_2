@@ -1,11 +1,12 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 4 ottobre 2026
+Ultimo aggiornamento: 6 ottobre 2026
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
-Il prossimo artefatto è il prototipo completo, ancora da pianificare, costruire e
-approvare usando il linguaggio visivo scelto; i dettagli dei flussi evolvono con la review.
+Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
+usando il linguaggio visivo scelto; metodo, ordine dei percorsi e architettura del
+prototipo concordati il 6 ottobre in `design/percorsi.md`.
 Review avversariale indipendente del 3 ottobre: adatto a un prototipo esplorativo,
 non ancora pronto per l'implementazione; rilievi e decisioni conseguenti nella sezione 17.
 Repository: `fedfol-powa/meal_planner_2` (privato)
@@ -1122,7 +1123,25 @@ gestione di file. Il prototipo distinguerà gli esempi dalle istruzioni operativ
 **Confermato:** il primo artefatto da costruire è un prototipo dell'app conservato nel
 repository e sottoposto a review dell'utente, prima dell'implementazione del prodotto.
 La review deve poter cambiare sia funzionalità sia scelte architetturali. Il prototipo
-non è ancora stato creato; la directory proposta è `prototype/`.
+non è ancora stato creato; la directory è `prototype/`.
+
+**Metodo e percorsi, concordati il 6 ottobre 2026.** Il prototipo si costruisce per
+giri, ciascuno con preparazione, piano approvato, sviluppo, review con l'utente e
+consolidamento. L'ordine dei percorsi, il loro stato, l'architettura del prototipo e
+il contenuto di ogni giro sono tracciati in `design/percorsi.md`, guida dei flussi da
+seguire anche nello sviluppo dell'app. Le decisioni di prodotto emerse nelle review
+restano registrate in questa specifica; il documento dei percorsi descrive come si
+attraversano nelle schermate e vi rimanda.
+
+- ordine: Fondamenta, Menu, Ricettario e voti, Revisione dei pasti, Spesa, Famiglia e
+  account, Curatela, MCP, Amministrazione dell'app;
+- primo giro: Fondamenta, Menu, Ricettario e voti insieme, con una tappa intermedia
+  dopo Fondamenta e Menu; i giri successivi si compongono alla fine di ogni review;
+- prototipo SvelteKit autonomo eseguito nel browser, con dati demo in `localStorage`,
+  operazioni applicative simulate che abbozzano quelle condivise fra web e MCP e un
+  pannello di prova per utente, ruoli, lingua, unità, data simulata e scenari;
+- tracciamento nel repository: `design/percorsi.md` per il percorso complessivo, un
+  piano per giro in `progetto/superpowers/plans/`, commit Git locali per la storia.
 
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
@@ -1210,7 +1229,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
 | MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
-| Prototipo | Perimetro, fedeltà, flussi, stati e dati dimostrativi, componenti ancora da declinare e criteri di review; linguaggio visivo già approvato e vincolante per il prototipo | Sezione 14 |
+| Prototipo | Flussi, stati e componenti di ciascun percorso, da chiudere giro per giro; linguaggio visivo, metodo, ordine dei percorsi e architettura del prototipo già concordati (`design/percorsi.md`) | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
 | Calendario | Settimana iniziale di una famiglia nuova, istante in cui un pasto diventa passato; separazione fra generazione e chiusure scadute, recupero delle chiusure saltate (review R3) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
@@ -1231,6 +1250,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 3 ottobre 2026, eccezione MCP | Eliminazione delle famiglie riservata all'app web: MCP restituisce un URL e l'utente completa l'operazione nella pagina dedicata. La restrizione copre anche la cancellazione di account che comporterebbe l'eliminazione di una famiglia |
 | 3 ottobre 2026, review avversariale | Riesame indipendente della revisione `e473472`: direzione di prodotto adatta al prototipo esplorativo, implementazione ancora subordinata alle decisioni e correzioni della sezione 17. Nessuna soluzione proposta dal revisore è automaticamente una decisione approvata |
 | 4 ottobre 2026, linguaggio visivo definitivo | Approvato il linguaggio derivato dallo studio HelloFresh e rappresentato in `design/index.html`: guida vincolante in `design/design.md`, istruzioni per gli agenti e materiale approvato consolidato in `design/`. Il futuro prototipo deve riusare questa base; flussi e servizi restano soggetti alla specifica e ai piani successivi |
+| 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

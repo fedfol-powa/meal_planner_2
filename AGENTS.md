@@ -60,6 +60,10 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 - **Prossimo artefatto: prototipo dell'app nel repository**, da concordare e rivedere
   con l'utente prima dell'implementazione del prodotto. La review deve rivalutare
   funzionalità e architettura e consolidarle nella specifica.
+- Il 6 ottobre 2026 sono stati concordati metodo per giri, ordine dei percorsi e
+  architettura del prototipo: **leggi `design/percorsi.md`** prima di lavorare al
+  prototipo e aggiornalo a ogni cambio di stato. Il primo giro (Fondamenta, Menu,
+  Ricettario e voti) è da pianificare.
 - Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
   prototipo esplorativo possibile; rilievi aperti da risolvere prima delle relative
   fasi di implementazione. Le raccomandazioni del revisore non sono decisioni approvate.

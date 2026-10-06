@@ -1,0 +1,164 @@
+# Percorsi del prototipo di App Famiglia
+
+Creato: 6 ottobre 2026
+Ultimo aggiornamento: 6 ottobre 2026
+Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
+primo giro da pianificare.
+
+Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
+nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
+Applica la [specifica, sezione 14](../progetto/superpowers/specs/2026-09-29-app-famiglia-design.md)
+e le resta subordinato.
+
+## Regola di confine
+
+- **Le decisioni di prodotto** (cosa fa l'app, regole, permessi, dati) si registrano
+  nelle sezioni pertinenti della specifica e chiudono le voci della sezione 15.
+- **Questo documento** descrive come si attraversano quelle decisioni nelle schermate
+  e rimanda alla sezione della specifica che le contiene. Non introduce requisiti.
+- **Il prototipo** in `prototype/` è il riferimento eseguibile dei percorsi approvati.
+- **Il linguaggio visivo** è quello approvato in `design/`; ogni percorso riusa i suoi
+  token e componenti.
+
+## Tracciamento
+
+| Livello | Strumento | Contenuto |
+|---|---|---|
+| Percorso complessivo | Questo documento | Tabella dei percorsi e dei giri, stato, date di approvazione, collegamenti a piani e review |
+| Singolo giro | Piano in `progetto/superpowers/plans/` | Attività con caselle da spuntare, tappe intermedie, sezione "Esito della review" |
+| Storia delle decisioni | Commit Git locali | Modifiche a specifica, percorsi e prototipo, a ogni tappa e a fine giro |
+
+Nessun push su GitHub senza richiesta esplicita dell'utente. Strumenti esterni come
+issue o documenti condivisi non sono fonti: eventuali viste si generano da qui.
+
+## Ciclo di lavoro di ogni giro
+
+1. **Preparazione:** domande all'utente, una alla volta, solo dove la specifica lascia
+   aperta una scelta visibile nelle schermate.
+2. **Piano del giro:** piano breve che indica sezioni della specifica realizzate e
+   componenti di `design/` riusati o introdotti; approvato prima di scrivere codice.
+3. **Sviluppo:** con le tappe concordate; pubblicazione sulla rete locale per la prova
+   su iPhone.
+4. **Review insieme:** osservazioni classificate in decisioni di prodotto, aggiustamenti
+   di superficie e domande aperte.
+5. **Consolidamento:** decisioni nella specifica, esito in questo documento e nel piano
+   del giro, eventuale ricalibratura dell'ordine dei giri successivi.
+6. **Commit** locale a fine giro.
+
+## Ordine dei percorsi
+
+Si parte dal ciclo settimanale, l'uso quotidiano che condiziona di più il modello dei
+dati, e ci si allarga ai ruoli. Gli stati trasversali (vuoto, errore, permessi
+insufficienti, offline) si costruiscono dentro ogni percorso.
+
+| # | Percorso | Contenuto | Giro | Stato |
+|---|---|---|---|---|
+| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, dati demo, strumenti di prova | 1 | Da pianificare |
+| 1 | Menu | Oggi, settimana e suoi stati, schede dei pasti, pasti liberi e vuoti | 1 | Da pianificare |
+| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Da pianificare |
+| 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
+| 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
+| 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
+| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
+| 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
+| 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
+
+La composizione dei giri successivi al primo si decide alla fine di ogni review.
+
+## Architettura del prototipo
+
+Concordata il 6 ottobre 2026. Versioni, adapter e librerie si verificano con Context7
+nel piano del primo giro.
+
+- **Progetto SvelteKit autonomo** in `prototype/`, eseguito interamente nel browser,
+  con stato salvato in `localStorage`. Pubblicato sulla rete locale per l'iPhone;
+  eventualmente su Netlify in seguito.
+- **Struttura:** `src/lib/design` (token da `design.md`, font, stili di base),
+  `src/lib/components`, `src/lib/domain` (tipi del modello della sezione 2 della
+  specifica), `src/lib/operations`, `src/lib/store`, `src/lib/i18n`, `src/lib/units`,
+  `src/routes` (una rotta per vista), `scripts` (dati demo), `static` (asset copiati da
+  `design/` con uno script, senza duplicati versionati).
+- **Operazioni applicative simulate:** le schermate non accedono allo stato
+  direttamente ma chiamano operazioni (`getTodayMeals`, `searchRecipes`, `rateRecipe`…)
+  che ricevono il contesto (utente, famiglia, canale `web`/`mcp`), simulano i permessi
+  e restituiscono risultati o errori strutturati (conflitto, permesso mancante, dato non
+  valido). Sono la bozza delle operazioni condivise tra web e MCP e servono al percorso 7.
+- **Strumenti di prova:** pannello distinto dall'app, non parte del prodotto, per
+  cambiare utente demo e ruoli, famiglia, lingua (`it-IT`/`en-GB`), sistema di misura
+  (`metric`/`uk_imperial`), data e ora simulate, scenario (famiglia con storico,
+  famiglia nuova, oggi senza pasti), modalità offline e per azzerare i dati.
+- **Dati demo:** ricette generate da `../meal_planner/ricettario/ricette.yaml` in sola
+  lettura, con gli ingredienti verificati dell'origine; testi inglesi scritti per il
+  prototipo e marcati come dimostrativi; famiglia di Federico con alcuni membri
+  inventati, voti e storico ricavati dai suoi dati; settimane precalcolate. Il
+  pianificatore a regole non c'è: le scelte simulate sono semplici e dichiarate.
+  Fattori di conversione imperiali standard, marcati come provvisori finché la voce
+  "Misure" della sezione 15 resta aperta.
+- **Fuori dal prototipo:** Supabase, autenticazione reale, MCP reale, pianificatore,
+  email ed esportazioni reali. Dove servono si simulano e l'interfaccia lo dichiara.
+- **Verifiche:** test Vitest su operazioni e unità, controllo dei tipi; prova nel
+  browser a 320, 390 e 1440 px con testi italiani e inglesi secondo i controlli di
+  [README.md](README.md); confronto visivo con [index.html](index.html) prima di ogni
+  review.
+
+## Giro 1: percorsi 0, 1 e 2
+
+Stato: da pianificare. Piano: da scrivere. Tappa intermedia concordata dopo
+Fondamenta e Menu, per un controllo veloce prima del Ricettario.
+
+### Tappa intermedia: Fondamenta e Menu
+
+- **Fondamenta:** navbar Menu, Ricettario e Spesa del riferimento; Spesa con avviso
+  "disponibile in un prossimo giro"; token, font e componenti riorganizzati; strumenti
+  di prova, lingua e sistema di misura funzionanti su tutto ciò che esiste.
+- **Apertura** (specifica, sezione 5): pasti di oggi; altrimenti il primo giorno futuro
+  con pasti; senza settimane, invito simulato a generare la prima.
+- **Calendario:** giorni a scorrimento orizzontale come nel riferimento, più il
+  passaggio alla settimana precedente e alla successiva, bozza compresa.
+- **Stati della settimana** (sezione 2), distinguibili non solo con il colore: bozza
+  modificabile "in revisione fino a domenica"; in corso con pasti passati distinti dai
+  futuri; da chiudere con possibilità di segnare "non cucinato"; chiusa in sola lettura.
+- **Schede dei pasti:** con foto, senza foto, pasto libero, slot vuoto "nessuna ricetta
+  adatta"; fonte web o YouTube, libro con titolo e pagine, ricetta di casa.
+- **Ingredienti** scalati sulle porzioni dello slot, nelle unità della famiglia
+  (sezione 6).
+- **Voto e ultima modifica** visibili nella scheda; il voto si esprime nel percorso 2,
+  le azioni di modifica nel percorso 3.
+
+### Review completa: Ricettario e voti
+
+- **Ricettario** (sezione 8): catalogo demo completo, ricerca per nome e ingrediente
+  nella lingua dell'utente, filtri essenziali (pasto, tempo, gruppo alimentare,
+  stagione, voto), stato "nessun risultato" con invito ad allargare i filtri; esclusione
+  delle ricette da libri non posseduti.
+- **Scheda ricetta:** foto o testo, descrizione, durata, porzioni di riferimento,
+  fonte, ingredienti con selettore di porzioni, ultime volte in cui la famiglia l'ha
+  mangiata se presenti nello storico demo.
+- **Componente stelline** (sezione 5), unico e riusato in pasti, ricerca e scheda:
+  media della famiglia con numero di voti o "nessun voto", proprio voto distinto o
+  "non hai votato", voto da 1 a 5 e "togli il mio voto" sul posto, aggiornamento
+  immediato.
+- **Collegamenti** fra pasto e scheda ricetta, conservando il giorno scelto.
+
+### Stati trasversali del giro
+
+Dati mancanti (ricetta senza foto o descrizione), nessun risultato, modalità offline
+simulata in sola lettura.
+
+### Fuori dal giro
+
+Azioni di modifica dei pasti, suggerimenti, avvisi e conflitti; Spesa; impostazioni e
+famiglia; curatela.
+
+### Domande da chiudere nella preparazione
+
+1. Posizione dell'ingresso a famiglia e account, anche come segnaposto, dato che il
+   riferimento non ha header.
+2. Istante in cui un pasto diventa passato (sezione 15, "Calendario"; rilievo R3):
+   orario fisso per pranzo e cena oppure fine del giorno.
+3. Forma del voto nella scheda del pasto: diretto oppure in un piccolo pannello;
+   eventualmente da confrontare con due varianti nel prototipo.
+
+### Esito della review
+
+Da compilare alla review del giro.

@@ -8,6 +8,7 @@ prodotto restano nella [specifica, sezione 14](../progetto/superpowers/specs/202
 ## Materiale da usare
 
 - `design.md`: palette, tipografia, componenti, navigazione, spazi e criteri di verifica.
+- `percorsi.md`: metodo, ordine e stato dei percorsi del prototipo, guida dei flussi.
 - `index.html`: riferimento interattivo approvato, apribile direttamente nel browser.
 - `assets/hellofresh/fonts/`: i quattro WOFF2 usati dal riferimento.
 - `assets/recipe-images/`: le otto fotografie delle fonti delle ricette.
