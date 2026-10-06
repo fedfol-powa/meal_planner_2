@@ -1,4 +1,4 @@
-import { isWeekVisible } from '#lib/domain/calendar.ts';
+import { isMealPast, isWeekVisible } from '#lib/domain/calendar.ts';
 import type { DemoDatabase, IsoDate, MealType, MeasurementSystem, ProteinGroup } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { familyFor, localeOf, localized, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
@@ -63,11 +63,10 @@ export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeI
 	if (!recipe || !recipe.baseServings) return fail('not_found');
 	const locale = localeOf(db, ctx);
 	const chosen = servings && Number.isInteger(servings) && servings > 0 ? servings : recipe.baseServings;
-	const today = ctx.now.slice(0, 10);
 	const history = db.weeks
 		.filter((w) => w.familyId === family.id && isWeekVisible(w, ctx.now))
 		.flatMap((w) => w.slots)
-		.filter((s) => s.recipeId === recipeId && s.date <= today && s.cooked !== false)
+		.filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, ctx.now) && s.cooked !== false)
 		.map((s) => ({ date: s.date, mealType: s.mealType }))
 		.sort((a, b) => b.date.localeCompare(a.date))
 		.slice(0, 5);

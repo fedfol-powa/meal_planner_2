@@ -64,6 +64,12 @@ describe('formatQuantity', () => {
 		expect(formatQuantity(amount(1 / 3, 'clove'), '', 'metric', 'it-IT')).toBe('0,5 spicchi');
 		expect(formatQuantity(amount(0.1, 'tbsp'), '', 'metric', 'en-GB')).toBe('0.5 tbsp');
 	});
+	it('shows fractions of a kilo or litre in grams or millilitres', () => {
+		expect(formatQuantity({ kind: 'amount', value: 0.25, unit: 'kg' }, '', 'metric', 'it-IT')).toBe('250 g');
+		expect(formatQuantity({ kind: 'amount', value: 0.02, unit: 'kg' }, '', 'metric', 'it-IT')).toBe('20 g');
+		expect(formatQuantity({ kind: 'amount', value: 0.25, unit: 'l' }, '', 'metric', 'it-IT')).toBe('250 ml');
+		expect(formatQuantity({ kind: 'amount', value: 1.5, unit: 'kg' }, '', 'metric', 'it-IT')).toBe('1,5 kg');
+	});
 	it('rounds pieces and cloves up to the half', () => {
 		expect(formatQuantity(amount(1.2, 'clove'), '', 'metric', 'it-IT')).toBe('1,5 spicchi');
 		expect(formatQuantity(amount(1, 'clove'), '', 'metric', 'en-GB')).toBe('1 clove');

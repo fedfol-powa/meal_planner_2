@@ -1,4 +1,4 @@
-import { isMealPast, isWeekVisible, mondayOf, weekDates } from '#lib/domain/calendar.ts';
+import { isIsoDate, isMealPast, isWeekVisible, mondayOf, weekDates } from '#lib/domain/calendar.ts';
 import type { DemoDatabase, Family, IsoDate, Locale, MealSlot, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { familyFor, localeOf, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
@@ -60,6 +60,7 @@ function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, local
 export function getWeekView(db: DemoDatabase, ctx: OperationContext, startsOn: IsoDate): OpResult<WeekView> {
 	const family = familyFor(db, ctx);
 	if (!family) return fail('forbidden');
+	if (!isIsoDate(startsOn)) return fail('not_found');
 	const weeks = visibleWeeks(db, family, ctx);
 	const index = weeks.findIndex((w) => w.startsOn === mondayOf(startsOn));
 	if (index === -1) return fail('not_found');
@@ -100,6 +101,15 @@ export function getMenuDates(db: DemoDatabase, ctx: OperationContext): OpResult<
 	if (!family) return fail('forbidden');
 	const dates = new Set(visibleWeeks(db, family, ctx).flatMap((w) => w.slots.map((s) => s.date)));
 	return ok([...dates].sort());
+}
+
+/** First candidate day whose week is visible to the family, otherwise the fallback day. */
+export function resolveWeekStart(db: DemoDatabase, ctx: OperationContext, candidates: (string | null)[], fallback: IsoDate): IsoDate {
+	const family = familyFor(db, ctx);
+	if (!family) return fallback;
+	const starts = new Set(visibleWeeks(db, family, ctx).map((w) => w.startsOn));
+	const found = candidates.find((c): c is IsoDate => isIsoDate(c) && starts.has(mondayOf(c)));
+	return found ? mondayOf(found) : fallback;
 }
 
 export function pickSelectedDate(week: WeekView, preferred: IsoDate | null, opening: IsoDate | null): IsoDate {

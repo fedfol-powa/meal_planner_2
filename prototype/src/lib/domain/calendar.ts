@@ -1,5 +1,12 @@
 import type { IsoDate, LocalDateTime, MealType, Week } from './types';
 
+/** True for a real YYYY-MM-DD calendar date; used to validate dates coming from URLs. */
+export function isIsoDate(value: string | null | undefined): value is IsoDate {
+	if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+	const d = new Date(`${value}T00:00:00Z`);
+	return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
+}
+
 export function addDays(date: IsoDate, days: number): IsoDate {
 	const d = new Date(`${date}T00:00:00Z`);
 	d.setUTCDate(d.getUTCDate() + days);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, isMealPast, isWeekVisible, mondayOf, weekDates } from './calendar';
+import { addDays, isIsoDate, isMealPast, isWeekVisible, mondayOf, weekDates } from './calendar';
 
 
 describe('dates', () => {
@@ -27,5 +27,14 @@ describe('isWeekVisible', () => {
 		const draft = { generatedAt: '2026-10-07T20:00' };
 		expect(isWeekVisible(draft, '2026-10-07T19:59')).toBe(false);
 		expect(isWeekVisible(draft, '2026-10-07T20:00')).toBe(true);
+	});
+});
+
+describe('isIsoDate', () => {
+	it('accepts real calendar dates only', () => {
+		expect(isIsoDate('2026-10-06')).toBe(true);
+		expect(isIsoDate('garbage')).toBe(false);
+		expect(isIsoDate('2026-13-01')).toBe(false);
+		expect(isIsoDate(null)).toBe(false);
 	});
 });

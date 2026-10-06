@@ -5,11 +5,13 @@
 	import RatingStars from '#lib/components/RatingStars.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
+	import { isIsoDate } from '#lib/domain/calendar.ts';
 	import { getRecipeDetail } from '#lib/operations/recipes.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	const fromMenu = $derived(page.url.searchParams.get('from') === 'menu');
-	const day = $derived(page.url.searchParams.get('day'));
+	const rawDay = $derived(page.url.searchParams.get('day'));
+	const day = $derived(isIsoDate(rawDay) ? rawDay : null);
 	const servingsParam = $derived(Number(page.url.searchParams.get('servings')) || undefined);
 	const result = $derived(getRecipeDetail(app.db, app.ctx, page.params.id ?? '', servingsParam));
 	const backHref = $derived(fromMenu ? `/menu${day ? `?day=${day}` : ''}` : '/recipes');

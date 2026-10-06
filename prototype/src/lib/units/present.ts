@@ -14,7 +14,11 @@ export interface PresentedAmount {
 
 export function presentAmount(value: number, unit: UnitCode, system: MeasurementSystem): PresentedAmount {
 	if (system === 'metric') {
-		return unit === 'oz' ? { value: value * G_PER_OZ, unit: 'g' } : { value, unit };
+		if (unit === 'oz') return { value: value * G_PER_OZ, unit: 'g' };
+		// Below one kilo or litre the gram/millilitre rounding of spec section 6 applies.
+		if (unit === 'kg' && value < 1) return { value: value * 1000, unit: 'g' };
+		if (unit === 'l' && value < 1) return { value: value * 1000, unit: 'ml' };
+		return { value, unit };
 	}
 	let grams: number | null = null;
 	let millilitres: number | null = null;
@@ -77,5 +81,5 @@ export function roundForDisplay({ value, unit }: PresentedAmount): PresentedAmou
 			rounded = Math.max(0.25, roundTo(value, 0.25));
 			break;
 	}
-	return { value: rounded, unit };
+	return { value: rounded || 0, unit };
 }

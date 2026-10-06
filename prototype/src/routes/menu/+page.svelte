@@ -8,7 +8,8 @@
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import type { MessageKey } from '#lib/i18n/messages.ts';
-	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, setMealCooked } from '#lib/operations/meals.ts';
+	import { isIsoDate } from '#lib/domain/calendar.ts';
+	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart, setMealCooked } from '#lib/operations/meals.ts';
 	import type { MealView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
@@ -18,10 +19,15 @@
 
 	const opening = $derived(getOpeningTarget(app.db, app.ctx));
 	const openingDay = $derived(opening.ok && opening.value.kind === 'day' ? opening.value : null);
-	const dayParam = $derived(page.url.searchParams.get('day'));
-	const weekResult = $derived(openingDay ? getWeekView(app.db, app.ctx, app.selectedDate ?? dayParam ?? openingDay.weekStartsOn) : null);
+	const rawDay = $derived(page.url.searchParams.get('day'));
+	const dayParam = $derived(isIsoDate(rawDay) ? rawDay : null);
+	// A remembered or linked day whose week is hidden (or invalid) falls back to the opening week.
+	const weekStart = $derived(openingDay ? resolveWeekStart(app.db, app.ctx, [app.selectedDate, dayParam], openingDay.weekStartsOn) : null);
+	const weekResult = $derived(weekStart ? getWeekView(app.db, app.ctx, weekStart) : null);
 	const week = $derived(weekResult?.ok ? weekResult.value : null);
-	const selected = $derived(week ? pickSelectedDate(week, app.selectedDate ?? dayParam, openingDay?.date ?? null) : null);
+	const selected = $derived(
+		week ? pickSelectedDate(week, [app.selectedDate, dayParam].find((d) => week.days.some((day) => day.date === d)) ?? null, openingDay?.date ?? null) : null
+	);
 
 	function scrollToDate(date: string, behavior: ScrollBehavior) {
 		track?.querySelector(`#day-${date}`)?.scrollIntoView({ behavior, inline: 'start', block: 'nearest' });

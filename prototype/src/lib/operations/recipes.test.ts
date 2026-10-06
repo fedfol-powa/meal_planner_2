@@ -59,6 +59,12 @@ describe('getRecipeDetail', () => {
 		expect(detail.value.ingredients[0].quantity).toEqual({ kind: 'amount', value: 150, unit: 'g' });
 		expect(detail.value.history.every((h) => h.date <= '2026-10-06')).toBe(true);
 	});
+	it('does not list a meal of today that has not happened yet', () => {
+		const detail = getRecipeDetail(db, ctx(), 'riso-ceci-spinaci-mandorle');
+		expect(detail.ok && detail.value.history.some((h) => h.date === '2026-10-06')).toBe(false);
+		const later = getRecipeDetail(db, ctx({ now: '2026-10-06T23:00' }), 'riso-ceci-spinaci-mandorle');
+		expect(later.ok && later.value.history.some((h) => h.date === '2026-10-06')).toBe(true);
+	});
 	it('defaults to base servings and refuses drafts', () => {
 		const detail = getRecipeDetail(db, ctx(), 'wok-pollo-peperoni-riso-basmati');
 		expect(detail.ok && detail.value.servings).toBe(6);

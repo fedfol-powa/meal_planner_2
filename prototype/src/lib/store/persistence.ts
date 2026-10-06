@@ -14,16 +14,17 @@ export interface PrototypeSettings {
 }
 
 export interface Persisted {
-	version: 1;
+	version: 2;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
-export const STORAGE_KEY = 'app-famiglia-prototype-v1';
+// Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
+export const STORAGE_KEY = 'app-famiglia-prototype-v2';
 
 export function createInitial(): Persisted {
 	return {
-		version: 1,
+		version: 2,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -38,7 +39,16 @@ export function createInitial(): Persisted {
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	return !!v && v.version === 1 && Array.isArray(v.db?.users) && Array.isArray(v.db?.weeks) && typeof v.settings?.userId === 'string';
+	if (!v || v.version !== 2 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	const s = v.settings;
+	return (
+		!!s &&
+		v.db.users.some((u) => u.id === s.userId) &&
+		v.db.families.some((f) => f.id === s.familyId && f.members.some((m) => m.userId === s.userId)) &&
+		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
+		['row', 'inline', 'panel'].includes(s.ratingVariant) &&
+		['standard', 'new_family', 'empty_today'].includes(s.scenario)
+	);
 }
 
 export function loadPersisted(storage: Pick<Storage, 'getItem'> | null): Persisted {
