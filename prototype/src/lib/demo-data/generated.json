@@ -3601,13 +3601,12 @@
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
-						"kind": "text"
+						"kind": "amount",
+						"value": 15,
+						"unit": "tbsp"
 					},
 					"sourceText": "15 cucchiai (per rosolare le melanzane)",
-					"text": {
-						"it-IT": "15 cucchiai (per rosolare le melanzane)",
-						"en-GB": "15 tbsp (to brown the aubergines)"
-					},
+					"text": null,
 					"isOptional": false
 				},
 				{
@@ -7700,13 +7699,12 @@
 				{
 					"ingredientId": "cipolla-a-dadini",
 					"quantity": {
-						"kind": "text"
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "us_cup"
 					},
 					"sourceText": "1/2 cup (circa 1/2 cipolla media)",
-					"text": {
-						"it-IT": "1/2 cup (circa 1/2 cipolla media)",
-						"en-GB": "1/2 US cup (about 1/2 medium onion)"
-					},
+					"text": null,
 					"isOptional": false
 				},
 				{
@@ -7734,49 +7732,45 @@
 				{
 					"ingredientId": "salsa-messicana-pronta",
 					"quantity": {
-						"kind": "text"
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "us_cup"
 					},
 					"sourceText": "1/2 cup",
-					"text": {
-						"it-IT": "1/2 cup",
-						"en-GB": "1/2 US cup"
-					},
+					"text": null,
 					"isOptional": false
 				},
 				{
 					"ingredientId": "yogurt-greco-o-panna-acida",
 					"quantity": {
-						"kind": "text"
+						"kind": "amount",
+						"value": 0.25,
+						"unit": "us_cup"
 					},
 					"sourceText": "1/4 cup",
-					"text": {
-						"it-IT": "1/4 cup",
-						"en-GB": "1/4 US cup"
-					},
+					"text": null,
 					"isOptional": false
 				},
 				{
 					"ingredientId": "lattuga-tagliata-o-spezzettata",
 					"quantity": {
-						"kind": "text"
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "us_cup"
 					},
 					"sourceText": "1/2 cup",
-					"text": {
-						"it-IT": "1/2 cup",
-						"en-GB": "1/2 US cup"
-					},
+					"text": null,
 					"isOptional": false
 				},
 				{
 					"ingredientId": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
 					"quantity": {
-						"kind": "text"
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "us_cup"
 					},
 					"sourceText": "1/2 cup",
-					"text": {
-						"it-IT": "1/2 cup",
-						"en-GB": "1/2 US cup"
-					},
+					"text": null,
 					"isOptional": false
 				},
 				{

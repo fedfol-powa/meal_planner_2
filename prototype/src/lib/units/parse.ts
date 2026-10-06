@@ -7,6 +7,8 @@ const UNIT_WORDS: Record<string, UnitCode> = {
 	ml: 'ml',
 	l: 'l',
 	oz: 'oz',
+	cup: 'us_cup',
+	cups: 'us_cup',
 	cucchiaio: 'tbsp',
 	cucchiai: 'tbsp',
 	cucchiaino: 'tsp',
@@ -31,7 +33,8 @@ function parseNumber(token: string): number | null {
 }
 
 export function parseQuantity(raw: string): Quantity {
-	const text = raw.trim().toLowerCase();
+	// A trailing note in brackets ("1/2 cup (circa 1/2 cipolla media)") stays in the source text only.
+	const text = raw.trim().toLowerCase().replace(/\s*\([^)]*\)$/, '');
 	if (TO_TASTE.has(text)) return { kind: 'to_taste' };
 	const parts = text.split(/\s+/);
 	const value = parseNumber(parts[0]);

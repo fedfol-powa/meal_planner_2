@@ -6,13 +6,13 @@ import { presentAmount, roundForDisplay, type PresentedUnit } from './present';
 const UNIT_LABELS: Record<Locale, Record<PresentedUnit, [string, string]>> = {
 	'it-IT': {
 		g: ['g', 'g'], kg: ['kg', 'kg'], ml: ['ml', 'ml'], l: ['l', 'l'], oz: ['oz', 'oz'],
-		lb: ['lb', 'lb'], fl_oz: ['fl oz', 'fl oz'], pint: ['pinta', 'pinte'], piece: ['', ''],
+		us_cup: ['tazza USA', 'tazze USA'], lb: ['lb', 'lb'], fl_oz: ['fl oz', 'fl oz'], pint: ['pinta', 'pinte'], piece: ['', ''],
 		clove: ['spicchio', 'spicchi'], tbsp: ['cucchiaio', 'cucchiai'],
 		tsp: ['cucchiaino', 'cucchiaini'], slice: ['fetta', 'fette'], pinch: ['pizzico', 'pizzichi']
 	},
 	'en-GB': {
 		g: ['g', 'g'], kg: ['kg', 'kg'], ml: ['ml', 'ml'], l: ['l', 'l'], oz: ['oz', 'oz'],
-		lb: ['lb', 'lb'], fl_oz: ['fl oz', 'fl oz'], pint: ['pint', 'pints'], piece: ['', ''],
+		us_cup: ['US cup', 'US cups'], lb: ['lb', 'lb'], fl_oz: ['fl oz', 'fl oz'], pint: ['pint', 'pints'], piece: ['', ''],
 		clove: ['clove', 'cloves'], tbsp: ['tbsp', 'tbsp'], tsp: ['tsp', 'tsp'],
 		slice: ['slice', 'slices'], pinch: ['pinch', 'pinches']
 	}

@@ -52,4 +52,10 @@ describe('combine quantities', () => {
 		expect(exceeds(combine([amount(200, 'g')], [{ kind: 'to_taste' }]), before)).toBe(true);
 		expect(exceeds(before, before)).toBe(false);
 	});
+
+	it('converts US cups of American sources to millilitres', () => {
+		expect(formatCombined(combine([amount(0.5, 'us_cup')]), 'metric', 'it-IT')).toBe('120 ml');
+		expect(formatCombined(combine([amount(0.5, 'us_cup')], [amount(100, 'ml')]), 'metric', 'it-IT')).toBe('220 ml');
+		expect(formatCombined(combine([amount(0.5, 'us_cup')]), 'uk_imperial', 'en-GB')).toBe('4 fl oz');
+	});
 });

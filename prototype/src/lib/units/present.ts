@@ -5,6 +5,8 @@ const G_PER_OZ = 28.349523125;
 const OZ_PER_LB = 16;
 const ML_PER_UK_FL_OZ = 28.4130625;
 const UK_FL_OZ_PER_PINT = 20;
+// US customary cup (NIST: 8 US fl oz = 236.5882365 ml); provisional like the others.
+export const ML_PER_US_CUP = 236.5882365;
 
 export type PresentedUnit = UnitCode | 'lb' | 'fl_oz' | 'pint';
 export interface PresentedAmount {
@@ -13,6 +15,7 @@ export interface PresentedAmount {
 }
 
 export function presentAmount(value: number, unit: UnitCode, system: MeasurementSystem): PresentedAmount {
+	if (unit === 'us_cup') return presentAmount(value * ML_PER_US_CUP, 'ml', system);
 	if (system === 'metric') {
 		if (unit === 'oz') return { value: value * G_PER_OZ, unit: 'g' };
 		// Below one kilo or litre the gram/millilitre rounding of spec section 6 applies.
@@ -78,6 +81,7 @@ export function roundForDisplay({ value, unit }: PresentedAmount): PresentedAmou
 			break;
 		case 'lb':
 		case 'pint':
+		case 'us_cup': // never presented: converted to ml first
 			rounded = Math.max(0.25, roundTo(value, 0.25));
 			break;
 	}

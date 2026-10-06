@@ -543,3 +543,13 @@ del giro, "Seconda revisione".
    vanno archiviate anche loro a fine periodo, come le settimanali?
 2. Due liste settimanali aperte da mercoledì a domenica: l'ordine e l'etichetta bastano?
 3. Il conteggio dei pasti della settimanale include quelli già passati: va bene?
+
+### Tazze americane (6 ottobre 2026, decisione dell'utente nella prova)
+
+Le dosi in "cup" delle fonti americane (oggi solo il wrap di fagioli neri) si
+riconoscono come tazza USA, volume di 236,6 ml (fattore NIST, provvisorio come gli
+altri della voce "Misure"): si mostrano e si sommano in ml (½ cup → 120 ml; 4 fl oz
+in imperiale). Una nota finale tra parentesi nella quantità ("circa ½ cipolla media")
+resta solo nel testo della fonte; per lo stesso motivo "15 cucchiai (per rosolare le
+melanzane)" ora è una quantità in cucchiai. Da portare nella specifica, sezione 6, alla
+chiusura del giro.

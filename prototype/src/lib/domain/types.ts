@@ -17,7 +17,8 @@ export type LocalDateTime = string;
 /** Italian is always present; English may be missing only on draft recipes. */
 export type Translated = { 'it-IT': string; 'en-GB': string | null };
 
-export type UnitCode = 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'piece' | 'clove' | 'tbsp' | 'tsp' | 'slice' | 'pinch';
+/** us_cup: the US cup of American sources, a volume (236.6 ml), never confused with UK measures. */
+export type UnitCode = 'g' | 'kg' | 'ml' | 'l' | 'oz' | 'us_cup' | 'piece' | 'clove' | 'tbsp' | 'tsp' | 'slice' | 'pinch';
 
 export type Quantity =
 	| { kind: 'amount'; value: number; unit: UnitCode }

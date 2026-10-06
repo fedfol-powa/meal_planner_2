@@ -10,6 +10,8 @@ describe('parseQuantity', () => {
 		['1/2', { kind: 'amount', value: 0.5, unit: 'piece' }],
 		['2', { kind: 'amount', value: 2, unit: 'piece' }],
 		['3 cucchiai circa', { kind: 'amount', value: 3, unit: 'tbsp' }],
+		['1/2 cup', { kind: 'amount', value: 0.5, unit: 'us_cup' }],
+		['1/2 cup (circa 1/2 cipolla media)', { kind: 'amount', value: 0.5, unit: 'us_cup' }],
 		['1 spicchio', { kind: 'amount', value: 1, unit: 'clove' }],
 		['6 fette', { kind: 'amount', value: 6, unit: 'slice' }],
 		['500 ml', { kind: 'amount', value: 500, unit: 'ml' }],
@@ -19,7 +21,7 @@ describe('parseQuantity', () => {
 		['circa 213 g', { kind: 'text' }],
 		['1/2-1 cucchiaino', { kind: 'text' }],
 		['1 g crudo (330 g cotto)', { kind: 'text' }],
-		['1/4 cup', { kind: 'text' }]
+		['1/4 cup', { kind: 'amount', value: 0.25, unit: 'us_cup' }]
 	])('parses %s', (raw, expected) => {
 		expect(parseQuantity(raw)).toEqual(expected);
 	});

@@ -1,6 +1,7 @@
 import type { CombinedQuantity, Locale, MeasurementSystem, Quantity, UnitCode } from '#lib/domain/types.ts';
 import { translate } from '#lib/i18n/translate.ts';
 import { formatQuantity } from './format';
+import { ML_PER_US_CUP } from './present';
 
 // Provisional factor, same as present.ts (spec section 15, "Misure").
 const G_PER_OZ = 28.349523125;
@@ -13,6 +14,7 @@ function common(value: number, unit: UnitCode): { value: number; unit: UnitCode 
 	if (unit === 'kg') return { value: value * 1000, unit: 'g' };
 	if (unit === 'oz') return { value: value * G_PER_OZ, unit: 'g' };
 	if (unit === 'l') return { value: value * 1000, unit: 'ml' };
+	if (unit === 'us_cup') return { value: value * ML_PER_US_CUP, unit: 'ml' };
 	return { value, unit };
 }
 
