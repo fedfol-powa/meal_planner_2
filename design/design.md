@@ -159,11 +159,14 @@ espongono. La provenienza dei file è nell’
 ## Schede dei pasti e immagini
 
 Le schede sono bianche, senza arrotondamento, con la sola ombra leggera dichiarata
-nei token. Le fotografie occupano la larghezza della scheda, in proporzione 16:9,
-con `object-fit: cover`. L’etichetta Pranzo/Cena compare sopra la foto con fondo
+nei token. Le fotografie occupano la larghezza della scheda con `object-fit: cover`:
+nelle schede del menu, dal 6 ottobre 2026, in un banner basso in proporzione 3:1 per
+risparmiare spazio verticale; nella scheda ricetta resta la proporzione 16:9. L’etichetta Pranzo/Cena compare sopra la foto con fondo
 verde e testo bianco; nelle schede senza foto è nel contenuto, su fondo verde chiaro.
 
-Sotto la foto: titolo, descrizione, durata e porzioni, fonte. Dal 6 ottobre 2026 la
+Sotto la foto: titolo, descrizione e una riga con durata e porzioni a sinistra e la
+fonte a destra, tagliata a 22 caratteri con "…" (testo completo al passaggio del
+mouse e per i lettori di schermo). Dal 6 ottobre 2026 la
 scheda del menu termina con un footer a icone separato da linee da 1 px: scheda
 ricetta, voto con la media della famiglia (stella verde piena se hai votato),
 ingredienti con il loro numero e, solo per i pasti passati, "non cucinato". Voto e

@@ -193,8 +193,9 @@ e 17, rilievo R3) e in `design.md`:
   etichette (variante `row`, ora predefinita).
 - Scheda del pasto più compatta: footer a icone per scheda ricetta, voto, ingredienti e,
   sui pasti passati, "non cucinato" (risponde alla domanda 4).
-- Foto troppo alta (circa metà della scheda): in prova tre varianti dal pannello,
-  miniatura laterale (predefinita), banner basso 3:1 e grande 16:9 del riferimento.
+- Foto troppo alta (circa metà della scheda): provate miniatura laterale, banner 3:1 e
+  16:9; scelto il **banner basso 3:1**.
+- Fonte spostata sulla riga di durata e porzioni, a destra, troncata a 22 caratteri.
 
 ### Rotte e componenti del giro
 

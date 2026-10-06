@@ -2,6 +2,7 @@
 	import type { MeasurementSystem } from '#lib/domain/types.ts';
 	import type { MealView } from '#lib/operations/views.ts';
 	import { formatAverage, formatChangeTime } from '#lib/i18n/dates.ts';
+	import { truncate } from '#lib/i18n/text.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 	import IngredientList from './IngredientList.svelte';
 	import RatingStars from './RatingStars.svelte';
@@ -20,7 +21,8 @@
 		if (recipe.sourceUrl) return new URL(recipe.sourceUrl).hostname.replace(/^www\./, '');
 		return app.t('source.home');
 	});
-	const layout = $derived(recipe?.photo ? app.settings.photoLayout : null);
+	// Source shares the timing row: fixed length, full text on hover and for screen readers.
+	const SOURCE_MAX_CHARS = 22;
 	const averageText = $derived(meal.rating?.familyAverage != null ? formatAverage(app.locale, meal.rating.familyAverage) : '–');
 
 	function toggle(section: 'rating' | 'ingredients') {
@@ -28,12 +30,12 @@
 	}
 </script>
 
-<article class="meal layout-{layout ?? 'none'}" class:meal-free={meal.kind !== 'recipe'} class:is-past={meal.isPast} aria-labelledby={headingId}>
+<article class="meal" class:meal-free={meal.kind !== 'recipe'} class:is-past={meal.isPast} aria-labelledby={headingId}>
 	{#snippet label()}<span class="meal-label">{app.t(`meal.${meal.mealType}` as const)}</span>{/snippet}
 
-	{#if recipe?.photo && layout !== 'thumbnail'}
+	{#if recipe?.photo}
 		<div class="meal-media"><img class="meal-photo" src={recipe.photo} alt="" loading="lazy" decoding="async" />{@render label()}</div>
-	{:else if layout !== 'thumbnail'}
+	{:else}
 		<div class="meal-heading">{@render label()}</div>
 	{/if}
 
@@ -47,35 +49,19 @@
 			<h3 id={headingId}>{app.t('meal.empty.title')}</h3>
 			<p class="description">{app.t('meal.empty.body')}</p>
 		{:else if recipe}
-			{#snippet title()}
-				<h3 id={headingId}>
-					{#if recipe.sourceUrl}
-						<a class="recipe-link" href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
-					{:else}{recipe.name}{/if}
-				</h3>
-			{/snippet}
-			{#snippet meta()}
+			<h3 id={headingId}>
+				{#if recipe.sourceUrl}
+					<a class="recipe-link" href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
+				{:else}{recipe.name}{/if}
+			</h3>
+			{#if recipe.translationMissing}<p class="meta-line">({app.t('meal.translationMissing')})</p>{/if}
+			<p class="description">{recipe.description}</p>
+			<div class="meta-row">
 				<p class="meal-meta">
 					{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{' · '}{/if}{app.t('meal.servings', { count: meal.servings })}
 				</p>
-			{/snippet}
-			{#if layout === 'thumbnail' && recipe.photo}
-				<!-- Thumbnail layout: square photo beside label, title and timing (like the reference recipe rows). -->
-				<div class="thumb-row">
-					<img class="thumb" src={recipe.photo} alt="" loading="lazy" decoding="async" />
-					<div class="thumb-text">
-						{@render label()}
-						{@render title()}
-						{@render meta()}
-					</div>
-				</div>
-			{:else}
-				{@render title()}
-			{/if}
-			{#if recipe.translationMissing}<p class="meta-line">({app.t('meal.translationMissing')})</p>{/if}
-			<p class="description">{recipe.description}</p>
-			{#if layout !== 'thumbnail'}{@render meta()}{/if}
-			{#if sourceLine}<p class="meal-source">{sourceLine}</p>{/if}
+				{#if sourceLine}<p class="meal-source" title={sourceLine}><span aria-hidden="true">{truncate(sourceLine, SOURCE_MAX_CHARS)}</span><span class="visually-hidden">{sourceLine}</span></p>{/if}
+			</div>
 		{/if}
 
 		{#if meal.lastChange}
@@ -122,20 +108,14 @@
 
 <style>
 	.status-row { margin: 0 0 12px; }
-	.layout-banner .meal-media { aspect-ratio: 3 / 1; }
-	.thumb-row { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 14px; align-items: start; margin-bottom: 12px; }
-	.thumb { display: block; width: 96px; height: 96px; object-fit: cover; }
-	.thumb-text :global(.meal-label) { margin-bottom: 6px; }
-	.thumb-text h3 { margin-bottom: 6px; font-size: 1.125rem; }
-	.thumb-text .meal-meta { margin: 0; }
-	.layout-thumbnail .description { margin-bottom: 12px; }
-	@media (min-width: 768px) {
-		.thumb-row { grid-template-columns: 120px minmax(0, 1fr); }
-		.thumb { width: 120px; height: 120px; }
-	}
+	/* Low banner (3:1), chosen in the round 1 review instead of the reference 16:9. */
+	.meal-media { aspect-ratio: 3 / 1; }
+	.meta-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+	.meta-row .meal-meta { flex: none; margin: 0; }
+	/* Fixed-length cut first; on very narrow screens CSS ellipsis keeps it inside the card. */
+	.meta-row .meal-source { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 	.is-past .meal-photo { filter: grayscale(0.4); opacity: 0.85; }
 	.meal-content { padding-bottom: 14px; }
-	.meal-content :global(.meal-source) { margin-bottom: 0; }
 	.meal-footer { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border-top: 1px solid var(--rule); }
 	.footer-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 8px; border: 0; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); text-decoration: none; cursor: pointer; }
 	.footer-action + .footer-action { border-left: 1px solid var(--rule); }

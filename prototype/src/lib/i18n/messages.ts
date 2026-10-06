@@ -119,10 +119,6 @@ const it = {
 	'dev.ratingVariant.row': 'Media e stelle in riga',
 	'dev.ratingVariant.inline': 'Stelle dirette',
 	'dev.ratingVariant.panel': 'Riepilogo e pannello',
-	'dev.photoLayout': 'Foto nelle schede del menu',
-	'dev.photoLayout.thumbnail': 'Miniatura laterale',
-	'dev.photoLayout.banner': 'Banner basso 3:1',
-	'dev.photoLayout.wide': 'Grande 16:9 (riferimento)',
 	'dev.reset': 'Azzera i dati demo',
 	'dev.demoData': 'Dati dimostrativi: testi inglesi e alcune classificazioni sono di prova.'
 } as const;
@@ -250,10 +246,6 @@ const en: Record<MessageKey, string> = {
 	'dev.ratingVariant.row': 'Average and stars in one row',
 	'dev.ratingVariant.inline': 'Direct stars',
 	'dev.ratingVariant.panel': 'Summary and panel',
-	'dev.photoLayout': 'Photos in menu cards',
-	'dev.photoLayout.thumbnail': 'Side thumbnail',
-	'dev.photoLayout.banner': 'Low 3:1 banner',
-	'dev.photoLayout.wide': 'Large 16:9 (reference)',
 	'dev.reset': 'Reset demo data',
 	'dev.demoData': 'Demo data: English texts and some classifications are placeholders for testing.'
 };

@@ -1179,8 +1179,8 @@ amministrazione, istruzioni MCP), con etichetta da confermare nella review del p
 giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
 decide nel percorso Spesa. Sopra il selettore dei giorni una barra con il mese e le
 icone di azione (calendario, in seguito spesa); la scheda del pasto ha un footer a icone
-per scheda ricetta, voto, ingredienti e, sui pasti passati, "non cucinato" (dettagli
-in `design/design.md`).
+per scheda ricetta, voto, ingredienti e, sui pasti passati, "non cucinato"; foto in
+banner basso 3:1 e fonte sulla riga del tempo, troncata (dettagli in `design/design.md`).
 La navbar mostra icone ed etichette,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative
