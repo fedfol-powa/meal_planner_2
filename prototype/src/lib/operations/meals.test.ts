@@ -1,0 +1,107 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { createInitial } from '#lib/store/persistence.ts';
+import type { DemoDatabase } from '#lib/domain/types.ts';
+import type { OperationContext } from './context';
+import { getOpeningTarget, getWeekView, pickSelectedDate, setMealCooked } from './meals';
+
+let db: DemoDatabase;
+const ctx = (over: Partial<OperationContext> = {}): OperationContext => ({
+	userId: 'user-federico', familyId: 'family-main', channel: 'web', now: '2026-10-06T12:00', offline: false, ...over
+});
+
+beforeEach(() => { db = createInitial().db; });
+
+describe('getOpeningTarget', () => {
+	it('opens on today when today has meals', () => {
+		expect(getOpeningTarget(db, ctx())).toEqual({ ok: true, value: { kind: 'day', date: '2026-10-06', weekStartsOn: '2026-10-05' } });
+	});
+	it('opens on the next day with meals when today has none', () => {
+		for (const w of db.weeks) w.slots = w.slots.filter((s) => s.date !== '2026-10-06');
+		expect(getOpeningTarget(db, ctx())).toMatchObject({ ok: true, value: { date: '2026-10-07' } });
+	});
+	it('reports no weeks for a family without weeks', () => {
+		expect(getOpeningTarget(db, ctx({ familyId: 'family-grandparents' }))).toEqual({ ok: true, value: { kind: 'no_weeks' } });
+	});
+	it('refuses a family the user does not belong to', () => {
+		expect(getOpeningTarget(db, ctx({ userId: 'user-tom', familyId: 'family-grandparents' }))).toEqual({ ok: false, error: 'forbidden' });
+	});
+});
+
+describe('getWeekView', () => {
+	it('builds seven days with status and neighbours, hiding the not yet generated draft', () => {
+		const view = getWeekView(db, ctx(), '2026-10-05');
+		if (!view.ok) throw new Error(view.error);
+		expect(view.value.status).toBe('in_progress');
+		expect(view.value.days).toHaveLength(7);
+		expect(view.value.previous).toBe('2026-09-28');
+		expect(view.value.next).toBeNull();
+	});
+	it('shows the draft after Wednesday 20:00', () => {
+		const view = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-05');
+		expect(view.ok && view.value.next).toBe('2026-10-12');
+		const draft = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-12');
+		expect(draft.ok && draft.value.status).toBe('draft');
+	});
+	it('marks past meals, free meals, empty slots and last changes', () => {
+		const view = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-05');
+		if (!view.ok) throw new Error(view.error);
+		const meals = view.value.days.flatMap((d) => d.meals);
+		expect(meals.find((m) => m.slotId === '2026-10-06-lunch')?.isPast).toBe(true);
+		expect(meals.find((m) => m.slotId === '2026-10-08-lunch')?.isPast).toBe(false);
+		expect(meals.some((m) => m.kind === 'free')).toBe(true);
+		expect(meals.find((m) => m.slotId === '2026-10-08-lunch')?.lastChange).toEqual({ userName: 'Anna', at: '2026-10-02T21:30' });
+		const draft = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-12');
+		expect(draft.ok && draft.value.days.flatMap((d) => d.meals).filter((m) => m.kind === 'empty')).toHaveLength(1);
+	});
+	it('scales ingredients to the slot servings and localises names', () => {
+		const view = getWeekView(db, ctx({ userId: 'user-tom' }), '2026-10-05');
+		if (!view.ok) throw new Error(view.error);
+		const meal = view.value.days[1].meals.find((m) => m.kind === 'recipe' && m.ingredients)!;
+		const recipe = db.recipes.find((r) => r.id === meal.recipe!.id)!;
+		const first = db.ingredients.find((i) => i.id === recipe.ingredients[0].ingredientId)!;
+		expect(meal.ingredients![0].name).toBe(first.name['en-GB']);
+		expect(meal.recipe!.name).toBe(recipe.name['en-GB']);
+		expect(meal.recipe!.translationMissing).toBe(false);
+		const line = recipe.ingredients[0].quantity;
+		if (line.kind === 'amount') {
+			expect(meal.ingredients![0].quantity).toEqual({ ...line, value: (line.value * meal.servings) / recipe.baseServings! });
+		}
+	});
+	it('shows former members as null names', () => {
+		db.families[0].members = db.families[0].members.filter((m) => m.userId !== 'user-anna');
+		const view = getWeekView(db, ctx(), '2026-10-05');
+		const meal = view.ok ? view.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-08-lunch') : null;
+		expect(meal?.lastChange?.userName).toBeNull();
+	});
+	it('closes the previous week automatically on Wednesday at 20:00 and treats unknown cooked as cooked', () => {
+		const view = getWeekView(db, ctx({ now: '2026-10-07T20:00' }), '2026-09-28');
+		if (!view.ok) throw new Error(view.error);
+		expect(view.value.status).toBe('closed');
+		expect(view.value.days.flatMap((d) => d.meals).filter((m) => m.kind === 'recipe').every((m) => m.cooked !== null)).toBe(true);
+	});
+});
+
+describe('setMealCooked', () => {
+	it('marks a past meal as not cooked in a week pending close and records the author', () => {
+		const result = setMealCooked(db, ctx(), '2026-10-02-dinner', false);
+		expect(result.ok && result.value.cooked).toBe(false);
+		const slot = db.weeks.flatMap((w) => w.slots).find((s) => s.id === '2026-10-02-dinner')!;
+		expect(slot).toMatchObject({ cooked: false, updatedBy: 'user-federico', updatedAt: '2026-10-06T12:00' });
+	});
+	it('refuses future meals, closed weeks and offline use', () => {
+		expect(setMealCooked(db, ctx(), '2026-10-09-dinner', false)).toEqual({ ok: false, error: 'not_allowed' });
+		expect(setMealCooked(db, ctx(), '2026-09-22-dinner', false)).toEqual({ ok: false, error: 'not_allowed' });
+		expect(setMealCooked(db, ctx({ offline: true }), '2026-10-02-dinner', false)).toEqual({ ok: false, error: 'offline' });
+	});
+});
+
+describe('pickSelectedDate', () => {
+	it('keeps the preferred day only if it belongs to the week, else the opening day, else Monday', () => {
+		const view = getWeekView(db, ctx(), '2026-10-05');
+		if (!view.ok) throw new Error(view.error);
+		expect(pickSelectedDate(view.value, '2026-10-09', '2026-10-06')).toBe('2026-10-09');
+		expect(pickSelectedDate(view.value, '2026-09-30', '2026-10-06')).toBe('2026-10-06');
+		expect(pickSelectedDate(view.value, '2026-09-30', '2026-09-30')).toBe('2026-10-05');
+		expect(pickSelectedDate(view.value, null, null)).toBe('2026-10-05');
+	});
+});
