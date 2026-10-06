@@ -7,7 +7,7 @@ const storageWith = (value: string | null) => ({ getItem: (key: string) => (key 
 describe('seed', () => {
 	it('starts as Federico in the main family on 6 October at noon', () => {
 		const initial = createInitial();
-		expect(initial.settings).toMatchObject({ userId: 'user-federico', familyId: 'family-main', now: '2026-10-06T12:00', offline: false, ratingVariant: 'inline', scenario: 'standard' });
+		expect(initial.settings).toMatchObject({ userId: 'user-federico', familyId: 'family-main', now: '2026-10-06T12:00', offline: false, ratingVariant: 'row', scenario: 'standard' });
 		expect(initial.db.users.map((u) => u.id)).toEqual(['user-federico', 'user-anna', 'user-tom', 'user-lucia']);
 	});
 	it('records the Monday dinner change by Federico and a change by Anna', () => {

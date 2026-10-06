@@ -57,7 +57,7 @@
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
 	<fieldset>
 		<legend>{app.t('dev.ratingVariant')}</legend>
-		{#each ['inline', 'panel'] as const as variant (variant)}
+		{#each ['row', 'inline', 'panel'] as const as variant (variant)}
 			<label class="check"><input type="radio" name="rating-variant" value={variant} checked={app.settings.ratingVariant === variant} onchange={() => app.update((s) => (s.settings.ratingVariant = variant as RatingVariant))} />{app.t(`dev.ratingVariant.${variant}` as const)}</label>
 		{/each}
 	</fieldset>

@@ -41,7 +41,30 @@
 {/snippet}
 
 <div class="rating">
-	{#if variant === 'inline'}
+	{#if variant === 'row'}
+		<div class="row-variant">
+			<p class="average" aria-label={summary.familyAverage === null ? app.t('rating.none') : app.t('rating.averageLabel', { value: formatAverage(app.locale, summary.familyAverage), votes: summary.familyCount === 1 ? app.t('rating.oneVote') : app.t('rating.votes', { count: summary.familyCount }) })}>
+				{#if summary.familyAverage === null}
+					<span class="value muted" aria-hidden="true">–</span>
+				{:else}
+					<span class="value" aria-hidden="true">{formatAverage(app.locale, summary.familyAverage)}</span>
+					<span class="count" aria-hidden="true">({summary.familyCount})</span>
+				{/if}
+			</p>
+			<!-- Tapping the chosen star again removes the rating, so no separate link is needed. -->
+			<fieldset class="stars large" disabled={app.settings.offline}>
+				<legend class="visually-hidden">{app.t('rating.mine')}</legend>
+				{#each [1, 2, 3, 4, 5] as value (value)}
+					<label class="star" class:filled={summary.myStars !== null && value <= summary.myStars}>
+						<input class="visually-hidden" type="radio" name={groupName} {value} checked={summary.myStars === value} onclick={() => rate(summary.myStars === value ? null : value)} />
+						<svg class="icon" aria-hidden="true"><use href="#icon-star" /></svg>
+						<span class="visually-hidden">{summary.myStars === value ? app.t('rating.removeStars', { stars: value }) : app.t('rating.give', { stars: value, recipe: recipeName })}</span>
+					</label>
+				{/each}
+			</fieldset>
+		</div>
+		{#if error}<p class="meta-line" role="alert">{app.t('error.offline')}</p>{/if}
+	{:else if variant === 'inline'}
 		<p class="family"><span>{app.t('rating.family')}</span> <strong>{familyText}</strong></p>
 		<div class="mine">
 			<span>{summary.myStars === null ? app.t('rating.notRated') : app.t('rating.mine')}</span>
@@ -81,5 +104,12 @@
 	.summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; width: 100%; min-height: 44px; padding: 8px 0; border: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); background: none; color: var(--ink); font: 700 0.875rem/1.5 var(--text-font); text-align: left; cursor: pointer; }
 	.summary .icon { margin-left: auto; width: 16px; height: 16px; }
 	.summary[aria-expanded='true'] .icon { transform: rotate(90deg); }
+	.row-variant { display: flex; align-items: center; gap: 12px; }
+	.average { display: flex; align-items: baseline; gap: 4px; margin: 0; min-width: 3.5ch; }
+	.value { font: 700 1.5rem/1 var(--text-font); color: var(--ink); }
+	.value.muted { color: var(--muted); }
+	.count { color: var(--muted); font-size: 0.8125rem; }
+	.row-variant .stars.large .star { width: 40px; height: 44px; }
+	.row-variant .stars.large .icon { width: 26px; height: 26px; }
 	.panel { margin-top: 8px; padding: 16px; background: var(--soft-green); border-radius: 8px; }
 </style>

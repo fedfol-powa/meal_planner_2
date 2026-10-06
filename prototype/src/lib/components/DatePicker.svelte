@@ -92,8 +92,9 @@
 
 <style>
 	.date-picker { position: relative; flex: none; }
-	.toggle { display: grid; place-items: center; width: 48px; height: 100%; min-height: 58px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); cursor: pointer; }
-	.toggle[aria-expanded='true'] { color: #fff; background: var(--ink); }
+	.toggle { display: grid; place-items: center; width: 44px; height: 100%; min-height: 58px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
+	.toggle .icon { width: 26px; height: 26px; }
+	.toggle[aria-expanded='true'] { color: var(--green); }
 	.panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 15; width: min(320px, calc(100vw - 32px)); padding: 16px; background: var(--paper); box-shadow: 0 4px 16px rgb(0 0 0 / 15%); border-radius: 8px; }
 	.month { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 	.month strong { text-transform: capitalize; }

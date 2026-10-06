@@ -2,7 +2,7 @@ import type { DemoDatabase, LocalDateTime } from '#lib/domain/types.ts';
 import { createSeedDatabase } from '#lib/demo-data/seed.ts';
 
 export type ScenarioId = 'standard' | 'new_family' | 'empty_today';
-export type RatingVariant = 'inline' | 'panel';
+export type RatingVariant = 'row' | 'inline' | 'panel';
 
 export interface PrototypeSettings {
 	userId: string;
@@ -30,7 +30,7 @@ export function createInitial(): Persisted {
 			familyId: 'family-main',
 			now: '2026-10-06T12:00',
 			offline: false,
-			ratingVariant: 'inline',
+			ratingVariant: 'row',
 			scenario: 'standard'
 		}
 	};
