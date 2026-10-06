@@ -92,7 +92,6 @@ export interface MealSlot {
 	freeText: string | null;
 	servings: number;
 	note: string | null;
-	cooked: boolean | null;
 	/** null means the app (planner) wrote it. */
 	updatedBy: string | null;
 	updatedAt: LocalDateTime | null;
@@ -121,7 +120,7 @@ export interface RecipeExclusion {
 }
 
 /** The editable part of a slot, as stored in the change log. */
-export type SlotContent = Pick<MealSlot, 'recipeId' | 'freeText' | 'servings' | 'note' | 'cooked'>;
+export type SlotContent = Pick<MealSlot, 'recipeId' | 'freeText' | 'servings' | 'note'>;
 
 /** Append-only log of slot writes (meal_changes); the interface shows only the last change. */
 export interface MealChange {

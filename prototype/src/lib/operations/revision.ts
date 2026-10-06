@@ -44,7 +44,7 @@ function edit(
 	return ok({ meal: mealView(db, family, ctx, localeOf(db, ctx), slot), changeIds: [row.id] });
 }
 
-const withRecipe = (slot: MealSlot, recipeId: string): SlotContent => ({ ...slotContent(slot), recipeId, freeText: null, cooked: null });
+const withRecipe = (slot: MealSlot, recipeId: string): SlotContent => ({ ...slotContent(slot), recipeId, freeText: null });
 
 export function replaceMealRecipe(db: DemoDatabase, ctx: OperationContext, slotId: string, recipeId: string): OpResult<RevisionResult> {
 	return edit(db, ctx, slotId, (slot, family) => (visibleRecipe(db, family, recipeId) ? withRecipe(slot, recipeId) : 'not_found'));
@@ -59,7 +59,7 @@ export function setMealServings(db: DemoDatabase, ctx: OperationContext, slotId:
 export function setMealFree(db: DemoDatabase, ctx: OperationContext, slotId: string, text: string): OpResult<RevisionResult> {
 	const freeText = text.trim();
 	return edit(db, ctx, slotId, (slot) =>
-		freeText.length >= 1 && freeText.length <= MAX_FREE_TEXT ? { ...slotContent(slot), recipeId: null, freeText, cooked: null } : 'invalid'
+		freeText.length >= 1 && freeText.length <= MAX_FREE_TEXT ? { ...slotContent(slot), recipeId: null, freeText } : 'invalid'
 	);
 }
 
@@ -68,7 +68,7 @@ export function setMealNote(db: DemoDatabase, ctx: OperationContext, slotId: str
 	return edit(db, ctx, slotId, (slot) => (text.length <= MAX_NOTE ? { ...slotContent(slot), note: text || null } : 'invalid'));
 }
 
-/** Swaps dish (or free text) and note within the same week; servings stay with the slot, "not cooked" is reset. */
+/** Swaps dish (or free text) and note within the same week; servings stay with the slot. */
 export function swapMeals(db: DemoDatabase, ctx: OperationContext, slotId: string, otherSlotId: string): OpResult<RevisionResult> {
 	const found = target(db, ctx, slotId);
 	if (!found.ok) return found;
@@ -77,8 +77,8 @@ export function swapMeals(db: DemoDatabase, ctx: OperationContext, slotId: strin
 	if (!other || other.id === slot.id) return fail('invalid');
 	const [a, b] = [slotContent(slot), slotContent(other)];
 	const rows = [
-		writeSlot(db, ctx, slot, { ...a, recipeId: b.recipeId, freeText: b.freeText, note: b.note, cooked: null }),
-		writeSlot(db, ctx, other, { ...b, recipeId: a.recipeId, freeText: a.freeText, note: a.note, cooked: null })
+		writeSlot(db, ctx, slot, { ...a, recipeId: b.recipeId, freeText: b.freeText, note: b.note }),
+		writeSlot(db, ctx, other, { ...b, recipeId: a.recipeId, freeText: a.freeText, note: a.note })
 	];
 	return ok({ meal: mealView(db, family, ctx, localeOf(db, ctx), slot), changeIds: rows.map((r) => r.id) });
 }

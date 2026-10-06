@@ -49,8 +49,6 @@ export interface MealView {
 	ingredients: ScaledIngredient[] | null;
 	note: string | null;
 	isPast: boolean;
-	cooked: boolean | null;
-	canMarkNotCooked: boolean;
 	canRate: boolean;
 	/** Published and visible, or a draft opened by a curator. */
 	canOpenRecipe: boolean;
@@ -87,8 +85,6 @@ export interface RecipeCardView {
 	/** Short notice shown as is, e.g. what a draft is missing. */
 	notice?: string;
 	isPast: boolean;
-	cooked: boolean | null;
-	canMarkNotCooked: boolean;
 	canRate: boolean;
 	rating: RatingSummary | null;
 	lastChange: { userName: string | null; at: LocalDateTime } | null;

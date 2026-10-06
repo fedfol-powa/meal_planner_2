@@ -65,7 +65,7 @@ export function rankCandidates(db: DemoDatabase, ctx: OperationContext, slot: Me
 			const average = ratingSummary(db, family, ctx.userId, r.id).familyAverage ?? UNRATED_AVERAGE;
 			const lastEaten = familyWeeks
 				.flatMap((w) => w.slots)
-				.filter((s) => s.recipeId === r.id && s.date < slot.date && s.cooked !== false && isMealPast(s.date, s.mealType, ctx.now))
+				.filter((s) => s.recipeId === r.id && s.date < slot.date && isMealPast(s.date, s.mealType, ctx.now))
 				.map((s) => s.date)
 				.sort()
 				.at(-1);

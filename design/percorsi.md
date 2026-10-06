@@ -339,8 +339,7 @@ successivi e alla fine ricomincia dai primi.
 - **Operazioni simulate:** `rankCandidates`, `getSuggestions` a pagine
   (`suggestions.ts`); `replaceMealRecipe`, `setMealServings`,
   `swapMeals`, `setMealFree`, `setMealNote`, `excludeRecipe`, `includeRecipe`,
-  `undoMealChanges`, `getFreeTextSuggestions` (`revision.ts`). Ogni scrittura, compreso
-  "non cucinato", passa da un registro delle modifiche (`mealChanges`, bozza di
+  `undoMealChanges`, `getFreeTextSuggestions` (`revision.ts`). Ogni scrittura passa da un registro delle modifiche (`mealChanges`, bozza di
   `meal_changes`).
 - **Pannello Prova:** "Un altro
   membro cambia un pasto del giorno" per vedere l'ultima modifica e il limite
@@ -350,7 +349,6 @@ successivi e alla fine ricomincia dai primi.
 
 - "Annulla" ripristina solo le proprie modifiche e solo se il pasto non è stato
   cambiato di nuovo; dopo uno scambio ripristina entrambi i pasti.
-- Cambiare piatto o scambiare azzera "non cucinato": riguardava il piatto di prima.
 - L'annullamento dell'esclusione compare dentro il foglio, sopra i suggerimenti,
   perché l'avviso in basso resterebbe dietro al foglio.
 - Nel pannello sotto la matita ci sono solo porzioni e voci di primo livello; cambio
@@ -389,6 +387,9 @@ successivi e alla fine ricomincia dai primi.
 - **Suggerimenti** in schede scorrevoli; "Segna come pasto libero", "Non proporre
   più" e "Scambia con un altro pasto" in cima a Cambia ricetta, prima dei
   suggerimenti; il pannello sotto la matita resta con Porzioni, Cambia ricetta e Nota.
+- **"Non cucinato" tolto** dopo la review: ogni pasto passato conta come mangiato e
+  un pasto sbagliato si corregge cambiandolo. Nei dati demo i tre pasti che
+  l'origine segnava come non cucinati ora contano come mangiati.
 - Corretti dalla prova su iPhone: contenuto del foglio visibile sopra il titolo
   durante lo scorrimento e anello di focus sulla × all'apertura.
 - Confermati i default (Annulla per 6 secondi, nota fino a 200 caratteri, proposte

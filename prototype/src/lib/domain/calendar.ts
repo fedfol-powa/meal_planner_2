@@ -22,7 +22,7 @@ export function weekDates(startsOn: IsoDate): IsoDate[] {
 	return Array.from({ length: 7 }, (_, i) => addDays(startsOn, i));
 }
 
-/** Confirmed 2026-10-06 (spec section 5), family local time. Decides "cooked" defaults only, never blocks edits. */
+/** Confirmed 2026-10-06 (spec section 5), family local time. Past meals count as eaten (history); never blocks edits. */
 export const MEAL_PAST_AT: Record<MealType, string> = { lunch: '15:30', dinner: '23:00' };
 
 export function isMealPast(date: IsoDate, mealType: MealType, now: LocalDateTime): boolean {

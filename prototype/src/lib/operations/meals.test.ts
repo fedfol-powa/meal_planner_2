@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createInitial } from '#lib/store/persistence.ts';
 import type { DemoDatabase } from '#lib/domain/types.ts';
 import type { OperationContext } from './context';
-import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart, setMealCooked } from './meals';
+import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart } from './meals';
 
 let db: DemoDatabase;
 const ctx = (over: Partial<OperationContext> = {}): OperationContext => ({
@@ -68,29 +68,6 @@ describe('getWeekView', () => {
 		const view = getWeekView(db, ctx(), '2026-10-05');
 		const meal = view.ok ? view.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-08-lunch') : null;
 		expect(meal?.lastChange?.userName).toBeNull();
-	});
-	it('treats past meals with unknown cooked as cooked, without any week closing', () => {
-		const view = getWeekView(db, ctx(), '2026-09-28');
-		if (!view.ok) throw new Error(view.error);
-		expect(view.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-02-dinner')?.cooked).toBe(true);
-		const future = getWeekView(db, ctx(), '2026-10-05');
-		expect(future.ok && future.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-09-dinner')?.cooked).toBeNull();
-	});
-
-});
-
-describe('setMealCooked', () => {
-	it('marks a past meal as not cooked in a week pending close and records the author', () => {
-		expect(setMealCooked(db, ctx(), '2026-10-02-dinner', false)).toMatchObject({ ok: true, value: { cooked: false } });
-		const slot = db.weeks.flatMap((w) => w.slots).find((s) => s.id === '2026-10-02-dinner')!;
-		expect(slot).toMatchObject({ cooked: false, updatedBy: 'user-federico', updatedAt: '2026-10-06T12:00' });
-	});
-	it('allows not cooked on past meals of any week, including September', () => {
-		expect(setMealCooked(db, ctx(), '2026-09-22-dinner', false)).toMatchObject({ ok: true, value: { cooked: false } });
-	});
-	it('refuses future meals and offline use', () => {
-		expect(setMealCooked(db, ctx(), '2026-10-09-dinner', false)).toEqual({ ok: false, error: 'not_allowed' });
-		expect(setMealCooked(db, ctx({ offline: true }), '2026-10-02-dinner', false)).toEqual({ ok: false, error: 'offline' });
 	});
 
 });

@@ -5,12 +5,11 @@ export const slotContent = (slot: MealSlot): SlotContent => ({
 	recipeId: slot.recipeId,
 	freeText: slot.freeText,
 	servings: slot.servings,
-	note: slot.note,
-	cooked: slot.cooked
+	note: slot.note
 });
 
 export const sameContent = (a: SlotContent, b: SlotContent) =>
-	a.recipeId === b.recipeId && a.freeText === b.freeText && a.servings === b.servings && a.note === b.note && a.cooked === b.cooked;
+	a.recipeId === b.recipeId && a.freeText === b.freeText && a.servings === b.servings && a.note === b.note;
 
 /** Applies a write to a slot: author, time and an append-only change row (spec section 5, traceability). */
 export function writeSlot(db: DemoDatabase, ctx: OperationContext, slot: MealSlot, after: SlotContent): MealChange {

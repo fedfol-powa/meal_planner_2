@@ -109,7 +109,7 @@ describe('recipe list for cards and sorting', () => {
 		expect(wok.lastEaten).toBe('2026-10-04');
 		expect(wok.addedOn).toBe('2026-09-07');
 	});
-	it('ignores meals not yet eaten and meals marked not cooked for last eaten', () => {
+	it('ignores meals not yet eaten for last eaten', () => {
 		expect(list().find((i) => i.recipe.id === 'riso-ceci-spinaci-mandorle')!.lastEaten).toBeNull();
 		expect(list({ now: '2026-10-06T23:00' }).find((i) => i.recipe.id === 'riso-ceci-spinaci-mandorle')!.lastEaten).toBe('2026-10-06');
 	});

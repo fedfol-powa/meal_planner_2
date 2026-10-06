@@ -2,7 +2,6 @@ import { isIsoDate, isMealPast, isWeekVisible, mondayOf, weekDates } from '#lib/
 import type { DemoDatabase, Family, IsoDate, Locale, MealSlot, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { familyFor, isCurator, localeOf, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
-import { slotContent, writeSlot } from './change-log';
 import type { DayView, MealView, OpeningTarget, WeekView } from './views';
 
 const MEAL_ORDER = { lunch: 0, dinner: 1 } as const;
@@ -34,8 +33,6 @@ export function mealView(db: DemoDatabase, family: Family, ctx: OperationContext
 	const recipe = slot.recipeId ? db.recipes.find((r) => r.id === slot.recipeId) ?? null : null;
 	const isPast = isMealPast(slot.date, slot.mealType, ctx.now);
 	const kind = recipe ? 'recipe' : slot.freeText ? 'free' : 'empty';
-	// No week closing (spec section 2): a past meal counts as cooked unless marked otherwise.
-	const cooked = kind === 'recipe' ? (slot.cooked ?? (isPast ? true : null)) : null;
 	const author = slot.updatedBy && family.members.some((m) => m.userId === slot.updatedBy)
 		? db.users.find((u) => u.id === slot.updatedBy)?.displayName ?? null
 		: null;
@@ -50,8 +47,6 @@ export function mealView(db: DemoDatabase, family: Family, ctx: OperationContext
 		ingredients: recipe ? scaledIngredients(db, recipe, slot.servings, locale) : null,
 		note: slot.note,
 		isPast,
-		cooked,
-		canMarkNotCooked: kind === 'recipe' && isPast,
 		canRate: recipe ? visibleRecipe(db, family, recipe.id) !== null : false,
 		canOpenRecipe: recipe ? visibleRecipe(db, family, recipe.id) !== null || (recipe.status === 'draft' && isCurator(db, ctx)) : false,
 		rating: recipe ? ratingSummary(db, family, ctx.userId, recipe.id) : null,
@@ -80,19 +75,6 @@ export function getWeekView(db: DemoDatabase, ctx: OperationContext, startsOn: I
 		days,
 		measurementSystem: family.measurementSystem
 	});
-}
-
-export function setMealCooked(db: DemoDatabase, ctx: OperationContext, slotId: string, cooked: false | null): OpResult<MealView> {
-	if (ctx.offline) return fail('offline');
-	const family = familyFor(db, ctx);
-	if (!family) return fail('forbidden');
-	const week = visibleWeeks(db, family, ctx).find((w) => w.slots.some((s) => s.id === slotId));
-	const slot = week?.slots.find((s) => s.id === slotId);
-	if (!week || !slot) return fail('not_found');
-	const view = mealView(db, family, ctx, localeOf(db, ctx), slot);
-	if (!view.canMarkNotCooked) return fail('not_allowed');
-	writeSlot(db, ctx, slot, { ...slotContent(slot), cooked });
-	return ok(mealView(db, family, ctx, localeOf(db, ctx), slot));
 }
 
 /** Days that have at least one meal, for the date picker (only these are selectable). */

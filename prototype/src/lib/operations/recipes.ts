@@ -27,12 +27,12 @@ export interface RecipeListItem {
 	lastEaten: IsoDate | null;
 }
 
-/** Most recent past meal of the family with this recipe, excluding meals marked not cooked. */
+/** Most recent past meal of the family with this recipe, (every past meal counts as eaten). */
 function lastEatenOf(db: DemoDatabase, familyId: string, ctx: OperationContext, recipeId: string): IsoDate | null {
 	const dates = db.weeks
 		.filter((w) => w.familyId === familyId && isWeekVisible(w, ctx.now))
 		.flatMap((w) => w.slots)
-		.filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, ctx.now) && s.cooked !== false)
+		.filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, ctx.now))
 		.map((s) => s.date)
 		.sort();
 	return dates.at(-1) ?? null;
@@ -136,7 +136,7 @@ export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeI
 	const history = db.weeks
 		.filter((w) => w.familyId === family.id && isWeekVisible(w, ctx.now))
 		.flatMap((w) => w.slots)
-		.filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, ctx.now) && s.cooked !== false)
+		.filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, ctx.now))
 		.map((s) => ({ date: s.date, mealType: s.mealType }))
 		.sort((a, b) => b.date.localeCompare(a.date))
 		.slice(0, 5);

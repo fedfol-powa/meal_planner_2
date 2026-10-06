@@ -156,8 +156,9 @@ cosa si è mangiato o rifare la spesa di un menu vecchio. Su qualsiasi pasto si 
 Ogni piatto mostra chi l'ha cambiato per ultimo e quando ("cambiato da Anna, venerdì
 21:30"), così si sa sempre a chi chiedere. Subito dopo una modifica la si può annullare.
 
-Un pasto passato conta come cucinato, a meno che qualcuno non lo segni come non
-cucinato; lo si può fare in qualsiasi momento. Il mercoledì successivo l'app prepara la
+Un pasto passato conta sempre come mangiato. Se in realtà si è mangiato altro, si
+corregge il pasto come qualsiasi altro: si cambia il piatto o lo si segna come libero.
+Il mercoledì successivo l'app prepara la
 settimana dopo e il ciclo ricomincia.
 
 ### Come sceglie i piatti
@@ -390,7 +391,7 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `recipe_exclusions` | `family_id`, `recipe_id`, `reason`, `created_by`, `created_at`: "non proporre più" |
 | `family_ingredients` | `family_id`, `ingredient_id`, `restriction` (`avoid`/`limit`), `weekly_max` |
 | `weeks` | `family_id`, `starts_on` (lunedì), `generated_at`. Unica per (`family_id`, `starts_on`) |
-| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `cooked` (`true`/`false`/null), `updated_by` (null = app), `updated_at` |
+| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `updated_by` (null = app), `updated_at` |
 | `meal_changes` | `meal_slot_id`, `actor_id`, `before` (jsonb), `after` (jsonb), `created_at`: registro append-only |
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
 | `weekly_jobs` | `family_id`, `target_week`, `status`, `attempts`, `error`, `updated_at` |
@@ -403,9 +404,10 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 **Nessuno stato della settimana, deciso il 6 ottobre 2026.** Le settimane non hanno
 fasi (bozza, in corso, da chiudere, chiusa) né chiusura: ogni settimana si consulta e si
-modifica allo stesso modo. `cooked` vale `false` solo quando un membro segna il pasto
-come non cucinato; per un pasto passato `null` equivale a cucinato, anche nello storico
-usato dal pianificatore. Una settimana generata è visibile da `generated_at`.
+modifica allo stesso modo. Ogni pasto passato con una ricetta conta come mangiato,
+anche nello storico usato dal pianificatore: non esiste "non cucinato" (tolto il
+6 ottobre 2026, dopo il secondo giro del prototipo); un pasto sbagliato si corregge
+cambiandolo. Una settimana generata è visibile da `generated_at`.
 
 **Impostazioni della famiglia** (`families.settings`, jsonb validato):
 
@@ -595,12 +597,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   liberi, il testo.
 
 - **Cosa è modificabile, deciso il 6 ottobre 2026:** tutto, in ogni settimana visibile,
-  passata, in corso o futura. Nessuna azione dipende dalla settimana. "Non cucinato" ha
-  senso solo per i pasti passati ed è disponibile in qualsiasi momento.
+  passata, in corso o futura. Nessuna azione dipende dalla settimana.
   - **Istante in cui un pasto diventa passato, confermato il 6 ottobre 2026:** il
     pranzo alle 15:30 e la cena alle 23:00, nell'ora locale della famiglia
-    (Europe/Rome nei dati demo). Serve solo a stabilire quando un pasto conta come
-    cucinato e quando si può segnare "non cucinato"; non blocca modifiche. Fuso orario
+    (Europe/Rome nei dati demo). Serve solo a stabilire da quando un pasto conta come
+    mangiato nello storico; non blocca modifiche. Fuso orario
     della famiglia ed eventuale personalizzazione degli orari da valutare nel percorso
     Famiglia e account.
 - **Navigazione fra i giorni:** sopra il selettore dei sette giorni il mese e un'icona
@@ -612,8 +613,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   altro slot della stessa settimana; nota; vota. Valgono per pasti passati, in corso e futuri e per slot
   liberi e vuoti.
   - **Scambio:** si spostano ricetta o testo libero e nota; le porzioni restano allo slot,
-    perché dipendono da chi c'è quel giorno. Scambiare o cambiare piatto azzera "non
-    cucinato".
+    perché dipendono da chi c'è quel giorno.
   - **Non proporre più:** aggiunge l'esclusione per la famiglia e apre subito la scelta
     del sostituto; i pasti già pianificati con quella ricetta non cambiano. L'elenco delle
     esclusioni si gestisce nel percorso Famiglia e account.
@@ -623,7 +623,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     sua volta una modifica registrata.
 - **Voto**: è sulla ricetta (`ratings`: utente × ricetta), non sullo slot. È sempre possibile,
   dallo slot di qualsiasi settimana o dalla scheda della ricetta nel catalogo, e non dipende
-  dallo stato della settimana. Votare non segna nessuno slot come cucinato.
+  dallo stato della settimana.
 - **Voto sempre visibile**: ogni volta che l'interfaccia mostra una ricetta (slot,
   suggerimenti, risultati di ricerca, scheda della ricetta) mostra anche le stelline
   con:
@@ -1041,6 +1041,10 @@ consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
   deve essere conservata anche se cambiano nome, lingua o identificatori nel nuovo
   catalogo. Una ricetta aggiunta nel vecchio repository può arrivare qui attraverso
   revisione e validazione, senza una sincronizzazione automatica che sovrascriva i dati.
+- Nello storico dell'origine alcuni pasti risultano non cucinati (`cucinata: false`).
+  Poiché l'app non ha più "non cucinato", l'import non deve registrarli come mangiati:
+  come rappresentarli (slot omesso, pasto libero o segnalazione nel report delle
+  ambiguità) si decide insieme ai rilievi di R4.
 - Quando spegnere il vecchio flusso lo decide l'utente, dopo M4.
 
 ### 12. Lingue e contenuti tradotti
@@ -1103,7 +1107,7 @@ implicite alla copertura delle operazioni.
 |---|---|
 | Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare |
 | Pasti e ricettario | Consultare oggi e settimane, cercare e leggere ricette, ingredienti e voti |
-| Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi o non cucinati, note ed esclusioni |
+| Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi, note ed esclusioni |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
 | Spesa | Selezionare pasti, generare e rivedere la lista temporanea, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
@@ -1216,7 +1220,8 @@ amministrazione, istruzioni MCP), con etichetta «Tu» / «You» confermata nell
 del primo giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
 decide nel percorso Spesa. Sopra il selettore dei giorni una barra con il mese e le
 icone di azione (calendario, in seguito spesa); la scheda del pasto ha un footer a icone
-per scheda ricetta, voto, ingredienti e, sui pasti passati, "non cucinato"; foto in
+per scheda ricetta, voto, ingredienti e modifica (dal secondo giro; "non cucinato" è
+stato tolto); foto in
 banner basso 3:1 e fonte sulla riga del tempo, troncata. Le schede del ricettario usano
 lo stesso componente; il ricettario ha ricerca, un'icona che apre filtri e
 ordinamento (nome, voto, aggiunte di recente, mangiate di recente), con una freccia
@@ -1308,6 +1313,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
+| 6 ottobre 2026, "non cucinato" tolto | Ogni pasto passato conta come mangiato; un pasto sbagliato si corregge cambiandone il piatto o segnandolo libero. Tolto il campo `cooked` di `meal_slots`; lo storico del pianificatore usa tutti i pasti passati con ricetta |
 | 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda (porzioni, cambia ricetta, nota), con pasto libero, esclusione e scambio dentro "Cambia ricetta" |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 

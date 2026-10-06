@@ -43,4 +43,7 @@ describe('generated demo data', () => {
 		const draft = weeks.find((w) => w.startsOn === '2026-10-12')!;
 		expect(draft.slots.filter((s) => !s.recipeId && !s.freeText)).toHaveLength(1);
 	});
+	it('has no "not cooked" flag on slots: every past meal counts as eaten', () => {
+		for (const week of data.weeks) for (const slot of week.slots) expect(slot).not.toHaveProperty('cooked');
+	});
 });

@@ -169,7 +169,8 @@ fonte a destra, tagliata a 22 caratteri con "…" (testo completo al passaggio d
 mouse e per i lettori di schermo). Dal 6 ottobre 2026 la
 scheda del menu termina con un footer a icone separato da linee da 1 px: scheda
 ricetta, voto con la media della famiglia (stella verde piena se hai votato),
-ingredienti con il loro numero e, solo per i pasti passati, "non cucinato". Voto e
+ingredienti con il loro numero e la matita della revisione ("non cucinato" è stato
+tolto il 6 ottobre 2026). Voto e
 ingredienti si aprono sotto il footer, uno alla volta; la sezione aperta o lo stato
 attivo usano verde su fondo verde chiaro. Il voto aperto mostra la media in grande e
 le cinque stelle sulla stessa riga, senza etichette; si toglie toccando di nuovo la

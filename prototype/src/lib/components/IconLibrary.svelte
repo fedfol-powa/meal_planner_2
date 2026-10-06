@@ -11,7 +11,6 @@
 	<symbol id="icon-tools" viewBox="0 0 24 24"><path d="M14 6a4 4 0 0 0 5 5l-9 9-3-3 9-9a4 4 0 0 1-2-2Z"/></symbol>
 	<symbol id="icon-recipe" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6ZM14 3v5h5M9 13h7M9 17h5"/></symbol>
 	<symbol id="icon-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
-	<symbol id="icon-not-cooked" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M4 4l16 16"/></symbol>
 	<symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
 	<symbol id="icon-sort" viewBox="0 0 24 24"><path d="M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4"/></symbol>
 	<symbol id="icon-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16Zm9-13 4 4"/></symbol>

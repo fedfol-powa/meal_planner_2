@@ -9,14 +9,12 @@
 	import MealEditor from '#lib/components/MealEditor.svelte';
 	import { setMealServings } from '#lib/operations/revision.ts';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
-	import type { MessageKey } from '#lib/i18n/messages.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
-	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart, setMealCooked } from '#lib/operations/meals.ts';
+	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart } from '#lib/operations/meals.ts';
 	import type { MealView, RecipeCardView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	let track: HTMLDivElement | undefined = $state();
-	let actionError = $state<MessageKey | null>(null);
 	let simulatedNotice = $state(false);
 	let pickerOpen = $state(false);
 	// Meal being revised and the sheet stage shown (round 2).
@@ -77,14 +75,6 @@
 		};
 	}
 
-	function toggleCooked(slotId: string) {
-		const meal = week?.days.flatMap((d) => d.meals).find((m) => m.slotId === slotId);
-		if (!meal) return;
-		const result = setMealCooked(app.db, app.ctx, meal.slotId, meal.cooked === false ? null : false);
-		actionError = result.ok ? null : (`error.${result.error === 'not_allowed' ? 'notAllowed' : result.error === 'not_found' ? 'notFound' : result.error}` as MessageKey);
-		if (result.ok) app.update(() => {});
-	}
-
 	const editingMeal = $derived(editing ? week?.days.flatMap((d) => d.meals).find((m) => m.slotId === editing?.slotId) ?? null : null);
 	const openEditor = (slotId: string, stage: EditorStage) => (editing = { slotId, stage });
 
@@ -119,7 +109,6 @@
 				</div>
 			</div>
 			<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
-			{#if actionError}<p class="meta-line" role="alert">{app.t(actionError)}</p>{/if}
 		</nav>
 		<!-- Scrollable region must be focusable for keyboard scrolling, as in the approved reference. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -131,7 +120,6 @@
 						<RecipeCard
 							card={toCard(meal)}
 							system={week.measurementSystem}
-							onToggleCooked={toggleCooked}
 							editPanel={actionsPanel}
 							onChooseRecipe={() => openEditor(meal.slotId, 'picker')}
 						/>

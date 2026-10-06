@@ -8,10 +8,9 @@
 	import IngredientList from './IngredientList.svelte';
 	import RatingStars from './RatingStars.svelte';
 
-	let { card: meal, system, onToggleCooked, editPanel, onChooseRecipe }: {
+	let { card: meal, system, editPanel, onChooseRecipe }: {
 		card: RecipeCardView;
 		system: MeasurementSystem;
-		onToggleCooked?: (key: string) => void;
 		/** Meal actions under the pencil (menu only), panel chosen in the round 2 review. */
 		editPanel?: Snippet;
 		/** Empty slot: straight to the recipe picker. */
@@ -49,7 +48,6 @@
 	{/if}
 
 	<div class="meal-content">
-		{#if meal.cooked === false}<p class="status-row"><span class="label-chip neutral">{app.t('meal.notCooked')}</span></p>{/if}
 
 		{#if meal.kind === 'free'}
 			<span class="free-mark">{app.t('meal.free')}</span>
@@ -98,11 +96,6 @@
 				<span aria-hidden="true">{meal.ingredients?.length ?? '–'}</span>
 			</button>
 			{/if}
-			{#if meal.canMarkNotCooked && onToggleCooked}
-				<button type="button" class="footer-action" aria-pressed={meal.cooked === false} disabled={app.settings.offline} aria-label={app.t('meal.markNotCooked')} onclick={() => onToggleCooked(meal.key)}>
-					<svg class="icon" aria-hidden="true"><use href="#icon-not-cooked" /></svg>
-				</button>
-			{/if}
 			{#if editPanel}
 				<button type="button" class="footer-action" aria-expanded={expanded === 'actions'} aria-label={app.t('meal.edit')} onclick={() => toggle('actions')}>
 					<svg class="icon" aria-hidden="true"><use href="#icon-edit" /></svg>
@@ -129,7 +122,6 @@
 </article>
 
 <style>
-	.status-row { margin: 0 0 12px; }
 	/* Low banner (3:1), chosen in the round 1 review instead of the reference 16:9. */
 	.meal-media { aspect-ratio: 3 / 1; }
 	.meta-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -143,7 +135,7 @@
 	.footer-action + .footer-action { border-left: 1px solid var(--rule); }
 	.footer-action .icon { width: 22px; height: 22px; }
 	.footer-action .icon.mine { fill: var(--green); stroke: var(--green); }
-	.footer-action[aria-expanded='true'], .footer-action[aria-pressed='true'] { color: var(--green); background: var(--soft-green); }
+	.footer-action[aria-expanded='true'] { color: var(--green); background: var(--soft-green); }
 	.footer-action:disabled { color: var(--muted); cursor: not-allowed; }
 	.footer-action:focus-visible { outline-offset: -3px; }
 	.footer-panel { padding: 16px 18px 18px; border-top: 1px solid var(--rule); }

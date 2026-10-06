@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createInitial } from '#lib/store/persistence.ts';
 import type { DemoDatabase } from '#lib/domain/types.ts';
 import type { OperationContext } from './context';
-import { setMealCooked } from './meals';
 import {
 	excludeRecipe,
 	includeRecipe,
@@ -39,14 +38,10 @@ describe('replaceMealRecipe', () => {
 		expect(result.changeIds).toEqual([db.mealChanges[0].id]);
 	});
 
-	it('turns a free or empty slot into a recipe and resets "not cooked"', () => {
+	it('turns a free or empty slot into a recipe', () => {
 		const free = slotOf('2026-10-10-dinner');
 		value(replaceMealRecipe(db, ctx(), free.id, 'frittata-forno-bietole-ricotta'));
 		expect(free).toMatchObject({ recipeId: 'frittata-forno-bietole-ricotta', freeText: null });
-		const past = slotOf('2026-10-05-dinner');
-		value(setMealCooked(db, ctx(), past.id, false));
-		value(replaceMealRecipe(db, ctx(), past.id, 'frittata-forno-bietole-ricotta'));
-		expect(past.cooked).toBeNull();
 	});
 
 	it('refuses recipes the family cannot see', () => {
@@ -164,13 +159,6 @@ describe('undoMealChanges', () => {
 	it('only undoes the user\'s own changes', () => {
 		const { changeIds } = value(replaceMealRecipe(db, ctx({ userId: 'user-anna' }), '2026-10-07-dinner', 'frittata-forno-bietole-ricotta'));
 		expect(undoMealChanges(db, ctx(), changeIds)).toEqual({ ok: false, error: 'not_allowed' });
-	});
-});
-
-describe('setMealCooked', () => {
-	it('goes through the change log', () => {
-		value(setMealCooked(db, ctx(), '2026-10-05-dinner', false));
-		expect(db.mealChanges.at(-1)).toMatchObject({ before: { cooked: null }, after: { cooked: false } });
 	});
 });
 

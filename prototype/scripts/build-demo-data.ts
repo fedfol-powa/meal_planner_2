@@ -121,8 +121,6 @@ if (Object.keys(missing.recipes).length || Object.keys(missing.ingredients).leng
 }
 
 const byId = new Map(recipes.map((r) => [r.id, r]));
-const cookedOf = (recipeId: string, startsOn: string, dayIndex: number, meal: 'pranzo' | 'cena') =>
-	originRecipes.find((r) => r.id === recipeId)?.storico.find((s) => s.settimana === startsOn && s.pasto === `${DAY_KEYS[dayIndex]}-${meal}`)?.cucinata ?? null;
 
 function weekFromMenu(startsOn: string): Week {
 	const menu = parse(readFileSync(resolve(origin, `menu/${startsOn}/menu.yaml`), 'utf8')) as OriginMenu;
@@ -140,7 +138,6 @@ function weekFromMenu(startsOn: string): Week {
 				freeText: s.libero ?? null,
 				servings: s.porzioni ?? 4,
 				note: null,
-				cooked: s.ricetta ? cookedOf(s.ricetta, startsOn, dayIndex, key) : null,
 				updatedBy: null,
 				updatedAt: null
 			});
@@ -161,7 +158,7 @@ function draftWeek(template: Week, recent: Week[]): Week {
 	const candidates = recipes.filter((r) => r.status === 'published').sort((a, b) => a.id.localeCompare(b.id));
 	const slots = template.slots.map((slot): MealSlot => {
 		const date = addDays(startsOn, (new Date(`${slot.date}T00:00:00Z`).getUTCDay() + 6) % 7);
-		const base = { ...slot, id: `${date}-${slot.mealType}`, date, cooked: null, updatedBy: null, updatedAt: null, note: null };
+		const base = { ...slot, id: `${date}-${slot.mealType}`, date, updatedBy: null, updatedAt: null, note: null };
 		if (slot.freeText) return base;
 		if (date === '2026-10-14' && slot.mealType === 'dinner') return { ...base, recipeId: null };
 		const pick = candidates.find((r) => !used.has(r.id) && (r.mealType === 'both' || r.mealType === slot.mealType));
