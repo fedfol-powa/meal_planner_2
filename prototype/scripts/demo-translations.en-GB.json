@@ -1,0 +1,457 @@
+{
+	"recipes": {
+		"wok-pollo-peperoni-riso-basmati": {
+			"name": "Chicken stir-fry with peppers, carrots and courgettes; basmati rice",
+			"description": "Cook the rice, stir-fry the chicken and vegetables in the wok, then combine and season."
+		},
+		"pasta-melanzane-pomodoro-ricotta": {
+			"name": "Classic pasta with fresh tomato, aubergine and ricotta",
+			"description": "Brown the aubergine, add the tomato and stir the pasta through with the ricotta."
+		},
+		"frittata-forno-bietole-ricotta": {
+			"name": "Baked frittata with chard and ricotta; tomato salad",
+			"description": "Mix eggs, chard and ricotta, bake in the oven and serve with the tomatoes."
+		},
+		"noodles-wok-uova-verdure": {
+			"name": "Wok noodles with egg, carrots, courgettes and peas",
+			"description": "Stir-fry the vegetables, add the eggs and noodles and season with soy sauce."
+		},
+		"merluzzo-pomodoro-olive-cous-cous": {
+			"name": "Cod fillets with tomato and olives; couscous and broccoli",
+			"description": "Cook the cod with tomato, spring onion and Taggiasca olives and serve with saffron couscous and almonds."
+		},
+		"wrap-frittata-hummus": {
+			"name": "Wraps with frittata, hummus, lettuce and carrots",
+			"description": "Blend chickpeas, tahini, lemon and garlic for a spicy hummus, then fill the flatbreads with vegetables and Emmental."
+		},
+		"gamberi-zucchine-skottle": {
+			"name": "Skottle prawns and courgettes with toasted bread and cherry tomatoes",
+			"description": "Brown the prawns and courgettes with garlic and shallot, deglaze with white wine and serve on toasted bread."
+		},
+		"uova-pomodoro-padella": {
+			"name": "Eggs in tomato sauce",
+			"description": "Soften the onion, cook the cherry tomatoes for 5 min, add the eggs and finish covered."
+		},
+		"polpette-melanzane-forno": {
+			"name": "Baked aubergine balls",
+			"description": "Brown the diced aubergine, mix with egg, breadcrumbs and caciocavallo, bake for 40 min."
+		},
+		"pappardelle-alfredo": {
+			"name": "Pappardelle Alfredo",
+			"description": "Melt the butter, add half the Parmesan and some pasta water, then stir in the rest of the Parmesan."
+		},
+		"pasta-pesto-genovese": {
+			"name": "Pasta with Genoese pesto",
+			"description": "Cook the pasta and dress it with a jar of ready-made Genoese pesto."
+		},
+		"hamburger-cavallo": {
+			"name": "Horse meat burgers",
+			"description": "Cook the horse meat burgers and serve them in buns."
+		},
+		"pasta-tonno": {
+			"name": "Tuna pasta",
+			"description": "Fry garlic and anchovies, add drained tuna and tomato, then finish with parsley and basil."
+		},
+		"spaghetti-pomodoro": {
+			"name": "Spaghetti with tomato sauce",
+			"description": "Fry the garlic, add the tomato and basil, then stir in Parmesan to taste."
+		},
+		"pasta-sugo-pesce": {
+			"name": "Pasta with fish sauce",
+			"description": "Fry garlic and anchovies, add the fish sauce and stir through the fresh pasta."
+		},
+		"penne-baffo": {
+			"name": "Penne al baffo",
+			"description": "Brown the ham, add crushed peeled tomatoes and cream, then stir the penne through with parsley."
+		},
+		"pasta-zucca-salsiccia-robiola": {
+			"name": "Pasta with squash, sausage and robiola",
+			"description": "Brown the sausage and onion, cook the squash for 10 min, stir through with robiola and pasta water."
+		},
+		"orecchiette-broccoli": {
+			"name": "Orecchiette with broccoli",
+			"description": "Boil the broccoli, fry garlic and anchovies, then blend everything and stir the pasta through with Parmesan to taste."
+		},
+		"pasta-crema-peperoni": {
+			"name": "Pasta with creamy pepper sauce",
+			"description": "Stew the peppers with onion, blend with ricotta and milk and coat the paccheri with the sauce."
+		},
+		"bistecche-tonno-skottle": {
+			"name": "Skottle tuna steaks",
+			"description": "Marinate the tuna with oil, lemon and spices, then cook on the skottle over high heat for 3 minutes per side."
+		},
+		"branzino-barbecue": {
+			"name": "Barbecued sea bass fillets",
+			"description": "Cook the sea bass fillets skin side first, 3 minutes per side, with oil, salt and pepper."
+		},
+		"sovracosce-pollo-griglia": {
+			"name": "Grilled chicken thighs",
+			"description": "Marinate the thighs with oil, lemon and spices for 6 hours, then barbecue for 4 minutes per side."
+		},
+		"burrito-vegan": {
+			"name": "Vegan burrito",
+			"description": "Warm the vegan strips, fill the bread with beans, guacamole, sweet potato and sweetcorn and roll up."
+		},
+		"caviale-melanzane-panino": {
+			"name": "Sandwich with aubergine caviar, grilled vegetables and feta",
+			"description": "Fill Lebanese bread with aubergine caviar, grilled vegetables, feta, pickles, raisins and coriander."
+		},
+		"riso-curry-giappone": {
+			"name": "Japanese curry rice with minced pork and pepper",
+			"description": "Cook the rice first; in the wok brown the pork, onion and pepper, add the curry and serve over the rice."
+		},
+		"omelette-spinaci-montasio": {
+			"name": "Spinach and Montasio omelette",
+			"description": "Cook the eggs in a pan, fill with baby spinach and Montasio and fold over."
+		},
+		"straccetti-pollo-limone": {
+			"name": "Lemon chicken strips",
+			"description": "Brown the floured chicken strips with garlic, then add lemon, water and herbs."
+		},
+		"riso-lenticchie-zucca": {
+			"name": "Rice with lentils and squash",
+			"description": "Cook the diced squash with garlic and water, then add cooked lentils and rice."
+		},
+		"riso-wok-broccoli-gamberi": {
+			"name": "Wok-fried rice with broccoli and prawns",
+			"description": "Blanch the broccoli; stir-fry prawns and ginger in the wok, then add cooked rice and soy sauce."
+		},
+		"riso-cantonese-casa": {
+			"name": "Home-style Cantonese rice",
+			"description": "Dice the vegetables, beat the eggs, cook the rice and stir-fry everything in the wok with soy sauce."
+		},
+		"zuppa-fagioli-veloce-guanciale": {
+			"name": "Quick bean soup with crispy guanciale",
+			"description": "Brown the guanciale, soften the red onion, add beans and stock and serve topped with the crispy guanciale."
+		},
+		"piadine-pollo-hummus-carote": {
+			"name": "Flatbreads with hummus, chicken, carrots and salad",
+			"description": "Warm the flatbreads, spread with hummus and fill with chicken, carrots and salad."
+		},
+		"orata-padella-patate-pomodorini": {
+			"name": "Pan-cooked sea bream fillets with potatoes and cherry tomatoes",
+			"description": "Brown cherry tomatoes and very thinly sliced potatoes, lay the fillets on top, deglaze with wine and cook covered."
+		},
+		"lonza-maiale-limone": {
+			"name": "Lemon pork loin slices",
+			"description": "Pound and flour the slices, brown them with butter, garlic and lemon zest, then deglaze with lemon and honey."
+		},
+		"fettine-pizzaiola-prezzemolo": {
+			"name": "Beef slices pizzaiola with parsley",
+			"description": "Brown the slices with garlic, cook them covered in blended tomato and finish with parsley."
+		},
+		"lenticchie-comidista": {
+			"name": "Spanish-style lentils (El Comidista)",
+			"description": "Cook the lentils with half an onion, garlic and bay leaf, add potato and carrots, then blend the sofrito with paprika and cumin and stir it in."
+		},
+		"pasta-robiola-speck": {
+			"name": "Pasta with robiola and speck",
+			"description": "Brown the diced speck, soften the spring onion in the same pan and stir the pasta through with robiola and pasta water."
+		},
+		"pasta-ricotta-zafferano": {
+			"name": "Creamy ricotta and saffron pasta",
+			"description": "Loosen the ricotta with saffron and pasta water, dress the spaghettoni and finish with pepper and sage."
+		},
+		"couscous-verdure-tonno": {
+			"name": "Couscous with vegetables and tuna",
+			"description": "Soak the couscous, stir-fry carrots, pepper and courgette, add tuna, kidney beans and soy sauce and finish with radishes and parsley."
+		},
+		"couscous-verdure": {
+			"name": "Vegetable couscous",
+			"description": "Stir-fry aubergines, peppers, carrots, courgettes and peas, then combine with turmeric couscous and finish with basil and almonds."
+		},
+		"pappardelle-salsiccia-porri": {
+			"name": "Rustic pappardelle with sausage and leeks",
+			"description": "Brown the sausage with chilli and thyme, deglaze with red wine, add the leek and toss the pappardelle with Parmesan."
+		},
+		"pollo-corn-flakes": {
+			"name": "Cornflake-crusted chicken breast",
+			"description": "Coat the chicken slices in flour, egg and paprika cornflakes, fry them and serve with a yoghurt, mayonnaise and lemon sauce."
+		},
+		"piadine-bresaola-stracchino-pesto-rosso": {
+			"name": "Flatbreads with bresaola, stracchino and red pesto",
+			"description": "Blend sun-dried tomatoes, almonds and basil; fill with bresaola, stracchino and rocket and warm in a pan."
+		},
+		"riso-ceci-spinaci-mandorle": {
+			"name": "Turmeric rice with chickpeas and spinach",
+			"description": "Cook the basmati with turmeric; stir-fry chickpeas and spinach with tomatoes, stock and almond butter, then serve over the rice."
+		},
+		"spaghetti-riso-tofu-verdure-wok": {
+			"name": "Wok rice noodles with tofu and vegetables",
+			"description": "Stir-fry vegetables and smoked tofu, add the rice noodles and season with soy, barbecue sauce and sesame."
+		},
+		"paccheri-radicchio-bresaola-ricotta-noci": {
+			"name": "Paccheri with radicchio and bresaola",
+			"description": "Adapted version: wilt the radicchio, stir through with ricotta and finish with bresaola and walnuts."
+		},
+		"ditali-cremosi-zucca-ceci": {
+			"name": "Creamy ditali with squash and chickpeas",
+			"description": "Adapted version: cook the squash with sage and rosemary, blend part of it and add cooked chickpeas and ditali."
+		},
+		"trofie-funghi-piselli-ricotta": {
+			"name": "Trofie with mushrooms, peas and ricotta",
+			"description": "Adapted version: brown the mushrooms, add the peas and stir the pasta through with ricotta, pasta water and parsley."
+		},
+		"fusilli-ricotta-spinaci-noci": {
+			"name": "Fusilli with ricotta and spinach",
+			"description": "Adapted version: wilt the spinach, blend with ricotta and pasta water, dress the fusilli and finish with walnuts and lemon."
+		},
+		"wrap-fagioli-neri-cheddar": {
+			"name": "Black bean and cheddar wraps",
+			"description": "Fry the beans with onion and garlic; fill the tortillas with cheddar, lettuce, tomato, yoghurt sauce and Mexican salsa."
+		},
+		"erbazzone-uova-strapazzate-stracchino": {
+			"name": "Erbazzone, scrambled eggs and stracchino",
+			"description": "Bake the erbazzone following the packet; make the scrambled eggs and serve with the stracchino."
+		},
+		"sandwich-uova-mozzarella-pomodoro-tacchino": {
+			"name": "Egg, mozzarella, tomato and turkey sandwich",
+			"description": "Fried eggs and mozzarella in the first layer; mayonnaise, tomato and turkey in the second. Three slices of bread each."
+		}
+	},
+	"ingredients": {
+		"Riso basmati": "Basmati rice",
+		"Petto di pollo": "Chicken breast",
+		"Peperone rosso": "Red pepper",
+		"Peperone giallo": "Yellow pepper",
+		"Carote": "Carrots",
+		"Zucchine": "Courgettes",
+		"Melanzana piccola": "Small aubergine",
+		"Cipolla rossa di Tropea (o 1 cipollotto)": "Tropea red onion (or 1 spring onion)",
+		"Salsa di soia (senza glutine)": "Soy sauce (gluten-free)",
+		"Mezze penne": "Mezze penne",
+		"Pomodori ramati": "Vine tomatoes",
+		"Cipolla piccola": "Small onion",
+		"Peperoncino": "Chilli",
+		"Aglio": "Garlic",
+		"Basilico": "Basil",
+		"Ricotta": "Ricotta",
+		"Uova": "Eggs",
+		"Bietole gia' cotte": "Cooked chard",
+		"Ricotta vaccina": "Cow's milk ricotta",
+		"Pecorino romano grattugiato (o Parmigiano)": "Grated Pecorino Romano (or Parmesan)",
+		"Noodles di grano (o di riso)": "Wheat noodles (or rice noodles)",
+		"Cipolla": "Onion",
+		"Peperone": "Pepper",
+		"Carota": "Carrot",
+		"Zucchina": "Courgette",
+		"Salsa d'ostriche (facoltativa)": "Oyster sauce (optional)",
+		"Salsa di soia": "Soy sauce",
+		"Curry in polvere (facoltativo)": "Curry powder (optional)",
+		"Aglio in polvere": "Garlic powder",
+		"Filetti di merluzzo": "Cod fillets",
+		"Pomodori ciliegini (o pomodorini)": "Cherry tomatoes",
+		"Concentrato di pomodoro": "Tomato purée",
+		"Cipollotto": "Spring onion",
+		"Olive taggiasche": "Taggiasca olives",
+		"Cous cous": "Couscous",
+		"Zafferano": "Saffron",
+		"Basilico fresco": "Fresh basil",
+		"Mandorle": "Almonds",
+		"Piadine integrali (da 50 g ciascuna)": "Wholemeal flatbreads (50 g each)",
+		"Peperoncino fresco dolce": "Fresh mild chilli",
+		"Lattuga iceberg": "Iceberg lettuce",
+		"Barbabietole": "Beetroot",
+		"Emmentaler (8 fette)": "Emmental (8 slices)",
+		"Ceci precotti": "Pre-cooked chickpeas",
+		"Prezzemolo": "Parsley",
+		"Tabasco": "Tabasco",
+		"Succo di limone": "Lemon juice",
+		"Paprika piccante": "Hot paprika",
+		"Tahina": "Tahini",
+		"Pane casereccio (tipo toscano)": "Rustic bread (Tuscan style)",
+		"Code di gambero": "Prawn tails",
+		"Vino bianco secco": "Dry white wine",
+		"Scalogno": "Shallot",
+		"Uova medie": "Medium eggs",
+		"Pomodorini perini": "Plum cherry tomatoes",
+		"Cipolla dorata": "Brown onion",
+		"Olio extravergine d'oliva": "Extra virgin olive oil",
+		"Sale fino": "Fine salt",
+		"Pepe nero": "Black pepper",
+		"Melanzane": "Aubergines",
+		"Pangrattato": "Breadcrumbs",
+		"Uovo": "Egg",
+		"Caciocavallo grattugiato": "Grated caciocavallo",
+		"Noce moscata": "Nutmeg",
+		"Sale e pepe": "Salt and pepper",
+		"Pappardelle": "Pappardelle",
+		"Burro": "Butter",
+		"Parmigiano": "Parmesan",
+		"Pasta": "Pasta",
+		"Pesto alla genovese": "Genoese pesto",
+		"Hamburger di cavallo": "Horse meat burgers",
+		"Panini per hamburger": "Burger buns",
+		"Tonno sott'olio": "Tuna in oil",
+		"Alici": "Anchovies",
+		"Passata di pomodoro": "Tomato passata",
+		"Sugo di pesce": "Fish sauce for pasta",
+		"Pasta fresca": "Fresh pasta",
+		"Penne rigate": "Penne rigate",
+		"Panna fresca": "Fresh cream",
+		"Prosciutto cotto": "Cooked ham",
+		"Pomodori pelati": "Peeled tomatoes",
+		"Sale": "Salt",
+		"Rigatoni": "Rigatoni",
+		"Zucca a pezzetti": "Diced squash",
+		"Salsicce": "Sausages",
+		"Robiola": "Robiola",
+		"Orecchiette": "Orecchiette",
+		"Broccolo": "Broccoli",
+		"Paccheri": "Paccheri",
+		"Peperoni rossi": "Red peppers",
+		"Latte": "Milk",
+		"Tonno": "Tuna",
+		"Limone": "Lemon",
+		"Filetti di branzino": "Sea bass fillets",
+		"Sovracosce di pollo disossate e spellate": "Boneless skinless chicken thighs",
+		"Pane durum misura L (30 cm)": "Durum flatbread, size L (30 cm)",
+		"Fagioli rossi in scatola": "Tinned kidney beans",
+		"Cumino in polvere": "Ground cumin",
+		"Succo di lime": "Lime juice",
+		"Guacamole (pagina 185 del libro)": "Guacamole (page 185 of the book)",
+		"Patata dolce arrosto (pagina 189 del libro)": "Roast sweet potato (page 189 of the book)",
+		"Mais in scatola": "Tinned sweetcorn",
+		"Straccetti vegani tex-mex": "Tex-Mex vegan strips",
+		"Cipolla rossa": "Red onion",
+		"Coriandolo": "Coriander",
+		"Insalata": "Salad leaves",
+		"Peperoncino verde": "Green chilli",
+		"Pane libanese": "Lebanese bread",
+		"Caviale di melanzane": "Aubergine caviar",
+		"Melanzana grigliata": "Grilled aubergine",
+		"Peperone grigliato": "Grilled pepper",
+		"Feta": "Feta",
+		"Pickles di cavolo rosso (pagina 182 del libro)": "Pickled red cabbage (page 182 of the book)",
+		"Uvetta": "Raisins",
+		"Menta": "Mint",
+		"Carne di maiale macinata": "Minced pork",
+		"Riso bianco per sushi": "White sushi rice",
+		"Olio di semi di colza": "Rapeseed oil",
+		"Curry o garam masala": "Curry powder or garam masala",
+		"Salsa base giapponese (pagina 24 del libro)": "Japanese base sauce (page 24 of the book)",
+		"Peperone verde": "Green pepper",
+		"Kimchi veloce (pagina 36 del libro)": "Quick kimchi (page 36 of the book)",
+		"Montasio": "Montasio",
+		"Spinacini freschi": "Fresh baby spinach",
+		"Pepe": "Pepper (spice)",
+		"Farina 00": "Type 00 flour",
+		"Limoni medi": "Medium lemons",
+		"Acqua": "Water",
+		"Prezzemolo o altre erbe aromatiche": "Parsley or other herbs",
+		"Riso": "Rice",
+		"Zucca pulita": "Prepared squash",
+		"Lenticchie cotte": "Cooked lentils",
+		"Broccoli": "Broccoli florets",
+		"Gamberi freschi puliti": "Fresh peeled prawns",
+		"Riso integrale": "Brown rice",
+		"Zenzero fresco": "Fresh ginger",
+		"Riso jasmine": "Jasmine rice",
+		"Piselli": "Peas",
+		"Prosciutto cotto a dadini": "Diced cooked ham",
+		"Fagioli borlotti o cannellini, lessati o in scatola sgocciolati": "Borlotti or cannellini beans, boiled or tinned and drained",
+		"Brodo vegetale": "Vegetable stock",
+		"Guanciale a listarelle": "Guanciale strips",
+		"Piadine": "Flatbreads",
+		"Pollo già cotto": "Cooked chicken",
+		"Hummus pronto": "Ready-made hummus",
+		"Carota (julienne cruda)": "Carrot (raw julienne)",
+		"Filetti di orata spinati e senza pelle": "Boneless skinless sea bream fillets",
+		"Pomodorini rossi e gialli": "Red and yellow cherry tomatoes",
+		"Patata media": "Medium potato",
+		"Fette di lonza di maiale": "Pork loin slices",
+		"Limone bio (succo e scorza)": "Organic lemon (juice and zest)",
+		"Miele": "Honey",
+		"Reale di vitellone (o di bovino) a fettine": "Sliced beef chuck",
+		"Pomodori pelati (o pomodorini freschi maturi)": "Peeled tomatoes (or ripe fresh cherry tomatoes)",
+		"Prezzemolo fresco": "Fresh parsley",
+		"Lenticchie (meglio pardine)": "Lentils (ideally pardina)",
+		"Patata grande (o 2 piccole)": "Large potato (or 2 small)",
+		"Cipolla grande": "Large onion",
+		"Pomodoro tritato o grattugiato": "Chopped or grated tomato",
+		"Peperone rosso (o 1/2 verde)": "Red pepper (or 1/2 green)",
+		"Paprika affumicata": "Smoked paprika",
+		"Cumino": "Cumin",
+		"Vino bianco o fino (facoltativo)": "White wine or fino sherry (optional)",
+		"Alloro": "Bay leaf",
+		"Fusilloni": "Fusilloni",
+		"Speck da tagliare a cubetti": "Speck, to dice",
+		"Cipollotti": "Spring onions",
+		"Spaghettoni": "Spaghettoni",
+		"Salvia": "Sage",
+		"Couscous": "Couscous grains",
+		"Tonno sott'olio (peso sgocciolato)": "Tuna in oil (drained weight)",
+		"Fagioli rossi precotti (peso sgocciolato)": "Pre-cooked kidney beans (drained weight)",
+		"Ravanelli": "Radishes",
+		"Couscous precotto": "Pre-cooked couscous",
+		"Brodo vegetale caldo": "Hot vegetable stock",
+		"Curcuma in polvere": "Ground turmeric",
+		"Cipolle rosse": "Red onions",
+		"Pisellini": "Petits pois",
+		"Peperoncino fresco": "Fresh chilli",
+		"Mandorle in scaglie": "Flaked almonds",
+		"Pappardelle all'uovo": "Egg pappardelle",
+		"Salsiccia": "Sausage",
+		"Porri": "Leeks",
+		"Vino rosso": "Red wine",
+		"Parmigiano Reggiano DOP": "Parmigiano Reggiano PDO",
+		"Timo": "Thyme",
+		"Corn flakes non zuccherati": "Unsweetened cornflakes",
+		"Latte intero": "Whole milk",
+		"Paprika dolce": "Sweet paprika",
+		"Yogurt bianco naturale": "Plain natural yoghurt",
+		"Maionese": "Mayonnaise",
+		"Scorza di limone": "Lemon zest",
+		"Erba cipollina": "Chives",
+		"Olio di semi di girasole": "Sunflower oil",
+		"Bresaola": "Bresaola",
+		"Stracchino": "Stracchino",
+		"Rucola": "Rocket",
+		"Pomodori secchi sott'olio": "Sun-dried tomatoes in oil",
+		"Foglie di basilico": "Basil leaves",
+		"Cipolla rossa piccola": "Small red onion",
+		"Pomodori": "Tomatoes",
+		"Zenzero fresco grattugiato": "Grated fresh ginger",
+		"Coriandolo macinato": "Ground coriander",
+		"Cumino macinato": "Ground cumin seeds",
+		"Cannella": "Cinnamon",
+		"Peperoncino in fiocchi": "Chilli flakes",
+		"Crema di mandorle croccante": "Crunchy almond butter",
+		"Ceci in scatola": "Tinned chickpeas",
+		"Garam masala": "Garam masala",
+		"Curcuma": "Turmeric",
+		"Mandorle tritate": "Chopped almonds",
+		"Coriandolo fresco": "Fresh coriander",
+		"Spaghetti di riso": "Rice noodles",
+		"Tofu affumicato": "Smoked tofu",
+		"Germogli di soia": "Bean sprouts",
+		"Cipolla o cipollotto": "Onion or spring onion",
+		"Aceto": "Vinegar",
+		"Salsa barbecue (o fumo liquido q.b.)": "Barbecue sauce (or liquid smoke to taste)",
+		"Semi di sesamo": "Sesame seeds",
+		"Prezzemolo (opzionale)": "Parsley (optional)",
+		"Radicchio pulito": "Prepared radicchio",
+		"Noci sgusciate": "Shelled walnuts",
+		"Ditali": "Ditali",
+		"Ceci già cotti e sgocciolati": "Cooked drained chickpeas",
+		"Rosmarino": "Rosemary",
+		"Trofie": "Trofie",
+		"Funghi champignon puliti": "Cleaned button mushrooms",
+		"Fusilli": "Fusilli",
+		"Spinaci freschi puliti": "Prepared fresh spinach",
+		"Cipolla a dadini": "Diced onion",
+		"Aglio tritato o schiacciato": "Chopped or crushed garlic",
+		"Fagioli neri scolati e sciacquati": "Black beans, drained and rinsed",
+		"Salsa messicana pronta": "Ready-made Mexican salsa",
+		"Yogurt greco (o panna acida)": "Greek yoghurt (or soured cream)",
+		"Lattuga tagliata o spezzettata": "Shredded lettuce",
+		"Cheddar Jack grattugiato (oppure Monterey Jack, cheddar o Cotija)": "Grated Cheddar Jack (or Monterey Jack, cheddar or Cotija)",
+		"Pomodoro a dadini (varietà Roma)": "Diced tomato (Roma)",
+		"Tortillas di farina": "Flour tortillas",
+		"Erbazzone congelato": "Frozen erbazzone",
+		"Pane": "Bread",
+		"Mozzarelle": "Mozzarella balls",
+		"Pomodoro cuore di bue": "Oxheart tomato",
+		"Tacchino": "Turkey"
+	}
+}

@@ -1,0 +1,7208 @@
+{
+	"books": [
+		{
+			"id": "panini-e-tramezzini",
+			"title": "Panini e tramezzini"
+		},
+		{
+			"id": "basta-un-wok",
+			"title": "Basta un Wok"
+		}
+	],
+	"ingredients": [
+		{
+			"id": "riso-basmati",
+			"name": {
+				"it-IT": "Riso basmati",
+				"en-GB": "Basmati rice"
+			}
+		},
+		{
+			"id": "petto-di-pollo",
+			"name": {
+				"it-IT": "Petto di pollo",
+				"en-GB": "Chicken breast"
+			}
+		},
+		{
+			"id": "peperone-rosso",
+			"name": {
+				"it-IT": "Peperone rosso",
+				"en-GB": "Red pepper"
+			}
+		},
+		{
+			"id": "peperone-giallo",
+			"name": {
+				"it-IT": "Peperone giallo",
+				"en-GB": "Yellow pepper"
+			}
+		},
+		{
+			"id": "carote",
+			"name": {
+				"it-IT": "Carote",
+				"en-GB": "Carrots"
+			}
+		},
+		{
+			"id": "zucchine",
+			"name": {
+				"it-IT": "Zucchine",
+				"en-GB": "Courgettes"
+			}
+		},
+		{
+			"id": "melanzana-piccola",
+			"name": {
+				"it-IT": "Melanzana piccola",
+				"en-GB": "Small aubergine"
+			}
+		},
+		{
+			"id": "cipolla-rossa-di-tropea-o-1-cipollotto",
+			"name": {
+				"it-IT": "Cipolla rossa di Tropea (o 1 cipollotto)",
+				"en-GB": "Tropea red onion (or 1 spring onion)"
+			}
+		},
+		{
+			"id": "salsa-di-soia-senza-glutine",
+			"name": {
+				"it-IT": "Salsa di soia (senza glutine)",
+				"en-GB": "Soy sauce (gluten-free)"
+			}
+		},
+		{
+			"id": "mezze-penne",
+			"name": {
+				"it-IT": "Mezze penne",
+				"en-GB": "Mezze penne"
+			}
+		},
+		{
+			"id": "pomodori-ramati",
+			"name": {
+				"it-IT": "Pomodori ramati",
+				"en-GB": "Vine tomatoes"
+			}
+		},
+		{
+			"id": "cipolla-piccola",
+			"name": {
+				"it-IT": "Cipolla piccola",
+				"en-GB": "Small onion"
+			}
+		},
+		{
+			"id": "peperoncino",
+			"name": {
+				"it-IT": "Peperoncino",
+				"en-GB": "Chilli"
+			}
+		},
+		{
+			"id": "aglio",
+			"name": {
+				"it-IT": "Aglio",
+				"en-GB": "Garlic"
+			}
+		},
+		{
+			"id": "basilico",
+			"name": {
+				"it-IT": "Basilico",
+				"en-GB": "Basil"
+			}
+		},
+		{
+			"id": "ricotta",
+			"name": {
+				"it-IT": "Ricotta",
+				"en-GB": "Ricotta"
+			}
+		},
+		{
+			"id": "uova",
+			"name": {
+				"it-IT": "Uova",
+				"en-GB": "Eggs"
+			}
+		},
+		{
+			"id": "bietole-gia-cotte",
+			"name": {
+				"it-IT": "Bietole gia' cotte",
+				"en-GB": "Cooked chard"
+			}
+		},
+		{
+			"id": "ricotta-vaccina",
+			"name": {
+				"it-IT": "Ricotta vaccina",
+				"en-GB": "Cow's milk ricotta"
+			}
+		},
+		{
+			"id": "pecorino-romano-grattugiato-o-parmigiano",
+			"name": {
+				"it-IT": "Pecorino romano grattugiato (o Parmigiano)",
+				"en-GB": "Grated Pecorino Romano (or Parmesan)"
+			}
+		},
+		{
+			"id": "noodles-di-grano-o-di-riso",
+			"name": {
+				"it-IT": "Noodles di grano (o di riso)",
+				"en-GB": "Wheat noodles (or rice noodles)"
+			}
+		},
+		{
+			"id": "cipolla",
+			"name": {
+				"it-IT": "Cipolla",
+				"en-GB": "Onion"
+			}
+		},
+		{
+			"id": "peperone",
+			"name": {
+				"it-IT": "Peperone",
+				"en-GB": "Pepper"
+			}
+		},
+		{
+			"id": "carota",
+			"name": {
+				"it-IT": "Carota",
+				"en-GB": "Carrot"
+			}
+		},
+		{
+			"id": "zucchina",
+			"name": {
+				"it-IT": "Zucchina",
+				"en-GB": "Courgette"
+			}
+		},
+		{
+			"id": "salsa-d-ostriche-facoltativa",
+			"name": {
+				"it-IT": "Salsa d'ostriche (facoltativa)",
+				"en-GB": "Oyster sauce (optional)"
+			}
+		},
+		{
+			"id": "salsa-di-soia",
+			"name": {
+				"it-IT": "Salsa di soia",
+				"en-GB": "Soy sauce"
+			}
+		},
+		{
+			"id": "curry-in-polvere-facoltativo",
+			"name": {
+				"it-IT": "Curry in polvere (facoltativo)",
+				"en-GB": "Curry powder (optional)"
+			}
+		},
+		{
+			"id": "aglio-in-polvere",
+			"name": {
+				"it-IT": "Aglio in polvere",
+				"en-GB": "Garlic powder"
+			}
+		},
+		{
+			"id": "filetti-di-merluzzo",
+			"name": {
+				"it-IT": "Filetti di merluzzo",
+				"en-GB": "Cod fillets"
+			}
+		},
+		{
+			"id": "pomodori-ciliegini-o-pomodorini",
+			"name": {
+				"it-IT": "Pomodori ciliegini (o pomodorini)",
+				"en-GB": "Cherry tomatoes"
+			}
+		},
+		{
+			"id": "concentrato-di-pomodoro",
+			"name": {
+				"it-IT": "Concentrato di pomodoro",
+				"en-GB": "Tomato purée"
+			}
+		},
+		{
+			"id": "cipollotto",
+			"name": {
+				"it-IT": "Cipollotto",
+				"en-GB": "Spring onion"
+			}
+		},
+		{
+			"id": "olive-taggiasche",
+			"name": {
+				"it-IT": "Olive taggiasche",
+				"en-GB": "Taggiasca olives"
+			}
+		},
+		{
+			"id": "cous-cous",
+			"name": {
+				"it-IT": "Cous cous",
+				"en-GB": "Couscous"
+			}
+		},
+		{
+			"id": "zafferano",
+			"name": {
+				"it-IT": "Zafferano",
+				"en-GB": "Saffron"
+			}
+		},
+		{
+			"id": "basilico-fresco",
+			"name": {
+				"it-IT": "Basilico fresco",
+				"en-GB": "Fresh basil"
+			}
+		},
+		{
+			"id": "mandorle",
+			"name": {
+				"it-IT": "Mandorle",
+				"en-GB": "Almonds"
+			}
+		},
+		{
+			"id": "piadine-integrali-da-50-g-ciascuna",
+			"name": {
+				"it-IT": "Piadine integrali (da 50 g ciascuna)",
+				"en-GB": "Wholemeal flatbreads (50 g each)"
+			}
+		},
+		{
+			"id": "peperoncino-fresco-dolce",
+			"name": {
+				"it-IT": "Peperoncino fresco dolce",
+				"en-GB": "Fresh mild chilli"
+			}
+		},
+		{
+			"id": "lattuga-iceberg",
+			"name": {
+				"it-IT": "Lattuga iceberg",
+				"en-GB": "Iceberg lettuce"
+			}
+		},
+		{
+			"id": "barbabietole",
+			"name": {
+				"it-IT": "Barbabietole",
+				"en-GB": "Beetroot"
+			}
+		},
+		{
+			"id": "emmentaler-8-fette",
+			"name": {
+				"it-IT": "Emmentaler (8 fette)",
+				"en-GB": "Emmental (8 slices)"
+			}
+		},
+		{
+			"id": "ceci-precotti",
+			"name": {
+				"it-IT": "Ceci precotti",
+				"en-GB": "Pre-cooked chickpeas"
+			}
+		},
+		{
+			"id": "prezzemolo",
+			"name": {
+				"it-IT": "Prezzemolo",
+				"en-GB": "Parsley"
+			}
+		},
+		{
+			"id": "tabasco",
+			"name": {
+				"it-IT": "Tabasco",
+				"en-GB": "Tabasco"
+			}
+		},
+		{
+			"id": "succo-di-limone",
+			"name": {
+				"it-IT": "Succo di limone",
+				"en-GB": "Lemon juice"
+			}
+		},
+		{
+			"id": "paprika-piccante",
+			"name": {
+				"it-IT": "Paprika piccante",
+				"en-GB": "Hot paprika"
+			}
+		},
+		{
+			"id": "tahina",
+			"name": {
+				"it-IT": "Tahina",
+				"en-GB": "Tahini"
+			}
+		},
+		{
+			"id": "pane-casereccio-tipo-toscano",
+			"name": {
+				"it-IT": "Pane casereccio (tipo toscano)",
+				"en-GB": "Rustic bread (Tuscan style)"
+			}
+		},
+		{
+			"id": "code-di-gambero",
+			"name": {
+				"it-IT": "Code di gambero",
+				"en-GB": "Prawn tails"
+			}
+		},
+		{
+			"id": "vino-bianco-secco",
+			"name": {
+				"it-IT": "Vino bianco secco",
+				"en-GB": "Dry white wine"
+			}
+		},
+		{
+			"id": "scalogno",
+			"name": {
+				"it-IT": "Scalogno",
+				"en-GB": "Shallot"
+			}
+		},
+		{
+			"id": "uova-medie",
+			"name": {
+				"it-IT": "Uova medie",
+				"en-GB": "Medium eggs"
+			}
+		},
+		{
+			"id": "pomodorini-perini",
+			"name": {
+				"it-IT": "Pomodorini perini",
+				"en-GB": "Plum cherry tomatoes"
+			}
+		},
+		{
+			"id": "cipolla-dorata",
+			"name": {
+				"it-IT": "Cipolla dorata",
+				"en-GB": "Brown onion"
+			}
+		},
+		{
+			"id": "olio-extravergine-d-oliva",
+			"name": {
+				"it-IT": "Olio extravergine d'oliva",
+				"en-GB": "Extra virgin olive oil"
+			}
+		},
+		{
+			"id": "sale-fino",
+			"name": {
+				"it-IT": "Sale fino",
+				"en-GB": "Fine salt"
+			}
+		},
+		{
+			"id": "pepe-nero",
+			"name": {
+				"it-IT": "Pepe nero",
+				"en-GB": "Black pepper"
+			}
+		},
+		{
+			"id": "melanzane",
+			"name": {
+				"it-IT": "Melanzane",
+				"en-GB": "Aubergines"
+			}
+		},
+		{
+			"id": "pangrattato",
+			"name": {
+				"it-IT": "Pangrattato",
+				"en-GB": "Breadcrumbs"
+			}
+		},
+		{
+			"id": "uovo",
+			"name": {
+				"it-IT": "Uovo",
+				"en-GB": "Egg"
+			}
+		},
+		{
+			"id": "caciocavallo-grattugiato",
+			"name": {
+				"it-IT": "Caciocavallo grattugiato",
+				"en-GB": "Grated caciocavallo"
+			}
+		},
+		{
+			"id": "noce-moscata",
+			"name": {
+				"it-IT": "Noce moscata",
+				"en-GB": "Nutmeg"
+			}
+		},
+		{
+			"id": "sale-e-pepe",
+			"name": {
+				"it-IT": "Sale e pepe",
+				"en-GB": "Salt and pepper"
+			}
+		},
+		{
+			"id": "pappardelle",
+			"name": {
+				"it-IT": "Pappardelle",
+				"en-GB": "Pappardelle"
+			}
+		},
+		{
+			"id": "burro",
+			"name": {
+				"it-IT": "Burro",
+				"en-GB": "Butter"
+			}
+		},
+		{
+			"id": "parmigiano",
+			"name": {
+				"it-IT": "Parmigiano",
+				"en-GB": "Parmesan"
+			}
+		},
+		{
+			"id": "pasta",
+			"name": {
+				"it-IT": "Pasta",
+				"en-GB": "Pasta"
+			}
+		},
+		{
+			"id": "pesto-alla-genovese",
+			"name": {
+				"it-IT": "Pesto alla genovese",
+				"en-GB": "Genoese pesto"
+			}
+		},
+		{
+			"id": "hamburger-di-cavallo",
+			"name": {
+				"it-IT": "Hamburger di cavallo",
+				"en-GB": "Horse meat burgers"
+			}
+		},
+		{
+			"id": "panini-per-hamburger",
+			"name": {
+				"it-IT": "Panini per hamburger",
+				"en-GB": "Burger buns"
+			}
+		},
+		{
+			"id": "tonno-sott-olio",
+			"name": {
+				"it-IT": "Tonno sott'olio",
+				"en-GB": "Tuna in oil"
+			}
+		},
+		{
+			"id": "alici",
+			"name": {
+				"it-IT": "Alici",
+				"en-GB": "Anchovies"
+			}
+		},
+		{
+			"id": "passata-di-pomodoro",
+			"name": {
+				"it-IT": "Passata di pomodoro",
+				"en-GB": "Tomato passata"
+			}
+		},
+		{
+			"id": "sugo-di-pesce",
+			"name": {
+				"it-IT": "Sugo di pesce",
+				"en-GB": "Fish sauce for pasta"
+			}
+		},
+		{
+			"id": "pasta-fresca",
+			"name": {
+				"it-IT": "Pasta fresca",
+				"en-GB": "Fresh pasta"
+			}
+		},
+		{
+			"id": "penne-rigate",
+			"name": {
+				"it-IT": "Penne rigate",
+				"en-GB": "Penne rigate"
+			}
+		},
+		{
+			"id": "panna-fresca",
+			"name": {
+				"it-IT": "Panna fresca",
+				"en-GB": "Fresh cream"
+			}
+		},
+		{
+			"id": "prosciutto-cotto",
+			"name": {
+				"it-IT": "Prosciutto cotto",
+				"en-GB": "Cooked ham"
+			}
+		},
+		{
+			"id": "pomodori-pelati",
+			"name": {
+				"it-IT": "Pomodori pelati",
+				"en-GB": "Peeled tomatoes"
+			}
+		},
+		{
+			"id": "sale",
+			"name": {
+				"it-IT": "Sale",
+				"en-GB": "Salt"
+			}
+		},
+		{
+			"id": "rigatoni",
+			"name": {
+				"it-IT": "Rigatoni",
+				"en-GB": "Rigatoni"
+			}
+		},
+		{
+			"id": "zucca-a-pezzetti",
+			"name": {
+				"it-IT": "Zucca a pezzetti",
+				"en-GB": "Diced squash"
+			}
+		},
+		{
+			"id": "salsicce",
+			"name": {
+				"it-IT": "Salsicce",
+				"en-GB": "Sausages"
+			}
+		},
+		{
+			"id": "robiola",
+			"name": {
+				"it-IT": "Robiola",
+				"en-GB": "Robiola"
+			}
+		},
+		{
+			"id": "orecchiette",
+			"name": {
+				"it-IT": "Orecchiette",
+				"en-GB": "Orecchiette"
+			}
+		},
+		{
+			"id": "broccolo",
+			"name": {
+				"it-IT": "Broccolo",
+				"en-GB": "Broccoli"
+			}
+		},
+		{
+			"id": "paccheri",
+			"name": {
+				"it-IT": "Paccheri",
+				"en-GB": "Paccheri"
+			}
+		},
+		{
+			"id": "peperoni-rossi",
+			"name": {
+				"it-IT": "Peperoni rossi",
+				"en-GB": "Red peppers"
+			}
+		},
+		{
+			"id": "latte",
+			"name": {
+				"it-IT": "Latte",
+				"en-GB": "Milk"
+			}
+		},
+		{
+			"id": "tonno",
+			"name": {
+				"it-IT": "Tonno",
+				"en-GB": "Tuna"
+			}
+		},
+		{
+			"id": "limone",
+			"name": {
+				"it-IT": "Limone",
+				"en-GB": "Lemon"
+			}
+		},
+		{
+			"id": "filetti-di-branzino",
+			"name": {
+				"it-IT": "Filetti di branzino",
+				"en-GB": "Sea bass fillets"
+			}
+		},
+		{
+			"id": "sovracosce-di-pollo-disossate-e-spellate",
+			"name": {
+				"it-IT": "Sovracosce di pollo disossate e spellate",
+				"en-GB": "Boneless skinless chicken thighs"
+			}
+		},
+		{
+			"id": "pane-durum-misura-l-30-cm",
+			"name": {
+				"it-IT": "Pane durum misura L (30 cm)",
+				"en-GB": "Durum flatbread, size L (30 cm)"
+			}
+		},
+		{
+			"id": "fagioli-rossi-in-scatola",
+			"name": {
+				"it-IT": "Fagioli rossi in scatola",
+				"en-GB": "Tinned kidney beans"
+			}
+		},
+		{
+			"id": "cumino-in-polvere",
+			"name": {
+				"it-IT": "Cumino in polvere",
+				"en-GB": "Ground cumin"
+			}
+		},
+		{
+			"id": "succo-di-lime",
+			"name": {
+				"it-IT": "Succo di lime",
+				"en-GB": "Lime juice"
+			}
+		},
+		{
+			"id": "guacamole-pagina-185-del-libro",
+			"name": {
+				"it-IT": "Guacamole (pagina 185 del libro)",
+				"en-GB": "Guacamole (page 185 of the book)"
+			}
+		},
+		{
+			"id": "patata-dolce-arrosto-pagina-189-del-libro",
+			"name": {
+				"it-IT": "Patata dolce arrosto (pagina 189 del libro)",
+				"en-GB": "Roast sweet potato (page 189 of the book)"
+			}
+		},
+		{
+			"id": "mais-in-scatola",
+			"name": {
+				"it-IT": "Mais in scatola",
+				"en-GB": "Tinned sweetcorn"
+			}
+		},
+		{
+			"id": "straccetti-vegani-tex-mex",
+			"name": {
+				"it-IT": "Straccetti vegani tex-mex",
+				"en-GB": "Tex-Mex vegan strips"
+			}
+		},
+		{
+			"id": "cipolla-rossa",
+			"name": {
+				"it-IT": "Cipolla rossa",
+				"en-GB": "Red onion"
+			}
+		},
+		{
+			"id": "coriandolo",
+			"name": {
+				"it-IT": "Coriandolo",
+				"en-GB": "Coriander"
+			}
+		},
+		{
+			"id": "insalata",
+			"name": {
+				"it-IT": "Insalata",
+				"en-GB": "Salad leaves"
+			}
+		},
+		{
+			"id": "peperoncino-verde",
+			"name": {
+				"it-IT": "Peperoncino verde",
+				"en-GB": "Green chilli"
+			}
+		},
+		{
+			"id": "pane-libanese",
+			"name": {
+				"it-IT": "Pane libanese",
+				"en-GB": "Lebanese bread"
+			}
+		},
+		{
+			"id": "caviale-di-melanzane",
+			"name": {
+				"it-IT": "Caviale di melanzane",
+				"en-GB": "Aubergine caviar"
+			}
+		},
+		{
+			"id": "melanzana-grigliata",
+			"name": {
+				"it-IT": "Melanzana grigliata",
+				"en-GB": "Grilled aubergine"
+			}
+		},
+		{
+			"id": "peperone-grigliato",
+			"name": {
+				"it-IT": "Peperone grigliato",
+				"en-GB": "Grilled pepper"
+			}
+		},
+		{
+			"id": "feta",
+			"name": {
+				"it-IT": "Feta",
+				"en-GB": "Feta"
+			}
+		},
+		{
+			"id": "pickles-di-cavolo-rosso-pagina-182-del-libro",
+			"name": {
+				"it-IT": "Pickles di cavolo rosso (pagina 182 del libro)",
+				"en-GB": "Pickled red cabbage (page 182 of the book)"
+			}
+		},
+		{
+			"id": "uvetta",
+			"name": {
+				"it-IT": "Uvetta",
+				"en-GB": "Raisins"
+			}
+		},
+		{
+			"id": "menta",
+			"name": {
+				"it-IT": "Menta",
+				"en-GB": "Mint"
+			}
+		},
+		{
+			"id": "carne-di-maiale-macinata",
+			"name": {
+				"it-IT": "Carne di maiale macinata",
+				"en-GB": "Minced pork"
+			}
+		},
+		{
+			"id": "riso-bianco-per-sushi",
+			"name": {
+				"it-IT": "Riso bianco per sushi",
+				"en-GB": "White sushi rice"
+			}
+		},
+		{
+			"id": "olio-di-semi-di-colza",
+			"name": {
+				"it-IT": "Olio di semi di colza",
+				"en-GB": "Rapeseed oil"
+			}
+		},
+		{
+			"id": "curry-o-garam-masala",
+			"name": {
+				"it-IT": "Curry o garam masala",
+				"en-GB": "Curry powder or garam masala"
+			}
+		},
+		{
+			"id": "salsa-base-giapponese-pagina-24-del-libro",
+			"name": {
+				"it-IT": "Salsa base giapponese (pagina 24 del libro)",
+				"en-GB": "Japanese base sauce (page 24 of the book)"
+			}
+		},
+		{
+			"id": "peperone-verde",
+			"name": {
+				"it-IT": "Peperone verde",
+				"en-GB": "Green pepper"
+			}
+		},
+		{
+			"id": "kimchi-veloce-pagina-36-del-libro",
+			"name": {
+				"it-IT": "Kimchi veloce (pagina 36 del libro)",
+				"en-GB": "Quick kimchi (page 36 of the book)"
+			}
+		},
+		{
+			"id": "montasio",
+			"name": {
+				"it-IT": "Montasio",
+				"en-GB": "Montasio"
+			}
+		},
+		{
+			"id": "spinacini-freschi",
+			"name": {
+				"it-IT": "Spinacini freschi",
+				"en-GB": "Fresh baby spinach"
+			}
+		},
+		{
+			"id": "pepe",
+			"name": {
+				"it-IT": "Pepe",
+				"en-GB": "Pepper (spice)"
+			}
+		},
+		{
+			"id": "farina-00",
+			"name": {
+				"it-IT": "Farina 00",
+				"en-GB": "Type 00 flour"
+			}
+		},
+		{
+			"id": "limoni-medi",
+			"name": {
+				"it-IT": "Limoni medi",
+				"en-GB": "Medium lemons"
+			}
+		},
+		{
+			"id": "acqua",
+			"name": {
+				"it-IT": "Acqua",
+				"en-GB": "Water"
+			}
+		},
+		{
+			"id": "prezzemolo-o-altre-erbe-aromatiche",
+			"name": {
+				"it-IT": "Prezzemolo o altre erbe aromatiche",
+				"en-GB": "Parsley or other herbs"
+			}
+		},
+		{
+			"id": "riso",
+			"name": {
+				"it-IT": "Riso",
+				"en-GB": "Rice"
+			}
+		},
+		{
+			"id": "zucca-pulita",
+			"name": {
+				"it-IT": "Zucca pulita",
+				"en-GB": "Prepared squash"
+			}
+		},
+		{
+			"id": "lenticchie-cotte",
+			"name": {
+				"it-IT": "Lenticchie cotte",
+				"en-GB": "Cooked lentils"
+			}
+		},
+		{
+			"id": "broccoli",
+			"name": {
+				"it-IT": "Broccoli",
+				"en-GB": "Broccoli florets"
+			}
+		},
+		{
+			"id": "gamberi-freschi-puliti",
+			"name": {
+				"it-IT": "Gamberi freschi puliti",
+				"en-GB": "Fresh peeled prawns"
+			}
+		},
+		{
+			"id": "riso-integrale",
+			"name": {
+				"it-IT": "Riso integrale",
+				"en-GB": "Brown rice"
+			}
+		},
+		{
+			"id": "zenzero-fresco",
+			"name": {
+				"it-IT": "Zenzero fresco",
+				"en-GB": "Fresh ginger"
+			}
+		},
+		{
+			"id": "riso-jasmine",
+			"name": {
+				"it-IT": "Riso jasmine",
+				"en-GB": "Jasmine rice"
+			}
+		},
+		{
+			"id": "piselli",
+			"name": {
+				"it-IT": "Piselli",
+				"en-GB": "Peas"
+			}
+		},
+		{
+			"id": "prosciutto-cotto-a-dadini",
+			"name": {
+				"it-IT": "Prosciutto cotto a dadini",
+				"en-GB": "Diced cooked ham"
+			}
+		},
+		{
+			"id": "fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati",
+			"name": {
+				"it-IT": "Fagioli borlotti o cannellini, lessati o in scatola sgocciolati",
+				"en-GB": "Borlotti or cannellini beans, boiled or tinned and drained"
+			}
+		},
+		{
+			"id": "brodo-vegetale",
+			"name": {
+				"it-IT": "Brodo vegetale",
+				"en-GB": "Vegetable stock"
+			}
+		},
+		{
+			"id": "guanciale-a-listarelle",
+			"name": {
+				"it-IT": "Guanciale a listarelle",
+				"en-GB": "Guanciale strips"
+			}
+		},
+		{
+			"id": "piadine",
+			"name": {
+				"it-IT": "Piadine",
+				"en-GB": "Flatbreads"
+			}
+		},
+		{
+			"id": "pollo-gia-cotto",
+			"name": {
+				"it-IT": "Pollo già cotto",
+				"en-GB": "Cooked chicken"
+			}
+		},
+		{
+			"id": "hummus-pronto",
+			"name": {
+				"it-IT": "Hummus pronto",
+				"en-GB": "Ready-made hummus"
+			}
+		},
+		{
+			"id": "carota-julienne-cruda",
+			"name": {
+				"it-IT": "Carota (julienne cruda)",
+				"en-GB": "Carrot (raw julienne)"
+			}
+		},
+		{
+			"id": "filetti-di-orata-spinati-e-senza-pelle",
+			"name": {
+				"it-IT": "Filetti di orata spinati e senza pelle",
+				"en-GB": "Boneless skinless sea bream fillets"
+			}
+		},
+		{
+			"id": "pomodorini-rossi-e-gialli",
+			"name": {
+				"it-IT": "Pomodorini rossi e gialli",
+				"en-GB": "Red and yellow cherry tomatoes"
+			}
+		},
+		{
+			"id": "patata-media",
+			"name": {
+				"it-IT": "Patata media",
+				"en-GB": "Medium potato"
+			}
+		},
+		{
+			"id": "fette-di-lonza-di-maiale",
+			"name": {
+				"it-IT": "Fette di lonza di maiale",
+				"en-GB": "Pork loin slices"
+			}
+		},
+		{
+			"id": "limone-bio-succo-e-scorza",
+			"name": {
+				"it-IT": "Limone bio (succo e scorza)",
+				"en-GB": "Organic lemon (juice and zest)"
+			}
+		},
+		{
+			"id": "miele",
+			"name": {
+				"it-IT": "Miele",
+				"en-GB": "Honey"
+			}
+		},
+		{
+			"id": "reale-di-vitellone-o-di-bovino-a-fettine",
+			"name": {
+				"it-IT": "Reale di vitellone (o di bovino) a fettine",
+				"en-GB": "Sliced beef chuck"
+			}
+		},
+		{
+			"id": "pomodori-pelati-o-pomodorini-freschi-maturi",
+			"name": {
+				"it-IT": "Pomodori pelati (o pomodorini freschi maturi)",
+				"en-GB": "Peeled tomatoes (or ripe fresh cherry tomatoes)"
+			}
+		},
+		{
+			"id": "prezzemolo-fresco",
+			"name": {
+				"it-IT": "Prezzemolo fresco",
+				"en-GB": "Fresh parsley"
+			}
+		},
+		{
+			"id": "lenticchie-meglio-pardine",
+			"name": {
+				"it-IT": "Lenticchie (meglio pardine)",
+				"en-GB": "Lentils (ideally pardina)"
+			}
+		},
+		{
+			"id": "patata-grande-o-2-piccole",
+			"name": {
+				"it-IT": "Patata grande (o 2 piccole)",
+				"en-GB": "Large potato (or 2 small)"
+			}
+		},
+		{
+			"id": "cipolla-grande",
+			"name": {
+				"it-IT": "Cipolla grande",
+				"en-GB": "Large onion"
+			}
+		},
+		{
+			"id": "pomodoro-tritato-o-grattugiato",
+			"name": {
+				"it-IT": "Pomodoro tritato o grattugiato",
+				"en-GB": "Chopped or grated tomato"
+			}
+		},
+		{
+			"id": "peperone-rosso-o-1-2-verde",
+			"name": {
+				"it-IT": "Peperone rosso (o 1/2 verde)",
+				"en-GB": "Red pepper (or 1/2 green)"
+			}
+		},
+		{
+			"id": "paprika-affumicata",
+			"name": {
+				"it-IT": "Paprika affumicata",
+				"en-GB": "Smoked paprika"
+			}
+		},
+		{
+			"id": "cumino",
+			"name": {
+				"it-IT": "Cumino",
+				"en-GB": "Cumin"
+			}
+		},
+		{
+			"id": "vino-bianco-o-fino-facoltativo",
+			"name": {
+				"it-IT": "Vino bianco o fino (facoltativo)",
+				"en-GB": "White wine or fino sherry (optional)"
+			}
+		},
+		{
+			"id": "alloro",
+			"name": {
+				"it-IT": "Alloro",
+				"en-GB": "Bay leaf"
+			}
+		},
+		{
+			"id": "fusilloni",
+			"name": {
+				"it-IT": "Fusilloni",
+				"en-GB": "Fusilloni"
+			}
+		},
+		{
+			"id": "speck-da-tagliare-a-cubetti",
+			"name": {
+				"it-IT": "Speck da tagliare a cubetti",
+				"en-GB": "Speck, to dice"
+			}
+		},
+		{
+			"id": "cipollotti",
+			"name": {
+				"it-IT": "Cipollotti",
+				"en-GB": "Spring onions"
+			}
+		},
+		{
+			"id": "spaghettoni",
+			"name": {
+				"it-IT": "Spaghettoni",
+				"en-GB": "Spaghettoni"
+			}
+		},
+		{
+			"id": "salvia",
+			"name": {
+				"it-IT": "Salvia",
+				"en-GB": "Sage"
+			}
+		},
+		{
+			"id": "couscous",
+			"name": {
+				"it-IT": "Couscous",
+				"en-GB": "Couscous grains"
+			}
+		},
+		{
+			"id": "tonno-sott-olio-peso-sgocciolato",
+			"name": {
+				"it-IT": "Tonno sott'olio (peso sgocciolato)",
+				"en-GB": "Tuna in oil (drained weight)"
+			}
+		},
+		{
+			"id": "fagioli-rossi-precotti-peso-sgocciolato",
+			"name": {
+				"it-IT": "Fagioli rossi precotti (peso sgocciolato)",
+				"en-GB": "Pre-cooked kidney beans (drained weight)"
+			}
+		},
+		{
+			"id": "ravanelli",
+			"name": {
+				"it-IT": "Ravanelli",
+				"en-GB": "Radishes"
+			}
+		},
+		{
+			"id": "couscous-precotto",
+			"name": {
+				"it-IT": "Couscous precotto",
+				"en-GB": "Pre-cooked couscous"
+			}
+		},
+		{
+			"id": "brodo-vegetale-caldo",
+			"name": {
+				"it-IT": "Brodo vegetale caldo",
+				"en-GB": "Hot vegetable stock"
+			}
+		},
+		{
+			"id": "curcuma-in-polvere",
+			"name": {
+				"it-IT": "Curcuma in polvere",
+				"en-GB": "Ground turmeric"
+			}
+		},
+		{
+			"id": "cipolle-rosse",
+			"name": {
+				"it-IT": "Cipolle rosse",
+				"en-GB": "Red onions"
+			}
+		},
+		{
+			"id": "pisellini",
+			"name": {
+				"it-IT": "Pisellini",
+				"en-GB": "Petits pois"
+			}
+		},
+		{
+			"id": "peperoncino-fresco",
+			"name": {
+				"it-IT": "Peperoncino fresco",
+				"en-GB": "Fresh chilli"
+			}
+		},
+		{
+			"id": "mandorle-in-scaglie",
+			"name": {
+				"it-IT": "Mandorle in scaglie",
+				"en-GB": "Flaked almonds"
+			}
+		},
+		{
+			"id": "pappardelle-all-uovo",
+			"name": {
+				"it-IT": "Pappardelle all'uovo",
+				"en-GB": "Egg pappardelle"
+			}
+		},
+		{
+			"id": "salsiccia",
+			"name": {
+				"it-IT": "Salsiccia",
+				"en-GB": "Sausage"
+			}
+		},
+		{
+			"id": "porri",
+			"name": {
+				"it-IT": "Porri",
+				"en-GB": "Leeks"
+			}
+		},
+		{
+			"id": "vino-rosso",
+			"name": {
+				"it-IT": "Vino rosso",
+				"en-GB": "Red wine"
+			}
+		},
+		{
+			"id": "parmigiano-reggiano-dop",
+			"name": {
+				"it-IT": "Parmigiano Reggiano DOP",
+				"en-GB": "Parmigiano Reggiano PDO"
+			}
+		},
+		{
+			"id": "timo",
+			"name": {
+				"it-IT": "Timo",
+				"en-GB": "Thyme"
+			}
+		},
+		{
+			"id": "corn-flakes-non-zuccherati",
+			"name": {
+				"it-IT": "Corn flakes non zuccherati",
+				"en-GB": "Unsweetened cornflakes"
+			}
+		},
+		{
+			"id": "latte-intero",
+			"name": {
+				"it-IT": "Latte intero",
+				"en-GB": "Whole milk"
+			}
+		},
+		{
+			"id": "paprika-dolce",
+			"name": {
+				"it-IT": "Paprika dolce",
+				"en-GB": "Sweet paprika"
+			}
+		},
+		{
+			"id": "yogurt-bianco-naturale",
+			"name": {
+				"it-IT": "Yogurt bianco naturale",
+				"en-GB": "Plain natural yoghurt"
+			}
+		},
+		{
+			"id": "maionese",
+			"name": {
+				"it-IT": "Maionese",
+				"en-GB": "Mayonnaise"
+			}
+		},
+		{
+			"id": "scorza-di-limone",
+			"name": {
+				"it-IT": "Scorza di limone",
+				"en-GB": "Lemon zest"
+			}
+		},
+		{
+			"id": "erba-cipollina",
+			"name": {
+				"it-IT": "Erba cipollina",
+				"en-GB": "Chives"
+			}
+		},
+		{
+			"id": "olio-di-semi-di-girasole",
+			"name": {
+				"it-IT": "Olio di semi di girasole",
+				"en-GB": "Sunflower oil"
+			}
+		},
+		{
+			"id": "bresaola",
+			"name": {
+				"it-IT": "Bresaola",
+				"en-GB": "Bresaola"
+			}
+		},
+		{
+			"id": "stracchino",
+			"name": {
+				"it-IT": "Stracchino",
+				"en-GB": "Stracchino"
+			}
+		},
+		{
+			"id": "rucola",
+			"name": {
+				"it-IT": "Rucola",
+				"en-GB": "Rocket"
+			}
+		},
+		{
+			"id": "pomodori-secchi-sott-olio",
+			"name": {
+				"it-IT": "Pomodori secchi sott'olio",
+				"en-GB": "Sun-dried tomatoes in oil"
+			}
+		},
+		{
+			"id": "foglie-di-basilico",
+			"name": {
+				"it-IT": "Foglie di basilico",
+				"en-GB": "Basil leaves"
+			}
+		},
+		{
+			"id": "cipolla-rossa-piccola",
+			"name": {
+				"it-IT": "Cipolla rossa piccola",
+				"en-GB": "Small red onion"
+			}
+		},
+		{
+			"id": "pomodori",
+			"name": {
+				"it-IT": "Pomodori",
+				"en-GB": "Tomatoes"
+			}
+		},
+		{
+			"id": "zenzero-fresco-grattugiato",
+			"name": {
+				"it-IT": "Zenzero fresco grattugiato",
+				"en-GB": "Grated fresh ginger"
+			}
+		},
+		{
+			"id": "coriandolo-macinato",
+			"name": {
+				"it-IT": "Coriandolo macinato",
+				"en-GB": "Ground coriander"
+			}
+		},
+		{
+			"id": "cumino-macinato",
+			"name": {
+				"it-IT": "Cumino macinato",
+				"en-GB": "Ground cumin seeds"
+			}
+		},
+		{
+			"id": "cannella",
+			"name": {
+				"it-IT": "Cannella",
+				"en-GB": "Cinnamon"
+			}
+		},
+		{
+			"id": "peperoncino-in-fiocchi",
+			"name": {
+				"it-IT": "Peperoncino in fiocchi",
+				"en-GB": "Chilli flakes"
+			}
+		},
+		{
+			"id": "crema-di-mandorle-croccante",
+			"name": {
+				"it-IT": "Crema di mandorle croccante",
+				"en-GB": "Crunchy almond butter"
+			}
+		},
+		{
+			"id": "ceci-in-scatola",
+			"name": {
+				"it-IT": "Ceci in scatola",
+				"en-GB": "Tinned chickpeas"
+			}
+		},
+		{
+			"id": "garam-masala",
+			"name": {
+				"it-IT": "Garam masala",
+				"en-GB": "Garam masala"
+			}
+		},
+		{
+			"id": "curcuma",
+			"name": {
+				"it-IT": "Curcuma",
+				"en-GB": "Turmeric"
+			}
+		},
+		{
+			"id": "mandorle-tritate",
+			"name": {
+				"it-IT": "Mandorle tritate",
+				"en-GB": "Chopped almonds"
+			}
+		},
+		{
+			"id": "coriandolo-fresco",
+			"name": {
+				"it-IT": "Coriandolo fresco",
+				"en-GB": "Fresh coriander"
+			}
+		},
+		{
+			"id": "spaghetti-di-riso",
+			"name": {
+				"it-IT": "Spaghetti di riso",
+				"en-GB": "Rice noodles"
+			}
+		},
+		{
+			"id": "tofu-affumicato",
+			"name": {
+				"it-IT": "Tofu affumicato",
+				"en-GB": "Smoked tofu"
+			}
+		},
+		{
+			"id": "germogli-di-soia",
+			"name": {
+				"it-IT": "Germogli di soia",
+				"en-GB": "Bean sprouts"
+			}
+		},
+		{
+			"id": "cipolla-o-cipollotto",
+			"name": {
+				"it-IT": "Cipolla o cipollotto",
+				"en-GB": "Onion or spring onion"
+			}
+		},
+		{
+			"id": "aceto",
+			"name": {
+				"it-IT": "Aceto",
+				"en-GB": "Vinegar"
+			}
+		},
+		{
+			"id": "salsa-barbecue-o-fumo-liquido-q-b",
+			"name": {
+				"it-IT": "Salsa barbecue (o fumo liquido q.b.)",
+				"en-GB": "Barbecue sauce (or liquid smoke to taste)"
+			}
+		},
+		{
+			"id": "semi-di-sesamo",
+			"name": {
+				"it-IT": "Semi di sesamo",
+				"en-GB": "Sesame seeds"
+			}
+		},
+		{
+			"id": "prezzemolo-opzionale",
+			"name": {
+				"it-IT": "Prezzemolo (opzionale)",
+				"en-GB": "Parsley (optional)"
+			}
+		},
+		{
+			"id": "radicchio-pulito",
+			"name": {
+				"it-IT": "Radicchio pulito",
+				"en-GB": "Prepared radicchio"
+			}
+		},
+		{
+			"id": "noci-sgusciate",
+			"name": {
+				"it-IT": "Noci sgusciate",
+				"en-GB": "Shelled walnuts"
+			}
+		},
+		{
+			"id": "ditali",
+			"name": {
+				"it-IT": "Ditali",
+				"en-GB": "Ditali"
+			}
+		},
+		{
+			"id": "ceci-gia-cotti-e-sgocciolati",
+			"name": {
+				"it-IT": "Ceci già cotti e sgocciolati",
+				"en-GB": "Cooked drained chickpeas"
+			}
+		},
+		{
+			"id": "rosmarino",
+			"name": {
+				"it-IT": "Rosmarino",
+				"en-GB": "Rosemary"
+			}
+		},
+		{
+			"id": "trofie",
+			"name": {
+				"it-IT": "Trofie",
+				"en-GB": "Trofie"
+			}
+		},
+		{
+			"id": "funghi-champignon-puliti",
+			"name": {
+				"it-IT": "Funghi champignon puliti",
+				"en-GB": "Cleaned button mushrooms"
+			}
+		},
+		{
+			"id": "fusilli",
+			"name": {
+				"it-IT": "Fusilli",
+				"en-GB": "Fusilli"
+			}
+		},
+		{
+			"id": "spinaci-freschi-puliti",
+			"name": {
+				"it-IT": "Spinaci freschi puliti",
+				"en-GB": "Prepared fresh spinach"
+			}
+		},
+		{
+			"id": "cipolla-a-dadini",
+			"name": {
+				"it-IT": "Cipolla a dadini",
+				"en-GB": "Diced onion"
+			}
+		},
+		{
+			"id": "aglio-tritato-o-schiacciato",
+			"name": {
+				"it-IT": "Aglio tritato o schiacciato",
+				"en-GB": "Chopped or crushed garlic"
+			}
+		},
+		{
+			"id": "fagioli-neri-scolati-e-sciacquati",
+			"name": {
+				"it-IT": "Fagioli neri scolati e sciacquati",
+				"en-GB": "Black beans, drained and rinsed"
+			}
+		},
+		{
+			"id": "salsa-messicana-pronta",
+			"name": {
+				"it-IT": "Salsa messicana pronta",
+				"en-GB": "Ready-made Mexican salsa"
+			}
+		},
+		{
+			"id": "yogurt-greco-o-panna-acida",
+			"name": {
+				"it-IT": "Yogurt greco (o panna acida)",
+				"en-GB": "Greek yoghurt (or soured cream)"
+			}
+		},
+		{
+			"id": "lattuga-tagliata-o-spezzettata",
+			"name": {
+				"it-IT": "Lattuga tagliata o spezzettata",
+				"en-GB": "Shredded lettuce"
+			}
+		},
+		{
+			"id": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
+			"name": {
+				"it-IT": "Cheddar Jack grattugiato (oppure Monterey Jack, cheddar o Cotija)",
+				"en-GB": "Grated Cheddar Jack (or Monterey Jack, cheddar or Cotija)"
+			}
+		},
+		{
+			"id": "pomodoro-a-dadini-varieta-roma",
+			"name": {
+				"it-IT": "Pomodoro a dadini (varietà Roma)",
+				"en-GB": "Diced tomato (Roma)"
+			}
+		},
+		{
+			"id": "tortillas-di-farina",
+			"name": {
+				"it-IT": "Tortillas di farina",
+				"en-GB": "Flour tortillas"
+			}
+		},
+		{
+			"id": "erbazzone-congelato",
+			"name": {
+				"it-IT": "Erbazzone congelato",
+				"en-GB": "Frozen erbazzone"
+			}
+		},
+		{
+			"id": "pane",
+			"name": {
+				"it-IT": "Pane",
+				"en-GB": "Bread"
+			}
+		},
+		{
+			"id": "mozzarelle",
+			"name": {
+				"it-IT": "Mozzarelle",
+				"en-GB": "Mozzarella balls"
+			}
+		},
+		{
+			"id": "pomodoro-cuore-di-bue",
+			"name": {
+				"it-IT": "Pomodoro cuore di bue",
+				"en-GB": "Oxheart tomato"
+			}
+		},
+		{
+			"id": "tacchino",
+			"name": {
+				"it-IT": "Tacchino",
+				"en-GB": "Turkey"
+			}
+		}
+	],
+	"recipes": [
+		{
+			"id": "wok-pollo-peperoni-riso-basmati",
+			"status": "published",
+			"name": {
+				"it-IT": "Wok di pollo con peperoni, carote e zucchine; riso basmati",
+				"en-GB": "Chicken stir-fry with peppers, carrots and courgettes; basmati rice"
+			},
+			"description": {
+				"it-IT": "Cuoci il riso, salta pollo e verdure nel wok, poi unisci e condisci.",
+				"en-GB": "Cook the rice, stir-fry the chicken and vegetables in the wok, then combine and season."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricetta.it/riso-basmati-con-pollo-e-verdure",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 6,
+			"ingredients": [
+				{
+					"ingredientId": "riso-basmati",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "petto-di-pollo",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "peperone-rosso",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "peperone-giallo",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "melanzana-piccola",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "cipolla-rossa-di-tropea-o-1-cipollotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "salsa-di-soia-senza-glutine",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "tbsp"
+					},
+					"sourceText": "3 cucchiai circa"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "white_meat",
+			"tags": [
+				"pollo",
+				"wok",
+				"riso"
+			],
+			"photo": null
+		},
+		{
+			"id": "salmone-skottle-fagiolini-patate",
+			"status": "draft",
+			"name": {
+				"it-IT": "Filetti di salmone allo skottle con limone ed erbe; fagiolini e patate",
+				"en-GB": null
+			},
+			"description": {
+				"it-IT": "Cuoci i filetti sullo skottle e servi con fagiolini e patate saltate.",
+				"en-GB": null
+			},
+			"sourceType": "youtube",
+			"sourceUrl": "https://www.youtube.com/watch?v=xeUjPk8wvz4",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": null,
+			"ingredients": [],
+			"mealType": "dinner",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"skottle",
+				"patate"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-melanzane-pomodoro-ricotta",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta classica con pomodoro fresco, melanzane e ricotta",
+				"en-GB": "Classic pasta with fresh tomato, aubergine and ricotta"
+			},
+			"description": {
+				"it-IT": "Rosola le melanzane, aggiungi il pomodoro e manteca la pasta con la ricotta.",
+				"en-GB": "Brown the aubergine, add the tomato and stir the pasta through with the ricotta."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/incucinaconilblog/pasta-melanzane-pomodoro-ricotta/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "mezze-penne",
+					"quantity": {
+						"kind": "amount",
+						"value": 350,
+						"unit": "g"
+					},
+					"sourceText": "350 g"
+				},
+				{
+					"ingredientId": "melanzana-piccola",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "pomodori-ramati",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "cipolla-piccola",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "peperoncino",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "pinch"
+					},
+					"sourceText": "1 pizzico"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "basilico",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "ricotta",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano"
+			],
+			"photo": null
+		},
+		{
+			"id": "polpettine-tacchino-skottle",
+			"status": "draft",
+			"name": {
+				"it-IT": "Polpettine di tacchino allo skottle con peperoni e zucchine; pane",
+				"en-GB": null
+			},
+			"description": {
+				"it-IT": "Forma polpettine schiacciate e cuocile sullo skottle con le verdure.",
+				"en-GB": null
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/peperoncino88/polpette-di-tacchino-con-zucchine/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": null,
+			"ingredients": [],
+			"mealType": "dinner",
+			"proteinGroup": "meat",
+			"tags": [
+				"carne",
+				"skottle"
+			],
+			"photo": null
+		},
+		{
+			"id": "insalata-farro-tonno",
+			"status": "draft",
+			"name": {
+				"it-IT": "Insalata di farro con tonno, pomodori, cetriolo, mais e olive",
+				"en-GB": null
+			},
+			"description": {
+				"it-IT": "Mescola il farro cotto con tonno e verdure, poi condisci.",
+				"en-GB": null
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.finedininglovers.it/esplora/ricette/insalata-di-farro-e-tonno",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 15,
+			"baseServings": null,
+			"ingredients": [],
+			"mealType": "lunch",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"cereali",
+				"freddo",
+				"veloce",
+				"pranzo-al-sacco"
+			],
+			"photo": null
+		},
+		{
+			"id": "frittata-forno-bietole-ricotta",
+			"status": "published",
+			"name": {
+				"it-IT": "Frittata al forno con bietole e ricotta; insalata di pomodori",
+				"en-GB": "Baked frittata with chard and ricotta; tomato salad"
+			},
+			"description": {
+				"it-IT": "Mescola uova, bietole e ricotta, cuoci in forno e servi con i pomodori.",
+				"en-GB": "Mix eggs, chard and ricotta, bake in the oven and serve with the tomatoes."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/lacucinasottosopra/frittata-bietole-e-ricotta/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 3,
+			"ingredients": [
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 6,
+						"unit": "piece"
+					},
+					"sourceText": "6"
+				},
+				{
+					"ingredientId": "bietole-gia-cotte",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "ricotta-vaccina",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "pecorino-romano-grattugiato-o-parmigiano",
+					"quantity": {
+						"kind": "amount",
+						"value": 5,
+						"unit": "tbsp"
+					},
+					"sourceText": "5 cucchiai"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "eggs",
+			"tags": [
+				"uova",
+				"vegetariano",
+				"forno"
+			],
+			"photo": null
+		},
+		{
+			"id": "noodles-wok-uova-verdure",
+			"status": "published",
+			"name": {
+				"it-IT": "Noodles al wok con uova, carote, zucchine e piselli",
+				"en-GB": "Wok noodles with egg, carrots, courgettes and peas"
+			},
+			"description": {
+				"it-IT": "Salta le verdure, aggiungi uova e noodles e condisci con salsa di soia.",
+				"en-GB": "Stir-fry the vegetables, add the eggs and noodles and season with soy sauce."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.funandfood.it/2024/05/13/noodles-con-verdure-uova/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 20,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "noodles-di-grano-o-di-riso",
+					"quantity": {
+						"kind": "amount",
+						"value": 180,
+						"unit": "g"
+					},
+					"sourceText": "180 g"
+				},
+				{
+					"ingredientId": "cipolla",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "peperone",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "carota",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "zucchina",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "salsa-d-ostriche-facoltativa",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tbsp"
+					},
+					"sourceText": "1 cucchiaio"
+				},
+				{
+					"ingredientId": "salsa-di-soia",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "curry-in-polvere-facoltativo",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "aglio-in-polvere",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "a piacere"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "eggs",
+			"tags": [
+				"uova",
+				"wok",
+				"vegetariano"
+			],
+			"photo": null
+		},
+		{
+			"id": "merluzzo-pomodoro-olive-cous-cous",
+			"status": "published",
+			"name": {
+				"it-IT": "Filetti di merluzzo con pomodoro e olive; cous cous e broccoli",
+				"en-GB": "Cod fillets with tomato and olives; couscous and broccoli"
+			},
+			"description": {
+				"it-IT": "Cuoci il merluzzo con pomodoro, cipollotto e olive taggiasche e servi con cous cous allo zafferano e mandorle.",
+				"en-GB": "Cook the cod with tomato, spring onion and Taggiasca olives and serve with saffron couscous and almonds."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.sedanoallegro.it/node/1170",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "filetti-di-merluzzo",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "pomodori-ciliegini-o-pomodorini",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "concentrato-di-pomodoro",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "cipollotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "olive-taggiasche",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "cous-cous",
+					"quantity": {
+						"kind": "amount",
+						"value": 250,
+						"unit": "g"
+					},
+					"sourceText": "250 g"
+				},
+				{
+					"ingredientId": "zafferano",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 bustina"
+				},
+				{
+					"ingredientId": "basilico-fresco",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "mandorle",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce"
+			],
+			"photo": null
+		},
+		{
+			"id": "wrap-frittata-hummus",
+			"status": "published",
+			"name": {
+				"it-IT": "Wrap con frittata, hummus, lattuga e carote",
+				"en-GB": "Wraps with frittata, hummus, lettuce and carrots"
+			},
+			"description": {
+				"it-IT": "Frulla ceci, tahina, limone e aglio per l'hummus piccante, poi farcisci le piadine con verdure ed emmentaler.",
+				"en-GB": "Blend chickpeas, tahini, lemon and garlic for a spicy hummus, then fill the flatbreads with vegetables and Emmental."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Wrap-con-hummus-piccante-e-verdure.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 20,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "piadine-integrali-da-50-g-ciascuna",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "peperoncino-fresco-dolce",
+					"quantity": {
+						"kind": "amount",
+						"value": 10,
+						"unit": "g"
+					},
+					"sourceText": "10 g"
+				},
+				{
+					"ingredientId": "lattuga-iceberg",
+					"quantity": {
+						"kind": "amount",
+						"value": 80,
+						"unit": "g"
+					},
+					"sourceText": "80 g"
+				},
+				{
+					"ingredientId": "barbabietole",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "emmentaler-8-fette",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "ceci-precotti",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "amount",
+						"value": 20,
+						"unit": "g"
+					},
+					"sourceText": "20 g"
+				},
+				{
+					"ingredientId": "tabasco",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "succo-di-limone",
+					"quantity": {
+						"kind": "amount",
+						"value": 30,
+						"unit": "g"
+					},
+					"sourceText": "30 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "paprika-piccante",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "tahina",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "eggs",
+			"tags": [
+				"uova",
+				"pane-wrap",
+				"vegetariano",
+				"pranzo-al-sacco"
+			],
+			"photo": null
+		},
+		{
+			"id": "gamberi-zucchine-skottle",
+			"status": "published",
+			"name": {
+				"it-IT": "Gamberi e zucchine allo skottle con pane tostato e pomodorini",
+				"en-GB": "Skottle prawns and courgettes with toasted bread and cherry tomatoes"
+			},
+			"description": {
+				"it-IT": "Rosola gamberi e zucchine con aglio e scalogno, sfuma con vino bianco e servi sul pane tostato.",
+				"en-GB": "Brown the prawns and courgettes with garlic and shallot, deglaze with white wine and serve on toasted bread."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.chefsilvia.it/ricette-estive/item/ricetta-bruschetta-terra-mare.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 20,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "pane-casereccio-tipo-toscano",
+					"quantity": {
+						"kind": "amount",
+						"value": 6,
+						"unit": "slice"
+					},
+					"sourceText": "6 fette"
+				},
+				{
+					"ingredientId": "code-di-gambero",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "vino-bianco-secco",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/2 bicchiere"
+				},
+				{
+					"ingredientId": "scalogno",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"skottle",
+				"veloce"
+			],
+			"photo": null
+		},
+		{
+			"id": "crema-zucchine-cannellini",
+			"status": "draft",
+			"name": {
+				"it-IT": "Crema di zucchine e cannellini con crostini e pomodorini",
+				"en-GB": null
+			},
+			"description": {
+				"it-IT": "Frulla zucchine, cannellini e tahina con aglio e limone; profuma con basilico, prezzemolo ed erba cipollina.",
+				"en-GB": null
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.foodandwineitalia.com/crema-di-zucchine-e-cannellini/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": null,
+			"ingredients": [],
+			"mealType": "dinner",
+			"proteinGroup": "legumes",
+			"tags": [
+				"legumi",
+				"vegetariano"
+			],
+			"photo": null
+		},
+		{
+			"id": "uova-pomodoro-padella",
+			"status": "published",
+			"name": {
+				"it-IT": "Uova al pomodoro in padella",
+				"en-GB": "Eggs in tomato sauce"
+			},
+			"description": {
+				"it-IT": "Rosola la cipolla, cuoci i pomodorini 5 min, aggiungi le uova e termina coperto.",
+				"en-GB": "Soften the onion, cook the cherry tomatoes for 5 min, add the eggs and finish covered."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Uova-al-pomodoro.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 20,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "uova-medie",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "pomodorini-perini",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "cipolla-dorata",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale-fino",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "pepe-nero",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "eggs",
+			"tags": [
+				"uova",
+				"vegetariano",
+				"veloce",
+				"padella"
+			],
+			"photo": null
+		},
+		{
+			"id": "polpette-melanzane-forno",
+			"status": "published",
+			"name": {
+				"it-IT": "Polpette di melanzane al forno",
+				"en-GB": "Baked aubergine balls"
+			},
+			"description": {
+				"it-IT": "Rosola le melanzane a cubetti, impasta con uovo, pangrattato e caciocavallo, inforna 40 min.",
+				"en-GB": "Brown the diced aubergine, mix with egg, breadcrumbs and caciocavallo, bake for 40 min."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.dissapore.com/ricette/polpette-di-melanzane-al-forno/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 40,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "melanzane",
+					"quantity": {
+						"kind": "amount",
+						"value": 600,
+						"unit": "g"
+					},
+					"sourceText": "600 g"
+				},
+				{
+					"ingredientId": "pangrattato",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "uovo",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 mazzetto"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "caciocavallo-grattugiato",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "noce-moscata",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "pinch"
+					},
+					"sourceText": "1 pizzico"
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "15 cucchiai (per rosolare le melanzane)"
+				},
+				{
+					"ingredientId": "sale-e-pepe",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "pinch"
+					},
+					"sourceText": "1 pizzico"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"vegetariano",
+				"forno"
+			],
+			"photo": null
+		},
+		{
+			"id": "pappardelle-alfredo",
+			"status": "published",
+			"name": {
+				"it-IT": "Pappardelle Alfredo",
+				"en-GB": "Pappardelle Alfredo"
+			},
+			"description": {
+				"it-IT": "Sciogli il burro, unisci metà parmigiano e acqua di cottura, poi manteca con il resto del parmigiano.",
+				"en-GB": "Melt the butter, add half the Parmesan and some pasta water, then stir in the rest of the Parmesan."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "pappardelle",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "burro",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "parmigiano",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-pesto-genovese",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta al pesto alla genovese",
+				"en-GB": "Pasta with Genoese pesto"
+			},
+			"description": {
+				"it-IT": "Cuoci la pasta e condiscila con un vasetto di pesto alla genovese già pronto.",
+				"en-GB": "Cook the pasta and dress it with a jar of ready-made Genoese pesto."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "pasta",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "pesto-alla-genovese",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 vasetto"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "hamburger-cavallo",
+			"status": "published",
+			"name": {
+				"it-IT": "Hamburger di carne di cavallo",
+				"en-GB": "Horse meat burgers"
+			},
+			"description": {
+				"it-IT": "Cuoci gli hamburger di cavallo e servili nel panino.",
+				"en-GB": "Cook the horse meat burgers and serve them in buns."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 15,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "hamburger-di-cavallo",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "panini-per-hamburger",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "meat",
+			"tags": [
+				"carne",
+				"veloce",
+				"skottle",
+				"barbecue",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-tonno",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta al tonno",
+				"en-GB": "Tuna pasta"
+			},
+			"description": {
+				"it-IT": "Rosola aglio e alici, aggiungi tonno sgocciolato e pomodoro, poi profuma con prezzemolo e basilico.",
+				"en-GB": "Fry garlic and anchovies, add drained tuna and tomato, then finish with parsley and basil."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "pasta",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "tonno-sott-olio",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "clove"
+					},
+					"sourceText": "3 spicchi"
+				},
+				{
+					"ingredientId": "alici",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "passata-di-pomodoro",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "basilico",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "fish",
+			"tags": [
+				"pasta",
+				"pesce",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "spaghetti-pomodoro",
+			"status": "published",
+			"name": {
+				"it-IT": "Spaghetti al pomodoro",
+				"en-GB": "Spaghetti with tomato sauce"
+			},
+			"description": {
+				"it-IT": "Rosola l'aglio, aggiungi il pomodoro e il basilico, poi manteca con parmigiano a piacere.",
+				"en-GB": "Fry the garlic, add the tomato and basil, then stir in Parmesan to taste."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "pasta",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "passata-di-pomodoro",
+					"quantity": {
+						"kind": "amount",
+						"value": 700,
+						"unit": "g"
+					},
+					"sourceText": "700 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "clove"
+					},
+					"sourceText": "3 spicchi"
+				},
+				{
+					"ingredientId": "parmigiano",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "basilico",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-sugo-pesce",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta al sugo di pesce",
+				"en-GB": "Pasta with fish sauce"
+			},
+			"description": {
+				"it-IT": "Rosola aglio e alici, aggiungi il sugo di pesce e manteca con la pasta fresca.",
+				"en-GB": "Fry garlic and anchovies, add the fish sauce and stir through the fresh pasta."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "sugo-di-pesce",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "pasta-fresca",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "clove"
+					},
+					"sourceText": "3 spicchi"
+				},
+				{
+					"ingredientId": "alici",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "fish",
+			"tags": [
+				"pasta",
+				"pesce",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "penne-baffo",
+			"status": "published",
+			"name": {
+				"it-IT": "Penne al baffo",
+				"en-GB": "Penne al baffo"
+			},
+			"description": {
+				"it-IT": "Rosola il cotto, unisci pelati schiacciati e panna, poi manteca le penne con prezzemolo.",
+				"en-GB": "Brown the ham, add crushed peeled tomatoes and cream, then stir the penne through with parsley."
+			},
+			"sourceType": "home",
+			"sourceUrl": "https://www.casapappagallo.it/ricette/penne-al-baffo",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "penne-rigate",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "panna-fresca",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "prosciutto-cotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "pomodori-pelati",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 ciuffo"
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "tbsp"
+					},
+					"sourceText": "4 cucchiai"
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "pepe-nero",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": null,
+			"tags": [
+				"pasta",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-zucca-salsiccia-robiola",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta zucca, salsiccia e robiola",
+				"en-GB": "Pasta with squash, sausage and robiola"
+			},
+			"description": {
+				"it-IT": "Rosola salsiccia e cipolla, cuoci la zucca 10 min, manteca con robiola e acqua di cottura.",
+				"en-GB": "Brown the sausage and onion, cook the squash for 10 min, stir through with robiola and pasta water."
+			},
+			"sourceType": "home",
+			"sourceUrl": "https://www.fattoincasadabenedetta.it/ricetta/pasta-zucca-e-salsiccia/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "rigatoni",
+					"quantity": {
+						"kind": "amount",
+						"value": 320,
+						"unit": "g"
+					},
+					"sourceText": "320 g"
+				},
+				{
+					"ingredientId": "zucca-a-pezzetti",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "salsicce",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "cipolla",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "robiola",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "pepe-nero",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "meat",
+			"tags": [
+				"pasta",
+				"carne",
+				"autunno",
+				"ricetta-di-casa"
+			],
+			"photo": "/assets/recipe-images/pasta-zucca-salsiccia-robiola.jpg"
+		},
+		{
+			"id": "orecchiette-broccoli",
+			"status": "published",
+			"name": {
+				"it-IT": "Orecchiette ai broccoli",
+				"en-GB": "Orecchiette with broccoli"
+			},
+			"description": {
+				"it-IT": "Lessa il broccolo, rosola aglio e alici, poi frulla tutto e manteca la pasta con parmigiano a piacere.",
+				"en-GB": "Boil the broccoli, fry garlic and anchovies, then blend everything and stir the pasta through with Parmesan to taste."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "orecchiette",
+					"quantity": {
+						"kind": "amount",
+						"value": 500,
+						"unit": "g"
+					},
+					"sourceText": "500 g"
+				},
+				{
+					"ingredientId": "broccolo",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "kg"
+					},
+					"sourceText": "1 kg"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "clove"
+					},
+					"sourceText": "3 spicchi"
+				},
+				{
+					"ingredientId": "alici",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "parmigiano",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-crema-peperoni",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta alla crema di peperoni",
+				"en-GB": "Pasta with creamy pepper sauce"
+			},
+			"description": {
+				"it-IT": "Stufa i peperoni con cipolla, frullali con ricotta e latte e manteca i paccheri con la crema.",
+				"en-GB": "Stew the peppers with onion, blend with ricotta and milk and coat the paccheri with the sauce."
+			},
+			"sourceType": "home",
+			"sourceUrl": "https://www.fattoincasadabenedetta.it/ricetta/pasta-alla-crema-di-peperoni/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "paccheri",
+					"quantity": {
+						"kind": "amount",
+						"value": 350,
+						"unit": "g"
+					},
+					"sourceText": "350 g"
+				},
+				{
+					"ingredientId": "peperoni-rossi",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "ricotta",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "latte",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "ml"
+					},
+					"sourceText": "100 ml"
+				},
+				{
+					"ingredientId": "cipolla",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"ricetta-di-casa"
+			],
+			"photo": "/assets/recipe-images/pasta-crema-peperoni.jpg"
+		},
+		{
+			"id": "bistecche-tonno-skottle",
+			"status": "published",
+			"name": {
+				"it-IT": "Bistecche di tonno allo skottle",
+				"en-GB": "Skottle tuna steaks"
+			},
+			"description": {
+				"it-IT": "Marina il tonno con olio, limone e spezie, poi cuoci sullo skottle a fuoco alto 3 minuti per lato.",
+				"en-GB": "Marinate the tuna with oil, lemon and spices, then cook on the skottle over high heat for 3 minutes per side."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "tonno",
+					"quantity": {
+						"kind": "amount",
+						"value": 800,
+						"unit": "g"
+					},
+					"sourceText": "800 g"
+				},
+				{
+					"ingredientId": "limone",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"skottle",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "branzino-barbecue",
+			"status": "published",
+			"name": {
+				"it-IT": "Filetti di branzino al barbecue",
+				"en-GB": "Barbecued sea bass fillets"
+			},
+			"description": {
+				"it-IT": "Cuoci i filetti di branzino a partire dalla pelle, 3 minuti per lato, con olio, sale e pepe.",
+				"en-GB": "Cook the sea bass fillets skin side first, 3 minutes per side, with oil, salt and pepper."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "filetti-di-branzino",
+					"quantity": {
+						"kind": "amount",
+						"value": 800,
+						"unit": "g"
+					},
+					"sourceText": "800 g"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"barbecue",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "sovracosce-pollo-griglia",
+			"status": "published",
+			"name": {
+				"it-IT": "Sovracosce di pollo alla griglia",
+				"en-GB": "Grilled chicken thighs"
+			},
+			"description": {
+				"it-IT": "Marina le sovracosce con olio, limone e spezie per 6 ore, poi cuoci al barbecue 4 minuti per lato.",
+				"en-GB": "Marinate the thighs with oil, lemon and spices for 6 hours, then barbecue for 4 minutes per side."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "sovracosce-di-pollo-disossate-e-spellate",
+					"quantity": {
+						"kind": "amount",
+						"value": 800,
+						"unit": "g"
+					},
+					"sourceText": "800 g"
+				},
+				{
+					"ingredientId": "limone",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "white_meat",
+			"tags": [
+				"pollo",
+				"barbecue",
+				"skottle",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "burrito-vegan",
+			"status": "published",
+			"name": {
+				"it-IT": "Burrito vegan",
+				"en-GB": "Vegan burrito"
+			},
+			"description": {
+				"it-IT": "Scalda gli straccetti vegani, farcisci il pane con fagioli, guacamole, patata dolce e mais e arrotola.",
+				"en-GB": "Warm the vegan strips, fill the bread with beans, guacamole, sweet potato and sweetcorn and roll up."
+			},
+			"sourceType": "book",
+			"sourceUrl": null,
+			"bookId": "panini-e-tramezzini",
+			"bookPages": "110-111",
+			"durationMinutes": 20,
+			"baseServings": 1,
+			"ingredients": [
+				{
+					"ingredientId": "pane-durum-misura-l-30-cm",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "fagioli-rossi-in-scatola",
+					"quantity": {
+						"kind": "amount",
+						"value": 60,
+						"unit": "g"
+					},
+					"sourceText": "60 g"
+				},
+				{
+					"ingredientId": "cumino-in-polvere",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "succo-di-lime",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 goccio"
+				},
+				{
+					"ingredientId": "guacamole-pagina-185-del-libro",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "patata-dolce-arrosto-pagina-189-del-libro",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "mais-in-scatola",
+					"quantity": {
+						"kind": "amount",
+						"value": 60,
+						"unit": "g"
+					},
+					"sourceText": "60 g"
+				},
+				{
+					"ingredientId": "straccetti-vegani-tex-mex",
+					"quantity": {
+						"kind": "amount",
+						"value": 80,
+						"unit": "g"
+					},
+					"sourceText": "80 g"
+				},
+				{
+					"ingredientId": "cipolla-rossa",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.25,
+						"unit": "piece"
+					},
+					"sourceText": "1/4"
+				},
+				{
+					"ingredientId": "coriandolo",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "5 rametti"
+				},
+				{
+					"ingredientId": "insalata",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "2-3 foglie"
+				},
+				{
+					"ingredientId": "peperoncino-verde",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "a piacere"
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"vegetariano",
+				"pane-wrap",
+				"pranzo-al-sacco",
+				"libro"
+			],
+			"photo": null
+		},
+		{
+			"id": "caviale-melanzane-panino",
+			"status": "published",
+			"name": {
+				"it-IT": "Panino con caviale di melanzane, verdure grigliate e feta",
+				"en-GB": "Sandwich with aubergine caviar, grilled vegetables and feta"
+			},
+			"description": {
+				"it-IT": "Farcisci il pane libanese con caviale di melanzane, verdure grigliate, feta, pickles, uvetta e coriandolo.",
+				"en-GB": "Fill Lebanese bread with aubergine caviar, grilled vegetables, feta, pickles, raisins and coriander."
+			},
+			"sourceType": "book",
+			"sourceUrl": null,
+			"bookId": "panini-e-tramezzini",
+			"bookPages": "102-103",
+			"durationMinutes": 10,
+			"baseServings": 1,
+			"ingredients": [
+				{
+					"ingredientId": "pane-libanese",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "caviale-di-melanzane",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "melanzana-grigliata",
+					"quantity": {
+						"kind": "amount",
+						"value": 80,
+						"unit": "g"
+					},
+					"sourceText": "80 g"
+				},
+				{
+					"ingredientId": "peperone-grigliato",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "feta",
+					"quantity": {
+						"kind": "amount",
+						"value": 40,
+						"unit": "g"
+					},
+					"sourceText": "40 g"
+				},
+				{
+					"ingredientId": "pickles-di-cavolo-rosso-pagina-182-del-libro",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "uvetta",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tbsp"
+					},
+					"sourceText": "1 cucchiaio"
+				},
+				{
+					"ingredientId": "menta",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "2 rametti"
+				},
+				{
+					"ingredientId": "coriandolo",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "5 rametti"
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"vegetariano",
+				"pane-wrap",
+				"pranzo-al-sacco",
+				"freddo",
+				"libro"
+			],
+			"photo": null
+		},
+		{
+			"id": "riso-curry-giappone",
+			"status": "published",
+			"name": {
+				"it-IT": "Riso al curry giapponese con maiale macinato e peperone",
+				"en-GB": "Japanese curry rice with minced pork and pepper"
+			},
+			"description": {
+				"it-IT": "Cuoci il riso prima; nel wok rosola maiale, cipolla e peperone, unisci curry e servi sul riso.",
+				"en-GB": "Cook the rice first; in the wok brown the pork, onion and pepper, add the curry and serve over the rice."
+			},
+			"sourceType": "book",
+			"sourceUrl": null,
+			"bookId": "basta-un-wok",
+			"bookPages": "76-77",
+			"durationMinutes": 25,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "carne-di-maiale-macinata",
+					"quantity": {
+						"kind": "amount",
+						"value": 325,
+						"unit": "g"
+					},
+					"sourceText": "325 g"
+				},
+				{
+					"ingredientId": "riso-bianco-per-sushi",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "145 g crudo (330 g cotto)"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "olio-di-semi-di-colza",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "curry-o-garam-masala",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "tbsp"
+					},
+					"sourceText": "3 cucchiai"
+				},
+				{
+					"ingredientId": "salsa-base-giapponese-pagina-24-del-libro",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "cipolla",
+					"quantity": {
+						"kind": "amount",
+						"value": 95,
+						"unit": "g"
+					},
+					"sourceText": "95 g"
+				},
+				{
+					"ingredientId": "peperone-verde",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "kimchi-veloce-pagina-36-del-libro",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "per servire, facoltativo"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "meat",
+			"tags": [
+				"carne",
+				"wok",
+				"riso",
+				"libro"
+			],
+			"photo": null
+		},
+		{
+			"id": "omelette-spinaci-montasio",
+			"status": "published",
+			"name": {
+				"it-IT": "Omelette agli spinaci e Montasio",
+				"en-GB": "Spinach and Montasio omelette"
+			},
+			"description": {
+				"it-IT": "Cuoci le uova in padella, farcisci con spinacini e Montasio e ripiega.",
+				"en-GB": "Cook the eggs in a pan, fill with baby spinach and Montasio and fold over."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.facilecongusto.it/ricette/secondi/omelette-agli-spinaci",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 20,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "piece"
+					},
+					"sourceText": "3"
+				},
+				{
+					"ingredientId": "montasio",
+					"quantity": {
+						"kind": "amount",
+						"value": 20,
+						"unit": "g"
+					},
+					"sourceText": "20 g"
+				},
+				{
+					"ingredientId": "spinacini-freschi",
+					"quantity": {
+						"kind": "amount",
+						"value": 40,
+						"unit": "g"
+					},
+					"sourceText": "40 g"
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "pepe",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "eggs",
+			"tags": [
+				"uova",
+				"vegetariano",
+				"veloce",
+				"padella"
+			],
+			"photo": null
+		},
+		{
+			"id": "straccetti-pollo-limone",
+			"status": "published",
+			"name": {
+				"it-IT": "Straccetti di pollo al limone",
+				"en-GB": "Lemon chicken strips"
+			},
+			"description": {
+				"it-IT": "Rosola gli straccetti di pollo infarinati con aglio, poi unisci limone, acqua ed erbe aromatiche.",
+				"en-GB": "Brown the floured chicken strips with garlic, then add lemon, water and herbs."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.kikakitchen.com/recipe/straccetti-di-pollo-al-limone/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "petto-di-pollo",
+					"quantity": {
+						"kind": "amount",
+						"value": 600,
+						"unit": "g"
+					},
+					"sourceText": "600 g"
+				},
+				{
+					"ingredientId": "farina-00",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "limoni-medi",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "clove"
+					},
+					"sourceText": "2 spicchi"
+				},
+				{
+					"ingredientId": "acqua",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 bicchiere"
+				},
+				{
+					"ingredientId": "prezzemolo-o-altre-erbe-aromatiche",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "pepe-nero",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "white_meat",
+			"tags": [
+				"pollo",
+				"padella"
+			],
+			"photo": null
+		},
+		{
+			"id": "riso-lenticchie-zucca",
+			"status": "published",
+			"name": {
+				"it-IT": "Riso con lenticchie e zucca",
+				"en-GB": "Rice with lentils and squash"
+			},
+			"description": {
+				"it-IT": "Cuoci la zucca a cubetti con aglio e acqua, poi aggiungi lenticchie già cotte e riso.",
+				"en-GB": "Cook the diced squash with garlic and water, then add cooked lentils and rice."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.gnamgnam.it/ricetta/riso-lenticchie-e-zucca.htm",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 35,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "riso",
+					"quantity": {
+						"kind": "amount",
+						"value": 120,
+						"unit": "g"
+					},
+					"sourceText": "120 g"
+				},
+				{
+					"ingredientId": "zucca-pulita",
+					"quantity": {
+						"kind": "amount",
+						"value": 170,
+						"unit": "g"
+					},
+					"sourceText": "170 g"
+				},
+				{
+					"ingredientId": "lenticchie-cotte",
+					"quantity": {
+						"kind": "amount",
+						"value": 240,
+						"unit": "g"
+					},
+					"sourceText": "240 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "legumes",
+			"tags": [
+				"legumi",
+				"vegetariano",
+				"riso",
+				"autunno"
+			],
+			"photo": null
+		},
+		{
+			"id": "riso-wok-broccoli-gamberi",
+			"status": "published",
+			"name": {
+				"it-IT": "Riso saltato nel wok con broccoli e gamberi",
+				"en-GB": "Wok-fried rice with broccoli and prawns"
+			},
+			"description": {
+				"it-IT": "Sbollenta i broccoli; salta gamberi e zenzero nel wok, poi unisci riso cotto e salsa di soia.",
+				"en-GB": "Blanch the broccoli; stir-fry prawns and ginger in the wok, then add cooked rice and soy sauce."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://gnambox.com/ricette/ingredienti/pasta-e-riso/riso-saltato-broccoli-gamberi/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "broccoli",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "500-600 g"
+				},
+				{
+					"ingredientId": "gamberi-freschi-puliti",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "riso-integrale",
+					"quantity": {
+						"kind": "amount",
+						"value": 120,
+						"unit": "g"
+					},
+					"sourceText": "120 g"
+				},
+				{
+					"ingredientId": "zenzero-fresco",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "un piccolo pezzo"
+				},
+				{
+					"ingredientId": "salsa-di-soia",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "tbsp"
+					},
+					"sourceText": "3 cucchiai"
+				},
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "sale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"riso",
+				"wok"
+			],
+			"photo": null
+		},
+		{
+			"id": "riso-cantonese-casa",
+			"status": "published",
+			"name": {
+				"it-IT": "Riso alla cantonese di casa",
+				"en-GB": "Home-style Cantonese rice"
+			},
+			"description": {
+				"it-IT": "Taglia a cubetti le verdure, sbatti le uova, cuoci il riso e salta tutto nel wok con la salsa di soia.",
+				"en-GB": "Dice the vegetables, beat the eggs, cook the rice and stir-fry everything in the wok with soy sauce."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "riso-jasmine",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "piece"
+					},
+					"sourceText": "3"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "piselli",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "prosciutto-cotto-a-dadini",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "cipollotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "salsa-di-soia",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "meat",
+			"tags": [
+				"riso",
+				"wok",
+				"uova",
+				"carne",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "zuppa-fagioli-veloce-guanciale",
+			"status": "published",
+			"name": {
+				"it-IT": "Zuppa di fagioli veloce con guanciale croccante",
+				"en-GB": "Quick bean soup with crispy guanciale"
+			},
+			"description": {
+				"it-IT": "Rosola il guanciale, appassisci la cipolla rossa, unisci fagioli e brodo e servi con il guanciale croccante.",
+				"en-GB": "Brown the guanciale, soften the red onion, add beans and stock and serve topped with the crispy guanciale."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.nonnasilvi.com/ricette/zuppa-di-fagioli-veloce/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati",
+					"quantity": {
+						"kind": "amount",
+						"value": 600,
+						"unit": "g"
+					},
+					"sourceText": "600 g"
+				},
+				{
+					"ingredientId": "brodo-vegetale",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "ml"
+					},
+					"sourceText": "400 ml"
+				},
+				{
+					"ingredientId": "guanciale-a-listarelle",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "cipolla-rossa",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "meat",
+			"tags": [
+				"legumi",
+				"carne",
+				"autunno"
+			],
+			"photo": null
+		},
+		{
+			"id": "piadine-pollo-hummus-carote",
+			"status": "published",
+			"name": {
+				"it-IT": "Piadine con hummus, pollo, carote e insalata",
+				"en-GB": "Flatbreads with hummus, chicken, carrots and salad"
+			},
+			"description": {
+				"it-IT": "Scalda le piadine, spalma l'hummus e farcisci con pollo, carote e insalata.",
+				"en-GB": "Warm the flatbreads, spread with hummus and fill with chicken, carrots and salad."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 10,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "piadine",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "pollo-gia-cotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "hummus-pronto",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 vaschetta da 250 g"
+				},
+				{
+					"ingredientId": "carota-julienne-cruda",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "insalata",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "white_meat",
+			"tags": [
+				"pollo",
+				"veloce",
+				"pane-wrap",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "orata-padella-patate-pomodorini",
+			"status": "published",
+			"name": {
+				"it-IT": "Filetti di orata in padella con patate e pomodorini",
+				"en-GB": "Pan-cooked sea bream fillets with potatoes and cherry tomatoes"
+			},
+			"description": {
+				"it-IT": "Rosola pomodorini e patate a fette sottilissime, adagia sopra i filetti, sfuma con il vino e cuoci coperto.",
+				"en-GB": "Brown cherry tomatoes and very thinly sliced potatoes, lay the fillets on top, deglaze with wine and cook covered."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/atavolacontea/ricetta-filetti-di-orata-in-padella/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "filetti-di-orata-spinati-e-senza-pelle",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "pomodorini-rossi-e-gialli",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "patata-media",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "vino-bianco-secco",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 ciuffo"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "fish",
+			"tags": [
+				"pesce",
+				"padella",
+				"patate"
+			],
+			"photo": null
+		},
+		{
+			"id": "lonza-maiale-limone",
+			"status": "published",
+			"name": {
+				"it-IT": "Fettine di lonza di maiale al limone",
+				"en-GB": "Lemon pork loin slices"
+			},
+			"description": {
+				"it-IT": "Batti e infarina le fettine, rosolale con burro, aglio e scorza di limone, poi sfuma con limone e miele.",
+				"en-GB": "Pound and flour the slices, brown them with butter, garlic and lemon zest, then deglaze with lemon and honey."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/ilcaldosaporedelsud/fettine-lonza-maiale-limone/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 15,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "fette-di-lonza-di-maiale",
+					"quantity": {
+						"kind": "amount",
+						"value": 12,
+						"unit": "piece"
+					},
+					"sourceText": "12"
+				},
+				{
+					"ingredientId": "farina-00",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "limone-bio-succo-e-scorza",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "burro",
+					"quantity": {
+						"kind": "amount",
+						"value": 30,
+						"unit": "g"
+					},
+					"sourceText": "30 g"
+				},
+				{
+					"ingredientId": "miele",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "meat",
+			"tags": [
+				"carne",
+				"veloce",
+				"padella"
+			],
+			"photo": null
+		},
+		{
+			"id": "fettine-pizzaiola-prezzemolo",
+			"status": "published",
+			"name": {
+				"it-IT": "Fettine alla pizzaiola con prezzemolo",
+				"en-GB": "Beef slices pizzaiola with parsley"
+			},
+			"description": {
+				"it-IT": "Rosola le fettine con l'aglio, cuocile coperte nel pomodoro frullato e finisci con il prezzemolo.",
+				"en-GB": "Brown the slices with garlic, cook them covered in blended tomato and finish with parsley."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/incucinadaeva/ricetta-fettine-alla-pizzaiola-con-prezzemolo/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "reale-di-vitellone-o-di-bovino-a-fettine",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "pomodori-pelati-o-pomodorini-freschi-maturi",
+					"quantity": {
+						"kind": "amount",
+						"value": 160,
+						"unit": "ml"
+					},
+					"sourceText": "160 ml"
+				},
+				{
+					"ingredientId": "prezzemolo-fresco",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "meat",
+			"tags": [
+				"carne",
+				"padella"
+			],
+			"photo": null
+		},
+		{
+			"id": "lenticchie-comidista",
+			"status": "published",
+			"name": {
+				"it-IT": "Lenticchie alla spagnola (El Comidista)",
+				"en-GB": "Spanish-style lentils (El Comidista)"
+			},
+			"description": {
+				"it-IT": "Cuoci le lenticchie con mezza cipolla, aglio e alloro, aggiungi patata e carote, poi frulla il soffritto con paprika e cumino e uniscilo.",
+				"en-GB": "Cook the lentils with half an onion, garlic and bay leaf, add potato and carrots, then blend the sofrito with paprika and cumin and stir it in."
+			},
+			"sourceType": "home",
+			"sourceUrl": "https://elpais.com/gastronomia/el-comidista/2023-09-26/la-receta-infalible-para-dominar-las-lentejas.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 50,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "lenticchie-meglio-pardine",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "patata-grande-o-2-piccole",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "cipolla-grande",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "pomodoro-tritato-o-grattugiato",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "tbsp"
+					},
+					"sourceText": "4 cucchiai"
+				},
+				{
+					"ingredientId": "peperone-rosso-o-1-2-verde",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.25,
+						"unit": "piece"
+					},
+					"sourceText": "1/4"
+				},
+				{
+					"ingredientId": "paprika-affumicata",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 cucchiaino abbondante"
+				},
+				{
+					"ingredientId": "cumino",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "vino-bianco-o-fino-facoltativo",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "ml"
+					},
+					"sourceText": "100 ml"
+				},
+				{
+					"ingredientId": "alloro",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 foglia"
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "legumes",
+			"tags": [
+				"legumi",
+				"vegetariano",
+				"autunno",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "pasta-robiola-speck",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta robiola e speck",
+				"en-GB": "Pasta with robiola and speck"
+			},
+			"description": {
+				"it-IT": "Rosola lo speck a cubetti, stufa il cipollotto nello stesso fondo e manteca la pasta con la robiola e l'acqua di cottura.",
+				"en-GB": "Brown the diced speck, soften the spring onion in the same pan and stir the pasta through with robiola and pasta water."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Pasta-robiola-e-speck.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "fusilloni",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "speck-da-tagliare-a-cubetti",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "robiola",
+					"quantity": {
+						"kind": "amount",
+						"value": 250,
+						"unit": "g"
+					},
+					"sourceText": "250 g"
+				},
+				{
+					"ingredientId": "cipollotti",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "meat",
+			"tags": [
+				"pasta",
+				"carne"
+			],
+			"photo": "/assets/recipe-images/pasta-robiola-speck.jpg"
+		},
+		{
+			"id": "pasta-ricotta-zafferano",
+			"status": "published",
+			"name": {
+				"it-IT": "Pasta cremosa ricotta e zafferano",
+				"en-GB": "Creamy ricotta and saffron pasta"
+			},
+			"description": {
+				"it-IT": "Stempera la ricotta con zafferano e acqua di cottura, condisci gli spaghettoni e completa con pepe e salvia.",
+				"en-GB": "Loosen the ricotta with saffron and pasta water, dress the spaghettoni and finish with pepper and sage."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Pasta-cremosa-ricotta-e-zafferano.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 15,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "spaghettoni",
+					"quantity": {
+						"kind": "amount",
+						"value": 320,
+						"unit": "g"
+					},
+					"sourceText": "320 g"
+				},
+				{
+					"ingredientId": "ricotta-vaccina",
+					"quantity": {
+						"kind": "amount",
+						"value": 250,
+						"unit": "g"
+					},
+					"sourceText": "250 g"
+				},
+				{
+					"ingredientId": "zafferano",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "2 bustine"
+				},
+				{
+					"ingredientId": "salvia",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"veloce"
+			],
+			"photo": "/assets/recipe-images/pasta-ricotta-zafferano.jpg"
+		},
+		{
+			"id": "couscous-verdure-tonno",
+			"status": "published",
+			"name": {
+				"it-IT": "Couscous con verdure e tonno",
+				"en-GB": "Couscous with vegetables and tuna"
+			},
+			"description": {
+				"it-IT": "Idrata il couscous, salta carote, peperone e zucchina, unisci tonno, fagioli rossi e salsa di soia e completa con ravanelli e prezzemolo.",
+				"en-GB": "Soak the couscous, stir-fry carrots, pepper and courgette, add tuna, kidney beans and soy sauce and finish with radishes and parsley."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Couscous-con-verdure-e-tonno.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "couscous",
+					"quantity": {
+						"kind": "amount",
+						"value": 250,
+						"unit": "g"
+					},
+					"sourceText": "250 g"
+				},
+				{
+					"ingredientId": "peperoni-rossi",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "tonno-sott-olio-peso-sgocciolato",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "fagioli-rossi-precotti-peso-sgocciolato",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "ravanelli",
+					"quantity": {
+						"kind": "amount",
+						"value": 5,
+						"unit": "piece"
+					},
+					"sourceText": "5"
+				},
+				{
+					"ingredientId": "salsa-di-soia",
+					"quantity": {
+						"kind": "amount",
+						"value": 20,
+						"unit": "g"
+					},
+					"sourceText": "20 g"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "fish",
+			"tags": [
+				"cereali",
+				"pesce",
+				"legumi",
+				"freddo",
+				"pranzo-al-sacco"
+			],
+			"photo": null
+		},
+		{
+			"id": "couscous-verdure",
+			"status": "published",
+			"name": {
+				"it-IT": "Couscous alle verdure",
+				"en-GB": "Vegetable couscous"
+			},
+			"description": {
+				"it-IT": "Salta melanzane, peperoni, carote, zucchine e piselli, poi uniscili al couscous alla curcuma e completa con basilico e mandorle.",
+				"en-GB": "Stir-fry aubergines, peppers, carrots, courgettes and peas, then combine with turmeric couscous and finish with basil and almonds."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Couscous-alle-verdure.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 45,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "couscous-precotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "brodo-vegetale-caldo",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "curcuma-in-polvere",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tbsp"
+					},
+					"sourceText": "1 cucchiaio"
+				},
+				{
+					"ingredientId": "melanzane",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "peperoni-rossi",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "cipolle-rosse",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "pisellini",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "peperoncino-fresco",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "mandorle-in-scaglie",
+					"quantity": {
+						"kind": "amount",
+						"value": 20,
+						"unit": "g"
+					},
+					"sourceText": "20 g"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "clove"
+					},
+					"sourceText": "1 spicchio"
+				},
+				{
+					"ingredientId": "basilico",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"cereali",
+				"vegetariano",
+				"freddo",
+				"pranzo-al-sacco"
+			],
+			"photo": null
+		},
+		{
+			"id": "pappardelle-salsiccia-porri",
+			"status": "published",
+			"name": {
+				"it-IT": "Pappardelle rustiche con salsiccia e porri",
+				"en-GB": "Rustic pappardelle with sausage and leeks"
+			},
+			"description": {
+				"it-IT": "Rosola la salsiccia con peperoncino e timo, sfuma con il vino rosso, unisci il porro e salta le pappardelle con il parmigiano.",
+				"en-GB": "Brown the sausage with chilli and thyme, deglaze with red wine, add the leek and toss the pappardelle with Parmesan."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Pappardelle-rustiche-con-salsiccia-e-porri.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 40,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "pappardelle-all-uovo",
+					"quantity": {
+						"kind": "amount",
+						"value": 250,
+						"unit": "g"
+					},
+					"sourceText": "250 g"
+				},
+				{
+					"ingredientId": "salsiccia",
+					"quantity": {
+						"kind": "amount",
+						"value": 300,
+						"unit": "g"
+					},
+					"sourceText": "300 g"
+				},
+				{
+					"ingredientId": "porri",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "vino-rosso",
+					"quantity": {
+						"kind": "amount",
+						"value": 40,
+						"unit": "g"
+					},
+					"sourceText": "40 g"
+				},
+				{
+					"ingredientId": "peperoncino-fresco",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "parmigiano-reggiano-dop",
+					"quantity": {
+						"kind": "amount",
+						"value": 60,
+						"unit": "g"
+					},
+					"sourceText": "60 g"
+				},
+				{
+					"ingredientId": "timo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "meat",
+			"tags": [
+				"pasta",
+				"carne",
+				"autunno"
+			],
+			"photo": null
+		},
+		{
+			"id": "pollo-corn-flakes",
+			"status": "published",
+			"name": {
+				"it-IT": "Petto di pollo ai corn flakes",
+				"en-GB": "Cornflake-crusted chicken breast"
+			},
+			"description": {
+				"it-IT": "Impana le fette di pollo in farina, uovo e corn flakes alla paprika, friggile e servile con la salsa di yogurt, maionese e limone.",
+				"en-GB": "Coat the chicken slices in flour, egg and paprika cornflakes, fry them and serve with a yoghurt, mayonnaise and lemon sauce."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://ricette.giallozafferano.it/Petto-di-pollo-ai-corn-flakes.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "petto-di-pollo",
+					"quantity": {
+						"kind": "amount",
+						"value": 800,
+						"unit": "g"
+					},
+					"sourceText": "800 g"
+				},
+				{
+					"ingredientId": "corn-flakes-non-zuccherati",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "piece"
+					},
+					"sourceText": "3"
+				},
+				{
+					"ingredientId": "latte-intero",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "paprika-dolce",
+					"quantity": {
+						"kind": "amount",
+						"value": 20,
+						"unit": "g"
+					},
+					"sourceText": "20 g"
+				},
+				{
+					"ingredientId": "farina-00",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "yogurt-bianco-naturale",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "maionese",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "succo-di-limone",
+					"quantity": {
+						"kind": "amount",
+						"value": 50,
+						"unit": "g"
+					},
+					"sourceText": "50 g"
+				},
+				{
+					"ingredientId": "scorza-di-limone",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "erba-cipollina",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "olio-di-semi-di-girasole",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "l"
+					},
+					"sourceText": "1 l"
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "white_meat",
+			"tags": [
+				"pollo",
+				"padella"
+			],
+			"photo": "/assets/recipe-images/pollo-corn-flakes.jpg"
+		},
+		{
+			"id": "piadine-bresaola-stracchino-pesto-rosso",
+			"status": "published",
+			"name": {
+				"it-IT": "Piadine con bresaola, stracchino e pesto rosso",
+				"en-GB": "Flatbreads with bresaola, stracchino and red pesto"
+			},
+			"description": {
+				"it-IT": "Frulla pomodori secchi, mandorle e basilico; farcisci con bresaola, stracchino e rucola e scalda in padella.",
+				"en-GB": "Blend sun-dried tomatoes, almonds and basil; fill with bresaola, stracchino and rocket and warm in a pan."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.conad.it/ricette/secondi-piatti/veloci/piadina-farcita",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 15,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "piadine",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "bresaola",
+					"quantity": {
+						"kind": "amount",
+						"value": 180,
+						"unit": "g"
+					},
+					"sourceText": "180 g"
+				},
+				{
+					"ingredientId": "stracchino",
+					"quantity": {
+						"kind": "amount",
+						"value": 400,
+						"unit": "g"
+					},
+					"sourceText": "400 g"
+				},
+				{
+					"ingredientId": "rucola",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "pomodori-secchi-sott-olio",
+					"quantity": {
+						"kind": "amount",
+						"value": 7,
+						"unit": "piece"
+					},
+					"sourceText": "7"
+				},
+				{
+					"ingredientId": "mandorle",
+					"quantity": {
+						"kind": "amount",
+						"value": 40,
+						"unit": "g"
+					},
+					"sourceText": "40 g"
+				},
+				{
+					"ingredientId": "foglie-di-basilico",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "meat",
+			"tags": [
+				"carne",
+				"pane-wrap",
+				"veloce",
+				"padella"
+			],
+			"photo": null
+		},
+		{
+			"id": "riso-ceci-spinaci-mandorle",
+			"status": "published",
+			"name": {
+				"it-IT": "Riso alla curcuma con ceci e spinaci",
+				"en-GB": "Turmeric rice with chickpeas and spinach"
+			},
+			"description": {
+				"it-IT": "Cuoci il basmati alla curcuma; salta ceci e spinaci con pomodori, brodo e crema di mandorle, poi servi sul riso.",
+				"en-GB": "Cook the basmati with turmeric; stir-fry chickpeas and spinach with tomatoes, stock and almond butter, then serve over the rice."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://theflexitarian.co.uk/recipe-items/spinach-with-chickpea-rice-bowl/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "cipolla-rossa-piccola",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "aglio",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "clove"
+					},
+					"sourceText": "3 spicchi"
+				},
+				{
+					"ingredientId": "pomodori",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "zenzero-fresco-grattugiato",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "tbsp"
+					},
+					"sourceText": "1/2 cucchiaio"
+				},
+				{
+					"ingredientId": "coriandolo-macinato",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "cumino-macinato",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tsp"
+					},
+					"sourceText": "2 cucchiaini"
+				},
+				{
+					"ingredientId": "cannella",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "tsp"
+					},
+					"sourceText": "1/2 cucchiaino"
+				},
+				{
+					"ingredientId": "peperoncino-in-fiocchi",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "tsp"
+					},
+					"sourceText": "1/2 cucchiaino"
+				},
+				{
+					"ingredientId": "brodo-vegetale",
+					"quantity": {
+						"kind": "amount",
+						"value": 250,
+						"unit": "ml"
+					},
+					"sourceText": "250 ml"
+				},
+				{
+					"ingredientId": "crema-di-mandorle-croccante",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "tbsp"
+					},
+					"sourceText": "2 cucchiai"
+				},
+				{
+					"ingredientId": "spinacini-freschi",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "ceci-in-scatola",
+					"quantity": {
+						"kind": "amount",
+						"value": 200,
+						"unit": "g"
+					},
+					"sourceText": "200 g"
+				},
+				{
+					"ingredientId": "garam-masala",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/4-1/2 cucchiaino"
+				},
+				{
+					"ingredientId": "succo-di-limone",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "riso-basmati",
+					"quantity": {
+						"kind": "amount",
+						"value": 175,
+						"unit": "g"
+					},
+					"sourceText": "175 g"
+				},
+				{
+					"ingredientId": "curcuma",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "mandorle-tritate",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "peperoncino-fresco",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "coriandolo-fresco",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "legumes",
+			"tags": [
+				"riso",
+				"legumi",
+				"vegetariano",
+				"padella",
+				"veloce"
+			],
+			"photo": "/assets/recipe-images/riso-ceci-spinaci-mandorle.jpg"
+		},
+		{
+			"id": "spaghetti-riso-tofu-verdure-wok",
+			"status": "published",
+			"name": {
+				"it-IT": "Spaghetti di riso al wok con tofu e verdure",
+				"en-GB": "Wok rice noodles with tofu and vegetables"
+			},
+			"description": {
+				"it-IT": "Salta verdure e tofu affumicato, unisci gli spaghetti di riso e condisci con soia, salsa barbecue e sesamo.",
+				"en-GB": "Stir-fry vegetables and smoked tofu, add the rice noodles and season with soy, barbecue sauce and sesame."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.pasticciandoconlafranca.it/2020/primi-piatti/spaghetti-di-riso-con-tofu-e-verdure/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 3,
+			"ingredients": [
+				{
+					"ingredientId": "spaghetti-di-riso",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "3 matasse"
+				},
+				{
+					"ingredientId": "tofu-affumicato",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 panetto"
+				},
+				{
+					"ingredientId": "germogli-di-soia",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "zucchine",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "carote",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "cipolla-o-cipollotto",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "peperone",
+					"quantity": {
+						"kind": "amount",
+						"value": 0.5,
+						"unit": "piece"
+					},
+					"sourceText": "1/2"
+				},
+				{
+					"ingredientId": "aceto",
+					"quantity": {
+						"kind": "amount",
+						"value": 3,
+						"unit": "tbsp"
+					},
+					"sourceText": "3 cucchiai"
+				},
+				{
+					"ingredientId": "salsa-barbecue-o-fumo-liquido-q-b",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tbsp"
+					},
+					"sourceText": "1 cucchiaio"
+				},
+				{
+					"ingredientId": "salsa-di-soia",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "a piacere"
+				},
+				{
+					"ingredientId": "semi-di-sesamo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "prezzemolo-opzionale",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "legumes",
+			"tags": [
+				"cereali",
+				"legumi",
+				"vegetariano",
+				"wok"
+			],
+			"photo": "/assets/recipe-images/spaghetti-riso-tofu-verdure-wok.jpg"
+		},
+		{
+			"id": "paccheri-radicchio-bresaola-ricotta-noci",
+			"status": "published",
+			"name": {
+				"it-IT": "Paccheri con radicchio e bresaola",
+				"en-GB": "Paccheri with radicchio and bresaola"
+			},
+			"description": {
+				"it-IT": "Versione adattata: appassisci il radicchio, manteca con ricotta e completa con bresaola e noci.",
+				"en-GB": "Adapted version: wilt the radicchio, stir through with ricotta and finish with bresaola and walnuts."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/gioieincucina/pasta-con-radicchio-ricotta-e-noci/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 1,
+			"ingredients": [
+				{
+					"ingredientId": "paccheri",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "radicchio-pulito",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "bresaola",
+					"quantity": {
+						"kind": "amount",
+						"value": 62.5,
+						"unit": "g"
+					},
+					"sourceText": "62,5 g"
+				},
+				{
+					"ingredientId": "ricotta",
+					"quantity": {
+						"kind": "amount",
+						"value": 62.5,
+						"unit": "g"
+					},
+					"sourceText": "62,5 g"
+				},
+				{
+					"ingredientId": "noci-sgusciate",
+					"quantity": {
+						"kind": "amount",
+						"value": 12.5,
+						"unit": "g"
+					},
+					"sourceText": "12,5 g"
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "meat",
+			"tags": [
+				"pasta",
+				"carne",
+				"autunno",
+				"adattata-da-foto"
+			],
+			"photo": null
+		},
+		{
+			"id": "ditali-cremosi-zucca-ceci",
+			"status": "published",
+			"name": {
+				"it-IT": "Ditali cremosi con zucca e ceci",
+				"en-GB": "Creamy ditali with squash and chickpeas"
+			},
+			"description": {
+				"it-IT": "Versione adattata: cuoci la zucca con salvia e rosmarino, frullane una parte e unisci ceci cotti e ditali.",
+				"en-GB": "Adapted version: cook the squash with sage and rosemary, blend part of it and add cooked chickpeas and ditali."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/gastronomylove/2024/10/ricetta-pasta-cremosa-zucca-e-ceci.html",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 30,
+			"baseServings": 1,
+			"ingredients": [
+				{
+					"ingredientId": "ditali",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "zucca-pulita",
+					"quantity": {
+						"kind": "amount",
+						"value": 150,
+						"unit": "g"
+					},
+					"sourceText": "150 g"
+				},
+				{
+					"ingredientId": "ceci-gia-cotti-e-sgocciolati",
+					"quantity": {
+						"kind": "amount",
+						"value": 125,
+						"unit": "g"
+					},
+					"sourceText": "125 g"
+				},
+				{
+					"ingredientId": "salvia",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				},
+				{
+					"ingredientId": "rosmarino",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "legumes",
+			"tags": [
+				"pasta",
+				"legumi",
+				"vegetariano",
+				"autunno",
+				"adattata-da-foto"
+			],
+			"photo": null
+		},
+		{
+			"id": "trofie-funghi-piselli-ricotta",
+			"status": "published",
+			"name": {
+				"it-IT": "Trofie con funghi, piselli e ricotta",
+				"en-GB": "Trofie with mushrooms, peas and ricotta"
+			},
+			"description": {
+				"it-IT": "Versione adattata: rosola i funghi, aggiungi i piselli e manteca la pasta con ricotta, acqua di cottura e prezzemolo.",
+				"en-GB": "Adapted version: brown the mushrooms, add the peas and stir the pasta through with ricotta, pasta water and parsley."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://blog.giallozafferano.it/melacannellaefantasia/pasta-alla-boscaiola-bianca/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 1,
+			"ingredients": [
+				{
+					"ingredientId": "trofie",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "funghi-champignon-puliti",
+					"quantity": {
+						"kind": "amount",
+						"value": 125,
+						"unit": "g"
+					},
+					"sourceText": "125 g"
+				},
+				{
+					"ingredientId": "piselli",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "ricotta",
+					"quantity": {
+						"kind": "amount",
+						"value": 62.5,
+						"unit": "g"
+					},
+					"sourceText": "62,5 g"
+				},
+				{
+					"ingredientId": "prezzemolo",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "legumes",
+			"tags": [
+				"pasta",
+				"legumi",
+				"vegetariano",
+				"autunno",
+				"adattata-da-foto"
+			],
+			"photo": null
+		},
+		{
+			"id": "fusilli-ricotta-spinaci-noci",
+			"status": "published",
+			"name": {
+				"it-IT": "Fusilli con ricotta e spinaci",
+				"en-GB": "Fusilli with ricotta and spinach"
+			},
+			"description": {
+				"it-IT": "Versione adattata: appassisci gli spinaci, frullali con ricotta e acqua di cottura, condisci i fusilli e completa con noci e limone.",
+				"en-GB": "Adapted version: wilt the spinach, blend with ricotta and pasta water, dress the fusilli and finish with walnuts and lemon."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.essenzadivaniglia.it/pasta-al-pesto-di-spinaci-e-noci/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 25,
+			"baseServings": 1,
+			"ingredients": [
+				{
+					"ingredientId": "fusilli",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "spinaci-freschi-puliti",
+					"quantity": {
+						"kind": "amount",
+						"value": 100,
+						"unit": "g"
+					},
+					"sourceText": "100 g"
+				},
+				{
+					"ingredientId": "ricotta",
+					"quantity": {
+						"kind": "amount",
+						"value": 125,
+						"unit": "g"
+					},
+					"sourceText": "125 g"
+				},
+				{
+					"ingredientId": "noci-sgusciate",
+					"quantity": {
+						"kind": "amount",
+						"value": 12.5,
+						"unit": "g"
+					},
+					"sourceText": "12,5 g"
+				},
+				{
+					"ingredientId": "scorza-di-limone",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "vegetarian",
+			"tags": [
+				"pasta",
+				"vegetariano",
+				"autunno",
+				"adattata-da-foto"
+			],
+			"photo": null
+		},
+		{
+			"id": "wrap-fagioli-neri-cheddar",
+			"status": "published",
+			"name": {
+				"it-IT": "Wrap di fagioli neri e cheddar",
+				"en-GB": "Black bean and cheddar wraps"
+			},
+			"description": {
+				"it-IT": "Salta i fagioli con cipolla e aglio; farcisci le tortillas con cheddar, lattuga, pomodoro e salsa di yogurt e salsa messicana.",
+				"en-GB": "Fry the beans with onion and garlic; fill the tortillas with cheddar, lettuce, tomato, yoghurt sauce and Mexican salsa."
+			},
+			"sourceType": "web",
+			"sourceUrl": "https://www.dinner-mom.com/spicy-black-bean-wraps/",
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 20,
+			"baseServings": 4,
+			"ingredients": [
+				{
+					"ingredientId": "olio-extravergine-d-oliva",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "tsp"
+					},
+					"sourceText": "1 cucchiaino"
+				},
+				{
+					"ingredientId": "cipolla-a-dadini",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/2 cup (circa 1/2 cipolla media)"
+				},
+				{
+					"ingredientId": "aglio-tritato-o-schiacciato",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "clove"
+					},
+					"sourceText": "2 spicchi"
+				},
+				{
+					"ingredientId": "fagioli-neri-scolati-e-sciacquati",
+					"quantity": {
+						"kind": "amount",
+						"value": 15,
+						"unit": "oz"
+					},
+					"sourceText": "15 oz"
+				},
+				{
+					"ingredientId": "salsa-messicana-pronta",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/2 cup"
+				},
+				{
+					"ingredientId": "yogurt-greco-o-panna-acida",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/4 cup"
+				},
+				{
+					"ingredientId": "lattuga-tagliata-o-spezzettata",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/2 cup"
+				},
+				{
+					"ingredientId": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1/2 cup"
+				},
+				{
+					"ingredientId": "pomodoro-a-dadini-varieta-roma",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "tortillas-di-farina",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "8 piccole o 4 grandi per burrito"
+				}
+			],
+			"mealType": "lunch",
+			"proteinGroup": "legumes",
+			"tags": [
+				"legumi",
+				"vegetariano",
+				"pane-wrap",
+				"veloce",
+				"padella"
+			],
+			"photo": "/assets/recipe-images/wrap-fagioli-neri-cheddar.jpg"
+		},
+		{
+			"id": "erbazzone-uova-strapazzate-stracchino",
+			"status": "published",
+			"name": {
+				"it-IT": "Erbazzone, uova strapazzate e stracchino",
+				"en-GB": "Erbazzone, scrambled eggs and stracchino"
+			},
+			"description": {
+				"it-IT": "Cuoci l'erbazzone in forno seguendo la confezione; prepara le uova strapazzate e servi con lo stracchino.",
+				"en-GB": "Bake the erbazzone following the packet; make the scrambled eggs and serve with the stracchino."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": null,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "erbazzone-congelato",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "piece"
+					},
+					"sourceText": "4"
+				},
+				{
+					"ingredientId": "stracchino",
+					"quantity": {
+						"kind": "text"
+					},
+					"sourceText": "1 confezione da 250 g"
+				}
+			],
+			"mealType": "both",
+			"proteinGroup": "eggs",
+			"tags": [
+				"uova",
+				"forno",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		},
+		{
+			"id": "sandwich-uova-mozzarella-pomodoro-tacchino",
+			"status": "published",
+			"name": {
+				"it-IT": "Sandwich con uova, mozzarella, pomodoro e tacchino",
+				"en-GB": "Egg, mozzarella, tomato and turkey sandwich"
+			},
+			"description": {
+				"it-IT": "Uova all'occhio di bue e mozzarella nel primo strato; maionese, pomodoro e tacchino nel secondo. Tre fette di pane a testa.",
+				"en-GB": "Fried eggs and mozzarella in the first layer; mayonnaise, tomato and turkey in the second. Three slices of bread each."
+			},
+			"sourceType": "home",
+			"sourceUrl": null,
+			"bookId": null,
+			"bookPages": null,
+			"durationMinutes": 15,
+			"baseServings": 2,
+			"ingredients": [
+				{
+					"ingredientId": "pane",
+					"quantity": {
+						"kind": "amount",
+						"value": 6,
+						"unit": "slice"
+					},
+					"sourceText": "6 fette"
+				},
+				{
+					"ingredientId": "uova",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "mozzarelle",
+					"quantity": {
+						"kind": "amount",
+						"value": 2,
+						"unit": "piece"
+					},
+					"sourceText": "2"
+				},
+				{
+					"ingredientId": "pomodoro-cuore-di-bue",
+					"quantity": {
+						"kind": "amount",
+						"value": 1,
+						"unit": "piece"
+					},
+					"sourceText": "1"
+				},
+				{
+					"ingredientId": "tacchino",
+					"quantity": {
+						"kind": "amount",
+						"value": 4,
+						"unit": "slice"
+					},
+					"sourceText": "4 fette"
+				},
+				{
+					"ingredientId": "maionese",
+					"quantity": {
+						"kind": "to_taste"
+					},
+					"sourceText": "q.b."
+				}
+			],
+			"mealType": "dinner",
+			"proteinGroup": "meat",
+			"tags": [
+				"uova",
+				"carne",
+				"pane-wrap",
+				"veloce",
+				"padella",
+				"ricetta-di-casa"
+			],
+			"photo": null
+		}
+	],
+	"weeks": [
+		{
+			"id": "week-2026-09-21",
+			"familyId": "family-main",
+			"startsOn": "2026-09-21",
+			"generatedAt": "2026-09-16T20:00",
+			"closedAt": "2026-09-30T20:00",
+			"slots": [
+				{
+					"id": "2026-09-21-lunch",
+					"date": "2026-09-21",
+					"mealType": "lunch",
+					"recipeId": null,
+					"freeText": "Pranzo libero",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-21-dinner",
+					"date": "2026-09-21",
+					"mealType": "dinner",
+					"recipeId": "omelette-spinaci-montasio",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-22-lunch",
+					"date": "2026-09-22",
+					"mealType": "lunch",
+					"recipeId": "riso-wok-broccoli-gamberi",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-22-dinner",
+					"date": "2026-09-22",
+					"mealType": "dinner",
+					"recipeId": "straccetti-pollo-limone",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-23-lunch",
+					"date": "2026-09-23",
+					"mealType": "lunch",
+					"recipeId": "penne-baffo",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-23-dinner",
+					"date": "2026-09-23",
+					"mealType": "dinner",
+					"recipeId": "hamburger-cavallo",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": false,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-24-lunch",
+					"date": "2026-09-24",
+					"mealType": "lunch",
+					"recipeId": "riso-cantonese-casa",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-24-dinner",
+					"date": "2026-09-24",
+					"mealType": "dinner",
+					"recipeId": "riso-lenticchie-zucca",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": false,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-25-lunch",
+					"date": "2026-09-25",
+					"mealType": "lunch",
+					"recipeId": "pasta-sugo-pesce",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": false,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-25-dinner",
+					"date": "2026-09-25",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": "Cena libera",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-26-lunch",
+					"date": "2026-09-26",
+					"mealType": "lunch",
+					"recipeId": null,
+					"freeText": "Pranzo libero",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-26-dinner",
+					"date": "2026-09-26",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": "Cena libera",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-27-lunch",
+					"date": "2026-09-27",
+					"mealType": "lunch",
+					"recipeId": null,
+					"freeText": "Pranzo libero",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-27-dinner",
+					"date": "2026-09-27",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": "Cena libera",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				}
+			]
+		},
+		{
+			"id": "week-2026-09-28",
+			"familyId": "family-main",
+			"startsOn": "2026-09-28",
+			"generatedAt": "2026-09-23T20:00",
+			"closedAt": null,
+			"slots": [
+				{
+					"id": "2026-09-28-lunch",
+					"date": "2026-09-28",
+					"mealType": "lunch",
+					"recipeId": "zuppa-fagioli-veloce-guanciale",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-28-dinner",
+					"date": "2026-09-28",
+					"mealType": "dinner",
+					"recipeId": "piadine-pollo-hummus-carote",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-29-lunch",
+					"date": "2026-09-29",
+					"mealType": "lunch",
+					"recipeId": "orecchiette-broccoli",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-29-dinner",
+					"date": "2026-09-29",
+					"mealType": "dinner",
+					"recipeId": "orata-padella-patate-pomodorini",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-30-lunch",
+					"date": "2026-09-30",
+					"mealType": "lunch",
+					"recipeId": "noodles-wok-uova-verdure",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-09-30-dinner",
+					"date": "2026-09-30",
+					"mealType": "dinner",
+					"recipeId": "lonza-maiale-limone",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-01-lunch",
+					"date": "2026-10-01",
+					"mealType": "lunch",
+					"recipeId": "pappardelle-alfredo",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-01-dinner",
+					"date": "2026-10-01",
+					"mealType": "dinner",
+					"recipeId": "frittata-forno-bietole-ricotta",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": true,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-02-lunch",
+					"date": "2026-10-02",
+					"mealType": "lunch",
+					"recipeId": "pasta-melanzane-pomodoro-ricotta",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-02-dinner",
+					"date": "2026-10-02",
+					"mealType": "dinner",
+					"recipeId": "merluzzo-pomodoro-olive-cous-cous",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-03-lunch",
+					"date": "2026-10-03",
+					"mealType": "lunch",
+					"recipeId": "fettine-pizzaiola-prezzemolo",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-03-dinner",
+					"date": "2026-10-03",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": "Cena libera",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-04-lunch",
+					"date": "2026-10-04",
+					"mealType": "lunch",
+					"recipeId": null,
+					"freeText": "Pizza da asporto",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-04-dinner",
+					"date": "2026-10-04",
+					"mealType": "dinner",
+					"recipeId": "wok-pollo-peperoni-riso-basmati",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				}
+			]
+		},
+		{
+			"id": "week-2026-10-05",
+			"familyId": "family-main",
+			"startsOn": "2026-10-05",
+			"generatedAt": "2026-09-30T20:00",
+			"closedAt": null,
+			"slots": [
+				{
+					"id": "2026-10-05-lunch",
+					"date": "2026-10-05",
+					"mealType": "lunch",
+					"recipeId": "wrap-fagioli-neri-cheddar",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-05-dinner",
+					"date": "2026-10-05",
+					"mealType": "dinner",
+					"recipeId": "sandwich-uova-mozzarella-pomodoro-tacchino",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-06-lunch",
+					"date": "2026-10-06",
+					"mealType": "lunch",
+					"recipeId": "pasta-zucca-salsiccia-robiola",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-06-dinner",
+					"date": "2026-10-06",
+					"mealType": "dinner",
+					"recipeId": "riso-ceci-spinaci-mandorle",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-07-lunch",
+					"date": "2026-10-07",
+					"mealType": "lunch",
+					"recipeId": "pasta-robiola-speck",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-07-dinner",
+					"date": "2026-10-07",
+					"mealType": "dinner",
+					"recipeId": "hamburger-cavallo",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-08-lunch",
+					"date": "2026-10-08",
+					"mealType": "lunch",
+					"recipeId": "spaghetti-riso-tofu-verdure-wok",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-08-dinner",
+					"date": "2026-10-08",
+					"mealType": "dinner",
+					"recipeId": "pollo-corn-flakes",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-09-lunch",
+					"date": "2026-10-09",
+					"mealType": "lunch",
+					"recipeId": "pasta-ricotta-zafferano",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-09-dinner",
+					"date": "2026-10-09",
+					"mealType": "dinner",
+					"recipeId": "branzino-barbecue",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-10-lunch",
+					"date": "2026-10-10",
+					"mealType": "lunch",
+					"recipeId": "pasta-crema-peperoni",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-10-dinner",
+					"date": "2026-10-10",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": "Cena libera",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-11-lunch",
+					"date": "2026-10-11",
+					"mealType": "lunch",
+					"recipeId": null,
+					"freeText": "Pizza da asporto",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-11-dinner",
+					"date": "2026-10-11",
+					"mealType": "dinner",
+					"recipeId": "sovracosce-pollo-griglia",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				}
+			]
+		},
+		{
+			"id": "week-2026-10-12",
+			"familyId": "family-main",
+			"startsOn": "2026-10-12",
+			"generatedAt": "2026-10-07T20:00",
+			"closedAt": null,
+			"slots": [
+				{
+					"id": "2026-10-12-lunch",
+					"date": "2026-10-12",
+					"mealType": "lunch",
+					"recipeId": "burrito-vegan",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-12-dinner",
+					"date": "2026-10-12",
+					"mealType": "dinner",
+					"recipeId": "bistecche-tonno-skottle",
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-13-lunch",
+					"date": "2026-10-13",
+					"mealType": "lunch",
+					"recipeId": "caviale-melanzane-panino",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-13-dinner",
+					"date": "2026-10-13",
+					"mealType": "dinner",
+					"recipeId": "couscous-verdure",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-14-lunch",
+					"date": "2026-10-14",
+					"mealType": "lunch",
+					"recipeId": "couscous-verdure-tonno",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-14-dinner",
+					"date": "2026-10-14",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": null,
+					"servings": 2,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-15-lunch",
+					"date": "2026-10-15",
+					"mealType": "lunch",
+					"recipeId": "ditali-cremosi-zucca-ceci",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-15-dinner",
+					"date": "2026-10-15",
+					"mealType": "dinner",
+					"recipeId": "erbazzone-uova-strapazzate-stracchino",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-16-lunch",
+					"date": "2026-10-16",
+					"mealType": "lunch",
+					"recipeId": "fusilli-ricotta-spinaci-noci",
+					"freeText": null,
+					"servings": 3,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-16-dinner",
+					"date": "2026-10-16",
+					"mealType": "dinner",
+					"recipeId": "gamberi-zucchine-skottle",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-17-lunch",
+					"date": "2026-10-17",
+					"mealType": "lunch",
+					"recipeId": "lenticchie-comidista",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-17-dinner",
+					"date": "2026-10-17",
+					"mealType": "dinner",
+					"recipeId": null,
+					"freeText": "Cena libera",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-18-lunch",
+					"date": "2026-10-18",
+					"mealType": "lunch",
+					"recipeId": null,
+					"freeText": "Pizza da asporto",
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				},
+				{
+					"id": "2026-10-18-dinner",
+					"date": "2026-10-18",
+					"mealType": "dinner",
+					"recipeId": "omelette-spinaci-montasio",
+					"freeText": null,
+					"servings": 4,
+					"note": null,
+					"cooked": null,
+					"updatedBy": null,
+					"updatedAt": null
+				}
+			]
+		}
+	],
+	"federicoRatings": [
+		{
+			"recipeId": "wok-pollo-peperoni-riso-basmati",
+			"stars": 3
+		},
+		{
+			"recipeId": "pasta-melanzane-pomodoro-ricotta",
+			"stars": 3
+		},
+		{
+			"recipeId": "polpettine-tacchino-skottle",
+			"stars": 3
+		},
+		{
+			"recipeId": "frittata-forno-bietole-ricotta",
+			"stars": 3
+		},
+		{
+			"recipeId": "noodles-wok-uova-verdure",
+			"stars": 5
+		},
+		{
+			"recipeId": "merluzzo-pomodoro-olive-cous-cous",
+			"stars": 4
+		},
+		{
+			"recipeId": "wrap-frittata-hummus",
+			"stars": 4
+		},
+		{
+			"recipeId": "gamberi-zucchine-skottle",
+			"stars": 4
+		},
+		{
+			"recipeId": "pappardelle-alfredo",
+			"stars": 4
+		},
+		{
+			"recipeId": "pasta-pesto-genovese",
+			"stars": 4
+		},
+		{
+			"recipeId": "hamburger-cavallo",
+			"stars": 4
+		},
+		{
+			"recipeId": "pasta-tonno",
+			"stars": 4
+		},
+		{
+			"recipeId": "spaghetti-pomodoro",
+			"stars": 4
+		},
+		{
+			"recipeId": "pasta-sugo-pesce",
+			"stars": 4
+		},
+		{
+			"recipeId": "penne-baffo",
+			"stars": 4
+		},
+		{
+			"recipeId": "pasta-zucca-salsiccia-robiola",
+			"stars": 4
+		},
+		{
+			"recipeId": "orecchiette-broccoli",
+			"stars": 4
+		},
+		{
+			"recipeId": "pasta-crema-peperoni",
+			"stars": 4
+		},
+		{
+			"recipeId": "bistecche-tonno-skottle",
+			"stars": 4
+		},
+		{
+			"recipeId": "branzino-barbecue",
+			"stars": 4
+		},
+		{
+			"recipeId": "sovracosce-pollo-griglia",
+			"stars": 4
+		},
+		{
+			"recipeId": "omelette-spinaci-montasio",
+			"stars": 4
+		},
+		{
+			"recipeId": "straccetti-pollo-limone",
+			"stars": 5
+		},
+		{
+			"recipeId": "riso-wok-broccoli-gamberi",
+			"stars": 5
+		},
+		{
+			"recipeId": "riso-cantonese-casa",
+			"stars": 5
+		},
+		{
+			"recipeId": "zuppa-fagioli-veloce-guanciale",
+			"stars": 5
+		},
+		{
+			"recipeId": "piadine-pollo-hummus-carote",
+			"stars": 4
+		},
+		{
+			"recipeId": "orata-padella-patate-pomodorini",
+			"stars": 4
+		},
+		{
+			"recipeId": "lonza-maiale-limone",
+			"stars": 5
+		},
+		{
+			"recipeId": "lenticchie-comidista",
+			"stars": 4
+		}
+	]
+}
