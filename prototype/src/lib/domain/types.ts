@@ -112,6 +112,28 @@ export interface Rating {
 	stars: number;
 }
 
+/** "Non proporre più" (recipe_exclusions): the planner and suggestions skip the recipe for this family. */
+export interface RecipeExclusion {
+	familyId: string;
+	recipeId: string;
+	createdBy: string;
+	createdAt: LocalDateTime;
+}
+
+/** The editable part of a slot, as stored in the change log. */
+export type SlotContent = Pick<MealSlot, 'recipeId' | 'freeText' | 'servings' | 'note' | 'cooked'>;
+
+/** Append-only log of slot writes (meal_changes); the interface shows only the last change. */
+export interface MealChange {
+	id: string;
+	slotId: string;
+	actorId: string;
+	channel: Channel;
+	before: SlotContent;
+	after: SlotContent;
+	createdAt: LocalDateTime;
+}
+
 export interface DemoDatabase {
 	users: User[];
 	families: Family[];
@@ -120,4 +142,6 @@ export interface DemoDatabase {
 	recipes: Recipe[];
 	weeks: Week[];
 	ratings: Rating[];
+	exclusions: RecipeExclusion[];
+	mealChanges: MealChange[];
 }

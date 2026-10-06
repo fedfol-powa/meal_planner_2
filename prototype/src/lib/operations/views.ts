@@ -94,3 +94,9 @@ export interface RecipeCardView {
 	lastChange: { userName: string | null; at: LocalDateTime } | null;
 	detailHref: string | null;
 }
+
+/** A suggested replacement, always shown with its rating (spec section 5). */
+export interface SuggestionView {
+	recipe: RecipeSummary;
+	rating: RatingSummary;
+}
