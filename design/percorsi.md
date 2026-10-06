@@ -3,7 +3,8 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026; prossimo percorso: Curatela.
+primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026; quinto giro (Curatela)
+in sviluppo.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -59,7 +60,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
-| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
+| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | In sviluppo |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
 | 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
 
@@ -734,3 +735,49 @@ simulato) sono nel piano del giro.
   irreversibili (aggiunti a `design.md`); testi di spiegazione nelle impostazioni.
 - Decisioni della preparazione confermate e riportate nella specifica: R2 chiuso,
   impostazioni visibili tranne i pesi, wizard minimo, prima generazione.
+
+## Giro 5: percorso 6
+
+Stato: piano approvato dall'utente il 6 ottobre 2026; in sviluppo.
+Piano: [2026-10-06-prototipo-giro-5.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-5.md).
+
+### Perimetro
+
+Tutto il percorso 6 in un solo giro (specifica, sezione 8): bozze condivise fra
+curatori, ripresa e pubblicazione, modulo manuale senza AI con verifica e correzione,
+modifica di ricette pubblicate anche altrui, versioni con confronto e ripristino,
+archiviazione, conflitti fra curatori e versione della ricetta nei pasti (R1).
+
+### Decisioni della preparazione (6 ottobre 2026, provvisorie)
+
+1. **Un solo giro**, compreso il modulo manuale (non anticipa la priorità M6).
+2. **Versione nei pasti (R1):** i pasti passati restano sulla versione in vigore
+   quando sono stati mangiati; oggi, i pasti futuri e la lista della spesa passano
+   subito alla nuova versione.
+3. **Modifica di una ricetta pubblicata** tramite bozza di revisione: le famiglie
+   vedono la versione pubblicata finché la revisione non è verificata e pubblicata.
+4. **Conflitti fra curatori:** il salvataggio di chi arriva secondo è rifiutato con
+   autore, momento e campi cambiati; si sceglie fra prendere l'altra versione o
+   sovrascriverla consapevolmente; la versione scartata resta recuperabile.
+5. **Archiviazione reversibile:** fuori da ricettario e suggerimenti, pasti leggibili,
+   ripristino dall'elenco «Archiviate» sotto le Bozze.
+6. **Ripristino di una versione:** ripubblicata subito come nuova versione, dopo
+   confronto e conferma; storico intero.
+7. **Caricamento da file:** non in questo giro.
+
+I default proposti (ingressi, «Salva bozza» esplicito, verifica prima di
+«Pubblica», ambito del ripristino, dati demo) sono nel piano del giro.
+
+### Varianti nel pannello Prova
+
+- **Forma del modulo:** pagina unica a sezioni o a passi.
+- **Lingue nel modulo:** italiano e inglese affiancati o selettore di lingua.
+
+### Simulazione dei dati
+
+- Lucia diventa curatrice, per modifiche di ricette altrui e conflitti.
+- Versione 1 di ogni ricetta pubblicata all'importazione; una ricetta del 5 ottobre
+  ha una versione 2 di Lucia con una dose corretta (R1 visibile).
+- Bozze: le quattro importate, una nuova di Lucia a metà, una revisione di Lucia già
+  verificata; una ricetta archiviata.
+- Pannello Prova: «Un'altra curatrice salva la bozza aperta».
