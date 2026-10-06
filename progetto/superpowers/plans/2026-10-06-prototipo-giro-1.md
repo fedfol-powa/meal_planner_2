@@ -3765,4 +3765,9 @@ dall'utente.
 
 ## Esito della review
 
-Da compilare all'attività 15.
+Approvato dall'utente il 6 ottobre 2026. Review indipendente del codice: nessun
+problema critico, cinque importanti corretti con test. Durante la review con l'utente
+il prototipo è stato iterato (barra con mese e calendario, footer delle schede, foto
+3:1, fonte troncata, voto in riga, filtri richiudibili con ordinamento, bozze per i
+curatori, navbar a sole icone, quantità non numeriche tradotte). Dettaglio e
+decisioni in `design/percorsi.md`, sezione "Giro 1"; 102 test verdi alla chiusura.

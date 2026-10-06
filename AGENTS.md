@@ -63,7 +63,9 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 - Il 6 ottobre 2026 sono stati concordati metodo per giri, ordine dei percorsi e
   architettura del prototipo: **leggi `design/percorsi.md`** prima di lavorare al
   prototipo e aggiornalo a ogni cambio di stato. Il primo giro (Fondamenta, Menu,
-  Ricettario e voti) è da pianificare.
+  Ricettario e voti) è stato approvato il 6 ottobre 2026; il prossimo è la Revisione
+  dei pasti (percorso 3), da preparare e pianificare. Il prototipo è in `prototype/`
+  (istruzioni nel suo README).
 - Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
   prototipo esplorativo possibile; rilievi aperti da risolvere prima delle relative
   fasi di implementazione. Le raccomandazioni del revisore non sono decisioni approvate.

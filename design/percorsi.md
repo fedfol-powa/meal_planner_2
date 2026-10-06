@@ -53,9 +53,9 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 
 | # | Percorso | Contenuto | Giro | Stato |
 |---|---|---|---|---|
-| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a tre voci, dati demo, strumenti di prova | 1 | In review |
-| 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | In review |
-| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | In review |
+| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a tre voci, dati demo, strumenti di prova | 1 | Approvato il 6 ottobre 2026 |
+| 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Approvato il 6 ottobre 2026 |
+| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
 | 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
@@ -103,7 +103,7 @@ nel piano del primo giro.
 
 ## Giro 1: percorsi 0, 1 e 2
 
-Stato: in review dal 6 ottobre 2026 (tappa intermedia raggiunta e adeguamenti fatti).
+Stato: approvato dall'utente il 6 ottobre 2026, dopo tappa intermedia e review.
 Piano approvato, esecuzione in questa sessione:
 [2026-10-06-prototipo-giro-1.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-1.md). Tappa intermedia concordata dopo
 Fondamenta e Menu, per un controllo veloce prima del Ricettario.
@@ -185,7 +185,7 @@ e 17, rilievo R3) e in `design.md`:
 - Spesa fuori dalla navbar; il punto d'ingresso, probabilmente dal Menu con la
   selezione dei pasti, si decide nel percorso Spesa.
 
-### Review del giro (in corso, 6 ottobre 2026)
+### Review del giro (6 ottobre 2026, chiusa con approvazione)
 
 - Icona del calendario senza riquadro; poi spostata, con il mese, in una barra sopra il
   selettore dei giorni, per mantenerlo simmetrico e lasciare spazio alla spesa.
@@ -258,4 +258,22 @@ famiglia; curatela.
 
 ### Esito della review
 
-Da compilare alla review del giro.
+Approvato dall'utente il 6 ottobre 2026 con il perimetro seguente; le decisioni sono
+nella specifica (sezioni 2, 4, 5, 8, 12 e 14) e in `design.md`.
+
+- **Menu:** apertura su oggi o sul primo giorno con pasti; barra con mese e calendario
+  (solo giorni con menu); nessuno stato né chiusura delle settimane; pasti passati
+  cucinati salvo "non cucinato"; schede con banner 3:1, titolo collegato alla fonte,
+  riga tempo e fonte troncata, footer a icone (scheda, voto, ingredienti, non
+  cucinato); offline in sola consultazione.
+- **Ricettario e voti:** ricerca, filtri e ordinamento invertibile in un pannello
+  richiudibile; stesse schede del menu; sezione Bozze per i curatori; scheda ricetta
+  con titolo collegato alla fonte, voto in riga, porzioni e storico; voto con media e
+  stelle sulla stessa riga.
+- **Rinviati:** azioni di revisione dei pasti e conflitti (percorso 3), ingresso della
+  spesa (percorso 4), curatela delle bozze (percorso 6), ricerca bilingue, ricalcolo
+  delle quantità non numeriche.
+- **Problemi minori ancora aperti dalla review del codice:** scorrimento animato
+  annullato al tocco di un giorno, messaggio d'errore del voto sempre "offline",
+  chiave degli ingredienti nelle liste, URL della fonte non validato, carattere
+  invisibile nell'espressione che toglie gli accenti.
