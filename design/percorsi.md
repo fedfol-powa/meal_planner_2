@@ -57,7 +57,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Approvato il 6 ottobre 2026 |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
-| 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | 3 | In sviluppo |
+| 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | 3 | In review |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
@@ -398,7 +398,7 @@ successivi e alla fine ricomincia dai primi.
 
 ## Giro 3: percorso 4
 
-Stato: piano approvato il 6 ottobre 2026, in sviluppo.
+Stato: sviluppato il 6 ottobre 2026, in review con l'utente.
 Piano: [2026-10-06-prototipo-giro-3.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-3.md).
 
 ### Perimetro
@@ -429,3 +429,50 @@ Reparti, ingredienti di dispensa e duplicati evidenti ricondotti a un solo ingre
 sono classificati a mano in `prototype/scripts/demo-ingredients.json`, **dimostrativi**;
 gli opzionali si ricavano dai nomi con "facoltativo"; la Famiglia Folloni evita un
 ingrediente scelto per la prova.
+
+### Scelte prese durante lo sviluppo
+
+- Icona della spesa: la borsa (`icon-bag`) già usata per la Spesa nel riferimento
+  approvato, invece di un carrello nuovo.
+- La selezione mostra tutti i pasti non ancora passati fino alla fine dell'ultima
+  settimana visibile; pasti liberi, slot vuoti e ricette senza ingredienti compaiono
+  in grigio, senza casella. Scorciatoie: "Da oggi a domenica", "Prossima settimana"
+  (solo se generata) e "Nessuno".
+- Nella lista la casella a sinistra, come nel riferimento, significa "ce l'ho già":
+  barra la voce, che non viene esportata. La freccia a destra mostra i pasti di
+  provenienza con le quantità parziali.
+- Quantità incompatibili nell'ordine in cui compaiono ("50 g + 100 ml"); "q.b." una
+  sola volta, in fondo; quantità testuali come scritte ("3 matasse").
+- Masse e volumi da 1 kg o 1 l in su si mostrano in kg e l.
+- Esportazioni in fondo, fisse: Condividi (Web Share; sulla rete locale in http il
+  browser non lo consente e si apre il foglio con il testo e "Copia il testo"), PDF
+  (stampa del browser, una pagina con tre colonne, senza voci tolte e senza "Non in
+  lista"), Bring! simulato (foglio con le voci "quantità nome").
+- La lista si rigenera cambiando lingua o unità dal pannello Prova; le voci tolte o
+  aggiunte restano. Cambiando utente, famiglia o data si riparte dalla selezione.
+- Su schermi larghi la vista è una colonna di 720 px.
+- Il pulsante Prova è stato alzato per non coprire i pulsanti di esportazione.
+
+### Rotte, componenti e operazioni del giro
+
+- **Rotta:** `/shopping` (selezione e lista sono due fasi della stessa vista; la
+  navbar tiene attivo il Menu).
+- **Componenti:** `ShoppingSelection`, `ShoppingList` (con i fogli Testo e Bring!,
+  riusa `BottomSheet`); icona nella barra del mese di `/menu`.
+- **Operazioni simulate** (`prototype/src/lib/operations/shopping.ts`):
+  `getShoppingSelection`, `buildShoppingList` (slot espliciti, come servirà a MCP),
+  `arrangeShoppingList`, `shoppingExport`; somma delle quantità in
+  `prototype/src/lib/units/combine.ts`.
+
+### Domande per la review
+
+1. Selezione: la scelta di partenza (da ora a domenica) e le scorciatoie bastano?
+   I pasti non selezionabili in grigio aiutano o disturbano?
+2. Lista: casella "ce l'ho già" a sinistra e freccia della provenienza a destra sono
+   chiare? Va bene che "Non in lista" sia chiusa in fondo?
+3. Quantità sommate: leggibili "50 g + 100 ml", "50 g + q.b.", "½" di peperone? Vanno
+   arrotondati per eccesso i pezzi da comprare (½ peperone → 1)?
+4. Reparti e duplicati ricondotti (dimostrativi): credibili?
+5. Esportazioni: testo condiviso, PDF a tre colonne, Bring! simulato.
+6. Decisioni provvisorie della preparazione: confermarle e portarle nella specifica,
+   compresa l'eliminazione di "solo quelli non ancora in lista".

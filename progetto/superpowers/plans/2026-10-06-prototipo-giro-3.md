@@ -116,10 +116,10 @@ pannello Prova.
 - `src/lib/units/combine.ts`: somma di quantità per dimensione e presentazione di voci
   miste.
 - `src/lib/operations/shopping.ts` (+ test): `getShoppingSelection(db, ctx)`,
-  `buildShoppingList(db, ctx, slotIds)`, `formatShoppingText(list, ctx)`,
-  `getBringItems(list, ctx)`.
-- Componenti: `ShoppingSelection`, `ShoppingList`, `ShoppingItem`, `ShareSheet` (testo
-  e Bring! simulato, riusa `BottomSheet`); icona carrello in `IconLibrary`.
+  `buildShoppingList(db, ctx, slotIds)`, `arrangeShoppingList(list, addedBack)`,
+  `shoppingExport(list, removed, locale)`.
+- Componenti: `ShoppingSelection`, `ShoppingList` (con i fogli testo e Bring! simulato,
+  riusa `BottomSheet`); icona borsa già presente in `IconLibrary`.
 - Rotta: `src/routes/shopping/+page.svelte`; icona nella barra del mese di `/menu`.
 - `src/lib/design/global.css`: stile di stampa della lista (una pagina).
 - Testi it-IT ed en-GB in `src/lib/i18n/messages.ts`.
@@ -128,49 +128,49 @@ pannello Prova.
 
 ### Attività 1: decisioni nei documenti e branch
 
-- [ ] Branch `prototipo-giro-3` da `main`.
-- [ ] `design/percorsi.md`: sezione "Giro 3" con perimetro, decisioni provvisorie,
+- [x] Branch `prototipo-giro-3` da `main`.
+- [x] `design/percorsi.md`: sezione "Giro 3" con perimetro, decisioni provvisorie,
       simulazione dei dati; tabella dei percorsi aggiornata.
-- [ ] Commit del piano e dei documenti.
+- [x] Commit del piano e dei documenti.
 
 ### Attività 2: modello e dati demo
 
-- [ ] Tipi nuovi, classificazione degli ingredienti, opzionali, restrizione del seed;
+- [x] Tipi nuovi, classificazione degli ingredienti, opzionali, restrizione del seed;
       rigenerazione di `generated.json`; versione dello stato salvato incrementata.
-- [ ] Test: ogni ingrediente usato da ricette pubblicate ha un reparto; i canonici
+- [x] Test: ogni ingrediente usato da ricette pubblicate ha un reparto; i canonici
       puntano a ingredienti esistenti.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 3: operazioni della spesa (test prima)
 
-- [ ] `combine.ts`: somme g/kg, ml/l, oz nei grammi; unità miste; q.b.; testo.
-- [ ] `getShoppingSelection`: giorni e pasti selezionabili, selezione di partenza
+- [x] `combine.ts`: somme g/kg, ml/l, oz nei grammi; unità miste; q.b.; testo.
+- [x] `getShoppingSelection`: giorni e pasti selezionabili, selezione di partenza
       (casi: metà settimana, domenica sera, dopo la generazione del mercoledì, famiglia
       senza settimane).
-- [ ] `buildShoppingList`: scalatura, consolidamento, canonici, dispensa, evitati,
+- [x] `buildShoppingList`: scalatura, consolidamento, canonici, dispensa, evitati,
       opzionali, bozze, ordine dei reparti, metrico e imperiale, arrotondamento dopo la
       somma, provenienza delle voci.
-- [ ] `formatShoppingText` e `getBringItems` ("quantità nome", senza famiglia né giorni).
-- [ ] Commit.
+- [x] `shoppingExport` (testo e voci per Bring!) ("quantità nome", senza famiglia né giorni).
+- [x] Commit.
 
 ### Attività 4: vista Spesa
 
-- [ ] Icona carrello nella barra del mese del Menu, con nome accessibile.
-- [ ] Selezione: giorni con pasti, caselle da 44 px, scorciatoie, contatore,
+- [x] Icona carrello nella barra del mese del Menu, con nome accessibile.
+- [x] Selezione: giorni con pasti, caselle da 44 px, scorciatoie, contatore,
       "Genera lista"; stato vuoto (nessun pasto selezionabile, famiglia nuova).
-- [ ] Lista: reparti, voci con tocco per togliere/ripristinare, freccia per la
+- [x] Lista: reparti, voci con tocco per togliere/ripristinare, freccia per la
       provenienza, "Non in lista" richiudibile, "Modifica pasti".
-- [ ] Esportazioni: Condividi con ripiego, PDF con stampa, Bring! simulato; avviso di
+- [x] Esportazioni: Condividi con ripiego, PDF con stampa, Bring! simulato; avviso di
       conferma; offline.
-- [ ] Testi it-IT ed en-GB.
-- [ ] Commit.
+- [x] Testi it-IT ed en-GB.
+- [x] Commit.
 
 ### Attività 5: verifica e review
 
-- [ ] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
+- [x] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
       inglese, metrico e imperiale, offline; anteprima di stampa.
-- [ ] Confronto visivo con `design/index.html`.
-- [ ] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
+- [x] Confronto visivo con `design/index.html`.
+- [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
 - [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`; alla chiusura, decisioni nella specifica (sezioni 6 e 14,
@@ -189,3 +189,12 @@ Esportazione reale verso Bring! e pagina pubblica `/shopping-lists/<token>`; PDF
 generato dal server; equivalente MCP (percorso 7, che userà le stesse operazioni);
 gestione delle restrizioni sugli ingredienti (percorso 5); elenco validato delle unità
 e fattori definitivi (voce "Misure" della sezione 15).
+
+## Esito dell'esecuzione (6 ottobre 2026)
+
+Sviluppo completato in questa sessione senza subagenti: 152 test e controllo dei tipi
+verdi; prova nel browser a 320, 390 e 1440 px in italiano e inglese, metrico e
+imperiale, offline (Bring! disattivato) e anteprima di stampa su una pagina. Scelte
+prese durante lo sviluppo e domande per la review in `design/percorsi.md`, "Giro 3".
+Il confronto con `design/index.html` riguarda gruppi e righe della spesa del
+riferimento, riusati (`shopping-group`, `shopping-item`).

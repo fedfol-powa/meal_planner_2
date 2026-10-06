@@ -28,7 +28,9 @@ i file che un browser aperto potrebbe ancora chiedere.
 - Ricette e menu dal progetto di origine `../../meal_planner`, letto e mai modificato.
 - Testi inglesi dimostrativi in `scripts/demo-translations.en-GB.json` (ricette,
   ingredienti, quantità non numeriche): non sono traduzioni del catalogo.
-- Persone, famiglie e voti inventati in `src/lib/demo-data/seed.ts`.
+- Reparti, ingredienti di dispensa e duplicati ricondotti, dimostrativi, in
+  `scripts/demo-ingredients.json`.
+- Persone, famiglie, voti e ingrediente evitato inventati in `src/lib/demo-data/seed.ts`.
 - Lo stato salvato ha una versione (`STORAGE_KEY` in `src/lib/store/persistence.ts`):
   va incrementata quando cambiano dati di partenza o impostazioni.
 
@@ -36,15 +38,15 @@ i file che un browser aperto potrebbe ancora chiedere.
 
 Il pulsante "Prova" (in basso a destra) non fa parte dell'app: cambia utente e ruoli,
 famiglia, lingua, unità, data e ora simulate, scenario, modalità offline e azzera i
-dati demo. Dal giro 2 sceglie anche le varianti da confrontare (ingresso alle azioni
-sul pasto, forma dei suggerimenti) e simula la modifica di un pasto da parte di un
-altro membro.
+dati demo. Dal giro 2 simula anche la modifica di un pasto da parte di un altro
+membro.
 
 ## Struttura
 
 `src/lib/domain` tipi e calendario · `src/lib/units` quantità e conversioni ·
 `src/lib/i18n` testi it-IT/en-GB · `src/lib/operations` operazioni simulate
-(revisione dei pasti in `revision.ts`, suggerimenti simulati in `suggestions.ts`) ·
+(revisione dei pasti in `revision.ts`, suggerimenti simulati in `suggestions.ts`,
+spesa in `shopping.ts`) ·
 `src/lib/store` stato e persistenza · `src/lib/components` componenti ·
-`src/routes` viste (`/menu`, `/recipes`, `/recipes/[id]`, `/you`).
+`src/routes` viste (`/menu`, `/shopping`, `/recipes`, `/recipes/[id]`, `/you`).
 Il progetto usa SvelteKit 3: alias `#lib/...` con estensione esplicita.
