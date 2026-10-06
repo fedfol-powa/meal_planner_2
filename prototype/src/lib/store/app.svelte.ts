@@ -2,7 +2,10 @@ import { browser } from '$app/env';
 import type { IsoDate, Locale } from '#lib/domain/types.ts';
 import type { MessageKey } from '#lib/i18n/messages.ts';
 import { translate, type MessageParams } from '#lib/i18n/translate.ts';
-import type { OperationContext } from '#lib/operations/context.ts';
+import type { OperationContext, OpResult } from '#lib/operations/context.ts';
+import { errorKey } from '#lib/i18n/errors.ts';
+import type { RevisionResult } from '#lib/operations/revision.ts';
+import { undoMealChanges } from '#lib/operations/revision.ts';
 import { createInitial, loadPersisted, savePersisted, type Persisted, type ScenarioId } from './persistence';
 import { applyScenario, familyForUser } from './scenarios';
 
@@ -18,6 +21,9 @@ class AppState {
 	#state = $state<Persisted>(loadPersisted(safeStorage()));
 	/** Day chosen in the menu, kept while switching views (design.md, navigation). */
 	selectedDate = $state<IsoDate | null>(null);
+	/** Short-lived notice after a change, with "Annulla" when the change can be undone. */
+	toast = $state<{ id: number; message: string; undo: (() => void) | null } | null>(null);
+	#toastId = 0;
 
 	get db() { return this.#state.db; }
 	get settings() { return this.#state.settings; }
@@ -35,6 +41,26 @@ class AppState {
 		this.#save();
 	}
 
+	notify(message: string, undo: (() => void) | null = null) {
+		this.toast = { id: ++this.#toastId, message, undo };
+	}
+
+	/** Saves a meal change and offers to undo it; errors become the notice. */
+	applyRevision(result: OpResult<RevisionResult>, message: string): boolean {
+		if (!result.ok) {
+			this.notify(this.t(errorKey(result.error)));
+			return false;
+		}
+		this.update(() => {});
+		const { changeIds } = result.value;
+		this.notify(message, () => {
+			const undone = undoMealChanges(this.db, this.ctx, changeIds);
+			if (undone.ok) this.update(() => {});
+			this.notify(this.t(undone.ok ? 'toast.undone' : 'toast.undoFailed'));
+		});
+		return true;
+	}
+
 	switchUser(userId: string) {
 		this.update((s) => {
 			s.settings.userId = userId;
@@ -43,14 +69,21 @@ class AppState {
 		this.selectedDate = null;
 	}
 
+	/** Variants are a tester's choice, not demo data: they survive resets and scenarios. */
+	#keepVariants(next: Persisted): Persisted {
+		const { revisionEntry, suggestionLayout } = this.settings;
+		Object.assign(next.settings, { revisionEntry, suggestionLayout });
+		return next;
+	}
+
 	reset() {
-		this.#state = createInitial();
+		this.#state = this.#keepVariants(createInitial());
 		this.selectedDate = null;
 		this.#save();
 	}
 
 	setScenario(id: ScenarioId) {
-		this.#state = applyScenario(id);
+		this.#state = this.#keepVariants(applyScenario(id));
 		this.selectedDate = null;
 		this.#save();
 	}

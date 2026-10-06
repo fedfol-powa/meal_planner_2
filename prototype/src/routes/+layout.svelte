@@ -6,6 +6,7 @@
 	import DevPanel from '#lib/components/DevPanel.svelte';
 	import IconLibrary from '#lib/components/IconLibrary.svelte';
 	import OfflineBanner from '#lib/components/OfflineBanner.svelte';
+	import UndoToast from '#lib/components/UndoToast.svelte';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	let { children } = $props();
@@ -22,4 +23,5 @@
 	<main class="app-content" id="app-content" tabindex="-1">{@render children()}</main>
 	<BottomNav />
 </div>
+<UndoToast />
 <DevPanel />

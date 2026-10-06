@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import IngredientList from '#lib/components/IngredientList.svelte';
 	import RatingStars from '#lib/components/RatingStars.svelte';
+	import ServingsStepper from '#lib/components/ServingsStepper.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
@@ -63,12 +64,7 @@
 				{/if}
 
 				{#if d.baseServings && d.ingredients.length}
-				<div class="servings">
-					<span>{app.t('recipe.servingsLabel')}</span>
-					<button type="button" class="step" aria-label={app.t('recipe.lessServings')} disabled={d.servings <= 1} onclick={() => setServings(d.servings - 1)}>−</button>
-					<strong aria-live="polite">{d.servings}</strong>
-					<button type="button" class="step" aria-label={app.t('recipe.moreServings')} disabled={d.servings >= 12} onclick={() => setServings(d.servings + 1)}>+</button>
-				</div>
+				<ServingsStepper value={d.servings} max={12} onChange={setServings} />
 				<p class="meta-line">{app.t('recipe.baseServings', { count: d.baseServings })}</p>
 				<IngredientList ingredients={d.ingredients} system={d.measurementSystem} label={d.recipe.name} collapsible={false} />
 				{:else}
@@ -92,9 +88,6 @@
 	.title { margin: 0 0 12px; font: 400 1.375rem/1.3 var(--meal-title-font); overflow-wrap: anywhere; }
 	.title :global(.recipe-link .icon) { top: 8px; }
 	.detail :global(.rating) { margin-bottom: 14px; }
-	.servings { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; font-weight: 700; }
-	.step { width: 44px; height: 44px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); font: 700 1.25rem/1 var(--text-font); cursor: pointer; }
-	.step:disabled { opacity: 0.3; cursor: not-allowed; }
 	.draft-notice { display: grid; gap: 6px; justify-items: start; margin: 0 0 14px; padding: 12px; background: var(--free-surface); border: 1px solid var(--free-border); font-size: 0.875rem; }
 	.history-title { margin: 24px 0 8px; font: 400 1.25rem/1.3 var(--heading-font); }
 	.history { margin: 0; padding: 0; list-style: none; }
