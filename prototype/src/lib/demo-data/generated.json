@@ -1738,7 +1738,8 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "petto-di-pollo",
@@ -1747,7 +1748,8 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone-rosso",
@@ -1756,7 +1758,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone-giallo",
@@ -1765,7 +1768,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -1774,7 +1778,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -1783,7 +1788,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "melanzana-piccola",
@@ -1792,7 +1798,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-rossa-di-tropea-o-1-cipollotto",
@@ -1801,7 +1808,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-di-soia-senza-glutine",
@@ -1810,7 +1818,8 @@
 						"value": 3,
 						"unit": "tbsp"
 					},
-					"sourceText": "3 cucchiai circa"
+					"sourceText": "3 cucchiai circa",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -1876,7 +1885,8 @@
 						"value": 350,
 						"unit": "g"
 					},
-					"sourceText": "350 g"
+					"sourceText": "350 g",
+					"text": null
 				},
 				{
 					"ingredientId": "melanzana-piccola",
@@ -1885,7 +1895,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodori-ramati",
@@ -1894,7 +1905,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-piccola",
@@ -1903,7 +1915,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoncino",
@@ -1912,7 +1925,8 @@
 						"value": 1,
 						"unit": "pinch"
 					},
-					"sourceText": "1 pizzico"
+					"sourceText": "1 pizzico",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -1921,14 +1935,16 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "basilico",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta",
@@ -1937,7 +1953,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -2031,7 +2048,8 @@
 						"value": 6,
 						"unit": "piece"
 					},
-					"sourceText": "6"
+					"sourceText": "6",
+					"text": null
 				},
 				{
 					"ingredientId": "bietole-gia-cotte",
@@ -2040,7 +2058,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta-vaccina",
@@ -2049,7 +2068,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pecorino-romano-grattugiato-o-parmigiano",
@@ -2058,7 +2078,8 @@
 						"value": 5,
 						"unit": "tbsp"
 					},
-					"sourceText": "5 cucchiai"
+					"sourceText": "5 cucchiai",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -2096,7 +2117,8 @@
 						"value": 180,
 						"unit": "g"
 					},
-					"sourceText": "180 g"
+					"sourceText": "180 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla",
@@ -2105,7 +2127,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone",
@@ -2114,7 +2137,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "carota",
@@ -2123,7 +2147,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchina",
@@ -2132,7 +2157,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "uova",
@@ -2141,7 +2167,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-d-ostriche-facoltativa",
@@ -2150,7 +2177,8 @@
 						"value": 1,
 						"unit": "tbsp"
 					},
-					"sourceText": "1 cucchiaio"
+					"sourceText": "1 cucchiaio",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-di-soia",
@@ -2159,7 +2187,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "curry-in-polvere-facoltativo",
@@ -2168,14 +2197,16 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio-in-polvere",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "a piacere"
+					"sourceText": "a piacere",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -2213,21 +2244,24 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodori-ciliegini-o-pomodorini",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "concentrato-di-pomodoro",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "cipollotto",
@@ -2236,14 +2270,16 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "olive-taggiasche",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "cous-cous",
@@ -2252,28 +2288,35 @@
 						"value": 250,
 						"unit": "g"
 					},
-					"sourceText": "250 g"
+					"sourceText": "250 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zafferano",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 bustina"
+					"sourceText": "1 bustina",
+					"text": {
+						"it-IT": "1 bustina",
+						"en-GB": "1 sachet"
+					}
 				},
 				{
 					"ingredientId": "basilico-fresco",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "mandorle",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -2309,7 +2352,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -2318,7 +2362,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -2327,7 +2372,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoncino-fresco-dolce",
@@ -2336,7 +2382,8 @@
 						"value": 10,
 						"unit": "g"
 					},
-					"sourceText": "10 g"
+					"sourceText": "10 g",
+					"text": null
 				},
 				{
 					"ingredientId": "lattuga-iceberg",
@@ -2345,7 +2392,8 @@
 						"value": 80,
 						"unit": "g"
 					},
-					"sourceText": "80 g"
+					"sourceText": "80 g",
+					"text": null
 				},
 				{
 					"ingredientId": "barbabietole",
@@ -2354,7 +2402,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "emmentaler-8-fette",
@@ -2363,7 +2412,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ceci-precotti",
@@ -2372,7 +2422,8 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
@@ -2381,7 +2432,8 @@
 						"value": 20,
 						"unit": "g"
 					},
-					"sourceText": "20 g"
+					"sourceText": "20 g",
+					"text": null
 				},
 				{
 					"ingredientId": "tabasco",
@@ -2390,7 +2442,8 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "succo-di-limone",
@@ -2399,7 +2452,8 @@
 						"value": 30,
 						"unit": "g"
 					},
-					"sourceText": "30 g"
+					"sourceText": "30 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -2408,7 +2462,8 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "paprika-piccante",
@@ -2417,7 +2472,8 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "tahina",
@@ -2426,7 +2482,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -2465,7 +2522,8 @@
 						"value": 6,
 						"unit": "slice"
 					},
-					"sourceText": "6 fette"
+					"sourceText": "6 fette",
+					"text": null
 				},
 				{
 					"ingredientId": "code-di-gambero",
@@ -2474,7 +2532,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -2483,7 +2542,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -2492,14 +2552,19 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "vino-bianco-secco",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/2 bicchiere"
+					"sourceText": "1/2 bicchiere",
+					"text": {
+						"it-IT": "1/2 bicchiere",
+						"en-GB": "1/2 glass"
+					}
 				},
 				{
 					"ingredientId": "scalogno",
@@ -2508,7 +2573,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -2573,7 +2639,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodorini-perini",
@@ -2582,7 +2649,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-dorata",
@@ -2591,35 +2659,40 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale-fino",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "pepe-nero",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -2658,7 +2731,8 @@
 						"value": 600,
 						"unit": "g"
 					},
-					"sourceText": "600 g"
+					"sourceText": "600 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pangrattato",
@@ -2667,7 +2741,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "uovo",
@@ -2676,14 +2751,19 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 mazzetto"
+					"sourceText": "1 mazzetto",
+					"text": {
+						"it-IT": "1 mazzetto",
+						"en-GB": "1 bunch"
+					}
 				},
 				{
 					"ingredientId": "aglio",
@@ -2692,7 +2772,8 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "caciocavallo-grattugiato",
@@ -2701,7 +2782,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "noce-moscata",
@@ -2710,14 +2792,19 @@
 						"value": 1,
 						"unit": "pinch"
 					},
-					"sourceText": "1 pizzico"
+					"sourceText": "1 pizzico",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "15 cucchiai (per rosolare le melanzane)"
+					"sourceText": "15 cucchiai (per rosolare le melanzane)",
+					"text": {
+						"it-IT": "15 cucchiai (per rosolare le melanzane)",
+						"en-GB": "15 tbsp (to brown the aubergines)"
+					}
 				},
 				{
 					"ingredientId": "sale-e-pepe",
@@ -2726,7 +2813,8 @@
 						"value": 1,
 						"unit": "pinch"
 					},
-					"sourceText": "1 pizzico"
+					"sourceText": "1 pizzico",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -2763,7 +2851,8 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "burro",
@@ -2772,7 +2861,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "parmigiano",
@@ -2781,7 +2871,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -2819,14 +2910,19 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pesto-alla-genovese",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 vasetto"
+					"sourceText": "1 vasetto",
+					"text": {
+						"it-IT": "1 vasetto",
+						"en-GB": "1 jar"
+					}
 				}
 			],
 			"mealType": "lunch",
@@ -2864,7 +2960,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "panini-per-hamburger",
@@ -2873,7 +2970,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -2913,7 +3011,8 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "tonno-sott-olio",
@@ -2922,7 +3021,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -2931,7 +3031,8 @@
 						"value": 3,
 						"unit": "clove"
 					},
-					"sourceText": "3 spicchi"
+					"sourceText": "3 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "alici",
@@ -2940,7 +3041,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "passata-di-pomodoro",
@@ -2949,21 +3051,24 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "basilico",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -3001,7 +3106,8 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "passata-di-pomodoro",
@@ -3010,7 +3116,8 @@
 						"value": 700,
 						"unit": "g"
 					},
-					"sourceText": "700 g"
+					"sourceText": "700 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -3019,21 +3126,24 @@
 						"value": 3,
 						"unit": "clove"
 					},
-					"sourceText": "3 spicchi"
+					"sourceText": "3 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "parmigiano",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "basilico",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -3071,7 +3181,8 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pasta-fresca",
@@ -3080,7 +3191,8 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -3089,7 +3201,8 @@
 						"value": 3,
 						"unit": "clove"
 					},
-					"sourceText": "3 spicchi"
+					"sourceText": "3 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "alici",
@@ -3098,7 +3211,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -3136,7 +3250,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "panna-fresca",
@@ -3145,7 +3260,8 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prosciutto-cotto",
@@ -3154,7 +3270,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodori-pelati",
@@ -3163,14 +3280,19 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 ciuffo"
+					"sourceText": "1 ciuffo",
+					"text": {
+						"it-IT": "1 ciuffo",
+						"en-GB": "1 sprig"
+					}
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
@@ -3179,21 +3301,24 @@
 						"value": 4,
 						"unit": "tbsp"
 					},
-					"sourceText": "4 cucchiai"
+					"sourceText": "4 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "pepe-nero",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -3230,7 +3355,8 @@
 						"value": 320,
 						"unit": "g"
 					},
-					"sourceText": "320 g"
+					"sourceText": "320 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucca-a-pezzetti",
@@ -3239,7 +3365,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "salsicce",
@@ -3248,7 +3375,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla",
@@ -3257,7 +3385,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "robiola",
@@ -3266,28 +3395,32 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "pepe-nero",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -3326,7 +3459,8 @@
 						"value": 500,
 						"unit": "g"
 					},
-					"sourceText": "500 g"
+					"sourceText": "500 g",
+					"text": null
 				},
 				{
 					"ingredientId": "broccolo",
@@ -3335,7 +3469,8 @@
 						"value": 1,
 						"unit": "kg"
 					},
-					"sourceText": "1 kg"
+					"sourceText": "1 kg",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -3344,7 +3479,8 @@
 						"value": 3,
 						"unit": "clove"
 					},
-					"sourceText": "3 spicchi"
+					"sourceText": "3 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "alici",
@@ -3353,14 +3489,16 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "parmigiano",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -3398,7 +3536,8 @@
 						"value": 350,
 						"unit": "g"
 					},
-					"sourceText": "350 g"
+					"sourceText": "350 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoni-rossi",
@@ -3407,7 +3546,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta",
@@ -3416,7 +3556,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "latte",
@@ -3425,7 +3566,8 @@
 						"value": 100,
 						"unit": "ml"
 					},
-					"sourceText": "100 ml"
+					"sourceText": "100 ml",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla",
@@ -3434,28 +3576,32 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -3493,14 +3639,16 @@
 						"value": 800,
 						"unit": "g"
 					},
-					"sourceText": "800 g"
+					"sourceText": "800 g",
+					"text": null
 				},
 				{
 					"ingredientId": "limone",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -3538,7 +3686,8 @@
 						"value": 800,
 						"unit": "g"
 					},
-					"sourceText": "800 g"
+					"sourceText": "800 g",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -3576,14 +3725,16 @@
 						"value": 800,
 						"unit": "g"
 					},
-					"sourceText": "800 g"
+					"sourceText": "800 g",
+					"text": null
 				},
 				{
 					"ingredientId": "limone",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -3622,7 +3773,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "fagioli-rossi-in-scatola",
@@ -3631,7 +3783,8 @@
 						"value": 60,
 						"unit": "g"
 					},
-					"sourceText": "60 g"
+					"sourceText": "60 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cumino-in-polvere",
@@ -3640,14 +3793,19 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "succo-di-lime",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 goccio"
+					"sourceText": "1 goccio",
+					"text": {
+						"it-IT": "1 goccio",
+						"en-GB": "a splash"
+					}
 				},
 				{
 					"ingredientId": "guacamole-pagina-185-del-libro",
@@ -3656,7 +3814,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "patata-dolce-arrosto-pagina-189-del-libro",
@@ -3665,7 +3824,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "mais-in-scatola",
@@ -3674,7 +3834,8 @@
 						"value": 60,
 						"unit": "g"
 					},
-					"sourceText": "60 g"
+					"sourceText": "60 g",
+					"text": null
 				},
 				{
 					"ingredientId": "straccetti-vegani-tex-mex",
@@ -3683,7 +3844,8 @@
 						"value": 80,
 						"unit": "g"
 					},
-					"sourceText": "80 g"
+					"sourceText": "80 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-rossa",
@@ -3692,28 +3854,38 @@
 						"value": 0.25,
 						"unit": "piece"
 					},
-					"sourceText": "1/4"
+					"sourceText": "1/4",
+					"text": null
 				},
 				{
 					"ingredientId": "coriandolo",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "5 rametti"
+					"sourceText": "5 rametti",
+					"text": {
+						"it-IT": "5 rametti",
+						"en-GB": "5 sprigs"
+					}
 				},
 				{
 					"ingredientId": "insalata",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "2-3 foglie"
+					"sourceText": "2-3 foglie",
+					"text": {
+						"it-IT": "2-3 foglie",
+						"en-GB": "2-3 leaves"
+					}
 				},
 				{
 					"ingredientId": "peperoncino-verde",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "a piacere"
+					"sourceText": "a piacere",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -3752,7 +3924,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "caviale-di-melanzane",
@@ -3761,7 +3934,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "melanzana-grigliata",
@@ -3770,7 +3944,8 @@
 						"value": 80,
 						"unit": "g"
 					},
-					"sourceText": "80 g"
+					"sourceText": "80 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone-grigliato",
@@ -3779,7 +3954,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "feta",
@@ -3788,7 +3964,8 @@
 						"value": 40,
 						"unit": "g"
 					},
-					"sourceText": "40 g"
+					"sourceText": "40 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pickles-di-cavolo-rosso-pagina-182-del-libro",
@@ -3797,7 +3974,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "uvetta",
@@ -3806,21 +3984,30 @@
 						"value": 1,
 						"unit": "tbsp"
 					},
-					"sourceText": "1 cucchiaio"
+					"sourceText": "1 cucchiaio",
+					"text": null
 				},
 				{
 					"ingredientId": "menta",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "2 rametti"
+					"sourceText": "2 rametti",
+					"text": {
+						"it-IT": "2 rametti",
+						"en-GB": "2 sprigs"
+					}
 				},
 				{
 					"ingredientId": "coriandolo",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "5 rametti"
+					"sourceText": "5 rametti",
+					"text": {
+						"it-IT": "5 rametti",
+						"en-GB": "5 sprigs"
+					}
 				}
 			],
 			"mealType": "both",
@@ -3860,14 +4047,19 @@
 						"value": 325,
 						"unit": "g"
 					},
-					"sourceText": "325 g"
+					"sourceText": "325 g",
+					"text": null
 				},
 				{
 					"ingredientId": "riso-bianco-per-sushi",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "145 g crudo (330 g cotto)"
+					"sourceText": "145 g crudo (330 g cotto)",
+					"text": {
+						"it-IT": "145 g crudo (330 g cotto)",
+						"en-GB": "145 g raw (330 g cooked)"
+					}
 				},
 				{
 					"ingredientId": "aglio",
@@ -3876,7 +4068,8 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-di-semi-di-colza",
@@ -3885,7 +4078,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "curry-o-garam-masala",
@@ -3894,7 +4088,8 @@
 						"value": 3,
 						"unit": "tbsp"
 					},
-					"sourceText": "3 cucchiai"
+					"sourceText": "3 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-base-giapponese-pagina-24-del-libro",
@@ -3903,7 +4098,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla",
@@ -3912,7 +4108,8 @@
 						"value": 95,
 						"unit": "g"
 					},
-					"sourceText": "95 g"
+					"sourceText": "95 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone-verde",
@@ -3921,14 +4118,19 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "kimchi-veloce-pagina-36-del-libro",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "per servire, facoltativo"
+					"sourceText": "per servire, facoltativo",
+					"text": {
+						"it-IT": "per servire, facoltativo",
+						"en-GB": "to serve, optional"
+					}
 				}
 			],
 			"mealType": "dinner",
@@ -3967,7 +4169,8 @@
 						"value": 3,
 						"unit": "piece"
 					},
-					"sourceText": "3"
+					"sourceText": "3",
+					"text": null
 				},
 				{
 					"ingredientId": "montasio",
@@ -3976,7 +4179,8 @@
 						"value": 20,
 						"unit": "g"
 					},
-					"sourceText": "20 g"
+					"sourceText": "20 g",
+					"text": null
 				},
 				{
 					"ingredientId": "spinacini-freschi",
@@ -3985,28 +4189,32 @@
 						"value": 40,
 						"unit": "g"
 					},
-					"sourceText": "40 g"
+					"sourceText": "40 g",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "pepe",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -4045,7 +4253,8 @@
 						"value": 600,
 						"unit": "g"
 					},
-					"sourceText": "600 g"
+					"sourceText": "600 g",
+					"text": null
 				},
 				{
 					"ingredientId": "farina-00",
@@ -4054,7 +4263,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "limoni-medi",
@@ -4063,7 +4273,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -4072,42 +4283,51 @@
 						"value": 2,
 						"unit": "clove"
 					},
-					"sourceText": "2 spicchi"
+					"sourceText": "2 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "acqua",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 bicchiere"
+					"sourceText": "1 bicchiere",
+					"text": {
+						"it-IT": "1 bicchiere",
+						"en-GB": "1 glass"
+					}
 				},
 				{
 					"ingredientId": "prezzemolo-o-altre-erbe-aromatiche",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "pepe-nero",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -4144,7 +4364,8 @@
 						"value": 120,
 						"unit": "g"
 					},
-					"sourceText": "120 g"
+					"sourceText": "120 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucca-pulita",
@@ -4153,7 +4374,8 @@
 						"value": 170,
 						"unit": "g"
 					},
-					"sourceText": "170 g"
+					"sourceText": "170 g",
+					"text": null
 				},
 				{
 					"ingredientId": "lenticchie-cotte",
@@ -4162,7 +4384,8 @@
 						"value": 240,
 						"unit": "g"
 					},
-					"sourceText": "240 g"
+					"sourceText": "240 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -4171,21 +4394,24 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -4222,7 +4448,11 @@
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "500-600 g"
+					"sourceText": "500-600 g",
+					"text": {
+						"it-IT": "500-600 g",
+						"en-GB": "500-600 g"
+					}
 				},
 				{
 					"ingredientId": "gamberi-freschi-puliti",
@@ -4231,7 +4461,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "riso-integrale",
@@ -4240,14 +4471,19 @@
 						"value": 120,
 						"unit": "g"
 					},
-					"sourceText": "120 g"
+					"sourceText": "120 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zenzero-fresco",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "un piccolo pezzo"
+					"sourceText": "un piccolo pezzo",
+					"text": {
+						"it-IT": "un piccolo pezzo",
+						"en-GB": "a small piece"
+					}
 				},
 				{
 					"ingredientId": "salsa-di-soia",
@@ -4256,21 +4492,24 @@
 						"value": 3,
 						"unit": "tbsp"
 					},
-					"sourceText": "3 cucchiai"
+					"sourceText": "3 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-extravergine-d-oliva",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "sale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -4308,7 +4547,8 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "uova",
@@ -4317,7 +4557,8 @@
 						"value": 3,
 						"unit": "piece"
 					},
-					"sourceText": "3"
+					"sourceText": "3",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -4326,7 +4567,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -4335,7 +4577,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "piselli",
@@ -4344,7 +4587,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prosciutto-cotto-a-dadini",
@@ -4353,7 +4597,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipollotto",
@@ -4362,14 +4607,16 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-di-soia",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -4409,7 +4656,8 @@
 						"value": 600,
 						"unit": "g"
 					},
-					"sourceText": "600 g"
+					"sourceText": "600 g",
+					"text": null
 				},
 				{
 					"ingredientId": "brodo-vegetale",
@@ -4418,7 +4666,8 @@
 						"value": 400,
 						"unit": "ml"
 					},
-					"sourceText": "400 ml"
+					"sourceText": "400 ml",
+					"text": null
 				},
 				{
 					"ingredientId": "guanciale-a-listarelle",
@@ -4427,7 +4676,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-rossa",
@@ -4436,7 +4686,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -4474,7 +4725,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "pollo-gia-cotto",
@@ -4483,14 +4735,19 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "hummus-pronto",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 vaschetta da 250 g"
+					"sourceText": "1 vaschetta da 250 g",
+					"text": {
+						"it-IT": "1 vaschetta da 250 g",
+						"en-GB": "1 tub (250 g)"
+					}
 				},
 				{
 					"ingredientId": "carota-julienne-cruda",
@@ -4499,14 +4756,16 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "insalata",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -4545,7 +4804,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodorini-rossi-e-gialli",
@@ -4554,7 +4814,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "patata-media",
@@ -4563,7 +4824,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -4572,7 +4834,8 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "vino-bianco-secco",
@@ -4581,14 +4844,19 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 ciuffo"
+					"sourceText": "1 ciuffo",
+					"text": {
+						"it-IT": "1 ciuffo",
+						"en-GB": "1 sprig"
+					}
 				}
 			],
 			"mealType": "dinner",
@@ -4626,14 +4894,16 @@
 						"value": 12,
 						"unit": "piece"
 					},
-					"sourceText": "12"
+					"sourceText": "12",
+					"text": null
 				},
 				{
 					"ingredientId": "farina-00",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "limone-bio-succo-e-scorza",
@@ -4642,7 +4912,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "burro",
@@ -4651,7 +4922,8 @@
 						"value": 30,
 						"unit": "g"
 					},
-					"sourceText": "30 g"
+					"sourceText": "30 g",
+					"text": null
 				},
 				{
 					"ingredientId": "miele",
@@ -4660,7 +4932,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -4669,14 +4942,16 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -4714,7 +4989,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -4723,7 +4999,8 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodori-pelati-o-pomodorini-freschi-maturi",
@@ -4732,14 +5009,16 @@
 						"value": 160,
 						"unit": "ml"
 					},
-					"sourceText": "160 ml"
+					"sourceText": "160 ml",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo-fresco",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -4776,7 +5055,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "patata-grande-o-2-piccole",
@@ -4785,7 +5065,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -4794,7 +5075,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-grande",
@@ -4803,7 +5085,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -4812,7 +5095,8 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodoro-tritato-o-grattugiato",
@@ -4821,7 +5105,8 @@
 						"value": 4,
 						"unit": "tbsp"
 					},
-					"sourceText": "4 cucchiai"
+					"sourceText": "4 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone-rosso-o-1-2-verde",
@@ -4830,14 +5115,19 @@
 						"value": 0.25,
 						"unit": "piece"
 					},
-					"sourceText": "1/4"
+					"sourceText": "1/4",
+					"text": null
 				},
 				{
 					"ingredientId": "paprika-affumicata",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 cucchiaino abbondante"
+					"sourceText": "1 cucchiaino abbondante",
+					"text": {
+						"it-IT": "1 cucchiaino abbondante",
+						"en-GB": "1 heaped tsp"
+					}
 				},
 				{
 					"ingredientId": "cumino",
@@ -4846,7 +5136,8 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "vino-bianco-o-fino-facoltativo",
@@ -4855,14 +5146,19 @@
 						"value": 100,
 						"unit": "ml"
 					},
-					"sourceText": "100 ml"
+					"sourceText": "100 ml",
+					"text": null
 				},
 				{
 					"ingredientId": "alloro",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 foglia"
+					"sourceText": "1 foglia",
+					"text": {
+						"it-IT": "1 foglia",
+						"en-GB": "1 leaf"
+					}
 				}
 			],
 			"mealType": "both",
@@ -4901,7 +5197,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "speck-da-tagliare-a-cubetti",
@@ -4910,7 +5207,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "robiola",
@@ -4919,7 +5217,8 @@
 						"value": 250,
 						"unit": "g"
 					},
-					"sourceText": "250 g"
+					"sourceText": "250 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipollotti",
@@ -4928,7 +5227,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -4965,7 +5265,8 @@
 						"value": 320,
 						"unit": "g"
 					},
-					"sourceText": "320 g"
+					"sourceText": "320 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta-vaccina",
@@ -4974,21 +5275,27 @@
 						"value": 250,
 						"unit": "g"
 					},
-					"sourceText": "250 g"
+					"sourceText": "250 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zafferano",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "2 bustine"
+					"sourceText": "2 bustine",
+					"text": {
+						"it-IT": "2 bustine",
+						"en-GB": "2 sachets"
+					}
 				},
 				{
 					"ingredientId": "salvia",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -5026,7 +5333,8 @@
 						"value": 250,
 						"unit": "g"
 					},
-					"sourceText": "250 g"
+					"sourceText": "250 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoni-rossi",
@@ -5035,7 +5343,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -5044,7 +5353,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -5053,7 +5363,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "tonno-sott-olio-peso-sgocciolato",
@@ -5062,7 +5373,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "fagioli-rossi-precotti-peso-sgocciolato",
@@ -5071,7 +5383,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ravanelli",
@@ -5080,7 +5393,8 @@
 						"value": 5,
 						"unit": "piece"
 					},
-					"sourceText": "5"
+					"sourceText": "5",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-di-soia",
@@ -5089,14 +5403,16 @@
 						"value": 20,
 						"unit": "g"
 					},
-					"sourceText": "20 g"
+					"sourceText": "20 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -5136,7 +5452,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "brodo-vegetale-caldo",
@@ -5145,7 +5462,8 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "curcuma-in-polvere",
@@ -5154,7 +5472,8 @@
 						"value": 1,
 						"unit": "tbsp"
 					},
-					"sourceText": "1 cucchiaio"
+					"sourceText": "1 cucchiaio",
+					"text": null
 				},
 				{
 					"ingredientId": "melanzane",
@@ -5163,7 +5482,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -5172,7 +5492,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -5181,7 +5502,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoni-rossi",
@@ -5190,7 +5512,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolle-rosse",
@@ -5199,7 +5522,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "pisellini",
@@ -5208,7 +5532,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoncino-fresco",
@@ -5217,7 +5542,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "mandorle-in-scaglie",
@@ -5226,7 +5552,8 @@
 						"value": 20,
 						"unit": "g"
 					},
-					"sourceText": "20 g"
+					"sourceText": "20 g",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -5235,14 +5562,16 @@
 						"value": 1,
 						"unit": "clove"
 					},
-					"sourceText": "1 spicchio"
+					"sourceText": "1 spicchio",
+					"text": null
 				},
 				{
 					"ingredientId": "basilico",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -5281,7 +5610,8 @@
 						"value": 250,
 						"unit": "g"
 					},
-					"sourceText": "250 g"
+					"sourceText": "250 g",
+					"text": null
 				},
 				{
 					"ingredientId": "salsiccia",
@@ -5290,7 +5620,8 @@
 						"value": 300,
 						"unit": "g"
 					},
-					"sourceText": "300 g"
+					"sourceText": "300 g",
+					"text": null
 				},
 				{
 					"ingredientId": "porri",
@@ -5299,7 +5630,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "vino-rosso",
@@ -5308,7 +5640,8 @@
 						"value": 40,
 						"unit": "g"
 					},
-					"sourceText": "40 g"
+					"sourceText": "40 g",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoncino-fresco",
@@ -5317,7 +5650,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "parmigiano-reggiano-dop",
@@ -5326,14 +5660,16 @@
 						"value": 60,
 						"unit": "g"
 					},
-					"sourceText": "60 g"
+					"sourceText": "60 g",
+					"text": null
 				},
 				{
 					"ingredientId": "timo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -5371,7 +5707,8 @@
 						"value": 800,
 						"unit": "g"
 					},
-					"sourceText": "800 g"
+					"sourceText": "800 g",
+					"text": null
 				},
 				{
 					"ingredientId": "corn-flakes-non-zuccherati",
@@ -5380,7 +5717,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "uova",
@@ -5389,7 +5727,8 @@
 						"value": 3,
 						"unit": "piece"
 					},
-					"sourceText": "3"
+					"sourceText": "3",
+					"text": null
 				},
 				{
 					"ingredientId": "latte-intero",
@@ -5398,7 +5737,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "paprika-dolce",
@@ -5407,14 +5747,16 @@
 						"value": 20,
 						"unit": "g"
 					},
-					"sourceText": "20 g"
+					"sourceText": "20 g",
+					"text": null
 				},
 				{
 					"ingredientId": "farina-00",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "yogurt-bianco-naturale",
@@ -5423,7 +5765,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "maionese",
@@ -5432,7 +5775,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "succo-di-limone",
@@ -5441,7 +5785,8 @@
 						"value": 50,
 						"unit": "g"
 					},
-					"sourceText": "50 g"
+					"sourceText": "50 g",
+					"text": null
 				},
 				{
 					"ingredientId": "scorza-di-limone",
@@ -5450,14 +5795,16 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "erba-cipollina",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "olio-di-semi-di-girasole",
@@ -5466,7 +5813,8 @@
 						"value": 1,
 						"unit": "l"
 					},
-					"sourceText": "1 l"
+					"sourceText": "1 l",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -5503,7 +5851,8 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "bresaola",
@@ -5512,7 +5861,8 @@
 						"value": 180,
 						"unit": "g"
 					},
-					"sourceText": "180 g"
+					"sourceText": "180 g",
+					"text": null
 				},
 				{
 					"ingredientId": "stracchino",
@@ -5521,14 +5871,16 @@
 						"value": 400,
 						"unit": "g"
 					},
-					"sourceText": "400 g"
+					"sourceText": "400 g",
+					"text": null
 				},
 				{
 					"ingredientId": "rucola",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodori-secchi-sott-olio",
@@ -5537,7 +5889,8 @@
 						"value": 7,
 						"unit": "piece"
 					},
-					"sourceText": "7"
+					"sourceText": "7",
+					"text": null
 				},
 				{
 					"ingredientId": "mandorle",
@@ -5546,14 +5899,16 @@
 						"value": 40,
 						"unit": "g"
 					},
-					"sourceText": "40 g"
+					"sourceText": "40 g",
+					"text": null
 				},
 				{
 					"ingredientId": "foglie-di-basilico",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -5592,7 +5947,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "aglio",
@@ -5601,7 +5957,8 @@
 						"value": 3,
 						"unit": "clove"
 					},
-					"sourceText": "3 spicchi"
+					"sourceText": "3 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodori",
@@ -5610,7 +5967,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "zenzero-fresco-grattugiato",
@@ -5619,7 +5977,8 @@
 						"value": 0.5,
 						"unit": "tbsp"
 					},
-					"sourceText": "1/2 cucchiaio"
+					"sourceText": "1/2 cucchiaio",
+					"text": null
 				},
 				{
 					"ingredientId": "coriandolo-macinato",
@@ -5628,7 +5987,8 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "cumino-macinato",
@@ -5637,7 +5997,8 @@
 						"value": 2,
 						"unit": "tsp"
 					},
-					"sourceText": "2 cucchiaini"
+					"sourceText": "2 cucchiaini",
+					"text": null
 				},
 				{
 					"ingredientId": "cannella",
@@ -5646,7 +6007,8 @@
 						"value": 0.5,
 						"unit": "tsp"
 					},
-					"sourceText": "1/2 cucchiaino"
+					"sourceText": "1/2 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoncino-in-fiocchi",
@@ -5655,7 +6017,8 @@
 						"value": 0.5,
 						"unit": "tsp"
 					},
-					"sourceText": "1/2 cucchiaino"
+					"sourceText": "1/2 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "brodo-vegetale",
@@ -5664,7 +6027,8 @@
 						"value": 250,
 						"unit": "ml"
 					},
-					"sourceText": "250 ml"
+					"sourceText": "250 ml",
+					"text": null
 				},
 				{
 					"ingredientId": "crema-di-mandorle-croccante",
@@ -5673,7 +6037,8 @@
 						"value": 2,
 						"unit": "tbsp"
 					},
-					"sourceText": "2 cucchiai"
+					"sourceText": "2 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "spinacini-freschi",
@@ -5682,7 +6047,8 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ceci-in-scatola",
@@ -5691,21 +6057,27 @@
 						"value": 200,
 						"unit": "g"
 					},
-					"sourceText": "200 g"
+					"sourceText": "200 g",
+					"text": null
 				},
 				{
 					"ingredientId": "garam-masala",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/4-1/2 cucchiaino"
+					"sourceText": "1/4-1/2 cucchiaino",
+					"text": {
+						"it-IT": "1/4-1/2 cucchiaino",
+						"en-GB": "1/4-1/2 tsp"
+					}
 				},
 				{
 					"ingredientId": "succo-di-limone",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "riso-basmati",
@@ -5714,7 +6086,8 @@
 						"value": 175,
 						"unit": "g"
 					},
-					"sourceText": "175 g"
+					"sourceText": "175 g",
+					"text": null
 				},
 				{
 					"ingredientId": "curcuma",
@@ -5723,28 +6096,32 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "mandorle-tritate",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "peperoncino-fresco",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "coriandolo-fresco",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",
@@ -5782,14 +6159,22 @@
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "3 matasse"
+					"sourceText": "3 matasse",
+					"text": {
+						"it-IT": "3 matasse",
+						"en-GB": "3 nests"
+					}
 				},
 				{
 					"ingredientId": "tofu-affumicato",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 panetto"
+					"sourceText": "1 panetto",
+					"text": {
+						"it-IT": "1 panetto",
+						"en-GB": "1 block"
+					}
 				},
 				{
 					"ingredientId": "germogli-di-soia",
@@ -5798,7 +6183,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucchine",
@@ -5807,7 +6193,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "carote",
@@ -5816,7 +6203,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-o-cipollotto",
@@ -5825,7 +6213,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "peperone",
@@ -5834,7 +6223,8 @@
 						"value": 0.5,
 						"unit": "piece"
 					},
-					"sourceText": "1/2"
+					"sourceText": "1/2",
+					"text": null
 				},
 				{
 					"ingredientId": "aceto",
@@ -5843,7 +6233,8 @@
 						"value": 3,
 						"unit": "tbsp"
 					},
-					"sourceText": "3 cucchiai"
+					"sourceText": "3 cucchiai",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-barbecue-o-fumo-liquido-q-b",
@@ -5852,28 +6243,32 @@
 						"value": 1,
 						"unit": "tbsp"
 					},
-					"sourceText": "1 cucchiaio"
+					"sourceText": "1 cucchiaio",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-di-soia",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "a piacere"
+					"sourceText": "a piacere",
+					"text": null
 				},
 				{
 					"ingredientId": "semi-di-sesamo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo-opzionale",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "lunch",
@@ -5912,7 +6307,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "radicchio-pulito",
@@ -5921,7 +6317,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "bresaola",
@@ -5930,7 +6327,8 @@
 						"value": 62.5,
 						"unit": "g"
 					},
-					"sourceText": "62,5 g"
+					"sourceText": "62,5 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta",
@@ -5939,7 +6337,8 @@
 						"value": 62.5,
 						"unit": "g"
 					},
-					"sourceText": "62,5 g"
+					"sourceText": "62,5 g",
+					"text": null
 				},
 				{
 					"ingredientId": "noci-sgusciate",
@@ -5948,7 +6347,8 @@
 						"value": 12.5,
 						"unit": "g"
 					},
-					"sourceText": "12,5 g"
+					"sourceText": "12,5 g",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -5987,7 +6387,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "zucca-pulita",
@@ -5996,7 +6397,8 @@
 						"value": 150,
 						"unit": "g"
 					},
-					"sourceText": "150 g"
+					"sourceText": "150 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ceci-gia-cotti-e-sgocciolati",
@@ -6005,21 +6407,24 @@
 						"value": 125,
 						"unit": "g"
 					},
-					"sourceText": "125 g"
+					"sourceText": "125 g",
+					"text": null
 				},
 				{
 					"ingredientId": "salvia",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				},
 				{
 					"ingredientId": "rosmarino",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -6059,7 +6464,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "funghi-champignon-puliti",
@@ -6068,7 +6474,8 @@
 						"value": 125,
 						"unit": "g"
 					},
-					"sourceText": "125 g"
+					"sourceText": "125 g",
+					"text": null
 				},
 				{
 					"ingredientId": "piselli",
@@ -6077,7 +6484,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta",
@@ -6086,14 +6494,16 @@
 						"value": 62.5,
 						"unit": "g"
 					},
-					"sourceText": "62,5 g"
+					"sourceText": "62,5 g",
+					"text": null
 				},
 				{
 					"ingredientId": "prezzemolo",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -6133,7 +6543,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "spinaci-freschi-puliti",
@@ -6142,7 +6553,8 @@
 						"value": 100,
 						"unit": "g"
 					},
-					"sourceText": "100 g"
+					"sourceText": "100 g",
+					"text": null
 				},
 				{
 					"ingredientId": "ricotta",
@@ -6151,7 +6563,8 @@
 						"value": 125,
 						"unit": "g"
 					},
-					"sourceText": "125 g"
+					"sourceText": "125 g",
+					"text": null
 				},
 				{
 					"ingredientId": "noci-sgusciate",
@@ -6160,14 +6573,16 @@
 						"value": 12.5,
 						"unit": "g"
 					},
-					"sourceText": "12,5 g"
+					"sourceText": "12,5 g",
+					"text": null
 				},
 				{
 					"ingredientId": "scorza-di-limone",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "both",
@@ -6206,14 +6621,19 @@
 						"value": 1,
 						"unit": "tsp"
 					},
-					"sourceText": "1 cucchiaino"
+					"sourceText": "1 cucchiaino",
+					"text": null
 				},
 				{
 					"ingredientId": "cipolla-a-dadini",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/2 cup (circa 1/2 cipolla media)"
+					"sourceText": "1/2 cup (circa 1/2 cipolla media)",
+					"text": {
+						"it-IT": "1/2 cup (circa 1/2 cipolla media)",
+						"en-GB": "1/2 US cup (about 1/2 medium onion)"
+					}
 				},
 				{
 					"ingredientId": "aglio-tritato-o-schiacciato",
@@ -6222,7 +6642,8 @@
 						"value": 2,
 						"unit": "clove"
 					},
-					"sourceText": "2 spicchi"
+					"sourceText": "2 spicchi",
+					"text": null
 				},
 				{
 					"ingredientId": "fagioli-neri-scolati-e-sciacquati",
@@ -6231,35 +6652,52 @@
 						"value": 15,
 						"unit": "oz"
 					},
-					"sourceText": "15 oz"
+					"sourceText": "15 oz",
+					"text": null
 				},
 				{
 					"ingredientId": "salsa-messicana-pronta",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/2 cup"
+					"sourceText": "1/2 cup",
+					"text": {
+						"it-IT": "1/2 cup",
+						"en-GB": "1/2 US cup"
+					}
 				},
 				{
 					"ingredientId": "yogurt-greco-o-panna-acida",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/4 cup"
+					"sourceText": "1/4 cup",
+					"text": {
+						"it-IT": "1/4 cup",
+						"en-GB": "1/4 US cup"
+					}
 				},
 				{
 					"ingredientId": "lattuga-tagliata-o-spezzettata",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/2 cup"
+					"sourceText": "1/2 cup",
+					"text": {
+						"it-IT": "1/2 cup",
+						"en-GB": "1/2 US cup"
+					}
 				},
 				{
 					"ingredientId": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1/2 cup"
+					"sourceText": "1/2 cup",
+					"text": {
+						"it-IT": "1/2 cup",
+						"en-GB": "1/2 US cup"
+					}
 				},
 				{
 					"ingredientId": "pomodoro-a-dadini-varieta-roma",
@@ -6268,14 +6706,19 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "tortillas-di-farina",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "8 piccole o 4 grandi per burrito"
+					"sourceText": "8 piccole o 4 grandi per burrito",
+					"text": {
+						"it-IT": "8 piccole o 4 grandi per burrito",
+						"en-GB": "8 small or 4 large burrito-size"
+					}
 				}
 			],
 			"mealType": "lunch",
@@ -6315,7 +6758,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "uova",
@@ -6324,14 +6768,19 @@
 						"value": 4,
 						"unit": "piece"
 					},
-					"sourceText": "4"
+					"sourceText": "4",
+					"text": null
 				},
 				{
 					"ingredientId": "stracchino",
 					"quantity": {
 						"kind": "text"
 					},
-					"sourceText": "1 confezione da 250 g"
+					"sourceText": "1 confezione da 250 g",
+					"text": {
+						"it-IT": "1 confezione da 250 g",
+						"en-GB": "1 pack (250 g)"
+					}
 				}
 			],
 			"mealType": "both",
@@ -6369,7 +6818,8 @@
 						"value": 6,
 						"unit": "slice"
 					},
-					"sourceText": "6 fette"
+					"sourceText": "6 fette",
+					"text": null
 				},
 				{
 					"ingredientId": "uova",
@@ -6378,7 +6828,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "mozzarelle",
@@ -6387,7 +6838,8 @@
 						"value": 2,
 						"unit": "piece"
 					},
-					"sourceText": "2"
+					"sourceText": "2",
+					"text": null
 				},
 				{
 					"ingredientId": "pomodoro-cuore-di-bue",
@@ -6396,7 +6848,8 @@
 						"value": 1,
 						"unit": "piece"
 					},
-					"sourceText": "1"
+					"sourceText": "1",
+					"text": null
 				},
 				{
 					"ingredientId": "tacchino",
@@ -6405,14 +6858,16 @@
 						"value": 4,
 						"unit": "slice"
 					},
-					"sourceText": "4 fette"
+					"sourceText": "4 fette",
+					"text": null
 				},
 				{
 					"ingredientId": "maionese",
 					"quantity": {
 						"kind": "to_taste"
 					},
-					"sourceText": "q.b."
+					"sourceText": "q.b.",
+					"text": null
 				}
 			],
 			"mealType": "dinner",

@@ -1041,8 +1041,10 @@ nuovamente ogni volta che si apre una ricetta.
 
 **Pubblicazione bilingue confermata:** i testi richiesti di una ricetta devono essere
 disponibili sia in italiano sia in inglese britannico prima della pubblicazione.
-Questo comprende nome e descrizione della ricetta e i nomi degli ingredienti collegati;
-le identità e le quantità sono condivise fra le due lingue. La regola vale per nuove
+Questo comprende nome e descrizione della ricetta, i nomi degli ingredienti collegati
+e, dal 6 ottobre 2026, il testo delle quantità non numeriche (per esempio "1 mazzetto",
+"3 matasse"), mostrato nella lingua dell'utente; le identità e le quantità numeriche
+sono condivise fra le due lingue. La regola vale per nuove
 ricette, modifiche e importazioni e viene verificata dal server in ogni canale.
 Le traduzioni mancanti sono segnalate nella bozza e impediscono di pubblicarla: mostrare
 l'originale italiano non è un'alternativa alla completezza del catalogo pubblicato.
@@ -1175,14 +1177,15 @@ scorrere lateralmente, con selettore superiore sincronizzato; il giorno attivo �
 scuro con testo bianco. Nessuna ripetizione del numero del giorno o contatori nel
 contenuto. Dal 6 ottobre 2026 la navbar inferiore mostra Menu, Ricettario e una voce
 per famiglia, account, cambio di famiglia e funzioni dei ruoli (curatela,
-amministrazione, istruzioni MCP), con etichetta da confermare nella review del primo
-giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
+amministrazione, istruzioni MCP), con etichetta «Tu» / «You» confermata nella review
+del primo giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
 decide nel percorso Spesa. Sopra il selettore dei giorni una barra con il mese e le
 icone di azione (calendario, in seguito spesa); la scheda del pasto ha un footer a icone
 per scheda ricetta, voto, ingredienti e, sui pasti passati, "non cucinato"; foto in
 banner basso 3:1 e fonte sulla riga del tempo, troncata. Le schede del ricettario usano
 lo stesso componente; il ricettario ha ricerca, un'icona che apre filtri e
-ordinamento (nome, voto, aggiunte di recente, mangiate di recente). Nella scheda
+ordinamento (nome, voto, aggiunte di recente, mangiate di recente), con una freccia
+per invertire l'ordine scelto; nessun filtro per stagione. Nella scheda
 ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
 ingredienti (dettagli in `design/design.md`).
 La navbar mostra icone ed etichette,
@@ -1270,7 +1273,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
-| 6 ottobre 2026, review del primo giro (in corso) | Barra con mese e icone sopra i giorni; scheda del pasto con footer a icone (scheda, voto, ingredienti, non cucinato); voto in riga con media e stelle senza etichette |
+| 6 ottobre 2026, review del primo giro (in corso) | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

@@ -18,7 +18,8 @@
 			maxMinutes: n('time'),
 			proteinGroup: (p.get('group') ?? undefined) as ProteinGroup | undefined,
 			minStars: n('stars'),
-			sort: (p.get('sort') ?? undefined) as RecipeSort | undefined
+			sort: (p.get('sort') ?? undefined) as RecipeSort | undefined,
+			reversed: p.get('reversed') === '1' || undefined
 		};
 	});
 	const result = $derived(searchRecipes(app.db, app.ctx, query));
@@ -51,6 +52,7 @@
 		if (next.proteinGroup) p.set('group', next.proteinGroup);
 		if (next.minStars) p.set('stars', String(next.minStars));
 		if (next.sort) p.set('sort', next.sort);
+		if (next.reversed) p.set('reversed', '1');
 		goto(`/recipes${p.toString() ? `?${p}` : ''}`, { replace: true, reset: false });
 	}
 </script>

@@ -182,7 +182,8 @@ stesso componente del menu: sul banner l'etichetta è il gruppo alimentare, il f
 ha scheda, voto e ingredienti alle porzioni della fonte. Sopra l'elenco: campo di
 ricerca e, a destra, un'icona senza riquadro che apre e chiude filtri e ordinamento;
 l'icona è verde su fondo verde chiaro quando un filtro o un ordinamento diverso dal
-nome è attivo. Nella scheda ricetta il titolo è sempre il collegamento alla fonte,
+nome è attivo. Accanto al menu dell'ordinamento una freccia senza riquadro inverte
+l'ordine scelto. Non c'è un filtro per stagione. Nella scheda ricetta il titolo è sempre il collegamento alla fonte,
 seguito da voto in riga, descrizione, durata, porzioni, ingredienti e storico.
 
 Usare immagini della ricetta con provenienza verificabile. Le foto del riferimento
@@ -211,8 +212,7 @@ sotto 768 px e affiancati da 768 px; il calendario resta visibile.
 
 La navbar è sempre in basso, con icone e testo. Dal 6 ottobre 2026 le voci sono
 **Menu, Ricettario** e una voce per famiglia, account, cambio di famiglia e funzioni
-dei ruoli (etichetta provvisoria «Tu» / «You», da confermare nella review del primo
-giro). La Spesa non è più una voce della navbar: il suo punto d'ingresso si decide nel
+dei ruoli, con etichetta «Tu» / «You» (confermata nella review del primo giro). La Spesa non è più una voce della navbar: il suo punto d'ingresso si decide nel
 percorso Spesa.
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva

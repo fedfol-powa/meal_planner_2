@@ -32,8 +32,10 @@ export interface Ingredient {
 export interface RecipeIngredient {
 	ingredientId: string;
 	quantity: Quantity;
-	/** Quantity exactly as written in the source, shown when it is not numeric. */
+	/** Quantity exactly as written in the source. */
 	sourceText: string;
+	/** Localised wording of a non-numeric quantity; required in both languages to publish. */
+	text: Translated | null;
 }
 
 export interface Book {

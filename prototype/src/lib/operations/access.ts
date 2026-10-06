@@ -64,7 +64,7 @@ export function scaledIngredients(db: DemoDatabase, recipe: Recipe, servings: nu
 			ingredientId: line.ingredientId,
 			name: ingredient ? localized(ingredient.name, locale).text : line.ingredientId,
 			quantity: scaleQuantity(line.quantity, servings, base),
-			sourceText: line.sourceText
+			sourceText: line.text ? localized(line.text, locale).text : line.sourceText
 		};
 	});
 }

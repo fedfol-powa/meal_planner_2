@@ -128,3 +128,23 @@ describe('recipe list for cards and sorting', () => {
 		expect(eaten.slice(dated.length).every((d) => d === null)).toBe(true);
 	});
 });
+
+describe('localised non-numeric quantities and reversed sorting', () => {
+	it('shows non-numeric quantities in the user language', () => {
+		const it = getRecipeDetail(db, ctx(), 'spaghetti-riso-tofu-verdure-wok');
+		const en = getRecipeDetail(db, ctx({ userId: 'user-tom' }), 'spaghetti-riso-tofu-verdure-wok');
+		if (!it.ok || !en.ok) throw new Error('detail');
+		const index = it.value.ingredients.findIndex((i) => i.quantity.kind === 'text');
+		expect(it.value.ingredients[index].sourceText).toBe('3 matasse');
+		expect(en.value.ingredients[index].sourceText).not.toBe('3 matasse');
+		expect(en.value.ingredients[index].sourceText.length).toBeGreaterThan(0);
+	});
+	it('reverses the chosen order', () => {
+		const forward = searchRecipes(db, ctx(), { sort: 'rating' });
+		const backward = searchRecipes(db, ctx(), { sort: 'rating', reversed: true });
+		if (!forward.ok || !backward.ok) throw new Error('search');
+		expect(backward.value.map((i) => i.recipe.id)).toEqual([...forward.value.map((i) => i.recipe.id)].reverse());
+		const byName = searchRecipes(db, ctx(), { reversed: true });
+		expect(byName.ok && byName.value[0].recipe.name.localeCompare(byName.value.at(-1)!.recipe.name, 'it-IT')).toBeGreaterThan(0);
+	});
+});

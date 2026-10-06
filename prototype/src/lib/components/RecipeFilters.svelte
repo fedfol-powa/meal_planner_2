@@ -10,7 +10,7 @@
 	const sorts: RecipeSort[] = ['name', 'rating', 'added', 'lastEaten'];
 	let open = $state(false);
 	// Highlight the toggle when something other than the defaults is applied.
-	const active = $derived(!!(query.mealType || query.maxMinutes || query.proteinGroup || query.minStars || (query.sort && query.sort !== 'name')));
+	const active = $derived(!!(query.mealType || query.maxMinutes || query.proteinGroup || query.minStars || query.reversed || (query.sort && query.sort !== 'name')));
 </script>
 
 <form class="filters" role="search" onsubmit={(e) => e.preventDefault()}>
@@ -24,11 +24,16 @@
 		</button>
 	</div>
 	<fieldset id="recipe-filters" hidden={!open}>
-		<label>{app.t('recipes.sort')}
-			<select value={query.sort ?? 'name'} onchange={(e) => set({ sort: e.currentTarget.value === 'name' ? undefined : (e.currentTarget.value as RecipeSort) })}>
-				{#each sorts as sort (sort)}<option value={sort}>{app.t(`recipes.sort.${sort}` as const)}</option>{/each}
-			</select>
-		</label>
+		<div class="sort">
+			<label>{app.t('recipes.sort')}
+				<select value={query.sort ?? 'name'} onchange={(e) => set({ sort: e.currentTarget.value === 'name' ? undefined : (e.currentTarget.value as RecipeSort) })}>
+					{#each sorts as sort (sort)}<option value={sort}>{app.t(`recipes.sort.${sort}` as const)}</option>{/each}
+				</select>
+			</label>
+			<button type="button" class="reverse" aria-pressed={!!query.reversed} aria-label={app.t('recipes.reverse')} onclick={() => set({ reversed: query.reversed ? undefined : true })}>
+				<svg class="icon" aria-hidden="true"><use href="#icon-sort" /></svg>
+			</button>
+		</div>
 		<legend class="visually-hidden">{app.t('recipes.filters')}</legend>
 		<label>{app.t('recipes.filter.meal')}
 			<select value={query.mealType ?? ''} onchange={(e) => set({ mealType: (e.currentTarget.value || undefined) as MealType | undefined })}>
@@ -71,5 +76,10 @@
 	label { display: grid; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--muted); }
 	select { min-height: 44px; padding: 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 0.875rem; }
 	fieldset[hidden] { display: none; }
-	@media (max-width: 767px) { fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); } fieldset > label:first-child { grid-column: 1 / -1; } }
+	.sort { display: flex; align-items: end; gap: 4px; }
+	.sort label { flex: 1; min-width: 0; }
+	.reverse { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
+	.reverse .icon { width: 24px; height: 24px; }
+	.reverse[aria-pressed='true'] { color: var(--green); background: var(--soft-green); }
+	@media (max-width: 767px) { fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); } fieldset > .sort { grid-column: 1 / -1; } }
 </style>

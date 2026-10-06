@@ -13,6 +13,7 @@ const output = resolve(root, 'src/lib/demo-data/generated.json');
 const translations = JSON.parse(readFileSync(resolve(root, 'scripts/demo-translations.en-GB.json'), 'utf8')) as {
 	recipes: Record<string, { name: string; description: string }>;
 	ingredients: Record<string, string>;
+	quantities: Record<string, string>;
 };
 const reportMissing = process.argv.includes('--report-missing');
 
@@ -44,7 +45,7 @@ const PROTEIN_TAGS: [string, NonNullable<Recipe['proteinGroup']>][] = [
 const FEEDBACK_TO_STARS: Record<number, number> = { 1: 1, 2: 3, 3: 4, 4: 5 };
 
 const originRecipes = (parse(readFileSync(resolve(origin, 'ricettario/ricette.yaml'), 'utf8')) as { ricette: OriginRecipe[] }).ricette;
-const missing: { recipes: Record<string, { name: string; description: string }>; ingredients: Record<string, string> } = { recipes: {}, ingredients: {} };
+const missing: { recipes: Record<string, { name: string; description: string }>; ingredients: Record<string, string>; quantities: Record<string, string> } = { recipes: {}, ingredients: {}, quantities: {} };
 
 const books = new Map<string, Book>();
 const ingredients = new Map<string, Ingredient>();
@@ -73,14 +74,18 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 		const id = slug(line.nome);
 		const enName = translations.ingredients[line.nome] ?? null;
 		if (!ingredients.has(id)) ingredients.set(id, { id, name: { 'it-IT': line.nome, 'en-GB': enName } });
-		return { ingredientId: id, quantity: parseQuantity(String(line.quantita)), sourceText: String(line.quantita), enName, name: line.nome };
+		const sourceText = String(line.quantita);
+		const quantity = parseQuantity(sourceText);
+		const text = quantity.kind === 'text' ? { 'it-IT': sourceText, 'en-GB': translations.quantities[sourceText] ?? null } : null;
+		return { ingredientId: id, quantity, sourceText, text, enName, name: line.nome };
 	});
 	const hasData = lines.length > 0 && !!r.porzioni_base;
 	if (hasData) {
 		if (!en) missing.recipes[r.id] = { name: r.nome, description: r.descrizione };
 		for (const line of lines) if (!line.enName) missing.ingredients[line.name] = '';
+		for (const line of lines) if (line.text && !line.text['en-GB']) missing.quantities[line.sourceText] = '';
 	}
-	const complete = hasData && !!en && lines.every((l) => l.enName);
+	const complete = hasData && !!en && lines.every((l) => l.enName && (!l.text || l.text['en-GB']));
 	let bookId: string | null = null;
 	if (r.libro) {
 		bookId = slug(r.libro.titolo);
@@ -97,7 +102,7 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 		bookPages: r.libro?.pagine ?? null,
 		durationMinutes: durationOf(r.tempo),
 		baseServings: r.porzioni_base,
-		ingredients: lines.map(({ ingredientId, quantity, sourceText }) => ({ ingredientId, quantity, sourceText })),
+		ingredients: lines.map(({ ingredientId, quantity, sourceText, text }) => ({ ingredientId, quantity, sourceText, text })),
 		mealType: mealTypeOf(r),
 		proteinGroup: PROTEIN_TAGS.find(([tag]) => r.tag.includes(tag))?.[1] ?? null,
 		tags: r.tag,
@@ -110,7 +115,7 @@ if (reportMissing) {
 	console.log(JSON.stringify(missing, null, 2));
 	process.exit(0);
 }
-if (Object.keys(missing.recipes).length || Object.keys(missing.ingredients).length) {
+if (Object.keys(missing.recipes).length || Object.keys(missing.ingredients).length || Object.keys(missing.quantities).length) {
 	console.error('Missing en-GB translations. Run with --report-missing and complete scripts/demo-translations.en-GB.json');
 	process.exit(1);
 }

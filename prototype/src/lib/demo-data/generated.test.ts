@@ -21,6 +21,14 @@ describe('generated demo data', () => {
 			for (const line of recipe.ingredients) expect(byId.get(line.ingredientId)?.name['en-GB']).toBeTruthy();
 		}
 	});
+	it('translates every non-numeric quantity of published recipes', () => {
+		for (const recipe of recipes.filter((r) => r.status === 'published')) {
+			for (const line of recipe.ingredients.filter((l) => l.quantity.kind === 'text')) {
+				expect(line.text?.['en-GB'], `${recipe.id}: ${line.sourceText}`).toBeTruthy();
+				expect(line.text?.['it-IT']).toBe(line.sourceText);
+			}
+		}
+	});
 	it('keeps drafts for recipes without ingredients', () => {
 		expect(recipes.find((r) => r.id === 'polpettine-tacchino-skottle')?.status).toBe('draft');
 	});

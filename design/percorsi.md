@@ -202,6 +202,10 @@ e 17, rilievo R3) e in `design.md`:
   recente, mangiate di recente); schede con lo stesso componente del menu.
 - Voto: tenuta solo la variante in riga; tolte le altre dal pannello di prova.
 - Dati demo: data di aggiunta = prima settimana della ricetta nei menu di origine.
+- Freccia accanto all'ordinamento per invertirlo.
+- Risposte: etichetta «Tu» confermata (domanda 2); filtro per stagione escluso
+  (domanda 7); quantità non numeriche tradotte nella lingua dell'utente e richieste
+  per pubblicare (domanda 6, prima parte).
 
 ### Rotte e componenti del giro
 

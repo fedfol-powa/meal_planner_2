@@ -11,6 +11,8 @@ export interface RecipeQuery {
 	proteinGroup?: ProteinGroup;
 	minStars?: number;
 	sort?: RecipeSort;
+	/** Inverts the chosen order (arrow next to the sort menu). */
+	reversed?: boolean;
 }
 
 export type RecipeSort = 'name' | 'rating' | 'added' | 'lastEaten';
@@ -90,7 +92,7 @@ export function searchRecipes(db: DemoDatabase, ctx: OperationContext, query: Re
 				: 0;
 			return primary || byName;
 		});
-	return ok(items);
+	return ok(query.reversed ? items.reverse() : items);
 }
 
 export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeId: string, servings?: number): OpResult<RecipeDetail> {
