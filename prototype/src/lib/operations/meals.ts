@@ -2,11 +2,12 @@ import { isIsoDate, isMealPast, isWeekVisible, mondayOf, weekDates } from '#lib/
 import type { DemoDatabase, Family, IsoDate, Locale, MealSlot, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { familyFor, isCurator, localeOf, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
+import { slotContent, writeSlot } from './change-log';
 import type { DayView, MealView, OpeningTarget, WeekView } from './views';
 
 const MEAL_ORDER = { lunch: 0, dinner: 1 } as const;
 
-function visibleWeeks(db: DemoDatabase, family: Family, ctx: OperationContext): Week[] {
+export function visibleWeeks(db: DemoDatabase, family: Family, ctx: OperationContext): Week[] {
 	return db.weeks
 		.filter((w) => w.familyId === family.id && isWeekVisible(w, ctx.now))
 		.sort((a, b) => a.startsOn.localeCompare(b.startsOn));
@@ -29,7 +30,7 @@ export function getOpeningTarget(db: DemoDatabase, ctx: OperationContext): OpRes
 	return ok({ kind: 'day', date: last.startsOn, weekStartsOn: last.startsOn });
 }
 
-function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, locale: Locale, slot: MealSlot): MealView {
+export function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, locale: Locale, slot: MealSlot): MealView {
 	const recipe = slot.recipeId ? db.recipes.find((r) => r.id === slot.recipeId) ?? null : null;
 	const isPast = isMealPast(slot.date, slot.mealType, ctx.now);
 	const kind = recipe ? 'recipe' : slot.freeText ? 'free' : 'empty';
@@ -90,9 +91,7 @@ export function setMealCooked(db: DemoDatabase, ctx: OperationContext, slotId: s
 	if (!week || !slot) return fail('not_found');
 	const view = mealView(db, family, ctx, localeOf(db, ctx), slot);
 	if (!view.canMarkNotCooked) return fail('not_allowed');
-	slot.cooked = cooked;
-	slot.updatedBy = ctx.userId;
-	slot.updatedAt = ctx.now;
+	writeSlot(db, ctx, slot, { ...slotContent(slot), cooked });
 	return ok(mealView(db, family, ctx, localeOf(db, ctx), slot));
 }
 
