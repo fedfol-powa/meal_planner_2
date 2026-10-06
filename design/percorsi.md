@@ -622,7 +622,7 @@ lista settimanale con archiviazione delle revisioni precedenti.
 
 ## Giro 4: percorso 5
 
-Stato: piano approvato il 6 ottobre 2026, in sviluppo.
+Stato: sviluppato il 6 ottobre 2026, in attesa della review su iPhone.
 Piano: [2026-10-06-prototipo-giro-4.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-4.md).
 
 ### Perimetro
@@ -662,3 +662,62 @@ simulato) sono nel piano del giro.
   (`../meal_planner/progetto/REGOLE.md`, sola lettura); Nonni con i default.
 - Prima generazione simulata con la regola dei suggerimenti del giro 2, non con il
   pianificatore.
+
+### Rotte, componenti e operazioni del giro
+
+- **Rotte:** `/welcome` (accesso simulato e scelta iniziale, `?next=` per tornare alla
+  pagina chiesta), `/welcome/family` (wizard), `/invite/[token]`, `/you`,
+  `/you/family` (membri e inviti), `/you/family/settings`, `/you/family/exclusions`,
+  `/you/family/delete?family=` (anche il link che darebbe MCP), `/you/preferences`,
+  `/you/account/delete`. Senza accesso ogni pagina rimanda a `/welcome`; senza
+  famiglia Menu, Ricettario e Spesa rimandano alla scelta iniziale.
+- **Componenti nuovi:** `PageHeader`, `Stepper`, `ConfirmDanger` (le due varianti),
+  `ShareLinkSheet`, `DinersGrid`, `MealRules`, `IngredientRestrictions`, `SetupCard`,
+  `FamilySwitcher`.
+- **Operazioni simulate:** `family.ts` (`getFamilyOverview`, `setMemberRole`,
+  `removeMember`, `leaveFamily`, `renameFamily`, `setMeasurementSystem`,
+  `updateFamilySettings`, `setFamilyBook`, `getIngredientRestrictions`,
+  `searchIngredients`, `setIngredientRestriction`, `getExclusions`,
+  `dismissSetupCard`, `getFamilyDeletion`, `deleteFamily`), `invitations.ts`
+  (`createInvitation`, `revokeInvitation`, `getInvitation`, `acceptInvitation`),
+  `onboarding.ts` (`createUser`, `createFamily`, `generateFirstWeeks`), `account.ts`
+  (`updateProfile`, `getAccountDeletionPlan`, `deleteAccount`), `constraints.ts`
+  (`fitsSettings`). Nuovi errori: `last_admin`, `last_app_admin`, `sole_member`,
+  `web_only`.
+- **Pannello Prova:** utente «nessuno» e scenario «Primo accesso», varianti del giro,
+  «Apri un link d'invito» (attivo, scaduto, revocato), «Link per eliminare la famiglia
+  (come da MCP)».
+
+### Scelte prese durante lo sviluppo
+
+- **I suggerimenti rispettano le impostazioni** (tempo massimo, regole, evitati,
+  massimi settimanali), come farebbe il pianificatore. Effetto visibile: per le cene
+  veloci del lunedì e del mercoledì i suggerimenti sono meno, perché solo 15 ricette
+  demo durano al più 20 minuti. La ricerca nel ricettario resta libera.
+- **Rimozione e uscita:** la rimozione è registrata (`removals`) e blocca i link
+  creati prima; l'uscita volontaria no, quindi chi esce può rientrare con un link
+  ancora valido.
+- **Pasti non pianificati** (0 porzioni) non creano lo slot: il giorno mostra solo
+  gli altri pasti.
+- **Lingua iniziale:** browser in italiano → it-IT, altrimenti en-GB; la pagina di
+  accesso ha comunque il cambio di lingua.
+- **Google simulato** entra sempre come Giulia; l'email crea un utente nuovo se
+  sconosciuta, chiedendo solo il nome.
+- **Pulsanti di eliminazione rossi** (#b3261e): colore nuovo rispetto alla guida
+  visiva, da confermare.
+- **Ingresso da invito sempre esplicito:** anche dopo l'accesso serve «Entra nella
+  famiglia».
+- **Uscite volontarie dall'account** riportano a `/welcome` senza ricordare la pagina.
+
+### Domande per la review
+
+1. Varianti: cambio di famiglia dalla vista «Tu» o dal nome nel Menu; conferma delle
+   eliminazioni con pulsante o scrivendo il nome.
+2. La griglia «Chi mangia quando» è chiara? Pasti fissi e tempi nel foglio del pasto
+   vanno bene?
+3. Regole di pasto a modelli: bastano i tre modelli?
+4. La scheda «Il primo menu è pronto» è utile o è un'etichetta in più?
+5. Il riepilogo della cancellazione dell'account è chiaro famiglia per famiglia?
+6. Pulsanti di eliminazione in rosso: si aggiunge il colore alla guida visiva?
+7. Testi di spiegazione nelle impostazioni (sotto il titolo e nelle sezioni): tenerli
+   o toglierli?

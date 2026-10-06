@@ -2,7 +2,7 @@
 
 > **Esecuzione:** inline, senza subagenti e senza tappa intermedia (metodo dei giri
 > precedenti): si sviluppa tutto il giro, poi review sull'output su iPhone. I passi
-> usano le caselle (`- [ ]`) per il tracciamento.
+> usano le caselle (`- [x]`) per il tracciamento.
 
 **Obiettivo:** rendere provabile su iPhone l'intero percorso 5 (specifica, sezioni 2 e
 7, parte funzionale "Chi la usa"): primo accesso, famiglia nuova con prima
@@ -142,48 +142,48 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
 
 ### Attività 1: decisioni nei documenti e branch
 
-- [ ] Branch `prototipo-giro-4` da `main`.
-- [ ] `design/percorsi.md`: sezione "Giro 4" con perimetro, decisioni provvisorie,
+- [x] Branch `prototipo-giro-4` da `main`.
+- [x] `design/percorsi.md`: sezione "Giro 4" con perimetro, decisioni provvisorie,
       varianti e simulazione; tabella dei percorsi aggiornata.
-- [ ] Commit del piano e dei documenti.
+- [x] Commit del piano e dei documenti.
 
 ### Attività 2: modello e dati demo
 
-- [ ] Tipi, seed (persone, inviti, rimozione di Marco, impostazioni dalle regole di
+- [x] Tipi, seed (persone, inviti, rimozione di Marco, impostazioni dalle regole di
       origine), migrazione delle impostazioni esistenti; versione dello stato salvato.
-- [ ] Test sui dati: ogni famiglia ha almeno un amministratore; impostazioni valide.
-- [ ] Commit.
+- [x] Test sui dati: ogni famiglia ha almeno un amministratore; impostazioni valide.
+- [x] Commit.
 
 ### Attività 3: operazioni (test prima)
 
-- [ ] Permessi: membro legge, amministratore modifica; offline in sola lettura.
-- [ ] Inviti: creazione, scadenza a 7 giorni, revoca, già membro, R2.
-- [ ] Membri: cambio ruolo, rimozione (voti fuori dalla media, tracce «ex membro»),
+- [x] Permessi: membro legge, amministratore modifica; offline in sola lettura.
+- [x] Inviti: creazione, scadenza a 7 giorni, revoca, già membro, R2.
+- [x] Membri: cambio ruolo, rimozione (voti fuori dalla media, tracce «ex membro»),
       ultimo amministratore protetto, uscita.
-- [ ] Impostazioni, esclusioni, ingredienti, libri con validazione.
-- [ ] Famiglia nuova e prima generazione (metà settimana, dopo mercoledì 20:00,
+- [x] Impostazioni, esclusioni, ingredienti, libri con validazione.
+- [x] Famiglia nuova e prima generazione (metà settimana, dopo mercoledì 20:00,
       domenica sera).
-- [ ] Piano di cancellazione dell'account e cancellazione tutto o niente; ultimo
+- [x] Piano di cancellazione dell'account e cancellazione tutto o niente; ultimo
       amministratore dell'app; eliminazione della famiglia.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 4: viste
 
-- [ ] Primo accesso, wizard, scheda dopo la generazione.
-- [ ] «Tu», membri e inviti, ingresso da invito con tutti gli stati.
-- [ ] Impostazioni (commensali, pasti fissi, tempi, regole, ingredienti, libri, unità,
+- [x] Primo accesso, wizard, scheda dopo la generazione.
+- [x] «Tu», membri e inviti, ingresso da invito con tutti gli stati.
+- [x] Impostazioni (commensali, pasti fissi, tempi, regole, ingredienti, libri, unità,
       Avanzate), Non proporre più, Preferenze.
-- [ ] Uscita, eliminazione della famiglia, cancellazione dell'account; varianti del
+- [x] Uscita, eliminazione della famiglia, cancellazione dell'account; varianti del
       pannello Prova.
-- [ ] Testi it-IT ed en-GB.
-- [ ] Commit.
+- [x] Testi it-IT ed en-GB.
+- [x] Commit.
 
 ### Attività 5: verifica e review
 
-- [ ] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
+- [x] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
       inglese, come membro e come amministratore, offline.
-- [ ] Confronto visivo con `design/index.html`.
-- [ ] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
+- [x] Confronto visivo con `design/index.html`.
+- [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
 - [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`; alla chiusura, decisioni nella specifica (sezioni 2, 7, 15
@@ -203,3 +203,15 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
 Autenticazione reale, email e SMTP; inviti all'app e ruoli globali (percorso 8);
 equivalenti MCP e link restituiti da MCP oltre alla pagina di destinazione
 (percorso 7); curatela (percorso 6); pesi del punteggio; pianificatore reale.
+
+## Esito dell'esecuzione (6 ottobre 2026)
+
+Sviluppo completato in questa sessione senza subagenti: 196 test e controllo dei tipi
+verdi; prova nel browser a 320, 390 e 1440 px, in italiano e in inglese, dei flussi
+primo accesso → wizard → prima generazione, invito valido e bloccato per Marco (R2),
+modifica delle impostazioni, eliminazione della famiglia da membro e da
+amministratore, cancellazione dell'account con famiglia eliminata e con successore.
+Due correzioni emerse dalla prova: le scritture dopo un `push` nello stato reattivo
+(la prima generazione lasciava i pasti vuoti) e la copia delle impostazioni senza
+`structuredClone`. Scelte prese durante lo sviluppo e domande per la review in
+`design/percorsi.md`, "Giro 4".
