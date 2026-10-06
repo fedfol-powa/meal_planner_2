@@ -3,7 +3,7 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo e secondo giro approvati il 6 ottobre 2026; terzo giro (Spesa) in corso.
+primo, secondo e terzo giro approvati il 6 ottobre 2026; prossimo percorso: Famiglia e account.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -57,7 +57,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Approvato il 6 ottobre 2026 |
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
-| 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | 3 | In review |
+| 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
@@ -398,7 +398,7 @@ successivi e alla fine ricomincia dai primi.
 
 ## Giro 3: percorso 4
 
-Stato: sviluppato il 6 ottobre 2026, in review con l'utente.
+Stato: approvato dall'utente il 6 ottobre 2026 dopo tre revisioni nella review; decisioni riportate nella specifica (sezioni 1, 2, 5, 6, 10, 13, 14, 15 e 16) e in `design.md`. Le sezioni che seguono conservano la storia del giro: valgono la "Terza revisione" e le "Decisioni successive".
 Piano: [2026-10-06-prototipo-giro-3.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-3.md).
 
 ### Perimetro

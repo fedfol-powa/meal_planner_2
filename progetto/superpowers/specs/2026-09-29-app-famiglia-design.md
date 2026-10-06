@@ -1,7 +1,7 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 6 ottobre 2026
+Ultimo aggiornamento: 6 ottobre 2026 (terzo giro del prototipo approvato)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -200,15 +200,20 @@ si legge soltanto.
 ### La lista della spesa
 
 Gli ingredienti di ogni pasto sono sempre visibili, già calcolati per le porzioni di quel
-pasto. Quando si va a fare la spesa:
+pasto. Ogni settimana ha **la sua lista della spesa**, che si apre dalla borsa in alto
+nel Menu mentre si guarda quella settimana:
 
-1. si scelgono i pasti per cui comprare, anche solo alcuni ("da oggi a domenica");
-2. si tocca "Genera lista": l'app somma gli ingredienti uguali, li divide per reparto e
-   lascia fuori olio, sale e spezie;
-3. si tolgono le cose che si hanno già in casa;
-4. si esporta: PDF, condivisione (WhatsApp, Note…) oppure invio a Bring!.
+1. la lista contiene tutti i pasti della settimana e li segue: se un pasto cambia, le
+   voci si aggiornano da sole; somma gli ingredienti uguali, li divide per reparto e
+   mette da parte olio, sale, spezie e gli ingredienti che la famiglia evita;
+2. le quantità sono quelle che si comprano: pezzi interi (½ peperone → 1), il succo di
+   limone in limoni;
+3. si spunta ciò che si ha già in casa o che si è comprato, anche in negozio senza rete:
+   tutta la famiglia vede le spunte; si possono aggiungere voci libere (detersivo…);
+4. si può esportare: PDF, condivisione (WhatsApp, Note…) oppure invio a Bring!.
 
-La lista non viene salvata: una volta esportata sparisce. Se serve di nuovo, si rigenera.
+Non ci sono altre liste né un archivio: le settimane passate tengono la loro lista,
+consultabile dal Menu.
 
 ### Il ricettario
 
@@ -365,7 +370,8 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `recipe_translations` | `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
 | `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua |
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
-| `recipe_ingredients` | `recipe_id`, `ingredient_id`, `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni |
+| `recipe_ingredients` | `recipe_id`, `ingredient_id`, `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `preparation` (tritato, a dadini, succo, scorza…: dettaglio della ricetta che non cambia l'ingrediente da comprare), `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni |
+| `ingredient_unit_equivalences` | `ingredient_id`, `from_unit`, `to_unit`, `factor`, `scope` (`recipe` o `shopping`), `source`: equivalenze verificate per ingrediente (tazza USA in grammi o pezzi, succo di limone in limoni) |
 | `books` | `id`, `title`: titolo bibliografico originale |
 | `recipe_drafts` | Proposta: `id`, `created_by`, `updated_by`, `updated_at`, dati parziali e riferimento opzionale alla ricetta pubblicata da modificare. Bozze persistenti separate dal catalogo, condivise e modificabili da tutti i curatori |
 | `recipe_revisions` | Proposta: `recipe_id`, `version`, contenuto completo della versione, autore, data e canale; base per confrontare e ripristinare una ricetta senza perdere lo storico |
@@ -395,6 +401,9 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `meal_changes` | `meal_slot_id`, `actor_id`, `before` (jsonb), `after` (jsonb), `created_at`: registro append-only |
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
 | `weekly_jobs` | `family_id`, `target_week`, `status`, `attempts`, `error`, `updated_at` |
+| `shopping_lists` | `family_id`, `week_id`, `updated_by`, `updated_at`: la lista della settimana, una per (`family_id`, `week_id`), creata alla prima modifica |
+| `shopping_list_checks` | `shopping_list_id`, `ingredient_id`, `quantity_at_check` (jsonb), `checked_by`, `checked_at`: voce spuntata con la quantità del momento |
+| `shopping_list_items` | `shopping_list_id`, `text`, `checked`, `created_by`, `created_at`: voci libere; più gli ingredienti esclusi rimessi in lista (`shopping_list_added_back`) |
 | `temporary_lists` | `token`, `items` (jsonb), `expires_at` (30 minuti), per l'esportazione Bring! |
 
 **Viste:**
@@ -644,7 +653,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   conflitto; il registro `meal_changes` conserva tutte le modifiche e l'ultima modifica
   mostrata dice chi ha cambiato il pasto. Niente realtime in v1: aggiornamento
   all'apertura e a richiesta dell'utente.
-- **Offline**: l'ultima settimana caricata resta consultabile in sola lettura.
+- **Offline**: l'ultima settimana caricata resta consultabile in sola lettura, tranne
+  la lista della spesa (sezione 6), modificabile anche offline.
 
 ### 6. Scalatura e lista della spesa
 
@@ -671,24 +681,49 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Codici delle unità**: in inglese o simboli standard; etichette localizzate. Il
   vecchio elenco italiano e quello esteso del piano M1a vanno sostituiti con un elenco
   unico validato, comprendente le unità effettivamente usate dalle fonti.
-- **Generazione della lista**:
-  1. si parte dagli slot selezionati;
+- **Lista della settimana** (terzo giro del prototipo, 6 ottobre 2026): una lista per
+  settimana con tutti i pasti della settimana, senza scelta dei pasti, senza altre liste
+  e senza archivio; si apre dalla borsa nella barra del Menu sulla settimana mostrata;
+  le settimane passate tengono la loro lista. Le quantità non si salvano: si ricalcolano
+  dai pasti, quindi seguono ogni modifica.
+- **Generazione delle voci**:
+  1. si parte da tutti gli slot della settimana con ricetta (pasti liberi, vuoti e
+     ricette senza ingredienti esclusi, questi ultimi segnalati);
   2. si scalano gli ingredienti;
-  3. si consolida per ingrediente canonico, convertendo le unità compatibili; le unità
-     incompatibili restano sulla stessa voce ("2 pz + 300 g");
-  4. si escludono gli ingredienti con `is_pantry` e quelli con restrizione `avoid`
-     della famiglia, che vengono segnalati a parte;
-  5. si segnano gli opzionali;
-  6. si raggruppa per reparto nell'ordine standard;
-  7. si presentano le quantità nel sistema della famiglia e i testi nella lingua
-     dell'utente che genera la lista, con gli arrotondamenti concordati.
-- **Scorciatoie di selezione**: "da oggi a domenica", "tutta la prossima settimana". "Solo
-  quelli non ancora in lista" usa memoria temporanea del client. Il percorso MCP deve
-  avere un equivalente esplicito per passare le selezioni precedenti; questa memoria
-  non può dipendere esclusivamente dal browser.
-- **Effimera**: la lista non si salva in database, tranne nel caso di Bring!. Si possono
-  togliere voci prima di esportare.
-- **Esportazioni**:
+  3. si consolida per ingrediente: righe che differiscono solo per preparazione,
+     taglia o forma della parola sono lo stesso ingrediente; prodotti diversi restano
+     voci diverse (mandorle in scaglie, pomodorini perini). Le unità compatibili si
+     sommano in una rappresentazione comune; le incompatibili restano sulla stessa
+     voce ("50 g + 100 ml");
+  4. si convertono nelle unità di acquisto le righe con un'equivalenza di ambito
+     `shopping` (succo di limone in grammi → limoni, 47 g di succo a limone secondo
+     USDA FoodData Central);
+  5. si escludono gli ingredienti con `is_pantry` e quelli con restrizione `avoid`
+     della famiglia, mostrati in "Non in lista", da cui si possono rimettere;
+  6. si segnano gli opzionali;
+  7. si raggruppa per reparto nell'ordine standard (frutta e verdura, macelleria,
+     pescheria, banco frigo e latticini, pane, pasta riso e cereali, scatolame e
+     conserve, surgelati, condimenti e dispensa, altro);
+  8. si presentano le quantità nel sistema della famiglia e i testi nella lingua di chi
+     guarda; i pezzi si arrotondano per eccesso all'intero, ignorando un avanzo di 0,1
+     dovuto alle conversioni (½ peperone → 1, 2,06 limoni → 2). Ricetta, scheda del
+     pasto e provenienza delle voci restano nelle unità della ricetta.
+- **Tazze USA delle fonti americane**: si convertono solo con un'equivalenza verificata
+  per l'ingrediente, conservando il testo della fonte: il conteggio dato dalla fonte se
+  c'è ("½ cup (circa ½ cipolla media)" → ½ cipolla), grammi da fonti verificate per i
+  solidi (cheddar grattugiato 113 g, lattuga sminuzzata 72 g), millilitri per liquidi e
+  salse (236,6 ml). Senza equivalenza la ricetta resta in bozza.
+- **Spunte condivise**: tutti i membri vedono e modificano la lista; per singola voce
+  vince l'ultimo salvataggio; si ricorda chi ha cambiato la lista per ultimo. Una voce
+  spuntata la cui quantità poi aumenta torna da spuntare e mostra la quantità spuntata
+  ("prima: 200 g"); se diminuisce resta spuntata. Voci libere nella sezione "Altro",
+  aggiunte dall'ultima riga della sezione.
+- **Offline**: la lista è l'unica parte dell'app modificabile offline (spunte, voci
+  libere, ingredienti rimessi): le modifiche restano sul dispositivo in una coda locale
+  e si inviano al ritorno della rete, con la regola dell'ultimo salvataggio per voce;
+  l'interfaccia segnala le modifiche da sincronizzare. Bring! richiede la rete.
+- **Esportazioni** (dal menu "…" della lista; escludono le voci spuntate e includono le
+  voci libere):
   - PDF di una pagina;
   - Web Share API, con testo semplice;
   - Bring!: si salva in `temporary_lists` con un token casuale e si apre
@@ -1019,7 +1054,7 @@ il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
 | **M1 Fondamenta** | Schema e RLS, Auth, famiglie e inviti, catalogo nel database, import e revisione, dati iniziali di Federico, preferenze di lingua e unità, ruoli globali, accesso MCP e relativa guida. Ripartizione di curatela e amministrazione da precisare nel nuovo piano | Si entra e si consulta il ricettario e la propria famiglia; i percorsi autorizzati sono disponibili anche via MCP |
 | **M2 Modifica e voti** | Azioni sugli slot, suggerimenti, annullamento, ultima modifica, stelline e media, esclusioni, creazione manuale di una settimana, con equivalenti MCP | La famiglia pianifica a mano dall'app o dall'agente |
 | **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì, generazione su richiesta anche via MCP. Poi, come esperimento separato, giudice AI opzionale | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
-| **M4 Lista della spesa** | Selezione, consolidamento, conversioni, PDF, condivisione, Bring!, esportazioni MCP | Si prepara la spesa nella lingua personale e nelle unità della famiglia |
+| **M4 Lista della spesa** | Lista della settimana, consolidamento, conversioni ed equivalenze, spunte condivise e offline, PDF, condivisione, Bring!, esportazioni MCP | Si prepara e si fa la spesa nella lingua personale e nelle unità della famiglia |
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
 | **M6 Curatela manuale — ultima priorità** | Modulo web senza AI per creare, modificare, verificare e pubblicare ricette, modifica e nuova verifica delle bozze condivise; eventuale upload da file da definire | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
 
@@ -1109,7 +1144,7 @@ implicite alla copertura delle operazioni.
 | Pasti e ricettario | Consultare oggi e settimane, cercare e leggere ricette, ingredienti e voti |
 | Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi, note ed esclusioni |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
-| Spesa | Selezionare pasti, generare e rivedere la lista temporanea, ottenere PDF, testo e collegamento Bring! |
+| Spesa | Leggere la lista di una settimana, spuntare voci, aggiungere voci libere, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
 | Curatela | Conoscere i requisiti, salvare e riprendere bozze, validare e pubblicare ricette complete, modificare ricette di qualunque autore e ripristinare una versione precedente di una singola ricetta |
 | Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo da backup; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
@@ -1189,6 +1224,16 @@ completano in un foglio dal basso. "Cambia ricetta" mostra in cima pasto libero,
 "non proporre più" e "scambia con un altro pasto", poi i suggerimenti in schede scorrevoli con
 "proponimene altri" e infine la ricerca. Dopo ogni modifica un avviso offre "Annulla".
 
+**Terzo giro approvato il 6 ottobre 2026:** Spesa. Una lista per settimana, aperta
+dalla borsa nella barra del Menu sulla settimana mostrata, con tutti i pasti della
+settimana; spunte condivise e possibili offline; voci libere nell'ultima riga di
+"Altro"; "Non in lista" richiudibile per dispensa ed evitati; freccia per vedere da
+quali pasti viene una voce; esportazioni nel menu "…" in alto a destra. Pagine
+secondarie con freccia "indietro" e nome della destinazione; un tocco su Menu nella
+navbar con il Menu aperto porta a oggi. Dopo tre revisioni nel giro sono state
+scartate la scelta dei pasti, le liste fatte a mano, l'elenco delle liste e lo storico
+(dettagli in `design/percorsi.md`).
+
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
 su iPhone. Il materiale approvato è raccolto in `design/`:
@@ -1217,9 +1262,9 @@ scuro con testo bianco. Nessuna ripetizione del numero del giorno o contatori ne
 contenuto. Dal 6 ottobre 2026 la navbar inferiore mostra Menu, Ricettario e una voce
 per famiglia, account, cambio di famiglia e funzioni dei ruoli (curatela,
 amministrazione, istruzioni MCP), con etichetta «Tu» / «You» confermata nella review
-del primo giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
-decide nel percorso Spesa. Sopra il selettore dei giorni una barra con il mese e le
-icone di azione (calendario, in seguito spesa); la scheda del pasto ha un footer a icone
+del primo giro; la Spesa esce dalla navbar e si apre dal Menu (terzo giro). Sopra il
+selettore dei giorni una barra con il mese e le icone di azione (calendario e borsa
+della spesa); la scheda del pasto ha un footer a icone
 per scheda ricetta, voto, ingredienti e modifica (dal secondo giro; "non cucinato" è
 stato tolto); foto in
 banner basso 3:1 e fonte sulla riga del tempo, troncata. Le schede del ricettario usano
@@ -1287,7 +1332,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
 | Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
-| Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole | Sezione 6 |
+| Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
 | MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
 | Prototipo | Flussi, stati e componenti di ciascun percorso, da chiudere giro per giro; linguaggio visivo, metodo, ordine dei percorsi e architettura del prototipo già concordati (`design/percorsi.md`) | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
@@ -1315,6 +1360,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
 | 6 ottobre 2026, "non cucinato" tolto | Ogni pasto passato conta come mangiato; un pasto sbagliato si corregge cambiandone il piatto o segnandolo libero. Tolto il campo `cooked` di `meal_slots`; lo storico del pianificatore usa tutti i pasti passati con ricetta |
 | 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda (porzioni, cambia ricetta, nota), con pasto libero, esclusione e scambio dentro "Cambia ricetta" |
+| 6 ottobre 2026, terzo giro del prototipo approvato | Spesa: una lista per settimana con tutti i pasti, aperta dal Menu, senza scelta dei pasti, altre liste o archivio; persistente e condivisa, con spunte che valgono per "ce l'ho già" e "comprato", voci libere e modifica offline con coda locale; quantità che seguono i pasti, pezzi interi, unità di acquisto e tazze USA tramite equivalenze per ingrediente; voci distinte solo per prodotti diversi; esportazioni nel menu "…". Tolta la scorciatoia "solo quelli non ancora in lista" |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026

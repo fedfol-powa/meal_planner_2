@@ -172,7 +172,7 @@ pannello Prova.
 - [x] Confronto visivo con `design/index.html`.
 - [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
-- [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
+- [x] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`; alla chiusura, decisioni nella specifica (sezioni 6 e 14,
       parte funzionale) e voce "Misure" della sezione 15 aggiornata per quanto chiarito.
 
@@ -283,7 +283,7 @@ voci spuntate. Pannello Prova: "Anna spunta una voce della lista".
 
 #### Attività 8: verifica e review
 
-- [ ] Test, tipi, prova nel browser come nell'attività 5 più due utenti sulla stessa
+- [x] Test, tipi, prova nel browser come nell'attività 5 più due utenti sulla stessa
       lista e cambio di un pasto incluso; documenti; anteprima sulla rete locale.
 
 ### Esito dell'esecuzione della revisione (6 ottobre 2026)
@@ -345,3 +345,13 @@ elenco, storico, chiusura, eliminazione e job settimanale. Dettagli in
 - [x] Rotta `/shopping/[week]`, `/shopping` rimanda al Menu; borsa del Menu sulla
       settimana visualizzata; menu "…" con le sole esportazioni.
 - [x] Prova con agent-browser: settimana corrente e settimana passata dal Menu.
+
+## Esito della review (6 ottobre 2026, chiusa con approvazione)
+
+Approvato dall'utente dopo tre revisioni del giro: lista persistente e condivisa,
+poi lista settimanale, infine una sola lista per settimana aperta dal Menu. Altre
+decisioni della review: voce libera nell'ultima riga di "Altro"; niente righe sotto il
+titolo; azioni nel menu "…"; tazze USA e succo di limone tramite equivalenze per
+ingrediente; pezzi interi; voci distinte solo per prodotti diversi; lista modificabile
+offline; "indietro" uniforme con freccia; tocco su Menu con il Menu aperto che porta a
+oggi. Tutto riportato nella specifica e in `design/percorsi.md`.

@@ -218,8 +218,8 @@ o contatori nel contenuto. Il selettore ha bordo scuro da 1 px e raggio di 8 px;
 il giorno attivo ha fondo scuro e testo bianco.
 
 Sopra il selettore, dal 6 ottobre 2026, una barra senza riquadri: a sinistra il mese
-del giorno scelto in Agrandir Tight, a destra le icone di azione (ora il calendario,
-in seguito la spesa), sul fondo crema. Mese e icona aprono un mese navigabile per
+del giorno scelto in Agrandir Tight, a destra le icone di azione (il calendario e la
+borsa che apre la lista della spesa della settimana mostrata, dal terzo giro), sul fondo crema. Mese e icona aprono un mese navigabile per
 scegliere qualunque giorno con menu, anche passato; il giorno scelto è scuro come nel
 selettore e i giorni senza menu sono disattivati. Il selettore resta a tutta larghezza.
 Non ci sono frecce o intervalli di settimana, né etichette di stato della settimana.
@@ -232,8 +232,7 @@ sotto 768 px e affiancati da 768 px; il calendario resta visibile.
 La navbar è sempre in basso. Dal 6 ottobre 2026 mostra solo le icone, più grandi,
 con il nome di ogni voce conservato per i lettori di schermo; le voci sono
 **Menu, Ricettario** e una voce per famiglia, account, cambio di famiglia e funzioni
-dei ruoli, con etichetta «Tu» / «You» (confermata nella review del primo giro). La Spesa non è più una voce della navbar: il suo punto d'ingresso si decide nel
-percorso Spesa.
+dei ruoli, con etichetta «Tu» / «You» (confermata nella review del primo giro). La Spesa non è più una voce della navbar: si apre dalla borsa nella barra del Menu.
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva
 il giorno scelto nel menu; un tocco su Menu quando il Menu è già aperto porta a oggi
@@ -260,7 +259,7 @@ istruzioni MCP si raggiungono dalla quarta voce; i loro flussi sono descritti in
 
 Il menu fisso, le dodici ricette del ricettario dimostrativo e la spesa per il solo
 giorno selezionato servono al confronto visivo. Il prototipo completo deve rispettare
-la specifica: catalogo globale, selezione dei pasti, consolidamento degli ingredienti,
+la specifica: catalogo globale, lista della spesa della settimana, consolidamento degli ingredienti,
 lingue, unità, permessi e tutti i flussi previsti. L’approvazione visiva non modifica
 quei requisiti e non approva automaticamente i dettagli funzionali dimostrativi.
 
@@ -268,3 +267,15 @@ La struttura HTML e il CSS inline sono un esempio verificabile. Nel prototipo
 riorganizzarli in token e componenti condivisi secondo il piano approvato, mantenendo
 la resa. Gli screenshot del sito esterno documentano la ricerca; quelli
 `preview-*` e `index.html` documentano la variante approvata di App Famiglia.
+
+## Lista della spesa (terzo giro, approvato il 6 ottobre 2026)
+
+Pagina secondaria con la freccia "indietro" e il nome della destinazione (26 px, testo
+16 px in grassetto, come nelle altre pagine secondarie), titolo "Settimana 5–11
+ottobre" in Agrandir Tight e il menu "…" (icona a tre puntini, 26 px) in alto a
+destra con Condividi, PDF e Bring!. Sotto, i gruppi per reparto del riferimento
+(`shopping-group`, `shopping-item`): casella a sinistra, nome, quantità in grassetto a
+destra e una freccia che apre i pasti di provenienza; la voce spuntata è barrata. La
+sezione "Altro" termina con una riga "+" per aggiungere una voce libera; "Non in
+lista" è una sezione richiudibile in fondo. Nessuna riga di avanzamento o di ultima
+modifica sotto il titolo. Su schermi larghi la pagina è una colonna di 720 px.
