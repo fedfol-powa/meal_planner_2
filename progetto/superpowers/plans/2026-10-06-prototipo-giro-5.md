@@ -174,47 +174,47 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
 ### Attività 1: decisioni nei documenti e branch
 
 - [x] Branch `prototipo-giro-5` da `main`.
-- [ ] `design/percorsi.md`: sezione "Giro 5" con perimetro, decisioni provvisorie,
+- [x] `design/percorsi.md`: sezione "Giro 5" con perimetro, decisioni provvisorie,
       varianti e simulazione; tabella dei percorsi aggiornata.
-- [ ] Commit del piano e dei documenti.
+- [x] Commit del piano e dei documenti.
 
 ### Attività 2: modello, validazione e dati demo
 
-- [ ] Tipi, validazione condivisa (test prima), seed con versioni, bozze, archiviata
+- [x] Tipi, validazione condivisa (test prima), seed con versioni, bozze, archiviata
       e Lucia curatrice; versione dello stato salvato.
-- [ ] Test sui dati: ogni ricetta pubblicata ha almeno una versione e il suo contenuto
+- [x] Test sui dati: ogni ricetta pubblicata ha almeno una versione e il suo contenuto
       coincide con l'ultima; le bozze importate falliscono la verifica per i motivi
       attesi.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 3: operazioni (test prima)
 
-- [ ] Permessi: solo i curatori; offline in sola lettura.
-- [ ] Bozze: creazione, salvataggio parziale, conflitto e sovrascrittura consapevole,
+- [x] Permessi: solo i curatori; offline in sola lettura.
+- [x] Bozze: creazione, salvataggio parziale, conflitto e sovrascrittura consapevole,
       verifica invalidata da una modifica, pubblicazione con nuova verifica, scarto.
-- [ ] Revisione: bozza collegata, le famiglie vedono la versione pubblicata fino alla
+- [x] Revisione: bozza collegata, le famiglie vedono la versione pubblicata fino alla
       pubblicazione.
-- [ ] R1: pasto passato sulla vecchia versione, pasti futuri e spesa sulla nuova.
-- [ ] Versioni: confronto, ripristino come nuova versione, ingrediente mancante.
-- [ ] Archiviazione: fuori da ricerca e suggerimenti, pasti leggibili, ripristino.
-- [ ] Commit.
+- [x] R1: pasto passato sulla vecchia versione, pasti futuri e spesa sulla nuova.
+- [x] Versioni: confronto, ripristino come nuova versione, ingrediente mancante.
+- [x] Archiviazione: fuori da ricerca e suggerimenti, pasti leggibili, ripristino.
+- [x] Commit.
 
 ### Attività 4: viste
 
-- [ ] Ricettario: «+», Bozze arricchite, Archiviate; Profilo → Curatela.
-- [ ] Modulo con le due varianti, verifica, pubblicazione, conflitto, uscita con
+- [x] Ricettario: «+», Bozze arricchite, Archiviate; Profilo → Curatela.
+- [x] Modulo con le due varianti, verifica, pubblicazione, conflitto, uscita con
       modifiche non salvate.
-- [ ] Scheda ricetta: menu «…», versioni, confronto e ripristino, archiviazione.
-- [ ] Pannello Prova: conflitto simulato e varianti.
-- [ ] Testi it-IT ed en-GB.
-- [ ] Commit.
+- [x] Scheda ricetta: menu «…», versioni, confronto e ripristino, archiviazione.
+- [x] Pannello Prova: conflitto simulato e varianti.
+- [x] Testi it-IT ed en-GB.
+- [x] Commit.
 
 ### Attività 5: verifica e review
 
-- [ ] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
+- [x] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
       inglese, come curatore e come membro, offline.
-- [ ] Confronto visivo con `design/index.html`.
-- [ ] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
+- [x] Confronto visivo con `design/index.html`.
+- [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
 - [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`; alla chiusura, decisioni nella specifica (sezioni 2, 5, 8,
@@ -237,3 +237,16 @@ Percorso guidato via MCP e conversazioni simulate (percorso 7); ripristino
 dell'intero catalogo e backup (percorso 8); caricamento da file; foto delle ricette;
 traduzione automatica (esclusa dalla specifica nel percorso manuale); pianificatore
 reale.
+
+## Esito dell'esecuzione (6 ottobre 2026)
+
+Sviluppo completato in questa sessione senza subagenti: 222 test e controllo dei tipi
+verdi; prova nel browser a 320, 390 e 1440 px, in italiano e in inglese, dei flussi
+bozza → verifica con problemi → completamento → pubblicazione, nuova ricetta con
+ingrediente nuovo, conflitto con sovrascrittura, uscita con modifiche non salvate,
+confronto delle versioni, versione 1 aperta dal pasto del 23 settembre, varianti a
+passi e con selettore di lingua, offline. Correzioni emerse dalla prova: scorrimento
+orizzontale dei campi affiancati, avviso che copriva i pulsanti del modulo, etichette
+dei passi spezzate a 320 px, quantità vuota che impediva di salvare una bozza.
+Scelte prese durante lo sviluppo e domande per la review in `design/percorsi.md`,
+"Giro 5".

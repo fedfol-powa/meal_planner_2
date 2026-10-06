@@ -33,7 +33,8 @@ i file che un browser aperto potrebbe ancora chiedere.
 - Persone, famiglie, voti, ingrediente evitato e due liste della spesa inventati in
   `src/lib/demo-data/seed.ts`; dal giro 4 anche Marco (ex membro, per la regola R2),
   Giulia (senza famiglie), tre inviti e le impostazioni della Famiglia Folloni ricavate
-  dalle regole di origine.
+  dalle regole di origine. Dal giro 5 Lucia è curatrice; versioni, bozze di Lucia, la
+  seconda versione degli hamburger di cavallo e la ricetta archiviata sono inventate.
 - Lo stato salvato ha una versione (`STORAGE_KEY` in `src/lib/store/persistence.ts`):
   va incrementata quando cambiano dati di partenza o impostazioni.
 
@@ -44,6 +45,8 @@ famiglia, lingua, unità, data e ora simulate, scenario, modalità offline e azz
 dati demo. Simula anche un altro membro che cambia un pasto (giro 2) o spunta una
 voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e scenario
 «Primo accesso», apertura dei link d'invito demo e del link di eliminazione della famiglia.
+Dal giro 5: un'altra curatrice che salva la bozza aperta (conflitto) e le varianti del
+modulo della ricetta.
 
 ## Struttura
 
@@ -51,8 +54,10 @@ voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e 
 `src/lib/i18n` testi it-IT/en-GB · `src/lib/operations` operazioni simulate
 (revisione dei pasti in `revision.ts`, suggerimenti simulati in `suggestions.ts`,
 spesa in `shopping.ts` e liste salvate in `shopping-lists.ts`, famiglia e account in
-`family.ts`, `invitations.ts`, `onboarding.ts`, `account.ts`) ·
+`family.ts`, `invitations.ts`, `onboarding.ts`, `account.ts`; curatela in
+`curation.ts`, con la validazione condivisa in `src/lib/domain/recipe-validation.ts`) ·
 `src/lib/store` stato e persistenza · `src/lib/components` componenti ·
 `src/routes` viste (`/menu`, `/shopping/[week]`, `/recipes`, `/recipes/[id]`, `/profile` e sottopagine,
-`/welcome`, `/welcome/family`, `/invite/[token]`).
+`/welcome`, `/welcome/family`, `/invite/[token]`, dal giro 5 `/recipes/new`,
+`/recipes/drafts/[id]`, `/recipes/[id]/versions` e `/recipes/[id]/versions/[version]`).
 Il progetto usa SvelteKit 3: alias `#lib/...` con estensione esplicita.

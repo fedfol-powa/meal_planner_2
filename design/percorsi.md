@@ -4,7 +4,7 @@ Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026; quinto giro (Curatela)
-in sviluppo.
+in review.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -60,7 +60,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
-| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | In sviluppo |
+| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | In review |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
 | 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
 
@@ -738,7 +738,7 @@ simulato) sono nel piano del giro.
 
 ## Giro 5: percorso 6
 
-Stato: piano approvato dall'utente il 6 ottobre 2026; in sviluppo.
+Stato: sviluppo completato il 6 ottobre 2026; in attesa della review su iPhone.
 Piano: [2026-10-06-prototipo-giro-5.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-5.md).
 
 ### Perimetro
@@ -781,3 +781,72 @@ I default proposti (ingressi, «Salva bozza» esplicito, verifica prima di
 - Bozze: le quattro importate, una nuova di Lucia a metà, una revisione di Lucia già
   verificata; una ricetta archiviata.
 - Pannello Prova: «Un'altra curatrice salva la bozza aperta».
+
+### Rotte, componenti e operazioni del giro
+
+- **Rotte:** `/recipes/new` (nuova ricetta, la bozza nasce al primo «Salva bozza»),
+  `/recipes/drafts/[id]` (modulo di una bozza nuova o di revisione),
+  `/recipes/[id]/versions` (elenco), `/recipes/[id]/versions/[version]` (confronto
+  con l'attuale e ripristino). `/recipes/[id]` accetta `?slot=` dal Menu per mostrare
+  la versione di un pasto passato.
+- **Componenti nuovi:** `RecipeForm` (le due varianti, verifica, pubblicazione, fogli
+  di conflitto, ricetta cambiata, eliminazione e uscita senza salvare),
+  `IngredientPicker` (catalogo o ingrediente nuovo), `ActionMenu` (menu «…» in alto a
+  destra, ora condiviso con la lista della spesa).
+- **Operazioni simulate** (`prototype/src/lib/operations/curation.ts`):
+  `getCurationOverview`, `getDraft`, `createDraft`, `startRevision`, `saveDraft` (con
+  `conflict`), `verifyDraft`, `publishDraft` (con `stale`), `discardDraft`,
+  `searchCatalogueIngredients`, `createIngredient`, `getRecipeVersions`,
+  `compareVersions`, `restoreVersion`, `archiveRecipe`, `unarchiveRecipe`. Validazione
+  condivisa in `prototype/src/lib/domain/recipe-validation.ts` (`validateForSave`,
+  `validateForPublish`, `summarize`); versione dei pasti passati in `access.ts`
+  (`versionAt`, `versionForSlot`, `recipeForSlot`), usata da Menu, scheda ricetta e
+  spesa. `visibleRecipe` comprende le archiviate (pasti), `catalogueRecipe` no
+  (ricerca, suggerimenti, cambio ricetta).
+- **Pannello Prova:** «Un'altra curatrice salva la bozza aperta» e le due varianti.
+
+### Scelte prese durante lo sviluppo
+
+- **Campi per pubblicare** (voce "Completezza delle ricette" della sezione 15): nomi
+  e descrizioni nelle due lingue, durata, porzioni della fonte, almeno un ingrediente
+  con quantità; per sito web e YouTube l'indirizzo, per un libro libro e pagine; il
+  gruppo alimentare resta facoltativo. Una ricetta demo pubblicata (erbazzone) non ha
+  la durata: va completata alla prima modifica.
+- **Bozza:** si salva anche con quantità vuote o testi mancanti; si rifiutano solo dati
+  sbagliati (indirizzo non valido, numeri non positivi, ingrediente ripetuto o
+  inesistente).
+- **«Verifica»** salva prima le modifiche; «Pubblica» si attiva solo dopo una verifica
+  superata sull'ultima versione salvata. I problemi compaiono in cima e accanto ai
+  campi; toccandoli si va al campo (e al passo, nella variante a passi).
+- **Una revisione per ricetta:** «Modifica» riapre quella in corso, chiunque l'abbia
+  iniziata. Se nel frattempo la ricetta è passata a un'altra versione, il modulo lo
+  dice e la pubblicazione chiede conferma («Pubblica comunque»).
+- **Versioni sovrascritte** in un conflitto: restano nella cronologia della bozza
+  (dati), senza una vista dedicata.
+- **Ingredienti nuovi** entrano subito nel catalogo condiviso, con l'iniziale
+  maiuscola; il nome inglese si controlla alla pubblicazione della ricetta.
+- **Eliminazione:** una bozza nuova si elimina solo se nessun pasto la cita; nei dati
+  demo nessun pasto cita le quattro bozze importate (il piano lo supponeva).
+- **Avviso della versione** sulla scheda aperta da un pasto passato, per tutti i membri:
+  «Versione 1, quella con cui avete mangiato questo pasto…», con il link alla
+  versione attuale. La scheda del pasto nel Menu non ha segni.
+- **Archiviazione** con «Annulla» nell'avviso; la scheda di una ricetta archiviata ha
+  l'etichetta «Archiviata» per i curatori.
+- **Profilo:** sezione «Curatela del ricettario» con «Bozze e ricette archiviate» e
+  «Nuova ricetta» (al posto del segnaposto).
+- Gli avvisi in basso salgono sopra la barra dei pulsanti del modulo; uscendo con
+  modifiche non salvate si sceglie fra salvare, uscire o restare.
+
+### Domande per la review
+
+1. Varianti: modulo a pagina unica o a passi; lingue affiancate o con selettore.
+2. Verifica esplicita prima di «Pubblica»: chiara o un passaggio di troppo?
+3. R1: l'avviso sulla scheda aperta da un pasto passato basta, o serve un segno anche
+   nella scheda del pasto? Va mostrato ai membri o solo ai curatori?
+4. Confronto delle versioni: leggibile su iPhone?
+5. Avviso di conflitto: comprensibile e sufficiente? Serve vedere le versioni
+   sovrascritte?
+6. Archiviate sotto le Bozze nel Ricettario o altrove?
+7. Campi obbligatori per pubblicare (sopra): giusti, compreso il gruppo alimentare
+   facoltativo?
+8. Decisioni provvisorie della preparazione: confermarle e portarle nella specifica.
