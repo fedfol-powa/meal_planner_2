@@ -1,11 +1,27 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
 	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
-	import type { ScenarioId } from '#lib/store/persistence.ts';
+	import type { RevisionEntry, ScenarioId, SuggestionLayout } from '#lib/store/persistence.ts';
+	import { proposeAnother } from '#lib/operations/revision.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
 	const scenarios: ScenarioId[] = ['standard', 'new_family', 'empty_today'];
+	let otherChange = $state<string | null>(null);
+
+	// Simulates another member editing a meal of the selected day, to see the last change and undo limits.
+	function simulateOtherChange() {
+		const other = app.family?.members.find((m) => m.userId !== app.user.id);
+		const day = app.selectedDate ?? app.settings.now.slice(0, 10);
+		const slot = app.db.weeks.filter((w) => w.familyId === app.settings.familyId).flatMap((w) => w.slots).find((s) => s.date === day);
+		const name = app.db.users.find((u) => u.id === other?.userId)?.displayName;
+		if (!other || !slot || !name) return (otherChange = app.t('dev.otherChangeNone'));
+		const result = proposeAnother(app.db, { ...app.ctx, userId: other.userId, offline: false }, slot.id);
+		if (!result.ok) return (otherChange = app.t('dev.otherChangeNone'));
+		app.update(() => {});
+		otherChange = app.t('dev.otherChangeDone', { name, meal: app.t(`meal.${slot.mealType}` as const) });
+	}
+
 	const userFamilies = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
 </script>
 
@@ -54,6 +70,20 @@
 		</label>
 		<button type="button" class="text-button" onclick={() => app.setScenario(scenario)}>{app.t('dev.applyScenario')}</button>
 	</div>
+	<label>{app.t('dev.revisionEntry')}
+		<select value={app.settings.revisionEntry} onchange={(e) => { const v = e.currentTarget.value as RevisionEntry; app.update((s) => (s.settings.revisionEntry = v)); }}>
+			<option value="sheet">{app.t('dev.revisionEntry.sheet')}</option>
+			<option value="panel">{app.t('dev.revisionEntry.panel')}</option>
+		</select>
+	</label>
+	<label>{app.t('dev.suggestionLayout')}
+		<select value={app.settings.suggestionLayout} onchange={(e) => { const v = e.currentTarget.value as SuggestionLayout; app.update((s) => (s.settings.suggestionLayout = v)); }}>
+			<option value="list">{app.t('dev.suggestionLayout.list')}</option>
+			<option value="cards">{app.t('dev.suggestionLayout.cards')}</option>
+		</select>
+	</label>
+	<button type="button" class="text-button" onclick={simulateOtherChange}>{app.t('dev.otherChange')}</button>
+	{#if otherChange}<p class="meta-line" role="status">{otherChange}</p>{/if}
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
 	<p class="meta-line">{app.t('dev.demoData')}</p>
 	<button type="button" class="text-button" onclick={() => app.reset()}>{app.t('dev.reset')}</button>

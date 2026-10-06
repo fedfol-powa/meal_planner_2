@@ -130,3 +130,14 @@ export function includeRecipe(db: DemoDatabase, ctx: OperationContext, recipeId:
 	db.exclusions = db.exclusions.filter((e) => !(e.familyId === family.id && e.recipeId === recipeId));
 	return ok(null);
 }
+
+/** Quick picks for a free meal: texts the family already used, most frequent first. */
+export function getFreeTextSuggestions(db: DemoDatabase, ctx: OperationContext): OpResult<string[]> {
+	const family = familyFor(db, ctx);
+	if (!family) return fail('forbidden');
+	const counts = new Map<string, number>();
+	for (const slot of visibleWeeks(db, family, ctx).flatMap((w) => w.slots)) {
+		if (slot.freeText) counts.set(slot.freeText, (counts.get(slot.freeText) ?? 0) + 1);
+	}
+	return ok([...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, 4).map(([text]) => text));
+}

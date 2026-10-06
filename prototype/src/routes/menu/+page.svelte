@@ -5,6 +5,9 @@
 	import RecipeCard from '#lib/components/RecipeCard.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import DatePicker from '#lib/components/DatePicker.svelte';
+	import MealActionList, { type EditorStage } from '#lib/components/MealActionList.svelte';
+	import MealEditor from '#lib/components/MealEditor.svelte';
+	import { proposeAnother, setMealServings } from '#lib/operations/revision.ts';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import type { MessageKey } from '#lib/i18n/messages.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
@@ -16,6 +19,8 @@
 	let actionError = $state<MessageKey | null>(null);
 	let simulatedNotice = $state(false);
 	let pickerOpen = $state(false);
+	// Meal being revised and the sheet stage shown (round 2).
+	let editing = $state<{ slotId: string; stage: EditorStage } | null>(null);
 
 	const opening = $derived(getOpeningTarget(app.db, app.ctx));
 	const openingDay = $derived(opening.ok && opening.value.kind === 'day' ? opening.value : null);
@@ -80,6 +85,14 @@
 		if (result.ok) app.update(() => {});
 	}
 
+	const editingMeal = $derived(editing ? week?.days.flatMap((d) => d.meals).find((m) => m.slotId === editing?.slotId) ?? null : null);
+	const openEditor = (slotId: string, stage: EditorStage) => (editing = { slotId, stage });
+
+	// Remember the shown day (also when it came from `?day=` or the opening), e.g. for the Prova panel.
+	$effect(() => {
+		if (selected && app.selectedDate === null) app.selectedDate = selected;
+	});
+
 	$effect(() => {
 		if (!week || !selected) return;
 		const target = selected;
@@ -115,7 +128,22 @@
 				<section class="day" id="day-{day.date}" aria-labelledby="heading-{day.date}">
 					<h2 class="day-title visually-hidden" id="heading-{day.date}">{formatDayLong(app.locale, day.date)}</h2>
 					{#each day.meals as meal (meal.slotId)}
-						<RecipeCard card={toCard(meal)} system={week.measurementSystem} onToggleCooked={toggleCooked} />
+						<RecipeCard
+							card={toCard(meal)}
+							system={week.measurementSystem}
+							onToggleCooked={toggleCooked}
+							onEdit={() => openEditor(meal.slotId, 'menu')}
+							editPanel={app.settings.revisionEntry === 'panel' ? actionsPanel : undefined}
+							onChooseRecipe={() => openEditor(meal.slotId, 'picker')}
+						/>
+						{#snippet actionsPanel()}
+							<MealActionList
+								{meal}
+								onOpen={(stage) => openEditor(meal.slotId, stage)}
+								onAnother={() => app.applyRevision(proposeAnother(app.db, app.ctx, meal.slotId), app.t('toast.changed'))}
+								onServings={(n) => app.applyRevision(setMealServings(app.db, app.ctx, meal.slotId, n), app.t('toast.servings', { count: n }))}
+							/>
+						{/snippet}
 					{:else}
 						<StateNotice title={app.t('menu.dayEmpty')} />
 					{/each}
@@ -123,6 +151,7 @@
 			{/each}
 		</div>
 	</section>
+	<MealEditor meal={editingMeal} {week} stage={editing?.stage ?? 'menu'} onStage={(stage) => editing && (editing = { ...editing, stage })} onClose={() => (editing = null)} />
 {:else}
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.notFound')} /></section>
 {/if}

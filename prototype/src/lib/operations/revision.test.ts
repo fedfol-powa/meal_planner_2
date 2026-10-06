@@ -11,6 +11,7 @@ import {
 	replaceMealRecipe,
 	setMealFree,
 	setMealNote,
+	getFreeTextSuggestions,
 	setMealServings,
 	swapMeals,
 	undoMealChanges
@@ -186,5 +187,12 @@ describe('setMealCooked', () => {
 	it('goes through the change log', () => {
 		value(setMealCooked(db, ctx(), '2026-10-05-dinner', false));
 		expect(db.mealChanges.at(-1)).toMatchObject({ before: { cooked: null }, after: { cooked: false } });
+	});
+});
+
+describe('getFreeTextSuggestions', () => {
+	it('lists the family\'s free texts, most used first, without duplicates', () => {
+		expect(value(getFreeTextSuggestions(db, ctx()))).toEqual(['Cena libera', 'Pranzo libero', 'Pizza da asporto']);
+		expect(value(getFreeTextSuggestions(db, ctx({ userId: 'user-lucia', familyId: 'family-grandparents' })))).toEqual([]);
 	});
 });

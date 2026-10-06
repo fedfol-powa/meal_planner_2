@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { MeasurementSystem } from '#lib/domain/types.ts';
 	import type { RecipeCardView } from '#lib/operations/views.ts';
 	import { formatAverage, formatChangeTime } from '#lib/i18n/dates.ts';
@@ -7,10 +8,19 @@
 	import IngredientList from './IngredientList.svelte';
 	import RatingStars from './RatingStars.svelte';
 
-	let { card: meal, system, onToggleCooked }: { card: RecipeCardView; system: MeasurementSystem; onToggleCooked?: (key: string) => void } = $props();
+	let { card: meal, system, onToggleCooked, onEdit, editPanel, onChooseRecipe }: {
+		card: RecipeCardView;
+		system: MeasurementSystem;
+		onToggleCooked?: (key: string) => void;
+		/** Meal actions (menu only): opens the sheet, or toggles `editPanel` in the panel variant. */
+		onEdit?: () => void;
+		editPanel?: Snippet;
+		/** Empty slot: straight to the recipe picker. */
+		onChooseRecipe?: () => void;
+	} = $props();
 
 	// Only one footer section is open at a time, to keep the card short.
-	let expanded = $state<'rating' | 'ingredients' | null>(null);
+	let expanded = $state<'rating' | 'ingredients' | 'actions' | null>(null);
 
 	const headingId = $derived(`card-${meal.key}`);
 	const recipe = $derived(meal.recipe);
@@ -25,7 +35,7 @@
 	const SOURCE_MAX_CHARS = 22;
 	const averageText = $derived(meal.rating?.familyAverage != null ? formatAverage(app.locale, meal.rating.familyAverage) : '–');
 
-	function toggle(section: 'rating' | 'ingredients') {
+	function toggle(section: 'rating' | 'ingredients' | 'actions') {
 		expanded = expanded === section ? null : section;
 	}
 </script>
@@ -48,6 +58,7 @@
 		{:else if meal.kind === 'empty'}
 			<h3 id={headingId}>{app.t('meal.empty.title')}</h3>
 			<p class="description">{app.t('meal.empty.body')}</p>
+			{#if onChooseRecipe}<button type="button" class="text-button primary" disabled={app.settings.offline} onclick={onChooseRecipe}>{app.t('meal.chooseRecipe')}</button>{/if}
 		{:else if recipe}
 			<h3 id={headingId}>
 				{#if recipe.sourceUrl}
@@ -71,13 +82,14 @@
 		{#if meal.notice}<p class="meta-line notice">{meal.notice}</p>{/if}
 	</div>
 
-	{#if meal.kind === 'recipe' && recipe}
+	{#if (meal.kind === 'recipe' && recipe) || onEdit}
 		<div class="meal-footer">
-			{#if meal.detailHref}
+			{#if recipe && meal.detailHref}
 				<a class="footer-action" href={meal.detailHref} aria-label={app.t('meal.details')}>
 					<svg class="icon" aria-hidden="true"><use href="#icon-recipe" /></svg>
 				</a>
 			{/if}
+			{#if meal.kind === 'recipe' && recipe}
 			<button type="button" class="footer-action" aria-expanded={expanded === 'rating'} disabled={!meal.canRate} aria-label={app.t('meal.ratingAction', { value: averageText })} onclick={() => toggle('rating')}>
 				<svg class="icon" class:mine={meal.rating?.myStars != null} aria-hidden="true"><use href="#icon-star" /></svg>
 				<span aria-hidden="true">{averageText}</span>
@@ -86,18 +98,26 @@
 				<svg class="icon" aria-hidden="true"><use href="#icon-list" /></svg>
 				<span aria-hidden="true">{meal.ingredients?.length ?? '–'}</span>
 			</button>
+			{/if}
 			{#if meal.canMarkNotCooked && onToggleCooked}
 				<button type="button" class="footer-action" aria-pressed={meal.cooked === false} disabled={app.settings.offline} aria-label={app.t('meal.markNotCooked')} onclick={() => onToggleCooked(meal.key)}>
 					<svg class="icon" aria-hidden="true"><use href="#icon-not-cooked" /></svg>
 				</button>
 			{/if}
+			{#if onEdit}
+				<button type="button" class="footer-action" aria-expanded={editPanel ? expanded === 'actions' : undefined} aria-haspopup={editPanel ? undefined : 'dialog'} aria-label={app.t('meal.edit')} onclick={() => (editPanel ? toggle('actions') : onEdit())}>
+					<svg class="icon" aria-hidden="true"><use href="#icon-edit" /></svg>
+				</button>
+			{/if}
 		</div>
 
-		{#if expanded === 'rating' && meal.rating}
+		{#if expanded === 'actions' && editPanel}
+			<div class="footer-panel">{@render editPanel()}</div>
+		{:else if expanded === 'rating' && meal.rating && recipe}
 			<div class="footer-panel">
 				<RatingStars summary={meal.rating} recipeId={recipe.id} recipeName={recipe.name} />
 			</div>
-		{:else if expanded === 'ingredients'}
+		{:else if expanded === 'ingredients' && recipe}
 			<div class="footer-panel">
 				{#if meal.ingredients}
 					<IngredientList ingredients={meal.ingredients} {system} label={recipe.name} collapsible={false} />
