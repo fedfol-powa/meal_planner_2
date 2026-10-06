@@ -49,6 +49,12 @@ export function formatChangeTime(locale: Locale, at: LocalDateTime): string {
 	return `${weekday} ${time}`;
 }
 
+/** "5 ott, 21:40": day, month and time (curation, round 5). */
+export function formatDateTime(locale: Locale, at: LocalDateTime): string {
+	const [date, time] = at.split('T');
+	return `${formatDayMonth(locale, date)}, ${time}`;
+}
+
 export function formatAverage(locale: Locale, value: number): string {
 	return new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(
 		value

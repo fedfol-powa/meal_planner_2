@@ -31,7 +31,7 @@
 </div>
 
 <style>
-	.toast-region { position: fixed; left: 0; right: 0; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 30; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
+	.toast-region { position: fixed; left: 0; right: 0; bottom: calc(var(--toast-offset, 80px) + env(safe-area-inset-bottom)); z-index: 30; display: flex; justify-content: center; padding: 0 16px; pointer-events: none; }
 	.toast { display: flex; align-items: center; gap: 16px; width: min(100%, 480px); min-height: 48px; padding: 4px 8px 4px 16px; border-radius: 8px; color: #fff; background: var(--ink); font-size: 0.875rem; box-shadow: 0 2px 8px rgb(0 0 0 / 20%); pointer-events: auto; }
 	.toast span { flex: 1; }
 	button { min-height: 44px; padding: 0 12px; border: 0; background: none; color: #fff; font: 700 0.875rem/1 var(--text-font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }

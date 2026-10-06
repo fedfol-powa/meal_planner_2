@@ -8,13 +8,42 @@
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
 	import { getRecipeDetail } from '#lib/operations/recipes.ts';
+	import ActionMenu from '#lib/components/ActionMenu.svelte';
+	import { formatDateTime } from '#lib/i18n/dates.ts';
+	import { errorKey } from '#lib/i18n/errors.ts';
+	import { archiveRecipe, startRevision, unarchiveRecipe } from '#lib/operations/curation.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	const fromMenu = $derived(page.url.searchParams.get('from') === 'menu');
 	const rawDay = $derived(page.url.searchParams.get('day'));
 	const day = $derived(isIsoDate(rawDay) ? rawDay : null);
 	const servingsParam = $derived(Number(page.url.searchParams.get('servings')) || undefined);
-	const result = $derived(getRecipeDetail(app.db, app.ctx, page.params.id ?? '', servingsParam));
+	const slotParam = $derived(page.url.searchParams.get('slot') ?? undefined);
+	const result = $derived(getRecipeDetail(app.db, app.ctx, page.params.id ?? '', servingsParam, slotParam));
+	const currentHref = $derived.by(() => {
+		const p = new URLSearchParams(page.url.searchParams.toString());
+		p.delete('slot');
+		return `?${p}`;
+	});
+
+	// Curators (round 5): edit through a revision draft, versions, archive with undo.
+	function edit(recipeId: string) {
+		const started = startRevision(app.db, app.ctx, recipeId);
+		if (!started.ok) return app.notify(app.t(errorKey(started.error)));
+		app.update(() => {});
+		goto(`/recipes/drafts/${started.value.draftId}`);
+	}
+
+	function setArchived(recipeId: string, archived: boolean) {
+		const done = (archived ? archiveRecipe : unarchiveRecipe)(app.db, app.ctx, recipeId);
+		if (!done.ok) return app.notify(app.t(errorKey(done.error)));
+		app.update(() => {});
+		app.notify(app.t(archived ? 'curation.archivedToast' : 'curation.unarchivedToast'), () => {
+			const back = (archived ? unarchiveRecipe : archiveRecipe)(app.db, app.ctx, recipeId);
+			if (back.ok) app.update(() => {});
+			app.notify(app.t(back.ok ? 'toast.undone' : 'toast.undoFailed'));
+		});
+	}
 	const backHref = $derived(fromMenu ? `/menu${day ? `?day=${day}` : ''}` : '/recipes');
 
 	function setServings(servings: number) {
@@ -29,7 +58,28 @@
 </script>
 
 <section class="secondary-view app-view detail">
-	<header class="page-header"><a class="page-back" href={backHref}><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{fromMenu ? app.t('nav.menu') : app.t('nav.recipes')}</a></header>
+	<header class="page-header title-row">
+		<a class="page-back" href={backHref}><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{fromMenu ? app.t('nav.menu') : app.t('nav.recipes')}</a>
+		{#if result.ok && result.value.curation}
+			{@const c = result.value.curation}
+			{@const id = result.value.recipe.id}
+			<ActionMenu label={app.t('curation.actions')}>
+				{#snippet items(run)}
+					{#if c.status === 'draft'}
+						{#if c.draftId}<button type="button" role="menuitem" onclick={() => run(() => goto(`/recipes/drafts/${c.draftId}`))}>{app.t('curation.completeDraft')}</button>{/if}
+					{:else}
+						{#if c.draftId}
+							<button type="button" role="menuitem" onclick={() => run(() => goto(`/recipes/drafts/${c.draftId}`))}>{app.t('curation.resumeRevision')}</button>
+						{:else if c.status === 'published'}
+							<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(() => edit(id))}>{app.t('curation.edit')}</button>
+						{/if}
+						<button type="button" role="menuitem" onclick={() => run(() => goto(`/recipes/${id}/versions`))}>{app.t('curation.versions')}</button>
+						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(() => setArchived(id, c.status === 'published'))}>{app.t(c.status === 'published' ? 'curation.archive' : 'curation.unarchive')}</button>
+					{/if}
+				{/snippet}
+			</ActionMenu>
+		{/if}
+	</header>
 
 	{#if !result.ok}
 		<StateNotice title={app.t('recipe.unavailable')} />
@@ -44,6 +94,18 @@
 						<a class="recipe-link" href={d.recipe.sourceUrl} target="_blank" rel="noopener noreferrer">{d.recipe.name} <svg class="icon" aria-hidden="true"><use href="#icon-arrow" /></svg><span class="visually-hidden">({app.t('source.open')})</span></a>
 					{:else}{d.recipe.name}{/if}
 				</h1>
+				{#if d.curation?.status === 'archived'}
+					<p class="draft-notice" role="note">
+						<span class="label-chip neutral">{app.t('curation.archivedChip')}</span>
+						{app.t('curation.archivedNotice', { name: d.curation.archivedByName ?? '—', time: formatDateTime(app.locale, d.curation.archivedAt ?? '') })}
+					</p>
+				{/if}
+				{#if d.shownVersion}
+					<p class="draft-notice" role="note">
+						{app.t('curation.shownVersion', { version: d.shownVersion.version, current: d.shownVersion.current })}
+						<a class="link-inline" href={currentHref}>{app.t('curation.seeCurrent')}</a>
+					</p>
+				{/if}
 				{#if d.isDraft}
 					<p class="draft-notice" role="note">
 						<span class="label-chip neutral">{app.t('recipe.draft')}</span>
@@ -88,6 +150,7 @@
 	.title :global(.recipe-link .icon) { top: 8px; }
 	.detail :global(.rating) { margin-bottom: 14px; }
 	.draft-notice { display: grid; gap: 6px; justify-items: start; margin: 0 0 14px; padding: 12px; background: var(--free-surface); border: 1px solid var(--free-border); font-size: 0.875rem; }
+	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 	.history-title { margin: 24px 0 8px; font: 400 1.25rem/1.3 var(--heading-font); }
 	.history { margin: 0; padding: 0; list-style: none; }
 	.history li { padding: 8px 0; border-bottom: 1px solid var(--rule); }

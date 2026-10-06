@@ -28,8 +28,9 @@ export interface ValidationIssue {
 	field: IssueField;
 	code: IssueCode;
 	locale?: Locale;
-	/** Ingredient line, from 0. */
+	/** Ingredient line, from 0, and which part of it: the catalogue ingredient or the quantity. */
 	line?: number;
+	part?: 'ingredient' | 'quantity';
 }
 
 /** What a draft still lacks, in short (list of drafts, recipe card). */
@@ -62,13 +63,14 @@ export function validateForSave(db: DemoDatabase, content: RecipeContent): Valid
 	if (!positiveInteger(content.baseServings)) issues.push({ field: 'baseServings', code: 'not_positive_integer' });
 	const seen = new Set<string>();
 	content.ingredients.forEach((line, index) => {
-		if (!db.ingredients.some((i) => i.id === line.ingredientId)) issues.push({ field: 'ingredients', code: 'unknown_ingredient', line: index });
-		else if (seen.has(line.ingredientId)) issues.push({ field: 'ingredients', code: 'duplicate_ingredient', line: index });
+		if (!db.ingredients.some((i) => i.id === line.ingredientId)) issues.push({ field: 'ingredients', code: 'unknown_ingredient', line: index, part: 'ingredient' });
+		else if (seen.has(line.ingredientId)) issues.push({ field: 'ingredients', code: 'duplicate_ingredient', line: index, part: 'ingredient' });
 		seen.add(line.ingredientId);
-		if (line.quantity.kind === 'amount' && !(Number.isFinite(line.quantity.value) && line.quantity.value > 0))
-			issues.push({ field: 'ingredients', code: 'invalid_amount', line: index });
+		// A draft may leave an amount empty (null); a number must be above zero.
+		if (line.quantity.kind === 'amount' && line.quantity.value != null && !(Number.isFinite(line.quantity.value) && line.quantity.value > 0))
+			issues.push({ field: 'ingredients', code: 'invalid_amount', line: index, part: 'quantity' });
 		for (const locale of LOCALES)
-			if ((line.text?.[locale]?.length ?? 0) > QUANTITY_TEXT_MAX) issues.push({ field: 'ingredients', code: 'too_long', line: index, locale });
+			if ((line.text?.[locale]?.length ?? 0) > QUANTITY_TEXT_MAX) issues.push({ field: 'ingredients', code: 'too_long', line: index, part: 'quantity', locale });
 	});
 	return issues;
 }
@@ -91,10 +93,11 @@ export function validateForPublish(db: DemoDatabase, content: RecipeContent): Va
 	if (content.ingredients.length === 0) issues.push({ field: 'ingredients', code: 'required' });
 	content.ingredients.forEach((line, index) => {
 		const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
-		if (ingredient && !filled(ingredient.name['en-GB'])) issues.push({ field: 'ingredients', code: 'translation_missing', line: index, locale: 'en-GB' });
+		if (ingredient && !filled(ingredient.name['en-GB'])) issues.push({ field: 'ingredients', code: 'translation_missing', line: index, part: 'ingredient', locale: 'en-GB' });
+		if (line.quantity.kind === 'amount' && line.quantity.value == null) issues.push({ field: 'ingredients', code: 'required', line: index, part: 'quantity' });
 		if (line.quantity.kind === 'text')
 			for (const locale of LOCALES)
-				if (!filled(line.text?.[locale])) issues.push({ field: 'ingredients', code: locale === 'it-IT' ? 'required' : 'translation_missing', line: index, locale });
+				if (!filled(line.text?.[locale])) issues.push({ field: 'ingredients', code: locale === 'it-IT' ? 'required' : 'translation_missing', line: index, part: 'quantity', locale });
 	});
 	return issues;
 }

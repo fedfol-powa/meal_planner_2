@@ -312,10 +312,12 @@ export function searchCatalogueIngredients(db: DemoDatabase, ctx: OperationConte
 export function createIngredient(db: DemoDatabase, ctx: OperationContext, name: Translated, department: Department): OpResult<{ id: string }> {
 	const allowed = guard(db, ctx, true);
 	if (!allowed.ok) return fail(allowed.error);
-	const it = name['it-IT'].trim();
+	// Same capitalisation as the catalogue ("Lenticchie rosse").
+	const capital = (t: string) => t.charAt(0).toLocaleUpperCase() + t.slice(1);
+	const it = capital(name['it-IT'].trim());
 	if (!it || it.length > 80 || !DEPARTMENTS.includes(department)) return fail('invalid');
 	const id = uniqueId(slug(it), (candidate) => db.ingredients.some((i) => i.id === candidate));
-	db.ingredients.push({ id, name: { 'it-IT': it, 'en-GB': name['en-GB']?.trim() || null }, department, isPantry: false, canonicalId: null, purchase: null });
+	db.ingredients.push({ id, name: { 'it-IT': it, 'en-GB': name['en-GB']?.trim() ? capital(name['en-GB'].trim()) : null }, department, isPantry: false, canonicalId: null, purchase: null });
 	return ok({ id });
 }
 

@@ -14,7 +14,16 @@ export interface PrototypeSettings {
 	now: LocalDateTime;
 	offline: boolean;
 	scenario: ScenarioId;
+	/** Round 5 variants, chosen in the review: recipe form on one page or in steps, languages stacked or switched. */
+	variants: PrototypeVariants;
 }
+
+export interface PrototypeVariants {
+	recipeForm: 'sections' | 'steps';
+	formLanguages: 'stacked' | 'switch';
+}
+
+export const DEFAULT_VARIANTS: PrototypeVariants = { recipeForm: 'sections', formLanguages: 'stacked' };
 
 export interface Persisted {
 	version: 20;
@@ -44,7 +53,8 @@ export function createInitial(): Persisted {
 			guestLocale: detectLocale(browserLanguages()),
 			now: '2026-10-06T12:00',
 			offline: false,
-			scenario: 'standard'
+			scenario: 'standard',
+			variants: { ...DEFAULT_VARIANTS }
 		}
 	};
 }
@@ -60,6 +70,8 @@ function isPersisted(value: unknown): value is Persisted {
 		(LOCALES as readonly string[]).includes(s.guestLocale) &&
 		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
+		['sections', 'steps'].includes(s.variants?.recipeForm) &&
+		['stacked', 'switch'].includes(s.variants?.formLanguages) &&
 		Array.isArray(v.db.invitations) &&
 		Array.isArray(v.db.removals) &&
 		Array.isArray(v.db.recipeVersions) &&

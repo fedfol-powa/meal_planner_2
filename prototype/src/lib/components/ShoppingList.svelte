@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ActionMenu from './ActionMenu.svelte';
 	import BottomSheet from './BottomSheet.svelte';
 	import { formatDayNumber, formatDayShort } from '#lib/i18n/dates.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
@@ -22,36 +23,6 @@
 	let sheet = $state<'text' | 'bring' | null>(null);
 	let copied = $state(false);
 	let newItem = $state('');
-	let menuOpen = $state(false);
-	let menuButton: HTMLButtonElement | undefined = $state();
-	let menuPanel: HTMLDivElement | undefined = $state();
-
-	// Every list action lives in the "…" menu (prova su iPhone): it closes before acting.
-	function run(action: () => unknown) {
-		menuOpen = false;
-		action();
-	}
-
-	$effect(() => {
-		if (!menuOpen) return;
-		const onPointer = (e: PointerEvent) => {
-			const target = e.target as Node;
-			if (!menuPanel?.contains(target) && !menuButton?.contains(target)) menuOpen = false;
-		};
-		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') {
-				menuOpen = false;
-				menuButton?.focus();
-			}
-		};
-		document.addEventListener('pointerdown', onPointer);
-		document.addEventListener('keydown', onKey);
-		return () => {
-			document.removeEventListener('pointerdown', onPointer);
-			document.removeEventListener('keydown', onKey);
-		};
-	});
-
 	// The list stays editable offline (in the shop): changes are sent when back online.
 	const canEdit = true;
 	const week = $derived(list.weekStartsOn);
@@ -128,18 +99,14 @@
 <header class="page-header">
 	<div class="title-row no-print">
 		<a class="page-back" href="/menu"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{app.t('nav.menu')}</a>
-		<div class="menu-wrap">
-			<button bind:this={menuButton} type="button" class="menu-toggle" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={app.t('shopping.actions')} onclick={() => (menuOpen = !menuOpen)}>
-				<svg class="icon" aria-hidden="true"><use href="#icon-more" /></svg>
-			</button>
-			{#if menuOpen}
-				<div class="menu" role="menu" bind:this={menuPanel}>
-					<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(share)}>{app.t('shopping.share')}</button>
-					<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(() => window.print())}>{app.t('shopping.pdf')}</button>
-					<button type="button" role="menuitem" disabled={nothingLeft || app.settings.offline} onclick={() => run(() => (sheet = 'bring'))}>{app.t('shopping.bring')}{#if app.settings.offline}<small> · {app.t('shopping.bringOffline')}</small>{/if}</button>
-				</div>
-			{/if}
-		</div>
+		<!-- Every list action lives in the "…" menu (prova su iPhone). -->
+		<ActionMenu label={app.t('shopping.actions')}>
+			{#snippet items(run)}
+				<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(share)}>{app.t('shopping.share')}</button>
+				<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(() => window.print())}>{app.t('shopping.pdf')}</button>
+				<button type="button" role="menuitem" disabled={nothingLeft || app.settings.offline} onclick={() => run(() => (sheet = 'bring'))}>{app.t('shopping.bring')}{#if app.settings.offline}<small> · {app.t('shopping.bringOffline')}</small>{/if}</button>
+			{/snippet}
+		</ActionMenu>
 	</div>
 	<h1 class="page-title" id="list-title">{title}</h1>
 	{#if list.pendingSync}<p class="pending no-print" role="status">{app.t('shopping.pendingSync')}</p>{/if}
@@ -243,15 +210,6 @@
 <style>
 	.pending { margin: 6px 0 0; color: var(--green); font-size: 0.875rem; font-weight: 700; }
 	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-	.menu-wrap { position: relative; }
-	.menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -8px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
-	.menu-toggle .icon { width: 26px; height: 26px; fill: currentColor; stroke-width: 1.2; }
-	.menu-toggle[aria-expanded='true'] { color: var(--green); }
-	.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; display: flex; flex-direction: column; min-width: 220px; padding: 6px 0; background: var(--paper); border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 15%); }
-	.menu button { min-height: 44px; padding: 10px 16px; border: 0; background: none; color: var(--ink); font: 400 1rem/1.3 var(--text-font); text-align: left; cursor: pointer; }
-	.menu button:hover:not(:disabled) { background: var(--canvas); }
-	.menu button:disabled { color: var(--muted); cursor: not-allowed; }
-	.menu small { font-size: 0.75rem; }
 	.shopping-group h2 { margin: 0 0 12px; }
 	.row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; border-top: 1px solid var(--rule); }
 	.row .shopping-item { border-top: 0; }

@@ -84,7 +84,7 @@
 			...meal,
 			key: meal.slotId,
 			label: app.t(`meal.${meal.mealType}` as const),
-			detailHref: meal.recipe && meal.canOpenRecipe ? `/recipes/${meal.recipe.id}?from=menu&day=${meal.date}` : null
+			detailHref: meal.recipe && meal.canOpenRecipe ? `/recipes/${meal.recipe.id}?from=menu&day=${meal.date}&slot=${meal.slotId}` : null
 		};
 	}
 

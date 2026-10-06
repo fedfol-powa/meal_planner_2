@@ -37,6 +37,12 @@ describe('validateForSave', () => {
 		const codes = validateForSave(db, content).map((i) => `${i.field}:${i.code}${i.line ?? ''}`);
 		expect(codes).toEqual(['sourceUrl:invalid_url', 'baseServings:not_positive_integer', 'ingredients:duplicate_ingredient2', 'ingredients:unknown_ingredient3', 'ingredients:invalid_amount3']);
 	});
+	it('accepts an empty amount in a draft but not for publication', () => {
+		const content = complete();
+		content.ingredients[0] = { ...content.ingredients[0], quantity: { kind: 'amount', value: null as unknown as number, unit: 'g' } };
+		expect(validateForSave(db, content)).toEqual([]);
+		expect(validateForPublish(db, content)).toEqual([{ field: 'ingredients', code: 'required', line: 0, part: 'quantity' }]);
+	});
 	it('needs a name in at least one language', () => {
 		expect(validateForSave(db, { ...complete(), name: { 'it-IT': ' ', 'en-GB': null } })).toEqual([{ field: 'name', code: 'required' }]);
 	});
@@ -65,7 +71,7 @@ describe('validateForPublish', () => {
 	it('requires the wording of a non-numeric quantity in both languages', () => {
 		const content = complete();
 		content.ingredients[0] = { ...content.ingredients[0], quantity: { kind: 'text' }, sourceText: '1 spicchio', text: { 'it-IT': '1 spicchio', 'en-GB': null } };
-		expect(validateForPublish(db, content)).toEqual([{ field: 'ingredients', code: 'translation_missing', line: 0, locale: 'en-GB' }]);
+		expect(validateForPublish(db, content)).toEqual([{ field: 'ingredients', code: 'translation_missing', line: 0, part: 'quantity', locale: 'en-GB' }]);
 	});
 	it('keeps the imported drafts out of the catalogue', () => {
 		for (const recipe of db.recipes.filter((r) => r.status === 'draft' && r.createdBy === 'user-federico'))

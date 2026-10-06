@@ -188,7 +188,7 @@ describe('versions and restore', () => {
 	it('refuses a version that no longer passes today\'s check', () => {
 		db.ingredients.find((i) => i.id === 'panini-per-hamburger')!.name['en-GB'] = null;
 		expect(value(restoreVersion(db, ctx(), 'hamburger-cavallo', 1))).toEqual({
-			status: 'invalid', issues: [{ field: 'ingredients', code: 'translation_missing', line: 1, locale: 'en-GB' }]
+			status: 'invalid', issues: [{ field: 'ingredients', code: 'translation_missing', line: 1, part: 'ingredient', locale: 'en-GB' }]
 		});
 		expect(db.recipes.find((r) => r.id === 'hamburger-cavallo')!.version).toBe(2);
 	});

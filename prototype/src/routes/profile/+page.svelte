@@ -5,10 +5,11 @@
 	const families = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
 	const exclusions = $derived(app.family ? app.db.exclusions.filter((e) => e.familyId === app.family!.id).length : 0);
 	const roleOf = (familyId: string) => families.find((f) => f.id === familyId)?.members.find((m) => m.userId === app.user.id)?.role ?? 'member';
-	// Later routes of the prototype (percorsi 6-8).
+	const curator = $derived(app.user.globalRoles.includes('recipe_curator'));
+	const drafts = $derived(curator ? app.db.recipeDrafts.length : 0);
+	// Later routes of the prototype (percorsi 7-8).
 	const upcoming = $derived(
 		[
-			['profile.dest.curation', app.user.globalRoles.includes('recipe_curator')],
 			['profile.dest.admin', app.user.globalRoles.includes('app_admin')],
 			['profile.dest.mcp', true]
 		].filter(([, visible]) => visible).map(([key]) => key as MessageKey)
@@ -53,6 +54,17 @@
 				<li><a class="row-link" href="/profile/preferences"><svg class="icon" aria-hidden="true"><use href="#icon-user" /></svg><span class="row-main">{app.t('profile.preferences')}<small>{app.t('profile.preferencesHint')}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
 			</ul>
 		</section>
+
+		{#if curator}
+			<!-- Round 5: curation lives in the catalogue; this row opens it on the drafts. -->
+			<section class="settings-card" aria-labelledby="curation-title">
+				<h2 id="curation-title">{app.t('profile.dest.curation')}</h2>
+				<ul class="row-list">
+					<li><a class="row-link" href="/recipes#drafts"><svg class="icon" aria-hidden="true"><use href="#icon-recipe" /></svg><span class="row-main">{app.t('profile.curation.drafts')}<small>{app.t('profile.curation.draftsCount', { count: drafts })}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+					<li><a class="row-link" href="/recipes/new"><svg class="icon" aria-hidden="true"><use href="#icon-plus" /></svg><span class="row-main">{app.t('curation.new')}</span></a></li>
+				</ul>
+			</section>
+		{/if}
 
 		<section class="settings-card" aria-labelledby="next-title">
 			<h2 id="next-title">{app.t('profile.next')}</h2>
