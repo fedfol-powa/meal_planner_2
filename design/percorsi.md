@@ -490,7 +490,8 @@ da cui si riapre; nessun segno "già in lista" nella scelta dei pasti; voci libe
   lista", storico richiudibile), `/shopping/new` (scelta dei pasti; con `?list=`
   modifica i pasti di una lista aperta, conservando quelli già passati),
   `/shopping/[id]` (lista).
-- **Lista:** voce libera in cima; casella condivisa; se una voce spuntata aumenta, torna
+- **Lista:** voce libera dall'ultima riga della sezione "Altro" (campo con "+", sempre
+  presente nelle liste aperte; richiesta dell'utente nella prova); casella condivisa; se una voce spuntata aumenta, torna
   da spuntare con "prima: …"; "Spesa fatta" ed "Elimina la lista" in fondo, con
   "Annulla" nell'avviso; una lista chiusa è in sola lettura, con "Riapri".
 - **Esportazioni:** escludono le voci spuntate e includono le voci libere in "Altro".

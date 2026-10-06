@@ -35,6 +35,12 @@
 	const exported = $derived(shoppingExport(list.view, ticked, app.locale, manualLeft));
 	const nothingLeft = $derived(exported.bringItems.length === 0);
 	const title = $derived(list.name);
+	// "Altro" is always there on an editable list: it holds the field that adds a free item.
+	const groups = $derived(
+		canEdit && !list.departments.some((d) => d.department === 'other')
+			? [...list.departments, { department: 'other' as const, items: [], manual: [] }]
+			: list.departments
+	);
 
 	const flip = (set: Set<string>, id: string) => {
 		const next = new Set(set);
@@ -128,20 +134,14 @@
 
 {#if !open}
 	<p class="notice no-print">{app.t('shopping.closedNotice')}</p>
-{:else if !app.settings.offline}
-	<form class="add-item no-print" onsubmit={add}>
-		<label class="visually-hidden" for="new-item">{app.t('shopping.addItem')}</label>
-		<input id="new-item" type="text" bind:value={newItem} maxlength={MAX_MANUAL_TEXT} placeholder={app.t('shopping.addItemPlaceholder')} autocomplete="off" />
-		<button type="submit" class="text-button" disabled={!newItem.trim()}>{app.t('shopping.addItemButton')}</button>
-	</form>
 {/if}
 
 {#if list.skipped.length}
 	<p class="notice">{app.t('shopping.skipped', { names: list.skipped.map((s) => s.recipeName).join(', ') })}</p>
 {/if}
 
-{#each list.departments as group (group.department)}
-	<section class="shopping-group" aria-labelledby="dep-{group.department}">
+{#each groups as group (group.department)}
+	<section class="shopping-group" class:no-print={group.items.length + group.manual.length === 0} aria-labelledby="dep-{group.department}">
 		<h2 id="dep-{group.department}">{app.t(`department.${group.department}`)}</h2>
 		<ul class="shopping-items">
 			{#each group.items as item (item.id)}
@@ -183,6 +183,16 @@
 					</div>
 				</li>
 			{/each}
+			{#if group.department === 'other' && canEdit}
+				<li class="no-print">
+					<form class="add-item" onsubmit={add}>
+						<span class="plus" aria-hidden="true">+</span>
+						<label class="visually-hidden" for="new-item">{app.t('shopping.addItem')}</label>
+						<input id="new-item" type="text" bind:value={newItem} maxlength={MAX_MANUAL_TEXT} placeholder={app.t('shopping.addItemPlaceholder')} autocomplete="off" enterkeyhint="done" />
+						{#if newItem.trim()}<button type="submit" class="text-button">{app.t('shopping.addItemButton')}</button>{/if}
+					</form>
+				</li>
+			{/if}
 		</ul>
 	</section>
 {/each}
@@ -253,8 +263,11 @@
 	.sources li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 3px 0; }
 	.source-quantity { font-weight: 700; }
 	.notice { margin: 0 0 16px; color: var(--body-text); font-size: 0.875rem; }
-	.add-item { display: flex; gap: 8px; margin: 0 0 16px; }
-	.add-item input { flex: 1; min-width: 0; min-height: 44px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 1rem; }
+	.add-item { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 48px; padding: 4px 0; border-top: 1px solid var(--rule); }
+	.plus { color: var(--green); font: 400 1.5rem/1 var(--text-font); text-align: center; }
+	.add-item input { min-width: 0; min-height: 40px; padding: 6px 0; border: 0; border-bottom: 1px dashed var(--rule); background: transparent; color: var(--ink); font-size: 1rem; }
+	.add-item input:focus { outline: none; border-bottom-color: var(--green); }
+	.add-item .text-button { min-height: 40px; padding: 6px 12px; }
 	.excluded summary { min-height: 44px; display: flex; align-items: center; font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }
 	.excluded[open] summary { margin-bottom: 8px; }
 	.excluded-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: 12px; min-height: 48px; border-top: 1px solid var(--rule); color: var(--body-text); }
