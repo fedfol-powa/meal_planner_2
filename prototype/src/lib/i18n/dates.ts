@@ -64,3 +64,8 @@ export function formatDateRange(locale: Locale, from: IsoDate, to: IsoDate): str
 		? `${day(from)}–${day(to)} ${month(to)}`
 		: `${day(from)} ${month(from)} – ${day(to)} ${month(to)}`;
 }
+
+/** Weekday name, Monday = 0 (family settings, round 4). */
+export function formatWeekday(locale: Locale, weekday: number, width: 'long' | 'short' = 'long'): string {
+	return new Intl.DateTimeFormat(locale, { weekday: width, timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 5 + weekday)));
+}

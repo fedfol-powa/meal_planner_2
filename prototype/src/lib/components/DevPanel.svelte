@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
 	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
-	import type { ScenarioId } from '#lib/store/persistence.ts';
+	import { goto } from '$app/navigation';
+	import { SCENARIOS, type ScenarioId } from '#lib/store/persistence.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
 	import { getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
-	const scenarios: ScenarioId[] = ['standard', 'new_family', 'empty_today'];
+	const scenarios = SCENARIOS;
 	let otherChange = $state<string | null>(null);
 
 	// Simulates another member editing a meal of the selected day, to see the last change and undo limits.
@@ -44,6 +45,19 @@
 	}
 
 	const userFamilies = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
+
+	// Round 4: open an invitation link as the current user, or the deletion page as MCP would link it.
+	function openLink(path: string) {
+		dialog.close();
+		goto(path);
+	}
+	let inviteToken = $state('');
+	const invitationLabel = (token: string) => {
+		const inv = app.db.invitations.find((i) => i.token === token)!;
+		const family = app.db.families.find((f) => f.id === inv.familyId)?.name ?? '';
+		const state = inv.revokedAt ? app.t('dev.invite.revoked') : app.settings.now >= inv.expiresAt ? app.t('dev.invite.expired') : app.t('dev.invite.active');
+		return `${family} · ${token} (${state})`;
+	};
 </script>
 
 <button class="dev-toggle" type="button" onclick={() => dialog.showModal()}>
@@ -58,17 +72,20 @@
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
 	<label>{app.t('dev.user')}
-		<select value={app.user.id} onchange={(e) => app.signIn(e.currentTarget.value)}>
+		<select value={app.user.id} onchange={(e) => { const id = e.currentTarget.value; if (id) app.signIn(id); else app.signOut(); }}>
+			<option value="">{app.t('dev.signedOut')}</option>
 			{#each app.db.users as user (user.id)}<option value={user.id}>{user.displayName} ({user.globalRoles.join(', ') || '—'})</option>{/each}
 		</select>
 	</label>
-	<label>{app.t('dev.family')}
-		<select value={app.settings.familyId} onchange={(e) => { const id = e.currentTarget.value; app.update((s) => (s.settings.familyId = id)); app.selectedDate = null; }}>
-			{#each userFamilies as family (family.id)}<option value={family.id}>{family.name}</option>{/each}
-		</select>
-	</label>
+	{#if userFamilies.length}
+		<label>{app.t('dev.family')}
+			<select value={app.settings.familyId} onchange={(e) => app.switchFamily(e.currentTarget.value)}>
+				{#each userFamilies as family (family.id)}<option value={family.id}>{family.name}</option>{/each}
+			</select>
+		</label>
+	{/if}
 	<label>{app.t('dev.language')}
-		<select value={app.locale} onchange={(e) => { const locale = e.currentTarget.value as Locale; app.update((s) => { const u = s.db.users.find((x) => x.id === s.settings.userId); if (u) u.locale = locale; }); }}>
+		<select value={app.locale} onchange={(e) => { const locale = e.currentTarget.value as Locale; app.update((s) => { const u = s.db.users.find((x) => x.id === s.settings.userId); if (u) u.locale = locale; else s.settings.guestLocale = locale; }); }}>
 			{#each LOCALES as locale (locale)}<option value={locale}>{locale}</option>{/each}
 		</select>
 	</label>
@@ -91,6 +108,33 @@
 		</label>
 		<button type="button" class="text-button" onclick={() => app.setScenario(scenario)}>{app.t('dev.applyScenario')}</button>
 	</div>
+	<fieldset>
+		<legend>{app.t('dev.variants')}</legend>
+		<label>{app.t('dev.variant.familySwitch')}
+			<select value={app.variants.familySwitch} onchange={(e) => { const v = e.currentTarget.value as 'you' | 'menu'; app.update((s) => (s.settings.variants.familySwitch = v)); }}>
+				<option value="you">{app.t('dev.variant.familySwitch.you')}</option>
+				<option value="menu">{app.t('dev.variant.familySwitch.menu')}</option>
+			</select>
+		</label>
+		<label>{app.t('dev.variant.dangerConfirm')}
+			<select value={app.variants.dangerConfirm} onchange={(e) => { const v = e.currentTarget.value as 'button' | 'type'; app.update((s) => (s.settings.variants.dangerConfirm = v)); }}>
+				<option value="button">{app.t('dev.variant.dangerConfirm.button')}</option>
+				<option value="type">{app.t('dev.variant.dangerConfirm.type')}</option>
+			</select>
+		</label>
+	</fieldset>
+	<div class="row">
+		<label>{app.t('dev.invite')}
+			<select bind:value={inviteToken}>
+				<option value="">—</option>
+				{#each app.db.invitations as inv (inv.token)}<option value={inv.token}>{invitationLabel(inv.token)}</option>{/each}
+			</select>
+		</label>
+		<button type="button" class="text-button" disabled={!inviteToken} onclick={() => openLink(`/invite/${inviteToken}`)}>{app.t('dev.open.link')}</button>
+	</div>
+	{#if app.family}
+		<button type="button" class="text-button" onclick={() => openLink(`/you/family/delete?family=${app.family!.id}`)}>{app.t('dev.deleteLink')}</button>
+	{/if}
 	<button type="button" class="text-button" onclick={simulateOtherChange}>{app.t('dev.otherChange')}</button>
 	{#if otherChange}<p class="meta-line" role="status">{otherChange}</p>{/if}
 	<button type="button" class="text-button" onclick={simulateOtherTick}>{app.t('dev.otherTick')}</button>
@@ -113,4 +157,8 @@
 	.check { display: flex; align-items: center; gap: 8px; font-weight: 400; min-height: 44px; }
 	.row { display: flex; align-items: end; gap: 8px; }
 	.row label { flex: 1; margin: 0; }
+	.row { margin-bottom: 14px; }
+	fieldset { margin: 0 0 14px; padding: 10px 12px 0; border: 1px dashed var(--muted); border-radius: 8px; }
+	legend { padding: 0 4px; font-size: 0.875rem; font-weight: 700; }
+	.text-button { margin-bottom: 8px; }
 </style>

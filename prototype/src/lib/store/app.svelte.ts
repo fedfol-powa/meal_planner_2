@@ -47,6 +47,7 @@ class AppState {
 	}
 
 	signIn(userId: string) {
+		this.signedOutOnPurpose = false;
 		this.update((s) => {
 			s.settings.userId = userId;
 			s.settings.familyId = familyForUser(s.db, userId, s.settings.familyId);
@@ -54,7 +55,11 @@ class AppState {
 		this.selectedDate = null;
 	}
 
+	/** Set by a deliberate sign-out, so the redirect to /welcome does not remember the page left. */
+	signedOutOnPurpose = false;
+
 	signOut() {
+		this.signedOutOnPurpose = true;
 		this.update((s) => {
 			s.settings.guestLocale = this.locale;
 			s.settings.userId = null;

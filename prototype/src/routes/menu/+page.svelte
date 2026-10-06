@@ -7,6 +7,11 @@
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import MealActionList, { type EditorStage } from '#lib/components/MealActionList.svelte';
 	import MealEditor from '#lib/components/MealEditor.svelte';
+	import FamilySwitcher from '#lib/components/FamilySwitcher.svelte';
+	import SetupCard from '#lib/components/SetupCard.svelte';
+	import { errorKey } from '#lib/i18n/errors.ts';
+	import { roleOf } from '#lib/operations/family.ts';
+	import { generateFirstWeeks } from '#lib/operations/onboarding.ts';
 	import { setMealServings } from '#lib/operations/revision.ts';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import { isIsoDate } from '#lib/domain/calendar.ts';
@@ -15,7 +20,16 @@
 	import { app } from '#lib/store/app.svelte.ts';
 
 	let track: HTMLDivElement | undefined = $state();
-	let simulatedNotice = $state(false);
+	const isAdmin = $derived(!!app.family && roleOf(app.family, app.user.id) === 'family_admin');
+
+	// No weeks yet (e.g. a family created before round 4): administrators generate them now (simulated).
+	function generate() {
+		const result = generateFirstWeeks(app.db, app.ctx);
+		if (!result.ok) return app.notify(app.t(errorKey(result.error)));
+		app.update(() => {});
+		app.selectedDate = null;
+		app.notify(app.t('wizard.generated'));
+	}
 	let pickerOpen = $state(false);
 	// Meal being revised and the sheet stage shown (round 2).
 	let editing = $state<{ slotId: string; stage: EditorStage } | null>(null);
@@ -94,14 +108,16 @@
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.forbidden')} /></section>
 {:else if opening.value.kind === 'no_weeks'}
 	<section class="secondary-view app-view">
-		<StateNotice title={app.t('menu.noWeeks.title')} body={app.t('menu.noWeeks.body')}>
-			<button type="button" class="text-button primary" onclick={() => (simulatedNotice = true)}>{app.t('menu.noWeeks.action')}</button>
-			{#if simulatedNotice}<p class="meta-line" role="status">{app.t('menu.noWeeks.simulated')}</p>{/if}
+		<FamilySwitcher />
+		<StateNotice title={app.t('menu.noWeeks.title')} body={app.t(isAdmin ? 'menu.noWeeks.body' : 'menu.noWeeks.member')}>
+			{#if isAdmin}<button type="button" class="text-button primary" disabled={app.settings.offline} onclick={generate}>{app.t('menu.noWeeks.action')}</button>{/if}
 		</StateNotice>
 	</section>
 {:else if week && selected}
 	<section class="calendar app-view" aria-label={app.t('nav.menu')}>
 		<nav class="day-navigation" aria-label={app.t('menu.days')}>
+			<SetupCard />
+			<FamilySwitcher />
 			<div class="menu-toolbar">
 				<button type="button" class="month-button" data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
 				<div class="toolbar-actions">

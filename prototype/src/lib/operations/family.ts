@@ -131,7 +131,8 @@ export function setMeasurementSystem(db: DemoDatabase, ctx: OperationContext, sy
 export function updateFamilySettings(db: DemoDatabase, ctx: OperationContext, change: (settings: FamilySettings) => void): OpResult<FamilySettings> {
 	const found = writableFamily(db, ctx, true);
 	if (!found.ok) return found;
-	const next = structuredClone(found.value.settings);
+	// JSON copy: structuredClone cannot copy the reactive proxies of the app store.
+	const next: FamilySettings = JSON.parse(JSON.stringify(found.value.settings));
 	change(next);
 	if (settingsProblem(next)) return fail('invalid');
 	found.value.settings = next;

@@ -81,16 +81,17 @@ export function generateFirstWeeks(db: DemoDatabase, ctx: OperationContext): OpR
 }
 
 function planWeek(db: DemoDatabase, ctx: OperationContext, family: Family, startsOn: IsoDate): number {
-	const slots: MealSlot[] = [];
+	const draft: MealSlot[] = [];
 	for (const date of weekDates(startsOn)) {
 		for (const mealType of ['lunch', 'dinner'] as MealType[]) {
 			const setting = slotSetting(family.settings, date, mealType);
 			if (setting.servings === 0 || isMealPast(date, mealType, ctx.now)) continue;
-			slots.push({ id: `${family.id}-${date}-${mealType}`, date, mealType, recipeId: null, freeText: setting.fixedText, servings: setting.servings, note: null, updatedBy: null, updatedAt: null });
+			draft.push({ id: `${family.id}-${date}-${mealType}`, date, mealType, recipeId: null, freeText: setting.fixedText, servings: setting.servings, note: null, updatedBy: null, updatedAt: null });
 		}
 	}
-	const week = { id: `${family.id}-${startsOn}`, familyId: family.id, startsOn, generatedAt: ctx.now, slots };
-	db.weeks.push(week);
+	db.weeks.push({ id: `${family.id}-${startsOn}`, familyId: family.id, startsOn, generatedAt: ctx.now, slots: draft });
+	// Read back what was stored: reactive state (the app store) keeps its own copy of pushed objects.
+	const slots = db.weeks[db.weeks.length - 1].slots;
 
 	const constraint = (s: MealSlot) => {
 		const setting = slotSetting(family.settings, s.date, s.mealType);
