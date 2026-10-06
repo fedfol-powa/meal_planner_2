@@ -53,9 +53,9 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 
 | # | Percorso | Contenuto | Giro | Stato |
 |---|---|---|---|---|
-| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a quattro voci, dati demo, strumenti di prova | 1 | Tappa intermedia |
-| 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | Tappa intermedia rivista |
-| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | In sviluppo |
+| 0 | Fondamenta | Struttura dell'app, token e componenti dal riferimento, navbar a tre voci, dati demo, strumenti di prova | 1 | In review |
+| 1 | Menu | Oggi, settimane, calendario, schede dei pasti, pasti liberi e vuoti | 1 | In review |
+| 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | In review |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, avvisi, conflitti | Da definire | — |
 | 4 | Spesa | Selezione dei pasti, consolidamento, esclusioni, esportazioni, unità | Da definire | — |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
@@ -103,7 +103,7 @@ nel piano del primo giro.
 
 ## Giro 1: percorsi 0, 1 e 2
 
-Stato: in corso, tappa intermedia raggiunta il 6 ottobre 2026 (Fondamenta e Menu).
+Stato: in review dal 6 ottobre 2026 (tappa intermedia raggiunta e adeguamenti fatti).
 Piano approvato, esecuzione in questa sessione:
 [2026-10-06-prototipo-giro-1.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-1.md). Tappa intermedia concordata dopo
 Fondamenta e Menu, per un controllo veloce prima del Ricettario.
@@ -184,6 +184,31 @@ e 17, rilievo R3) e in `design.md`:
   selettore dei giorni, con selezionabili solo i giorni che hanno un menu;
 - Spesa fuori dalla navbar; il punto d'ingresso, probabilmente dal Menu con la
   selezione dei pasti, si decide nel percorso Spesa.
+
+### Rotte e componenti del giro
+
+- **Rotte:** `/menu`, `/recipes`, `/recipes/[id]` (`?from=menu&day=` per tornare al
+  giorno, `?servings=` per le porzioni), `/you`.
+- **Componenti:** `DaySelector`, `DatePicker`, `MealCard`, `IngredientList`,
+  `RatingStars` (varianti `inline` e `panel`), `RecipeCard`, `RecipeFilters`,
+  `StateNotice`, `OfflineBanner`, `BottomNav`, `DevPanel`, `IconLibrary`.
+- **Operazioni simulate:** `getOpeningTarget`, `getWeekView`, `getMenuDates`,
+  `setMealCooked`, `searchRecipes`, `getRecipeDetail`, `rateRecipe`
+  (`prototype/src/lib/operations`).
+
+### Domande per la review
+
+1. Variante del voto da adottare: stelle dirette o riepilogo con pannello.
+2. Etichetta della voce «Tu» / «You».
+3. Titolo della scheda collegato alla fonte, come nel riferimento approvato, e link
+   separato "Scheda ricetta": confermare o invertire.
+4. Pulsante "Segna come non cucinato" visibile su ogni pasto passato: va bene così o
+   meglio meno evidente?
+5. Ricette `casa` con URL (R4) e ricette in bozza nei menu passati.
+6. Quantità non numeriche lasciate nel testo italiano della fonte anche in inglese, e
+   quantità non scalabili (per esempio "3 matasse") che restano invariate cambiando le
+   porzioni.
+7. Filtro per stagione non incluso: i dati di origine non hanno la stagione.
 
 ### Fuori dal giro
 
