@@ -98,11 +98,17 @@
 								</button>
 							</li>
 						{/if}
+						<li>
+							<button type="button" disabled={app.settings.offline} onclick={() => onStage('swap')}>
+								<svg class="icon" aria-hidden="true"><use href="#icon-swap" /></svg>{app.t('revision.swap')}
+							</button>
+						</li>
 					</ul>
 				{/snippet}
 			</RecipePicker>
 		{:else if stage === 'swap'}
 			<SwapPicker {week} slotId={meal.slotId} onPick={(other) => done(app.applyRevision(swapMeals(app.db, app.ctx, meal.slotId, other), app.t('toast.swapped')))} />
+			<div class="buttons"><button type="button" class="text-button" onclick={() => onStage('picker')}>{app.t('common.back')}</button></div>
 		{:else if stage === 'exclude' && meal.recipe}
 			<p class="body">{app.t('revision.excludeBody', { recipe: meal.recipe.name })}</p>
 			<div class="buttons">

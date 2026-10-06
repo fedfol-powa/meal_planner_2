@@ -382,12 +382,15 @@ successivi e alla fine ricomincia dai primi.
 - **Voto nei suggerimenti** solo visualizzato: da riportare nella specifica,
   sezione 5, che oggi chiede di poter votare da ogni voto mostrato.
 - **Pannello sotto la matita**, raccolto e riordinato: Porzioni, Cambia ricetta,
-  Scambia con un altro pasto, Nota.
+  Scambia con un altro pasto, Nota (poi lo scambio è passato dentro Cambia ricetta).
 - **Cambia ricetta** contiene i suggerimenti, "Proponimene altri" (rigenera altri
   cinque suggerimenti tra cui scegliere, dentro la stessa vista, senza sostituire il
   piatto), "Segna come pasto libero", "Non proporre più" e la ricerca nel ricettario.
-- **Suggerimenti** in schede scorrevoli; "Segna come pasto libero" e "Non proporre
-  più" in cima a Cambia ricetta, prima dei suggerimenti.
+- **Suggerimenti** in schede scorrevoli; "Segna come pasto libero", "Non proporre
+  più" e "Scambia con un altro pasto" in cima a Cambia ricetta, prima dei
+  suggerimenti; il pannello sotto la matita resta con Porzioni, Cambia ricetta e Nota.
+- Corretti dalla prova su iPhone: contenuto del foglio visibile sopra il titolo
+  durante lo scorrimento e anello di focus sulla × all'apertura.
 - Confermati i default (Annulla per 6 secondi, nota fino a 200 caratteri, proposte
   rapide del pasto libero), la regola simulata dei suggerimenti, l'autore
   dell'annullamento come ultima modifica e le decisioni della preparazione.

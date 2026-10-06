@@ -8,7 +8,7 @@
 	import { app } from '#lib/store/app.svelte.ts';
 	import ServingsStepper from './ServingsStepper.svelte';
 
-	// Panel under the pencil, order agreed in the round 2 review: servings, change recipe, swap, note.
+	// Panel under the pencil, order agreed in the round 2 review: servings, change recipe, note.
 	let { meal, onOpen, onServings }: {
 		meal: MealView;
 		onOpen: (stage: EditorStage) => void;
@@ -41,11 +41,6 @@
 	<li>
 		<button type="button" disabled={offline} aria-haspopup="dialog" onclick={() => onOpen('picker')}>
 			<svg class="icon" aria-hidden="true"><use href="#icon-search" /></svg>{meal.kind === 'recipe' ? app.t('revision.change') : app.t('meal.chooseRecipe')}
-		</button>
-	</li>
-	<li>
-		<button type="button" disabled={offline} aria-haspopup="dialog" onclick={() => onOpen('swap')}>
-			<svg class="icon" aria-hidden="true"><use href="#icon-swap" /></svg>{app.t('revision.swap')}
 		</button>
 	</li>
 	<li>

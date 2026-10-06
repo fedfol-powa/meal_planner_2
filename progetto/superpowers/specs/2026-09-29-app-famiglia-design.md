@@ -608,8 +608,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   senza menu non sono selezionabili.
 - **Azioni sullo slot**, confermate nel secondo giro del prototipo (6 ottobre 2026):
   cambia porzioni; cambia ricetta (cinque suggerimenti, "proponimene altri", ricerca con
-  filtri), segna libero con testo, non proporre più; scambia con un altro slot della
-  stessa settimana; nota; vota. Valgono per pasti passati, in corso e futuri e per slot
+  filtri), che raccoglie anche segna libero con testo, non proporre più e scambia con un
+  altro slot della stessa settimana; nota; vota. Valgono per pasti passati, in corso e futuri e per slot
   liberi e vuoti.
   - **Scambio:** si spostano ricetta o testo libero e nota; le porzioni restano allo slot,
     perché dipendono da chi c'è quel giorno. Scambiare o cambiare piatto azzera "non
@@ -1180,9 +1180,9 @@ il perimetro descritto in `design/percorsi.md` e il prototipo in `prototype/`.
 
 **Secondo giro approvato il 6 ottobre 2026:** Revisione dei pasti. Le azioni si aprono
 dalla matita nel footer della scheda, in un pannello sotto la scheda con porzioni,
-cambia ricetta, scambia e nota; cambio ricetta, scambio, pasto libero, nota ed
-esclusione si completano in un foglio dal basso. "Cambia ricetta" mostra in cima pasto
-libero e "non proporre più", poi i suggerimenti in schede scorrevoli con
+cambia ricetta e nota; cambio ricetta, scambio, pasto libero, nota ed esclusione si
+completano in un foglio dal basso. "Cambia ricetta" mostra in cima pasto libero,
+"non proporre più" e "scambia con un altro pasto", poi i suggerimenti in schede scorrevoli con
 "proponimene altri" e infine la ricerca. Dopo ogni modifica un avviso offre "Annulla".
 
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
@@ -1308,7 +1308,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
-| 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda |
+| 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda (porzioni, cambia ricetta, nota), con pasto libero, esclusione e scambio dentro "Cambia ricetta" |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026

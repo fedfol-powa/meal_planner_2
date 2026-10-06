@@ -188,12 +188,14 @@ seguito da voto in riga, descrizione, durata, porzioni, ingredienti e storico.
 
 **Revisione dei pasti (6 ottobre 2026).** L'ultima icona del footer è una matita: apre
 sotto il footer, come voto e ingredienti, un pannello con porzioni (− e + da 44 px),
-"Cambia ricetta", "Scambia con un altro pasto" e "Nota", in righe da 48 px con icona e
+"Cambia ricetta" e "Nota", in righe da 48 px con icona e
 separatori da 1 px. Pasti liberi e slot vuoti hanno il footer con la sola matita; lo
 slot vuoto ha anche il pulsante scuro "Scegli una ricetta". Le azioni che chiedono una
 scelta si aprono in un foglio dal basso sul fondo crema, con titolo in Agrandir Tight e
-chiusura a destra (al centro dello schermo da 768 px). "Cambia ricetta" ha in cima
-"Segna come pasto libero" e "Non proporre più", poi i suggerimenti in schede
+chiusura a destra (al centro dello schermo da 768 px); il titolo resta fermo mentre il
+contenuto scorre sotto e all'apertura il focus va al foglio, non al pulsante di
+chiusura. "Cambia ricetta" ha in cima
+"Segna come pasto libero", "Non proporre più" e "Scambia con un altro pasto", poi i suggerimenti in schede
 scorrevoli (banner 3:1, titolo, descrizione su due righe, durata, gruppo e voto solo
 da leggere), il pulsante bordato "Proponimene altri" e la ricerca con lo stesso campo e
 gli stessi filtri del ricettario. Dopo ogni modifica compare in basso, sopra la
