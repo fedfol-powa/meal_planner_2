@@ -1,5 +1,5 @@
-import { isMealPast, isWeekVisible, mondayOf, weekDates, weekStatus } from '#lib/domain/calendar.ts';
-import type { DemoDatabase, Family, IsoDate, Locale, MealSlot, Week, WeekStatus } from '#lib/domain/types.ts';
+import { isMealPast, isWeekVisible, mondayOf, weekDates } from '#lib/domain/calendar.ts';
+import type { DemoDatabase, Family, IsoDate, Locale, MealSlot, Week } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { familyFor, localeOf, ratingSummary, recipeSummary, scaledIngredients, visibleRecipe } from './access';
 import type { DayView, MealView, OpeningTarget, WeekView } from './views';
@@ -29,11 +29,12 @@ export function getOpeningTarget(db: DemoDatabase, ctx: OperationContext): OpRes
 	return ok({ kind: 'day', date: last.startsOn, weekStartsOn: last.startsOn });
 }
 
-function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, locale: Locale, slot: MealSlot, status: WeekStatus): MealView {
+function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, locale: Locale, slot: MealSlot): MealView {
 	const recipe = slot.recipeId ? db.recipes.find((r) => r.id === slot.recipeId) ?? null : null;
 	const isPast = isMealPast(slot.date, slot.mealType, ctx.now);
 	const kind = recipe ? 'recipe' : slot.freeText ? 'free' : 'empty';
-	const cooked = kind === 'recipe' ? (slot.cooked ?? (status === 'closed' ? true : null)) : null;
+	// No week closing (spec section 2): a past meal counts as cooked unless marked otherwise.
+	const cooked = kind === 'recipe' ? (slot.cooked ?? (isPast ? true : null)) : null;
 	const author = slot.updatedBy && family.members.some((m) => m.userId === slot.updatedBy)
 		? db.users.find((u) => u.id === slot.updatedBy)?.displayName ?? null
 		: null;
@@ -49,7 +50,7 @@ function mealView(db: DemoDatabase, family: Family, ctx: OperationContext, local
 		note: slot.note,
 		isPast,
 		cooked,
-		canMarkNotCooked: kind === 'recipe' && isPast && (status === 'in_progress' || status === 'pending_close'),
+		canMarkNotCooked: kind === 'recipe' && isPast,
 		canRate: recipe ? visibleRecipe(db, family, recipe.id) !== null : false,
 		rating: recipe ? ratingSummary(db, family, ctx.userId, recipe.id) : null,
 		lastChange: slot.updatedBy && slot.updatedAt ? { userName: author, at: slot.updatedAt } : null
@@ -63,21 +64,17 @@ export function getWeekView(db: DemoDatabase, ctx: OperationContext, startsOn: I
 	const index = weeks.findIndex((w) => w.startsOn === mondayOf(startsOn));
 	if (index === -1) return fail('not_found');
 	const week = weeks[index];
-	const status = weekStatus(week, ctx.now);
 	const locale = localeOf(db, ctx);
 	const days: DayView[] = weekDates(week.startsOn).map((date) => ({
 		date,
 		meals: week.slots
 			.filter((s) => s.date === date)
 			.sort((a, b) => MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType])
-			.map((s) => mealView(db, family, ctx, locale, s, status))
+			.map((s) => mealView(db, family, ctx, locale, s))
 	}));
 	return ok({
 		startsOn: week.startsOn,
-		status,
 		days,
-		previous: weeks[index - 1]?.startsOn ?? null,
-		next: weeks[index + 1]?.startsOn ?? null,
 		measurementSystem: family.measurementSystem
 	});
 }
@@ -89,13 +86,20 @@ export function setMealCooked(db: DemoDatabase, ctx: OperationContext, slotId: s
 	const week = visibleWeeks(db, family, ctx).find((w) => w.slots.some((s) => s.id === slotId));
 	const slot = week?.slots.find((s) => s.id === slotId);
 	if (!week || !slot) return fail('not_found');
-	const status = weekStatus(week, ctx.now);
-	const view = mealView(db, family, ctx, localeOf(db, ctx), slot, status);
+	const view = mealView(db, family, ctx, localeOf(db, ctx), slot);
 	if (!view.canMarkNotCooked) return fail('not_allowed');
 	slot.cooked = cooked;
 	slot.updatedBy = ctx.userId;
 	slot.updatedAt = ctx.now;
-	return ok(mealView(db, family, ctx, localeOf(db, ctx), slot, status));
+	return ok(mealView(db, family, ctx, localeOf(db, ctx), slot));
+}
+
+/** Days that have at least one meal, for the date picker (only these are selectable). */
+export function getMenuDates(db: DemoDatabase, ctx: OperationContext): OpResult<IsoDate[]> {
+	const family = familyFor(db, ctx);
+	if (!family) return fail('forbidden');
+	const dates = new Set(visibleWeeks(db, family, ctx).flatMap((w) => w.slots.map((s) => s.date)));
+	return ok([...dates].sort());
 }
 
 export function pickSelectedDate(week: WeekView, preferred: IsoDate | null, opening: IsoDate | null): IsoDate {

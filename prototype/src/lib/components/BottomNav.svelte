@@ -6,7 +6,6 @@
 	const items: { href: string; icon: string; label: MessageKey }[] = [
 		{ href: '/menu', icon: 'calendar', label: 'nav.menu' },
 		{ href: '/recipes', icon: 'book', label: 'nav.recipes' },
-		{ href: '/shopping', icon: 'bag', label: 'nav.shopping' },
 		{ href: '/you', icon: 'user', label: 'nav.you' }
 	];
 	const current = (href: string) => page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);

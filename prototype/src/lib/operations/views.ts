@@ -6,8 +6,7 @@ import type {
 	ProteinGroup,
 	Quantity,
 	RecipeMealType,
-	SourceType,
-	WeekStatus
+	SourceType
 } from '#lib/domain/types.ts';
 
 export interface RatingSummary {
@@ -65,10 +64,7 @@ export interface DayView {
 
 export interface WeekView {
 	startsOn: IsoDate;
-	status: WeekStatus;
 	days: DayView[];
-	previous: IsoDate | null;
-	next: IsoDate | null;
 	measurementSystem: MeasurementSystem;
 }
 

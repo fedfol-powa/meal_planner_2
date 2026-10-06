@@ -110,7 +110,7 @@ const byId = new Map(recipes.map((r) => [r.id, r]));
 const cookedOf = (recipeId: string, startsOn: string, dayIndex: number, meal: 'pranzo' | 'cena') =>
 	originRecipes.find((r) => r.id === recipeId)?.storico.find((s) => s.settimana === startsOn && s.pasto === `${DAY_KEYS[dayIndex]}-${meal}`)?.cucinata ?? null;
 
-function weekFromMenu(startsOn: string, closedAt: string | null): Week {
+function weekFromMenu(startsOn: string): Week {
 	const menu = parse(readFileSync(resolve(origin, `menu/${startsOn}/menu.yaml`), 'utf8')) as OriginMenu;
 	const slots: MealSlot[] = [];
 	menu.giorni.forEach((day, dayIndex) => {
@@ -132,13 +132,13 @@ function weekFromMenu(startsOn: string, closedAt: string | null): Week {
 			});
 		}
 	});
-	return { id: `week-${startsOn}`, familyId: 'family-main', startsOn, generatedAt: `${addDays(startsOn, -5)}T20:00`, closedAt, slots };
+	return { id: `week-${startsOn}`, familyId: 'family-main', startsOn, generatedAt: `${addDays(startsOn, -5)}T20:00`, slots };
 }
 
 const weeks = [
-	weekFromMenu('2026-09-21', '2026-09-30T20:00'),
-	weekFromMenu('2026-09-28', null),
-	weekFromMenu('2026-10-05', null)
+	weekFromMenu('2026-09-21'),
+	weekFromMenu('2026-09-28'),
+	weekFromMenu('2026-10-05')
 ];
 
 function draftWeek(template: Week, recent: Week[]): Week {
@@ -154,7 +154,7 @@ function draftWeek(template: Week, recent: Week[]): Week {
 		if (pick) used.add(pick.id);
 		return { ...base, recipeId: pick?.id ?? null };
 	});
-	return { id: `week-${startsOn}`, familyId: 'family-main', startsOn, generatedAt: '2026-10-07T20:00', closedAt: null, slots };
+	return { id: `week-${startsOn}`, familyId: 'family-main', startsOn, generatedAt: '2026-10-07T20:00', slots };
 }
 
 weeks.push(draftWeek(weeks[2], weeks.slice(1)));

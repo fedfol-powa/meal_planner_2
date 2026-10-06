@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createInitial } from '#lib/store/persistence.ts';
 import type { DemoDatabase } from '#lib/domain/types.ts';
 import type { OperationContext } from './context';
-import { getOpeningTarget, getWeekView, pickSelectedDate, setMealCooked } from './meals';
+import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, setMealCooked } from './meals';
 
 let db: DemoDatabase;
 const ctx = (over: Partial<OperationContext> = {}): OperationContext => ({
@@ -28,19 +28,15 @@ describe('getOpeningTarget', () => {
 });
 
 describe('getWeekView', () => {
-	it('builds seven days with status and neighbours, hiding the not yet generated draft', () => {
+	it('builds seven days and hides the week not yet generated', () => {
 		const view = getWeekView(db, ctx(), '2026-10-05');
 		if (!view.ok) throw new Error(view.error);
-		expect(view.value.status).toBe('in_progress');
 		expect(view.value.days).toHaveLength(7);
-		expect(view.value.previous).toBe('2026-09-28');
-		expect(view.value.next).toBeNull();
+		expect(view.value).not.toHaveProperty('status');
+		expect(getWeekView(db, ctx(), '2026-10-12')).toEqual({ ok: false, error: 'not_found' });
 	});
-	it('shows the draft after Wednesday 20:00', () => {
-		const view = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-05');
-		expect(view.ok && view.value.next).toBe('2026-10-12');
-		const draft = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-12');
-		expect(draft.ok && draft.value.status).toBe('draft');
+	it('shows the generated week after Wednesday 20:00', () => {
+		expect(getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-12').ok).toBe(true);
 	});
 	it('marks past meals, free meals, empty slots and last changes', () => {
 		const view = getWeekView(db, ctx({ now: '2026-10-08T09:00' }), '2026-10-05');
@@ -73,26 +69,30 @@ describe('getWeekView', () => {
 		const meal = view.ok ? view.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-08-lunch') : null;
 		expect(meal?.lastChange?.userName).toBeNull();
 	});
-	it('closes the previous week automatically on Wednesday at 20:00 and treats unknown cooked as cooked', () => {
-		const view = getWeekView(db, ctx({ now: '2026-10-07T20:00' }), '2026-09-28');
+	it('treats past meals with unknown cooked as cooked, without any week closing', () => {
+		const view = getWeekView(db, ctx(), '2026-09-28');
 		if (!view.ok) throw new Error(view.error);
-		expect(view.value.status).toBe('closed');
-		expect(view.value.days.flatMap((d) => d.meals).filter((m) => m.kind === 'recipe').every((m) => m.cooked !== null)).toBe(true);
+		expect(view.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-02-dinner')?.cooked).toBe(true);
+		const future = getWeekView(db, ctx(), '2026-10-05');
+		expect(future.ok && future.value.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-09-dinner')?.cooked).toBeNull();
 	});
+
 });
 
 describe('setMealCooked', () => {
 	it('marks a past meal as not cooked in a week pending close and records the author', () => {
-		const result = setMealCooked(db, ctx(), '2026-10-02-dinner', false);
-		expect(result.ok && result.value.cooked).toBe(false);
+		expect(setMealCooked(db, ctx(), '2026-10-02-dinner', false)).toMatchObject({ ok: true, value: { cooked: false } });
 		const slot = db.weeks.flatMap((w) => w.slots).find((s) => s.id === '2026-10-02-dinner')!;
 		expect(slot).toMatchObject({ cooked: false, updatedBy: 'user-federico', updatedAt: '2026-10-06T12:00' });
 	});
-	it('refuses future meals, closed weeks and offline use', () => {
+	it('allows not cooked on past meals of any week, including September', () => {
+		expect(setMealCooked(db, ctx(), '2026-09-22-dinner', false)).toMatchObject({ ok: true, value: { cooked: false } });
+	});
+	it('refuses future meals and offline use', () => {
 		expect(setMealCooked(db, ctx(), '2026-10-09-dinner', false)).toEqual({ ok: false, error: 'not_allowed' });
-		expect(setMealCooked(db, ctx(), '2026-09-22-dinner', false)).toEqual({ ok: false, error: 'not_allowed' });
 		expect(setMealCooked(db, ctx({ offline: true }), '2026-10-02-dinner', false)).toEqual({ ok: false, error: 'offline' });
 	});
+
 });
 
 describe('pickSelectedDate', () => {
@@ -103,5 +103,21 @@ describe('pickSelectedDate', () => {
 		expect(pickSelectedDate(view.value, '2026-09-30', '2026-10-06')).toBe('2026-10-06');
 		expect(pickSelectedDate(view.value, '2026-09-30', '2026-09-30')).toBe('2026-10-05');
 		expect(pickSelectedDate(view.value, null, null)).toBe('2026-10-05');
+	});
+});
+
+describe('getMenuDates', () => {
+	it('lists the days that have meals, sorted, without weeks not yet generated', () => {
+		const result = getMenuDates(db, ctx());
+		if (!result.ok) throw new Error(result.error);
+		expect(result.value[0]).toBe('2026-09-21');
+		expect(result.value.at(-1)).toBe('2026-10-11');
+		expect(new Set(result.value).size).toBe(result.value.length);
+		expect([...result.value].sort()).toEqual(result.value);
+	});
+	it('includes the generated week once visible and refuses non members', () => {
+		const later = getMenuDates(db, ctx({ now: '2026-10-08T09:00' }));
+		expect(later.ok && later.value.at(-1)).toBe('2026-10-18');
+		expect(getMenuDates(db, ctx({ userId: 'user-tom', familyId: 'family-grandparents' }))).toEqual({ ok: false, error: 'forbidden' });
 	});
 });

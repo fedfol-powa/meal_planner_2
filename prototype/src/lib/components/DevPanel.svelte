@@ -10,7 +10,7 @@
 </script>
 
 <button class="dev-toggle" type="button" onclick={() => dialog.showModal()}>
-	<svg class="icon" aria-hidden="true"><use href="#icon-tools" /></svg>{app.t('dev.open')}
+	<svg class="icon" aria-hidden="true"><use href="#icon-tools" /></svg><span class="toggle-label">{app.t('dev.open')}</span>
 </button>
 
 <dialog class="dev-panel" bind:this={dialog} aria-labelledby="dev-title">
@@ -66,8 +66,9 @@
 </dialog>
 
 <style>
-	.dev-toggle { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 8px; z-index: 20; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px; border: 1px dashed var(--ink); border-radius: 8px; background: #fff8d6; color: var(--ink); font: 700 0.75rem/1.3 var(--text-font); opacity: 0.85; cursor: pointer; }
+	.dev-toggle { position: fixed; bottom: calc(88px + env(safe-area-inset-bottom)); right: 8px; z-index: 20; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px; border: 1px dashed var(--ink); border-radius: 8px; background: #fff8d6; color: var(--ink); font: 700 0.75rem/1.3 var(--text-font); opacity: 0.85; cursor: pointer; }
 	.dev-toggle .icon { width: 14px; height: 14px; }
+	@media (max-width: 767px) { .toggle-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } }
 	.dev-panel { width: min(100% - 32px, 420px); max-height: calc(100dvh - 32px); padding: 20px; border: 2px dashed var(--ink); border-radius: 8px; background: #fffdf2; }
 	.dev-panel::backdrop { background: rgb(0 0 0 / 30%); }
 	header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }

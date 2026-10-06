@@ -36,7 +36,6 @@
 
 	<div class="meal-content">
 		<div class="status-row">
-			{#if meal.isPast}<span class="label-chip neutral">{app.t('meal.past')}</span>{/if}
 			{#if meal.cooked === false}<span class="label-chip neutral">{app.t('meal.notCooked')}</span>{/if}
 		</div>
 

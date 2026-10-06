@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import DaySelector from '#lib/components/DaySelector.svelte';
 	import MealCard from '#lib/components/MealCard.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
-	import WeekHeader from '#lib/components/WeekHeader.svelte';
+	import DatePicker from '#lib/components/DatePicker.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import type { MessageKey } from '#lib/i18n/messages.ts';
-	import { getOpeningTarget, getWeekView, pickSelectedDate, setMealCooked } from '#lib/operations/meals.ts';
+	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, setMealCooked } from '#lib/operations/meals.ts';
 	import type { MealView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
@@ -18,11 +17,10 @@
 
 	const opening = $derived(getOpeningTarget(app.db, app.ctx));
 	const openingDay = $derived(opening.ok && opening.value.kind === 'day' ? opening.value : null);
-	const weekParam = $derived(page.url.searchParams.get('week'));
 	const dayParam = $derived(page.url.searchParams.get('day'));
-	const weekResult = $derived(openingDay ? getWeekView(app.db, app.ctx, weekParam ?? dayParam ?? app.selectedDate ?? openingDay.weekStartsOn) : null);
+	const weekResult = $derived(openingDay ? getWeekView(app.db, app.ctx, app.selectedDate ?? dayParam ?? openingDay.weekStartsOn) : null);
 	const week = $derived(weekResult?.ok ? weekResult.value : null);
-	const selected = $derived(week ? pickSelectedDate(week, dayParam ?? app.selectedDate, openingDay?.date ?? null) : null);
+	const selected = $derived(week ? pickSelectedDate(week, app.selectedDate ?? dayParam, openingDay?.date ?? null) : null);
 
 	function scrollToDate(date: string, behavior: ScrollBehavior) {
 		track?.querySelector(`#day-${date}`)?.scrollIntoView({ behavior, inline: 'start', block: 'nearest' });
@@ -44,9 +42,14 @@
 		}, 120);
 	}
 
-	function navigateWeek(startsOn: string) {
-		app.selectedDate = null;
-		goto(`/menu?week=${startsOn}`, { reset: false });
+	const menuDates = $derived.by(() => {
+		const result = getMenuDates(app.db, app.ctx);
+		return result.ok ? result.value : [];
+	});
+
+	// The chosen day lives in app.selectedDate; `?day=` only seeds it when arriving from a link.
+	function pickDate(date: string) {
+		app.selectedDate = date;
 	}
 
 	function toggleCooked(meal: MealView) {
@@ -74,8 +77,10 @@
 {:else if week && selected}
 	<section class="calendar app-view" aria-label={app.t('nav.menu')}>
 		<nav class="day-navigation" aria-label={app.t('menu.days')}>
-			<WeekHeader {week} onNavigate={navigateWeek} />
-			<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
+			<div class="day-row">
+				<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
+				<DatePicker dates={menuDates} {selected} onSelect={pickDate} />
+			</div>
 			{#if actionError}<p class="meta-line" role="alert">{app.t(actionError)}</p>{/if}
 		</nav>
 		<!-- Scrollable region must be focusable for keyboard scrolling, as in the approved reference. -->
@@ -96,3 +101,8 @@
 {:else}
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.notFound')} /></section>
 {/if}
+
+<style>
+	.day-row { display: flex; align-items: stretch; gap: 8px; }
+	.day-row :global(.day-links) { flex: 1; min-width: 0; }
+</style>

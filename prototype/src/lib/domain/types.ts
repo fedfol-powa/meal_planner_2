@@ -9,7 +9,6 @@ export type ProteinGroup = 'fish' | 'white_meat' | 'meat' | 'legumes' | 'eggs' |
 export type GlobalRole = 'recipe_curator' | 'app_admin';
 export type FamilyRole = 'family_admin' | 'member';
 export type Channel = 'web' | 'mcp';
-export type WeekStatus = 'draft' | 'in_progress' | 'pending_close' | 'closed';
 /** Calendar date, YYYY-MM-DD. */
 export type IsoDate = string;
 /** Wall-clock time in the family's time zone, YYYY-MM-DDTHH:mm. Compared as strings. */
@@ -100,7 +99,6 @@ export interface Week {
 	familyId: string;
 	startsOn: IsoDate;
 	generatedAt: LocalDateTime;
-	closedAt: LocalDateTime | null;
 	slots: MealSlot[];
 }
 

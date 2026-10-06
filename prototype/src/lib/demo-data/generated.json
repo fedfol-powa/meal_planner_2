@@ -6379,7 +6379,6 @@
 			"familyId": "family-main",
 			"startsOn": "2026-09-21",
 			"generatedAt": "2026-09-16T20:00",
-			"closedAt": "2026-09-30T20:00",
 			"slots": [
 				{
 					"id": "2026-09-21-lunch",
@@ -6556,7 +6555,6 @@
 			"familyId": "family-main",
 			"startsOn": "2026-09-28",
 			"generatedAt": "2026-09-23T20:00",
-			"closedAt": null,
 			"slots": [
 				{
 					"id": "2026-09-28-lunch",
@@ -6733,7 +6731,6 @@
 			"familyId": "family-main",
 			"startsOn": "2026-10-05",
 			"generatedAt": "2026-09-30T20:00",
-			"closedAt": null,
 			"slots": [
 				{
 					"id": "2026-10-05-lunch",
@@ -6910,7 +6907,6 @@
 			"familyId": "family-main",
 			"startsOn": "2026-10-12",
 			"generatedAt": "2026-10-07T20:00",
-			"closedAt": null,
 			"slots": [
 				{
 					"id": "2026-10-12-lunch",
