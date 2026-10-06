@@ -106,6 +106,7 @@
 				<button type="button" class="month-button" data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
 				<div class="toolbar-actions">
 					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} />
+					<a class="toolbar-link" href="/shopping" aria-label={app.t('menu.shopping')}><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg></a>
 				</div>
 			</div>
 			<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
@@ -147,4 +148,6 @@
 	.month-button { min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); text-transform: capitalize; cursor: pointer; }
 	.month-button[aria-expanded='true'] { color: var(--green); }
 	.toolbar-actions { display: flex; align-items: center; gap: 4px; }
+	.toolbar-link { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--ink); }
+	.toolbar-link .icon { width: 26px; height: 26px; }
 </style>

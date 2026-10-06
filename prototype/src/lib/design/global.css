@@ -130,6 +130,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
   .ingredient-list li { break-inside: avoid; padding-block: 4px; font-size: 0.875rem; }
   .secondary-view { padding: 0; }
   .recipe-list, .recipe-row.has-photo { display: block; }
+  .dev-toggle, .toast-region, .offline-banner, .no-print { display: none !important; }
 }
 
 /* Prototype additions, same visual language. */
