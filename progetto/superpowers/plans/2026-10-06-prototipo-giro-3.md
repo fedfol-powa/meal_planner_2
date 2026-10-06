@@ -292,3 +292,37 @@ Eseguita in questa sessione senza subagenti: 169 test e controllo dei tipi verdi
 prova nel browser a 390 px di elenco, lista di Anna, spunta, voce libera, "Spesa
 fatta", storico, nuova lista, "Modifica pasti" e spunta di un altro membro dal
 pannello Prova. Domande per la review in `design/percorsi.md`.
+
+## Seconda revisione: lista settimanale di default (6 ottobre 2026)
+
+Proposta dell'utente, discussa e approvata in tutti i punti.
+
+12. **Lista settimanale:** nasce con ogni settimana generata (dal job del mercoledì o
+    su richiesta), legata a quella settimana, una sola per famiglia e settimana anche
+    se la generazione si ripete; contiene tutti i pasti della settimana e li segue.
+    Nome "Settimana 12–18 ottobre"; autore l'app.
+13. **Archiviazione a fine settimana:** la lista settimanale va nello storico quando
+    la sua settimana finisce (dopo la cena di domenica), non al mercoledì; da mercoledì
+    a domenica convivono due liste settimanali aperte.
+14. **Sovrapposizioni accettate:** una lista creata a mano può contenere pasti già
+    nella settimanale; nessun segno "già in lista" (si spunta "ce l'ho già").
+15. **Storico contenuto:** una lista settimanale mai toccata a fine settimana viene
+    eliminata invece che archiviata; lo storico conserva le ultime 12 liste chiuse.
+16. **Eliminata resta eliminata:** una lista settimanale eliminata non viene ricreata.
+    "Nuova lista" resta invariata.
+
+### Simulazione e attività
+
+- Il job non c'è: `runShoppingListJobs(db, now)` (crea le liste settimanali delle
+  settimane visibili, archivia o elimina quelle finite, applica il limite dello
+  storico) gira all'avvio del prototipo e a ogni cambio di stato, quindi anche
+  cambiando data e ora dal pannello Prova. Registro delle settimanali create per non
+  ricrearle; versione dello stato incrementata.
+- `ShoppingList` con `weekId`; autore `null` = l'app ("Creata dall'app").
+- Dati demo: settimanale del 28 settembre spuntata da Federico e chiusa nello storico,
+  settimanale del 5 ottobre aperta e intatta, lista a mano di Anna.
+
+- [ ] Test (prima) e operazioni; seed; commit.
+- [ ] Viste: nome e autore, ordine delle liste aperte; commit.
+- [ ] Verifica con la data simulata (mercoledì 20:00, domenica 23:00, lunedì);
+      documenti; anteprima sulla rete locale.

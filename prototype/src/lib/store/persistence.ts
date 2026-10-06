@@ -12,17 +12,17 @@ export interface PrototypeSettings {
 }
 
 export interface Persisted {
-	version: 11;
+	version: 12;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
 // Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
-export const STORAGE_KEY = 'app-famiglia-prototype-v11';
+export const STORAGE_KEY = 'app-famiglia-prototype-v12';
 
 export function createInitial(): Persisted {
 	return {
-		version: 11,
+		version: 12,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -36,7 +36,7 @@ export function createInitial(): Persisted {
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	if (!v || v.version !== 11 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	if (!v || v.version !== 12 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
 	const s = v.settings;
 	return (
 		!!s &&
@@ -47,7 +47,8 @@ function isPersisted(value: unknown): value is Persisted {
 		Array.isArray(v.db.exclusions) &&
 		Array.isArray(v.db.mealChanges) &&
 		Array.isArray(v.db.familyIngredients) &&
-		Array.isArray(v.db.shoppingLists)
+		Array.isArray(v.db.shoppingLists) &&
+		Array.isArray(v.db.weeklyLists)
 	);
 }
 

@@ -169,6 +169,8 @@ export interface ShoppingManualItem {
 export interface ShoppingList {
 	id: string;
 	familyId: string;
+	/** Set on the weekly list the app creates with each generated week (second revision). */
+	weekId: string | null;
 	status: 'open' | 'closed';
 	slotIds: string[];
 	checks: ShoppingCheck[];
@@ -177,11 +179,18 @@ export interface ShoppingList {
 	manualItems: ShoppingManualItem[];
 	/** Slot contents at closing: a closed list no longer follows the meals. */
 	frozenSlots: ShoppingListSlot[] | null;
-	createdBy: string;
+	/** null means the app (weekly list); updatedBy stays null until a member touches the list. */
+	createdBy: string | null;
 	createdAt: LocalDateTime;
-	updatedBy: string;
+	updatedBy: string | null;
 	updatedAt: LocalDateTime;
 	closedAt: LocalDateTime | null;
+}
+
+/** Weeks whose weekly list was already created, so a deleted one is not created again. */
+export interface WeeklyListRecord {
+	familyId: string;
+	weekId: string;
 }
 
 /** The editable part of a slot, as stored in the change log. */
@@ -210,4 +219,5 @@ export interface DemoDatabase {
 	mealChanges: MealChange[];
 	familyIngredients: FamilyIngredient[];
 	shoppingLists: ShoppingList[];
+	weeklyLists: WeeklyListRecord[];
 }

@@ -12,6 +12,8 @@ import {
 	getShoppingLists,
 	removeManualItem,
 	reopenShoppingList,
+	runShoppingListJobs,
+	MAX_HISTORY,
 	restoreShoppingList,
 	setShoppingListMeals,
 	toggleAddedBack,
@@ -37,12 +39,13 @@ beforeEach(() => {
 });
 
 describe('demo lists', () => {
-	it('has an open list by Anna and a closed one in the history', () => {
+	it('has the weekly list of this week first, then the list made by Anna, and a closed weekly list', () => {
 		const lists = value(getShoppingLists(db, ctx()));
-		expect(lists.open).toHaveLength(1);
-		expect(lists.open[0]).toMatchObject({ lastChange: { userName: 'Anna' } });
-		expect(lists.open[0].checked).toBeGreaterThan(0);
-		expect(lists.closed).toHaveLength(1);
+		expect(lists.open.map((l) => [l.name, l.weekly])).toEqual([['Settimana 5–11 ottobre', true], ['Pasti 7–11 ottobre', false]]);
+		expect(lists.open[0].lastChange).toEqual({ userName: null, at: '2026-09-30T20:00', byApp: true });
+		expect(lists.open[1]).toMatchObject({ lastChange: { userName: 'Anna', byApp: false } });
+		expect(lists.open[1].checked).toBeGreaterThan(0);
+		expect(lists.closed.map((l) => l.name)).toEqual(['Settimana 28 settembre – 4 ottobre']);
 		expect(lists.closed[0].checked).toBe(lists.closed[0].total);
 	});
 
@@ -57,7 +60,7 @@ describe('createShoppingList and detail', () => {
 		const id = fresh(['2026-10-07-lunch', '2026-10-09-lunch']);
 		const detail = value(getShoppingListDetail(db, ctx({ userId: 'user-tom' }), id));
 		expect(detail).toMatchObject({ status: 'open', mealCount: 2, name: 'Meals 7–9 October', checked: 0 });
-		expect(detail.lastChange).toEqual({ userName: 'Federico', at: '2026-10-06T12:00' });
+		expect(detail.lastChange).toEqual({ userName: 'Federico', at: '2026-10-06T12:00', byApp: false });
 		expect(value(getShoppingLists(db, ctx())).open.map((l) => l.id)).toContain(id);
 	});
 
@@ -79,7 +82,7 @@ describe('ticking items', () => {
 		value(toggleShoppingItem(db, ctx({ userId: 'user-anna', now: '2026-10-06T18:00' }), id, 'fusilloni'));
 		const detail = value(getShoppingListDetail(db, ctx(), id));
 		expect(item(detail, 'fusilloni')?.checked).toBe(true);
-		expect(detail.lastChange).toEqual({ userName: 'Anna', at: '2026-10-06T18:00' });
+		expect(detail.lastChange).toEqual({ userName: 'Anna', at: '2026-10-06T18:00', byApp: false });
 		value(toggleShoppingItem(db, ctx(), id, 'fusilloni'));
 		expect(item(value(getShoppingListDetail(db, ctx(), id)), 'fusilloni')?.checked).toBe(false);
 	});
@@ -177,5 +180,55 @@ describe('closing and deleting', () => {
 		expect(getShoppingListDetail(db, ctx(), id)).toEqual({ ok: false, error: 'not_found' });
 		value(restoreShoppingList(db, ctx(), removed));
 		expect(value(getShoppingListDetail(db, ctx(), id)).id).toBe(id);
+	});
+});
+
+describe('weekly lists (runShoppingListJobs)', () => {
+	const weekly = (weekId: string) => db.shoppingLists.find((l) => l.weekId === weekId);
+
+	it('creates the weekly list when the next week is generated, once', () => {
+		expect(runShoppingListJobs(db, '2026-10-07T19:59')).toBe(false);
+		expect(runShoppingListJobs(db, '2026-10-07T20:00')).toBe(true);
+		const list = weekly('week-2026-10-12');
+		expect(list).toMatchObject({ status: 'open', createdBy: null, createdAt: '2026-10-07T20:00' });
+		expect(list?.slotIds).toHaveLength(14);
+		expect(runShoppingListJobs(db, '2026-10-08T09:00')).toBe(false);
+		// Two weekly lists open until Sunday night.
+		expect(value(getShoppingLists(db, ctx({ now: '2026-10-08T09:00' }))).open.filter((l) => l.weekly)).toHaveLength(2);
+	});
+
+	it('does not create a deleted weekly list again', () => {
+		runShoppingListJobs(db, '2026-10-07T20:00');
+		value(deleteShoppingList(db, ctx({ now: '2026-10-07T21:00' }), weekly('week-2026-10-12')!.id));
+		runShoppingListJobs(db, '2026-10-08T09:00');
+		expect(weekly('week-2026-10-12')).toBeUndefined();
+	});
+
+	it('archives a used weekly list after Sunday dinner and deletes an untouched one', () => {
+		const id = weekly('week-2026-10-05')!.id;
+		value(toggleShoppingItem(db, ctx(), id, 'fusilloni'));
+		runShoppingListJobs(db, '2026-10-11T22:59');
+		expect(weekly('week-2026-10-05')?.status).toBe('open');
+		runShoppingListJobs(db, '2026-10-11T23:00');
+		expect(weekly('week-2026-10-05')).toMatchObject({ status: 'closed', closedAt: '2026-10-11T23:00', updatedBy: 'user-federico' });
+		expect(weekly('week-2026-10-05')?.frozenSlots).not.toBeNull();
+
+		const untouched = createInitial().db;
+		runShoppingListJobs(untouched, '2026-10-11T23:00');
+		expect(untouched.shoppingLists.some((l) => l.weekId === 'week-2026-10-05')).toBe(false);
+	});
+
+	it('keeps the follow-the-meals behaviour of a weekly list', () => {
+		const id = weekly('week-2026-10-05')!.id;
+		value(setMealServings(db, ctx(), '2026-10-09-dinner', 6));
+		expect(item(value(getShoppingListDetail(db, ctx(), id)), 'filetti-di-branzino')?.quantity).toBe('1,2 kg');
+	});
+
+	it('keeps only the last lists in the history', () => {
+		for (let i = 0; i < MAX_HISTORY + 2; i++) value(closeShoppingList(db, ctx({ now: `2026-10-06T13:${String(i).padStart(2, '0')}` }), fresh(['2026-10-07-dinner'])));
+		runShoppingListJobs(db, '2026-10-06T14:00');
+		const closed = value(getShoppingLists(db, ctx())).closed;
+		expect(closed).toHaveLength(MAX_HISTORY);
+		expect(closed.some((l) => l.name.startsWith('Settimana 28'))).toBe(false);
 	});
 });
