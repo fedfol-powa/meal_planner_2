@@ -491,7 +491,8 @@ da cui si riapre; nessun segno "già in lista" nella scelta dei pasti; voci libe
   modifica i pasti di una lista aperta, conservando quelli già passati),
   `/shopping/[id]` (lista).
 - **Lista:** sotto il titolo nessuna riga di avanzamento o ultima modifica (tolte
-  nella prova; restano nell'elenco delle liste); voce libera dall'ultima riga della sezione "Altro" (campo con "+", sempre
+  nella prova, anche dalle schede dell'elenco, che mostrano solo nome ed etichetta;
+  nello storico resta la data di chiusura); voce libera dall'ultima riga della sezione "Altro" (campo con "+", sempre
   presente nelle liste aperte; richiesta dell'utente nella prova); casella condivisa; se una voce spuntata aumenta, torna
   da spuntare con "prima: …"; "Spesa fatta" ed "Elimina la lista" in fondo, con
   "Annulla" nell'avviso; una lista chiusa è in sola lettura, con "Riapri".

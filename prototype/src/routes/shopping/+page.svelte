@@ -2,17 +2,12 @@
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import { formatChangeTime } from '#lib/i18n/dates.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
-	import { getShoppingLists, type ShoppingListSummary } from '#lib/operations/shopping-lists.ts';
+	import { getShoppingLists } from '#lib/operations/shopping-lists.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	// Family shopping lists: the open ones first, the history below (round 3 revision).
 	const result = $derived(getShoppingLists(app.db, app.ctx));
 
-	const meals = (l: ShoppingListSummary) => (l.mealCount === 1 ? app.t('shopping.mealsOne') : app.t('shopping.meals', { count: l.mealCount }));
-	const changedBy = (l: ShoppingListSummary) =>
-		l.lastChange.byApp
-			? app.t('shopping.createdByApp', { time: formatChangeTime(app.locale, l.lastChange.at) })
-			: app.t('meal.changedBy', { name: l.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, l.lastChange.at) });
 </script>
 
 <section class="secondary-view app-view" aria-labelledby="lists-title">
@@ -36,9 +31,6 @@
 				<a class="list-card" href="/shopping/{list.id}">
 					{#if list.weekly}<span class="label-chip">{app.t('shopping.weekly')}</span>{/if}
 					<h2>{list.name}</h2>
-					<p class="progress"><strong>{app.t('shopping.progress', { checked: list.checked, total: list.total })}</strong> · {meals(list)}</p>
-					<p class="changed">{changedBy(list)}</p>
-					<span class="bar" aria-hidden="true"><span style="width: {list.total ? (100 * list.checked) / list.total : 0}%"></span></span>
 				</a>
 			{:else}
 				<StateNotice title={app.t('shopping.noOpen.title')} body={app.t('shopping.noOpen.body')} />
@@ -52,7 +44,7 @@
 							<li>
 								<a href="/shopping/{list.id}">
 									<span class="history-name">{list.name}</span>
-									<span class="history-meta">{app.t('shopping.closedOn', { time: formatChangeTime(app.locale, list.closedAt ?? list.lastChange.at) })} · {app.t('shopping.progress', { checked: list.checked, total: list.total })}</span>
+									<span class="history-meta">{app.t('shopping.closedOn', { time: formatChangeTime(app.locale, list.closedAt ?? list.lastChange.at) })}</span>
 								</a>
 							</li>
 						{/each}
@@ -69,11 +61,7 @@
 	.list-card { display: block; margin-bottom: 16px; padding: 18px 20px; background: var(--paper); box-shadow: var(--card-shadow); color: var(--ink); text-decoration: none; }
 	.list-card:hover h2 { color: var(--green); }
 	.label-chip { margin-bottom: 8px; }
-	h2 { margin: 0 0 6px; font: 400 1.25rem/1.3 var(--meal-title-font); }
-	.progress { margin: 0; font-size: 0.875rem; }
-	.changed { margin: 2px 0 12px; color: var(--muted); font-size: 0.8125rem; }
-	.bar { display: block; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
-	.bar span { display: block; height: 100%; background: var(--green); }
+	h2 { margin: 0; font: 400 1.25rem/1.3 var(--meal-title-font); }
 	.history { margin: 24px 0; }
 	.history summary { min-height: 44px; display: flex; align-items: center; font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }
 	.history ul { margin: 8px 0 0; padding: 0; list-style: none; background: var(--paper); box-shadow: var(--card-shadow); }
