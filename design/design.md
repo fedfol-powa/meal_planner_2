@@ -163,10 +163,16 @@ nei token. Le fotografie occupano la larghezza della scheda, in proporzione 16:9
 con `object-fit: cover`. L’etichetta Pranzo/Cena compare sopra la foto con fondo
 verde e testo bianco; nelle schede senza foto è nel contenuto, su fondo verde chiaro.
 
-Sotto la foto: titolo, descrizione, durata e porzioni, fonte, controllo degli
-ingredienti. Il controllo è un pulsante visivo scuro a tutta larghezza, alto almeno
-44 px, con raggio di 8 px, etichetta e indicatore di apertura. Gli ingredienti aperti
-sono una lista con quantità allineate a destra e separatori da 1 px.
+Sotto la foto: titolo, descrizione, durata e porzioni, fonte. Dal 6 ottobre 2026 la
+scheda del menu termina con un footer a icone separato da linee da 1 px: scheda
+ricetta, voto con la media della famiglia (stella verde piena se hai votato),
+ingredienti con il loro numero e, solo per i pasti passati, "non cucinato". Voto e
+ingredienti si aprono sotto il footer, uno alla volta; la sezione aperta o lo stato
+attivo usano verde su fondo verde chiaro. Il voto aperto mostra la media in grande e
+le cinque stelle sulla stessa riga, senza etichette; si toglie toccando di nuovo la
+stella scelta. Gli ingredienti aperti sono una lista con quantità allineate a destra e
+separatori da 1 px. Il pulsante scuro a tutta larghezza del riferimento resta per le
+liste che non stanno in una scheda del menu.
 
 Usare immagini della ricetta con provenienza verificabile. Le foto del riferimento
 sono state prese dalle pagine fonte dei piatti; le ricette di casa senza fotografia
@@ -180,10 +186,12 @@ footer decorativo. Il giorno compare nel selettore superiore, senza ripeterne nu
 o contatori nel contenuto. Il selettore ha bordo scuro da 1 px e raggio di 8 px;
 il giorno attivo ha fondo scuro e testo bianco.
 
-Accanto al selettore, dal 6 ottobre 2026, un'icona calendario apre un mese navigabile
-per scegliere qualunque giorno con menu, anche passato; il giorno scelto è scuro come
-nel selettore e i giorni senza menu sono disattivati. Non ci sono frecce o intervalli
-di settimana sopra il selettore, né etichette di stato della settimana.
+Sopra il selettore, dal 6 ottobre 2026, una barra senza riquadri: a sinistra il mese
+del giorno scelto in Agrandir Tight, a destra le icone di azione (ora il calendario,
+in seguito la spesa), sul fondo crema. Mese e icona aprono un mese navigabile per
+scegliere qualunque giorno con menu, anche passato; il giorno scelto è scuro come nel
+selettore e i giorni senza menu sono disattivati. Il selettore resta a tutta larghezza.
+Non ci sono frecce o intervalli di settimana, né etichette di stato della settimana.
 
 Un giorno occupa una colonna della larghezza disponibile. Le colonne si scorrono
 orizzontalmente con aggancio al giorno; il tocco sul selettore porta alla stessa

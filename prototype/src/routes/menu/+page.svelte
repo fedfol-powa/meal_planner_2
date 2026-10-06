@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import DaySelector from '#lib/components/DaySelector.svelte';
 	import MealCard from '#lib/components/MealCard.svelte';
-	import RatingStars from '#lib/components/RatingStars.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import DatePicker from '#lib/components/DatePicker.svelte';
 	import { formatDayLong } from '#lib/i18n/dates.ts';
@@ -16,6 +15,7 @@
 	let track: HTMLDivElement | undefined = $state();
 	let actionError = $state<MessageKey | null>(null);
 	let simulatedNotice = $state(false);
+	let pickerOpen = $state(false);
 
 	const opening = $derived(getOpeningTarget(app.db, app.ctx));
 	const openingDay = $derived(opening.ok && opening.value.kind === 'day' ? opening.value : null);
@@ -54,6 +54,10 @@
 		return result.ok ? result.value : [];
 	});
 
+	const monthLabel = $derived(
+		selected ? new Intl.DateTimeFormat(app.locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${selected}T00:00:00Z`)) : ''
+	);
+
 	// The chosen day lives in app.selectedDate; `?day=` only seeds it when arriving from a link.
 	function pickDate(date: string) {
 		app.selectedDate = date;
@@ -72,12 +76,6 @@
 	});
 </script>
 
-{#snippet mealRating(meal: MealView)}
-	{#if meal.recipe && meal.rating}
-		<RatingStars summary={meal.rating} recipeId={meal.recipe.id} recipeName={meal.recipe.name} variant={app.settings.ratingVariant} />
-	{/if}
-{/snippet}
-
 {#if !opening.ok}
 	<section class="secondary-view app-view"><StateNotice title={app.t('error.forbidden')} /></section>
 {:else if opening.value.kind === 'no_weeks'}
@@ -90,10 +88,13 @@
 {:else if week && selected}
 	<section class="calendar app-view" aria-label={app.t('nav.menu')}>
 		<nav class="day-navigation" aria-label={app.t('menu.days')}>
-			<div class="day-row">
-				<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
-				<DatePicker dates={menuDates} {selected} onSelect={pickDate} />
+			<div class="menu-toolbar">
+				<button type="button" class="month-button" data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
+				<div class="toolbar-actions">
+					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} />
+				</div>
 			</div>
+			<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
 			{#if actionError}<p class="meta-line" role="alert">{app.t(actionError)}</p>{/if}
 		</nav>
 		<!-- Scrollable region must be focusable for keyboard scrolling, as in the approved reference. -->
@@ -103,7 +104,7 @@
 				<section class="day" id="day-{day.date}" aria-labelledby="heading-{day.date}">
 					<h2 class="day-title visually-hidden" id="heading-{day.date}">{formatDayLong(app.locale, day.date)}</h2>
 					{#each day.meals as meal (meal.slotId)}
-						<MealCard {meal} system={week.measurementSystem} rating={mealRating} onToggleCooked={toggleCooked} />
+						<MealCard {meal} system={week.measurementSystem} onToggleCooked={toggleCooked} />
 					{:else}
 						<StateNotice title={app.t('menu.dayEmpty')} />
 					{/each}
@@ -116,6 +117,8 @@
 {/if}
 
 <style>
-	.day-row { display: flex; align-items: stretch; gap: 8px; }
-	.day-row :global(.day-links) { flex: 1; min-width: 0; }
+	.menu-toolbar { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 0 8px; }
+	.month-button { min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); text-transform: capitalize; cursor: pointer; }
+	.month-button[aria-expanded='true'] { color: var(--green); }
+	.toolbar-actions { display: flex; align-items: center; gap: 4px; }
 </style>

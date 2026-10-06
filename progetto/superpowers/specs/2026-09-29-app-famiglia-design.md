@@ -597,8 +597,8 @@ requisito.
     cucinato e quando si può segnare "non cucinato"; non blocca modifiche. Fuso orario
     della famiglia ed eventuale personalizzazione degli orari da valutare nel percorso
     Famiglia e account.
-- **Navigazione fra i giorni:** accanto al selettore dei sette giorni un'icona apre un
-  calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
+- **Navigazione fra i giorni:** sopra il selettore dei sette giorni il mese e un'icona
+  aprono un calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
   senza menu non sono selezionabili.
 - **Azioni sullo slot**: cambia ricetta (suggerimenti o ricerca con filtri), proponimene un
   altro, cambia porzioni, scambia con un altro slot, segna libero con testo, nota, non proporre
@@ -1177,7 +1177,10 @@ contenuto. Dal 6 ottobre 2026 la navbar inferiore mostra Menu, Ricettario e una 
 per famiglia, account, cambio di famiglia e funzioni dei ruoli (curatela,
 amministrazione, istruzioni MCP), con etichetta da confermare nella review del primo
 giro; la Spesa esce dalla navbar e il suo punto d'ingresso, probabilmente dal Menu, si
-decide nel percorso Spesa. Il selettore dei giorni ha accanto un'icona calendario.
+decide nel percorso Spesa. Sopra il selettore dei giorni una barra con il mese e le
+icone di azione (calendario, in seguito spesa); la scheda del pasto ha un footer a icone
+per scheda ricetta, voto, ingredienti e, sui pasti passati, "non cucinato" (dettagli
+in `design/design.md`).
 La navbar mostra icone ed etichette,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative
@@ -1263,6 +1266,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, percorsi del prototipo | Concordati metodo per giri, ordine dei nove percorsi, primo giro su Fondamenta, Menu e Ricettario con tappa intermedia, prototipo SvelteKit con dati e operazioni simulate, tracciamento in `design/percorsi.md` e nei piani di giro |
 | 6 ottobre 2026, preparazione del primo giro | Pasto passato alle 15:30 (pranzo) e alle 23:00 (cena); quarta voce della navbar per famiglia, account e ruoli; due varianti del componente voto da confrontare nella review |
 | 6 ottobre 2026, tappa intermedia del prototipo | Eliminati stati e chiusura delle settimane: ogni settimana è modificabile, i pasti passati contano come cucinati salvo "non cucinato", il job genera soltanto. Calendario per scegliere qualunque giorno con menu; Spesa fuori dalla navbar, ingresso da decidere nel percorso Spesa |
+| 6 ottobre 2026, review del primo giro (in corso) | Barra con mese e icone sopra i giorni; scheda del pasto con footer a icone (scheda, voto, ingredienti, non cucinato); voto in riga con media e stelle senza etichette |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

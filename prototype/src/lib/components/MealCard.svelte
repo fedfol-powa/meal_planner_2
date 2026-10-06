@@ -1,12 +1,15 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
 	import type { MeasurementSystem } from '#lib/domain/types.ts';
 	import type { MealView } from '#lib/operations/views.ts';
 	import { formatAverage, formatChangeTime } from '#lib/i18n/dates.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 	import IngredientList from './IngredientList.svelte';
+	import RatingStars from './RatingStars.svelte';
 
-	let { meal, system, rating, onToggleCooked }: { meal: MealView; system: MeasurementSystem; rating?: Snippet<[MealView]>; onToggleCooked?: (meal: MealView) => void } = $props();
+	let { meal, system, onToggleCooked }: { meal: MealView; system: MeasurementSystem; onToggleCooked?: (meal: MealView) => void } = $props();
+
+	// Only one footer section is open at a time, to keep the card short.
+	let expanded = $state<'rating' | 'ingredients' | null>(null);
 
 	const headingId = $derived(`meal-${meal.slotId}`);
 	const recipe = $derived(meal.recipe);
@@ -17,12 +20,11 @@
 		if (recipe.sourceUrl) return new URL(recipe.sourceUrl).hostname.replace(/^www\./, '');
 		return app.t('source.home');
 	});
-	const ratingText = $derived.by(() => {
-		const r = meal.rating;
-		if (!r) return '';
-		const family = r.familyAverage === null ? app.t('rating.none') : `★ ${formatAverage(app.locale, r.familyAverage)} · ${r.familyCount === 1 ? app.t('rating.oneVote') : app.t('rating.votes', { count: r.familyCount })}`;
-		return r.myStars === null ? `${family} · ${app.t('rating.notRated')}` : `${family} · ${app.t('rating.you', { stars: r.myStars })}`;
-	});
+	const averageText = $derived(meal.rating?.familyAverage != null ? formatAverage(app.locale, meal.rating.familyAverage) : '–');
+
+	function toggle(section: 'rating' | 'ingredients') {
+		expanded = expanded === section ? null : section;
+	}
 </script>
 
 <article class="meal" class:meal-free={meal.kind !== 'recipe'} class:is-past={meal.isPast} aria-labelledby={headingId}>
@@ -35,9 +37,7 @@
 	{/if}
 
 	<div class="meal-content">
-		<div class="status-row">
-			{#if meal.cooked === false}<span class="label-chip neutral">{app.t('meal.notCooked')}</span>{/if}
-		</div>
+		{#if meal.cooked === false}<p class="status-row"><span class="label-chip neutral">{app.t('meal.notCooked')}</span></p>{/if}
 
 		{#if meal.kind === 'free'}
 			<span class="free-mark">{app.t('meal.free')}</span>
@@ -57,31 +57,64 @@
 				{#if recipe.durationMinutes}<svg class="icon" aria-hidden="true"><use href="#icon-clock" /></svg>{app.t('meal.minutes', { count: recipe.durationMinutes })}{' · '}{/if}{app.t('meal.servings', { count: meal.servings })}
 			</p>
 			{#if sourceLine}<p class="meal-source">{sourceLine}</p>{/if}
-			{#if rating && meal.canRate}{@render rating(meal)}{:else}<p class="meta-line rating-text">{ratingText}</p>{/if}
-			<p><a class="link-inline" href="/recipes/{recipe.id}?from=menu&day={meal.date}">{app.t('meal.details')}</a></p>
 		{/if}
 
 		{#if meal.lastChange}
 			<p class="meta-line">{app.t('meal.changedBy', { name: meal.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, meal.lastChange.at) })}</p>
 		{/if}
 		{#if meal.note}<p class="meta-line"><strong>{app.t('meal.note')}:</strong> {meal.note}</p>{/if}
-		{#if meal.canMarkNotCooked && onToggleCooked}
-			<p><button type="button" class="text-button" disabled={app.settings.offline} onclick={() => onToggleCooked(meal)}>{meal.cooked === false ? app.t('meal.undoNotCooked') : app.t('meal.markNotCooked')}</button></p>
-		{/if}
-
-		{#if meal.kind === 'recipe' && recipe}
-			{#if meal.ingredients}
-				<IngredientList ingredients={meal.ingredients} {system} label={recipe.name} />
-			{:else}
-				<p class="meta-line">{app.t('meal.ingredientsMissing')}</p>
-			{/if}
-		{/if}
 	</div>
+
+	{#if meal.kind === 'recipe' && recipe}
+		<div class="meal-footer">
+			<a class="footer-action" href="/recipes/{recipe.id}?from=menu&day={meal.date}" aria-label={app.t('meal.details')}>
+				<svg class="icon" aria-hidden="true"><use href="#icon-recipe" /></svg>
+			</a>
+			<button type="button" class="footer-action" aria-expanded={expanded === 'rating'} disabled={!meal.canRate} aria-label={app.t('meal.ratingAction', { value: averageText })} onclick={() => toggle('rating')}>
+				<svg class="icon" class:mine={meal.rating?.myStars != null} aria-hidden="true"><use href="#icon-star" /></svg>
+				<span aria-hidden="true">{averageText}</span>
+			</button>
+			<button type="button" class="footer-action" aria-expanded={expanded === 'ingredients'} aria-label={app.t('meal.ingredientsAction', { count: meal.ingredients?.length ?? 0 })} onclick={() => toggle('ingredients')}>
+				<svg class="icon" aria-hidden="true"><use href="#icon-list" /></svg>
+				<span aria-hidden="true">{meal.ingredients?.length ?? '–'}</span>
+			</button>
+			{#if meal.canMarkNotCooked && onToggleCooked}
+				<button type="button" class="footer-action" aria-pressed={meal.cooked === false} disabled={app.settings.offline} aria-label={app.t('meal.markNotCooked')} onclick={() => onToggleCooked(meal)}>
+					<svg class="icon" aria-hidden="true"><use href="#icon-not-cooked" /></svg>
+				</button>
+			{/if}
+		</div>
+
+		{#if expanded === 'rating' && meal.rating}
+			<div class="footer-panel">
+				<RatingStars summary={meal.rating} recipeId={recipe.id} recipeName={recipe.name} variant="row" />
+			</div>
+		{:else if expanded === 'ingredients'}
+			<div class="footer-panel">
+				{#if meal.ingredients}
+					<IngredientList ingredients={meal.ingredients} {system} label={recipe.name} collapsible={false} />
+				{:else}
+					<p class="meta-line">{app.t('meal.ingredientsMissing')}</p>
+				{/if}
+			</div>
+		{/if}
+	{/if}
 </article>
 
 <style>
-	.status-row { display: flex; flex-wrap: wrap; gap: 6px; }
-	.status-row:not(:empty) { margin-bottom: 12px; }
+	.status-row { margin: 0 0 12px; }
 	.is-past .meal-photo { filter: grayscale(0.4); opacity: 0.85; }
-	.rating-text { color: var(--ink); }
+	.meal-content { padding-bottom: 14px; }
+	.meal-content :global(.meal-source) { margin-bottom: 0; }
+	.meal-footer { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border-top: 1px solid var(--rule); }
+	.footer-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 8px; border: 0; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); text-decoration: none; cursor: pointer; }
+	.footer-action + .footer-action { border-left: 1px solid var(--rule); }
+	.footer-action .icon { width: 22px; height: 22px; }
+	.footer-action .icon.mine { fill: var(--green); stroke: var(--green); }
+	.footer-action[aria-expanded='true'], .footer-action[aria-pressed='true'] { color: var(--green); background: var(--soft-green); }
+	.footer-action:disabled { color: var(--muted); cursor: not-allowed; }
+	.footer-action:focus-visible { outline-offset: -3px; }
+	.footer-panel { padding: 16px 18px 18px; border-top: 1px solid var(--rule); }
+	.footer-panel :global(.ingredient-list) { margin-top: 0; }
+	.footer-panel :global(.rating) { margin: 0; }
 </style>

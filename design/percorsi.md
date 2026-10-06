@@ -185,6 +185,15 @@ e 17, rilievo R3) e in `design.md`:
 - Spesa fuori dalla navbar; il punto d'ingresso, probabilmente dal Menu con la
   selezione dei pasti, si decide nel percorso Spesa.
 
+### Review del giro (in corso, 6 ottobre 2026)
+
+- Icona del calendario senza riquadro; poi spostata, con il mese, in una barra sopra il
+  selettore dei giorni, per mantenerlo simmetrico e lasciare spazio alla spesa.
+- Voto: preferite le stelle dirette, ma in una sola riga con la media in grande e senza
+  etichette (variante `row`, ora predefinita).
+- Scheda del pasto più compatta: footer a icone per scheda ricetta, voto, ingredienti e,
+  sui pasti passati, "non cucinato" (risponde alla domanda 4).
+
 ### Rotte e componenti del giro
 
 - **Rotte:** `/menu`, `/recipes`, `/recipes/[id]` (`?from=menu&day=` per tornare al

@@ -4,10 +4,10 @@
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	let { dates, selected, onSelect }: { dates: IsoDate[]; selected: IsoDate; onSelect: (date: IsoDate) => void } = $props();
-
-	let open = $state(false);
-	let month = $state('');
+	let { dates, selected, onSelect, open = $bindable(false) }: { dates: IsoDate[]; selected: IsoDate; onSelect: (date: IsoDate) => void; open?: boolean } = $props();
+	// Month browsed in the panel; empty means "the month of the selected day".
+	let browsedMonth = $state('');
+	const month = $derived(browsedMonth || selected.slice(0, 7));
 	let panel: HTMLDivElement | undefined = $state();
 	let toggle: HTMLButtonElement | undefined = $state();
 
@@ -33,14 +33,15 @@
 	function shiftMonth(delta: number) {
 		const d = new Date(`${month}-01T00:00:00Z`);
 		d.setUTCMonth(d.getUTCMonth() + delta);
-		month = d.toISOString().slice(0, 7);
+		browsedMonth = d.toISOString().slice(0, 7);
 	}
 
-	function show() {
-		month = selected.slice(0, 7);
-		open = true;
+	// Opened either by the icon or by the month label in the toolbar (bound `open`).
+	$effect(() => {
+		if (!open) return;
+		browsedMonth = '';
 		queueMicrotask(() => panel?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')?.focus());
-	}
+	});
 
 	function close() {
 		open = false;
@@ -53,14 +54,15 @@
 	}
 
 	function onWindowClick(event: MouseEvent) {
-		if (open && panel && !panel.contains(event.target as Node) && !toggle?.contains(event.target as Node)) open = false;
+		const target = event.target as Element;
+		if (open && panel && !panel.contains(target) && !toggle?.contains(target) && !target.closest?.('[data-date-picker-toggle]')) open = false;
 	}
 </script>
 
 <svelte:window onclick={onWindowClick} onkeydown={(e) => open && e.key === 'Escape' && close()} />
 
 <div class="date-picker">
-	<button bind:this={toggle} type="button" class="toggle" aria-expanded={open} aria-label={app.t('menu.pickDate')} onclick={() => (open ? close() : show())}>
+	<button bind:this={toggle} type="button" class="toggle" aria-expanded={open} aria-label={app.t('menu.pickDate')} onclick={() => (open ? close() : (open = true))}>
 		<svg class="icon" aria-hidden="true"><use href="#icon-calendar" /></svg>
 	</button>
 	{#if open}
@@ -91,11 +93,11 @@
 </div>
 
 <style>
-	.date-picker { position: relative; flex: none; }
-	.toggle { display: grid; place-items: center; width: 44px; height: 100%; min-height: 58px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
+	.date-picker { position: static; flex: none; }
+	.toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
 	.toggle .icon { width: 26px; height: 26px; }
 	.toggle[aria-expanded='true'] { color: var(--green); }
-	.panel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 15; width: min(320px, calc(100vw - 32px)); padding: 16px; background: var(--paper); box-shadow: 0 4px 16px rgb(0 0 0 / 15%); border-radius: 8px; }
+	.panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; width: min(320px, calc(100vw - 32px)); padding: 16px; background: var(--paper); box-shadow: 0 4px 16px rgb(0 0 0 / 15%); border-radius: 8px; }
 	.month { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 	.month strong { text-transform: capitalize; }
 	.nav { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); cursor: pointer; }
