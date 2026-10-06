@@ -62,5 +62,7 @@ describe('combine quantities', () => {
 		const c = combine([amount(0.5, 'piece')], [amount(1.25, 'clove')]);
 		expect(formatCombined(c, 'metric', 'it-IT')).toBe('½ + 1½ spicchi');
 		expect(formatCombined(c, 'metric', 'it-IT', { wholePieces: true })).toBe('1 + 1½ spicchi');
+		expect(formatCombined(combine([amount(2.06, 'piece')]), 'metric', 'it-IT', { wholePieces: true })).toBe('2');
+		expect(formatCombined(combine([amount(2.2, 'piece')]), 'metric', 'it-IT', { wholePieces: true })).toBe('3');
 	});
 });

@@ -39,6 +39,8 @@ export interface Ingredient {
 	isPantry: boolean;
 	/** Demo only: evident duplicate of the imported data, consolidated into this ingredient. */
 	canonicalId: string | null;
+	/** How it is bought, when it differs from how recipes measure it: `from` amounts become pieces in shopping lists. */
+	purchase: { from: UnitCode; piecesPer: number; source: string } | null;
 }
 
 export interface RecipeIngredient {

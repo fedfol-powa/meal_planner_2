@@ -606,5 +606,13 @@ lista settimanale con archiviazione delle revisioni precedenti.
   sono in `canonical` di `prototype/scripts/demo-ingredients.json`; nel prodotto la
   preparazione va tenuta sulla riga della ricetta, separata dall'ingrediente
   (specifica, sezione 2, `recipe_ingredients`).
+- **Si compra come si vende:** nella lista della spesa un ingrediente misurato in
+  modo diverso da come si compra si converte in pezzi con un'equivalenza verificata:
+  il succo di limone in grammi diventa numero di limoni (USDA: il succo di un limone
+  pesa 47 g; 50 g di succo + la scorza di 1 → "Limone 2"). Ricetta e provenienza delle
+  voci restano nelle unità della ricetta. Arrotondamento per eccesso dei pezzi con
+  tolleranza di 0,1 (2,06 → 2). Equivalenze con ambito "shopping" in
+  `prototype/scripts/demo-unit-equivalences.json`. Limite noto: scorza e succo dello
+  stesso limone si sommano.
 - **Indietro uniforme:** freccia e nome della destinazione ("Menu", "Ricettario")
   anche nella scheda ricetta.

@@ -18,7 +18,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "petto-di-pollo",
@@ -28,7 +29,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperone-rosso",
@@ -38,7 +40,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperone-giallo",
@@ -48,7 +51,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "carote",
@@ -58,7 +62,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "zucchine",
@@ -68,7 +73,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "melanzana-piccola",
@@ -78,7 +84,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "melanzane"
+			"canonicalId": "melanzane",
+			"purchase": null
 		},
 		{
 			"id": "cipolla-rossa-di-tropea-o-1-cipollotto",
@@ -88,7 +95,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsa-di-soia-senza-glutine",
@@ -98,7 +106,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "mezze-penne",
@@ -108,7 +117,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodori-ramati",
@@ -118,7 +128,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla-piccola",
@@ -128,7 +139,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "cipolla"
+			"canonicalId": "cipolla",
+			"purchase": null
 		},
 		{
 			"id": "peperoncino",
@@ -138,7 +150,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "aglio",
@@ -148,7 +161,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "basilico",
@@ -158,7 +172,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "ricotta",
@@ -168,7 +183,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "uova",
@@ -178,7 +194,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "bietole-gia-cotte",
@@ -188,7 +205,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "ricotta-vaccina",
@@ -198,7 +216,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pecorino-romano-grattugiato-o-parmigiano",
@@ -208,7 +227,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "noodles-di-grano-o-di-riso",
@@ -218,7 +238,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla",
@@ -228,7 +249,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperone",
@@ -238,7 +260,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "carota",
@@ -248,7 +271,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "carote"
+			"canonicalId": "carote",
+			"purchase": null
 		},
 		{
 			"id": "zucchina",
@@ -258,7 +282,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "zucchine"
+			"canonicalId": "zucchine",
+			"purchase": null
 		},
 		{
 			"id": "salsa-d-ostriche-facoltativa",
@@ -268,7 +293,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsa-di-soia",
@@ -278,7 +304,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "curry-in-polvere-facoltativo",
@@ -288,7 +315,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "aglio-in-polvere",
@@ -298,7 +326,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "filetti-di-merluzzo",
@@ -308,7 +337,8 @@
 			},
 			"department": "fish",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodori-ciliegini-o-pomodorini",
@@ -318,7 +348,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "concentrato-di-pomodoro",
@@ -328,7 +359,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipollotto",
@@ -338,7 +370,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "olive-taggiasche",
@@ -348,7 +381,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cous-cous",
@@ -358,7 +392,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": "couscous"
+			"canonicalId": "couscous",
+			"purchase": null
 		},
 		{
 			"id": "zafferano",
@@ -368,7 +403,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "basilico-fresco",
@@ -378,7 +414,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "basilico"
+			"canonicalId": "basilico",
+			"purchase": null
 		},
 		{
 			"id": "mandorle",
@@ -388,7 +425,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "piadine-integrali-da-50-g-ciascuna",
@@ -398,7 +436,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperoncino-fresco-dolce",
@@ -408,7 +447,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "lattuga-iceberg",
@@ -418,7 +458,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "barbabietole",
@@ -428,7 +469,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "emmentaler-8-fette",
@@ -438,7 +480,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "ceci-precotti",
@@ -448,7 +491,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": "ceci-in-scatola"
+			"canonicalId": "ceci-in-scatola",
+			"purchase": null
 		},
 		{
 			"id": "prezzemolo",
@@ -458,7 +502,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tabasco",
@@ -468,7 +513,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "succo-di-limone",
@@ -478,7 +524,12 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "limone"
+			"canonicalId": "limone",
+			"purchase": {
+				"from": "g",
+				"piecesPer": 0.021277,
+				"source": "USDA FoodData Central: lemon juice, raw, yield of 1 lemon = 47 g"
+			}
 		},
 		{
 			"id": "paprika-piccante",
@@ -488,7 +539,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tahina",
@@ -498,7 +550,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pane-casereccio-tipo-toscano",
@@ -508,7 +561,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "code-di-gambero",
@@ -518,7 +572,8 @@
 			},
 			"department": "fish",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "vino-bianco-secco",
@@ -528,7 +583,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "scalogno",
@@ -538,7 +594,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "uova-medie",
@@ -548,7 +605,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": "uova"
+			"canonicalId": "uova",
+			"purchase": null
 		},
 		{
 			"id": "pomodorini-perini",
@@ -558,7 +616,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla-dorata",
@@ -568,7 +627,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "olio-extravergine-d-oliva",
@@ -578,7 +638,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "sale-fino",
@@ -588,7 +649,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pepe-nero",
@@ -598,7 +660,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "melanzane",
@@ -608,7 +671,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pangrattato",
@@ -618,7 +682,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "uovo",
@@ -628,7 +693,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": "uova"
+			"canonicalId": "uova",
+			"purchase": null
 		},
 		{
 			"id": "caciocavallo-grattugiato",
@@ -638,7 +704,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "noce-moscata",
@@ -648,7 +715,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "sale-e-pepe",
@@ -658,7 +726,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pappardelle",
@@ -668,7 +737,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "burro",
@@ -678,7 +748,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "parmigiano",
@@ -688,7 +759,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pasta",
@@ -698,7 +770,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pesto-alla-genovese",
@@ -708,7 +781,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "hamburger-di-cavallo",
@@ -718,7 +792,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "panini-per-hamburger",
@@ -728,7 +803,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tonno-sott-olio",
@@ -738,7 +814,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "alici",
@@ -748,7 +825,8 @@
 			},
 			"department": "fish",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "passata-di-pomodoro",
@@ -758,7 +836,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "sugo-di-pesce",
@@ -768,7 +847,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pasta-fresca",
@@ -778,7 +858,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "penne-rigate",
@@ -788,7 +869,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "panna-fresca",
@@ -798,7 +880,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "prosciutto-cotto",
@@ -808,7 +891,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodori-pelati",
@@ -818,7 +902,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "sale",
@@ -828,7 +913,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "rigatoni",
@@ -838,7 +924,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "zucca-a-pezzetti",
@@ -848,7 +935,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsicce",
@@ -858,7 +946,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": "salsiccia"
+			"canonicalId": "salsiccia",
+			"purchase": null
 		},
 		{
 			"id": "robiola",
@@ -868,7 +957,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "orecchiette",
@@ -878,7 +968,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "broccolo",
@@ -888,7 +979,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "broccoli"
+			"canonicalId": "broccoli",
+			"purchase": null
 		},
 		{
 			"id": "paccheri",
@@ -898,7 +990,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperoni-rossi",
@@ -908,7 +1001,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "peperone-rosso"
+			"canonicalId": "peperone-rosso",
+			"purchase": null
 		},
 		{
 			"id": "latte",
@@ -918,7 +1012,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tonno",
@@ -928,7 +1023,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "limone",
@@ -938,7 +1034,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "filetti-di-branzino",
@@ -948,7 +1045,8 @@
 			},
 			"department": "fish",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "sovracosce-di-pollo-disossate-e-spellate",
@@ -958,7 +1056,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pane-durum-misura-l-30-cm",
@@ -968,7 +1067,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "fagioli-rossi-in-scatola",
@@ -978,7 +1078,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cumino-in-polvere",
@@ -988,7 +1089,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": "cumino"
+			"canonicalId": "cumino",
+			"purchase": null
 		},
 		{
 			"id": "succo-di-lime",
@@ -998,7 +1100,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "guacamole-pagina-185-del-libro",
@@ -1008,7 +1111,8 @@
 			},
 			"department": "other",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "patata-dolce-arrosto-pagina-189-del-libro",
@@ -1018,7 +1122,8 @@
 			},
 			"department": "other",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "mais-in-scatola",
@@ -1028,7 +1133,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "straccetti-vegani-tex-mex",
@@ -1038,7 +1144,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla-rossa",
@@ -1048,7 +1155,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "coriandolo",
@@ -1058,7 +1166,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "insalata",
@@ -1068,7 +1177,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperoncino-verde",
@@ -1078,7 +1188,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pane-libanese",
@@ -1088,7 +1199,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "caviale-di-melanzane",
@@ -1098,7 +1210,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "melanzana-grigliata",
@@ -1108,7 +1221,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperone-grigliato",
@@ -1118,7 +1232,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "feta",
@@ -1128,7 +1243,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pickles-di-cavolo-rosso-pagina-182-del-libro",
@@ -1138,7 +1254,8 @@
 			},
 			"department": "other",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "uvetta",
@@ -1148,7 +1265,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "menta",
@@ -1158,7 +1276,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "carne-di-maiale-macinata",
@@ -1168,7 +1287,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "riso-bianco-per-sushi",
@@ -1178,7 +1298,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "olio-di-semi-di-colza",
@@ -1188,7 +1309,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "curry-o-garam-masala",
@@ -1198,7 +1320,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsa-base-giapponese-pagina-24-del-libro",
@@ -1208,7 +1331,8 @@
 			},
 			"department": "other",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperone-verde",
@@ -1218,7 +1342,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "kimchi-veloce-pagina-36-del-libro",
@@ -1228,7 +1353,8 @@
 			},
 			"department": "other",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "montasio",
@@ -1238,7 +1364,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "spinacini-freschi",
@@ -1248,7 +1375,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pepe",
@@ -1258,7 +1386,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "farina-00",
@@ -1268,7 +1397,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "limoni-medi",
@@ -1278,7 +1408,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "limone"
+			"canonicalId": "limone",
+			"purchase": null
 		},
 		{
 			"id": "acqua",
@@ -1288,7 +1419,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "prezzemolo-o-altre-erbe-aromatiche",
@@ -1298,7 +1430,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "riso",
@@ -1308,7 +1441,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "zucca-pulita",
@@ -1318,7 +1452,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "zucca-a-pezzetti"
+			"canonicalId": "zucca-a-pezzetti",
+			"purchase": null
 		},
 		{
 			"id": "lenticchie-cotte",
@@ -1328,7 +1463,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "broccoli",
@@ -1338,7 +1474,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "gamberi-freschi-puliti",
@@ -1348,7 +1485,8 @@
 			},
 			"department": "fish",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "riso-integrale",
@@ -1358,7 +1496,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "zenzero-fresco",
@@ -1368,7 +1507,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "riso-jasmine",
@@ -1378,7 +1518,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "piselli",
@@ -1388,7 +1529,8 @@
 			},
 			"department": "frozen",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "prosciutto-cotto-a-dadini",
@@ -1398,7 +1540,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": "prosciutto-cotto"
+			"canonicalId": "prosciutto-cotto",
+			"purchase": null
 		},
 		{
 			"id": "fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati",
@@ -1408,7 +1551,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "brodo-vegetale",
@@ -1418,7 +1562,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "guanciale-a-listarelle",
@@ -1428,7 +1573,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "piadine",
@@ -1438,7 +1584,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pollo-gia-cotto",
@@ -1448,7 +1595,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "hummus-pronto",
@@ -1458,7 +1606,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "carota-julienne-cruda",
@@ -1468,7 +1617,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "carote"
+			"canonicalId": "carote",
+			"purchase": null
 		},
 		{
 			"id": "filetti-di-orata-spinati-e-senza-pelle",
@@ -1478,7 +1628,8 @@
 			},
 			"department": "fish",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodorini-rossi-e-gialli",
@@ -1488,7 +1639,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "patata-media",
@@ -1498,7 +1650,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "fette-di-lonza-di-maiale",
@@ -1508,7 +1661,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "limone-bio-succo-e-scorza",
@@ -1518,7 +1672,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "limone"
+			"canonicalId": "limone",
+			"purchase": null
 		},
 		{
 			"id": "miele",
@@ -1528,7 +1683,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "reale-di-vitellone-o-di-bovino-a-fettine",
@@ -1538,7 +1694,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodori-pelati-o-pomodorini-freschi-maturi",
@@ -1548,7 +1705,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "prezzemolo-fresco",
@@ -1558,7 +1716,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "prezzemolo"
+			"canonicalId": "prezzemolo",
+			"purchase": null
 		},
 		{
 			"id": "lenticchie-meglio-pardine",
@@ -1568,7 +1727,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "patata-grande-o-2-piccole",
@@ -1578,7 +1738,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla-grande",
@@ -1588,7 +1749,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "cipolla"
+			"canonicalId": "cipolla",
+			"purchase": null
 		},
 		{
 			"id": "pomodoro-tritato-o-grattugiato",
@@ -1598,7 +1760,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "pomodori"
+			"canonicalId": "pomodori",
+			"purchase": null
 		},
 		{
 			"id": "peperone-rosso-o-1-2-verde",
@@ -1608,7 +1771,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "paprika-affumicata",
@@ -1618,7 +1782,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cumino",
@@ -1628,7 +1793,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "vino-bianco-o-fino-facoltativo",
@@ -1638,7 +1804,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "alloro",
@@ -1648,7 +1815,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "fusilloni",
@@ -1658,7 +1826,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "speck-da-tagliare-a-cubetti",
@@ -1668,7 +1837,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipollotti",
@@ -1678,7 +1848,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "cipollotto"
+			"canonicalId": "cipollotto",
+			"purchase": null
 		},
 		{
 			"id": "spaghettoni",
@@ -1688,7 +1859,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salvia",
@@ -1698,7 +1870,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "couscous",
@@ -1708,7 +1881,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tonno-sott-olio-peso-sgocciolato",
@@ -1718,7 +1892,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": "tonno-sott-olio"
+			"canonicalId": "tonno-sott-olio",
+			"purchase": null
 		},
 		{
 			"id": "fagioli-rossi-precotti-peso-sgocciolato",
@@ -1728,7 +1903,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": "fagioli-rossi-in-scatola"
+			"canonicalId": "fagioli-rossi-in-scatola",
+			"purchase": null
 		},
 		{
 			"id": "ravanelli",
@@ -1738,7 +1914,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "couscous-precotto",
@@ -1748,7 +1925,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": "couscous"
+			"canonicalId": "couscous",
+			"purchase": null
 		},
 		{
 			"id": "brodo-vegetale-caldo",
@@ -1758,7 +1936,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": "brodo-vegetale"
+			"canonicalId": "brodo-vegetale",
+			"purchase": null
 		},
 		{
 			"id": "curcuma-in-polvere",
@@ -1768,7 +1947,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": "curcuma"
+			"canonicalId": "curcuma",
+			"purchase": null
 		},
 		{
 			"id": "cipolle-rosse",
@@ -1778,7 +1958,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "cipolla-rossa"
+			"canonicalId": "cipolla-rossa",
+			"purchase": null
 		},
 		{
 			"id": "pisellini",
@@ -1788,7 +1969,8 @@
 			},
 			"department": "frozen",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperoncino-fresco",
@@ -1798,7 +1980,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "mandorle-in-scaglie",
@@ -1808,7 +1991,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pappardelle-all-uovo",
@@ -1818,7 +2002,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsiccia",
@@ -1828,7 +2013,8 @@
 			},
 			"department": "butcher",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "porri",
@@ -1838,7 +2024,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "vino-rosso",
@@ -1848,7 +2035,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "parmigiano-reggiano-dop",
@@ -1858,7 +2046,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": "parmigiano"
+			"canonicalId": "parmigiano",
+			"purchase": null
 		},
 		{
 			"id": "timo",
@@ -1868,7 +2057,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "corn-flakes-non-zuccherati",
@@ -1878,7 +2068,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "latte-intero",
@@ -1888,7 +2079,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": "latte"
+			"canonicalId": "latte",
+			"purchase": null
 		},
 		{
 			"id": "paprika-dolce",
@@ -1898,7 +2090,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "yogurt-bianco-naturale",
@@ -1908,7 +2101,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "maionese",
@@ -1918,7 +2112,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "scorza-di-limone",
@@ -1928,7 +2123,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "limone"
+			"canonicalId": "limone",
+			"purchase": null
 		},
 		{
 			"id": "erba-cipollina",
@@ -1938,7 +2134,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "olio-di-semi-di-girasole",
@@ -1948,7 +2145,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "bresaola",
@@ -1958,7 +2156,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "stracchino",
@@ -1968,7 +2167,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "rucola",
@@ -1978,7 +2178,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodori-secchi-sott-olio",
@@ -1988,7 +2189,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "foglie-di-basilico",
@@ -1998,7 +2200,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "basilico"
+			"canonicalId": "basilico",
+			"purchase": null
 		},
 		{
 			"id": "cipolla-rossa-piccola",
@@ -2008,7 +2211,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "cipolla-rossa"
+			"canonicalId": "cipolla-rossa",
+			"purchase": null
 		},
 		{
 			"id": "pomodori",
@@ -2018,7 +2222,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "zenzero-fresco-grattugiato",
@@ -2028,7 +2233,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "zenzero-fresco"
+			"canonicalId": "zenzero-fresco",
+			"purchase": null
 		},
 		{
 			"id": "coriandolo-macinato",
@@ -2038,7 +2244,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cumino-macinato",
@@ -2048,7 +2255,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": "cumino"
+			"canonicalId": "cumino",
+			"purchase": null
 		},
 		{
 			"id": "cannella",
@@ -2058,7 +2266,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "peperoncino-in-fiocchi",
@@ -2068,7 +2277,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "crema-di-mandorle-croccante",
@@ -2078,7 +2288,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "ceci-in-scatola",
@@ -2088,7 +2299,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "garam-masala",
@@ -2098,7 +2310,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "curcuma",
@@ -2108,7 +2321,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "mandorle-tritate",
@@ -2118,7 +2332,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "coriandolo-fresco",
@@ -2128,7 +2343,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "coriandolo"
+			"canonicalId": "coriandolo",
+			"purchase": null
 		},
 		{
 			"id": "spaghetti-di-riso",
@@ -2138,7 +2354,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tofu-affumicato",
@@ -2148,7 +2365,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "germogli-di-soia",
@@ -2158,7 +2376,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla-o-cipollotto",
@@ -2168,7 +2387,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "aceto",
@@ -2178,7 +2398,8 @@
 			},
 			"department": "condiments",
 			"isPantry": true,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsa-barbecue-o-fumo-liquido-q-b",
@@ -2188,7 +2409,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "semi-di-sesamo",
@@ -2198,7 +2420,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "prezzemolo-opzionale",
@@ -2208,7 +2431,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "prezzemolo"
+			"canonicalId": "prezzemolo",
+			"purchase": null
 		},
 		{
 			"id": "radicchio-pulito",
@@ -2218,7 +2442,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "noci-sgusciate",
@@ -2228,7 +2453,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "ditali",
@@ -2238,7 +2464,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "ceci-gia-cotti-e-sgocciolati",
@@ -2248,7 +2475,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": "ceci-in-scatola"
+			"canonicalId": "ceci-in-scatola",
+			"purchase": null
 		},
 		{
 			"id": "rosmarino",
@@ -2258,7 +2486,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "trofie",
@@ -2268,7 +2497,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "funghi-champignon-puliti",
@@ -2278,7 +2508,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "fusilli",
@@ -2288,7 +2519,8 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "spinaci-freschi-puliti",
@@ -2298,7 +2530,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cipolla-a-dadini",
@@ -2308,7 +2541,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "cipolla"
+			"canonicalId": "cipolla",
+			"purchase": null
 		},
 		{
 			"id": "aglio-tritato-o-schiacciato",
@@ -2318,7 +2552,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": "aglio"
+			"canonicalId": "aglio",
+			"purchase": null
 		},
 		{
 			"id": "fagioli-neri-scolati-e-sciacquati",
@@ -2328,7 +2563,8 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "salsa-messicana-pronta",
@@ -2338,7 +2574,8 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "yogurt-greco-o-panna-acida",
@@ -2348,7 +2585,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "lattuga-tagliata-o-spezzettata",
@@ -2358,7 +2596,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
@@ -2368,7 +2607,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodoro-a-dadini-varieta-roma",
@@ -2378,7 +2618,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tortillas-di-farina",
@@ -2388,7 +2629,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "erbazzone-congelato",
@@ -2398,7 +2640,8 @@
 			},
 			"department": "frozen",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pane",
@@ -2408,7 +2651,8 @@
 			},
 			"department": "bakery",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "mozzarelle",
@@ -2418,7 +2662,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "pomodoro-cuore-di-bue",
@@ -2428,7 +2673,8 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		},
 		{
 			"id": "tacchino",
@@ -2438,7 +2684,8 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": null,
+			"purchase": null
 		}
 	],
 	"recipes": [

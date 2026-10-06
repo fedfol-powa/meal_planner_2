@@ -48,6 +48,10 @@ describe('generated demo data', () => {
 		expect(line('cipolla-a-dadini')).toMatchObject({ quantity: { kind: 'amount', value: 0.5, unit: 'piece' }, sourceText: '1/2 cup (circa 1/2 cipolla media)' });
 		expect(line('lattuga-tagliata-o-spezzettata').quantity).toEqual({ kind: 'amount', value: 36, unit: 'g' });
 		expect(recipes.flatMap((r) => r.ingredients).some((l) => l.quantity.kind === 'amount' && l.quantity.unit === 'us_cup')).toBe(false);
+		// Lemon juice stays in grams in the recipe; lemons only in shopping lists (USDA: 47 g a lemon).
+		const juice = recipes.find((r) => r.id === 'pollo-corn-flakes')!.ingredients.find((l) => l.ingredientId === 'succo-di-limone')!;
+		expect(juice.quantity).toEqual({ kind: 'amount', value: 50, unit: 'g' });
+		expect(ingredients.find((i) => i.id === 'succo-di-limone')?.purchase).toMatchObject({ from: 'g' });
 	});
 	it('marks optional lines from the source wording', () => {
 		const line = recipes.flatMap((r) => r.ingredients).find((l) => l.ingredientId === 'prezzemolo-opzionale');

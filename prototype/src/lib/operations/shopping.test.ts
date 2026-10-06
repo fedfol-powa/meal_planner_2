@@ -64,6 +64,14 @@ describe('buildShoppingList', () => {
 		expect(produce).toEqual([...produce].sort((a, b) => a.localeCompare(b, 'it-IT')));
 	});
 
+	it('buys lemons for lemon juice, keeping grams in the meal sources', () => {
+		// pollo-corn-flakes: 50 g juice (≈ 1.06 lemons) + zest of 1 lemon, 4 servings of 4.
+		const list = value(buildShoppingList(db, ctx(), ['2026-10-08-dinner']));
+		const lemon = allItems(arrangeShoppingList(list, new Set())).find((i) => i.id === 'limone');
+		expect(lemon?.quantity).toBe('2');
+		expect(lemon?.sources.map((s) => s.quantity)).toEqual(['50 g', '1']);
+	});
+
 	it('marks optional ingredients', () => {
 		const list = value(buildShoppingList(db, ctx(), ['2026-10-08-lunch']));
 		// Prezzemolo here only comes from an optional line.

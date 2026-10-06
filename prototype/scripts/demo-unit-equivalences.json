@@ -1,10 +1,48 @@
 {
-	"_note": "Per-ingredient equivalences for US cups of American sources (spec section 6: no volume-to-mass conversion without a verified equivalence for that ingredient). Applied when building the demo data; the source text is kept. Demo values, to be confirmed by a curator.",
-	"us_cup": {
-		"cipolla-a-dadini": { "unit": "piece", "per": 1, "source": "Recipe source: 1/2 cup is about 1/2 medium onion" },
-		"cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija": { "unit": "g", "per": 113, "source": "King Arthur Baking, Ingredient Weight Chart: grated cheddar, 1 cup = 113 g" },
-		"lattuga-tagliata-o-spezzettata": { "unit": "g", "per": 72, "source": "USDA FoodData Central: iceberg lettuce, raw, 1 cup shredded = 72 g" },
-		"salsa-messicana-pronta": { "unit": "ml", "per": 236.5882365, "source": "Liquid: US cup = 236.588 ml (NIST)" },
-		"yogurt-greco-o-panna-acida": { "unit": "ml", "per": 236.5882365, "source": "Semi-liquid: US cup = 236.588 ml (NIST)" }
-	}
+	"_note": "Per-ingredient equivalences (spec section 6: no conversion across dimensions without a verified equivalence for that ingredient). Applied when building the demo data, keeping the source text; 'per' is the target amount for one source unit. Demo values, to be confirmed by a curator. Scope 'shopping' applies only to shopping lists (you buy lemons, you cook with grams of juice).",
+	"conversions": [
+		{
+			"ingredient": "cipolla-a-dadini",
+			"from": "us_cup",
+			"to": "piece",
+			"per": 1,
+			"source": "Recipe source: 1/2 cup is about 1/2 medium onion"
+		},
+		{
+			"ingredient": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
+			"from": "us_cup",
+			"to": "g",
+			"per": 113,
+			"source": "King Arthur Baking, Ingredient Weight Chart: grated cheddar, 1 cup = 113 g"
+		},
+		{
+			"ingredient": "lattuga-tagliata-o-spezzettata",
+			"from": "us_cup",
+			"to": "g",
+			"per": 72,
+			"source": "USDA FoodData Central: iceberg lettuce, raw, 1 cup shredded = 72 g"
+		},
+		{
+			"ingredient": "salsa-messicana-pronta",
+			"from": "us_cup",
+			"to": "ml",
+			"per": 236.5882365,
+			"source": "Liquid: US cup = 236.588 ml (NIST)"
+		},
+		{
+			"ingredient": "yogurt-greco-o-panna-acida",
+			"from": "us_cup",
+			"to": "ml",
+			"per": 236.5882365,
+			"source": "Semi-liquid: US cup = 236.588 ml (NIST)"
+		},
+		{
+			"ingredient": "succo-di-limone",
+			"from": "g",
+			"to": "piece",
+			"per": 0.021277,
+			"source": "USDA FoodData Central: lemon juice, raw, yield of 1 lemon = 47 g",
+			"scope": "shopping"
+		}
+	]
 }

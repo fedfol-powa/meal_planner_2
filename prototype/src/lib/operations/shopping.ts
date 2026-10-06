@@ -86,7 +86,12 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 			const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
 			const id = ingredient?.canonicalId ?? line.ingredientId;
 			const entry = entries.get(id) ?? { combined: emptyCombined(), optional: true, sources: [], avoid: false };
-			entry.combined = addQuantity(entry.combined, line.quantity, line.sourceText);
+			// Bought differently from how it is measured (lemon juice → lemons): only in the list.
+			const bought =
+				ingredient?.purchase && line.quantity.kind === 'amount' && line.quantity.unit === ingredient.purchase.from
+					? { kind: 'amount' as const, value: line.quantity.value * ingredient.purchase.piecesPer, unit: 'piece' as const }
+					: line.quantity;
+			entry.combined = addQuantity(entry.combined, bought, line.sourceText);
 			entry.optional &&= recipe.ingredients[index].isOptional;
 			entry.avoid ||= avoided.has(line.ingredientId) || avoided.has(id);
 			entry.sources.push({

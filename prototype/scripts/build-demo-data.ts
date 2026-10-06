@@ -21,7 +21,7 @@ const classification = JSON.parse(readFileSync(resolve(root, 'scripts/demo-ingre
 	canonical: Record<string, string>;
 };
 const equivalences = JSON.parse(readFileSync(resolve(root, 'scripts/demo-unit-equivalences.json'), 'utf8')) as {
-	us_cup: Record<string, { unit: UnitCode; per: number; source: string }>;
+	conversions: { ingredient: string; from: UnitCode; to: UnitCode; per: number; source: string; scope?: 'shopping' }[];
 };
 const departmentOf = new Map(Object.entries(classification.departments).flatMap(([dep, ids]) => ids.map((id) => [id, dep as Department])));
 const pantry = new Set(classification.pantry);
@@ -78,11 +78,17 @@ const addedOnOf = (r: OriginRecipe) => {
 	return first ?? lastAdded;
 };
 
-// US cups become pieces, grams or millilitres only with a verified equivalence for that ingredient.
+// Shopping-only conversions: how the ingredient is bought (lemon juice in grams → lemons).
+function purchaseOf(ingredientId: string): Ingredient['purchase'] {
+	const eq = equivalences.conversions.find((c) => c.ingredient === ingredientId && c.scope === 'shopping' && c.to === 'piece');
+	return eq ? { from: eq.from, piecesPer: eq.per, source: eq.source } : null;
+}
+
+// Converts across units only with a verified equivalence for that ingredient (US cups, lemon juice in lemons).
 function withEquivalence(ingredientId: string, quantity: Quantity): Quantity {
-	if (quantity.kind !== 'amount' || quantity.unit !== 'us_cup') return quantity;
-	const eq = equivalences.us_cup[ingredientId];
-	return eq ? { kind: 'amount', value: quantity.value * eq.per, unit: eq.unit } : quantity;
+	if (quantity.kind !== 'amount') return quantity;
+	const eq = equivalences.conversions.find((c) => c.ingredient === ingredientId && c.from === quantity.unit && !c.scope);
+	return eq ? { kind: 'amount', value: quantity.value * eq.per, unit: eq.to } : quantity;
 }
 
 const recipes: Recipe[] = originRecipes.map((r) => {
@@ -98,7 +104,8 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 				name: { 'it-IT': line.nome, 'en-GB': enName },
 				department,
 				isPantry: pantry.has(id),
-				canonicalId: classification.canonical[id] ?? null
+				canonicalId: classification.canonical[id] ?? null,
+				purchase: purchaseOf(id)
 			});
 		}
 		const sourceText = String(line.quantita);
