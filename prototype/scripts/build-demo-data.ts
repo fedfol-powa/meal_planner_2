@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 import { parseQuantity } from '../src/lib/units/parse.ts';
-import type { Book, Ingredient, MealSlot, MealType, Recipe, RecipeMealType, Week } from '../src/lib/domain/types.ts';
+import type { Book, Department, Ingredient, MealSlot, MealType, Recipe, RecipeMealType, Week } from '../src/lib/domain/types.ts';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const origin = resolve(root, '../../meal_planner');
@@ -15,6 +15,13 @@ const translations = JSON.parse(readFileSync(resolve(root, 'scripts/demo-transla
 	ingredients: Record<string, string>;
 	quantities: Record<string, string>;
 };
+const classification = JSON.parse(readFileSync(resolve(root, 'scripts/demo-ingredients.json'), 'utf8')) as {
+	departments: Record<Department, string[]>;
+	pantry: string[];
+	canonical: Record<string, string>;
+};
+const departmentOf = new Map(Object.entries(classification.departments).flatMap(([dep, ids]) => ids.map((id) => [id, dep as Department])));
+const pantry = new Set(classification.pantry);
 const reportMissing = process.argv.includes('--report-missing');
 
 type OriginRecipe = {
@@ -73,11 +80,22 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 	const lines = (r.ingredienti ?? []).map((line) => {
 		const id = slug(line.nome);
 		const enName = translations.ingredients[line.nome] ?? null;
-		if (!ingredients.has(id)) ingredients.set(id, { id, name: { 'it-IT': line.nome, 'en-GB': enName } });
+		if (!ingredients.has(id)) {
+			const department = departmentOf.get(id) ?? (pantry.has(id) ? 'condiments' : null);
+			if (!department) throw new Error(`Ingredient ${id} has no department in scripts/demo-ingredients.json`);
+			ingredients.set(id, {
+				id,
+				name: { 'it-IT': line.nome, 'en-GB': enName },
+				department,
+				isPantry: pantry.has(id),
+				canonicalId: classification.canonical[id] ?? null
+			});
+		}
 		const sourceText = String(line.quantita);
 		const quantity = parseQuantity(sourceText);
 		const text = quantity.kind === 'text' ? { 'it-IT': sourceText, 'en-GB': translations.quantities[sourceText] ?? null } : null;
-		return { ingredientId: id, quantity, sourceText, text, enName, name: line.nome };
+		const isOptional = /facoltativ|opzional/i.test(line.nome);
+		return { ingredientId: id, quantity, sourceText, text, isOptional, enName, name: line.nome };
 	});
 	const hasData = lines.length > 0 && !!r.porzioni_base;
 	if (hasData) {
@@ -102,7 +120,7 @@ const recipes: Recipe[] = originRecipes.map((r) => {
 		bookPages: r.libro?.pagine ?? null,
 		durationMinutes: durationOf(r.tempo),
 		baseServings: r.porzioni_base,
-		ingredients: lines.map(({ ingredientId, quantity, sourceText, text }) => ({ ingredientId, quantity, sourceText, text })),
+		ingredients: lines.map(({ ingredientId, quantity, sourceText, text, isOptional }) => ({ ingredientId, quantity, sourceText, text, isOptional })),
 		mealType: mealTypeOf(r),
 		proteinGroup: PROTEIN_TAGS.find(([tag]) => r.tag.includes(tag))?.[1] ?? null,
 		tags: r.tag,
@@ -118,6 +136,10 @@ if (reportMissing) {
 if (Object.keys(missing.recipes).length || Object.keys(missing.ingredients).length || Object.keys(missing.quantities).length) {
 	console.error('Missing en-GB translations. Run with --report-missing and complete scripts/demo-translations.en-GB.json');
 	process.exit(1);
+}
+
+for (const [from, to] of Object.entries(classification.canonical)) {
+	if (!ingredients.has(from) || !ingredients.has(to)) throw new Error(`Canonical mapping ${from} -> ${to} names an unknown ingredient`);
 }
 
 const byId = new Map(recipes.map((r) => [r.id, r]));

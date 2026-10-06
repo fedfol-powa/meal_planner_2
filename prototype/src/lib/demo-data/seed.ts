@@ -3,7 +3,7 @@ import data from './generated.json';
 
 // Demo people: Federico from the origin project, the others invented for the prototype.
 export function createSeedDatabase(): DemoDatabase {
-	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'ratings' | 'exclusions' | 'mealChanges'> & {
+	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients'> & {
 		federicoRatings: { recipeId: string; stars: number }[];
 	};
 	const ratings: Rating[] = generated.federicoRatings.map((r) => ({ userId: 'user-federico', ...r }));
@@ -58,6 +58,8 @@ export function createSeedDatabase(): DemoDatabase {
 		weeks,
 		ratings,
 		exclusions: [],
-		mealChanges: []
+		mealChanges: [],
+		// Invented for the prototype: shows the "avoided" part of the shopping list.
+		familyIngredients: [{ familyId: 'family-main', ingredientId: 'peperoncino-fresco', restriction: 'avoid' }]
 	};
 }

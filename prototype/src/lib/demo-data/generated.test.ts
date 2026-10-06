@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import data from './generated.json';
-import type { Ingredient, Recipe, Week } from '../domain/types';
+import { DEPARTMENTS, type Ingredient, type Recipe, type Week } from '../domain/types';
 
 const recipes = data.recipes as Recipe[];
 const ingredients = data.ingredients as Ingredient[];
@@ -28,6 +28,23 @@ describe('generated demo data', () => {
 				expect(line.text?.['it-IT']).toBe(line.sourceText);
 			}
 		}
+	});
+	it('classifies every ingredient for the shopping list (demo classification)', () => {
+		const byId = new Map(ingredients.map((i) => [i.id, i]));
+		for (const ingredient of ingredients) {
+			expect(DEPARTMENTS, ingredient.id).toContain(ingredient.department);
+			if (ingredient.canonicalId) {
+				const target = byId.get(ingredient.canonicalId);
+				expect(target, ingredient.id).toBeDefined();
+				expect(target?.canonicalId, `${ingredient.id} must point to a final ingredient`).toBeNull();
+			}
+		}
+		expect(byId.get('sale')?.isPantry).toBe(true);
+		expect(byId.get('uovo')?.canonicalId).toBe('uova');
+	});
+	it('marks optional lines from the source wording', () => {
+		const line = recipes.flatMap((r) => r.ingredients).find((l) => l.ingredientId === 'prezzemolo-opzionale');
+		expect(line?.isOptional).toBe(true);
 	});
 	it('keeps drafts for recipes without ingredients', () => {
 		expect(recipes.find((r) => r.id === 'polpettine-tacchino-skottle')?.status).toBe('draft');

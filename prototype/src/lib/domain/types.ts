@@ -24,9 +24,20 @@ export type Quantity =
 	| { kind: 'to_taste' }
 	| { kind: 'text' };
 
+/** Shopping list departments, in the standard order of spec section 6. */
+export const DEPARTMENTS = [
+	'produce', 'butcher', 'fish', 'chilled', 'bakery', 'pasta_grains', 'tinned', 'frozen', 'condiments', 'other'
+] as const;
+export type Department = (typeof DEPARTMENTS)[number];
+
 export interface Ingredient {
 	id: string;
 	name: Translated;
+	department: Department;
+	/** Always at home (oil, salt, common spices): left out of shopping lists. */
+	isPantry: boolean;
+	/** Demo only: evident duplicate of the imported data, consolidated into this ingredient. */
+	canonicalId: string | null;
 }
 
 export interface RecipeIngredient {
@@ -36,6 +47,7 @@ export interface RecipeIngredient {
 	sourceText: string;
 	/** Localised wording of a non-numeric quantity; required in both languages to publish. */
 	text: Translated | null;
+	isOptional: boolean;
 }
 
 export interface Book {
@@ -119,6 +131,13 @@ export interface RecipeExclusion {
 	createdAt: LocalDateTime;
 }
 
+/** family_ingredients: "avoid" keeps the ingredient out of shopping lists, reported apart. */
+export interface FamilyIngredient {
+	familyId: string;
+	ingredientId: string;
+	restriction: 'avoid' | 'limit';
+}
+
 /** The editable part of a slot, as stored in the change log. */
 export type SlotContent = Pick<MealSlot, 'recipeId' | 'freeText' | 'servings' | 'note'>;
 
@@ -143,4 +162,5 @@ export interface DemoDatabase {
 	ratings: Rating[];
 	exclusions: RecipeExclusion[];
 	mealChanges: MealChange[];
+	familyIngredients: FamilyIngredient[];
 }

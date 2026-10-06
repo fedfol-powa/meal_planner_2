@@ -1,0 +1,99 @@
+{
+	"_note": "Demonstrative classification for the prototype, not catalogue data. Pantry items are left out of shopping lists; canonical maps evident duplicates of the imported data to one ingredient.",
+	"departments": {
+		"produce": [
+			"peperone-rosso", "peperone-giallo", "carote", "zucchine", "melanzana-piccola", "cipolla-rossa-di-tropea-o-1-cipollotto",
+			"pomodori-ramati", "cipolla-piccola", "peperoncino", "aglio", "basilico", "bietole-gia-cotte", "cipolla", "peperone",
+			"carota", "zucchina", "pomodori-ciliegini-o-pomodorini", "cipollotto", "basilico-fresco", "peperoncino-fresco-dolce",
+			"lattuga-iceberg", "barbabietole", "prezzemolo", "succo-di-limone", "scalogno", "pomodorini-perini", "cipolla-dorata",
+			"melanzane", "zucca-a-pezzetti", "broccolo", "peperoni-rossi", "limone", "succo-di-lime", "cipolla-rossa", "coriandolo",
+			"insalata", "peperoncino-verde", "menta", "peperone-verde", "spinacini-freschi", "limoni-medi",
+			"prezzemolo-o-altre-erbe-aromatiche", "zucca-pulita", "broccoli", "zenzero-fresco", "carota-julienne-cruda",
+			"pomodorini-rossi-e-gialli", "patata-media", "limone-bio-succo-e-scorza", "prezzemolo-fresco", "patata-grande-o-2-piccole",
+			"cipolla-grande", "pomodoro-tritato-o-grattugiato", "peperone-rosso-o-1-2-verde", "salvia", "cipollotti", "ravanelli",
+			"cipolle-rosse", "peperoncino-fresco", "porri", "timo", "scorza-di-limone", "erba-cipollina", "rucola", "foglie-di-basilico",
+			"cipolla-rossa-piccola", "pomodori", "zenzero-fresco-grattugiato", "coriandolo-fresco", "germogli-di-soia",
+			"cipolla-o-cipollotto", "prezzemolo-opzionale", "radicchio-pulito", "rosmarino", "funghi-champignon-puliti",
+			"spinaci-freschi-puliti", "cipolla-a-dadini", "aglio-tritato-o-schiacciato", "lattuga-tagliata-o-spezzettata",
+			"pomodoro-a-dadini-varieta-roma", "pomodoro-cuore-di-bue"
+		],
+		"butcher": [
+			"petto-di-pollo", "salsicce", "salsiccia", "sovracosce-di-pollo-disossate-e-spellate", "carne-di-maiale-macinata",
+			"fette-di-lonza-di-maiale", "reale-di-vitellone-o-di-bovino-a-fettine", "hamburger-di-cavallo"
+		],
+		"fish": [
+			"filetti-di-merluzzo", "code-di-gambero", "alici", "filetti-di-branzino", "gamberi-freschi-puliti",
+			"filetti-di-orata-spinati-e-senza-pelle"
+		],
+		"chilled": [
+			"ricotta", "uova", "ricotta-vaccina", "pecorino-romano-grattugiato-o-parmigiano", "emmentaler-8-fette", "uova-medie",
+			"uovo", "caciocavallo-grattugiato", "burro", "parmigiano", "pesto-alla-genovese", "pasta-fresca", "panna-fresca",
+			"prosciutto-cotto", "robiola", "latte", "feta", "montasio", "prosciutto-cotto-a-dadini", "guanciale-a-listarelle",
+			"pollo-gia-cotto", "hummus-pronto", "speck-da-tagliare-a-cubetti", "parmigiano-reggiano-dop", "latte-intero",
+			"yogurt-bianco-naturale", "bresaola", "stracchino", "tofu-affumicato", "yogurt-greco-o-panna-acida",
+			"cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija", "mozzarelle", "tacchino", "straccetti-vegani-tex-mex",
+			"melanzana-grigliata", "peperone-grigliato", "caviale-di-melanzane"
+		],
+		"bakery": [
+			"pane-casereccio-tipo-toscano", "piadine-integrali-da-50-g-ciascuna", "panini-per-hamburger", "pane-durum-misura-l-30-cm",
+			"pane-libanese", "piadine", "tortillas-di-farina", "pane", "pangrattato"
+		],
+		"pasta_grains": [
+			"riso-basmati", "mezze-penne", "noodles-di-grano-o-di-riso", "cous-cous", "pappardelle", "pasta", "penne-rigate",
+			"rigatoni", "orecchiette", "paccheri", "riso-bianco-per-sushi", "farina-00", "riso", "riso-integrale", "riso-jasmine",
+			"fusilloni", "spaghettoni", "couscous", "couscous-precotto", "pappardelle-all-uovo", "corn-flakes-non-zuccherati",
+			"spaghetti-di-riso", "ditali", "trofie", "fusilli"
+		],
+		"tinned": [
+			"concentrato-di-pomodoro", "olive-taggiasche", "ceci-precotti", "tonno-sott-olio", "passata-di-pomodoro", "pomodori-pelati",
+			"fagioli-rossi-in-scatola", "tonno", "mais-in-scatola", "lenticchie-cotte",
+			"fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati", "pomodori-pelati-o-pomodorini-freschi-maturi",
+			"lenticchie-meglio-pardine", "tonno-sott-olio-peso-sgocciolato", "fagioli-rossi-precotti-peso-sgocciolato",
+			"pomodori-secchi-sott-olio", "ceci-in-scatola", "ceci-gia-cotti-e-sgocciolati", "fagioli-neri-scolati-e-sciacquati"
+		],
+		"frozen": ["piselli", "pisellini", "erbazzone-congelato"],
+		"condiments": [
+			"salsa-di-soia-senza-glutine", "salsa-d-ostriche-facoltativa", "salsa-di-soia", "tabasco", "tahina", "vino-bianco-secco",
+			"sugo-di-pesce", "uvetta", "mandorle", "mandorle-in-scaglie", "mandorle-tritate", "miele", "vino-bianco-o-fino-facoltativo",
+			"brodo-vegetale", "brodo-vegetale-caldo", "vino-rosso", "maionese", "crema-di-mandorle-croccante",
+			"salsa-barbecue-o-fumo-liquido-q-b", "semi-di-sesamo", "noci-sgusciate", "salsa-messicana-pronta"
+		],
+		"other": [
+			"guacamole-pagina-185-del-libro", "patata-dolce-arrosto-pagina-189-del-libro", "pickles-di-cavolo-rosso-pagina-182-del-libro",
+			"salsa-base-giapponese-pagina-24-del-libro", "kimchi-veloce-pagina-36-del-libro"
+		]
+	},
+	"pantry": [
+		"sale", "sale-fino", "sale-e-pepe", "pepe", "pepe-nero", "olio-extravergine-d-oliva", "olio-di-semi-di-girasole",
+		"olio-di-semi-di-colza", "aceto", "acqua", "noce-moscata", "paprika-piccante", "paprika-dolce", "paprika-affumicata", "cumino",
+		"cumino-in-polvere", "cumino-macinato", "curcuma", "curcuma-in-polvere", "curry-in-polvere-facoltativo", "curry-o-garam-masala",
+		"garam-masala", "cannella", "aglio-in-polvere", "zafferano", "peperoncino-in-fiocchi", "coriandolo-macinato", "alloro"
+	],
+	"canonical": {
+		"uovo": "uova",
+		"uova-medie": "uova",
+		"limoni-medi": "limone",
+		"limone-bio-succo-e-scorza": "limone",
+		"carota": "carote",
+		"zucchina": "zucchine",
+		"cipolla-a-dadini": "cipolla",
+		"cipollotti": "cipollotto",
+		"peperoni-rossi": "peperone-rosso",
+		"salsicce": "salsiccia",
+		"broccolo": "broccoli",
+		"basilico-fresco": "basilico",
+		"foglie-di-basilico": "basilico",
+		"prezzemolo-fresco": "prezzemolo",
+		"prezzemolo-opzionale": "prezzemolo",
+		"cous-cous": "couscous",
+		"coriandolo-fresco": "coriandolo",
+		"cumino-in-polvere": "cumino",
+		"cumino-macinato": "cumino",
+		"curcuma-in-polvere": "curcuma",
+		"zenzero-fresco-grattugiato": "zenzero-fresco",
+		"parmigiano-reggiano-dop": "parmigiano",
+		"latte-intero": "latte",
+		"tonno-sott-olio-peso-sgocciolato": "tonno-sott-olio",
+		"fagioli-rossi-precotti-peso-sgocciolato": "fagioli-rossi-in-scatola"
+	}
+}
