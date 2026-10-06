@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addQuantity, emptyCombined, formatCombined } from './combine';
+import { addQuantity, emptyCombined, exceeds, formatCombined } from './combine';
 import type { Quantity } from '#lib/domain/types.ts';
 
 const amount = (value: number, unit: Extract<Quantity, { kind: 'amount' }>['unit']): Quantity => ({ kind: 'amount', value, unit });
@@ -42,5 +42,14 @@ describe('combine quantities', () => {
 	it('presents the sum in UK imperial units', () => {
 		expect(formatCombined(combine([amount(400, 'g')], [amount(400, 'g')]), 'uk_imperial', 'en-GB')).toBe('1¾ lb');
 		expect(formatCombined(combine([amount(250, 'ml')]), 'uk_imperial', 'en-GB')).toBe('9 fl oz');
+	});
+
+	it('tells when a quantity grew since it was ticked', () => {
+		const before = combine([amount(200, 'g')], [amount(1, 'piece')]);
+		expect(exceeds(combine([amount(300, 'g')], [amount(1, 'piece')]), before)).toBe(true);
+		expect(exceeds(combine([amount(0.1, 'kg')], [amount(1, 'piece')]), before)).toBe(false);
+		expect(exceeds(combine([amount(200, 'g')], [amount(100, 'ml')]), before)).toBe(true);
+		expect(exceeds(combine([amount(200, 'g')], [{ kind: 'to_taste' }]), before)).toBe(true);
+		expect(exceeds(before, before)).toBe(false);
 	});
 });

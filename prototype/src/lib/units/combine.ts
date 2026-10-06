@@ -1,17 +1,11 @@
-import type { Locale, MeasurementSystem, Quantity, UnitCode } from '#lib/domain/types.ts';
+import type { CombinedQuantity, Locale, MeasurementSystem, Quantity, UnitCode } from '#lib/domain/types.ts';
 import { translate } from '#lib/i18n/translate.ts';
 import { formatQuantity } from './format';
 
 // Provisional factor, same as present.ts (spec section 15, "Misure").
 const G_PER_OZ = 28.349523125;
 
-/** Quantities of one ingredient summed per dimension: masses in g, volumes in ml, counts per unit. */
-export interface CombinedQuantity {
-	amounts: { value: number; unit: UnitCode }[];
-	/** Non-numeric quantities, kept as written (deduplicated). */
-	texts: string[];
-	toTaste: boolean;
-}
+export type { CombinedQuantity };
 
 export const emptyCombined = (): CombinedQuantity => ({ amounts: [], texts: [], toTaste: false });
 
@@ -43,4 +37,13 @@ export function formatCombined(c: CombinedQuantity, system: MeasurementSystem, l
 	parts.push(...c.texts);
 	if (c.toTaste) parts.push(translate(locale, 'quantity.toTaste'));
 	return parts.join(' + ');
+}
+
+/** True when `now` asks for more than `before` (a ticked item needs ticking again). */
+export function exceeds(now: CombinedQuantity, before: CombinedQuantity): boolean {
+	const more = now.amounts.some((a) => {
+		const old = before.amounts.find((b) => b.unit === a.unit);
+		return !old || a.value > old.value * (1 + 1e-9) + 1e-9;
+	});
+	return more || now.texts.some((t) => !before.texts.includes(t)) || (now.toTaste && !before.toTaste);
 }

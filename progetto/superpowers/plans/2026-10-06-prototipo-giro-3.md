@@ -198,3 +198,90 @@ imperiale, offline (Bring! disattivato) e anteprima di stampa su una pagina. Sce
 prese durante lo sviluppo e domande per la review in `design/percorsi.md`, "Giro 3".
 Il confronto con `design/index.html` riguarda gruppi e righe della spesa del
 riferimento, riusati (`shopping-group`, `shopping-item`).
+
+## Revisione del piano: lista persistente (6 ottobre 2026)
+
+Dopo la prima prova l'utente ha rivisto la decisione 2 della preparazione: la lista
+**non è più effimera**. Cambia la specifica (sezioni 2, 5, 6, 13 e parte funzionale
+"La lista della spesa"), da aggiornare alla chiusura del giro come le altre decisioni
+provvisorie.
+
+### Nuove decisioni della preparazione (provvisorie)
+
+6. **Liste della famiglia:** ogni lista appartiene a una famiglia; tutti i membri la
+   vedono e la modificano, come il menu. Nessuna condivisione tra famiglie.
+7. **Spunta in negozio:** un solo gesto, la casella, vale sia "ce l'ho già" sia
+   "comprato"; tutti i membri vedono le spunte. Le esportazioni restano.
+8. **Aggiornamento automatico:** la lista ricorda i pasti scelti, non le quantità;
+   se un pasto cambia (ricetta, porzioni, scambio, pasto libero) le voci si ricalcolano
+   da sole.
+9. **Più liste aperte e storico:** si possono avere più liste aperte; una lista si
+   chiude con "Spesa fatta" o da sola quando tutte le voci sono spuntate, e passa
+   nello storico, dove si consulta o si riapre.
+10. **Nessun segno "già in lista"** nella scelta dei pasti: resta tolto.
+11. **Voci libere:** "Aggiungi una voce" con testo libero, nel reparto "Altro", senza
+    conversioni né somme.
+
+### Default proposti (da confermare approvando la revisione)
+
+- **Ingresso:** la borsa nel Menu apre `/shopping`, elenco delle liste aperte (nome,
+  numero di pasti, voci spuntate su totali, ultima modifica "Anna · ven 21:30") con
+  "Nuova lista"; sotto lo storico, chiuso. `/shopping/new` è la scelta dei pasti di
+  oggi, che crea la lista e apre `/shopping/[id]`.
+- **Nome automatico** dai giorni dei pasti ("Pasti 6–11 ottobre"); nessuna
+  rinomina in questo giro.
+- **Voce spuntata che cambia:** se dopo la spunta la quantità di una voce aumenta, la
+  voce torna da spuntare e mostra la quantità spuntata prima ("prima: 200 g"); se
+  diminuisce resta spuntata. Le voci che spariscono perdono la spunta.
+- **Modifica pasti** dalla lista: riapre la scelta con i pasti attuali della lista.
+- **Chiusura:** chiudendo, la lista si congela (quantità e spunte del momento) e non
+  segue più i pasti; "Riapri" la riporta tra le aperte e torna a seguire i pasti.
+  Chiusura automatica all'ultima spunta, con avviso e "Annulla".
+- **Eliminazione** di una lista (aperta o nello storico) da parte di qualunque membro,
+  con avviso e "Annulla".
+- **Concorrenza:** vince l'ultimo salvataggio per singola voce, come per i pasti; ogni
+  lista mostra l'ultima modifica (persona e momento).
+- **Offline simulato:** liste consultabili ed esportabili, spunte e modifiche
+  disattivate come il resto dell'app. Va discusso in review: in negozio la rete
+  manca spesso, e spuntare offline richiede una coda di sincronizzazione
+  (architettura).
+- **Bring!** invariato: pagina temporanea di 30 minuti generata dalla lista.
+
+### Modello simulato
+
+`ShoppingList { id, familyId, status: 'open' | 'closed', slotIds, checks:
+{ ingredientId, quantityAtCheck, by, at }[], addedBack, manualItems: { id, text,
+checked, by, at }[], frozen: lista calcolata al momento della chiusura | null,
+createdBy, createdAt, updatedBy, updatedAt, closedAt }` in `DemoDatabase.shoppingLists`,
+salvato in `localStorage` (versione dello stato incrementata). Bozza delle tabelle
+`shopping_lists`, `shopping_list_meals`, `shopping_list_checks`,
+`shopping_list_manual_items`. Il calcolo resta `buildShoppingList`; le nuove
+operazioni ricevono l'id della lista, come servirà a MCP. Dati demo: una lista chiusa
+della settimana del 28 settembre nello storico e una lista aperta di Anna con alcune
+voci spuntate. Pannello Prova: "Anna spunta una voce della lista".
+
+### Attività della revisione
+
+#### Attività 6: modello e operazioni (test prima)
+
+- [ ] Tipi, seed con le due liste demo, versione dello stato.
+- [ ] `getShoppingLists`, `createShoppingList`, `getShoppingListDetail` (voci
+      ricalcolate, spunte, "prima: …", voci libere, ultima modifica),
+      `setShoppingListMeals`, `toggleShoppingItem`, `addManualItem`,
+      `toggleManualItem`, `removeManualItem`, `addBackExcluded`,
+      `closeShoppingList` (congela), `reopenShoppingList`, `deleteShoppingList`
+      con annullamento; offline e permessi.
+- [ ] Commit.
+
+#### Attività 7: viste
+
+- [ ] `/shopping` elenco e storico; `/shopping/new` scelta dei pasti; `/shopping/[id]`
+      lista con voce libera, spunte condivise, "Modifica pasti", "Spesa fatta",
+      "Riapri", "Elimina", esportazioni.
+- [ ] Pannello Prova: "Anna spunta una voce della lista".
+- [ ] Testi it-IT ed en-GB; commit.
+
+#### Attività 8: verifica e review
+
+- [ ] Test, tipi, prova nel browser come nell'attività 5 più due utenti sulla stessa
+      lista e cambio di un pasto incluso; documenti; anteprima sulla rete locale.

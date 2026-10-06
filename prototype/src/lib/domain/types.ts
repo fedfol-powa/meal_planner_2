@@ -138,6 +138,52 @@ export interface FamilyIngredient {
 	restriction: 'avoid' | 'limit';
 }
 
+/** Quantities of one ingredient summed per dimension: masses in g, volumes in ml, counts per unit. */
+export interface CombinedQuantity {
+	amounts: { value: number; unit: UnitCode }[];
+	/** Non-numeric quantities, kept as written (deduplicated). */
+	texts: string[];
+	toTaste: boolean;
+}
+
+/** What a shopping list needs from a slot; a closed list keeps a copy (frozen). */
+export type ShoppingListSlot = Pick<MealSlot, 'id' | 'date' | 'mealType' | 'recipeId' | 'servings'>;
+
+/** A ticked item ("already have it" or "bought"), with the quantity it had when ticked. */
+export interface ShoppingCheck {
+	ingredientId: string;
+	quantity: CombinedQuantity;
+	by: string;
+	at: LocalDateTime;
+}
+
+export interface ShoppingManualItem {
+	id: string;
+	text: string;
+	checked: boolean;
+	createdBy: string;
+	createdAt: LocalDateTime;
+}
+
+/** Family shopping list (round 3 revision): remembers the meals, quantities follow them while open. */
+export interface ShoppingList {
+	id: string;
+	familyId: string;
+	status: 'open' | 'closed';
+	slotIds: string[];
+	checks: ShoppingCheck[];
+	/** Pantry or avoided ingredients put back on the list. */
+	addedBack: string[];
+	manualItems: ShoppingManualItem[];
+	/** Slot contents at closing: a closed list no longer follows the meals. */
+	frozenSlots: ShoppingListSlot[] | null;
+	createdBy: string;
+	createdAt: LocalDateTime;
+	updatedBy: string;
+	updatedAt: LocalDateTime;
+	closedAt: LocalDateTime | null;
+}
+
 /** The editable part of a slot, as stored in the change log. */
 export type SlotContent = Pick<MealSlot, 'recipeId' | 'freeText' | 'servings' | 'note'>;
 
@@ -163,4 +209,5 @@ export interface DemoDatabase {
 	exclusions: RecipeExclusion[];
 	mealChanges: MealChange[];
 	familyIngredients: FamilyIngredient[];
+	shoppingLists: ShoppingList[];
 }

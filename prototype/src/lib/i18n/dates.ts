@@ -54,3 +54,13 @@ export function formatAverage(locale: Locale, value: number): string {
 		value
 	);
 }
+
+/** "6–11 ottobre", "28 settembre – 4 ottobre" or a single "7 ottobre" (shopping list names). */
+export function formatDateRange(locale: Locale, from: IsoDate, to: IsoDate): string {
+	const day = (date: IsoDate) => String(Number(date.slice(8, 10)));
+	const month = (date: IsoDate) => new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(asUtc(date));
+	if (from === to) return `${day(from)} ${month(from)}`;
+	return from.slice(0, 7) === to.slice(0, 7)
+		? `${day(from)}–${day(to)} ${month(to)}`
+		: `${day(from)} ${month(from)} – ${day(to)} ${month(to)}`;
+}

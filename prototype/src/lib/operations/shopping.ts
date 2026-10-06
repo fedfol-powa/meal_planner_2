@@ -1,5 +1,5 @@
 import { addDays, isMealPast, mondayOf } from '#lib/domain/calendar.ts';
-import { DEPARTMENTS, type DemoDatabase, type Department, type IsoDate, type Locale, type MealSlot, type MealType } from '#lib/domain/types.ts';
+import { DEPARTMENTS, type DemoDatabase, type Department, type Family, type IsoDate, type Locale, type MealSlot, type MealType, type ShoppingListSlot } from '#lib/domain/types.ts';
 import { translate } from '#lib/i18n/translate.ts';
 import { addQuantity, emptyCombined, formatCombined, type CombinedQuantity } from '#lib/units/combine.ts';
 import { formatQuantity } from '#lib/units/format.ts';
@@ -8,7 +8,7 @@ import { fail, ok, type OperationContext, type OpResult } from './context';
 import { visibleWeeks } from './meals';
 
 const MEAL_ORDER = { lunch: 0, dinner: 1 } as const;
-const byDateAndMeal = (a: MealSlot, b: MealSlot) => a.date.localeCompare(b.date) || MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType];
+const byDateAndMeal = (a: ShoppingListSlot, b: ShoppingListSlot) => a.date.localeCompare(b.date) || MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType];
 
 export type ShoppingShortcut = 'rest_of_week' | 'next_week';
 
@@ -87,6 +87,8 @@ export interface ShoppingItem {
 	name: string;
 	department: Department;
 	quantity: string;
+	/** The sum before conversion and rounding, kept to compare with a ticked quantity. */
+	combined: CombinedQuantity;
 	/** Every line that asks for it is optional. */
 	isOptional: boolean;
 	sources: ShoppingSource[];
@@ -110,16 +112,24 @@ export interface ShoppingListView {
 export function buildShoppingList(db: DemoDatabase, ctx: OperationContext, slotIds: string[]): OpResult<ShoppingListView> {
 	const family = familyFor(db, ctx);
 	if (!family) return fail('not_found');
-	const locale = localeOf(db, ctx);
-	const system = family.measurementSystem;
-	const familySlots = new Map(visibleWeeks(db, family, ctx).flatMap((w) => w.slots).map((s) => [s.id, s]));
+	const familySlots = familySlotMap(db, ctx, family);
 	const slots: MealSlot[] = [];
 	for (const id of new Set(slotIds)) {
 		const slot = familySlots.get(id);
 		if (!slot) return fail('not_found');
 		slots.push(slot);
 	}
-	slots.sort(byDateAndMeal);
+	return ok(computeShoppingList(db, family, localeOf(db, ctx), slots));
+}
+
+export function familySlotMap(db: DemoDatabase, ctx: OperationContext, family: Family): Map<string, MealSlot> {
+	return new Map(visibleWeeks(db, family, ctx).flatMap((w) => w.slots).map((s) => [s.id, s]));
+}
+
+/** The calculation itself, on current slots or on the copy kept by a closed list. */
+export function computeShoppingList(db: DemoDatabase, family: Family, locale: Locale, input: ShoppingListSlot[]): ShoppingListView {
+	const system = family.measurementSystem;
+	const slots = [...input].sort(byDateAndMeal);
 
 	const avoided = new Set(db.familyIngredients.filter((f) => f.familyId === family.id && f.restriction === 'avoid').map((f) => f.ingredientId));
 	const entries = new Map<string, { combined: CombinedQuantity; optional: boolean; sources: ShoppingSource[]; avoid: boolean }>();
@@ -163,6 +173,7 @@ export function buildShoppingList(db: DemoDatabase, ctx: OperationContext, slotI
 			name: ingredient ? localized(ingredient.name, locale).text : id,
 			department: ingredient?.department ?? 'other',
 			quantity: formatCombined(entry.combined, system, locale),
+			combined: entry.combined,
 			isOptional: entry.optional,
 			sources: entry.sources,
 			excluded: entry.avoid ? 'avoid' : ingredient?.isPantry ? 'pantry' : null
@@ -170,7 +181,7 @@ export function buildShoppingList(db: DemoDatabase, ctx: OperationContext, slotI
 		(item.excluded ? excluded : items).push(item);
 	}
 	const byName = (a: ShoppingItem, b: ShoppingItem) => a.name.localeCompare(b.name, locale);
-	return ok({ locale, mealCount, items: items.sort(byName), excluded: excluded.sort(byName), skipped });
+	return { locale, mealCount, items: items.sort(byName), excluded: excluded.sort(byName), skipped };
 }
 
 export interface ArrangedShoppingList {
