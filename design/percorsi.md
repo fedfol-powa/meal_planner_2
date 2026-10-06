@@ -404,9 +404,9 @@ Piano: [2026-10-06-prototipo-giro-3.md](../progetto/superpowers/plans/2026-10-06
 ### Perimetro
 
 Spesa (specifica, sezione 6, e "La lista della spesa"): scelta dei pasti, lista
-consolidata per reparto con le unità della famiglia, voci tolte perché già in casa,
-dispensa ed evitati a parte, opzionali, esportazioni simulate (testo condiviso, PDF,
-Bring!). La lista è effimera: vive solo nella vista.
+consolidata per reparto con le unità della famiglia, dispensa ed evitati a parte,
+opzionali, esportazioni simulate (testo condiviso, PDF, Bring!). Dopo la prima prova
+la lista è diventata **persistente e condivisa dalla famiglia** (vedi "Revisione").
 
 ### Decisioni della preparazione (provvisorie)
 
@@ -414,8 +414,8 @@ Date dall'utente il 6 ottobre 2026; entrano nella specifica alla chiusura del gi
 
 1. Icona carrello nella barra del mese del Menu, accanto al calendario; apre la vista
    Spesa con i pasti per giorno, una casella per pasto, scorciatoie e "Genera lista".
-2. La lista serve a prepararsi e a esportare: un tocco su una voce la toglie ("ce l'ho
-   già") e la si può ripristinare; niente spunta in negozio.
+2. ~~La lista serve solo a prepararsi e a esportare~~: superata dalla revisione
+   (spunta condivisa, anche in negozio).
 3. Dispensa ed evitati in una sezione richiudibile "Non in lista", in fondo; un tocco
    aggiunge la voce alla lista.
 4. Selezione di partenza: i pasti non ancora passati da ora a domenica; se non ne
@@ -476,3 +476,42 @@ ingrediente scelto per la prova.
 5. Esportazioni: testo condiviso, PDF a tre colonne, Bring! simulato.
 6. Decisioni provvisorie della preparazione: confermarle e portarle nella specifica,
    compresa l'eliminazione di "solo quelli non ancora in lista".
+
+### Revisione: lista persistente (6 ottobre 2026, provvisoria)
+
+Dopo la prima prova l'utente ha deciso che la lista non è più effimera. Decisioni:
+liste della famiglia, visibili e modificabili da tutti i membri; una sola casella per
+"ce l'ho già" e "comprato"; la lista ricorda i pasti e le voci seguono le loro
+modifiche; più liste aperte, chiusura con "Spesa fatta" o all'ultima spunta, storico
+da cui si riapre; nessun segno "già in lista" nella scelta dei pasti; voci libere in
+"Altro". Default nel piano del giro, sezione "Revisione del piano".
+
+- **Rotte:** `/shopping` (liste aperte con avanzamento e ultima modifica, "Nuova
+  lista", storico richiudibile), `/shopping/new` (scelta dei pasti; con `?list=`
+  modifica i pasti di una lista aperta, conservando quelli già passati),
+  `/shopping/[id]` (lista).
+- **Lista:** voce libera in cima; casella condivisa; se una voce spuntata aumenta, torna
+  da spuntare con "prima: …"; "Spesa fatta" ed "Elimina la lista" in fondo, con
+  "Annulla" nell'avviso; una lista chiusa è in sola lettura, con "Riapri".
+- **Esportazioni:** escludono le voci spuntate e includono le voci libere in "Altro".
+- **Operazioni simulate** (`prototype/src/lib/operations/shopping-lists.ts`):
+  `getShoppingLists`, `getShoppingListDetail`, `createShoppingList`,
+  `setShoppingListMeals`, `toggleShoppingItem`, `addManualItem`, `toggleManualItem`,
+  `removeManualItem`, `toggleAddedBack`, `closeShoppingList`, `reopenShoppingList`,
+  `deleteShoppingList`, `restoreShoppingList`. Il calcolo resta
+  `computeShoppingList` in `shopping.ts`; una lista chiusa conserva una copia dei pasti.
+- **Dati demo:** lista chiusa di Federico (28 settembre – 4 ottobre) nello storico e
+  lista aperta di Anna (7–11 ottobre) con tre voci spuntate e una voce libera, creata
+  con le stesse operazioni. Pannello Prova: "Un altro membro spunta una voce di una
+  lista aperta".
+
+### Domande per la review della revisione
+
+1. Elenco delle liste: avanzamento, ultima modifica e storico chiuso bastano?
+2. Una casella sola per "ce l'ho già" e "comprato": regge in negozio?
+3. Voce spuntata che aumenta: torna da spuntare con "prima: …". Chiaro?
+4. Chiusura automatica all'ultima spunta, con "Annulla": giusta o meglio solo a mano?
+5. Lista chiusa congelata, riaperta torna a seguire i pasti: va bene?
+6. Offline: spunte disattivate come il resto dell'app. In negozio serve spuntare
+   offline? Se sì, è una scelta di architettura (coda di sincronizzazione).
+7. Nome automatico dai giorni dei pasti; serve poterla rinominare?

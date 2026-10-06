@@ -264,24 +264,31 @@ voci spuntate. Pannello Prova: "Anna spunta una voce della lista".
 
 #### Attività 6: modello e operazioni (test prima)
 
-- [ ] Tipi, seed con le due liste demo, versione dello stato.
-- [ ] `getShoppingLists`, `createShoppingList`, `getShoppingListDetail` (voci
+- [x] Tipi, seed con le due liste demo, versione dello stato.
+- [x] `getShoppingLists`, `createShoppingList`, `getShoppingListDetail` (voci
       ricalcolate, spunte, "prima: …", voci libere, ultima modifica),
       `setShoppingListMeals`, `toggleShoppingItem`, `addManualItem`,
       `toggleManualItem`, `removeManualItem`, `addBackExcluded`,
       `closeShoppingList` (congela), `reopenShoppingList`, `deleteShoppingList`
       con annullamento; offline e permessi.
-- [ ] Commit.
+- [x] Commit.
 
 #### Attività 7: viste
 
-- [ ] `/shopping` elenco e storico; `/shopping/new` scelta dei pasti; `/shopping/[id]`
+- [x] `/shopping` elenco e storico; `/shopping/new` scelta dei pasti; `/shopping/[id]`
       lista con voce libera, spunte condivise, "Modifica pasti", "Spesa fatta",
       "Riapri", "Elimina", esportazioni.
-- [ ] Pannello Prova: "Anna spunta una voce della lista".
-- [ ] Testi it-IT ed en-GB; commit.
+- [x] Pannello Prova: "Anna spunta una voce della lista".
+- [x] Testi it-IT ed en-GB; commit.
 
 #### Attività 8: verifica e review
 
 - [ ] Test, tipi, prova nel browser come nell'attività 5 più due utenti sulla stessa
       lista e cambio di un pasto incluso; documenti; anteprima sulla rete locale.
+
+### Esito dell'esecuzione della revisione (6 ottobre 2026)
+
+Eseguita in questa sessione senza subagenti: 169 test e controllo dei tipi verdi;
+prova nel browser a 390 px di elenco, lista di Anna, spunta, voce libera, "Spesa
+fatta", storico, nuova lista, "Modifica pasti" e spunta di un altro membro dal
+pannello Prova. Domande per la review in `design/percorsi.md`.
