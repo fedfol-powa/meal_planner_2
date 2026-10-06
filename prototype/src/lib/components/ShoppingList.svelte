@@ -52,7 +52,8 @@
 		};
 	});
 
-	const canEdit = $derived(!app.settings.offline);
+	// The list stays editable offline (in the shop): changes are sent when back online.
+	const canEdit = true;
 	const week = $derived(list.weekStartsOn);
 	const ticked = $derived(new Set(list.departments.flatMap((d) => d.items.filter((i) => i.checked).map((i) => i.id))));
 	const manualLeft = $derived(list.departments.flatMap((d) => d.manual.filter((m) => !m.checked).map((m) => m.text)));
@@ -141,6 +142,7 @@
 		</div>
 	</div>
 	<h1 class="page-title" id="list-title">{title}</h1>
+	{#if list.pendingSync}<p class="pending no-print" role="status">{app.t('shopping.pendingSync')}</p>{/if}
 </header>
 
 
@@ -239,6 +241,7 @@
 </BottomSheet>
 
 <style>
+	.pending { margin: 6px 0 0; color: var(--green); font-size: 0.875rem; font-weight: 700; }
 	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 	.menu-wrap { position: relative; }
 	.menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -8px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }

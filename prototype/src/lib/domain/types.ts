@@ -179,6 +179,8 @@ export interface ShoppingList {
 	manualItems: ShoppingManualItem[];
 	updatedBy: string;
 	updatedAt: LocalDateTime;
+	/** Offline changes kept on the device since this time, sent when back online (round 3). */
+	pendingSince: LocalDateTime | null;
 }
 
 /** The editable part of a slot, as stored in the change log. */

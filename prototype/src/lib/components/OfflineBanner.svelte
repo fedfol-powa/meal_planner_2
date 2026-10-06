@@ -1,9 +1,13 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { app } from '#lib/store/app.svelte.ts';
+
+	// The shopping list is the only place editable offline (round 3).
+	const onShopping = $derived(page.url.pathname.startsWith('/shopping/'));
 </script>
 
 {#if app.settings.offline}
-	<p class="offline-banner" role="status">{app.t('offline.banner')}</p>
+	<p class="offline-banner" role="status">{app.t(onShopping ? 'offline.bannerShopping' : 'offline.banner')}</p>
 {/if}
 
 <style>

@@ -589,6 +589,22 @@ lista settimanale con archiviazione delle revisioni precedenti.
   5 ottobre con tre spunte di Anna e "Detersivo per i piatti". Pannello Prova: "Un
   altro membro spunta una voce della lista della settimana".
 
-Domande ancora aperte per la chiusura del giro: spunta offline in negozio
-(architettura); reparti e doppioni dei dati demo (es. "Aglio" e "Aglio tritato o
-schiacciato" restano separati).
+### Decisioni successive (6 ottobre 2026, provvisorie)
+
+- **Spunta offline:** la lista della spesa è l'unica parte dell'app modificabile
+  offline (spunte, voci libere, "Non in lista"): le modifiche restano sul telefono
+  ("Modifiche salvate su questo telefono, da sincronizzare") e partono al ritorno
+  della rete; per singola voce vince l'ultimo salvataggio. Il resto resta in sola
+  consultazione. **Conseguenza di architettura**, da riportare nella specifica
+  (sezioni 1 e 5): coda locale delle operazioni sulla lista (per esempio in
+  IndexedDB) con invio e riconciliazione al ritorno online. Nel prototipo:
+  `pendingSince` sulla lista e `syncShoppingLists` quando si esce dall'offline.
+- **Voci distinte solo se cambia il prodotto:** preparazione ("tritato",
+  "schiacciato", "a dadini", "succo", "scorza"), taglia ("piccola", "grande") e
+  forma della parola non creano un ingrediente diverso; varietà e prodotti diversi
+  sì (mandorle in scaglie, pomodorini perini, spinacini). Nei dati demo le unioni
+  sono in `canonical` di `prototype/scripts/demo-ingredients.json`; nel prodotto la
+  preparazione va tenuta sulla riga della ricetta, separata dall'ingrediente
+  (specifica, sezione 2, `recipe_ingredients`).
+- **Indietro uniforme:** freccia e nome della destinazione ("Menu", "Ricettario")
+  anche nella scheda ricetta.

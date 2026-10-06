@@ -7,6 +7,7 @@ import {
 	addManualItem,
 	getWeekShoppingList,
 	removeManualItem,
+	syncShoppingLists,
 	toggleAddedBack,
 	toggleManualItem,
 	toggleShoppingItem,
@@ -92,8 +93,15 @@ describe('ticking items', () => {
 		expect(item(list(), 'spaghettoni')?.sources).toHaveLength(2);
 	});
 
-	it('is disabled offline', () => {
-		expect(toggleShoppingItem(db, ctx({ offline: true }), '2026-10-05', 'rigatoni')).toEqual({ ok: false, error: 'offline' });
+	it('works offline, keeping the changes pending until back online', () => {
+		value(toggleShoppingItem(db, ctx({ offline: true, now: '2026-10-06T18:00' }), '2026-10-05', 'rigatoni'));
+		value(addManualItem(db, ctx({ offline: true, now: '2026-10-06T18:05' }), '2026-10-05', 'Pane'));
+		expect(list()).toMatchObject({ pendingSync: true });
+		expect(item(list(), 'rigatoni')?.checked).toBe(true);
+		expect(db.shoppingLists.find((l) => l.weekId === 'week-2026-10-05')?.pendingSince).toBe('2026-10-06T18:00');
+		expect(syncShoppingLists(db, ctx({ offline: true }))).toBe(false);
+		expect(syncShoppingLists(db, ctx())).toBe(true);
+		expect(list().pendingSync).toBe(false);
 	});
 });
 

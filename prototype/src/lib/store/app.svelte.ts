@@ -6,6 +6,7 @@ import type { OperationContext, OpResult } from '#lib/operations/context.ts';
 import { errorKey } from '#lib/i18n/errors.ts';
 import type { RevisionResult } from '#lib/operations/revision.ts';
 import { undoMealChanges } from '#lib/operations/revision.ts';
+import { syncShoppingLists } from '#lib/operations/shopping-lists.ts';
 import { createInitial, loadPersisted, savePersisted, type Persisted, type ScenarioId } from './persistence';
 import { applyScenario, familyForUser } from './scenarios';
 
@@ -38,6 +39,8 @@ class AppState {
 
 	update(change: (state: Persisted) => void) {
 		change(this.#state);
+		// Back online: shopping list changes kept on the device are sent.
+		syncShoppingLists(this.#state.db, this.ctx);
 		this.#save();
 	}
 

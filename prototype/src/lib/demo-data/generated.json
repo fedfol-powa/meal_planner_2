@@ -78,7 +78,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "melanzane"
 		},
 		{
 			"id": "cipolla-rossa-di-tropea-o-1-cipollotto",
@@ -128,7 +128,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "cipolla"
 		},
 		{
 			"id": "peperoncino",
@@ -448,7 +448,7 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "ceci-in-scatola"
 		},
 		{
 			"id": "prezzemolo",
@@ -478,7 +478,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "limone"
 		},
 		{
 			"id": "paprika-piccante",
@@ -1318,7 +1318,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "zucca-a-pezzetti"
 		},
 		{
 			"id": "lenticchie-cotte",
@@ -1398,7 +1398,7 @@
 			},
 			"department": "chilled",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "prosciutto-cotto"
 		},
 		{
 			"id": "fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati",
@@ -1468,7 +1468,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "carote"
 		},
 		{
 			"id": "filetti-di-orata-spinati-e-senza-pelle",
@@ -1588,7 +1588,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "cipolla"
 		},
 		{
 			"id": "pomodoro-tritato-o-grattugiato",
@@ -1598,7 +1598,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "pomodori"
 		},
 		{
 			"id": "peperone-rosso-o-1-2-verde",
@@ -1748,7 +1748,7 @@
 			},
 			"department": "pasta_grains",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "couscous"
 		},
 		{
 			"id": "brodo-vegetale-caldo",
@@ -1758,7 +1758,7 @@
 			},
 			"department": "condiments",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "brodo-vegetale"
 		},
 		{
 			"id": "curcuma-in-polvere",
@@ -1778,7 +1778,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "cipolla-rossa"
 		},
 		{
 			"id": "pisellini",
@@ -1928,7 +1928,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "limone"
 		},
 		{
 			"id": "erba-cipollina",
@@ -2008,7 +2008,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "cipolla-rossa"
 		},
 		{
 			"id": "pomodori",
@@ -2248,7 +2248,7 @@
 			},
 			"department": "tinned",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "ceci-in-scatola"
 		},
 		{
 			"id": "rosmarino",
@@ -2318,7 +2318,7 @@
 			},
 			"department": "produce",
 			"isPantry": false,
-			"canonicalId": null
+			"canonicalId": "aglio"
 		},
 		{
 			"id": "fagioli-neri-scolati-e-sciacquati",

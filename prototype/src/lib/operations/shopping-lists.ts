@@ -12,6 +12,8 @@ import { arrangeShoppingList, computeShoppingList, type ShoppingItem, type Shopp
  * The shopping list of a week (round 3, third revision, provisional): one per week with every meal of it,
  * opened from the menu on the week being viewed. Every member sees and edits it; quantities follow the
  * meals; the last save wins per item. No other lists, no history: past weeks keep their list.
+ * Unlike the rest of the app, the list can be edited offline (in the shop): changes stay on the device,
+ * marked as pending, and are sent when back online.
  */
 
 export const MAX_MANUAL_TEXT = 60;
@@ -39,6 +41,8 @@ export interface ShoppingListDetail {
 	total: number;
 	/** null until someone changes the list; userName is null when the author is no longer a member. */
 	lastChange: { userName: string | null; at: LocalDateTime } | null;
+	/** Changes made offline and not sent yet. */
+	pendingSync: boolean;
 	/** Plain view used by the exports. */
 	view: ReturnType<typeof arrangeShoppingList>;
 }
@@ -54,14 +58,13 @@ function find(db: DemoDatabase, ctx: OperationContext, weekStartsOn: string): Op
 	return ok({ family, week, list: db.shoppingLists.find((l) => l.familyId === family.id && l.weekId === week.id) });
 }
 
-/** The saved list of the week, created at the first change. */
+/** The saved list of the week, created at the first change. Allowed offline. */
 function editable(db: DemoDatabase, ctx: OperationContext, weekStartsOn: string): OpResult<{ found: Found; list: ShoppingList }> {
-	if (ctx.offline) return fail('offline');
 	const found = find(db, ctx, weekStartsOn);
 	if (!found.ok) return found;
 	let list = found.value.list;
 	if (!list) {
-		db.shoppingLists.push({ familyId: found.value.family.id, weekId: found.value.week.id, checks: [], addedBack: [], manualItems: [], updatedBy: ctx.userId, updatedAt: ctx.now });
+		db.shoppingLists.push({ familyId: found.value.family.id, weekId: found.value.week.id, checks: [], addedBack: [], manualItems: [], updatedBy: ctx.userId, updatedAt: ctx.now, pendingSince: null });
 		// Use the stored object: the store may wrap what was pushed.
 		list = db.shoppingLists[db.shoppingLists.length - 1];
 	}
@@ -71,6 +74,23 @@ function editable(db: DemoDatabase, ctx: OperationContext, weekStartsOn: string)
 function touch(list: ShoppingList, ctx: OperationContext) {
 	list.updatedBy = ctx.userId;
 	list.updatedAt = ctx.now;
+	if (ctx.offline) list.pendingSince ??= ctx.now;
+}
+
+/**
+ * Back online: sends the changes kept on the device. In the prototype they are already in the shared
+ * state, so this only clears the pending mark; the real app replays a local queue (last save wins per item).
+ */
+export function syncShoppingLists(db: DemoDatabase, ctx: OperationContext): boolean {
+	if (ctx.offline) return false;
+	let changed = false;
+	for (const list of db.shoppingLists) {
+		if (list.familyId === ctx.familyId && list.pendingSince) {
+			list.pendingSince = null;
+			changed = true;
+		}
+	}
+	return changed;
 }
 
 function detail(db: DemoDatabase, ctx: OperationContext, { family, week, list }: Found): ShoppingListDetail {
@@ -106,6 +126,7 @@ function detail(db: DemoDatabase, ctx: OperationContext, { family, week, list }:
 		checked: all.filter((i) => i.checked).length,
 		total: all.length,
 		lastChange: list ? { userName: author, at: list.updatedAt } : null,
+		pendingSync: !!list?.pendingSince,
 		view
 	};
 }

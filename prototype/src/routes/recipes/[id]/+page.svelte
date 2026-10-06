@@ -29,7 +29,7 @@
 </script>
 
 <section class="secondary-view app-view detail">
-	<a class="link-inline back" href={backHref}>‹ {fromMenu ? app.t('recipe.backToMenu') : app.t('recipe.backToRecipes')}</a>
+	<header class="page-header"><a class="page-back" href={backHref}><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{fromMenu ? app.t('nav.menu') : app.t('nav.recipes')}</a></header>
 
 	{#if !result.ok}
 		<StateNotice title={app.t('recipe.unavailable')} />
@@ -84,7 +84,6 @@
 
 <style>
 	.detail { padding-top: max(16px, env(safe-area-inset-top)); }
-	.back { display: inline-flex; align-items: center; min-height: 44px; margin-bottom: 8px; text-decoration: none; }
 	.title { margin: 0 0 12px; font: 400 1.375rem/1.3 var(--meal-title-font); overflow-wrap: anywhere; }
 	.title :global(.recipe-link .icon) { top: 8px; }
 	.detail :global(.rating) { margin-bottom: 14px; }
