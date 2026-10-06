@@ -202,13 +202,24 @@ export function arrangeShoppingList(list: ShoppingListView, addedBack: Set<strin
 }
 
 /** What the exports contain: removed items ("already at home") are left out. */
-export function shoppingExport(list: ArrangedShoppingList, removed: Set<string>, locale: Locale): { text: string; bringItems: string[] } {
+export function shoppingExport(
+	list: ArrangedShoppingList,
+	removed: Set<string>,
+	locale: Locale,
+	manual: string[] = []
+): { text: string; bringItems: string[] } {
 	const line = (i: ShoppingItem) =>
 		`${i.quantity} ${i.name}${i.isOptional ? ` (${translate(locale, 'shopping.optional')})` : ''}`;
 	const groups = list.departments
-		.map((d) => ({ department: d.department, items: d.items.filter((i) => !removed.has(i.id)) }))
-		.filter((d) => d.items.length > 0);
+		.map((d) => ({ department: d.department, lines: d.items.filter((i) => !removed.has(i.id)).map(line) }))
+		.filter((d) => d.lines.length > 0);
+	// Free-text items of a saved list go under "other", as written.
+	if (manual.length) {
+		const other = groups.find((g) => g.department === 'other');
+		if (other) other.lines.push(...manual);
+		else groups.push({ department: 'other', lines: manual });
+	}
 	const title = translate(locale, list.mealCount === 1 ? 'shopping.export.titleOne' : 'shopping.export.title', { count: list.mealCount });
-	const text = [title, ...groups.map((g) => [translate(locale, `department.${g.department}`), ...g.items.map((i) => `• ${line(i)}`)].join('\n'))].join('\n\n');
-	return { text, bringItems: groups.flatMap((g) => g.items.map(line)) };
+	const text = [title, ...groups.map((g) => [translate(locale, `department.${g.department}`), ...g.lines.map((l) => `• ${l}`)].join('\n'))].join('\n\n');
+	return { text, bringItems: groups.flatMap((g) => g.lines) };
 }

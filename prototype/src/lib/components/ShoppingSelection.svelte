@@ -4,7 +4,12 @@
 	import { app } from '#lib/store/app.svelte.ts';
 
 	// Step 1 of the shopping view: which meals to shop for (spec section 6).
-	let { view, selected = $bindable(), onGenerate }: { view: ShoppingSelectionView; selected: Set<string>; onGenerate: () => void } = $props();
+	let {
+		view,
+		selected = $bindable(),
+		mode = 'create',
+		onSubmit
+	}: { view: ShoppingSelectionView; selected: Set<string>; mode?: 'create' | 'edit'; onSubmit: () => void } = $props();
 
 	const shortcuts = $derived(
 		(['rest_of_week', 'next_week'] as ShoppingShortcut[]).flatMap((id) => {
@@ -22,7 +27,11 @@
 	}
 
 	const generateLabel = $derived(
-		selected.size === 0 ? app.t('shopping.generateNone') : selected.size === 1 ? app.t('shopping.generateOne') : app.t('shopping.generate', { count: selected.size })
+		selected.size === 0
+			? app.t('shopping.generateNone')
+			: mode === 'edit'
+				? selected.size === 1 ? app.t('shopping.saveMealsOne') : app.t('shopping.saveMeals', { count: selected.size })
+				: selected.size === 1 ? app.t('shopping.generateOne') : app.t('shopping.generate', { count: selected.size })
 	);
 </script>
 
@@ -62,7 +71,7 @@
 {/each}
 
 <div class="action-bar">
-	<button type="button" class="text-button primary" disabled={selected.size === 0} onclick={onGenerate}>{generateLabel}</button>
+	<button type="button" class="text-button primary" disabled={selected.size === 0 || app.settings.offline} onclick={onSubmit}>{generateLabel}</button>
 </div>
 
 <style>

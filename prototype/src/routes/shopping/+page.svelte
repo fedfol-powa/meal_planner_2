@@ -1,81 +1,80 @@
 <script lang="ts">
-	import ShoppingList from '#lib/components/ShoppingList.svelte';
-	import ShoppingSelection from '#lib/components/ShoppingSelection.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
-	import { untrack } from 'svelte';
+	import { formatChangeTime } from '#lib/i18n/dates.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
-	import { arrangeShoppingList, buildShoppingList, getShoppingSelection } from '#lib/operations/shopping.ts';
+	import { getShoppingLists, type ShoppingListSummary } from '#lib/operations/shopping-lists.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	// Nothing here is saved: leaving the view discards selection and list (spec section 6).
-	const selection = $derived(getShoppingSelection(app.db, app.ctx));
-	let selected = $state<Set<string>>(new Set());
-	// Slots the current list was generated from; null while choosing meals.
-	let generated = $state<string[] | null>(null);
-	let removed = $state<Set<string>>(new Set());
-	let addedBack = $state<Set<string>>(new Set());
+	// Family shopping lists: the open ones first, the history below (round 3 revision).
+	const result = $derived(getShoppingLists(app.db, app.ctx));
 
-	// Start again from the default selection when the family, user or simulated time changes.
-	const resetKey = $derived(`${app.settings.familyId}|${app.settings.userId}|${app.settings.now}`);
-	$effect(() => {
-		void resetKey;
-		untrack(() => {
-			const result = getShoppingSelection(app.db, app.ctx);
-			selected = new Set(result.ok ? result.value.selected : []);
-			generated = null;
-		});
-	});
-
-	// Rebuilt on language or unit changes too; items removed or added back are kept by ingredient.
-	const listResult = $derived(generated ? buildShoppingList(app.db, app.ctx, generated) : null);
-	const list = $derived(listResult?.ok ? arrangeShoppingList(listResult.value, addedBack) : null);
-
-	function generate() {
-		const view = selection.ok ? selection.value : null;
-		// Keep the chronological order of the selection.
-		generated = view ? view.days.flatMap((d) => d.meals).filter((m) => selected.has(m.slotId)).map((m) => m.slotId) : [];
-		removed = new Set();
-		addedBack = new Set();
-		document.querySelector('.secondary-view')?.scrollTo({ top: 0 });
-	}
-
-	const summary = $derived(
-		list ? (list.mealCount === 1 ? app.t('shopping.listSummaryOne') : app.t('shopping.listSummary', { count: list.mealCount })) : ''
-	);
+	const meals = (l: ShoppingListSummary) => (l.mealCount === 1 ? app.t('shopping.mealsOne') : app.t('shopping.meals', { count: l.mealCount }));
+	const changedBy = (l: ShoppingListSummary) =>
+		app.t('meal.changedBy', { name: l.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, l.lastChange.at) });
 </script>
 
-<section class="secondary-view app-view shopping" aria-labelledby="shopping-title">
-	<div class="column">
-	<header class="shopping-header no-print">
-		{#if generated}
-			<button type="button" class="link-inline back" onclick={() => (generated = null)}>‹ {app.t('shopping.editMeals')}</button>
-		{:else}
-			<a class="link-inline back" href="/menu">‹ {app.t('nav.menu')}</a>
-		{/if}
-		<h1 id="shopping-title">{generated ? app.t('shopping.listTitle') : app.t('shopping.selectTitle')}</h1>
-		{#if list}<p class="summary">{summary}</p>{/if}
-	</header>
+<section class="secondary-view app-view" aria-labelledby="lists-title">
+	<div class="page-column">
+		<header class="page-header">
+			<a class="page-back" href="/menu">‹ {app.t('nav.menu')}</a>
+			<div class="title-row">
+				<h1 class="page-title" id="lists-title">{app.t('shopping.lists')}</h1>
+				{#if app.settings.offline}
+					<span class="text-button primary disabled" aria-disabled="true">{app.t('shopping.new')}</span>
+				{:else}
+					<a class="text-button primary" href="/shopping/new">{app.t('shopping.new')}</a>
+				{/if}
+			</div>
+		</header>
 
-	{#if !selection.ok}
-		<StateNotice title={app.t(errorKey(selection.error))} />
-	{:else if listResult && !listResult.ok}
-		<StateNotice title={app.t(errorKey(listResult.error))} />
-	{:else if list}
-		<ShoppingList {list} bind:removed bind:addedBack />
-	{:else if selection.value.days.length === 0}
-		<StateNotice title={app.t('shopping.empty.title')} body={app.t('shopping.empty.body')} />
-	{:else}
-		<ShoppingSelection view={selection.value} bind:selected onGenerate={generate} />
-	{/if}
+		{#if !result.ok}
+			<StateNotice title={app.t(errorKey(result.error))} />
+		{:else}
+			{#each result.value.open as list (list.id)}
+				<a class="list-card" href="/shopping/{list.id}">
+					<h2>{list.name}</h2>
+					<p class="progress"><strong>{app.t('shopping.progress', { checked: list.checked, total: list.total })}</strong> · {meals(list)}</p>
+					<p class="changed">{changedBy(list)}</p>
+					<span class="bar" aria-hidden="true"><span style="width: {list.total ? (100 * list.checked) / list.total : 0}%"></span></span>
+				</a>
+			{:else}
+				<StateNotice title={app.t('shopping.noOpen.title')} body={app.t('shopping.noOpen.body')} />
+			{/each}
+
+			{#if result.value.closed.length}
+				<details class="history">
+					<summary>{app.t('shopping.history', { count: result.value.closed.length })}</summary>
+					<ul>
+						{#each result.value.closed as list (list.id)}
+							<li>
+								<a href="/shopping/{list.id}">
+									<span class="history-name">{list.name}</span>
+									<span class="history-meta">{app.t('shopping.closedOn', { time: formatChangeTime(app.locale, list.closedAt ?? list.lastChange.at) })} · {app.t('shopping.progress', { checked: list.checked, total: list.total })}</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				</details>
+			{/if}
+		{/if}
 	</div>
 </section>
 
 <style>
-	.shopping { padding-bottom: 0; }
-	/* A list reads better in one narrow column on wide screens. */
-	.column { max-width: 720px; margin-inline: auto; }
-	.shopping-header { padding: max(12px, env(safe-area-inset-top)) 0 16px; }
-	.back { display: inline-flex; align-items: center; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 700 0.875rem/1.5 var(--text-font); text-decoration: none; cursor: pointer; }
-	h1 { margin: 4px 0 0; font: 400 1.5rem/1.3 var(--heading-font); }
-	.summary { margin: 4px 0 0; color: var(--body-text); font-size: 0.875rem; }
+	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+	.disabled { opacity: 0.5; cursor: not-allowed; }
+	.list-card { display: block; margin-bottom: 16px; padding: 18px 20px; background: var(--paper); box-shadow: var(--card-shadow); color: var(--ink); text-decoration: none; }
+	.list-card:hover h2 { color: var(--green); }
+	h2 { margin: 0 0 6px; font: 400 1.25rem/1.3 var(--meal-title-font); }
+	.progress { margin: 0; font-size: 0.875rem; }
+	.changed { margin: 2px 0 12px; color: var(--muted); font-size: 0.8125rem; }
+	.bar { display: block; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+	.bar span { display: block; height: 100%; background: var(--green); }
+	.history { margin: 24px 0; }
+	.history summary { min-height: 44px; display: flex; align-items: center; font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }
+	.history ul { margin: 8px 0 0; padding: 0; list-style: none; background: var(--paper); box-shadow: var(--card-shadow); }
+	.history li + li { border-top: 1px solid var(--rule); }
+	.history a { display: flex; flex-direction: column; min-height: 48px; padding: 12px 20px; color: var(--ink); text-decoration: none; }
+	.history-name { font-weight: 700; }
+	.history-meta { color: var(--muted); font-size: 0.8125rem; }
 </style>

@@ -4,6 +4,7 @@
 	import type { ScenarioId } from '#lib/store/persistence.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
+	import { getShoppingListDetail, getShoppingLists, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -24,6 +25,27 @@
 		if (!result?.ok) return (otherChange = app.t('dev.otherChangeNone'));
 		app.update(() => {});
 		otherChange = app.t('dev.otherChangeDone', { name, meal: app.t(`meal.${slot.mealType}` as const) });
+	}
+
+	let otherTick = $state<string | null>(null);
+
+	// Simulates another member ticking the first unticked item of the newest open list (shared lists).
+	function simulateOtherTick() {
+		const other = app.family?.members.find((m) => m.userId !== app.user.id);
+		const name = app.db.users.find((u) => u.id === other?.userId)?.displayName;
+		if (!other || !name) return (otherTick = app.t('dev.otherTickNone'));
+		const ctx = { ...app.ctx, userId: other.userId, offline: false };
+		const lists = getShoppingLists(app.db, ctx);
+		for (const summary of lists.ok ? lists.value.open : []) {
+			const detail = getShoppingListDetail(app.db, ctx, summary.id);
+			const item = detail.ok ? detail.value.departments.flatMap((d) => d.items).find((i) => !i.checked) : undefined;
+			if (!detail.ok || !item) continue;
+			const result = toggleShoppingItem(app.db, ctx, summary.id, item.id);
+			if (!result.ok) break;
+			app.update(() => {});
+			return (otherTick = app.t('dev.otherTickDone', { name, item: item.name, list: detail.value.name }));
+		}
+		otherTick = app.t('dev.otherTickNone');
 	}
 
 	const userFamilies = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
@@ -76,6 +98,8 @@
 	</div>
 	<button type="button" class="text-button" onclick={simulateOtherChange}>{app.t('dev.otherChange')}</button>
 	{#if otherChange}<p class="meta-line" role="status">{otherChange}</p>{/if}
+	<button type="button" class="text-button" onclick={simulateOtherTick}>{app.t('dev.otherTick')}</button>
+	{#if otherTick}<p class="meta-line" role="status">{otherTick}</p>{/if}
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
 	<p class="meta-line">{app.t('dev.demoData')}</p>
 	<button type="button" class="text-button" onclick={() => app.reset()}>{app.t('dev.reset')}</button>
