@@ -1,11 +1,12 @@
-import type { DemoDatabase, Rating } from '#lib/domain/types.ts';
+import type { DemoDatabase, FamilySettings, Rating, SlotSetting } from '#lib/domain/types.ts';
+import { defaultSettings } from '#lib/domain/settings.ts';
 import type { OperationContext } from '#lib/operations/context.ts';
 import { addManualItem, getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
 import data from './generated.json';
 
 // Demo people: Federico from the origin project, the others invented for the prototype.
 export function createSeedDatabase(): DemoDatabase {
-	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients' | 'shoppingLists'> & {
+	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients' | 'shoppingLists' | 'invitations' | 'removals'> & {
 		federicoRatings: { recipeId: string; stars: number }[];
 	};
 	const ratings: Rating[] = generated.federicoRatings.map((r) => ({ userId: 'user-federico', ...r }));
@@ -19,15 +20,22 @@ export function createSeedDatabase(): DemoDatabase {
 	const current = weeks.find((w) => w.startsOn === '2026-10-05');
 	const mondayDinner = current?.slots.find((s) => s.id === '2026-10-05-dinner');
 	if (mondayDinner) Object.assign(mondayDinner, { updatedBy: 'user-federico', updatedAt: '2026-10-04T18:10' });
+	// Marco changed a meal before being removed: it now shows "ex membro".
+	const wednesdayLunch = current?.slots.find((s) => s.id === '2026-10-07-lunch');
+	if (wednesdayLunch) Object.assign(wednesdayLunch, { updatedBy: 'user-marco', updatedAt: '2026-10-01T20:40' });
 	const thursdayLunch = current?.slots.find((s) => s.id === '2026-10-08-lunch');
 	if (thursdayLunch) Object.assign(thursdayLunch, { updatedBy: 'user-anna', updatedAt: '2026-10-02T21:30', note: 'Doppia dose, avanza per venerdì' });
 
 	const db: DemoDatabase = {
 		users: [
-			{ id: 'user-federico', displayName: 'Federico', locale: 'it-IT', globalRoles: ['recipe_curator', 'app_admin'] },
-			{ id: 'user-anna', displayName: 'Anna', locale: 'it-IT', globalRoles: [] },
-			{ id: 'user-tom', displayName: 'Tom', locale: 'en-GB', globalRoles: [] },
-			{ id: 'user-lucia', displayName: 'Lucia', locale: 'it-IT', globalRoles: [] }
+			{ id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', globalRoles: ['recipe_curator', 'app_admin'] },
+			{ id: 'user-anna', displayName: 'Anna', email: 'anna@example.com', locale: 'it-IT', globalRoles: [] },
+			{ id: 'user-tom', displayName: 'Tom', email: 'tom@example.com', locale: 'en-GB', globalRoles: [] },
+			{ id: 'user-lucia', displayName: 'Lucia', email: 'lucia@example.com', locale: 'it-IT', globalRoles: [] },
+			// Round 4: removed from the Folloni family after receiving a link still valid (review R2).
+			{ id: 'user-marco', displayName: 'Marco', email: 'marco@example.com', locale: 'it-IT', globalRoles: [] },
+			// Round 4: new user without families.
+			{ id: 'user-giulia', displayName: 'Giulia', email: 'giulia@example.com', locale: 'it-IT', globalRoles: [] }
 		],
 		families: [
 			{
@@ -36,11 +44,14 @@ export function createSeedDatabase(): DemoDatabase {
 				measurementSystem: 'metric',
 				timeZone: 'Europe/Rome',
 				members: [
-					{ userId: 'user-federico', role: 'family_admin' },
-					{ userId: 'user-anna', role: 'member' },
-					{ userId: 'user-tom', role: 'member' }
+					{ userId: 'user-federico', role: 'family_admin', joinedAt: '2026-09-14T21:00' },
+					{ userId: 'user-anna', role: 'member', joinedAt: '2026-09-15T08:10' },
+					{ userId: 'user-tom', role: 'member', joinedAt: '2026-09-18T19:30' }
 				],
-				bookIds: generated.books.map((b) => b.id)
+				bookIds: generated.books.map((b) => b.id),
+				settings: folloniSettings(),
+				createdAt: '2026-09-14T21:00',
+				showSetupCard: false
 			},
 			{
 				id: 'family-grandparents',
@@ -48,10 +59,13 @@ export function createSeedDatabase(): DemoDatabase {
 				measurementSystem: 'metric',
 				timeZone: 'Europe/Rome',
 				members: [
-					{ userId: 'user-lucia', role: 'family_admin' },
-					{ userId: 'user-federico', role: 'member' }
+					{ userId: 'user-lucia', role: 'family_admin', joinedAt: '2026-09-20T10:00' },
+					{ userId: 'user-federico', role: 'member', joinedAt: '2026-09-20T10:30' }
 				],
-				bookIds: []
+				bookIds: [],
+				settings: defaultSettings(),
+				createdAt: '2026-09-20T10:00',
+				showSetupCard: false
 			}
 		],
 		books: generated.books,
@@ -62,11 +76,35 @@ export function createSeedDatabase(): DemoDatabase {
 		exclusions: [],
 		mealChanges: [],
 		// Invented for the prototype: shows the "avoided" part of the shopping list.
-		familyIngredients: [{ familyId: 'family-main', ingredientId: 'peperoncino-fresco', restriction: 'avoid' }],
-		shoppingLists: []
+		familyIngredients: [{ familyId: 'family-main', ingredientId: 'peperoncino-fresco', restriction: 'avoid', weeklyMax: null }],
+		shoppingLists: [],
+		// Invented for round 4: one valid link created before Marco's removal, one expired, one revoked.
+		invitations: [
+			{ token: 'folloni-k7m2q', familyId: 'family-main', createdBy: 'user-federico', createdAt: '2026-10-01T21:15', expiresAt: '2026-10-08T21:15', revokedAt: null },
+			{ token: 'folloni-old9x', familyId: 'family-main', createdBy: 'user-federico', createdAt: '2026-09-15T08:00', expiresAt: '2026-09-22T08:00', revokedAt: null },
+			{ token: 'folloni-rev4t', familyId: 'family-main', createdBy: 'user-federico', createdAt: '2026-10-02T09:00', expiresAt: '2026-10-09T09:00', revokedAt: '2026-10-02T18:00' }
+		],
+		removals: [{ familyId: 'family-main', userId: 'user-marco', removedBy: 'user-federico', removedAt: '2026-10-03T10:00' }]
 	};
 	addDemoShoppingLists(db);
 	return db;
+}
+
+const slot = (servings: number, fixedText: string | null = null, maxMinutes: number | null = null): SlotSetting => ({ servings, fixedText, maxMinutes });
+
+// From the origin project's rules (../meal_planner/progetto/REGOLE.md, read only): diners matrix, Saturday
+// dinner free, Sunday lunch pizza, quick Monday and Wednesday dinners, pasta only at lunch, fish on Friday,
+// no fresh fish on Monday, 7 known and 5 new recipes ± 1.
+function folloniSettings(): FamilySettings {
+	const settings = defaultSettings();
+	settings.slots.lunch = [slot(2), slot(3), slot(3), slot(3), slot(3), slot(4), slot(4, 'Pizza')];
+	settings.slots.dinner = [slot(2, null, 20), slot(4), slot(2, null, 20), slot(4), slot(4), slot(4, 'Cena libera'), slot(4)];
+	settings.rules = [
+		{ id: 'rule-pasta-lunch', kind: 'only_lunch', dish: 'pasta' },
+		{ id: 'rule-friday-fish', kind: 'at_least_one', group: 'fish', weekday: 4 },
+		{ id: 'rule-monday-fish', kind: 'never_on', group: 'fish', weekday: 0 }
+	];
+	return settings;
 }
 
 const value = <T>(r: { ok: true; value: T } | { ok: false; error: string }): T => {

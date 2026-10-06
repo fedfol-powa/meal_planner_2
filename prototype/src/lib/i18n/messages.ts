@@ -1,4 +1,7 @@
+import { enFamily, itFamily } from './messages-family';
+
 const it = {
+	...itFamily,
 	skip: 'Vai al contenuto',
 	'nav.main': 'Navigazione principale',
 	'nav.menu': 'Menu',
@@ -218,6 +221,7 @@ const it = {
 export type MessageKey = keyof typeof it;
 
 const en: Record<MessageKey, string> = {
+	...enFamily,
 	skip: 'Skip to content',
 	'nav.main': 'Main navigation',
 	'nav.menu': 'Menu',

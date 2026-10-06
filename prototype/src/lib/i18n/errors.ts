@@ -6,7 +6,11 @@ const KEYS: Record<OpErrorCode, MessageKey> = {
 	not_found: 'error.notFound',
 	invalid: 'error.invalid',
 	offline: 'error.offline',
-	not_allowed: 'error.notAllowed'
+	not_allowed: 'error.notAllowed',
+	last_admin: 'error.lastAdmin',
+	last_app_admin: 'error.lastAppAdmin',
+	sole_member: 'error.soleMember',
+	web_only: 'error.webOnly'
 };
 
 export const errorKey = (code: OpErrorCode): MessageKey => KEYS[code];

@@ -32,3 +32,7 @@ export function isMealPast(date: IsoDate, mealType: MealType, now: LocalDateTime
 export function isWeekVisible(week: Pick<Week, 'generatedAt'>, now: LocalDateTime): boolean {
 	return week.generatedAt <= now;
 }
+
+export function addDaysToTime(time: LocalDateTime, days: number): LocalDateTime {
+	return `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
+}

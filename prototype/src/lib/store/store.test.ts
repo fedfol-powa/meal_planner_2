@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { STORAGE_KEY, createInitial, loadPersisted, savePersisted } from './persistence';
+import { STORAGE_KEY, createInitial, detectLocale, loadPersisted, savePersisted } from './persistence';
+import { settingsProblem } from '#lib/domain/settings.ts';
 import { applyScenario, familyForUser } from './scenarios';
 
 const storageWith = (value: string | null) => ({ getItem: (key: string) => (key === STORAGE_KEY ? value : null) });
@@ -10,7 +11,8 @@ describe('seed', () => {
 		expect(initial.settings).not.toHaveProperty('photoLayout');
 		expect(initial.settings).not.toHaveProperty('ratingVariant');
 		expect(initial.settings).toMatchObject({ userId: 'user-federico', familyId: 'family-main', now: '2026-10-06T12:00', offline: false, scenario: 'standard' });
-		expect(initial.db.users.map((u) => u.id)).toEqual(['user-federico', 'user-anna', 'user-tom', 'user-lucia']);
+		expect(initial.db.users.map((u) => u.id)).toEqual(['user-federico', 'user-anna', 'user-tom', 'user-lucia', 'user-marco', 'user-giulia']);
+		expect(initial.settings.variants).toEqual({ familySwitch: 'you', dangerConfirm: 'button' });
 	});
 	it('records the Monday dinner change by Federico and a change by Anna', () => {
 		const week = createInitial().db.weeks.find((w) => w.startsOn === '2026-10-05')!;
@@ -19,27 +21,36 @@ describe('seed', () => {
 	});
 });
 
+describe('round 4 demo data', () => {
+	it('gives every family an administrator and valid settings', () => {
+		for (const family of createInitial().db.families) {
+			expect(family.members.some((m) => m.role === 'family_admin')).toBe(true);
+			expect(settingsProblem(family.settings)).toBeNull();
+		}
+	});
+});
+
 describe('loadPersisted', () => {
 	it('falls back to the seed without storage', () => {
 		expect(loadPersisted(null).settings.userId).toBe('user-federico');
 	});
 	it('falls back to the seed on corrupt JSON', () => {
-		expect(loadPersisted(storageWith('{not json')).version).toBe(17);
+		expect(loadPersisted(storageWith('{not json')).version).toBe(18);
 	});
 	it('discards data saved by the previous version', () => {
-		const old = { ...createInitial(), version: 16 };
-		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(17);
+		const old = { ...createInitial(), version: 17 };
+		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(18);
 	});
 	it('falls back to the seed on another version', () => {
-		expect(loadPersisted(storageWith(JSON.stringify({ version: 0, db: {}, settings: {} }))).db.users.length).toBe(4);
+		expect(loadPersisted(storageWith(JSON.stringify({ version: 0, db: {}, settings: {} }))).db.users.length).toBe(6);
 	});
 	it('falls back to the seed when getItem throws', () => {
 		const throwing = { getItem: () => { throw new Error('SecurityError'); } };
-		expect(loadPersisted(throwing).version).toBe(17);
+		expect(loadPersisted(throwing).version).toBe(18);
 	});
 	it('falls back to the seed when settings point to unknown users or families', () => {
-		const broken = { version: 17, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
-		expect(loadPersisted(storageWith(JSON.stringify(broken))).db.users.length).toBe(4);
+		const broken = { version: 18, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
+		expect(loadPersisted(storageWith(JSON.stringify(broken))).db.users.length).toBe(6);
 	});
 	it('falls back to the seed on a malformed time', () => {
 		const other = createInitial();
@@ -70,11 +81,29 @@ describe('scenarios', () => {
 	});
 });
 
+describe('new_user scenario and locale (round 4)', () => {
+	it('starts signed out', () => {
+		expect(applyScenario('new_user').settings).toMatchObject({ userId: null, familyId: null });
+	});
+	it('accepts a signed-out session when loading', () => {
+		const signedOut = applyScenario('new_user');
+		expect(loadPersisted(storageWith(JSON.stringify(signedOut))).settings.userId).toBeNull();
+	});
+	it('detects Italian browsers, English otherwise', () => {
+		expect(detectLocale(['it-IT', 'en'])).toBe('it-IT');
+		expect(detectLocale(['it'])).toBe('it-IT');
+		expect(detectLocale(['en-US'])).toBe('en-GB');
+		expect(detectLocale(['fr-FR'])).toBe('en-GB');
+		expect(detectLocale(undefined)).toBe('en-GB');
+	});
+});
+
 describe('familyForUser', () => {
 	it('keeps the current family when the new user belongs to it, else the first family of the user', () => {
 		const db = createInitial().db;
 		expect(familyForUser(db, 'user-federico', 'family-grandparents')).toBe('family-grandparents');
 		expect(familyForUser(db, 'user-anna', 'family-grandparents')).toBe('family-main');
 		expect(familyForUser(db, 'user-lucia', 'family-main')).toBe('family-grandparents');
+		expect(familyForUser(db, 'user-giulia', 'family-main')).toBeNull();
 	});
 });

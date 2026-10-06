@@ -15,7 +15,11 @@ const value = <T>(r: { ok: true; value: T } | { ok: false; error: string }): T =
 	return r.value;
 };
 
-beforeEach(() => { db = createInitial().db; });
+// The ranking mechanics are tested on Wednesday dinner without its 20-minute limit (round 4 settings).
+beforeEach(() => {
+	db = createInitial().db;
+	db.families.find((f) => f.id === 'family-main')!.settings.slots.dinner[2].maxMinutes = null;
+});
 
 describe('rankCandidates', () => {
 	it('keeps only visible recipes suited to the meal, not used elsewhere this week or in the two weeks before', () => {
@@ -64,6 +68,23 @@ describe('rankCandidates', () => {
 		const top = rankCandidates(db, ctx(), slot)[0].recipeId;
 		db.exclusions.push({ familyId: 'family-main', recipeId: top, createdBy: 'user-anna', createdAt: '2026-10-06T10:00' });
 		expect(rankCandidates(db, ctx(), slot).map((c) => c.recipeId)).not.toContain(top);
+	});
+});
+
+describe('family settings (round 4)', () => {
+	it('respects the time limit, pasta only at lunch, no fish on Monday and avoided ingredients', () => {
+		const main = db.families.find((f) => f.id === 'family-main')!;
+		main.settings.slots.dinner[2].maxMinutes = 20;
+		for (const c of rankCandidates(db, ctx(), slotOf('2026-10-07-dinner'))) {
+			const recipe = recipeOf(c.recipeId);
+			expect(recipe.durationMinutes).not.toBeNull();
+			expect(recipe.durationMinutes!).toBeLessThanOrEqual(20);
+			expect(recipe.tags).not.toContain('pasta');
+		}
+		for (const c of rankCandidates(db, ctx(), slotOf('2026-10-12-lunch'))) expect(recipeOf(c.recipeId).proteinGroup).not.toBe('fish');
+		const withChilli = db.recipes.filter((r) => r.ingredients.some((l) => l.ingredientId === 'peperoncino-fresco')).map((r) => r.id);
+		const ranked = rankCandidates(db, ctx(), slotOf('2026-10-08-dinner')).map((c) => c.recipeId);
+		for (const id of withChilli) expect(ranked).not.toContain(id);
 	});
 });
 

@@ -58,7 +58,7 @@
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
 	<label>{app.t('dev.user')}
-		<select value={app.user.id} onchange={(e) => app.switchUser(e.currentTarget.value)}>
+		<select value={app.user.id} onchange={(e) => app.signIn(e.currentTarget.value)}>
 			{#each app.db.users as user (user.id)}<option value={user.id}>{user.displayName} ({user.globalRoles.join(', ') || '—'})</option>{/each}
 		</select>
 	</label>

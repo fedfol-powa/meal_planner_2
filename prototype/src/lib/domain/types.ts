@@ -81,6 +81,7 @@ export interface Recipe {
 export interface User {
 	id: string;
 	displayName: string;
+	email: string;
 	locale: Locale;
 	globalRoles: GlobalRole[];
 }
@@ -88,6 +89,39 @@ export interface User {
 export interface FamilyMember {
 	userId: string;
 	role: FamilyRole;
+	joinedAt: LocalDateTime;
+}
+
+/** One meal of the weekly pattern: servings (0 = not planned), a fixed free meal, a time limit. */
+export interface SlotSetting {
+	servings: number;
+	/** Fixed free meal ("Pizza", "Cena libera"): never planned with a recipe. */
+	fixedText: string | null;
+	maxMinutes: number | null;
+}
+
+/** Kinds of dish a rule can name, from the recipe tags. */
+export const DISH_KINDS = ['pasta', 'rice', 'bread_wrap', 'skottle'] as const;
+export type DishKind = (typeof DISH_KINDS)[number];
+
+/** Meal rules from templates (round 4): no free-text rules. Weekday 0 = Monday. */
+export type MealRule =
+	| { id: string; kind: 'only_lunch'; dish: DishKind }
+	| { id: string; kind: 'at_least_one'; group: ProteinGroup; weekday: number }
+	| { id: string; kind: 'never_on'; group: ProteinGroup; weekday: number };
+
+/** Weekly food groups of spec section 3, with the CREA-based ranges as defaults. */
+export const FOOD_GROUPS = ['fish', 'legumes', 'white_meat', 'red_meat', 'cured_meat', 'eggs', 'cheese', 'potatoes', 'heavy'] as const;
+export type FoodGroup = (typeof FOOD_GROUPS)[number];
+export type GroupRange = { min: number; max: number };
+
+/** families.settings without the score weights, which stay out of the interface (round 4). */
+export interface FamilySettings {
+	/** Seven entries per meal, Monday first. */
+	slots: Record<MealType, SlotSetting[]>;
+	rules: MealRule[];
+	knownNew: { known: number; new: number; tolerance: number };
+	groupRanges: Record<FoodGroup, GroupRange>;
 }
 
 export interface Family {
@@ -97,6 +131,28 @@ export interface Family {
 	timeZone: string;
 	members: FamilyMember[];
 	bookIds: string[];
+	settings: FamilySettings;
+	createdAt: LocalDateTime;
+	/** Card in the menu after the first generation ("Invita la famiglia", "Sistema le impostazioni"). */
+	showSetupCard: boolean;
+}
+
+/** family_invitations: a link reusable until it expires (7 days) or is revoked. */
+export interface FamilyInvitation {
+	token: string;
+	familyId: string;
+	createdBy: string;
+	createdAt: LocalDateTime;
+	expiresAt: LocalDateTime;
+	revokedAt: LocalDateTime | null;
+}
+
+/** A removal: links created before it no longer let that person back in (review R2, round 4). */
+export interface FamilyRemoval {
+	familyId: string;
+	userId: string;
+	removedBy: string;
+	removedAt: LocalDateTime;
 }
 
 export interface MealSlot {
@@ -139,6 +195,8 @@ export interface FamilyIngredient {
 	familyId: string;
 	ingredientId: string;
 	restriction: 'avoid' | 'limit';
+	/** Only for "limit": at most this many meals a week. */
+	weeklyMax: number | null;
 }
 
 /** Quantities of one ingredient summed per dimension: masses in g, volumes in ml, counts per unit. */
@@ -211,4 +269,6 @@ export interface DemoDatabase {
 	mealChanges: MealChange[];
 	familyIngredients: FamilyIngredient[];
 	shoppingLists: ShoppingList[];
+	invitations: FamilyInvitation[];
+	removals: FamilyRemoval[];
 }

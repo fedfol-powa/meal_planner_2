@@ -1,5 +1,5 @@
 import { browser } from '$app/env';
-import type { IsoDate, Locale } from '#lib/domain/types.ts';
+import type { IsoDate, Locale, User } from '#lib/domain/types.ts';
 import type { MessageKey } from '#lib/i18n/messages.ts';
 import { translate, type MessageParams } from '#lib/i18n/translate.ts';
 import type { OperationContext, OpResult } from '#lib/operations/context.ts';
@@ -28,11 +28,39 @@ class AppState {
 
 	get db() { return this.#state.db; }
 	get settings() { return this.#state.settings; }
-	get user() { return this.db.users.find((u) => u.id === this.settings.userId) ?? this.db.users[0]; }
+	/** The signed-in user, or a guest placeholder (empty id) before signing in. */
+	get user(): User {
+		return this.db.users.find((u) => u.id === this.settings.userId) ?? { id: '', displayName: '', email: '', locale: this.settings.guestLocale, globalRoles: [] };
+	}
+	get signedIn() { return this.user.id !== ''; }
 	get family() { return this.db.families.find((f) => f.id === this.settings.familyId) ?? null; }
 	get locale(): Locale { return this.user.locale; }
 	get ctx(): OperationContext {
-		return { userId: this.settings.userId, familyId: this.settings.familyId, channel: 'web', now: this.settings.now, offline: this.settings.offline };
+		return { userId: this.settings.userId ?? '', familyId: this.settings.familyId ?? '', channel: 'web', now: this.settings.now, offline: this.settings.offline };
+	}
+	get variants() { return this.settings.variants; }
+
+	/** Shows another of the user's families (or none), keeping the rest of the session. */
+	switchFamily(familyId: string | null) {
+		this.update((s) => (s.settings.familyId = familyId));
+		this.selectedDate = null;
+	}
+
+	signIn(userId: string) {
+		this.update((s) => {
+			s.settings.userId = userId;
+			s.settings.familyId = familyForUser(s.db, userId, s.settings.familyId);
+		});
+		this.selectedDate = null;
+	}
+
+	signOut() {
+		this.update((s) => {
+			s.settings.guestLocale = this.locale;
+			s.settings.userId = null;
+			s.settings.familyId = null;
+		});
+		this.selectedDate = null;
 	}
 
 	t = (key: MessageKey, params?: MessageParams) => translate(this.locale, key, params);
@@ -64,22 +92,16 @@ class AppState {
 		return true;
 	}
 
-	switchUser(userId: string) {
-		this.update((s) => {
-			s.settings.userId = userId;
-			s.settings.familyId = familyForUser(s.db, userId, s.settings.familyId);
-		});
-		this.selectedDate = null;
-	}
-
 	reset() {
+		const variants = this.settings.variants;
 		this.#state = createInitial();
+		this.#state.settings.variants = variants;
 		this.selectedDate = null;
 		this.#save();
 	}
 
 	setScenario(id: ScenarioId) {
-		this.#state = applyScenario(id);
+		this.#state = applyScenario(id, { variants: this.settings.variants, guestLocale: this.settings.guestLocale });
 		this.selectedDate = null;
 		this.#save();
 	}
