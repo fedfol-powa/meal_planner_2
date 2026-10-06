@@ -3,7 +3,8 @@
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 6 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo, secondo e terzo giro approvati il 6 ottobre 2026; prossimo percorso: Famiglia e account.
+primo, secondo e terzo giro approvati il 6 ottobre 2026; quarto giro (Famiglia e account)
+in corso.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -58,7 +59,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 2 | Ricettario e voti | Ricerca, filtri, scheda ricetta, componente stelline | 1 | Approvato il 6 ottobre 2026 |
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
-| 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | Da definire | — |
+| 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | In corso |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | Da definire | — |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
 | 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
@@ -618,3 +619,46 @@ lista settimanale con archiviazione delle revisioni precedenti.
   tocco con il Menu già aperto porta a oggi (o al primo giorno con pasti).
 - **Indietro uniforme:** freccia e nome della destinazione ("Menu", "Ricettario")
   anche nella scheda ricetta.
+
+## Giro 4: percorso 5
+
+Stato: piano approvato il 6 ottobre 2026, in sviluppo.
+Piano: [2026-10-06-prototipo-giro-4.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-4.md).
+
+### Perimetro
+
+Tutto il percorso 5 in un solo giro (specifica, sezioni 2 e 7): primo accesso
+simulato, famiglia nuova con prima generazione, ingresso da invito, membri e inviti,
+impostazioni della famiglia, "non proporre più", preferenze personali, cambio di
+famiglia, uscita, eliminazione della famiglia e cancellazione dell'account.
+
+### Decisioni della preparazione (6 ottobre 2026, provvisorie)
+
+1. **Un solo giro** per tutto il percorso 5.
+2. **Rientro dopo la rimozione (R2):** un membro rimosso non può rientrare con un link
+   creato prima della sua rimozione; serve un link nuovo dell'amministratore. Gli
+   stessi link restano validi per tutti gli altri.
+3. **Impostazioni visibili:** tutte quelle della specifica tranne i pesi del
+   punteggio; quota note/nuove e intervalli per gruppo alimentare in «Avanzate», chiusa.
+4. **Wizard minimo:** nome e sistema di misura, poi «Genera la prima settimana»; il
+   resto ha default e si sistema dalle impostazioni.
+5. **Prima generazione:** pasti non ancora passati da oggi a domenica; dopo mercoledì
+   alle 20:00 anche la settimana successiva, come farebbe il job.
+
+I default proposti (vista «Tu», default della famiglia nuova, griglia dei commensali,
+regole a modelli, pagine dedicate per eliminazione e cancellazione, primo accesso
+simulato) sono nel piano del giro.
+
+### Varianti nel pannello Prova
+
+- **Cambio di famiglia:** dalla vista «Tu» o dal nome della famiglia nella barra del Menu.
+- **Conferma delle eliminazioni:** pulsante dopo il riepilogo o nome da scrivere.
+
+### Simulazione dei dati
+
+- Marco, ex membro della Famiglia Folloni con un link ancora valido (R2); Giulia,
+  utente nuova senza famiglie; inviti valido, scaduto e revocato.
+- Impostazioni della Famiglia Folloni dalle regole di merito del progetto di origine
+  (`../meal_planner/progetto/REGOLE.md`, sola lettura); Nonni con i default.
+- Prima generazione simulata con la regola dei suggerimenti del giro 2, non con il
+  pianificatore.
