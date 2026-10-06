@@ -10,7 +10,9 @@
 
 	const meals = (l: ShoppingListSummary) => (l.mealCount === 1 ? app.t('shopping.mealsOne') : app.t('shopping.meals', { count: l.mealCount }));
 	const changedBy = (l: ShoppingListSummary) =>
-		app.t('meal.changedBy', { name: l.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, l.lastChange.at) });
+		l.lastChange.byApp
+			? app.t('shopping.createdByApp', { time: formatChangeTime(app.locale, l.lastChange.at) })
+			: app.t('meal.changedBy', { name: l.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, l.lastChange.at) });
 </script>
 
 <section class="secondary-view app-view" aria-labelledby="lists-title">
@@ -32,6 +34,7 @@
 		{:else}
 			{#each result.value.open as list (list.id)}
 				<a class="list-card" href="/shopping/{list.id}">
+					{#if list.weekly}<span class="label-chip">{app.t('shopping.weekly')}</span>{/if}
 					<h2>{list.name}</h2>
 					<p class="progress"><strong>{app.t('shopping.progress', { checked: list.checked, total: list.total })}</strong> · {meals(list)}</p>
 					<p class="changed">{changedBy(list)}</p>
@@ -65,6 +68,7 @@
 	.disabled { opacity: 0.5; cursor: not-allowed; }
 	.list-card { display: block; margin-bottom: 16px; padding: 18px 20px; background: var(--paper); box-shadow: var(--card-shadow); color: var(--ink); text-decoration: none; }
 	.list-card:hover h2 { color: var(--green); }
+	.label-chip { margin-bottom: 8px; }
 	h2 { margin: 0 0 6px; font: 400 1.25rem/1.3 var(--meal-title-font); }
 	.progress { margin: 0; font-size: 0.875rem; }
 	.changed { margin: 2px 0 12px; color: var(--muted); font-size: 0.8125rem; }

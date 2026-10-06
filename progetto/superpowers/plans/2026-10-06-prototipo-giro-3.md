@@ -322,7 +322,11 @@ Proposta dell'utente, discussa e approvata in tutti i punti.
 - Dati demo: settimanale del 28 settembre spuntata da Federico e chiusa nello storico,
   settimanale del 5 ottobre aperta e intatta, lista a mano di Anna.
 
-- [ ] Test (prima) e operazioni; seed; commit.
-- [ ] Viste: nome e autore, ordine delle liste aperte; commit.
-- [ ] Verifica con la data simulata (mercoledì 20:00, domenica 23:00, lunedì);
+- [x] Test (prima) e operazioni; seed; commit.
+- [x] Viste: nome e autore, ordine delle liste aperte; commit.
+- [x] Verifica con la data simulata (mercoledì 20:00, domenica 23:00, lunedì);
       documenti; anteprima sulla rete locale.
+
+Esito: 174 test e controllo dei tipi verdi; prova nel browser all'apertura (6 ottobre),
+mercoledì 7 alle 20:30 (due settimanali aperte) e domenica 11 alle 23:30 (settimanale
+intatta eliminata). Domande in `design/percorsi.md`.

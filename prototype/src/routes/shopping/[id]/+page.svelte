@@ -11,7 +11,11 @@
 	const result = $derived(getShoppingListDetail(app.db, app.ctx, page.params.id ?? ''));
 	const list = $derived(result.ok ? result.value : null);
 	const changedBy = $derived(
-		list ? app.t('meal.changedBy', { name: list.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, list.lastChange.at) }) : ''
+		!list
+			? ''
+			: list.lastChange.byApp
+				? app.t('shopping.createdByApp', { time: formatChangeTime(app.locale, list.lastChange.at) })
+				: app.t('meal.changedBy', { name: list.lastChange.userName ?? app.t('meal.formerMember'), time: formatChangeTime(app.locale, list.lastChange.at) })
 	);
 </script>
 
@@ -25,6 +29,7 @@
 				{/if}
 			</div>
 			{#if list}
+				{#if list.weekly}<span class="label-chip">{app.t('shopping.weekly')}</span>{/if}
 				<h1 class="page-title" id="list-title">{list.name}</h1>
 				<p class="page-meta">
 					<strong>{app.t('shopping.progress', { checked: list.checked, total: list.total })}</strong> ·

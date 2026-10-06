@@ -515,3 +515,28 @@ da cui si riapre; nessun segno "già in lista" nella scelta dei pasti; voci libe
 6. Offline: spunte disattivate come il resto dell'app. In negozio serve spuntare
    offline? Se sì, è una scelta di architettura (coda di sincronizzazione).
 7. Nome automatico dai giorni dei pasti; serve poterla rinominare?
+
+### Seconda revisione: lista settimanale (6 ottobre 2026, provvisoria)
+
+Proposta dall'utente e approvata dopo la discussione dei rischi; dettagli nel piano
+del giro, "Seconda revisione".
+
+- Con ogni settimana generata l'app crea la **lista settimanale** ("Settimana 12–18
+  ottobre", etichetta "Settimanale", "Creata dall'app"), con tutti i pasti della
+  settimana; una sola per famiglia e settimana, mai ricreata se eliminata.
+- Va nello storico **a fine settimana** (dopo la cena di domenica), non il mercoledì:
+  da mercoledì a domenica sono aperte due liste settimanali. Se nessuno l'ha toccata
+  viene eliminata; lo storico conserva le ultime 12 liste chiuse.
+- Le liste aperte mostrano prima le settimanali (settimana corrente, poi la
+  successiva), poi quelle fatte a mano. "Nuova lista" è invariata; le sovrapposizioni
+  tra liste sono accettate.
+- Nel prototipo il job è `runShoppingListJobs` (`shopping-lists.ts`), eseguito
+  all'avvio e a ogni cambio di stato: si prova cambiando data e ora dal pannello
+  Prova (mercoledì 7 ottobre dopo le 20:00, domenica 11 dopo le 23:00).
+
+### Domande per la review della seconda revisione
+
+1. Le liste fatte a mano restano aperte anche quando tutti i loro pasti sono passati:
+   vanno archiviate anche loro a fine periodo, come le settimanali?
+2. Due liste settimanali aperte da mercoledì a domenica: l'ordine e l'etichetta bastano?
+3. Il conteggio dei pasti della settimanale include quelli già passati: va bene?
