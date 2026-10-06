@@ -323,3 +323,51 @@ non escluse, non presenti nella settimana né nelle due precedenti. Punteggio: m
 della famiglia (3 senza voti), più 0,1 per settimana dall'ultima volta (al massimo 1),
 meno 1 se il gruppo proteico coincide con il pasto prima o dopo; parità per nome.
 "Proponimene un altro" prende il candidato che segue il piatto attuale.
+
+### Rotte, componenti e operazioni del giro
+
+- **Rotte:** nessuna nuova; le azioni si aprono dalla scheda del pasto in `/menu`.
+- **Componenti nuovi:** `MealActionList` (azioni, nel foglio o nel pannello),
+  `MealEditor` (foglio con le fasi: azioni, ricette, scambio, pasto libero, nota,
+  esclusione), `RecipePicker` (suggerimenti più ricerca con `RecipeFilters`),
+  `SwapPicker`, `BottomSheet`, `ServingsStepper` (riusato nella scheda ricetta),
+  `UndoToast`. `RecipeCard` ha l'icona di modifica nel footer, anche per pasti liberi
+  e vuoti; lo slot vuoto ha "Scegli una ricetta".
+- **Operazioni simulate:** `rankCandidates`, `getSuggestions`, `nextSuggestion`
+  (`suggestions.ts`); `replaceMealRecipe`, `proposeAnother`, `setMealServings`,
+  `swapMeals`, `setMealFree`, `setMealNote`, `excludeRecipe`, `includeRecipe`,
+  `undoMealChanges`, `getFreeTextSuggestions` (`revision.ts`). Ogni scrittura, compreso
+  "non cucinato", passa da un registro delle modifiche (`mealChanges`, bozza di
+  `meal_changes`).
+- **Pannello Prova:** varianti di ingresso alle azioni e dei suggerimenti; "Un altro
+  membro cambia un pasto del giorno" per vedere l'ultima modifica e il limite
+  dell'annullamento.
+
+### Scelte prese durante lo sviluppo
+
+- "Annulla" ripristina solo le proprie modifiche e solo se il pasto non è stato
+  cambiato di nuovo; dopo uno scambio ripristina entrambi i pasti.
+- Cambiare piatto o scambiare azzera "non cucinato": riguardava il piatto di prima.
+- L'annullamento dell'esclusione compare dentro il foglio, sopra i suggerimenti,
+  perché l'avviso in basso resterebbe dietro al foglio.
+- Nella variante a pannello solo l'elenco delle azioni sta nella scheda; scelta della
+  ricetta, scambio, pasto libero, nota ed esclusione si aprono comunque nel foglio.
+- Le porzioni si salvano quando si smette di toccare − e + (meno di un secondo), così
+  un solo "Annulla" ripristina tutta la regolazione.
+- Nei suggerimenti il voto si vede (media, numero di voti, proprio voto) ma non si
+  esprime; si vota dalla scheda.
+
+### Domande per la review
+
+1. Varianti: foglio dal basso o pannello nella scheda; suggerimenti in lista o a schede.
+2. Default: "proponimene un altro" immediato, "Annulla" per 6 secondi, nota fino a 200
+   caratteri, proposte rapide del pasto libero.
+3. Voto nei suggerimenti solo da leggere: va bene o si deve poter votare anche lì
+   (la specifica, sezione 5, chiede di poter votare da ogni voto mostrato)?
+4. La regola simulata dei suggerimenti dà risultati credibili? Lo slot vuoto di
+   mercoledì 14 ha comunque suggerimenti, perché la regola è più larga del
+   pianificatore.
+5. Dopo un annullamento il pasto mostra "Cambiato da" chi ha annullato: va bene o
+   deve tornare l'autore precedente?
+6. Decisioni provvisorie della preparazione (avvisi, concorrenza, canale, scambio,
+   "non proporre più"): confermarle e portarle nella specifica.

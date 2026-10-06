@@ -2,7 +2,7 @@
 
 > **Per gli agenti che eseguono:** sotto-skill richiesta: superpowers:subagent-driven-development
 > (consigliata) oppure superpowers:executing-plans, attività per attività. I passi usano
-> le caselle (`- [ ]`) per il tracciamento.
+> le caselle (`- [x]`) per il tracciamento.
 
 **Obiettivo:** rendere provabili su iPhone tutte le azioni su un pasto della specifica
 (sezione 5): cambia ricetta con cinque suggerimenti o con la ricerca, "proponimene un
@@ -129,70 +129,74 @@ Casi facili da rompere, ciascuno con un test nell'attività indicata.
 
 ### Attività 1: decisioni nei documenti e branch
 
-- [ ] Creare il branch `prototipo-giro-2` da `main`.
-- [ ] Specifica: parte funzionale ("Una settimana tipo", "Come sceglie i piatti") senza
+- [x] Creare il branch `prototipo-giro-2` da `main`.
+- [x] Specifica: parte funzionale ("Una settimana tipo", "Come sceglie i piatti") senza
   avvisi; sezione 3 senza "avvisi di settimana" nel riuso; sezione 5 con concorrenza
   "vince l'ultimo salvataggio", ultima modifica senza canale, scambio nella settimana,
   "non proporre più" che apre i suggerimenti; registro delle revisioni (sezione 16).
-- [ ] `design/percorsi.md`: sezione "Giro 2" con perimetro, decisioni della
+- [x] `design/percorsi.md`: sezione "Giro 2" con perimetro, decisioni della
   preparazione, varianti e collegamento a questo piano; riga 3 della tabella in corso.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 2: suggerimenti simulati
 
-- [ ] Tipi `RecipeExclusion { familyId, recipeId, createdBy, createdAt }` e
+- [x] Tipi `RecipeExclusion { familyId, recipeId, createdBy, createdAt }` e
   `MealChange { id, slotId, actorId, channel, before, after, createdAt }`;
   `DemoDatabase.exclusions` e `DemoDatabase.mealChanges`, vuoti nel seed.
-- [ ] Test (prima) per `rankCandidates(db, family, slot, now)`: filtri dei candidati,
+- [x] Test (prima) per `rankCandidates(db, family, slot, now)`: filtri dei candidati,
   punteggio, parità per nome, esclusioni, nessun candidato.
-- [ ] `getSuggestions(db, ctx, slotId)` → cinque `SuggestionView` (riepilogo, voto,
+- [x] `getSuggestions(db, ctx, slotId)` → cinque `SuggestionView` (riepilogo, voto,
   durata) e `nextSuggestion(db, ctx, slotId)` → id della ricetta o `null`; test per la
   fine dell'elenco e per lo slot vuoto o libero.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 3: operazioni di revisione
 
-- [ ] Test (prima), poi in `revision.ts`, tutte con controllo di `offline` e famiglia,
+- [x] Test (prima), poi in `revision.ts`, tutte con controllo di `offline` e famiglia,
   aggiornamento di `updatedBy`/`updatedAt` e una riga in `mealChanges`:
   `replaceMealRecipe(slotId, recipeId)`, `proposeAnother(slotId)`,
   `setMealServings(slotId, servings)` (intero 1–20), `swapMeals(slotId, otherSlotId)`
   (stessa settimana, piatto o testo libero e nota), `setMealFree(slotId, text)`
   (1–60 caratteri), `setMealNote(slotId, note | null)` (fino a 200 caratteri),
   `excludeRecipe(recipeId)`.
-- [ ] Le operazioni restituiscono la `MealView` aggiornata e l'id della modifica;
+- [x] Le operazioni restituiscono la `MealView` aggiornata e l'id della modifica;
   `undoMealChange(changeId)` ripristina `before` solo se lo slot è ancora uguale a
   `after` (altrimenti `not_allowed`), e registra a sua volta una modifica.
-- [ ] `setMealCooked` del giro 1 passa per lo stesso registro.
-- [ ] Commit.
+- [x] `setMealCooked` del giro 1 passa per lo stesso registro.
+- [x] Commit.
 
 ### Attività 4: componenti di base
 
-- [ ] `BottomSheet` (`<dialog>` modale, titolo, chiusura con pulsante, Esc e tocco sullo
+- [x] `BottomSheet` (`<dialog>` modale, titolo, chiusura con pulsante, Esc e tocco sullo
   sfondo, area sicura dell'iPhone), `ServingsStepper`, `UndoToast` (6 secondi,
   `role="status"`, sopra la navbar).
-- [ ] Icone `icon-edit`, `icon-swap`, `icon-shuffle`, `icon-note`, `icon-ban` nello
+- [x] Icone `icon-edit`, `icon-swap`, `icon-shuffle`, `icon-note`, `icon-ban` nello
   stesso stile delle esistenti.
-- [ ] Testi it-IT ed en-GB.
-- [ ] Commit.
+- [x] Testi it-IT ed en-GB.
+- [x] Commit.
 
 ### Attività 5: ingresso alle azioni e cambio ricetta
 
-- [ ] `RecipeCard`: icona modifica in fondo al footer; footer anche per slot liberi e
+- [x] `RecipeCard`: icona modifica in fondo al footer; footer anche per slot liberi e
   vuoti (solo modifica); slot vuoto con "Scegli una ricetta".
-- [ ] `MealActions` nelle varianti `sheet` e `panel`: cambia ricetta, proponimene un
+- [x] `MealActions` nelle varianti `sheet` e `panel`: cambia ricetta, proponimene un
   altro, porzioni, scambia, pasto libero, nota, non proporre più.
-- [ ] `RecipePicker` nelle varianti `list` e `cards`: cinque suggerimenti con voto
+- [x] `RecipePicker` nelle varianti `list` e `cards`: cinque suggerimenti con voto
   (componente `RatingStars` del giro 1), sotto la ricerca con il pannello filtri del
   ricettario; scelta → `replaceMealRecipe` → chiusura e `UndoToast`.
-- [ ] "Non proporre più": conferma breve nel foglio, `excludeRecipe`, poi `RecipePicker`
+- [x] "Non proporre più": conferma breve nel foglio, `excludeRecipe`, poi `RecipePicker`
   sui suggerimenti.
-- [ ] Pannello Prova: selettori `revisionEntry` e `suggestionLayout`; versione dello
+- [x] Pannello Prova: selettori `revisionEntry` e `suggestionLayout`; versione dello
   stato a 6.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 6: tappa intermedia
 
-- [ ] `npm test`, `npm run check`, prova nel browser a 320, 390 e 1440 px in italiano e
+Non eseguita come pausa: su richiesta dell'utente la scelta delle varianti passa alla
+review finale.
+
+
+- [x] `npm test`, `npm run check`, prova nel browser a 320, 390 e 1440 px in italiano e
   inglese.
 - [ ] `npm run preview:lan` e prova dell'utente su iPhone: scelta delle due varianti.
 - [ ] Tenere le varianti scelte, togliere le altre e le relative impostazioni; esito in
@@ -200,24 +204,24 @@ Casi facili da rompere, ciascuno con un test nell'attività indicata.
 
 ### Attività 7: porzioni, scambio, pasto libero e nota
 
-- [ ] Porzioni con `ServingsStepper`, salvataggio al rilascio; ingredienti ricalcolati
+- [x] Porzioni con `ServingsStepper`, salvataggio al rilascio; ingredienti ricalcolati
   subito nella scheda.
-- [ ] `SwapPicker`: gli altri pasti della settimana (giorno, pasto, piatto),
+- [x] `SwapPicker`: gli altri pasti della settimana (giorno, pasto, piatto),
   scelta → `swapMeals`; il Menu resta sul giorno corrente.
-- [ ] Pasto libero: campo di testo con proposte rapide dai testi liberi già usati dalla
+- [x] Pasto libero: campo di testo con proposte rapide dai testi liberi già usati dalla
   famiglia ("Pizza", "Cena fuori"); nota: campo di testo, "Togli la nota".
-- [ ] Ultima modifica: "Anna · ven 21:30" (formato del giro 1, senza canale).
-- [ ] Pannello Prova: "Anna modifica un pasto" (cambia il piatto di un pasto del giorno
+- [x] Ultima modifica: "Anna · ven 21:30" (formato del giro 1, senza canale).
+- [x] Pannello Prova: "Anna modifica un pasto" (cambia il piatto di un pasto del giorno
   selezionato a nome di un altro membro), per vedere l'ultima modifica e provare
   l'annullamento descritto nel focus 1.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 8: verifica finale e review
 
-- [ ] Test, controllo dei tipi, prova nel browser come nell'attività 6, offline
+- [x] Test, controllo dei tipi, prova nel browser come nell'attività 6, offline
   simulato, utente inglese con unità imperiali.
 - [ ] Confronto visivo con `design/index.html`.
-- [ ] `design/percorsi.md`: rotte, componenti e operazioni del giro; domande per la
+- [x] `design/percorsi.md`: rotte, componenti e operazioni del giro; domande per la
   review. README del prototipo aggiornato.
 - [ ] Pubblicazione sulla rete locale e review con l'utente; esito qui e in
   `design/percorsi.md`, decisioni nella specifica. Commit di chiusura.
@@ -232,3 +236,10 @@ Casi facili da rompere, ciascuno con un test nell'attività indicata.
 
 Elenco delle esclusioni e impostazioni della famiglia (percorso 5); spesa (percorso 4);
 versione della ricetta associata ai pasti (R1, percorso 6); pianificatore reale.
+
+## Esito dell'esecuzione (6 ottobre 2026)
+
+Eseguito in sessione senza sotto-agenti. Le decisioni della preparazione sono
+registrate come provvisorie in `design/percorsi.md` e passano nella specifica dopo la
+review. Scelte prese durante lo sviluppo e domande per la review: `design/percorsi.md`,
+"Giro 2".
