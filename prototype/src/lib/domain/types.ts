@@ -166,32 +166,19 @@ export interface ShoppingManualItem {
 	createdAt: LocalDateTime;
 }
 
-/** Family shopping list (round 3 revision): remembers the meals, quantities follow them while open. */
+/**
+ * The shopping list of a week (round 3, third revision): one per week, with every meal of the week,
+ * shared by the family. Saved at the first change; quantities always follow the meals.
+ */
 export interface ShoppingList {
-	id: string;
 	familyId: string;
-	/** Set on the weekly list the app creates with each generated week (second revision). */
-	weekId: string | null;
-	status: 'open' | 'closed';
-	slotIds: string[];
+	weekId: string;
 	checks: ShoppingCheck[];
 	/** Pantry or avoided ingredients put back on the list. */
 	addedBack: string[];
 	manualItems: ShoppingManualItem[];
-	/** Slot contents at closing: a closed list no longer follows the meals. */
-	frozenSlots: ShoppingListSlot[] | null;
-	/** null means the app (weekly list); updatedBy stays null until a member touches the list. */
-	createdBy: string | null;
-	createdAt: LocalDateTime;
-	updatedBy: string | null;
+	updatedBy: string;
 	updatedAt: LocalDateTime;
-	closedAt: LocalDateTime | null;
-}
-
-/** Weeks whose weekly list was already created, so a deleted one is not created again. */
-export interface WeeklyListRecord {
-	familyId: string;
-	weekId: string;
 }
 
 /** The editable part of a slot, as stored in the change log. */
@@ -220,5 +207,4 @@ export interface DemoDatabase {
 	mealChanges: MealChange[];
 	familyIngredients: FamilyIngredient[];
 	shoppingLists: ShoppingList[];
-	weeklyLists: WeeklyListRecord[];
 }

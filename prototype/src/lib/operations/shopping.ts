@@ -1,4 +1,3 @@
-import { addDays, isMealPast, mondayOf } from '#lib/domain/calendar.ts';
 import { DEPARTMENTS, type DemoDatabase, type Department, type Family, type IsoDate, type Locale, type MealSlot, type MealType, type ShoppingListSlot } from '#lib/domain/types.ts';
 import { translate } from '#lib/i18n/translate.ts';
 import { addQuantity, emptyCombined, formatCombined, type CombinedQuantity } from '#lib/units/combine.ts';
@@ -9,69 +8,6 @@ import { visibleWeeks } from './meals';
 
 const MEAL_ORDER = { lunch: 0, dinner: 1 } as const;
 const byDateAndMeal = (a: ShoppingListSlot, b: ShoppingListSlot) => a.date.localeCompare(b.date) || MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType];
-
-export type ShoppingShortcut = 'rest_of_week' | 'next_week';
-
-export interface ShoppingMealOption {
-	slotId: string;
-	date: IsoDate;
-	mealType: MealType;
-	kind: 'recipe' | 'free' | 'empty';
-	/** Recipe name or free text; null for an empty slot. */
-	label: string | null;
-	/** Only meals with a recipe and its ingredients go into a list. */
-	selectable: boolean;
-}
-
-export interface ShoppingSelectionView {
-	days: { date: IsoDate; meals: ShoppingMealOption[] }[];
-	/** Starting selection: from now to Sunday, else the whole next week. */
-	selected: string[];
-	/** Slot ids per shortcut; a shortcut is missing when its week is not available. */
-	shortcuts: Partial<Record<ShoppingShortcut, string[]>>;
-}
-
-/** Meals not yet past, from now to the end of the last visible week (spec section 6). */
-export function getShoppingSelection(db: DemoDatabase, ctx: OperationContext): OpResult<ShoppingSelectionView> {
-	const family = familyFor(db, ctx);
-	if (!family) return fail('forbidden');
-	const locale = localeOf(db, ctx);
-	const weeks = visibleWeeks(db, family, ctx);
-	const slots = weeks
-		.flatMap((w) => w.slots)
-		.filter((s) => !isMealPast(s.date, s.mealType, ctx.now))
-		.sort(byDateAndMeal);
-
-	const options = slots.map((slot): ShoppingMealOption => {
-		const recipe = slot.recipeId ? db.recipes.find((r) => r.id === slot.recipeId) ?? null : null;
-		return {
-			slotId: slot.id,
-			date: slot.date,
-			mealType: slot.mealType,
-			kind: recipe ? 'recipe' : slot.freeText ? 'free' : 'empty',
-			label: recipe ? recipeSummary(db, recipe, locale).name : slot.freeText,
-			selectable: !!recipe && scaledIngredients(db, recipe, slot.servings, locale) !== null
-		};
-	});
-
-	const days: ShoppingSelectionView['days'] = [];
-	for (const option of options) {
-		const last = days[days.length - 1];
-		if (last?.date === option.date) last.meals.push(option);
-		else days.push({ date: option.date, meals: [option] });
-	}
-
-	const thisMonday = mondayOf(ctx.now.slice(0, 10));
-	const nextMonday = addDays(thisMonday, 7);
-	const selectableIn = (from: IsoDate, to: IsoDate) =>
-		options.filter((o) => o.selectable && o.date >= from && o.date < to).map((o) => o.slotId);
-	const shortcuts: ShoppingSelectionView['shortcuts'] = {};
-	if (weeks.some((w) => w.startsOn === thisMonday)) shortcuts.rest_of_week = selectableIn(thisMonday, nextMonday);
-	if (weeks.some((w) => w.startsOn === nextMonday)) shortcuts.next_week = selectableIn(nextMonday, addDays(nextMonday, 7));
-	const selected = shortcuts.rest_of_week?.length ? shortcuts.rest_of_week : (shortcuts.next_week ?? []);
-
-	return ok({ days, selected: [...selected], shortcuts });
-}
 
 export interface ShoppingSource {
 	slotId: string;

@@ -330,3 +330,18 @@ Proposta dell'utente, discussa e approvata in tutti i punti.
 Esito: 174 test e controllo dei tipi verdi; prova nel browser all'apertura (6 ottobre),
 mercoledì 7 alle 20:30 (due settimanali aperte) e domenica 11 alle 23:30 (settimanale
 intatta eliminata). Domande in `design/percorsi.md`.
+
+## Terza revisione: una lista per settimana (6 ottobre 2026)
+
+Decisa dall'utente dopo la prova ed eseguita subito: la lista si apre dalla borsa del
+Menu sulla settimana visualizzata e contiene tutti i pasti della settimana; non si
+creano altre liste e lo storico sparisce; le settimane passate restano consultabili
+dal Menu. Superate le revisioni precedenti per scelta dei pasti, liste a mano,
+elenco, storico, chiusura, eliminazione e job settimanale. Dettagli in
+`design/percorsi.md`, "Terza revisione".
+
+- [x] Modello, operazioni e test (165 verdi), seed, rimozione di selezione, job,
+      elenco e testi inutilizzati; versione dello stato 15.
+- [x] Rotta `/shopping/[week]`, `/shopping` rimanda al Menu; borsa del Menu sulla
+      settimana visualizzata; menu "…" con le sole esportazioni.
+- [x] Prova con agent-browser: settimana corrente e settimana passata dal Menu.

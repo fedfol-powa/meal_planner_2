@@ -24,21 +24,21 @@ describe('loadPersisted', () => {
 		expect(loadPersisted(null).settings.userId).toBe('user-federico');
 	});
 	it('falls back to the seed on corrupt JSON', () => {
-		expect(loadPersisted(storageWith('{not json')).version).toBe(14);
+		expect(loadPersisted(storageWith('{not json')).version).toBe(15);
 	});
 	it('discards data saved by the previous version', () => {
-		const old = { ...createInitial(), version: 13 };
-		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(14);
+		const old = { ...createInitial(), version: 14 };
+		expect(loadPersisted(storageWith(JSON.stringify(old))).version).toBe(15);
 	});
 	it('falls back to the seed on another version', () => {
 		expect(loadPersisted(storageWith(JSON.stringify({ version: 0, db: {}, settings: {} }))).db.users.length).toBe(4);
 	});
 	it('falls back to the seed when getItem throws', () => {
 		const throwing = { getItem: () => { throw new Error('SecurityError'); } };
-		expect(loadPersisted(throwing).version).toBe(14);
+		expect(loadPersisted(throwing).version).toBe(15);
 	});
 	it('falls back to the seed when settings point to unknown users or families', () => {
-		const broken = { version: 14, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
+		const broken = { version: 15, db: { users: [], families: [], weeks: [] }, settings: { userId: 'x', familyId: 'y', now: '2026-10-06T12:00', offline: false, scenario: 'standard' } };
 		expect(loadPersisted(storageWith(JSON.stringify(broken))).db.users.length).toBe(4);
 	});
 	it('falls back to the seed on a malformed time', () => {

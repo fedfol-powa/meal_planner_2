@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import BottomSheet from './BottomSheet.svelte';
 	import { formatDayNumber, formatDayShort } from '#lib/i18n/dates.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
@@ -8,11 +7,7 @@
 	import {
 		MAX_MANUAL_TEXT,
 		addManualItem,
-		closeShoppingList,
-		deleteShoppingList,
 		removeManualItem,
-		reopenShoppingList,
-		restoreShoppingList,
 		toggleAddedBack,
 		toggleManualItem,
 		toggleShoppingItem,
@@ -20,7 +15,7 @@
 	} from '#lib/operations/shopping-lists.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	// A saved family list (round 3 revision): ticks and items are shared, quantities follow the meals.
+	// The list of a week (round 3, third revision): ticks and items are shared, quantities follow the meals.
 	let { list }: { list: ShoppingListDetail } = $props();
 
 	let expanded = $state<Set<string>>(new Set());
@@ -57,8 +52,8 @@
 		};
 	});
 
-	const open = $derived(list.status === 'open');
-	const canEdit = $derived(open && !app.settings.offline);
+	const canEdit = $derived(!app.settings.offline);
+	const week = $derived(list.weekStartsOn);
 	const ticked = $derived(new Set(list.departments.flatMap((d) => d.items.filter((i) => i.checked).map((i) => i.id))));
 	const manualLeft = $derived(list.departments.flatMap((d) => d.manual.filter((m) => !m.checked).map((m) => m.text)));
 	const exported = $derived(shoppingExport(list.view, ticked, app.locale, manualLeft));
@@ -88,39 +83,9 @@
 		return result.value;
 	}
 
-	function reopen() {
-		if (act(reopenShoppingList(app.db, app.ctx, list.id)) !== null) app.notify(app.t('shopping.reopenedToast'));
-	}
-
-	// Closing (by hand or at the last tick) offers "Annulla", which reopens the list.
-	function closed() {
-		app.notify(app.t('shopping.closedToast'), () => reopen());
-	}
-
-	function tick(ingredientId: string) {
-		if (act(toggleShoppingItem(app.db, app.ctx, list.id, ingredientId))?.closed) closed();
-	}
-
-	function tickManual(itemId: string) {
-		if (act(toggleManualItem(app.db, app.ctx, list.id, itemId))?.closed) closed();
-	}
-
 	function add(event: SubmitEvent) {
 		event.preventDefault();
-		if (act(addManualItem(app.db, app.ctx, list.id, newItem))) newItem = '';
-	}
-
-	function done() {
-		if (act(closeShoppingList(app.db, app.ctx, list.id)) !== null) closed();
-	}
-
-	function remove() {
-		const removed = act(deleteShoppingList(app.db, app.ctx, list.id));
-		if (!removed) return;
-		goto('/shopping');
-		app.notify(app.t('shopping.deletedToast'), () => {
-			if (act(restoreShoppingList(app.db, app.ctx, removed)) !== null) goto(`/shopping/${removed.id}`);
-		});
+		if (act(addManualItem(app.db, app.ctx, week, newItem))) newItem = '';
 	}
 
 	async function share() {
@@ -161,36 +126,23 @@
 
 <header class="page-header">
 	<div class="title-row no-print">
-		<a class="page-back" href="/shopping"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{app.t('shopping.back')}</a>
+		<a class="page-back" href="/menu"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{app.t('nav.menu')}</a>
 		<div class="menu-wrap">
 			<button bind:this={menuButton} type="button" class="menu-toggle" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={app.t('shopping.actions')} onclick={() => (menuOpen = !menuOpen)}>
 				<svg class="icon" aria-hidden="true"><use href="#icon-more" /></svg>
 			</button>
 			{#if menuOpen}
 				<div class="menu" role="menu" bind:this={menuPanel}>
-					{#if open}
-						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(() => goto(`/shopping/new?list=${list.id}`))}>{app.t('shopping.editMeals')}</button>
-					{/if}
 					<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(share)}>{app.t('shopping.share')}</button>
 					<button type="button" role="menuitem" disabled={nothingLeft} onclick={() => run(() => window.print())}>{app.t('shopping.pdf')}</button>
 					<button type="button" role="menuitem" disabled={nothingLeft || app.settings.offline} onclick={() => run(() => (sheet = 'bring'))}>{app.t('shopping.bring')}{#if app.settings.offline}<small> · {app.t('shopping.bringOffline')}</small>{/if}</button>
-					{#if open}
-						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(done)}>{app.t('shopping.done')}</button>
-					{:else}
-						<button type="button" role="menuitem" disabled={app.settings.offline} onclick={() => run(reopen)}>{app.t('shopping.reopen')}</button>
-					{/if}
-					<button type="button" role="menuitem" class="danger" disabled={app.settings.offline} onclick={() => run(remove)}>{app.t('shopping.delete')}</button>
 				</div>
 			{/if}
 		</div>
 	</div>
-	{#if list.weekly}<span class="label-chip no-print">{app.t('shopping.weekly')}</span>{/if}
 	<h1 class="page-title" id="list-title">{title}</h1>
 </header>
 
-{#if !open}
-	<p class="notice no-print">{app.t('shopping.closedNotice')}</p>
-{/if}
 
 {#if list.skipped.length}
 	<p class="notice">{app.t('shopping.skipped', { names: list.skipped.map((s) => s.recipeName).join(', ') })}</p>
@@ -205,7 +157,7 @@
 				<li class:done={item.checked}>
 					<div class="row">
 						<label class="shopping-item">
-							<input type="checkbox" checked={item.checked} disabled={!canEdit} aria-label={app.t('shopping.check', { name: item.name })} onchange={() => tick(item.id)} />
+							<input type="checkbox" checked={item.checked} disabled={!canEdit} aria-label={app.t('shopping.check', { name: item.name })} onchange={() => act(toggleShoppingItem(app.db, app.ctx, week, item.id))} />
 							<span class="shopping-name">
 								{item.name}{#if item.isOptional}<small class="hint"> · {app.t('shopping.optional')}</small>{/if}
 								{#if item.previousQuantity}<small class="previous">{app.t('shopping.previous', { quantity: item.previousQuantity })}</small>{/if}
@@ -229,12 +181,12 @@
 				<li class:done={item.checked}>
 					<div class="row">
 						<label class="shopping-item">
-							<input type="checkbox" checked={item.checked} disabled={!canEdit} aria-label={app.t('shopping.check', { name: item.text })} onchange={() => tickManual(item.id)} />
+							<input type="checkbox" checked={item.checked} disabled={!canEdit} aria-label={app.t('shopping.check', { name: item.text })} onchange={() => act(toggleManualItem(app.db, app.ctx, week, item.id))} />
 							<span class="shopping-name">{item.text}</span>
 							<span></span>
 						</label>
 						{#if canEdit}
-							<button type="button" class="icon-button remove no-print" aria-label={app.t('shopping.removeItem', { name: item.text })} onclick={() => act(removeManualItem(app.db, app.ctx, list.id, item.id))}>×</button>
+							<button type="button" class="icon-button remove no-print" aria-label={app.t('shopping.removeItem', { name: item.text })} onclick={() => act(removeManualItem(app.db, app.ctx, week, item.id))}>×</button>
 						{/if}
 					</div>
 				</li>
@@ -262,7 +214,7 @@
 					<span class="shopping-name">{item.name} <small>· {app.t(item.excluded === 'avoid' ? 'shopping.excluded.avoid' : 'shopping.excluded.pantry')}</small></span>
 					<span class="shopping-quantity">{item.quantity}</span>
 					{#if canEdit}
-						<button type="button" class="add" aria-label={app.t('shopping.addBack', { name: item.name })} onclick={() => act(toggleAddedBack(app.db, app.ctx, list.id, item.id))}>+</button>
+						<button type="button" class="add" aria-label={app.t('shopping.addBack', { name: item.name })} onclick={() => act(toggleAddedBack(app.db, app.ctx, week, item.id))}>+</button>
 					{:else}<span></span>{/if}
 				</li>
 			{/each}
@@ -297,8 +249,6 @@
 	.menu button:hover:not(:disabled) { background: var(--canvas); }
 	.menu button:disabled { color: var(--muted); cursor: not-allowed; }
 	.menu small { font-size: 0.75rem; }
-	.menu .danger { color: #a3261b; border-top: 1px solid var(--rule); }
-	.label-chip { margin-top: 4px; }
 	.shopping-group h2 { margin: 0 0 12px; }
 	.row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; border-top: 1px solid var(--rule); }
 	.row .shopping-item { border-top: 0; }

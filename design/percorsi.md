@@ -563,3 +563,32 @@ del giro, "Seconda revisione".
 - **Pezzi interi nella lista della spesa:** i pezzi si arrotondano per eccesso
   (½ peperone → 1); nella scheda del pasto, nella ricetta e nella provenienza delle
   voci restano le frazioni per cucinare.
+
+### Terza revisione: una lista per settimana (6 ottobre 2026, provvisoria)
+
+Decisione dell'utente dopo la prova, che **supera** la scelta dei pasti (decisioni 1, 4
+e 5 della preparazione), le liste fatte a mano, l'elenco delle liste, lo storico, la
+chiusura ("Spesa fatta", chiusura all'ultima spunta, "Riapri"), l'eliminazione e la
+lista settimanale con archiviazione delle revisioni precedenti.
+
+- **Una lista per settimana**, con tutti i pasti della settimana, senza scelta:
+  chi fa due spese spunta ciò che ha già comprato. Non si creano altre liste.
+- **Ingresso:** la borsa nella barra del Menu apre la lista della settimana che si sta
+  guardando (`/shopping/<lunedì>`); "Menu" in alto a sinistra torna al giorno scelto.
+- **Settimane passate:** si aprono allo stesso modo dal Menu, con le spunte com'erano;
+  nessun archivio separato.
+- **Restano:** spunta condivisa, voce che torna da spuntare con "prima: …", voci
+  libere in "Altro", "Non in lista", pezzi interi, esportazioni nel menu "…"
+  (Condividi, PDF, Bring!).
+- **Modello simulato:** `ShoppingList { familyId, weekId, checks, addedBack,
+  manualItems, updatedBy, updatedAt }`, salvata alla prima modifica (una settimana mai
+  toccata ha comunque la sua lista, vuota di spunte); nessun job. Operazioni:
+  `getWeekShoppingList`, `toggleShoppingItem`, `addManualItem`, `toggleManualItem`,
+  `removeManualItem`, `toggleAddedBack` (con il lunedì della settimana).
+- **Dati demo:** settimana del 28 settembre tutta spuntata da Federico; settimana del
+  5 ottobre con tre spunte di Anna e "Detersivo per i piatti". Pannello Prova: "Un
+  altro membro spunta una voce della lista della settimana".
+
+Domande ancora aperte per la chiusura del giro: spunta offline in negozio
+(architettura); reparti e doppioni dei dati demo (es. "Aglio" e "Aglio tritato o
+schiacciato" restano separati).

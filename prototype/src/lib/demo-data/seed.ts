@@ -1,7 +1,6 @@
 import type { DemoDatabase, Rating } from '#lib/domain/types.ts';
 import type { OperationContext } from '#lib/operations/context.ts';
-import { getShoppingSelection } from '#lib/operations/shopping.ts';
-import { addManualItem, createShoppingList, getShoppingListDetail, runShoppingListJobs, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
+import { addManualItem, getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
 import data from './generated.json';
 
 // Demo people: Federico from the origin project, the others invented for the prototype.
@@ -64,8 +63,7 @@ export function createSeedDatabase(): DemoDatabase {
 		mealChanges: [],
 		// Invented for the prototype: shows the "avoided" part of the shopping list.
 		familyIngredients: [{ familyId: 'family-main', ingredientId: 'peperoncino-fresco', restriction: 'avoid' }],
-		shoppingLists: [],
-		weeklyLists: []
+		shoppingLists: []
 	};
 	addDemoShoppingLists(db);
 	return db;
@@ -76,20 +74,15 @@ const value = <T>(r: { ok: true; value: T } | { ok: false; error: string }): T =
 	return r.value;
 };
 
-// Built with the same operations and jobs the app uses: the weekly list of 28 September ticked by
-// Federico and closed, the weekly list of 5 October still untouched, a list made by hand by Anna.
+// Built with the same operations the app uses: the list of the week of 28 September all ticked by
+// Federico, the list of this week partly ticked by Anna with a free item.
 function addDemoShoppingLists(db: DemoDatabase) {
 	const at = (userId: string, now: string): OperationContext => ({ userId, familyId: 'family-main', channel: 'web', now, offline: false });
-	runShoppingListJobs(db, '2026-09-26T10:00');
-	const closed = db.shoppingLists.find((l) => l.weekId === 'week-2026-09-28')?.id ?? '';
-	const shopping = at('user-federico', '2026-09-26T11:20');
-	for (const group of value(getShoppingListDetail(db, shopping, closed)).departments)
-		for (const item of group.items) value(toggleShoppingItem(db, shopping, closed, item.id));
+	const federico = at('user-federico', '2026-09-26T11:20');
+	for (const group of value(getWeekShoppingList(db, federico, '2026-09-28')).departments)
+		for (const item of group.items) value(toggleShoppingItem(db, federico, '2026-09-28', item.id));
 
-	const anna = at('user-anna', '2026-10-05T19:00');
-	const thisWeek = value(getShoppingSelection(db, anna)).shortcuts.rest_of_week ?? [];
-	const open = value(createShoppingList(db, anna, thisWeek.filter((id) => id >= '2026-10-07'))).id;
-	for (const id of ['fusilloni', 'speck-da-tagliare-a-cubetti', 'panini-per-hamburger']) value(toggleShoppingItem(db, at('user-anna', '2026-10-05T19:05'), open, id));
-	value(addManualItem(db, at('user-anna', '2026-10-05T19:10'), open, 'Detersivo per i piatti'));
-	runShoppingListJobs(db, '2026-10-06T12:00');
+	const anna = at('user-anna', '2026-10-05T19:05');
+	for (const id of ['fusilloni', 'speck-da-tagliare-a-cubetti', 'panini-per-hamburger']) value(toggleShoppingItem(db, anna, '2026-10-05', id));
+	value(addManualItem(db, at('user-anna', '2026-10-05T19:10'), '2026-10-05', 'Detersivo per i piatti'));
 }

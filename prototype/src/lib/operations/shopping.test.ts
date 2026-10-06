@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createInitial } from '#lib/store/persistence.ts';
 import type { DemoDatabase } from '#lib/domain/types.ts';
 import type { OperationContext } from './context';
-import { arrangeShoppingList, buildShoppingList, getShoppingSelection, shoppingExport } from './shopping';
+import { arrangeShoppingList, buildShoppingList, shoppingExport } from './shopping';
 
 let db: DemoDatabase;
 const ctx = (over: Partial<OperationContext> = {}): OperationContext => ({
@@ -15,47 +15,6 @@ const value = <T>(r: { ok: true; value: T } | { ok: false; error: string }): T =
 const allItems = (list: ReturnType<typeof arrangeShoppingList>) => list.departments.flatMap((d) => d.items);
 
 beforeEach(() => { db = createInitial().db; });
-
-describe('getShoppingSelection', () => {
-	it('starts from the meals not yet past until Sunday, without free meals', () => {
-		const view = value(getShoppingSelection(db, ctx()));
-		expect(view.days[0].date).toBe('2026-10-06');
-		expect(view.days[0].meals.map((m) => m.slotId)).toEqual(['2026-10-06-lunch', '2026-10-06-dinner']);
-		expect(view.selected).toEqual([
-			'2026-10-06-lunch', '2026-10-06-dinner', '2026-10-07-lunch', '2026-10-07-dinner', '2026-10-08-lunch', '2026-10-08-dinner',
-			'2026-10-09-lunch', '2026-10-09-dinner', '2026-10-10-lunch', '2026-10-11-dinner'
-		]);
-		const free = view.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-11-lunch');
-		expect(free).toMatchObject({ kind: 'free', selectable: false, label: 'Pizza da asporto' });
-		expect(view.shortcuts.next_week).toBeUndefined();
-	});
-
-	it('hides past meals', () => {
-		const view = value(getShoppingSelection(db, ctx({ now: '2026-10-06T16:00' })));
-		expect(view.days[0].meals.map((m) => m.slotId)).toEqual(['2026-10-06-dinner']);
-	});
-
-	it('offers next week once it is generated and picks it when the current week is over', () => {
-		const wednesday = value(getShoppingSelection(db, ctx({ now: '2026-10-08T09:00' })));
-		expect(wednesday.shortcuts.next_week?.[0]).toBe('2026-10-12-lunch');
-		expect(wednesday.selected[0]).toBe('2026-10-08-lunch');
-		const sundayNight = value(getShoppingSelection(db, ctx({ now: '2026-10-11T23:30' })));
-		expect(sundayNight.shortcuts.rest_of_week).toEqual([]);
-		expect(sundayNight.selected).toEqual(sundayNight.shortcuts.next_week);
-		// The empty Wednesday dinner is shown but not selectable.
-		const empty = sundayNight.days.flatMap((d) => d.meals).find((m) => m.slotId === '2026-10-14-dinner');
-		expect(empty).toMatchObject({ kind: 'empty', selectable: false });
-	});
-
-	it('is empty for a family without weeks', () => {
-		const view = value(getShoppingSelection(db, ctx({ userId: 'user-lucia', familyId: 'family-grandparents' })));
-		expect(view).toMatchObject({ days: [], selected: [] });
-	});
-
-	it('refuses a family the user does not belong to', () => {
-		expect(getShoppingSelection(db, ctx({ userId: 'user-tom', familyId: 'family-grandparents' }))).toEqual({ ok: false, error: 'forbidden' });
-	});
-});
 
 describe('buildShoppingList', () => {
 	it('scales, consolidates canonical ingredients and keeps incompatible units together', () => {
@@ -98,7 +57,7 @@ describe('buildShoppingList', () => {
 	});
 
 	it('orders departments as the standard sequence and items by name', () => {
-		const list = value(buildShoppingList(db, ctx(), value(getShoppingSelection(db, ctx())).selected));
+		const list = value(buildShoppingList(db, ctx(), ['2026-10-06-lunch', '2026-10-06-dinner', '2026-10-07-lunch', '2026-10-07-dinner', '2026-10-08-lunch', '2026-10-08-dinner', '2026-10-09-lunch', '2026-10-09-dinner', '2026-10-10-lunch', '2026-10-11-dinner']));
 		const departments = arrangeShoppingList(list, new Set()).departments;
 		expect(departments.map((d) => d.department)).toEqual(['produce', 'butcher', 'fish', 'chilled', 'bakery', 'pasta_grains', 'tinned', 'condiments']);
 		const produce = departments[0].items.map((i) => i.name);

@@ -6,7 +6,6 @@ import type { OperationContext, OpResult } from '#lib/operations/context.ts';
 import { errorKey } from '#lib/i18n/errors.ts';
 import type { RevisionResult } from '#lib/operations/revision.ts';
 import { undoMealChanges } from '#lib/operations/revision.ts';
-import { runShoppingListJobs } from '#lib/operations/shopping-lists.ts';
 import { createInitial, loadPersisted, savePersisted, type Persisted, type ScenarioId } from './persistence';
 import { applyScenario, familyForUser } from './scenarios';
 
@@ -18,15 +17,8 @@ function safeStorage(): Storage | null {
 	}
 }
 
-/** Saved state with the scheduled jobs caught up to the simulated time. */
-function loaded(): Persisted {
-	const state = loadPersisted(safeStorage());
-	runShoppingListJobs(state.db, state.settings.now);
-	return state;
-}
-
 class AppState {
-	#state = $state<Persisted>(loaded());
+	#state = $state<Persisted>(loadPersisted(safeStorage()));
 	/** Day chosen in the menu, kept while switching views (design.md, navigation). */
 	selectedDate = $state<IsoDate | null>(null);
 	/** Short-lived notice after a change, with "Annulla" when the change can be undone. */
@@ -47,11 +39,6 @@ class AppState {
 	update(change: (state: Persisted) => void) {
 		change(this.#state);
 		this.#save();
-	}
-
-	/** Stand-in for the scheduled jobs: weekly shopping lists follow the simulated time. */
-	#runJobs() {
-		runShoppingListJobs(this.#state.db, this.#state.settings.now);
 	}
 
 	notify(message: string, undo: (() => void) | null = null) {
@@ -95,7 +82,6 @@ class AppState {
 	}
 
 	#save() {
-		this.#runJobs();
 		savePersisted(safeStorage(), $state.snapshot(this.#state) as Persisted);
 	}
 }

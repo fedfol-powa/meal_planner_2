@@ -4,7 +4,7 @@
 	import type { ScenarioId } from '#lib/store/persistence.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
-	import { getShoppingListDetail, getShoppingLists, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
+	import { getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -29,23 +29,18 @@
 
 	let otherTick = $state<string | null>(null);
 
-	// Simulates another member ticking the first unticked item of the newest open list (shared lists).
+	// Simulates another member ticking the first unticked item of the list of the chosen week (shared list).
 	function simulateOtherTick() {
 		const other = app.family?.members.find((m) => m.userId !== app.user.id);
 		const name = app.db.users.find((u) => u.id === other?.userId)?.displayName;
 		if (!other || !name) return (otherTick = app.t('dev.otherTickNone'));
 		const ctx = { ...app.ctx, userId: other.userId, offline: false };
-		const lists = getShoppingLists(app.db, ctx);
-		for (const summary of lists.ok ? lists.value.open : []) {
-			const detail = getShoppingListDetail(app.db, ctx, summary.id);
-			const item = detail.ok ? detail.value.departments.flatMap((d) => d.items).find((i) => !i.checked) : undefined;
-			if (!detail.ok || !item) continue;
-			const result = toggleShoppingItem(app.db, ctx, summary.id, item.id);
-			if (!result.ok) break;
-			app.update(() => {});
-			return (otherTick = app.t('dev.otherTickDone', { name, item: item.name, list: detail.value.name }));
-		}
-		otherTick = app.t('dev.otherTickNone');
+		const day = app.selectedDate ?? app.settings.now.slice(0, 10);
+		const list = getWeekShoppingList(app.db, ctx, day);
+		const item = list.ok ? list.value.departments.flatMap((d) => d.items).find((i) => !i.checked) : undefined;
+		if (!list.ok || !item || !toggleShoppingItem(app.db, ctx, day, item.id).ok) return (otherTick = app.t('dev.otherTickNone'));
+		app.update(() => {});
+		otherTick = app.t('dev.otherTickDone', { name, item: item.name, list: list.value.name });
 	}
 
 	const userFamilies = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
