@@ -13,7 +13,7 @@
 <section class="secondary-view app-view" aria-labelledby="lists-title">
 	<div class="page-column">
 		<header class="page-header">
-			<a class="page-back" href="/menu">‹ {app.t('nav.menu')}</a>
+			<a class="page-back" href="/menu"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{app.t('nav.menu')}</a>
 			<div class="title-row">
 				<h1 class="page-title" id="lists-title">{app.t('shopping.lists')}</h1>
 				{#if app.settings.offline}

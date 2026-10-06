@@ -14,7 +14,7 @@
 <section class="secondary-view app-view" aria-labelledby="list-title">
 	<div class="page-column">
 		{#if !result.ok}
-			<header class="page-header"><a class="page-back" href="/shopping">‹ {app.t('shopping.back')}</a></header>
+			<header class="page-header"><a class="page-back" href="/shopping"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{app.t('shopping.back')}</a></header>
 			<StateNotice title={app.t(errorKey(result.error))} />
 		{:else if list}
 			<ShoppingList {list} />

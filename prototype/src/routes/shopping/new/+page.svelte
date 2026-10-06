@@ -46,7 +46,7 @@
 <section class="secondary-view app-view shopping" aria-labelledby="new-title">
 	<div class="page-column">
 		<header class="page-header">
-			<a class="page-back" href={editing?.ok ? `/shopping/${editing.value.id}` : '/shopping'}>‹ {editing?.ok ? editing.value.name : app.t('shopping.back')}</a>
+			<a class="page-back" href={editing?.ok ? `/shopping/${editing.value.id}` : '/shopping'}><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{editing?.ok ? editing.value.name : app.t('shopping.back')}</a>
 			<h1 class="page-title" id="new-title">{app.t('shopping.selectTitle')}</h1>
 		</header>
 		{#if !selection.ok}

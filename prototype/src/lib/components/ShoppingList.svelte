@@ -161,10 +161,10 @@
 
 <header class="page-header">
 	<div class="title-row no-print">
-		<a class="page-back" href="/shopping">‹ {app.t('shopping.back')}</a>
+		<a class="page-back" href="/shopping"><svg class="icon" aria-hidden="true"><use href="#icon-chevron-left" /></svg>{app.t('shopping.back')}</a>
 		<div class="menu-wrap">
 			<button bind:this={menuButton} type="button" class="menu-toggle" aria-haspopup="menu" aria-expanded={menuOpen} aria-label={app.t('shopping.actions')} onclick={() => (menuOpen = !menuOpen)}>
-				<span aria-hidden="true">…</span>
+				<svg class="icon" aria-hidden="true"><use href="#icon-more" /></svg>
 			</button>
 			{#if menuOpen}
 				<div class="menu" role="menu" bind:this={menuPanel}>
@@ -289,7 +289,8 @@
 <style>
 	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 	.menu-wrap { position: relative; }
-	.menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 1.5rem/1 var(--text-font); cursor: pointer; }
+	.menu-toggle { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -8px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
+	.menu-toggle .icon { width: 26px; height: 26px; fill: currentColor; stroke-width: 1.2; }
 	.menu-toggle[aria-expanded='true'] { color: var(--green); }
 	.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; display: flex; flex-direction: column; min-width: 220px; padding: 6px 0; background: var(--paper); border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 15%); }
 	.menu button { min-height: 44px; padding: 10px 16px; border: 0; background: none; color: var(--ink); font: 400 1rem/1.3 var(--text-font); text-align: left; cursor: pointer; }

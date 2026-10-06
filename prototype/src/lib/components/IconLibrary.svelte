@@ -20,5 +20,6 @@
 	<symbol id="icon-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></symbol>
 	<symbol id="icon-free" viewBox="0 0 24 24"><path d="M4 11h16M6 11V8a6 6 0 0 1 12 0v3M5 11l1.5 9h11l1.5-9"/></symbol>
 	<symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+	<symbol id="icon-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></symbol>
 	<symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
 </svg>
