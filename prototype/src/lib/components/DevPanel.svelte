@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
 	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
-	import type { ScenarioId, SuggestionLayout } from '#lib/store/persistence.ts';
+	import type { ScenarioId } from '#lib/store/persistence.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
 
@@ -74,12 +74,6 @@
 		</label>
 		<button type="button" class="text-button" onclick={() => app.setScenario(scenario)}>{app.t('dev.applyScenario')}</button>
 	</div>
-	<label>{app.t('dev.suggestionLayout')}
-		<select value={app.settings.suggestionLayout} onchange={(e) => { const v = e.currentTarget.value as SuggestionLayout; app.update((s) => (s.settings.suggestionLayout = v)); }}>
-			<option value="list">{app.t('dev.suggestionLayout.list')}</option>
-			<option value="cards">{app.t('dev.suggestionLayout.cards')}</option>
-		</select>
-	</label>
 	<button type="button" class="text-button" onclick={simulateOtherChange}>{app.t('dev.otherChange')}</button>
 	{#if otherChange}<p class="meta-line" role="status">{otherChange}</p>{/if}
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>

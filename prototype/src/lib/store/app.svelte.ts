@@ -69,20 +69,14 @@ class AppState {
 		this.selectedDate = null;
 	}
 
-	/** Variants are a tester's choice, not demo data: they survive resets and scenarios. */
-	#keepVariants(next: Persisted): Persisted {
-		next.settings.suggestionLayout = this.settings.suggestionLayout;
-		return next;
-	}
-
 	reset() {
-		this.#state = this.#keepVariants(createInitial());
+		this.#state = createInitial();
 		this.selectedDate = null;
 		this.#save();
 	}
 
 	setScenario(id: ScenarioId) {
-		this.#state = this.#keepVariants(applyScenario(id));
+		this.#state = applyScenario(id);
 		this.selectedDate = null;
 		this.#save();
 	}

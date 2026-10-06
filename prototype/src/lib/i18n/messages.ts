@@ -169,9 +169,6 @@ const it = {
 	'toast.undo': 'Annulla',
 	'toast.undone': 'Modifica annullata',
 	'toast.undoFailed': 'Non si può annullare: il pasto è stato cambiato di nuovo.',
-	'dev.suggestionLayout': 'Suggerimenti',
-	'dev.suggestionLayout.list': 'Lista compatta',
-	'dev.suggestionLayout.cards': 'Schede scorrevoli',
 	'dev.otherChange': 'Un altro membro cambia un pasto del giorno',
 	'dev.otherChangeDone': '{name} ha cambiato {meal}.',
 	'dev.otherChangeNone': 'Nessun pasto da cambiare nel giorno scelto.'
@@ -350,9 +347,6 @@ const en: Record<MessageKey, string> = {
 	'toast.undo': 'Undo',
 	'toast.undone': 'Change undone',
 	'toast.undoFailed': 'Can’t undo: the meal has been changed again.',
-	'dev.suggestionLayout': 'Suggestions',
-	'dev.suggestionLayout.list': 'Compact list',
-	'dev.suggestionLayout.cards': 'Scrolling cards',
 	'dev.otherChange': 'Another member changes a meal of the day',
 	'dev.otherChangeDone': '{name} changed {meal}.',
 	'dev.otherChangeNone': 'No meal to change on the chosen day.'
