@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import DraftList from '#lib/components/DraftList.svelte';
 	import RecipeCard from '#lib/components/RecipeCard.svelte';
 	import type { RecipeCardView } from '#lib/operations/views.ts';
 	import RecipeFilters from '#lib/components/RecipeFilters.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import type { MealType, ProteinGroup } from '#lib/domain/types.ts';
-	import type { MessageKey } from '#lib/i18n/messages.ts';
 	import { getCurationOverview } from '#lib/operations/curation.ts';
 	import { searchRecipes, type RecipeListItem, type RecipeQuery, type RecipeSort } from '#lib/operations/recipes.ts';
 	import { formatDateTime } from '#lib/i18n/dates.ts';
@@ -33,7 +33,6 @@
 	});
 	let draftsOpen = $state(true);
 	let archivedOpen = $state(false);
-	const missingText = (missing: string[]) => app.t('recipe.missingLabel', { items: missing.map((m) => app.t(`recipe.missing.${m}` as MessageKey)).join(', ') });
 
 	function toCard(item: RecipeListItem): RecipeCardView {
 		return {
@@ -79,17 +78,7 @@
 				<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg>
 			</button></h2>
 			{#if draftsOpen}
-				<ul class="row-list settings-card">
-					{#each curation.drafts as draft (draft.id)}
-						<li><a class="row-link" href="/recipes/drafts/{draft.id}">
-							<span class="row-main"><strong>{draft.name}</strong>
-								<small>{app.t(draft.kind === 'new' ? 'curation.kind.new' : 'curation.kind.revision')} · {app.t('curation.lastSaved', { name: draft.updatedByName, time: formatDateTime(app.locale, draft.updatedAt) })}</small>
-								<small class:ready={draft.verified}>{draft.verified ? app.t('curation.readyToPublish') : draft.missing.length ? missingText(draft.missing) : app.t('curation.toVerify')}</small>
-							</span>
-							<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg>
-						</a></li>
-					{/each}
-				</ul>
+				<DraftList drafts={curation.drafts} />
 			{/if}
 		</section>
 	{/if}
@@ -139,6 +128,4 @@
 	.section-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }
 	.section-toggle .icon { width: 18px; height: 18px; transition: transform 0.15s; }
 	.section-toggle[aria-expanded='true'] .icon { transform: rotate(90deg); }
-	.row-main strong { font-weight: 700; }
-	.ready { color: var(--green) !important; font-weight: 700; }
 </style>

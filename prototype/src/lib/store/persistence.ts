@@ -21,9 +21,11 @@ export interface PrototypeSettings {
 export interface PrototypeVariants {
 	recipeForm: 'sections' | 'steps';
 	formLanguages: 'stacked' | 'switch';
+	/** Added after the first review on iPhone; saved states without it get the default. */
+	draftList: 'cards' | 'strip' | 'rows';
 }
 
-export const DEFAULT_VARIANTS: PrototypeVariants = { recipeForm: 'sections', formLanguages: 'stacked' };
+export const DEFAULT_VARIANTS: PrototypeVariants = { recipeForm: 'sections', formLanguages: 'stacked', draftList: 'cards' };
 
 export interface Persisted {
 	version: 21;
@@ -88,7 +90,10 @@ export function loadPersisted(storage: Pick<Storage, 'getItem'> | null): Persist
 		const raw = storage?.getItem(STORAGE_KEY);
 		if (raw) {
 			const parsed: unknown = JSON.parse(raw);
-			if (isPersisted(parsed)) return parsed;
+			if (isPersisted(parsed)) {
+				parsed.settings.variants = { ...DEFAULT_VARIANTS, ...parsed.settings.variants };
+				return parsed;
+			}
 		}
 	} catch {
 		// Private browsing, blocked storage or corrupt data: start from the seed.

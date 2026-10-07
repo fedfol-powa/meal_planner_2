@@ -156,6 +156,13 @@
 			<option value="steps">{app.t('dev.variant.recipeForm.steps')}</option>
 		</select>
 	</label>
+	<label>{app.t('dev.variant.draftList')}
+		<select value={app.settings.variants.draftList} onchange={(e) => setVariant('draftList', e.currentTarget.value as PrototypeVariants['draftList'])}>
+			<option value="cards">{app.t('dev.variant.draftList.cards')}</option>
+			<option value="strip">{app.t('dev.variant.draftList.strip')}</option>
+			<option value="rows">{app.t('dev.variant.draftList.rows')}</option>
+		</select>
+	</label>
 	<label>{app.t('dev.variant.formLanguages')}
 		<select value={app.settings.variants.formLanguages} onchange={(e) => setVariant('formLanguages', e.currentTarget.value as PrototypeVariants['formLanguages'])}>
 			<option value="stacked">{app.t('dev.variant.formLanguages.stacked')}</option>
