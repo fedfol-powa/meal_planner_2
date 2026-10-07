@@ -11,10 +11,6 @@ export const itAdmin = {
 	'profile.admin.backups': 'Backup del ricettario',
 
 	'agents.title': 'Collega un agente',
-	'agents.intro': 'Con un agente compatibile puoi usare l’app scrivendo: chiedere il menu, cambiare un pasto, aggiornare la spesa. L’agente può fare quello che puoi fare tu nell’app, con i tuoi stessi permessi.',
-	'agents.roles': 'Con i tuoi ruoli può anche: {roles}.',
-	'agents.role.recipe_curator': 'curare il ricettario',
-	'agents.role.app_admin': 'amministrare l’app',
 	'agents.address': 'Indirizzo del servizio',
 	'agents.addressExample': 'Indirizzo d’esempio del prototipo: quello vero arriverà con l’app.',
 	'agents.choose': 'Il tuo agente',
@@ -213,10 +209,6 @@ export const enAdmin: Record<keyof typeof itAdmin, string> = {
 	'profile.admin.backups': 'Recipe book backups',
 
 	'agents.title': 'Connect an agent',
-	'agents.intro': 'With a compatible agent you can use the app by writing: ask for the menu, change a meal, update the shopping list. The agent can do what you can do in the app, with your own permissions.',
-	'agents.roles': 'With your roles it can also: {roles}.',
-	'agents.role.recipe_curator': 'curate the recipe book',
-	'agents.role.app_admin': 'administer the app',
 	'agents.address': 'Service address',
 	'agents.addressExample': 'Example address of the prototype: the real one will come with the app.',
 	'agents.choose': 'Your agent',

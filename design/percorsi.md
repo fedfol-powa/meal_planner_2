@@ -1011,7 +1011,7 @@ piano del giro, approvato il 7 ottobre 2026.
   `codex mcp login`; Claude Desktop da Impostazioni → Connettori → «Aggiungi connettore
   personalizzato». I passaggi di ChatGPT non sono verificati e la pagina lo dice. Ogni
   client ha la nota «esempio da verificare prima del rilascio».
-- **Pagina di collegamento:** indirizzo, client, accesso, esempi (per i curatori anche
+- **Pagina di collegamento:** senza paragrafo introduttivo (tolto nella prova dell’utente); indirizzo, client, accesso, esempi (per i curatori anche
   il flusso di curatela e le istruzioni sugli ingredienti servite all'agente), nota
   sull'eliminazione delle famiglie e, in fondo, gli agenti collegati. «Scollega» spiega
   anche come togliere il servizio dal client.

@@ -11,10 +11,9 @@
 	import { INGREDIENT_GUIDE } from '#lib/operations/curation-guide.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	// Agent connection page (spec section 13, round 6): what an agent can do, the address and the steps per
+	// Agent connection page (spec section 13, round 6): the address and the steps per
 	// client, signing in, examples, and the agents authorised so far with "Scollega".
 	const agents = $derived(listConnectedAgents(app.db, app.ctx));
-	const roles = $derived(app.user.globalRoles.map((r) => app.t(`agents.role.${r}` as const)));
 	const curator = $derived(app.user.globalRoles.includes('recipe_curator'));
 	let leaving = $state<ConnectedAgent | null>(null);
 
@@ -34,7 +33,6 @@
 <section class="secondary-view app-view" aria-labelledby="agents-title">
 	<div class="page-column">
 		<PageHeader back="/profile" backLabel={app.t('nav.profile')} title={app.t('agents.title')} titleId="agents-title" />
-		<p class="section-intro">{app.t('agents.intro')}{#if roles.length}{' '}{app.t('agents.roles', { roles: roles.join(', ') })}{/if}</p>
 
 		<section class="settings-card" aria-labelledby="address-title">
 			<h2 id="address-title">{app.t('agents.address')}</h2>
