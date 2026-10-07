@@ -18,8 +18,8 @@ const complete = (): RecipeContent => ({
 	mealType: 'dinner',
 	proteinGroup: 'vegetarian',
 	ingredients: [
-		{ ingredientId: 'zucca-pulita', quantity: { kind: 'amount', value: 800, unit: 'g' }, sourceText: '800 g', text: null, isOptional: false },
-		{ ingredientId: 'brodo-vegetale', quantity: { kind: 'to_taste' }, sourceText: 'q.b.', text: null, isOptional: false }
+		{ ingredientId: 'zucca-pulita', quantity: { kind: 'amount', value: 800, unit: 'g' }, sourceText: '800 g', text: null, variety: null, isOptional: false },
+		{ ingredientId: 'brodo-vegetale', quantity: { kind: 'to_taste' }, sourceText: 'q.b.', text: null, variety: null, isOptional: false }
 	]
 });
 
@@ -33,7 +33,7 @@ describe('validateForSave', () => {
 		content.sourceUrl = 'not a url';
 		content.baseServings = 0;
 		content.ingredients.push({ ...content.ingredients[0] });
-		content.ingredients.push({ ingredientId: 'unknown', quantity: { kind: 'amount', value: -1, unit: 'g' }, sourceText: '', text: null, isOptional: false });
+		content.ingredients.push({ ingredientId: 'unknown', quantity: { kind: 'amount', value: -1, unit: 'g' }, sourceText: '', text: null, variety: null, isOptional: false });
 		const codes = validateForSave(db, content).map((i) => `${i.field}:${i.code}${i.line ?? ''}`);
 		expect(codes).toEqual(['sourceUrl:invalid_url', 'baseServings:not_positive_integer', 'ingredients:duplicate_ingredient2', 'ingredients:unknown_ingredient3', 'ingredients:invalid_amount3']);
 	});

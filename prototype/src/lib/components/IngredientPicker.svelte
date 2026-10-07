@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { DEPARTMENTS, type Department } from '#lib/domain/types.ts';
+	import { DEPARTMENTS, type Department, type Translated } from '#lib/domain/types.ts';
+	import { withVariety } from '#lib/domain/ingredient-variety.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
 	import { createIngredient, searchCatalogueIngredients } from '#lib/operations/curation.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
 	// Content of the sheet that picks the catalogue ingredient of a recipe line, or adds a new one (round 5).
-	let { onPick }: { onPick: (ingredientId: string) => void } = $props();
+	let { onPick }: { onPick: (ingredientId: string, variety: Translated | null) => void } = $props();
 
 	let text = $state('');
 	let creating = $state(false);
@@ -28,7 +29,7 @@
 		const created = createIngredient(app.db, app.ctx, { 'it-IT': nameIt, 'en-GB': nameEn || null }, department);
 		if (!created.ok) return app.notify(app.t(errorKey(created.error)));
 		app.update(() => {});
-		onPick(created.value.id);
+		onPick(created.value.id, null);
 	}
 </script>
 
@@ -39,8 +40,8 @@
 	</label>
 	{#if text.trim().length >= 2}
 		<ul class="row-list">
-			{#each results as item (item.id)}
-				<li><button type="button" class="row-link" onclick={() => onPick(item.id)}><span class="row-main">{item.name}</span></button></li>
+			{#each results as item (item.id + '~' + (item.variety?.['it-IT'] ?? ''))}
+				<li><button type="button" class="row-link" onclick={() => onPick(item.id, item.variety)}><span class="row-main">{withVariety(item.name, item.variety ? item.variety[app.locale] ?? item.variety['it-IT'] : null)}</span></button></li>
 			{:else}
 				<li><span class="row-main meta-line">{app.t('curation.ingredient.none')}</span></li>
 			{/each}

@@ -129,7 +129,8 @@
 	.recipes { padding-top: max(20px, env(safe-area-inset-top)); }
 	.title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 	.title-row .page-title { margin: 0 0 16px; }
-	.add-recipe { display: grid; place-items: center; width: 44px; height: 44px; margin: -8px -8px 8px 0; border-radius: 8px; color: var(--ink); }
+	/* Same box as the filter toggle below, so the two icons share the same centre. */
+	.add-recipe { display: grid; place-items: center; width: 48px; height: 48px; margin: -10px 0 6px 0; border-radius: 8px; color: var(--ink); }
 	.add-recipe .icon { width: 26px; height: 26px; }
 	.curation { margin-bottom: 20px; }
 	.archived { margin: 24px 0 0; }

@@ -1,5 +1,6 @@
 import { plainCopy } from '#lib/domain/recipe-content.ts';
 import { MEAL_PAST_AT, isMealPast } from '#lib/domain/calendar.ts';
+import { withVariety } from '#lib/domain/ingredient-variety.ts';
 import { summarize, validateForPublish, type MissingData } from '#lib/domain/recipe-validation.ts';
 import type { DemoDatabase, Family, LocalDateTime, Locale, MealSlot, Recipe, RecipeVersion, Translated } from '#lib/domain/types.ts';
 import { scaleQuantity } from '#lib/units/scale.ts';
@@ -104,7 +105,7 @@ export function scaledIngredients(db: DemoDatabase, recipe: Recipe, servings: nu
 		const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
 		return {
 			ingredientId: line.ingredientId,
-			name: ingredient ? localized(ingredient.name, locale).text : line.ingredientId,
+			name: withVariety(ingredient ? localized(ingredient.name, locale).text : line.ingredientId, line.variety ? localized(line.variety, locale).text : null),
 			quantity: scaleQuantity(line.quantity, servings, base),
 			sourceText: line.text ? localized(line.text, locale).text : line.sourceText
 		};

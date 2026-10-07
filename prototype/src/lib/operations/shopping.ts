@@ -2,6 +2,7 @@ import { DEPARTMENTS, type DemoDatabase, type Department, type Family, type IsoD
 import { translate } from '#lib/i18n/translate.ts';
 import { addQuantity, emptyCombined, formatCombined, type CombinedQuantity } from '#lib/units/combine.ts';
 import { formatQuantity } from '#lib/units/format.ts';
+import { knownVarieties, normalizeVariety, withVariety } from '#lib/domain/ingredient-variety.ts';
 import { familyFor, localeOf, localized, recipeForSlot, recipeSummary, scaledIngredients } from './access';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { visibleWeeks } from './meals';
@@ -18,7 +19,7 @@ export interface ShoppingSource {
 }
 
 export interface ShoppingItem {
-	/** Canonical ingredient id. */
+	/** Canonical ingredient id, followed by "~variety" when the lines name one (round 5). */
 	id: string;
 	name: string;
 	department: Department;
@@ -69,7 +70,7 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 	const slots = [...input].sort(byDateAndMeal);
 
 	const avoided = new Set(db.familyIngredients.filter((f) => f.familyId === family.id && f.restriction === 'avoid').map((f) => f.ingredientId));
-	const entries = new Map<string, { combined: CombinedQuantity; optional: boolean; sources: ShoppingSource[]; avoid: boolean }>();
+	const entries = new Map<string, { ingredientId: string; varietyKey: string; combined: CombinedQuantity; optional: boolean; sources: ShoppingSource[]; avoid: boolean }>();
 	const skipped: ShoppingListView['skipped'] = [];
 	let mealCount = 0;
 
@@ -85,8 +86,11 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 		mealCount++;
 		scaled.forEach((line, index) => {
 			const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
-			const id = ingredient?.canonicalId ?? line.ingredientId;
-			const entry = entries.get(id) ?? { combined: emptyCombined(), optional: true, sources: [], avoid: false };
+			const ingredientId = ingredient?.canonicalId ?? line.ingredientId;
+			// Different varieties of an ingredient are bought apart; spellings of the same one are summed.
+			const varietyKey = normalizeVariety(recipe.ingredients[index].variety?.['it-IT']);
+			const id = varietyKey ? `${ingredientId}~${varietyKey.replace(/ /g, '-')}` : ingredientId;
+			const entry = entries.get(id) ?? { ingredientId, varietyKey, combined: emptyCombined(), optional: true, sources: [], avoid: false };
 			// Bought differently from how it is measured (lemon juice → lemons): only in the list.
 			const bought =
 				ingredient?.purchase && line.quantity.kind === 'amount' && line.quantity.unit === ingredient.purchase.from
@@ -94,7 +98,7 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 					: line.quantity;
 			entry.combined = addQuantity(entry.combined, bought, line.sourceText);
 			entry.optional &&= recipe.ingredients[index].isOptional;
-			entry.avoid ||= avoided.has(line.ingredientId) || avoided.has(id);
+			entry.avoid ||= avoided.has(line.ingredientId) || avoided.has(ingredientId);
 			entry.sources.push({
 				slotId: slot.id,
 				date: slot.date,
@@ -109,10 +113,14 @@ export function computeShoppingList(db: DemoDatabase, family: Family, locale: Lo
 	const items: ShoppingItem[] = [];
 	const excluded: ShoppingItem[] = [];
 	for (const [id, entry] of entries) {
-		const ingredient = db.ingredients.find((i) => i.id === id);
+		const ingredient = db.ingredients.find((i) => i.id === entry.ingredientId);
+		// The most used spelling of the variety for this ingredient.
+		const variety = entry.varietyKey
+			? knownVarieties(db, entry.ingredientId).find((k) => normalizeVariety(k.variety['it-IT']) === entry.varietyKey)?.variety
+			: undefined;
 		const item: ShoppingItem = {
 			id,
-			name: ingredient ? localized(ingredient.name, locale).text : id,
+			name: withVariety(ingredient ? localized(ingredient.name, locale).text : entry.ingredientId, variety ? localized(variety, locale).text : null),
 			department: ingredient?.department ?? 'other',
 			quantity: formatCombined(entry.combined, system, locale, { wholePieces: true }),
 			combined: entry.combined,

@@ -5,6 +5,7 @@ import { createInitial } from '#lib/store/persistence.ts';
 import type { OperationContext } from './context';
 import {
 	archiveRecipe,
+	checkVariety,
 	compareVersions,
 	createDraft,
 	createIngredient,
@@ -12,10 +13,12 @@ import {
 	emptyContent,
 	getCurationOverview,
 	getDraft,
+	getIngredientVarieties,
 	getRecipeVersions,
 	publishDraft,
 	restoreVersion,
 	saveDraft,
+	searchCatalogueIngredients,
 	startRevision,
 	unarchiveRecipe,
 	verifyDraft
@@ -45,7 +48,7 @@ const soup = (): RecipeContent => ({
 	baseServings: 4,
 	mealType: 'dinner',
 	proteinGroup: 'legumes',
-	ingredients: [{ ingredientId: 'brodo-vegetale', quantity: { kind: 'amount', value: 1, unit: 'l' }, sourceText: '1 l', text: null, isOptional: false }]
+	ingredients: [{ ingredientId: 'brodo-vegetale', quantity: { kind: 'amount', value: 1, unit: 'l' }, sourceText: '1 l', text: null, variety: null, isOptional: false }]
 });
 
 describe('permissions', () => {
@@ -216,5 +219,49 @@ describe('ingredients', () => {
 		expect(id).toBe('lenticchie-rosse');
 		expect(db.ingredients.find((i) => i.id === id)?.name['en-GB']).toBeNull();
 		expect(createIngredient(db, ctx(), { 'it-IT': ' ', 'en-GB': null }, 'produce')).toEqual({ ok: false, error: 'invalid' });
+	});
+});
+
+describe('varieties', () => {
+	const line = (variety: { 'it-IT': string; 'en-GB': string | null } | null) => ({
+		ingredientId: 'pomodori', quantity: { kind: 'amount' as const, value: 2, unit: 'piece' as const }, sourceText: '2', text: null, variety, isOptional: false
+	});
+	it('turns the demo tomato varieties into Pomodori with a variety', () => {
+		expect(db.ingredients.some((i) => i.id === 'pomodoro-cuore-di-bue')).toBe(false);
+		expect(value(getIngredientVarieties(db, ctx(), 'pomodori')).map((v) => v['it-IT']).sort()).toEqual(['Roma', 'cuore di bue', 'ramati']);
+	});
+	it('allows the same ingredient twice only with different varieties, and needs both languages', () => {
+		const content = { ...soup(), ingredients: [line({ 'it-IT': 'Roma', 'en-GB': null }), line({ 'it-IT': 'tipo roma', 'en-GB': null })] };
+		const issues = value(createDraft(db, ctx(), content));
+		expect(issues).toEqual({ status: 'invalid', issues: [{ field: 'ingredients', code: 'duplicate_ingredient', line: 1, part: 'ingredient' }] });
+		content.ingredients[1] = line({ 'it-IT': '  cuore   di bue ', 'en-GB': '' });
+		const created = value(createDraft(db, ctx(), content));
+		if (created.status !== 'created') throw new Error('not created');
+		const saved = value(getDraft(db, ctx(), created.draftId)).draft.content.ingredients[1].variety;
+		expect(saved).toEqual({ 'it-IT': 'cuore di bue', 'en-GB': null });
+		expect(value(verifyDraft(db, ctx(), created.draftId)).issues).toEqual([
+			{ field: 'ingredients', code: 'translation_missing', line: 0, part: 'variety', locale: 'en-GB' },
+			{ field: 'ingredients', code: 'translation_missing', line: 1, part: 'variety', locale: 'en-GB' }
+		]);
+	});
+	it('advises on spelling, a repeated ingredient name and a preparation, without blocking', () => {
+		const hints = (text: string) => value(checkVariety(db, ctx(), 'pomodori', text, 'it-IT')).map((h) => h.kind);
+		expect(hints('tipo ROMA')).toEqual(['existing_spelling']);
+		expect(hints('Pomodoro Roma')).toEqual(['repeats_ingredient']);
+		expect(hints('a dadini')).toEqual(['preparation']);
+		expect(hints('Roma')).toEqual([]);
+		expect(value(checkVariety(db, ctx(), 'pomodori', 'Pomodoro tipo roma', 'it-IT'))).toEqual([{ kind: 'repeats_ingredient', suggestion: 'Roma' }]);
+	});
+	it('finds an ingredient by a variety already used', () => {
+		expect(value(searchCatalogueIngredients(db, ctx(), 'cuore di')).map((m) => [m.id, m.variety?.['it-IT']])).toEqual([['pomodori', 'cuore di bue']]);
+	});
+	it('sums the spellings of a variety in the shopping list and keeps varieties apart', () => {
+		const recipe = db.recipes.find((r) => r.id === 'riso-ceci-spinaci-mandorle')!;
+		recipe.ingredients.push({ ...line({ 'it-IT': 'Roma', 'en-GB': 'Roma' }) });
+		const week = db.weeks.find((w) => w.slots.some((s) => s.recipeId === recipe.id))!;
+		const list = value(getWeekShoppingList(db, ctx(), week.startsOn));
+		const names = list.departments.flatMap((d) => d.items.map((i) => i.name)).filter((n) => n.startsWith('Pomodori'));
+		expect(names).toContain('Pomodori Roma');
+		expect(names).toContain('Pomodori');
 	});
 });

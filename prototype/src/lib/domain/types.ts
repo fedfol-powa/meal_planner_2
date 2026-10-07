@@ -51,6 +51,8 @@ export interface RecipeIngredient {
 	sourceText: string;
 	/** Localised wording of a non-numeric quantity; required in both languages to publish. */
 	text: Translated | null;
+	/** Variety as free text ("Roma", "gialla senza semi"), in both languages to publish (round 5). */
+	variety: Translated | null;
 	isOptional: boolean;
 }
 

@@ -7,7 +7,7 @@
 	import PageHeader from './PageHeader.svelte';
 	import { changedFields, contentOf, plainCopy } from '#lib/domain/recipe-content.ts';
 	import { DESCRIPTION_MAX, NAME_MAX, QUANTITY_TEXT_MAX, type ValidationIssue } from '#lib/domain/recipe-validation.ts';
-	import { LOCALES, type Locale, type ProteinGroup, type Quantity, type RecipeContent, type RecipeContentField, type RecipeIngredient, type RecipeMealType, type SourceType, type UnitCode } from '#lib/domain/types.ts';
+	import { LOCALES, type Translated, type Locale, type ProteinGroup, type Quantity, type RecipeContent, type RecipeContentField, type RecipeIngredient, type RecipeMealType, type SourceType, type UnitCode } from '#lib/domain/types.ts';
 	import { formatDateTime } from '#lib/i18n/dates.ts';
 	import { errorKey } from '#lib/i18n/errors.ts';
 	import type { MessageKey } from '#lib/i18n/messages.ts';
@@ -15,13 +15,16 @@
 		createDraft,
 		discardDraft,
 		emptyContent,
+		checkVariety,
 		getDraft,
+		getIngredientVarieties,
 		publishDraft,
 		saveDraft,
 		verifyDraft,
 		type DraftDetail,
 		type SaveOutcome
 	} from '#lib/operations/curation.ts';
+	import type { VarietyHint } from '#lib/domain/ingredient-variety.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 	import { formatQuantity } from '#lib/units/format.ts';
 
@@ -104,6 +107,7 @@
 			const line = content.ingredients[issue.line];
 			where = app.t('curation.issue.line', { number: issue.line + 1, name: line ? ingredientName(line.ingredientId) : '' });
 			if (issue.part === 'quantity') where += ` · ${app.t('curation.ingredient.quantity')}`;
+			if (issue.part === 'variety') where += ` · ${app.t('curation.issue.variety')}`;
 		}
 		if (issue.locale) where += ` (${langName(issue.locale)})`;
 		return `${where}: ${problemOf(issue)}`;
@@ -114,7 +118,7 @@
 		return issue.line === undefined && issue.field === 'ingredients' && issue.code === 'required' ? app.t('curation.issue.noIngredients') : app.t(`curation.issue.${issue.code}` as MessageKey);
 	}
 	const inline = (issue: ValidationIssue) => {
-		const text = issue.line !== undefined && issue.part ? `${app.t(issue.part === 'quantity' ? 'curation.ingredient.quantity' : 'curation.issue.ingredient')}${issue.locale ? ` (${langName(issue.locale)})` : ''}: ${problemOf(issue)}` : problemOf(issue);
+		const text = issue.line !== undefined && issue.part ? `${app.t(issue.part === 'quantity' ? 'curation.ingredient.quantity' : issue.part === 'variety' ? 'curation.issue.variety' : 'curation.issue.ingredient')}${issue.locale ? ` (${langName(issue.locale)})` : ''}: ${problemOf(issue)}` : problemOf(issue);
 		return text.charAt(0).toUpperCase() + text.slice(1);
 	};
 	const issuesFor = (field: ValidationIssue['field'], locale?: Locale) => issues.filter((i) => i.field === field && i.line === undefined && (!locale || !i.locale || i.locale === locale));
@@ -141,7 +145,10 @@
 				line.quantity.kind === 'amount' && Number.isFinite(line.quantity.value) ? formatQuantity(line.quantity, '', 'metric', 'it-IT')
 				: line.quantity.kind === 'to_taste' ? 'q.b.'
 				: text?.['it-IT'] ?? '';
-			return { ...line, text, sourceText: line.sourceText.trim() || written };
+			const variety = line.variety && (line.variety['it-IT']?.trim() || line.variety['en-GB']?.trim())
+				? { 'it-IT': line.variety['it-IT']?.trim().replace(/\s+/g, ' ') ?? '', 'en-GB': clean(line.variety['en-GB']?.replace(/\s+/g, ' ') ?? null) }
+				: null;
+			return { ...line, text, variety, sourceText: line.sourceText.trim() || written };
 		});
 		return n;
 	}
@@ -156,15 +163,38 @@
 		line.text = kind === 'text' ? { 'it-IT': '', 'en-GB': null } : null;
 	}
 
-	function pick(ingredientId: string) {
+	function pick(ingredientId: string, variety: Translated | null) {
 		const target = picker?.line;
 		if (target === null || target === undefined) {
-			content.ingredients.push({ ingredientId, quantity: { kind: 'amount', value: NaN, unit: 'g' }, sourceText: '', text: null, isOptional: false });
+			content.ingredients.push({ ingredientId, quantity: { kind: 'amount', value: NaN, unit: 'g' }, sourceText: '', text: null, variety: variety ? { ...variety } : null, isOptional: false });
 			const line = content.ingredients.length - 1;
 			requestAnimationFrame(() => document.querySelector<HTMLInputElement>(`#ingredient-${line} input[inputmode]`)?.focus());
-		} else content.ingredients[target].ingredientId = ingredientId;
+		} else {
+			content.ingredients[target].ingredientId = ingredientId;
+			if (variety) content.ingredients[target].variety = { ...variety };
+		}
 		picker = null;
 	}
+
+	// Variety (round 5): free text with the varieties already used as suggestions and non-blocking advice.
+	// Shown only when the line has one or the curator asks for it: most lines have no variety.
+	let varietyOpen = $state<Set<number>>(new Set());
+	const showsVariety = (line: RecipeIngredient, index: number) => varietyOpen.has(index) || !!(line.variety?.['it-IT'] || line.variety?.['en-GB']);
+
+	function setVariety(line: RecipeIngredient, locale: Locale, value: string) {
+		const current = line.variety ?? { 'it-IT': '', 'en-GB': null };
+		line.variety = { ...current, [locale]: value };
+	}
+	const knownFor = (ingredientId: string) => {
+		const r = getIngredientVarieties(app.db, app.ctx, ingredientId);
+		return r.ok ? r.value : [];
+	};
+	const hintsFor = (line: RecipeIngredient, locale: Locale): VarietyHint[] => {
+		const text = line.variety?.[locale];
+		if (!text?.trim()) return [];
+		const r = checkVariety(app.db, app.ctx, line.ingredientId, text, locale);
+		return r.ok ? r.value : [];
+	};
 
 	const numberOrNull = (raw: string) => (raw.trim() === '' ? null : Number(raw.replace(',', '.')));
 	const missingIn = (l: Locale) =>
@@ -427,6 +457,29 @@
 									<button type="button" class="ingredient-name" onclick={() => (picker = { line: index })}>{ingredientName(line.ingredientId)}<svg class="icon" aria-hidden="true"><use href="#icon-edit" /></svg></button>
 									<button type="button" class="remove" aria-label={app.t('curation.ingredient.remove', { name: ingredientName(line.ingredientId) })} onclick={() => content.ingredients.splice(index, 1)}>×</button>
 								</div>
+								{#if !showsVariety(line, index)}
+									<button type="button" class="link-inline add-variety" onclick={() => (varietyOpen = new Set([...varietyOpen, index]))}>{app.t('curation.addVariety')}</button>
+								{:else}
+								{#each variant.formLanguages === 'stacked' ? LOCALES : [lang] as l (l)}
+									<label class="field small">{`${app.t('curation.variety')} · ${langName(l)}`}
+										<input type="text" maxlength={40} list="varieties-{index}-{l}" placeholder={app.t('curation.varietyHint')} value={line.variety?.[l] ?? ''} oninput={(e) => setVariety(line, l, e.currentTarget.value)} />
+										<datalist id="varieties-{index}-{l}">{#each knownFor(line.ingredientId) as v (v['it-IT'])}{#if v[l]}<option value={v[l]}></option>{/if}{/each}</datalist>
+										{#each hintsFor(line, l) as hint (hint.kind)}
+											<span class="hint">
+												{#if hint.kind === 'existing_spelling'}
+													{app.t('curation.hint.existing', { text: hint.suggestion[l] ?? hint.suggestion['it-IT'] })}
+													<button type="button" class="link-inline" onclick={() => (line.variety = { ...hint.suggestion })}>{app.t('curation.hint.use')}</button>
+												{:else if hint.kind === 'repeats_ingredient'}
+													{app.t('curation.hint.repeats', { text: hint.suggestion })}
+													<button type="button" class="link-inline" onclick={() => setVariety(line, l, hint.suggestion)}>{app.t('curation.hint.use')}</button>
+												{:else}
+													{app.t('curation.hint.preparation')}
+												{/if}
+											</span>
+										{/each}
+									</label>
+								{/each}
+								{/if}
 								<div class="quantity-row">
 									<select aria-label={app.t('curation.ingredient.kind')} value={line.quantity.kind} onchange={(e) => setKind(line, e.currentTarget.value as Quantity['kind'])}>
 										<option value="amount">{app.t('curation.quantity.amount')}</option>
@@ -582,6 +635,9 @@
 	.quantity-row select, .quantity-row input { min-width: 0; min-height: 44px; padding: 8px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 1rem/1.5 var(--text-font); }
 	.quantity-row .amount { width: 5.5em; flex: none; }
 	.field.small { margin-bottom: 8px; font-weight: 400; }
+	.add-variety { display: block; min-height: 36px; margin: -6px 0 6px; padding: 0; border: 0; background: none; font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
+	.hint { display: block; color: var(--body-text); font-size: 0.8125rem; }
+	.hint .link-inline { min-height: 32px; padding: 0 4px; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
 	.ok { color: var(--green); font-weight: 700; }
 	.step-nav { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 16px; }
 	.form-bar { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 -24px; padding: 12px 24px max(12px, env(safe-area-inset-bottom)); background: var(--canvas); border-top: 1px solid var(--rule); }

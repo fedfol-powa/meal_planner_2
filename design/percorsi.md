@@ -850,3 +850,67 @@ I default proposti (ingressi, «Salva bozza» esplicito, verifica prima di
 7. Campi obbligatori per pubblicare (sopra): giusti, compreso il gruppo alimentare
    facoltativo?
 8. Decisioni provvisorie della preparazione: confermarle e portarle nella specifica.
+
+### Prima prova su iPhone (7 ottobre 2026, provvisorie)
+
+- **Ricettario:** ordine Bozze, ricette, Archiviate (l'archivio in fondo, chiuso).
+- **Modulo manuale:** sezioni confermate così; resta secondario, perché il percorso
+  consigliato per curare le ricette è l'agente via MCP. In «Pasto e porzioni» tolte la
+  riga di spiegazione sulle porzioni e l'etichetta visibile «Adatta a».
+- **Varietà degli ingredienti**, proposta dell'utente: l'ingrediente del catalogo resta
+  il prodotto generico (Pomodori, Uva) con reparto, dispensa, conversioni ed evitati;
+  la riga della ricetta ha una **varietà in testo libero e facoltativa** («Roma»,
+  «gialla senza semi»), nelle due lingue per pubblicare. Nessun elenco di varietà da
+  mappare in anticipo.
+  - **Confronto normalizzato**, testo salvato com'è scritto (solo spazi ripuliti):
+    maiuscole, accenti, punteggiatura e parole come «tipo» e «varietà» si ignorano;
+    nella spesa si mostra la grafia più usata. Tutto minuscolo è stato scartato perché
+    rovina i nomi propri.
+  - **Consigli all'inserimento, mai blocchi:** grafia diversa di una varietà già usata
+    («Usa»), nome dell'ingrediente ripetuto («Pomodoro Roma» → «Roma»), parole di
+    preparazione («a dadini»: restano nel testo della fonte). Suggerimenti dalle
+    varietà già usate per quell'ingrediente; la ricerca degli ingredienti trova anche le
+    varietà («cuore di bue» → Pomodori cuore di bue).
+  - **Spesa:** righe con stesso ingrediente e stessa varietà normalizzata si sommano;
+    varietà diverse restano righe separate («Pomodori Roma», «Pomodori»); gli evitati
+    valgono per tutte le varietà. Lo stesso ingrediente compare due volte in una
+    ricetta solo con varietà diverse.
+  - **Dati demo:** «pomodori ramati», «pomodoro a dadini (varietà Roma)» e «pomodoro
+    cuore di bue» diventano Pomodori con la varietà; «a dadini» resta nel testo della
+    fonte. Nell'importazione reale la stessa revisione andrà fatta sul catalogo.
+  - **Prototipo:** `prototype/src/lib/domain/ingredient-variety.ts` (normalizzazione,
+    consigli, varietà note), operazioni `getIngredientVarieties` e `checkVariety`,
+    pulizia al salvataggio in `curation.ts`; istruzioni per l'agente in
+    `prototype/src/lib/operations/curation-guide.ts`.
+
+#### Istruzioni per l'agente sugli ingredienti (bozza, da rivedere)
+
+Il servizio MCP le espone insieme alle operazioni (specifica, sezione 8: la guida non
+dipende dalla memoria del singolo agente). Testo esposto in inglese nel prototipo;
+questa è la copia italiana per la review.
+
+1. **Solo ingredienti verificati** sulla fonte o forniti dal curatore, mai dedotti dal
+   nome del piatto; se la fonte è incompleta si salva una bozza e si chiede.
+2. **L'ingrediente è il prodotto generico** («Pomodori», «Uva»). Prima si cerca nel
+   catalogo (la ricerca trova anche le varietà già usate); un ingrediente nuovo solo se
+   nulla va bene, con nome italiano e inglese e reparto, senza varietà, taglia o
+   preparazione nel nome.
+3. **Varietà solo se cambia cosa si compra:** cultivar o tipo («Roma», «cuore di bue»,
+   «Granny Smith», «gialla senza semi»). Non sono varietà taglia, maturazione o qualità
+   («grande», «maturo», «fresco») né preparazione («tritato», «a dadini», «succo»,
+   «scorza»): restano nel testo della fonte. Prima si guardano le varietà già usate per
+   quell'ingrediente e se ne riusa la grafia; si scrive senza il nome dell'ingrediente
+   né «tipo»; nomi propri con la maiuscola, parole comuni in minuscolo; italiano e
+   inglese. Ogni consiglio del controllo va risolto, chiedendo al curatore se serve.
+4. **Quantità** come nella fonte, per le porzioni di riferimento, senza conversioni;
+   «q.b.» solo se la fonte lo dice (una quantità ignota è una domanda, mai «q.b.»);
+   quantità a parole nelle due lingue; testo della fonte copiato com'è, preparazione
+   compresa.
+5. **Una riga per ingrediente e varietà:** se la fonte cita due volte lo stesso
+   ingrediente (olio per il sugo e per friggere), le quantità si uniscono in una riga e
+   il testo della fonte le riporta entrambe.
+6. **Prima di salvare** si mostra la scheda completa al curatore, traduzioni comprese;
+   la pubblicazione ricontrolla tutto.
+
+Domande per la review: le regole 3 e 5 sono giuste? Servono esempi da ricette vere del
+ricettario?

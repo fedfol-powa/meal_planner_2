@@ -1,3 +1,4 @@
+import { cleanVariety, knownVarieties, lineKey, normalizeVariety, varietyHints, withVariety, type VarietyHint } from '#lib/domain/ingredient-variety.ts';
 import { changedFields, contentOf, plainCopy } from '#lib/domain/recipe-content.ts';
 import { summarize, validateForPublish, validateForSave, type MissingData, type ValidationIssue } from '#lib/domain/recipe-validation.ts';
 import {
@@ -146,12 +147,25 @@ function uniqueId(base: string, taken: (id: string) => boolean): string {
 	return id;
 }
 
+/** Server-side tidying, the same for the form and MCP: varieties trimmed, empty ones removed. */
+function tidy(content: RecipeContent): RecipeContent {
+	const copy = contentOf(content);
+	for (const line of copy.ingredients) {
+		if (!line.variety) continue;
+		const it = cleanVariety(line.variety['it-IT'] ?? '');
+		const en = cleanVariety(line.variety['en-GB'] ?? '');
+		line.variety = it || en ? { 'it-IT': it, 'en-GB': en || null } : null;
+	}
+	return copy;
+}
+
 export type CreateOutcome = { status: 'created'; draftId: string } | { status: 'invalid'; issues: ValidationIssue[] };
 
 /** First save of a new recipe: a draft and a recipe in draft status, kept out of the catalogue. */
-export function createDraft(db: DemoDatabase, ctx: OperationContext, content: RecipeContent): OpResult<CreateOutcome> {
+export function createDraft(db: DemoDatabase, ctx: OperationContext, input: RecipeContent): OpResult<CreateOutcome> {
 	const allowed = guard(db, ctx, true);
 	if (!allowed.ok) return fail(allowed.error);
+	const content = tidy(input);
 	const issues = validateForSave(db, content);
 	if (issues.length) return ok({ status: 'invalid', issues });
 	const recipeId = uniqueId(slug(content.name['it-IT'] || content.name['en-GB'] || ''), (id) => db.recipes.some((r) => r.id === id));
@@ -198,9 +212,10 @@ export type SaveOutcome =
  * Saves a draft started from `baseRevision`. A newer save by someone else is a conflict unless
  * `overwrite` is set; overwritten contents stay in the draft history.
  */
-export function saveDraft(db: DemoDatabase, ctx: OperationContext, draftId: string, content: RecipeContent, baseRevision: number, overwrite = false): OpResult<SaveOutcome> {
+export function saveDraft(db: DemoDatabase, ctx: OperationContext, draftId: string, input: RecipeContent, baseRevision: number, overwrite = false): OpResult<SaveOutcome> {
 	const found = findDraft(db, ctx, draftId, true);
 	if (!found.ok) return fail(found.error);
+	const content = tidy(input);
 	const draft = found.value;
 	const issues = validateForSave(db, content);
 	if (issues.length) return ok({ status: 'invalid', issues });
@@ -291,21 +306,44 @@ export function discardDraft(db: DemoDatabase, ctx: OperationContext, draftId: s
 
 // ---- Ingredients ----------------------------------------------------------------------------------------
 
-/** Catalogue ingredients for a recipe line (canonical ones only). */
-export function searchCatalogueIngredients(db: DemoDatabase, ctx: OperationContext, text: string): OpResult<{ id: string; name: string }[]> {
+export interface IngredientMatch {
+	id: string;
+	name: string;
+	/** Set when the text matched a variety already used for this ingredient ("perino" → Pomodorini › perini). */
+	variety: Translated | null;
+}
+
+/** Catalogue ingredients for a recipe line (canonical ones only), and varieties already written. */
+export function searchCatalogueIngredients(db: DemoDatabase, ctx: OperationContext, text: string): OpResult<IngredientMatch[]> {
 	const allowed = guard(db, ctx, false);
 	if (!allowed.ok) return fail(allowed.error);
 	const locale = localeOf(db, ctx);
 	const needle = normalizeForSearch(text);
 	if (needle.length < 2) return ok([]);
-	return ok(
-		db.ingredients
-			.filter((i) => !i.canonicalId)
-			.map((i) => ({ id: i.id, name: localized(i.name, locale).text }))
-			.filter((i) => normalizeForSearch(i.name).includes(needle))
-			.sort((a, b) => a.name.localeCompare(b.name, locale))
-			.slice(0, 8)
+	const ingredients = db.ingredients.filter((i) => !i.canonicalId).map((i) => ({ id: i.id, name: localized(i.name, locale).text, variety: null }));
+	const byName = ingredients.filter((i) => normalizeForSearch(i.name).includes(needle));
+	const byVariety = ingredients.flatMap((i) =>
+		knownVarieties(db, i.id)
+			.filter((k) => normalizeVariety(localized(k.variety, locale).text).includes(normalizeVariety(text)))
+			.map((k) => ({ ...i, variety: k.variety }))
 	);
+	return ok([...byName.sort((a, b) => a.name.localeCompare(b.name, locale)), ...byVariety].slice(0, 10));
+}
+
+/** Varieties already written for an ingredient, most used first: what the form and the agent suggest. */
+export function getIngredientVarieties(db: DemoDatabase, ctx: OperationContext, ingredientId: string): OpResult<Translated[]> {
+	const allowed = guard(db, ctx, false);
+	if (!allowed.ok) return fail(allowed.error);
+	if (!db.ingredients.some((i) => i.id === ingredientId)) return fail('not_found');
+	return ok(knownVarieties(db, ingredientId).map((k) => k.variety));
+}
+
+/** Advice on a variety being written (never blocking), for the form and for the agent's questions. */
+export function checkVariety(db: DemoDatabase, ctx: OperationContext, ingredientId: string, text: string, locale: Locale): OpResult<VarietyHint[]> {
+	const allowed = guard(db, ctx, false);
+	if (!allowed.ok) return fail(allowed.error);
+	if (!db.ingredients.some((i) => i.id === ingredientId)) return fail('not_found');
+	return ok(varietyHints(db, ingredientId, text, locale));
 }
 
 /** A catalogue ingredient added by a curator; the English name is checked at publication. */
@@ -415,16 +453,16 @@ export function compareVersions(db: DemoDatabase, ctx: OperationContext, recipeI
 				if ((before[field][l] ?? '') !== (after[field][l] ?? '')) fields.push({ field, locale: l, before: before[field][l] || '—', after: after[field][l] || '—' });
 		} else fields.push({ field, locale: null, before: describe(before, field, db, locale), after: describe(after, field, db, locale) });
 	}
-	const ingredientName = (id: string) => {
-		const ingredient = db.ingredients.find((i) => i.id === id);
-		return ingredient ? localized(ingredient.name, locale).text : id;
+	const lineName = (line: RecipeContent['ingredients'][number]) => {
+		const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
+		return withVariety(ingredient ? localized(ingredient.name, locale).text : line.ingredientId, line.variety ? localized(line.variety, locale).text : null);
 	};
-	const ids = [...new Set([...before.ingredients, ...after.ingredients].map((l) => l.ingredientId))];
-	const ingredients = ids
-		.map((id) => {
-			const b = before.ingredients.find((l) => l.ingredientId === id);
-			const a = after.ingredients.find((l) => l.ingredientId === id);
-			return { name: ingredientName(id), before: b ? lineText(db, b, locale) : null, after: a ? lineText(db, a, locale) : null };
+	const keys = [...new Set([...before.ingredients, ...after.ingredients].map(lineKey))];
+	const ingredients = keys
+		.map((key) => {
+			const b = before.ingredients.find((l) => lineKey(l) === key);
+			const a = after.ingredients.find((l) => lineKey(l) === key);
+			return { name: lineName((a ?? b)!), before: b ? lineText(db, b, locale) : null, after: a ? lineText(db, a, locale) : null };
 		})
 		.filter((c) => c.before !== c.after);
 	const item = listed.value.versions.find((v) => v.version === version)!;

@@ -73,7 +73,11 @@ export function createSeedDatabase(): DemoDatabase {
 		],
 		books: generated.books,
 		ingredients: generated.ingredients,
-		recipes: generated.recipes.map((r) => ({ ...r, createdBy: 'user-federico', version: r.status === 'published' ? 1 : 0, archivedBy: null, archivedAt: null })),
+		recipes: generated.recipes.map((r) => ({
+			...r,
+			ingredients: r.ingredients.map((line) => ({ ...line, variety: line.variety ?? null })),
+			createdBy: 'user-federico', version: r.status === 'published' ? 1 : 0, archivedBy: null, archivedAt: null
+		})),
 		weeks,
 		ratings,
 		exclusions: [],
@@ -91,6 +95,7 @@ export function createSeedDatabase(): DemoDatabase {
 		recipeVersions: [],
 		recipeDrafts: []
 	};
+	splitDemoVarieties(db);
 	addDemoCuration(db);
 	addDemoShoppingLists(db);
 	return db;
@@ -131,6 +136,23 @@ function addDemoShoppingLists(db: DemoDatabase) {
 	value(addManualItem(db, at('user-anna', '2026-10-05T19:10'), '2026-10-05', 'Detersivo per i piatti'));
 }
 
+// Round 5 (dimostrativo): imported ingredients that were a variety of tomatoes become Pomodori with the
+// variety on the recipe line, as the import would do; the preparation ("a dadini") stays in the source text.
+const DEMO_VARIETIES: Record<string, { ingredientId: string; variety: { 'it-IT': string; 'en-GB': string } }> = {
+	'pomodori-ramati': { ingredientId: 'pomodori', variety: { 'it-IT': 'ramati', 'en-GB': 'on the vine' } },
+	'pomodoro-a-dadini-varieta-roma': { ingredientId: 'pomodori', variety: { 'it-IT': 'Roma', 'en-GB': 'Roma' } },
+	'pomodoro-cuore-di-bue': { ingredientId: 'pomodori', variety: { 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' } }
+};
+
+function splitDemoVarieties(db: DemoDatabase) {
+	for (const recipe of db.recipes)
+		for (const line of recipe.ingredients) {
+			const split = DEMO_VARIETIES[line.ingredientId];
+			if (split) Object.assign(line, { ingredientId: split.ingredientId, variety: { ...split.variety } });
+		}
+	db.ingredients = db.ingredients.filter((i) => !(i.id in DEMO_VARIETIES));
+}
+
 const IMPORTED_AT = '2026-09-29T10:00';
 
 function draftOf(recipeId: string, kind: RecipeDraft['kind'], content: RecipeContent, by: string, at: string, baseVersion: number | null): RecipeDraft {
@@ -153,7 +175,7 @@ function addDemoCuration(db: DemoDatabase) {
 			'it-IT': 'Cuoci gli hamburger di cavallo e servili nel panino con fette di pomodoro.',
 			'en-GB': 'Cook the horse meat burgers and serve them in buns with sliced tomato.'
 		};
-		burgers.ingredients.push({ ingredientId: 'pomodori', quantity: { kind: 'amount', value: 2, unit: 'piece' }, sourceText: '2', text: null, isOptional: false });
+		burgers.ingredients.push({ ingredientId: 'pomodori', quantity: { kind: 'amount', value: 2, unit: 'piece' }, sourceText: '2', text: null, variety: null, isOptional: false });
 		burgers.version = 2;
 		db.recipeVersions.push({ recipeId: burgers.id, version: 2, content: contentOf(burgers), publishedBy: 'user-lucia', publishedAt: '2026-10-06T10:00', restoredFrom: null });
 	}
@@ -167,8 +189,8 @@ function addDemoCuration(db: DemoDatabase) {
 		description: { 'it-IT': 'Zucca e ceci frullati con il brodo vegetale, crostini a parte.', 'en-GB': null },
 		sourceType: 'home', sourceUrl: null, bookId: null, bookPages: null, durationMinutes: 35, baseServings: null,
 		ingredients: [
-			{ ingredientId: 'zucca-pulita', quantity: { kind: 'amount', value: 600, unit: 'g' }, sourceText: '600 g', text: null, isOptional: false },
-			{ ingredientId: 'ceci-precotti', quantity: { kind: 'amount', value: 240, unit: 'g' }, sourceText: '240 g', text: null, isOptional: false }
+			{ ingredientId: 'zucca-pulita', quantity: { kind: 'amount', value: 600, unit: 'g' }, sourceText: '600 g', text: null, variety: null, isOptional: false },
+			{ ingredientId: 'ceci-precotti', quantity: { kind: 'amount', value: 240, unit: 'g' }, sourceText: '240 g', text: null, variety: null, isOptional: false }
 		],
 		mealType: 'dinner', proteinGroup: 'legumes', tags: [], photo: null, addedOn: '2026-10-05',
 		createdBy: 'user-lucia', version: 0, archivedBy: null, archivedAt: null

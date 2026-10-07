@@ -66,7 +66,8 @@ function matchesText(db: DemoDatabase, recipe: Recipe, locale: Locale, needle: s
 	if (!needle) return true;
 	const ingredientNames = recipe.ingredients.map((line) => {
 		const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
-		return ingredient ? localized(ingredient.name, locale).text : '';
+		const variety = line.variety ? localized(line.variety, locale).text : '';
+		return ingredient ? `${localized(ingredient.name, locale).text} ${variety}` : '';
 	});
 	const haystack = [localized(recipe.name, locale).text, localized(recipe.description, locale).text, ...ingredientNames];
 	return haystack.some((value) => normalizeForSearch(value).includes(needle));

@@ -1,3 +1,4 @@
+import { VARIETY_MAX, lineKey } from './ingredient-variety';
 import { LOCALES, type DemoDatabase, type Locale, type RecipeContent } from './types';
 
 // Shared recipe checks (spec section 8): the same rules for the web form, MCP and the import.
@@ -30,7 +31,7 @@ export interface ValidationIssue {
 	locale?: Locale;
 	/** Ingredient line, from 0, and which part of it: the catalogue ingredient or the quantity. */
 	line?: number;
-	part?: 'ingredient' | 'quantity';
+	part?: 'ingredient' | 'quantity' | 'variety';
 }
 
 /** What a draft still lacks, in short (list of drafts, recipe card). */
@@ -64,13 +65,16 @@ export function validateForSave(db: DemoDatabase, content: RecipeContent): Valid
 	const seen = new Set<string>();
 	content.ingredients.forEach((line, index) => {
 		if (!db.ingredients.some((i) => i.id === line.ingredientId)) issues.push({ field: 'ingredients', code: 'unknown_ingredient', line: index, part: 'ingredient' });
-		else if (seen.has(line.ingredientId)) issues.push({ field: 'ingredients', code: 'duplicate_ingredient', line: index, part: 'ingredient' });
-		seen.add(line.ingredientId);
+		// The same ingredient may appear twice only with different varieties.
+		else if (seen.has(lineKey(line))) issues.push({ field: 'ingredients', code: 'duplicate_ingredient', line: index, part: 'ingredient' });
+		seen.add(lineKey(line));
 		// A draft may leave an amount empty (null); a number must be above zero.
 		if (line.quantity.kind === 'amount' && line.quantity.value != null && !(Number.isFinite(line.quantity.value) && line.quantity.value > 0))
 			issues.push({ field: 'ingredients', code: 'invalid_amount', line: index, part: 'quantity' });
 		for (const locale of LOCALES)
 			if ((line.text?.[locale]?.length ?? 0) > QUANTITY_TEXT_MAX) issues.push({ field: 'ingredients', code: 'too_long', line: index, part: 'quantity', locale });
+		for (const locale of LOCALES)
+			if ((line.variety?.[locale]?.length ?? 0) > VARIETY_MAX) issues.push({ field: 'ingredients', code: 'too_long', line: index, part: 'variety', locale });
 	});
 	return issues;
 }
@@ -95,6 +99,9 @@ export function validateForPublish(db: DemoDatabase, content: RecipeContent): Va
 		const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
 		if (ingredient && !filled(ingredient.name['en-GB'])) issues.push({ field: 'ingredients', code: 'translation_missing', line: index, part: 'ingredient', locale: 'en-GB' });
 		if (line.quantity.kind === 'amount' && line.quantity.value == null) issues.push({ field: 'ingredients', code: 'required', line: index, part: 'quantity' });
+		if (line.variety && LOCALES.some((l) => filled(line.variety?.[l])))
+			for (const locale of LOCALES)
+				if (!filled(line.variety[locale])) issues.push({ field: 'ingredients', code: locale === 'it-IT' ? 'required' : 'translation_missing', line: index, part: 'variety', locale });
 		if (line.quantity.kind === 'text')
 			for (const locale of LOCALES)
 				if (!filled(line.text?.[locale])) issues.push({ field: 'ingredients', code: locale === 'it-IT' ? 'required' : 'translation_missing', line: index, part: 'quantity', locale });
