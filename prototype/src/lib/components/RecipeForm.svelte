@@ -56,7 +56,6 @@
 	let leaving = $state<URL | null>(null);
 	let allowLeave = false;
 
-	const variant = $derived(app.settings.variants);
 	let lang = $state<Locale>(app.locale);
 	const dirty = $derived(changedFields(saved, normalized(content)).length > 0);
 	const isNew = $derived(!initial || initial.draft.kind === 'new');
@@ -72,7 +71,7 @@
 	const SECTIONS = ['names', 'source', 'meal', 'ingredients'] as const;
 
 	function goToIssue(issue: ValidationIssue) {
-		if (issue.locale && variant.formLanguages === 'switch') lang = issue.locale;
+		if (issue.locale) lang = issue.locale;
 		const id = issue.line !== undefined ? `ingredient-${issue.line}` : `field-${issue.field}`;
 		requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
 	}
@@ -305,9 +304,9 @@
 </script>
 
 {#snippet translated(field: 'name' | 'description', label: string, max: number)}
-	{#each variant.formLanguages === 'stacked' ? LOCALES : [lang] as l (l)}
-		<label class="field" id={l === LOCALES[0] || variant.formLanguages === 'switch' ? `field-${field}` : undefined}>
-			<span>{label}{#if variant.formLanguages === 'stacked'}{` · ${langName(l)}`}{/if}</span>
+	{#each [lang] as l (l)}
+		<label class="field" id="field-{field}">
+			<span>{label}</span>
 			{#if field === 'description'}
 				<textarea rows="3" maxlength={max} value={content[field][l] ?? ''} oninput={(e) => (content[field][l] = e.currentTarget.value)}></textarea>
 			{:else}
@@ -352,13 +351,12 @@
 			{#each SECTIONS as s (s)}<a href="#section-{s}">{app.t(`curation.section.${s}` as MessageKey)}</a>{/each}
 		</nav>
 
-		{#if variant.formLanguages === 'switch'}
-			<div class="lang-switch" role="group" aria-label={app.t('curation.language')}>
-				{#each LOCALES as l (l)}
-					<button type="button" aria-pressed={lang === l} onclick={() => (lang = l)}>{langName(l)}{#if missingIn(l)}<span class="missing-dot" aria-label={app.t('curation.langMissing')}></span>{/if}</button>
-				{/each}
-			</div>
-		{/if}
+		<!-- Languages behind a switch (chosen on 7 October 2026), with a dot on the one missing data. -->
+		<div class="lang-switch" role="group" aria-label={app.t('curation.language')}>
+			{#each LOCALES as l (l)}
+				<button type="button" aria-pressed={lang === l} onclick={() => (lang = l)}>{langName(l)}{#if missingIn(l)}<span class="missing-dot" aria-label={app.t('curation.langMissing')}></span>{/if}</button>
+			{/each}
+		</div>
 
 		{#if issues.length}
 			<div class="issues" id="issues" role="alert">
@@ -445,7 +443,7 @@
 								{#if !showsVariety(line, index)}
 									<button type="button" class="link-inline add-variety" onclick={() => (varietyOpen = new Set([...varietyOpen, index]))}>{app.t('curation.addVariety')}</button>
 								{:else}
-								{#each variant.formLanguages === 'stacked' ? LOCALES : [lang] as l (l)}
+								{#each [lang] as l (l)}
 									<label class="field small">{`${app.t('curation.variety')} · ${langName(l)}`}
 										<input type="text" maxlength={40} list="varieties-{index}-{l}" placeholder={app.t('curation.varietyHint')} value={line.variety?.[l] ?? ''} oninput={(e) => setVariety(line, l, e.currentTarget.value)} />
 										<datalist id="varieties-{index}-{l}">{#each knownFor(line.ingredientId) as v (v['it-IT'])}{#if v[l]}<option value={v[l]}></option>{/if}{/each}</datalist>
@@ -481,7 +479,7 @@
 								</div>
 								{#if line.quantity.kind === 'text' && line.text}
 									{@const text = line.text}
-									{#each variant.formLanguages === 'stacked' ? LOCALES : [lang] as l (l)}
+									{#each [lang] as l (l)}
 										<label class="field small">{`${app.t('curation.quantity.textLabel')} · ${langName(l)}`}
 											<input type="text" maxlength={QUANTITY_TEXT_MAX} value={text[l] ?? ''} oninput={(e) => (text[l] = e.currentTarget.value)} />
 										</label>

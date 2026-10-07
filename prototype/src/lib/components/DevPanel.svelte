@@ -9,7 +9,6 @@
 	import { page } from '$app/state';
 	import { contentOf } from '#lib/domain/recipe-content.ts';
 	import { saveDraft } from '#lib/operations/curation.ts';
-	import type { PrototypeVariants } from '#lib/store/persistence.ts';
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -62,10 +61,6 @@
 		if (!saved.ok || saved.value.status !== 'saved') return (otherSave = app.t('dev.otherSaveNone'));
 		app.update(() => {});
 		otherSave = app.t('dev.otherSaveDone', { name: other.displayName });
-	}
-
-	function setVariant<K extends keyof PrototypeVariants>(key: K, value: PrototypeVariants[K]) {
-		app.update((s) => (s.settings.variants[key] = value));
 	}
 
 	const userFamilies = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
@@ -169,12 +164,6 @@
 	{#if otherTick}<p class="meta-line" role="status">{otherTick}</p>{/if}
 	<button type="button" class="text-button" onclick={simulateOtherSave}>{app.t('dev.otherSave')}</button>
 	{#if otherSave}<p class="meta-line" role="status">{otherSave}</p>{/if}
-	<label>{app.t('dev.variant.formLanguages')}
-		<select value={app.settings.variants.formLanguages} onchange={(e) => setVariant('formLanguages', e.currentTarget.value as PrototypeVariants['formLanguages'])}>
-			<option value="stacked">{app.t('dev.variant.formLanguages.stacked')}</option>
-			<option value="switch">{app.t('dev.variant.formLanguages.switch')}</option>
-		</select>
-	</label>
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
 	<p class="meta-line">{app.t('dev.demoData')}</p>
 	<button type="button" class="text-button" onclick={() => app.reset()}>{app.t('dev.reset')}</button>

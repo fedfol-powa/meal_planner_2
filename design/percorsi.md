@@ -926,9 +926,9 @@ ricettario?
 
 ### Review del giro (7 ottobre 2026, chiusa con approvazione)
 
-- **Modulo:** pagina unica a sezioni (tolta la variante a passi). Resta da scegliere
-  la disposizione delle lingue (affiancate o con selettore): la variante è ancora nel
-  pannello Prova, con «affiancate» predefinita.
+- **Modulo:** pagina unica a sezioni (tolta la variante a passi). Lingue con il
+  selettore, scelto dall'utente il 7 ottobre 2026 dopo il sesto giro; tolta la
+  variante «affiancate».
 - **Nessuna verifica esplicita:** «Pubblica» salva e pubblica se i controlli passano,
   altrimenti mostra cosa correggere; una ricetta nuova incompleta resta in bozza. Tolte
   la sezione e il pulsante «Verifica», lo stato di bozza verificata e l'etichetta

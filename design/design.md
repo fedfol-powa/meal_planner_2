@@ -326,6 +326,9 @@ Visibile solo ai curatori; ai membri il ricettario non cambia.
 - **Modulo della ricetta:** pagina secondaria a colonna di 640 px; sotto il titolo
   l'etichetta Nuova/Modifica e chi l'ha iniziata e salvata; una fila di pillole
   (bordo sottile, raggio pieno) porta alle sezioni, ciascuna in una `settings-card`.
+  Sotto, il selettore di lingua: due pulsanti uniti con bordo scuro, quello attivo
+  scuro con testo bianco, un punto rosso sulla lingua a cui mancano testi; i campi
+  tradotti mostrano solo la lingua scelta (deciso il 7 ottobre 2026).
   In fondo una barra fissa con «Salva bozza» e «Pubblica» (primario); gli avvisi in
   basso salgono sopra la barra. Testi di spiegazione ridotti al minimo; le scelte
   evidenti non hanno etichetta visibile.

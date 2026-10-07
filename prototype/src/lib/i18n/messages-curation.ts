@@ -166,10 +166,7 @@ export const itCuration = {
 	'curation.missingShort.invalid': 'Da correggere',
 	'dev.otherSave': 'Un’altra curatrice salva la bozza aperta',
 	'dev.otherSaveDone': '{name} ha salvato la bozza (durata +5 min). Ora salva tu per vedere il conflitto.',
-	'dev.otherSaveNone': 'Apri prima una bozza nel modulo.',
-	'dev.variant.formLanguages': 'Lingue nel modulo',
-	'dev.variant.formLanguages.stacked': 'Italiano e inglese uno sotto l’altro',
-	'dev.variant.formLanguages.switch': 'Selettore di lingua'
+	'dev.otherSaveNone': 'Apri prima una bozza nel modulo.'
 } as const;
 
 export const enCuration: Record<keyof typeof itCuration, string> = {
@@ -339,8 +336,5 @@ export const enCuration: Record<keyof typeof itCuration, string> = {
 	'curation.missingShort.invalid': 'To fix',
 	'dev.otherSave': 'Another curator saves the open draft',
 	'dev.otherSaveDone': '{name} saved the draft (duration +5 min). Now save yours to see the conflict.',
-	'dev.otherSaveNone': 'Open a draft in the form first.',
-	'dev.variant.formLanguages': 'Languages in the form',
-	'dev.variant.formLanguages.stacked': 'Italian and English one under the other',
-	'dev.variant.formLanguages.switch': 'Language switch'
+	'dev.otherSaveNone': 'Open a draft in the form first.'
 };
