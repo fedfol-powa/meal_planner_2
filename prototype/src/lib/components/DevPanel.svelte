@@ -175,12 +175,6 @@
 			<option value="switch">{app.t('dev.variant.formLanguages.switch')}</option>
 		</select>
 	</label>
-	<label>{app.t('dev.variant.agentClients')}
-		<select value={app.settings.variants.agentClients} onchange={(e) => setVariant('agentClients', e.currentTarget.value as PrototypeVariants['agentClients'])}>
-			<option value="tabs">{app.t('dev.variant.tabs')}</option>
-			<option value="accordion">{app.t('dev.variant.accordion')}</option>
-		</select>
-	</label>
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
 	<p class="meta-line">{app.t('dev.demoData')}</p>
 	<button type="button" class="text-button" onclick={() => app.reset()}>{app.t('dev.reset')}</button>

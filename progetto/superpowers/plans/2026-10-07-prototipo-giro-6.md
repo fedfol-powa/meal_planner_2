@@ -219,7 +219,7 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
       riusano schede, righe, chip, pulsanti e fogli già approvati.
 - [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
-- [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
+- [x] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`. Alla chiusura, decisioni nella specifica (sezioni 2, 7, 8,
       13, parti funzionali "Usare l'app attraverso il proprio agente" e "Amministrare
       l'app", 15 "Utenti e inviti", "Cancellazione", "Backup e ripristino", "MCP" e 17
@@ -258,4 +258,12 @@ dei client su due righe, singolari, virgolette inglesi, «Profilo» non attivo i
 stato provato nel browser: è coperto dai test delle operazioni e dai pulsanti
 disattivati. Scelte prese durante lo sviluppo e domande per la review in
 `design/percorsi.md`, "Giro 6".
+
+## Esito della review (7 ottobre 2026)
+
+Approvato dall'utente dopo la prova su iPhone. Modifiche: tolto il paragrafo
+introduttivo della pagina di collegamento; client a fisarmonica, tolta la variante a
+schede. Tutto il resto confermato. Decisioni riportate nella specifica (sezioni 2, 7, 8,
+13, 14, 15, 16 e 17, parti funzionali "Usare l'app attraverso il proprio agente" e
+"Amministrare l'app") e in `design/design.md`; esito in `design/percorsi.md`, "Giro 6".
 

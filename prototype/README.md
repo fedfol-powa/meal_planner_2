@@ -49,8 +49,7 @@ voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e 
 «Primo accesso», apertura dei link d'invito demo e del link di eliminazione della famiglia.
 Dal giro 5: un'altra curatrice che salva la bozza aperta (conflitto) e la disposizione
 delle lingue nel modulo della ricetta (ancora da scegliere). Dal giro 6: un agente che
-chiede l'accesso (schermata di autorizzazione), gli inviti all'app demo e la variante dei
-client nella pagina di collegamento.
+chiede l'accesso (schermata di autorizzazione) e gli inviti all'app demo.
 
 ## Struttura
 

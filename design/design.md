@@ -342,3 +342,28 @@ Visibile solo ai curatori; ai membri il ricettario non cambia.
 - **Versioni:** elenco in una `settings-card` con «Versione N», autore e data; la
   versione precedente si apre come una scheda ricetta senza foto, con «Ripristina
   questa versione» a tutta larghezza sotto.
+
+## Collegamento degli agenti e amministrazione (sesto giro, approvato il 7 ottobre 2026)
+
+- **Collega un agente:** pagina secondaria del Profilo, senza paragrafo introduttivo,
+  fatta di `settings-card`. Indirizzi e comandi in un campo monospazio 13 px con bordo
+  sottile, su una riga sola che scorre in orizzontale, e il pulsante «Copia» accanto
+  (diventa «Copiato» per due secondi). I client sono a fisarmonica: righe da 48 px in
+  grassetto con freccia che ruota all'apertura; dentro, passaggi numerati e una nota
+  grigia 13 px «esempio da verificare». Gli esempi da chiedere all'agente stanno fra
+  virgolette della lingua («» o “”). «Scollega» è un pulsante a contorno sulla riga
+  dell'agente e apre un foglio di conferma.
+- **Autorizzazione:** come le pagine di ingresso (senza navbar, colonna di 420 px,
+  marchio verde); l'account in un riquadro bianco con ombra; «Potrà» e «Non potrà» come
+  titoletti 16 px con elenchi puntati; «Consenti» primario e «Annulla» a tutta
+  larghezza; in fondo la nota grigia che la schermata è simulata.
+- **Amministrazione:** una pagina con tre `settings-card` (Utenti con ricerca, Inviti
+  all'app con «+ Invita» accanto al titolo, Backup del ricettario). I ruoli sono
+  etichette verdi (`label-chip`); lo stato degli inviti è un'etichetta verde se in
+  attesa e grigia negli altri casi, con «Copia link» e «Revoca» (contorno rosso) sotto.
+  Nel dettaglio di un utente i ruoli sono caselle verdi con titolo e spiegazione grigia;
+  quando un ruolo non si può togliere la spiegazione diventa il motivo.
+- **Anteprima del ripristino:** etichetta grigia del tipo di copia, poi una
+  `settings-card` per gruppo (tornano com'erano, archiviate, tornano nel ricettario,
+  restano come sono) con le prime cinque ricette come collegamenti e «e altre N» che
+  apre il resto; in fondo cosa non cambia, la copia di sicurezza e il pulsante rosso.

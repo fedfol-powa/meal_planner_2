@@ -42,7 +42,7 @@
 
 		<section class="settings-card" aria-labelledby="client-title">
 			<h2 id="client-title">{app.t('agents.choose')}</h2>
-			<ClientGuide layout={app.settings.variants.agentClients} />
+			<ClientGuide />
 		</section>
 
 		<section class="settings-card" aria-labelledby="sign-in-title">

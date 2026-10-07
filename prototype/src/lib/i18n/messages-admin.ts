@@ -191,10 +191,7 @@ export const itAdmin = {
 	'appInvite.toApp': 'Vai all’app',
 
 	'dev.agentRequest': 'Un agente chiede l’accesso',
-	'dev.appInvite': 'Apri l’invito all’app demo',
-	'dev.variant.agentClients': 'Client nella pagina di collegamento',
-	'dev.variant.tabs': 'A schede',
-	'dev.variant.accordion': 'A fisarmonica'
+	'dev.appInvite': 'Apri l’invito all’app demo'
 } as const;
 
 export const enAdmin: Record<keyof typeof itAdmin, string> = {
@@ -389,8 +386,5 @@ export const enAdmin: Record<keyof typeof itAdmin, string> = {
 	'appInvite.toApp': 'Go to the app',
 
 	'dev.agentRequest': 'An agent asks for access',
-	'dev.appInvite': 'Open the demo app invitation',
-	'dev.variant.agentClients': 'Clients on the connection page',
-	'dev.variant.tabs': 'Tabs',
-	'dev.variant.accordion': 'Accordion'
+	'dev.appInvite': 'Open the demo app invitation'
 };

@@ -4,7 +4,8 @@ Creato: 6 ottobre 2026
 Ultimo aggiornamento: 7 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
-(Curatela) il 7 ottobre; sesto giro (MCP e Amministrazione dell'app) in corso.
+(Curatela) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre; tutti i
+percorsi sono stati rivisti.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -61,8 +62,8 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | Approvato il 7 ottobre 2026 |
-| 7 | MCP | Pagina di collegamento per i client, autorizzazione nel browser, agenti collegati, rimando all'app per l'eliminazione delle famiglie (niente conversazioni simulate, deciso il 7 ottobre 2026) | 6 | In corso |
-| 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | 6 | In corso |
+| 7 | MCP | Pagina di collegamento per i client, autorizzazione nel browser, agenti collegati, rimando all'app per l'eliminazione delle famiglie (niente conversazioni simulate, deciso il 7 ottobre 2026) | 6 | Approvato il 7 ottobre 2026 |
+| 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | 6 | Approvato il 7 ottobre 2026 |
 
 La composizione dei giri successivi al primo si decide alla fine di ogni review.
 
@@ -945,7 +946,10 @@ ricettario?
 
 ## Giro 6: percorsi 7 e 8
 
-Stato: sviluppato il 7 ottobre 2026, in attesa della review su iPhone.
+Stato: approvato dall'utente il 7 ottobre 2026 dopo la review su iPhone; decisioni
+riportate nella specifica (sezioni 2, 7, 8, 13, 14, 15, 16 e 17, parti funzionali
+"Usare l'app attraverso il proprio agente" e "Amministrare l'app") e in `design.md`.
+Le sezioni che seguono conservano la storia del giro: vale la "Review del giro".
 Piano: [2026-10-07-prototipo-giro-6.md](../progetto/superpowers/plans/2026-10-07-prototipo-giro-6.md).
 
 ### Perimetro
@@ -1046,4 +1050,16 @@ piano del giro, approvato il 7 ottobre 2026.
 6. Ripristino del catalogo: l'anteprima si capisce? Archiviare le ricette nate dopo,
    anche se sono nei menu di questa settimana, è accettabile? La copia «Prima del
    ripristino» basta come annullamento?
+
+### Review del giro (7 ottobre 2026, chiusa con approvazione)
+
+- **Client a fisarmonica** (tolta la variante a schede e la relativa scelta nel
+  pannello Prova).
+- **Pagina di collegamento senza paragrafo introduttivo**: cosa può fare l'agente si
+  legge nella schermata di autorizzazione.
+- **Confermati** tutto il resto: autorizzazione, agenti collegati e scollegamento,
+  amministrazione in una pagina con l'elenco completo dei backup, inviti all'app a uso
+  singolo legati all'email, ripristino del catalogo con archiviazione delle ricette
+  successive (anche se nei menu della settimana) e copia «Prima del ripristino», e le
+  decisioni della preparazione.
 

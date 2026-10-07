@@ -1,7 +1,7 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 7 ottobre 2026 (quinto giro del prototipo approvato)
+Ultimo aggiornamento: 7 ottobre 2026 (sesto giro del prototipo approvato)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -290,8 +290,11 @@ La stessa regola vale quando cancellare un account comporterebbe l'eliminazione 
 una famiglia di cui la persona è l'unico membro.
 
 Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
-deve poter avvenire tramite l'agente. Una pagina dell'app spiega il collegamento per i
-client supportati, con istruzioni e comandi o configurazioni da copiare.
+deve poter avvenire tramite l'agente. Una pagina dell'app, «Collega un agente» nel
+Profilo, dà l'indirizzo del servizio e i passaggi per ciascun client supportato, con
+comandi o configurazioni da copiare, ed elenca gli agenti collegati, che si possono
+scollegare. Quando un agente chiede l'accesso, il browser mostra chi si collega, con
+quale account e cosa potrà fare; l'utente consente o annulla (sesto giro del prototipo).
 
 ### Amministrare l'app
 
@@ -303,11 +306,14 @@ salvo le cancellazioni di account che eliminerebbero anche una famiglia: in quel
 MCP rimanda alla pagina dell'app, senza eseguire la cancellazione.
 
 Gli amministratori dell'app possono inoltre ripristinare l'intero ricettario da backup.
-Questo recupero riguarda il catalogo, senza ripristinare i dati privati delle famiglie.
+Questo recupero riguarda il catalogo, senza ripristinare i dati privati delle famiglie:
+le ricette tornano com'erano come nuova versione, quelle nate dopo il backup vengono
+archiviate, e prima di confermare si vede un'anteprima.
 
-Gli inviti all'app e quelli a una famiglia hanno scopi distinti. Le regole precise di
-assegnazione dei ruoli, cancellazione e protezione dell'ultimo amministratore saranno
-verificate nel design di questo percorso e riportate qui (sezioni 7 e 15).
+Gli inviti all'app e quelli a una famiglia hanno scopi distinti. L'iscrizione resta
+aperta: un invito all'app chiama una persona precisa e può darle il ruolo di curatore
+o di amministratore quando accetta, ma non la fa entrare in una famiglia. Regole decise
+nel sesto giro del prototipo, sezione 7.
 
 ### Cosa l'app non fa (per ora)
 
@@ -393,8 +399,8 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `ingredient_unit_equivalences` | `ingredient_id`, `from_unit`, `to_unit`, `factor`, `scope` (`recipe` o `shopping`), `source`: equivalenze verificate per ingrediente (tazza USA in grammi o pezzi, succo di limone in limoni) |
 | `books` | `id`, `title`: titolo bibliografico originale |
 | `recipe_drafts` | `id`, `recipe_id`, `kind` (`new`: ricetta mai pubblicata, con `recipes` in stato bozza; `revision`: modifica di una ricetta pubblicata), `base_version`, contenuto parziale, `created_by`, `updated_by`, `updated_at`, `revision` (cresce a ogni salvataggio e serve a riconoscere i conflitti). Una sola revisione aperta per ricetta. I salvataggi sovrascritti in un conflitto restano nella cronologia della bozza |
-| `recipe_versions` | `recipe_id`, `version`, contenuto completo pubblicato (testi, fonte, attributi, righe di ingredienti), `published_by`, `published_at`, `restored_from`; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
-| Backup del catalogo | Copie recuperabili del ricettario e delle sue dipendenze; frequenza, conservazione, collocazione e procedura da definire nel design operativo |
+| `recipe_versions` | `recipe_id`, `version`, contenuto completo pubblicato (testi, fonte, attributi, righe di ingredienti), `published_by`, `published_at`, `restored_from` (versione ripubblicata) e, per un ripristino dell'intero catalogo, il backup di provenienza; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
+| Backup del catalogo | Copie recuperabili del ricettario e delle sue dipendenze: per ogni ricetta pubblicata o archiviata la versione e lo stato, più gli ingredienti del catalogo; tipo giornaliero, settimanale o «prima del ripristino». Frequenza, conservazione, collocazione e procedura da definire nel design operativo |
 
 **Utenti, ruoli globali e amministrazione:**
 
@@ -402,7 +408,8 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 |---|---|
 | `profiles` | `user_id`, `display_name`, `locale` (`it-IT`/`en-GB`) |
 | `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`) |
-| `app_invitations` | Inviti gestiti dall'amministrazione dell'app: destinatario, autore, stato e regole di accettazione da definire; distinti dagli inviti a una famiglia |
+| `app_invitations` | Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia: `email` del destinatario, ruoli globali da assegnare all'accettazione (anche nessuno), autore, creazione, scadenza a 7 giorni, stato (`pending`/`accepted`/`revoked`, scaduto calcolato), chi l'ha accettato e quando (sesto giro) |
+| `agent_authorizations` | Agenti autorizzati da un utente tramite MCP: client, data del collegamento, ultimo uso; revoca dall'app. Il meccanismo (per esempio OAuth) si decide nel design tecnico di MCP (sesto giro) |
 | Tracciamento del catalogo e dell'amministrazione | Proposta: autore, data, operazione e canale (`web`/`mcp`/`import`), con regole di conservazione da definire |
 
 **Per famiglia** (RLS: si vede e si scrive solo nella propria famiglia):
@@ -808,16 +815,29 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     rimosso non rientra con un link creato prima della rimozione, anche se ancora
     valido; gli stessi link restano validi per gli altri. Vede lo stesso messaggio di
     un link non più valido. L'uscita volontaria non blocca i link.
-- **Inviti all'app**: gestibili dagli amministratori dell'app nella pagina di
-  amministrazione e tramite MCP. Permettono di invitare un utente al servizio; l'eventuale
-  assegnazione di ruoli o appartenenza a una famiglia deve essere esplicita. Scadenza,
-  riutilizzo, reinvio e revoca sono da definire nel design. L'iscrizione aperta della
-  specifica di base resta prevista: aggiungere inviti non la rende automaticamente
-  riservata ai soli invitati.
+- **Inviti all'app** (decisi nel sesto giro del prototipo): gestibili dagli
+  amministratori dell'app nella pagina di amministrazione e tramite MCP. Un invito è
+  per un'email e indica, se si vuole, i ruoli globali da assegnare all'accettazione
+  (curatore, amministratore dell'app); non fa entrare in nessuna famiglia. Il link vale
+  7 giorni, si usa una sola volta e solo con quell'email, si può revocare; un nuovo
+  invito alla stessa email sostituisce quello in attesa. A un'email che ha già un
+  account non si crea un invito: i ruoli si cambiano dall'elenco degli utenti. La
+  pagina `/invite/app/<token>` si legge senza accesso (chi invita, ruoli); chi non ha
+  un account si iscrive e torna all'invito; con un altro account la pagina propone di
+  uscire e rientrare. Nel prototipo il link si copia e si manda, senza email
+  dall'app. L'iscrizione aperta della specifica di base resta prevista.
 - **Amministrazione globale**: pagina riservata agli `app_admin` per consultare e gestire
   utenti e inviti, cambiare i ruoli degli utenti, assegnare il ruolo di curatore,
   nominare altri amministratori e cancellare utenti. Le operazioni devono essere
-  disponibili anche via MCP. La nomina iniziale di Federico sarà prevista nella
+  disponibili anche via MCP. Forma decisa nel sesto giro del prototipo: dal Profilo,
+  pagina `/admin` con le sezioni Utenti (ricerca per nome o email, ruoli come
+  etichette), Inviti all'app e Backup del ricettario. Il dettaglio di un utente ha gli
+  interruttori dei due ruoli: la nomina di un amministratore e la rinuncia al proprio
+  ruolo chiedono conferma, l'interruttore dell'ultimo amministratore è bloccato con il
+  motivo. Le famiglie di un utente si vedono solo per nome e ruolo, senza contenuti.
+  La cancellazione di un utente usa la stessa pagina e le stesse regole della
+  cancellazione dell'account, in terza persona; il proprio account si cancella solo
+  dalle proprie preferenze. La nomina iniziale di Federico sarà prevista nella
   configurazione iniziale, con identità verificata; i dettagli si definiscono nel piano.
 - **Recupero del ricettario**: il ripristino completo da backup è riservato agli
   amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
@@ -1058,7 +1078,17 @@ i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di ba
   anteprima dell'impatto e verifica della coerenza. Il ripristino complessivo è riservato
   agli amministratori dell'app, perché può annullare modifiche di più
   curatori. Il recupero del catalogo non deve riavvolgere menu, voti, utenti o permessi
-  delle famiglie e non concede accesso ai loro contenuti.
+  delle famiglie e non concede accesso ai loro contenuti. **Deciso nel sesto giro del
+  prototipo:** le ricette presenti nel backup tornano com'erano, pubblicate come nuova
+  versione (lo storico resta intero); quelle nate dopo il backup, o archiviate allora,
+  vengono archiviate, non cancellate, e i pasti che le citano restano leggibili;
+  quelle archiviate oggi ma pubblicate nel backup tornano nel ricettario. Una ricetta
+  la cui versione del backup non supera i controlli di oggi resta com'è e l'anteprima
+  lo dice. Gli ingredienti del catalogo tornano come nel backup; quelli nati dopo
+  restano. Bozze, menu, voti, famiglie e utenti non cambiano; i pasti passati restano
+  sulla versione mangiata (R1). L'anteprima mostra le ricette per gruppo prima della
+  conferma; prima del ripristino si salva una copia «Prima del ripristino», che basta
+  ripristinare per tornare indietro.
 
 Storico delle revisioni e backup hanno scopi distinti: il primo permette di correggere
 un contributo, il secondo deve coprire anche la perdita o il danneggiamento dei dati.
@@ -1293,9 +1323,11 @@ Un agente può assistere il curatore o l'utente nelle operazioni manuali, ma il
 pianificatore automatico resta il sistema a regole della sezione 3. L'app non impone
 un modello o un fornitore AI al client MCP.
 
-**Pagina web di istruzioni:**
+**Pagina web di istruzioni** («Collega un agente» nel Profilo, forma decisa nel sesto
+giro del prototipo, `/profile/agents`):
 
-- spiega cosa permette il collegamento e quali operazioni dipendono dal ruolo;
+- nessun paragrafo introduttivo (tolto nella review): cosa l'agente può fare con i
+  ruoli dell'utente si legge nella schermata di autorizzazione;
 - offre percorsi distinti per Codex CLI, Claude Code, ChatGPT e Claude Desktop, con
   indirizzo MCP e comandi o configurazioni copiabili quando il client usa questa
   modalità, oppure passaggi nell'interfaccia quando previsti;
@@ -1308,6 +1340,24 @@ un modello o un fornitore AI al client MCP.
   (ingredienti, varietà e quantità: sezione 8);
 - descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
 
+Ordine deciso nel sesto giro: indirizzo del servizio con «Copia»; i quattro client a
+fisarmonica (scelta nella review rispetto alle schede), ciascuno con passaggi numerati
+e comandi da copiare; accesso; esempi da chiedere all'agente (per i curatori anche il
+flusso di curatela e le istruzioni sugli ingredienti servite all'agente); nota
+sull'eliminazione delle famiglie; in fondo «Agenti collegati» con client, data del
+collegamento, ultimo uso e «Scollega». Scollegare revoca l'accesso; la conferma spiega
+anche come togliere il servizio dal client. Nel prototipo i comandi di Claude Code
+(`claude mcp add --transport http`, accesso da `/mcp`) e di Codex (`codex mcp add
+<nome> --url`, `codex mcp login`) e i passaggi di Claude Desktop (connettore
+personalizzato) sono verificati con la documentazione del 7 ottobre 2026; quelli di
+ChatGPT no. Restano esempi da verificare prima del rilascio.
+
+**Schermata di autorizzazione** (sesto giro, `/authorize`, simulata): aperta dall'agente
+nel browser, richiede l'accesso all'app; mostra il client, l'account in uso con «Non
+sei tu? Cambia account», cosa l'agente potrà fare secondo i ruoli dell'utente e cosa
+no (eliminare una famiglia, vedere le credenziali), con «Consenti» e «Annulla».
+Autorizzare di nuovo lo stesso client sostituisce l'accesso precedente.
+
 I client iniziali sono scelti; comandi e modalità di collegamento effettivi vanno
 verificati nel relativo design. La specifica non assume che tutti gli agenti abbiano
 lo stesso comando o le stesse capacità di
@@ -1318,7 +1368,7 @@ gestione di file. Il prototipo distinguerà gli esempi dalle istruzioni operativ
 **Confermato:** il primo artefatto da costruire è un prototipo dell'app conservato nel
 repository e sottoposto a review dell'utente, prima dell'implementazione del prodotto.
 La review deve poter cambiare sia funzionalità sia scelte architetturali. Il prototipo
-non è ancora stato creato; la directory è `prototype/`.
+è in `prototype/`; tutti i percorsi sono stati rivisti entro il 7 ottobre 2026.
 
 **Metodo e percorsi, concordati il 6 ottobre 2026.** Il prototipo si costruisce per
 giri, ciascuno con preparazione, piano approvato, sviluppo, review con l'utente e
@@ -1374,6 +1424,14 @@ accanto ai campi, avviso di conflitto fra curatori e richiesta di salvare uscend
 varietà degli ingredienti in testo libero con consigli; versione precedente aperta
 com'era con «Ripristina»; versione dei pasti passati (R1). Il percorso consigliato per
 la curatela resta MCP. Dettagli in `design/percorsi.md`.
+
+**Sesto giro approvato il 7 ottobre 2026:** MCP e Amministrazione dell'app, senza
+agente simulato. «Collega un agente» nel Profilo con indirizzo, client a fisarmonica,
+accesso, esempi e agenti collegati; schermata di autorizzazione nel browser.
+Amministrazione dal Profilo in una pagina con utenti e ruoli, inviti all'app con ruoli
+facoltativi e backup del ricettario con anteprima del ripristino; cancellazione di un
+utente sulla stessa pagina della cancellazione dell'account. Dettagli in
+`design/percorsi.md`. Tutti i percorsi del prototipo sono stati rivisti.
 
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
@@ -1466,14 +1524,14 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale. Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2) | Sezione 7 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Momento della conferma del curatore nel percorso MCP. Decisi nel quinto giro i campi obbligatori per pubblicare, anche per tipo di fonte (sezione 8) | Sezioni 8, 11 e 12 |
-| Backup e ripristino | Backup dell'intero catalogo: frequenza e conservazione, perdita di lavoro tollerata, procedura di recupero e destino delle ricette successive al backup (review R1, percorso 8). Deciso nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati | Sezioni 2, 8, 9 e 13 |
+| Backup e ripristino | Backup dell'intero catalogo: frequenza e conservazione (nel prototipo giornalieri per 7 giorni e settimanali per 4, dimostrativi), perdita di lavoro tollerata e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima, copia prima del ripristino) | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
-| MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
-| Prototipo | Flussi, stati e componenti di ciascun percorso, da chiudere giro per giro; linguaggio visivo, metodo, ordine dei percorsi e architettura del prototipo già concordati (`design/percorsi.md`) | Sezione 14 |
+| MCP | Verifica dei quattro client scelti (comandi d'esempio nel sesto giro, ChatGPT da verificare), meccanismo di autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app | Sezioni 1 e 13 |
+| Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); restano la disposizione delle lingue nel modulo della ricetta (variante ancora nel pannello Prova) e la verifica dell'architettura risultante prima dei nuovi piani (`design/percorsi.md`) | Sezione 14 |
 | Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
 | Calendario | Fuso orario della famiglia (istante in cui un pasto diventa passato confermato nella sezione 5); generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
@@ -1502,6 +1560,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, terzo giro del prototipo approvato | Spesa: una lista per settimana con tutti i pasti, aperta dal Menu, senza scelta dei pasti, altre liste o archivio; persistente e condivisa, con spunte che valgono per "ce l'ho già" e "comprato", voci libere e modifica offline con coda locale; quantità che seguono i pasti, pezzi interi, unità di acquisto e tazze USA tramite equivalenze per ingrediente; voci distinte solo per prodotti diversi; esportazioni nel menu "…". Tolta la scorciatoia "solo quelli non ancora in lista" |
 | 6 ottobre 2026, quarto giro del prototipo approvato | Famiglia e account: rientro dopo la rimozione solo con un link nuovo (R2); impostazioni tutte visibili tranne i pesi, con «Avanzate» e regole a modelli; wizard minimo (nome e unità) e prima generazione da oggi a domenica più la settimana successiva dopo mercoledì alle 20:00; vista «Tu» rinominata «Profilo», con cambio di famiglia; pagine dedicate per eliminare la famiglia e cancellare l'account con conferma a pulsante; pulsanti rossi per le azioni irreversibili; i suggerimenti rispettano le impostazioni della famiglia |
 | 7 ottobre 2026, quinto giro del prototipo approvato | Curatela: pasti passati sulla versione con cui sono stati mangiati, oggi e futuri sulla corrente (R1); modifica tramite bozza di revisione; conflitti fra curatori rifiutati e risolti consapevolmente; archiviazione reversibile; ripristino di una versione aperta com'era, senza confronto; pubblicazione in un passo senza verifica esplicita; campi obbligatori per tipo di fonte; varietà degli ingredienti in testo libero con confronto normalizzato e consigli, istruzioni per l'agente; caricamento da file escluso per ora; avviso della versione solo ai curatori; percorso MCP consigliato rispetto al modulo |
+| 7 ottobre 2026, sesto giro del prototipo approvato | MCP e Amministrazione dell'app: nessun agente simulato; pagina «Collega un agente» senza introduzione, con client a fisarmonica, comandi d'esempio verificati e agenti collegati da scollegare; schermata di autorizzazione nel browser; amministrazione dal Profilo con utenti e ruoli (conferma per nominare amministratori, ultimo amministratore bloccato, famiglie solo per nome e ruolo), cancellazione di un utente con le regole dell'account; inviti all'app per un'email con ruoli facoltativi, 7 giorni, uso singolo e revoca, senza ingresso in famiglie; ripristino dell'intero catalogo come nuova versione con archiviazione delle ricette successive, anteprima e copia prima del ripristino |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
@@ -1539,8 +1598,11 @@ il destino delle ricette successive al backup e l'ambito delle dipendenze ripris
 pasti passati usano la versione in vigore quando sono diventati passati, oggi e i pasti
 futuri la corrente (sezione 5); il ripristino di una ricetta riporta solo i suoi campi e
 le sue righe, non le entità condivise, e si rifiuta se non supera i controlli di oggi
-(sezione 8). Resta aperto il ripristino dell'intero catalogo da backup (ricette
-successive al backup), da chiudere con il percorso Amministrazione dell'app.
+(sezione 8). **Decisione del 7 ottobre 2026 (sesto giro), per l'intero catalogo:** le
+ricette del backup sono ripubblicate come nuova versione e quelle successive al backup
+archiviate, con i pasti che restano leggibili; le entità condivise (ingredienti)
+tornano come nel backup, quelle nate dopo restano; anteprima e copia «Prima del
+ripristino» (sezione 8).
 
 **R2 — Impatto alto sul controllo degli accessi: rientro dopo rimozione.**
 Sezione 7. Gli inviti familiari sono riutilizzabili per sette giorni: secondo il flusso

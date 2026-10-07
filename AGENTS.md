@@ -64,8 +64,10 @@ della decisione di prodotto, non una fonte parallela di requisiti.
   architettura del prototipo: **leggi `design/percorsi.md`** prima di lavorare al
   prototipo e aggiornalo a ogni cambio di stato. Il primo giro (Fondamenta, Menu,
   Ricettario e voti), il secondo (Revisione dei pasti), il terzo (Spesa) e il quarto
-  (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Curatela) il
-  7 ottobre; il prossimo è MCP (percorso 7), da preparare e pianificare.
+  (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Curatela) e
+  il sesto (MCP e Amministrazione dell'app) il 7 ottobre: tutti i percorsi sono stati
+  rivisti. Restano la disposizione delle lingue nel modulo della ricetta e la verifica
+  dell'architettura prima della revisione dei piani.
   Il prototipo è in `prototype/`
   (istruzioni nel suo README).
 - Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
