@@ -16,6 +16,8 @@
 	// Entry pages (round 4): sign-in, the new family wizard and invitation links, without the navbar.
 	const path = $derived(page.url.pathname);
 	const isEntry = $derived(path.startsWith('/welcome') || path.startsWith('/invite/'));
+	// Round 6: the agent consent page needs a signed-in user but, like entry pages, has no navbar.
+	const hideNav = $derived(isEntry || path === '/authorize');
 	// Views that need a family; the "Tu" pages also work without one (preferences, account deletion).
 	const needsFamily = $derived(['/menu', '/recipes', '/shopping'].some((p) => path === p || path.startsWith(`${p}/`)));
 	const redirect = $derived(
@@ -36,7 +38,7 @@
 <div class="shell">
 	<OfflineBanner />
 	<main class="app-content" id="app-content" tabindex="-1">{#if !redirect}{@render children()}{/if}</main>
-	{#if app.signedIn && !isEntry}<BottomNav />{/if}
+	{#if app.signedIn && !hideNav}<BottomNav />{/if}
 </div>
 <UndoToast />
 <DevPanel />

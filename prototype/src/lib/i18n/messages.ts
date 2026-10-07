@@ -1,15 +1,16 @@
+import { enAdmin, itAdmin } from './messages-admin';
 import { enCuration, itCuration } from './messages-curation';
 import { enFamily, itFamily } from './messages-family';
 
 const it = {
 	...itFamily,
 	...itCuration,
+	...itAdmin,
 	skip: 'Vai al contenuto',
 	'nav.main': 'Navigazione principale',
 	'nav.menu': 'Menu',
 	'nav.recipes': 'Ricettario',
 	'nav.profile': 'Profilo',
-	'common.comingSoon': 'Disponibile in un prossimo giro del prototipo',
 	'common.back': 'Indietro',
 	'common.close': 'Chiudi',
 	'offline.banner': 'Sei offline: puoi consultare i dati già caricati, le modifiche non sono disponibili.',
@@ -151,10 +152,8 @@ const it = {
 	'profile.families': 'Le tue famiglie',
 	'profile.role.family_admin': 'Amministratore',
 	'profile.role.member': 'Membro',
-	'profile.next': 'In arrivo',
 	'profile.dest.curation': 'Curatela del ricettario',
 	'profile.dest.admin': 'Amministrazione dell’app',
-	'profile.dest.mcp': 'Collega il tuo agente (MCP)',
 	'dev.open': 'Prova',
 	'dev.title': 'Strumenti di prova',
 	'dev.disclaimer': 'Non fanno parte dell’app: servono a provare scenari e ruoli.',
@@ -222,12 +221,12 @@ export type MessageKey = keyof typeof it;
 const en: Record<MessageKey, string> = {
 	...enFamily,
 	...enCuration,
+	...enAdmin,
 	skip: 'Skip to content',
 	'nav.main': 'Main navigation',
 	'nav.menu': 'Menu',
 	'nav.recipes': 'Recipes',
 	'nav.profile': 'Profile',
-	'common.comingSoon': 'Coming in a later round of the prototype',
 	'common.back': 'Back',
 	'common.close': 'Close',
 	'offline.banner': 'You are offline: you can browse what is already loaded, but changes are unavailable.',
@@ -369,10 +368,8 @@ const en: Record<MessageKey, string> = {
 	'profile.families': 'Your families',
 	'profile.role.family_admin': 'Administrator',
 	'profile.role.member': 'Member',
-	'profile.next': 'Coming soon',
 	'profile.dest.curation': 'Recipe curation',
 	'profile.dest.admin': 'App administration',
-	'profile.dest.mcp': 'Connect your agent (MCP)',
 	'dev.open': 'Test',
 	'dev.title': 'Prototype tools',
 	'dev.disclaimer': 'Not part of the app: they let you try scenarios and roles.',

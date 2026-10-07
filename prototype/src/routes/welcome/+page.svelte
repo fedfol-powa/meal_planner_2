@@ -21,7 +21,7 @@
 	});
 
 	$effect(() => {
-		if (app.signedIn && (app.family || next?.startsWith('/invite/') || next?.startsWith('/profile'))) goto(next ?? '/menu', { replaceState: true });
+		if (app.signedIn && (app.family || next?.startsWith('/invite/') || next?.startsWith('/profile') || next?.startsWith('/authorize') || next?.startsWith('/admin'))) goto(next ?? '/menu', { replaceState: true });
 	});
 
 	function sendLink(event: SubmitEvent) {

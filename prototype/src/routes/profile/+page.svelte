@@ -1,19 +1,15 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
-	import type { MessageKey } from '#lib/i18n/messages.ts';
 
 	const families = $derived(app.db.families.filter((f) => f.members.some((m) => m.userId === app.user.id)));
 	const exclusions = $derived(app.family ? app.db.exclusions.filter((e) => e.familyId === app.family!.id).length : 0);
 	const roleOf = (familyId: string) => families.find((f) => f.id === familyId)?.members.find((m) => m.userId === app.user.id)?.role ?? 'member';
 	const curator = $derived(app.user.globalRoles.includes('recipe_curator'));
 	const drafts = $derived(curator ? app.db.recipeDrafts.length : 0);
-	// Later routes of the prototype (percorsi 7-8).
-	const upcoming = $derived(
-		[
-			['profile.dest.admin', app.user.globalRoles.includes('app_admin')],
-			['profile.dest.mcp', true]
-		].filter(([, visible]) => visible).map(([key]) => key as MessageKey)
-	);
+	const agents = $derived(app.db.connectedAgents.filter((a) => a.userId === app.user.id).length);
+	// Round 6: app administration, only for app_admin.
+	const admin = $derived(app.user.globalRoles.includes('app_admin'));
+	const pendingInvitations = $derived(app.db.appInvitations.filter((i) => i.status === 'pending' && i.expiresAt > app.settings.now).length);
 </script>
 
 <section class="secondary-view app-view you" aria-labelledby="you-title">
@@ -52,6 +48,7 @@
 			<h2 id="account-title">{app.t('profile.account')}</h2>
 			<ul class="row-list">
 				<li><a class="row-link" href="/profile/preferences"><svg class="icon" aria-hidden="true"><use href="#icon-user" /></svg><span class="row-main">{app.t('profile.preferences')}<small>{app.t('profile.preferencesHint')}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+				<li><a class="row-link" href="/profile/agents"><svg class="icon" aria-hidden="true"><use href="#icon-link" /></svg><span class="row-main">{app.t('profile.agents')}<small>{agents ? app.t('profile.agentsCount', { count: agents }) : app.t('profile.agentsHint')}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
 			</ul>
 		</section>
 
@@ -66,12 +63,16 @@
 			</section>
 		{/if}
 
-		<section class="settings-card" aria-labelledby="next-title">
-			<h2 id="next-title">{app.t('profile.next')}</h2>
-			<ul class="row-list">
-				{#each upcoming as key (key)}<li><span class="row-main">{app.t(key)}<small>{app.t('common.comingSoon')}</small></span></li>{/each}
-			</ul>
-		</section>
+		{#if admin}
+			<section class="settings-card" aria-labelledby="admin-title">
+				<h2 id="admin-title">{app.t('profile.dest.admin')}</h2>
+				<ul class="row-list">
+					<li><a class="row-link" href="/admin#users"><svg class="icon" aria-hidden="true"><use href="#icon-users" /></svg><span class="row-main">{app.t('profile.admin.users')}<small>{app.t('profile.admin.usersCount', { count: app.db.users.length })}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+					<li><a class="row-link" href="/admin#invitations"><svg class="icon" aria-hidden="true"><use href="#icon-plus" /></svg><span class="row-main">{app.t('profile.admin.invitations')}<small>{app.t('profile.admin.invitationsCount', { count: pendingInvitations })}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+					<li><a class="row-link" href="/admin#backups"><svg class="icon" aria-hidden="true"><use href="#icon-book" /></svg><span class="row-main">{app.t('profile.admin.backups')}</span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+				</ul>
+			</section>
+		{/if}
 	</div>
 </section>
 

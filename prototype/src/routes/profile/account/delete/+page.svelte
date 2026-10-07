@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import ConfirmDanger from '#lib/components/ConfirmDanger.svelte';
+	import DeletionFamilies from '#lib/components/DeletionFamilies.svelte';
 	import PageHeader from '#lib/components/PageHeader.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
 	import { errorKey } from '#lib/i18n/errors.ts';
@@ -31,23 +32,7 @@
 			{#if p.lastAppAdmin}
 				<StateNotice title={app.t('account.lastAppAdmin')} body={app.t('account.lastAppAdminBody')} />
 			{/if}
-			{#if p.families.length}
-				<h2 class="section-title">{app.t('account.families')}</h2>
-				{#each p.families as f (f.familyId)}
-					<section class="settings-card" aria-label={f.name}>
-						<h3>{f.name}</h3>
-						<p>{app.t(`account.outcome.${f.outcome}` as const)}</p>
-						{#if f.outcome === 'needs_successor'}
-							<fieldset>
-								<legend>{app.t('account.chooseSuccessor')}</legend>
-								{#each f.candidates as c (c.userId)}
-									<label class="choice"><input type="radio" name="successor-{f.familyId}" value={c.userId} bind:group={successors[f.familyId]} />{c.name}</label>
-								{/each}
-							</fieldset>
-						{/if}
-					</section>
-				{/each}
-			{/if}
+			<DeletionFamilies title={app.t('account.families')} families={p.families} outcome={(o) => app.t(`account.outcome.${o}` as const)} bind:successors />
 			<section class="settings-card">
 				<h3>{app.t('account.whatGoes')}</h3>
 				<p>{app.t('account.whatGoesBody')}</p>
@@ -60,8 +45,5 @@
 </section>
 
 <style>
-	.section-title { margin: 8px 0 12px; font: 400 1.25rem/1.3 var(--heading-font); }
 	h3 { margin: 0 0 6px; font: 400 1.125rem/1.3 var(--meal-title-font); }
-	fieldset { margin: 8px 0 0; padding: 0; border: 0; }
-	legend { margin-bottom: 4px; font-size: 0.875rem; font-weight: 700; }
 </style>

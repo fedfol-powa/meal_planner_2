@@ -3,7 +3,7 @@
 	import { app } from '#lib/store/app.svelte.ts';
 
 	// Fallback when Web Share is unavailable (http on the LAN preview): the link to copy, as in the shopping list.
-	let { url, onClose }: { url: string | null; onClose: () => void } = $props();
+	let { url, onClose, title, body }: { url: string | null; onClose: () => void; title?: string; body?: string } = $props();
 	let copied = $state(false);
 	let input: HTMLInputElement | undefined = $state();
 
@@ -21,8 +21,8 @@
 	});
 </script>
 
-<BottomSheet open={url !== null} title={app.t('invite.shareSheet.title')} {onClose}>
-	<p class="meta-line">{app.t('invite.shareSheet.body')}</p>
+<BottomSheet open={url !== null} title={title ?? app.t('invite.shareSheet.title')} {onClose}>
+	<p class="meta-line">{body ?? app.t('invite.shareSheet.body')}</p>
 	<input bind:this={input} class="link" readonly value={url ?? ''} aria-label={app.t('invite.link')} />
 	<button type="button" class="text-button primary wide" onclick={copy}>{copied ? app.t('shopping.copied') : app.t('shopping.copy')}</button>
 </BottomSheet>

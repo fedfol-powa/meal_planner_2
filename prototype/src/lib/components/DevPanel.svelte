@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { app } from '#lib/store/app.svelte.ts';
-	import { LOCALES, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
+	import { AGENT_CLIENTS, LOCALES, type AgentClient, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
 	import { goto } from '$app/navigation';
 	import { SCENARIOS, type ScenarioId } from '#lib/store/persistence.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
@@ -76,6 +76,9 @@
 		goto(path);
 	}
 	let inviteToken = $state('');
+	// Round 6: an agent opening the consent page, and the demo app invitation.
+	let agentClient = $state<AgentClient>('claude_code');
+	let appInviteToken = $state('app-chiara1');
 	const invitationLabel = (token: string) => {
 		const inv = app.db.invitations.find((i) => i.token === token)!;
 		const family = app.db.families.find((f) => f.id === inv.familyId)?.name ?? '';
@@ -141,6 +144,22 @@
 		</label>
 		<button type="button" class="text-button" disabled={!inviteToken} onclick={() => openLink(`/invite/${inviteToken}`)}>{app.t('dev.open.link')}</button>
 	</div>
+	<div class="row">
+		<label>{app.t('dev.agentRequest')}
+			<select bind:value={agentClient}>
+				{#each AGENT_CLIENTS as client (client)}<option value={client}>{app.t(`client.${client}` as const)}</option>{/each}
+			</select>
+		</label>
+		<button type="button" class="text-button" onclick={() => openLink(`/authorize?client=${agentClient}`)}>{app.t('dev.open.link')}</button>
+	</div>
+	<div class="row">
+		<label>{app.t('dev.appInvite')}
+			<select bind:value={appInviteToken}>
+				{#each app.db.appInvitations as inv (inv.token)}<option value={inv.token}>{inv.email} · {inv.token}</option>{/each}
+			</select>
+		</label>
+		<button type="button" class="text-button" disabled={!appInviteToken} onclick={() => openLink(`/invite/app/${appInviteToken}`)}>{app.t('dev.open.link')}</button>
+	</div>
 	{#if app.family}
 		<button type="button" class="text-button" onclick={() => openLink(`/profile/family/delete?family=${app.family!.id}`)}>{app.t('dev.deleteLink')}</button>
 	{/if}
@@ -154,6 +173,12 @@
 		<select value={app.settings.variants.formLanguages} onchange={(e) => setVariant('formLanguages', e.currentTarget.value as PrototypeVariants['formLanguages'])}>
 			<option value="stacked">{app.t('dev.variant.formLanguages.stacked')}</option>
 			<option value="switch">{app.t('dev.variant.formLanguages.switch')}</option>
+		</select>
+	</label>
+	<label>{app.t('dev.variant.agentClients')}
+		<select value={app.settings.variants.agentClients} onchange={(e) => setVariant('agentClients', e.currentTarget.value as PrototypeVariants['agentClients'])}>
+			<option value="tabs">{app.t('dev.variant.tabs')}</option>
+			<option value="accordion">{app.t('dev.variant.accordion')}</option>
 		</select>
 	</label>
 	<label class="check"><input type="checkbox" checked={app.settings.offline} onchange={(e) => { const offline = e.currentTarget.checked; app.update((s) => (s.settings.offline = offline)); }} />{app.t('dev.offline')}</label>
