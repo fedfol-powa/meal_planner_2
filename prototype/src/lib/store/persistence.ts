@@ -14,16 +14,15 @@ export interface PrototypeSettings {
 	now: LocalDateTime;
 	offline: boolean;
 	scenario: ScenarioId;
-	/** Round 5 variants, chosen in the review: recipe form on one page or in steps, languages stacked or switched. */
+	/** Round 5 variant still open: languages in the recipe form stacked or switched. */
 	variants: PrototypeVariants;
 }
 
 export interface PrototypeVariants {
-	recipeForm: 'sections' | 'steps';
 	formLanguages: 'stacked' | 'switch';
 }
 
-export const DEFAULT_VARIANTS: PrototypeVariants = { recipeForm: 'sections', formLanguages: 'stacked' };
+export const DEFAULT_VARIANTS: PrototypeVariants = { formLanguages: 'stacked' };
 
 export interface Persisted {
 	version: 21;
@@ -70,7 +69,6 @@ function isPersisted(value: unknown): value is Persisted {
 		(LOCALES as readonly string[]).includes(s.guestLocale) &&
 		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
-		['sections', 'steps'].includes(s.variants?.recipeForm) &&
 		['stacked', 'switch'].includes(s.variants?.formLanguages) &&
 		Array.isArray(v.db.invitations) &&
 		Array.isArray(v.db.removals) &&

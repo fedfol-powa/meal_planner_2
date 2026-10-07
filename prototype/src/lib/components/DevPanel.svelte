@@ -150,12 +150,6 @@
 	{#if otherTick}<p class="meta-line" role="status">{otherTick}</p>{/if}
 	<button type="button" class="text-button" onclick={simulateOtherSave}>{app.t('dev.otherSave')}</button>
 	{#if otherSave}<p class="meta-line" role="status">{otherSave}</p>{/if}
-	<label>{app.t('dev.variant.recipeForm')}
-		<select value={app.settings.variants.recipeForm} onchange={(e) => setVariant('recipeForm', e.currentTarget.value as PrototypeVariants['recipeForm'])}>
-			<option value="sections">{app.t('dev.variant.recipeForm.sections')}</option>
-			<option value="steps">{app.t('dev.variant.recipeForm.steps')}</option>
-		</select>
-	</label>
 	<label>{app.t('dev.variant.formLanguages')}
 		<select value={app.settings.variants.formLanguages} onchange={(e) => setVariant('formLanguages', e.currentTarget.value as PrototypeVariants['formLanguages'])}>
 			<option value="stacked">{app.t('dev.variant.formLanguages.stacked')}</option>

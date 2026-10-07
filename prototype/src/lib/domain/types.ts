@@ -129,8 +129,6 @@ export interface RecipeDraft {
 	updatedAt: LocalDateTime;
 	/** Grows at every save: a save based on an older revision is a conflict. */
 	revision: number;
-	/** Revision that passed the full check; publishing needs it equal to revision. */
-	verifiedRevision: number | null;
 	history: DraftRevision[];
 }
 

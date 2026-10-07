@@ -158,13 +158,13 @@ const IMPORTED_AT = '2026-09-29T10:00';
 function draftOf(recipeId: string, kind: RecipeDraft['kind'], content: RecipeContent, by: string, at: string, baseVersion: number | null): RecipeDraft {
 	return {
 		id: `draft-${recipeId}`, recipeId, kind, baseVersion, content, createdBy: by, createdAt: at, updatedBy: by, updatedAt: at,
-		revision: 1, verifiedRevision: null, history: [{ revision: 1, content: structuredClone(content), savedBy: by, savedAt: at }]
+		revision: 1, history: [{ revision: 1, content: structuredClone(content), savedBy: by, savedAt: at }]
 	};
 }
 
 // Round 5, invented for the prototype (dimostrativo): version 1 of every published recipe at the import,
 // a second version of the horse burgers by Lucia (review R1: past meals keep version 1), the imported
-// drafts, a half-done new draft and a verified revision by Lucia, one archived recipe.
+// drafts, a half-done new draft and a complete revision by Lucia, one archived recipe.
 function addDemoCuration(db: DemoDatabase) {
 	for (const recipe of db.recipes.filter((r) => r.status === 'published'))
 		db.recipeVersions.push({ recipeId: recipe.id, version: 1, content: contentOf(recipe), publishedBy: 'user-federico', publishedAt: `${recipe.addedOn}T09:00`, restoredFrom: null });
@@ -208,7 +208,6 @@ function addDemoCuration(db: DemoDatabase) {
 		};
 		const revision = draftOf(omelette.id, 'revision', content, 'user-lucia', '2026-10-06T09:15', omelette.version);
 		revision.id = `revision-${omelette.id}`;
-		revision.verifiedRevision = 1;
 		db.recipeDrafts.push(revision);
 	}
 

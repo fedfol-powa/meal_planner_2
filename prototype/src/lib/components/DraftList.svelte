@@ -4,7 +4,7 @@
 	import { app } from '#lib/store/app.svelte.ts';
 
 	// Drafts at the top of the catalogue as cards (chosen on iPhone, round 5): kind, title, who and when,
-	// what is still missing.
+	// what is still missing (nothing when complete: no "verified" label, round 5 review).
 	let { drafts }: { drafts: DraftSummary[] } = $props();
 
 	const shortDate = (at: string) =>
@@ -18,13 +18,9 @@
 	</span>
 	<span class="title">{draft.name}</span>
 	<span class="state">
-		{#if draft.verified}
-			<span class="ready"><svg class="icon" aria-hidden="true"><use href="#icon-check" /></svg>{app.t('curation.ready')}</span>
-		{:else if draft.missing.length}
+		{#if draft.missing.length}
 			<span class="visually-hidden">{app.t('curation.missingPrefix')}</span>
 			{#each draft.missing as m (m)}<span class="missing">{app.t(`curation.missingShort.${m}` as MessageKey)}</span>{/each}
-		{:else}
-			<span class="missing">{app.t('curation.toVerify')}</span>
 		{/if}
 	</span>
 {/snippet}
@@ -44,8 +40,6 @@
 	.title { font: 400 1.0625rem/1.3 var(--meal-title-font); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 	.state { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
 	.missing { padding: 2px 8px; border: 1px solid var(--rule); border-radius: 4px; color: var(--body-text); font-size: 0.75rem; line-height: 1.5; }
-	.ready { display: inline-flex; align-items: center; gap: 4px; color: var(--green); font-size: 0.8125rem; font-weight: 700; }
-	.ready .icon { width: 16px; height: 16px; }
 
 	.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 	@media (max-width: 767px) { .cards { grid-template-columns: minmax(0, 1fr); gap: 12px; } }

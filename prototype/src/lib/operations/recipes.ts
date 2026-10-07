@@ -52,7 +52,7 @@ export interface RecipeDetail {
 	rating: RatingSummary;
 	history: { date: IsoDate; mealType: MealType }[];
 	measurementSystem: MeasurementSystem;
-	/** Opened from a past meal eaten with an older version (review R1): that version is shown. */
+	/** Curators only: opened from a past meal eaten with an older version (review R1), which is shown. */
 	shownVersion: { version: number; current: number } | null;
 	/** Curators only (round 5): status, version and the draft open on the recipe. */
 	curation: { status: RecipeStatus; version: number; archivedByName: string | null; archivedAt: LocalDateTime | null; draftId: string | null } | null;
@@ -116,7 +116,8 @@ export function getRecipeDetail(db: DemoDatabase, ctx: OperationContext, recipeI
 	const slot = slotId ? db.weeks.filter((w) => w.familyId === family.id).flatMap((w) => w.slots).find((s) => s.id === slotId && s.recipeId === recipeId) : undefined;
 	const inForce = slot ? versionForSlot(db, slot, ctx.now) : null;
 	const recipe = inForce && inForce.version !== current.version ? { ...current, ...plainCopy(inForce.content) } : current;
-	const shownVersion = recipe !== current && inForce ? { version: inForce.version, current: current.version } : null;
+	// Every member sees the version eaten; only curators are told about versions (round 5 review).
+	const shownVersion = curator && recipe !== current && inForce ? { version: inForce.version, current: current.version } : null;
 	const openDraft = curator ? db.recipeDrafts.find((d) => d.recipeId === recipeId) ?? null : null;
 	const locale = localeOf(db, ctx);
 	const base = recipe.baseServings;

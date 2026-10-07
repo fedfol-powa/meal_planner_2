@@ -1,4 +1,4 @@
-import { cleanVariety, knownVarieties, lineKey, normalizeVariety, varietyHints, withVariety, type VarietyHint } from '#lib/domain/ingredient-variety.ts';
+import { cleanVariety, knownVarieties, normalizeVariety, varietyHints, type VarietyHint } from '#lib/domain/ingredient-variety.ts';
 import { changedFields, contentOf, plainCopy } from '#lib/domain/recipe-content.ts';
 import { summarize, validateForPublish, validateForSave, type MissingData, type ValidationIssue } from '#lib/domain/recipe-validation.ts';
 import {
@@ -13,9 +13,8 @@ import {
 	type RecipeDraft,
 	type Translated
 } from '#lib/domain/types.ts';
-import { translate } from '#lib/i18n/translate.ts';
-import { formatQuantity } from '#lib/units/format.ts';
-import { isCurator, localeOf, localized } from './access';
+import { isCurator, localeOf, localized, recipeSummary, scaledIngredients } from './access';
+import type { RecipeSummary, ScaledIngredient } from './views';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { normalizeForSearch } from './recipes';
 
@@ -49,7 +48,6 @@ export interface DraftSummary {
 	updatedByName: string;
 	updatedAt: LocalDateTime;
 	missing: MissingData[];
-	verified: boolean;
 }
 
 export interface ArchivedSummary {
@@ -75,8 +73,7 @@ export function getCurationOverview(db: DemoDatabase, ctx: OperationContext, tex
 			createdByName: userName(db, d.createdBy),
 			updatedByName: userName(db, d.updatedBy),
 			updatedAt: d.updatedAt,
-			missing: summarize(validateForPublish(db, d.content)),
-			verified: d.verifiedRevision === d.revision
+			missing: summarize(validateForPublish(db, d.content))
 		}))
 		.filter((d) => matches(d.name))
 		.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.name.localeCompare(b.name, locale));
@@ -96,7 +93,6 @@ export interface DraftDetail {
 	updatedByName: string;
 	/** Published version a revision works on (it may have moved on since the revision started). */
 	publishedVersion: number | null;
-	verified: boolean;
 	/** A new recipe already cited by meals cannot be deleted. */
 	canDiscard: boolean;
 }
@@ -113,7 +109,6 @@ export function getDraft(db: DemoDatabase, ctx: OperationContext, draftId: strin
 		createdByName: userName(db, draft.createdBy),
 		updatedByName: userName(db, draft.updatedBy),
 		publishedVersion: draft.kind === 'revision' ? recipe?.version ?? null : null,
-		verified: draft.verifiedRevision === draft.revision,
 		canDiscard: draft.kind === 'revision' || !usedByMeals(db, draft.recipeId)
 	});
 }
@@ -177,7 +172,7 @@ export function createDraft(db: DemoDatabase, ctx: OperationContext, input: Reci
 	const draftId = `draft-${recipeId}`;
 	db.recipeDrafts.push({
 		id: draftId, recipeId, kind: 'new', baseVersion: null, content: copy, createdBy: ctx.userId, createdAt: ctx.now,
-		updatedBy: ctx.userId, updatedAt: ctx.now, revision: 1, verifiedRevision: null,
+		updatedBy: ctx.userId, updatedAt: ctx.now, revision: 1,
 		history: [{ revision: 1, content: contentOf(copy), savedBy: ctx.userId, savedAt: ctx.now }]
 	});
 	return ok({ status: 'created', draftId });
@@ -196,7 +191,7 @@ export function startRevision(db: DemoDatabase, ctx: OperationContext, recipeId:
 	const draftId = uniqueId(`revision-${recipeId}`, (id) => db.recipeDrafts.some((d) => d.id === id));
 	db.recipeDrafts.push({
 		id: draftId, recipeId, kind: 'revision', baseVersion: recipe.version, content, createdBy: ctx.userId, createdAt: ctx.now,
-		updatedBy: ctx.userId, updatedAt: ctx.now, revision: 1, verifiedRevision: null,
+		updatedBy: ctx.userId, updatedAt: ctx.now, revision: 1,
 		history: [{ revision: 1, content: contentOf(content), savedBy: ctx.userId, savedAt: ctx.now }]
 	});
 	return ok({ draftId });
@@ -245,14 +240,11 @@ export function saveDraft(db: DemoDatabase, ctx: OperationContext, draftId: stri
 	return ok({ status: 'saved', revision: draft.revision });
 }
 
-/** Full check of the saved revision; when it passes, the revision can be published. */
-export function verifyDraft(db: DemoDatabase, ctx: OperationContext, draftId: string): OpResult<{ issues: ValidationIssue[]; revision: number }> {
-	const found = findDraft(db, ctx, draftId, true);
+/** The full publication check on the saved draft, without publishing (MCP asks it before proposing). */
+export function checkDraft(db: DemoDatabase, ctx: OperationContext, draftId: string): OpResult<{ issues: ValidationIssue[]; revision: number }> {
+	const found = findDraft(db, ctx, draftId, false);
 	if (!found.ok) return fail(found.error);
-	const draft = found.value;
-	const issues = validateForPublish(db, draft.content);
-	draft.verifiedRevision = issues.length ? null : draft.revision;
-	return ok({ issues, revision: draft.revision });
+	return ok({ issues: validateForPublish(db, found.value.content), revision: found.value.revision });
 }
 
 export type PublishOutcome =
@@ -261,17 +253,13 @@ export type PublishOutcome =
 	/** The recipe got a newer version after the revision started: publishing would silently replace it. */
 	| { status: 'stale'; byName: string; at: LocalDateTime; version: number };
 
-/** Publishes a verified draft: the checks run again; a revision becomes the next version. */
+/** Publishes a draft when it passes the full check (no separate verification step); a revision becomes the next version. */
 export function publishDraft(db: DemoDatabase, ctx: OperationContext, draftId: string, overwrite = false): OpResult<PublishOutcome> {
 	const found = findDraft(db, ctx, draftId, true);
 	if (!found.ok) return fail(found.error);
 	const draft = found.value;
-	if (draft.verifiedRevision !== draft.revision) return fail('not_allowed');
 	const issues = validateForPublish(db, draft.content);
-	if (issues.length) {
-		draft.verifiedRevision = null;
-		return ok({ status: 'invalid', issues });
-	}
+	if (issues.length) return ok({ status: 'invalid', issues });
 	const recipe = db.recipes.find((r) => r.id === draft.recipeId);
 	if (!recipe) return fail('not_found');
 	if (draft.kind === 'revision' && recipe.version !== draft.baseVersion && !overwrite) {
@@ -391,82 +379,34 @@ export function getRecipeVersions(db: DemoDatabase, ctx: OperationContext, recip
 	});
 }
 
-export interface FieldChange {
-	field: Exclude<RecipeContentField, 'ingredients'>;
-	locale: Locale | null;
-	before: string;
-	after: string;
-}
-
-export interface IngredientChange {
-	name: string;
-	/** null when the line is not in that version. */
-	before: string | null;
-	after: string | null;
-}
-
-export interface VersionComparison extends VersionItem {
-	name: string;
+export interface VersionView extends VersionItem {
 	current: number;
-	/** From the chosen version to the current one. */
-	fields: FieldChange[];
-	ingredients: IngredientChange[];
-	/** Today's publication check on the chosen version: a restore needs it empty. */
+	/** The recipe as it was in that version, at its source servings. */
+	recipe: RecipeSummary;
+	baseServings: number | null;
+	ingredients: ScaledIngredient[];
+	/** Today's publication check on that version: a restore needs it empty. */
 	issues: ValidationIssue[];
 }
 
-function describe(content: RecipeContent, field: Exclude<RecipeContentField, 'ingredients' | 'name' | 'description'>, db: DemoDatabase, locale: Locale): string {
-	const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
-	switch (field) {
-		case 'sourceType': return t(`curation.source.${content.sourceType}`);
-		case 'sourceUrl': return content.sourceUrl ?? '—';
-		case 'bookId': return db.books.find((b) => b.id === content.bookId)?.title ?? '—';
-		case 'bookPages': return content.bookPages ?? '—';
-		case 'durationMinutes': return content.durationMinutes ? t('meal.minutes', { count: content.durationMinutes }) : '—';
-		case 'baseServings': return content.baseServings ? String(content.baseServings) : '—';
-		case 'mealType': return t(`curation.mealType.${content.mealType}`);
-		case 'proteinGroup': return content.proteinGroup ? t(`group.${content.proteinGroup}`) : '—';
-	}
-}
-
-function lineText(db: DemoDatabase, line: RecipeContent['ingredients'][number], locale: Locale): string {
-	const text = line.quantity.kind === 'text' && line.text ? localized(line.text, locale).text : line.sourceText;
-	const quantity = formatQuantity(line.quantity, text, 'metric', locale);
-	return line.isOptional ? `${quantity} (${translate(locale, 'curation.optional')})` : quantity;
-}
-
-/** Changes from a version to the current one, field by field and line by line. */
-export function compareVersions(db: DemoDatabase, ctx: OperationContext, recipeId: string, version: number): OpResult<VersionComparison> {
+/** An older version, read only, with what a restore would need (round 5: no field-by-field comparison). */
+export function getRecipeVersion(db: DemoDatabase, ctx: OperationContext, recipeId: string, version: number): OpResult<VersionView> {
 	const listed = getRecipeVersions(db, ctx, recipeId);
 	if (!listed.ok) return fail(listed.error);
+	const item = listed.value.versions.find((v) => v.version === version);
 	const chosen = db.recipeVersions.find((v) => v.recipeId === recipeId && v.version === version);
+	if (!item || !chosen) return fail('not_found');
 	const recipe = db.recipes.find((r) => r.id === recipeId)!;
-	if (!chosen) return fail('not_found');
 	const locale = localeOf(db, ctx);
-	const before = chosen.content;
-	const after = contentOf(recipe);
-	const fields: FieldChange[] = [];
-	for (const field of changedFields(before, after)) {
-		if (field === 'ingredients') continue;
-		if (field === 'name' || field === 'description') {
-			for (const l of ['it-IT', 'en-GB'] as const)
-				if ((before[field][l] ?? '') !== (after[field][l] ?? '')) fields.push({ field, locale: l, before: before[field][l] || '—', after: after[field][l] || '—' });
-		} else fields.push({ field, locale: null, before: describe(before, field, db, locale), after: describe(after, field, db, locale) });
-	}
-	const lineName = (line: RecipeContent['ingredients'][number]) => {
-		const ingredient = db.ingredients.find((i) => i.id === line.ingredientId);
-		return withVariety(ingredient ? localized(ingredient.name, locale).text : line.ingredientId, line.variety ? localized(line.variety, locale).text : null);
-	};
-	const keys = [...new Set([...before.ingredients, ...after.ingredients].map(lineKey))];
-	const ingredients = keys
-		.map((key) => {
-			const b = before.ingredients.find((l) => lineKey(l) === key);
-			const a = after.ingredients.find((l) => lineKey(l) === key);
-			return { name: lineName((a ?? b)!), before: b ? lineText(db, b, locale) : null, after: a ? lineText(db, a, locale) : null };
-		})
-		.filter((c) => c.before !== c.after);
-	const item = listed.value.versions.find((v) => v.version === version)!;
-	return ok({ ...item, name: listed.value.name, current: recipe.version, fields, ingredients, issues: validateForPublish(db, before) });
+	const then = { ...recipe, ...plainCopy(chosen.content) };
+	return ok({
+		...item,
+		current: recipe.version,
+		recipe: recipeSummary(db, then, locale),
+		baseServings: then.baseServings,
+		ingredients: then.baseServings ? scaledIngredients(db, then, then.baseServings, locale) ?? [] : [],
+		issues: validateForPublish(db, chosen.content)
+	});
 }
 
 export type RestoreOutcome = { status: 'restored'; version: number } | { status: 'invalid'; issues: ValidationIssue[] };

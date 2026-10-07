@@ -6,7 +6,6 @@ import type { OperationContext } from './context';
 import {
 	archiveRecipe,
 	checkVariety,
-	compareVersions,
 	createDraft,
 	createIngredient,
 	discardDraft,
@@ -14,6 +13,7 @@ import {
 	getCurationOverview,
 	getDraft,
 	getIngredientVarieties,
+	getRecipeVersion,
 	getRecipeVersions,
 	publishDraft,
 	restoreVersion,
@@ -21,7 +21,7 @@ import {
 	searchCatalogueIngredients,
 	startRevision,
 	unarchiveRecipe,
-	verifyDraft
+	checkDraft
 } from './curation';
 import { getWeekView } from './meals';
 import { getRecipeDetail, searchRecipes } from './recipes';
@@ -60,10 +60,10 @@ describe('permissions', () => {
 });
 
 describe('overview', () => {
-	it('lists drafts, most recent first, with author, what is missing and the verified revision', () => {
+	it('lists drafts, most recent first, with author and what is missing', () => {
 		const { drafts, archived } = value(getCurationOverview(db, ctx()));
 		expect(drafts.map((d) => d.id).slice(0, 2)).toEqual(['revision-omelette-spinaci-montasio', 'draft-vellutata-zucca-ceci']);
-		expect(drafts[0]).toMatchObject({ kind: 'revision', createdByName: 'Lucia', verified: true, missing: [] });
+		expect(drafts[0]).toMatchObject({ kind: 'revision', createdByName: 'Lucia', missing: [] });
 		expect(drafts[1].missing).toEqual(['baseServings', 'translation']);
 		expect(drafts).toHaveLength(6);
 		expect(archived.map((a) => a.recipeId)).toEqual(['riso-curry-giappone']);
@@ -74,35 +74,25 @@ describe('overview', () => {
 });
 
 describe('new recipe', () => {
-	it('saves an incomplete draft, verifies, publishes into the catalogue', () => {
+	it('saves an incomplete draft and publishes it only when the full check passes', () => {
 		const partial = { ...soup(), baseServings: null };
 		const created = value(createDraft(db, ctx(), partial));
 		if (created.status !== 'created') throw new Error('not created');
 		expect(searchRecipes(db, ctx(), { text: 'zuppa di lenticchie' })).toEqual({ ok: true, value: [] });
 
-		expect(value(verifyDraft(db, ctx(), created.draftId)).issues).toEqual([{ field: 'baseServings', code: 'required' }]);
-		expect(publishDraft(db, ctx(), created.draftId)).toEqual({ ok: false, error: 'not_allowed' });
+		expect(value(checkDraft(db, ctx(), created.draftId)).issues).toEqual([{ field: 'baseServings', code: 'required' }]);
+		expect(value(publishDraft(db, ctx(), created.draftId))).toEqual({ status: 'invalid', issues: [{ field: 'baseServings', code: 'required' }] });
 
 		expect(value(saveDraft(db, ctx(), created.draftId, soup(), 1))).toEqual({ status: 'saved', revision: 2 });
-		expect(value(verifyDraft(db, ctx(), created.draftId)).issues).toEqual([]);
 		const published = value(publishDraft(db, ctx(), created.draftId));
 		expect(published).toEqual({ status: 'published', recipeId: 'zuppa-di-lenticchie', version: 1 });
 		expect(value(searchRecipes(db, ctx(), { text: 'zuppa di lenticchie' })).map((i) => i.recipe.id)).toEqual(['zuppa-di-lenticchie']);
 		expect(db.recipeDrafts.some((d) => d.id === created.draftId)).toBe(false);
 		expect(db.recipes.find((r) => r.id === 'zuppa-di-lenticchie')?.addedOn).toBe('2026-10-06');
 	});
-	it('invalidates the verification at every change', () => {
-		const draftId = 'draft-vellutata-zucca-ceci';
-		const content = contentOf(value(getDraft(db, lucia(), draftId)).draft.content);
-		content.baseServings = 4;
-		content.name['en-GB'] = 'Pumpkin and chickpea soup';
-		content.description['en-GB'] = 'Pumpkin and chickpeas blended with stock.';
-		value(saveDraft(db, lucia(), draftId, content, 1));
-		expect(value(verifyDraft(db, lucia(), draftId)).issues).toEqual([]);
-		content.durationMinutes = 30;
-		value(saveDraft(db, lucia(), draftId, content, 2));
-		expect(value(getDraft(db, lucia(), draftId)).verified).toBe(false);
-		expect(publishDraft(db, lucia(), draftId)).toEqual({ ok: false, error: 'not_allowed' });
+	it('checks a draft without publishing it', () => {
+		expect(value(checkDraft(db, lucia(), 'draft-vellutata-zucca-ceci')).issues.length).toBeGreaterThan(0);
+		expect(db.recipeDrafts.some((d) => d.id === 'draft-vellutata-zucca-ceci')).toBe(true);
 	});
 	it('refuses invalid data even in a draft', () => {
 		const outcome = value(createDraft(db, ctx(), { ...soup(), sourceUrl: 'nope' }));
@@ -143,7 +133,6 @@ describe('revision of a published recipe', () => {
 		content.name['it-IT'] = 'Pasta al tonno e limone';
 		value(saveDraft(db, ctx(), draftId, content, 1));
 		expect(value(getRecipeDetail(db, ctx(), 'pasta-tonno')).recipe.name).not.toBe('Pasta al tonno e limone');
-		value(verifyDraft(db, ctx(), draftId));
 		expect(value(publishDraft(db, ctx(), draftId))).toMatchObject({ status: 'published', version: 2 });
 		expect(value(getRecipeDetail(db, ctx(), 'pasta-tonno')).recipe.name).toBe('Pasta al tonno e limone');
 	});
@@ -175,15 +164,18 @@ describe('versions in meals (review R1)', () => {
 		expect(detail.ingredients.map((i) => i.ingredientId)).not.toContain('pomodori');
 		expect(detail.shownVersion).toEqual({ version: 1, current: 2 });
 		expect(value(getRecipeDetail(db, ctx(), 'hamburger-cavallo')).shownVersion).toBeNull();
+		const member = value(getRecipeDetail(db, ctx({ userId: 'user-anna' }), 'hamburger-cavallo', undefined, '2026-09-23-dinner'));
+		expect(member.shownVersion).toBeNull();
+		expect(member.ingredients.map((i) => i.ingredientId)).not.toContain('pomodori');
 	});
 });
 
 describe('versions and restore', () => {
-	it('lists versions, compares with the current one and restores as a new version', () => {
+	it('lists versions, opens an older one as it was and restores it as a new version', () => {
 		expect(value(getRecipeVersions(db, ctx(), 'hamburger-cavallo')).versions.map((v) => [v.version, v.byName])).toEqual([[2, 'Lucia'], [1, 'Federico']]);
-		const diff = value(compareVersions(db, ctx(), 'hamburger-cavallo', 1));
-		expect(diff.fields.map((f) => `${f.field}:${f.locale}`)).toEqual(['description:it-IT', 'description:en-GB']);
-		expect(diff.ingredients).toEqual([{ name: 'Pomodori', before: null, after: '2' }]);
+		const old = value(getRecipeVersion(db, ctx(), 'hamburger-cavallo', 1));
+		expect(old).toMatchObject({ version: 1, current: 2, issues: [] });
+		expect(old.ingredients.map((i) => i.ingredientId)).toEqual(['hamburger-di-cavallo', 'panini-per-hamburger']);
 		expect(value(restoreVersion(db, ctx(), 'hamburger-cavallo', 1))).toEqual({ status: 'restored', version: 3 });
 		expect(value(getRecipeVersions(db, ctx(), 'hamburger-cavallo')).versions[0]).toMatchObject({ version: 3, restoredFrom: 1, byName: 'Federico' });
 		expect(db.recipes.find((r) => r.id === 'hamburger-cavallo')!.ingredients).toHaveLength(2);
@@ -239,7 +231,7 @@ describe('varieties', () => {
 		if (created.status !== 'created') throw new Error('not created');
 		const saved = value(getDraft(db, ctx(), created.draftId)).draft.content.ingredients[1].variety;
 		expect(saved).toEqual({ 'it-IT': 'cuore di bue', 'en-GB': null });
-		expect(value(verifyDraft(db, ctx(), created.draftId)).issues).toEqual([
+		expect(value(checkDraft(db, ctx(), created.draftId)).issues).toEqual([
 			{ field: 'ingredients', code: 'translation_missing', line: 0, part: 'variety', locale: 'en-GB' },
 			{ field: 'ingredients', code: 'translation_missing', line: 1, part: 'variety', locale: 'en-GB' }
 		]);

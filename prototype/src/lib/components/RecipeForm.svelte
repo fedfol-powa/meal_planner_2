@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { beforeNavigate, goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import ActionMenu from './ActionMenu.svelte';
 	import BottomSheet from './BottomSheet.svelte';
 	import ConfirmDanger from './ConfirmDanger.svelte';
@@ -20,7 +21,7 @@
 		getIngredientVarieties,
 		publishDraft,
 		saveDraft,
-		verifyDraft,
+		checkDraft,
 		type DraftDetail,
 		type SaveOutcome
 	} from '#lib/operations/curation.ts';
@@ -29,7 +30,8 @@
 	import { formatQuantity } from '#lib/units/format.ts';
 
 	// Manual curation path (spec section 8, round 5): a shared draft edited without AI, saved on purpose
-	// (conflicts are checked at every save), verified with the shared rules, then published.
+	// (conflicts are checked at every save) and published when it passes the shared rules: no separate
+	// verification step (round 5 review).
 	let { initial }: { initial: DraftDetail | null } = $props();
 
 	const draftId = $derived(initial?.draft.id ?? null);
@@ -47,7 +49,6 @@
 	// svelte-ignore state_referenced_locally
 	let baseRevision = $state(initial?.draft.revision ?? 0);
 	let issues = $state<ValidationIssue[]>([]);
-	let checked = $state(false);
 	let conflict = $state<Extract<SaveOutcome, { status: 'conflict' }> | null>(null);
 	let stale = $state<{ byName: string; at: string; version: number } | null>(null);
 	let picker = $state<{ line: number | null } | null>(null);
@@ -58,7 +59,6 @@
 	const variant = $derived(app.settings.variants);
 	let lang = $state<Locale>(app.locale);
 	const dirty = $derived(changedFields(saved, normalized(content)).length > 0);
-	const verified = $derived(!!live?.verified && !dirty);
 	const isNew = $derived(!initial || initial.draft.kind === 'new');
 	const title = $derived(nameIn(content) || app.t('curation.new'));
 	const back = $derived(initial?.draft.kind === 'revision' ? `/recipes/${initial.draft.recipeId}` : '/recipes');
@@ -68,21 +68,10 @@
 		return (c.name[app.locale] || c.name['it-IT'] || c.name['en-GB'] || '').trim();
 	}
 
-	// ---- Steps (variant) and sections ----
-	const SECTIONS = ['names', 'source', 'meal', 'ingredients', 'check'] as const;
-	type Section = (typeof SECTIONS)[number];
-	let step = $state<Section>('names');
-	const stepIndex = $derived(SECTIONS.indexOf(step));
-	const shows = (section: Section) => variant.recipeForm === 'sections' || step === section;
-	const sectionOf = (issue: ValidationIssue): Section =>
-		issue.field === 'name' || issue.field === 'description' ? 'names'
-		: issue.field === 'sourceUrl' || issue.field === 'bookId' || issue.field === 'bookPages' ? 'source'
-		: issue.field === 'ingredients' && issue.line !== undefined ? 'ingredients'
-		: issue.field === 'ingredients' ? 'ingredients'
-		: 'meal';
+	// ---- Sections ----
+	const SECTIONS = ['names', 'source', 'meal', 'ingredients'] as const;
 
 	function goToIssue(issue: ValidationIssue) {
-		step = sectionOf(issue);
 		if (issue.locale && variant.formLanguages === 'switch') lang = issue.locale;
 		const id = issue.line !== undefined ? `ingredient-${issue.line}` : `field-${issue.field}`;
 		requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -201,7 +190,7 @@
 		!content.name[l]?.trim() || !content.description[l]?.trim() || content.ingredients.some((i) => i.quantity.kind === 'text' && !i.text?.[l]?.trim());
 
 	// ---- Save, verify, publish ----
-	function save(overwrite = false): boolean {
+	function save(overwrite = false, quiet = false): boolean {
 		const c = normalized(content);
 		if (!initial) {
 			const created = createDraft(app.db, app.ctx, c);
@@ -224,35 +213,48 @@
 		saved = c;
 		content = contentOf(c);
 		issues = [];
-		checked = false;
 		conflict = null;
-		app.notify(app.t('curation.saved'));
+		if (!quiet) app.notify(app.t('curation.saved'));
 		return true;
 	}
 
+	// Arriving from "Pubblica" on a new recipe that did not pass: show its problems at once.
+	$effect(() => {
+		if (!initial || page.url.searchParams.get('check') !== '1') return;
+		const r = checkDraft(app.db, app.ctx, initial.draft.id);
+		if (r.ok) showIssues(r.value.issues);
+	});
+
 	function showIssues(found: ValidationIssue[]) {
 		issues = found;
-		checked = true;
-		if (variant.recipeForm === 'steps') step = 'check';
 		requestAnimationFrame(() => document.getElementById('issues')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
 	}
 
-	function verify() {
-		if (!initial) return void save();
-		if (dirty && !save()) return;
-		const result = verifyDraft(app.db, app.ctx, initial.draft.id);
-		if (!result.ok) return app.notify(app.t(errorKey(result.error)));
-		app.update(() => {});
-		showIssues(result.value.issues);
-		if (!result.value.issues.length) app.notify(app.t('curation.verifiedToast'));
-	}
 
+	/** Saves when needed, then publishes if the full check passes; otherwise shows what to fix. */
 	function publish(overwrite = false) {
-		if (!initial) return;
-		const result = publishDraft(app.db, app.ctx, initial.draft.id, overwrite);
+		let draftId = initial?.draft.id;
+		if (!draftId) {
+			const c = normalized(content);
+			const created = createDraft(app.db, app.ctx, c);
+			if (!created.ok) return app.notify(app.t(errorKey(created.error)));
+			if (created.value.status === 'invalid') return showIssues(created.value.issues);
+			app.update(() => {});
+			saved = c;
+			draftId = created.value.draftId;
+		} else if (dirty && !save(false, true)) return;
+		const result = publishDraft(app.db, app.ctx, draftId, overwrite);
 		if (!result.ok) return app.notify(app.t(errorKey(result.error)));
 		const outcome = result.value;
-		if (outcome.status === 'invalid') return showIssues(outcome.issues);
+		if (outcome.status === 'invalid') {
+			// A new recipe is now a draft: open it there, with the problems shown.
+			if (!initial) {
+				allowLeave = true;
+				app.notify(app.t('curation.savedNotPublished'));
+				return void goto(`/recipes/drafts/${draftId}?check=1`, { replaceState: true });
+			}
+			return showIssues(outcome.issues);
+		}
 		if (outcome.status === 'stale') return void (stale = outcome);
 		app.update(() => {});
 		allowLeave = true;
@@ -346,19 +348,9 @@
 			<p class="notice" role="status">{app.t('curation.changedMeanwhile', { name: live.updatedByName, time: formatDateTime(app.locale, live.draft.updatedAt) })}</p>
 		{/if}
 
-		{#if variant.recipeForm === 'sections'}
-			<nav class="index" aria-label={app.t('curation.index')}>
-				{#each SECTIONS as s (s)}<a href="#section-{s}">{app.t(`curation.section.${s}` as MessageKey)}</a>{/each}
-			</nav>
-		{:else}
-			<ol class="steps" aria-label={app.t('curation.index')}>
-				{#each SECTIONS as s, i (s)}
-					<li><button type="button" aria-current={step === s ? 'step' : undefined} class:has-issues={issues.some((x) => sectionOf(x) === s)} onclick={() => (step = s)}>
-						<span class="dot">{i + 1}</span><span class="step-label">{app.t(`curation.section.${s}` as MessageKey)}</span>
-					</button></li>
-				{/each}
-			</ol>
-		{/if}
+		<nav class="index" aria-label={app.t('curation.index')}>
+			{#each SECTIONS as s (s)}<a href="#section-{s}">{app.t(`curation.section.${s}` as MessageKey)}</a>{/each}
+		</nav>
 
 		{#if variant.formLanguages === 'switch'}
 			<div class="lang-switch" role="group" aria-label={app.t('curation.language')}>
@@ -368,7 +360,7 @@
 			</div>
 		{/if}
 
-		{#if issues.length && (variant.recipeForm === 'sections' || step !== 'check')}
+		{#if issues.length}
 			<div class="issues" id="issues" role="alert">
 				<p><strong>{app.t('curation.issuesTitle', { count: issues.length })}</strong></p>
 				<ul>{#each issues as issue, i (i)}<li><button type="button" class="link-inline" onclick={() => goToIssue(issue)}>{issueText(issue)}</button></li>{/each}</ul>
@@ -376,15 +368,12 @@
 		{/if}
 
 		<form class="recipe-form" onsubmit={(e) => { e.preventDefault(); save(); }}>
-			{#if shows('names')}
 				<section class="settings-card" id="section-names">
 					<h2>{app.t('curation.section.names')}</h2>
 					{@render translated('name', app.t('curation.field.name'), NAME_MAX)}
 					{@render translated('description', app.t('curation.field.description'), DESCRIPTION_MAX)}
 				</section>
-			{/if}
 
-			{#if shows('source')}
 				<section class="settings-card" id="section-source">
 					<h2>{app.t('curation.section.source')}</h2>
 					<fieldset>
@@ -414,9 +403,7 @@
 						<p class="meta-line">{app.t('curation.homeHint')}</p>
 					{/if}
 				</section>
-			{/if}
 
-			{#if shows('meal')}
 				<section class="settings-card" id="section-meal">
 					<h2>{app.t('curation.section.meal')}</h2>
 					<fieldset>
@@ -443,9 +430,7 @@
 						</label>
 					</div>
 				</section>
-			{/if}
 
-			{#if shows('ingredients')}
 				<section class="settings-card" id="section-ingredients">
 					<h2 id="field-ingredients">{app.t('curation.section.ingredients')}</h2>
 					<p class="meta-line">{app.t('curation.ingredientsHint')}</p>
@@ -512,38 +497,11 @@
 					</ol>
 					<button type="button" class="text-button" onclick={() => (picker = { line: null })}><svg class="icon" aria-hidden="true"><use href="#icon-plus" /></svg>{app.t('curation.ingredient.addLine')}</button>
 				</section>
-			{/if}
 
-			{#if shows('check')}
-				<section class="settings-card" id="section-check">
-					<h2>{app.t('curation.section.check')}</h2>
-					{#if dirty}
-						<p>{app.t('curation.state.unsaved')}</p>
-					{:else if verified}
-						<p class="ok">{app.t('curation.state.verified')}</p>
-					{:else if checked && issues.length}
-						<p>{app.t('curation.state.issues')}</p>
-						{#if variant.recipeForm === 'steps'}
-							<ul class="issue-list">{#each issues as issue, i (i)}<li><button type="button" class="link-inline" onclick={() => goToIssue(issue)}>{issueText(issue)}</button></li>{/each}</ul>
-						{/if}
-					{:else}
-						<p>{app.t('curation.state.toVerify')}</p>
-					{/if}
-					<p class="meta-line">{app.t('curation.checkHint')}</p>
-				</section>
-			{/if}
-
-			{#if variant.recipeForm === 'steps'}
-				<div class="step-nav">
-					<button type="button" class="text-button" disabled={stepIndex === 0} onclick={() => (step = SECTIONS[stepIndex - 1])}>{app.t('curation.previous')}</button>
-					{#if stepIndex < SECTIONS.length - 1}<button type="button" class="text-button" onclick={() => (step = SECTIONS[stepIndex + 1])}>{app.t('curation.next')}</button>{/if}
-				</div>
-			{/if}
 
 			<div class="form-bar">
 				<button type="submit" class="text-button" disabled={app.settings.offline || (!!initial && !dirty)}>{app.t('curation.save')}</button>
-				<button type="button" class="text-button" disabled={app.settings.offline || !initial} onclick={verify}>{app.t('curation.verify')}</button>
-				<button type="button" class="text-button primary" disabled={app.settings.offline || !verified} onclick={() => publish()}>{app.t('curation.publish')}</button>
+				<button type="button" class="text-button primary" disabled={app.settings.offline} onclick={() => publish()}>{app.t('curation.publish')}</button>
 			</div>
 		</form>
 	</div>
@@ -597,24 +555,15 @@
 	.notice { margin: 0 0 12px; padding: 10px 12px; background: var(--free-surface); border: 1px solid var(--free-border); font-size: 0.875rem; }
 	.index { display: flex; gap: 6px; margin: 4px 0 16px; overflow-x: auto; scrollbar-width: none; }
 	.index a { flex: none; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); color: var(--ink); font-size: 0.875rem; text-decoration: none; }
-	.steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 4px 0 16px; padding: 0; list-style: none; }
-	.steps button { display: grid; justify-items: center; gap: 4px; width: 100%; min-height: 56px; padding: 4px 0; border: 0; background: none; color: var(--muted); font: 400 0.75rem/1.2 var(--text-font); cursor: pointer; }
-	.steps .dot { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid currentColor; border-radius: 50%; font-weight: 700; }
-	.steps [aria-current='step'] { color: var(--ink); font-weight: 700; }
-	.steps [aria-current='step'] .dot { color: #fff; background: var(--ink); border-color: var(--ink); }
-	.steps .has-issues .dot { border-color: #b3261e; color: #b3261e; }
-	.steps [aria-current='step'].has-issues .dot { color: #fff; background: #b3261e; }
-	.step-label { text-align: center; }
-	@media (max-width: 479px) { .steps button:not([aria-current]) .step-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
 	.lang-switch { display: inline-flex; margin: 0 0 16px; border: 1px solid var(--ink); border-radius: 8px; overflow: hidden; }
 	.lang-switch button { position: relative; min-height: 40px; padding: 6px 16px; border: 0; background: var(--paper); color: var(--ink); font: 700 0.875rem/1.3 var(--text-font); cursor: pointer; }
 	.lang-switch [aria-pressed='true'] { color: #fff; background: var(--ink); }
 	.missing-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: #b3261e; vertical-align: middle; }
 	.issues { margin: 0 0 16px; padding: 12px 16px; border-left: 4px solid #b3261e; background: var(--paper); box-shadow: var(--card-shadow); font-size: 0.875rem; }
 	.issues p { margin: 0 0 6px; }
-	.issues ul, .issue-list { margin: 0; padding: 0; list-style: none; }
-	.issues li, .issue-list li { margin: 4px 0; }
-	.issues .link-inline, .issue-list .link-inline { display: block; min-height: 32px; padding: 4px 0; border: 0; background: none; font: inherit; font-weight: 400; text-align: left; cursor: pointer; text-decoration: underline; }
+	.issues ul { margin: 0; padding: 0; list-style: none; }
+	.issues li { margin: 4px 0; }
+	.issues .link-inline { display: block; min-height: 32px; padding: 4px 0; border: 0; background: none; font: inherit; font-weight: 400; text-align: left; cursor: pointer; text-decoration: underline; }
 	fieldset { margin: 0 0 12px; padding: 0; border: 0; }
 	legend { margin-bottom: 4px; font-size: 0.875rem; font-weight: 700; }
 	.field textarea, .field input[type='url'], .field input[type='number'] { min-height: 44px; padding: 8px 12px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 1rem/1.5 var(--text-font); }
@@ -638,9 +587,7 @@
 	.add-variety { display: block; min-height: 36px; margin: -6px 0 6px; padding: 0; border: 0; background: none; font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
 	.hint { display: block; color: var(--body-text); font-size: 0.8125rem; }
 	.hint .link-inline { min-height: 32px; padding: 0 4px; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; }
-	.ok { color: var(--green); font-weight: 700; }
-	.step-nav { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 16px; }
-	.form-bar { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 -24px; padding: 12px 24px max(12px, env(safe-area-inset-bottom)); background: var(--canvas); border-top: 1px solid var(--rule); }
+	.form-bar { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 -24px; padding: 12px 24px max(12px, env(safe-area-inset-bottom)); background: var(--canvas); border-top: 1px solid var(--rule); }
 	.form-bar .text-button { padding-inline: 8px; }
 	.sheet-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
 	@media (max-width: 767px) { .form-bar { margin-inline: -16px; padding-inline: 16px; } }
