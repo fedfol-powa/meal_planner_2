@@ -20,18 +20,20 @@ export interface PrototypeSettings {
 
 export interface PrototypeVariants {
 	formLanguages: 'stacked' | 'switch';
+	/** Round 6: clients of the agent connection page as tabs or as an accordion. */
+	agentClients: 'tabs' | 'accordion';
 }
 
-export const DEFAULT_VARIANTS: PrototypeVariants = { formLanguages: 'stacked' };
+export const DEFAULT_VARIANTS: PrototypeVariants = { formLanguages: 'stacked', agentClients: 'tabs' };
 
 export interface Persisted {
-	version: 21;
+	version: 22;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
 // Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
-export const STORAGE_KEY = 'app-famiglia-prototype-v21';
+export const STORAGE_KEY = 'app-famiglia-prototype-v22';
 
 /** First language (round 4 default): Italian browsers get it-IT, every other browser en-GB. */
 export function detectLocale(languages: readonly string[] | undefined): Locale {
@@ -44,7 +46,7 @@ function browserLanguages(): readonly string[] | undefined {
 
 export function createInitial(): Persisted {
 	return {
-		version: 21,
+		version: 22,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -60,7 +62,7 @@ export function createInitial(): Persisted {
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	if (!v || v.version !== 21 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	if (!v || v.version !== 22 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
 	const s = v.settings;
 	return (
 		!!s &&
@@ -70,6 +72,10 @@ function isPersisted(value: unknown): value is Persisted {
 		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
 		['stacked', 'switch'].includes(s.variants?.formLanguages) &&
+		['tabs', 'accordion'].includes(s.variants?.agentClients) &&
+		Array.isArray(v.db.connectedAgents) &&
+		Array.isArray(v.db.appInvitations) &&
+		Array.isArray(v.db.catalogueBackups) &&
 		Array.isArray(v.db.invitations) &&
 		Array.isArray(v.db.removals) &&
 		Array.isArray(v.db.recipeVersions) &&

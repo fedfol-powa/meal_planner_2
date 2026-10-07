@@ -1,13 +1,14 @@
 import { contentOf } from '#lib/domain/recipe-content.ts';
 import { type DemoDatabase, type FamilySettings, type Rating, type Recipe, type RecipeContent, type RecipeDraft, type SlotSetting } from '#lib/domain/types.ts';
 import { defaultSettings } from '#lib/domain/settings.ts';
+import { catalogueAt } from '#lib/operations/catalogue-backup.ts';
 import type { OperationContext } from '#lib/operations/context.ts';
 import { addManualItem, getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
 import data from './generated.json';
 
 // Demo people: Federico from the origin project, the others invented for the prototype.
 export function createSeedDatabase(): DemoDatabase {
-	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'recipes' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients' | 'shoppingLists' | 'invitations' | 'removals' | 'recipeVersions' | 'recipeDrafts'> & {
+	const generated = structuredClone(data) as unknown as Omit<DemoDatabase, 'users' | 'families' | 'recipes' | 'ratings' | 'exclusions' | 'mealChanges' | 'familyIngredients' | 'shoppingLists' | 'invitations' | 'removals' | 'recipeVersions' | 'recipeDrafts' | 'connectedAgents' | 'appInvitations' | 'catalogueBackups'> & {
 		recipes: Omit<Recipe, 'createdBy' | 'version' | 'archivedBy' | 'archivedAt'>[];
 		federicoRatings: { recipeId: string; stars: number }[];
 	};
@@ -93,10 +94,24 @@ export function createSeedDatabase(): DemoDatabase {
 		],
 		removals: [{ familyId: 'family-main', userId: 'user-marco', removedBy: 'user-federico', removedAt: '2026-10-03T10:00' }],
 		recipeVersions: [],
-		recipeDrafts: []
+		recipeDrafts: [],
+		// Invented for round 6 (dimostrativo): agents authorised in the browser.
+		connectedAgents: [
+			{ id: 'agent-federico-claude-code', userId: 'user-federico', client: 'claude_code', connectedAt: '2026-09-29T21:30', lastUsedAt: '2026-10-06T08:40' },
+			{ id: 'agent-federico-chatgpt', userId: 'user-federico', client: 'chatgpt', connectedAt: '2026-09-16T20:05', lastUsedAt: '2026-09-22T19:15' },
+			{ id: 'agent-lucia-claude-desktop', userId: 'user-lucia', client: 'claude_desktop', connectedAt: '2026-10-02T17:00', lastUsedAt: '2026-10-06T09:10' }
+		],
+		// Invented for round 6: one pending, one expired, one accepted (Lucia became a curator).
+		appInvitations: [
+			{ token: 'app-chiara1', email: 'chiara@example.com', roles: ['recipe_curator'], createdBy: 'user-federico', createdAt: '2026-10-05T18:00', expiresAt: '2026-10-12T18:00', status: 'pending', acceptedBy: null, acceptedAt: null, revokedAt: null },
+			{ token: 'app-paolo0', email: 'paolo@example.com', roles: [], createdBy: 'user-federico', createdAt: '2026-09-20T09:00', expiresAt: '2026-09-27T09:00', status: 'pending', acceptedBy: null, acceptedAt: null, revokedAt: null },
+			{ token: 'app-lucia7', email: 'lucia@example.com', roles: ['recipe_curator'], createdBy: 'user-federico', createdAt: '2026-09-19T21:00', expiresAt: '2026-09-26T21:00', status: 'accepted', acceptedBy: 'user-lucia', acceptedAt: '2026-09-20T09:50', revokedAt: null }
+		],
+		catalogueBackups: []
 	};
 	splitDemoVarieties(db);
 	addDemoCuration(db);
+	addDemoBackups(db);
 	addDemoShoppingLists(db);
 	return db;
 }
@@ -213,4 +228,13 @@ function addDemoCuration(db: DemoDatabase) {
 
 	const archived = db.recipes.find((r) => r.id === 'riso-curry-giappone');
 	if (archived) Object.assign(archived, { status: 'archived', archivedBy: 'user-federico', archivedAt: '2026-10-04T17:00' });
+}
+
+// Round 6 (dimostrativo): daily copies of the last 7 days and weekly ones of the 4 weeks before, rebuilt
+// from the version history. Frequency and retention are still open (spec section 15).
+function addDemoBackups(db: DemoDatabase) {
+	const daily = ['2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04', '2026-10-05', '2026-10-06'];
+	const weekly = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'];
+	for (const day of weekly) db.catalogueBackups.push(catalogueAt(db, `backup-${day}`, `${day}T03:00`, 'weekly'));
+	for (const day of daily) db.catalogueBackups.push(catalogueAt(db, `backup-${day}`, `${day}T03:00`, 'daily'));
 }

@@ -102,6 +102,8 @@ export interface RecipeVersion {
 	publishedAt: LocalDateTime;
 	/** Set when the version republishes an older one. */
 	restoredFrom: number | null;
+	/** Set when the version comes from a whole catalogue restore (round 6). */
+	restoredFromBackup?: string;
 }
 
 /** One save of a draft; overwritten saves stay here, recoverable (round 5, conflicts). */
@@ -311,6 +313,48 @@ export interface MealChange {
 	createdAt: LocalDateTime;
 }
 
+/** MCP clients the connection page covers (spec section 13). */
+export const AGENT_CLIENTS = ['claude_code', 'codex', 'chatgpt', 'claude_desktop'] as const;
+export type AgentClient = (typeof AGENT_CLIENTS)[number];
+
+/** An agent authorised by a user through the browser (simulated OAuth consent, round 6). */
+export interface ConnectedAgent {
+	id: string;
+	userId: string;
+	client: AgentClient;
+	connectedAt: LocalDateTime;
+	lastUsedAt: LocalDateTime;
+}
+
+/**
+ * app_invitations (round 6): one email, optional global roles given on acceptance; valid 7 days, single
+ * use, revocable. Expiry is computed from the simulated time.
+ */
+export interface AppInvitation {
+	token: string;
+	email: string;
+	roles: GlobalRole[];
+	createdBy: string;
+	createdAt: LocalDateTime;
+	expiresAt: LocalDateTime;
+	status: 'pending' | 'accepted' | 'revoked';
+	acceptedBy: string | null;
+	acceptedAt: LocalDateTime | null;
+	revokedAt: LocalDateTime | null;
+}
+
+/**
+ * A copy of the whole catalogue (round 6, simulated). Recipe contents are not copied: each entry points
+ * to a version kept in recipe_versions. Ingredients are copied because they are shared entities.
+ */
+export interface CatalogueBackup {
+	id: string;
+	takenAt: LocalDateTime;
+	kind: 'daily' | 'weekly' | 'pre_restore';
+	recipes: { recipeId: string; version: number; status: 'published' | 'archived' }[];
+	ingredients: Ingredient[];
+}
+
 export interface DemoDatabase {
 	users: User[];
 	families: Family[];
@@ -327,4 +371,7 @@ export interface DemoDatabase {
 	removals: FamilyRemoval[];
 	recipeVersions: RecipeVersion[];
 	recipeDrafts: RecipeDraft[];
+	connectedAgents: ConnectedAgent[];
+	appInvitations: AppInvitation[];
+	catalogueBackups: CatalogueBackup[];
 }

@@ -1,4 +1,4 @@
-import { LOCALES, type DemoDatabase, type Locale } from '#lib/domain/types.ts';
+import { LOCALES, type DemoDatabase, type Locale, type LocalDateTime } from '#lib/domain/types.ts';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 import { purgeFamily, roleOf } from './family';
 import { DISPLAY_NAME_MAX } from './onboarding';
@@ -37,7 +37,12 @@ export interface AccountDeletionPlan {
 }
 
 export function getAccountDeletionPlan(db: DemoDatabase, ctx: OperationContext): OpResult<AccountDeletionPlan> {
-	const user = currentUser(db, ctx);
+	return planDeletion(db, ctx.userId, ctx.now);
+}
+
+/** The deletion plan of any user: shared by the own account page and the app administration (round 6). */
+export function planDeletion(db: DemoDatabase, userId: string, now: LocalDateTime): OpResult<AccountDeletionPlan> {
+	const user = db.users.find((u) => u.id === userId);
 	if (!user) return fail('forbidden');
 	const families = db.families
 		.filter((f) => f.members.some((m) => m.userId === user.id))
@@ -56,7 +61,7 @@ export function getAccountDeletionPlan(db: DemoDatabase, ctx: OperationContext):
 	return ok({
 		families,
 		lastAppAdmin: user.globalRoles.includes('app_admin') && appAdmins.length === 1,
-		openInvitations: db.invitations.filter((i) => i.createdBy === user.id && i.revokedAt === null && ctx.now < i.expiresAt).length
+		openInvitations: db.invitations.filter((i) => i.createdBy === user.id && i.revokedAt === null && now < i.expiresAt).length
 	});
 }
 
@@ -66,8 +71,13 @@ export function getAccountDeletionPlan(db: DemoDatabase, ctx: OperationContext):
  * membro"). Through MCP, when a family would be deleted, only the web page link is returned (web_only).
  */
 export function deleteAccount(db: DemoDatabase, ctx: OperationContext, successors: Record<string, string>): OpResult<{ deletedFamilies: string[] }> {
+	return performDeletion(db, ctx, ctx.userId, successors);
+}
+
+/** Deletes `userId` on behalf of ctx.userId (the user or an app administrator), with the same rules. */
+export function performDeletion(db: DemoDatabase, ctx: OperationContext, userId: string, successors: Record<string, string>): OpResult<{ deletedFamilies: string[] }> {
 	if (ctx.offline) return fail('offline');
-	const planned = getAccountDeletionPlan(db, ctx);
+	const planned = planDeletion(db, userId, ctx.now);
 	if (!planned.ok) return planned;
 	const plan = planned.value;
 	if (plan.lastAppAdmin) return fail('last_app_admin');
@@ -81,10 +91,13 @@ export function deleteAccount(db: DemoDatabase, ctx: OperationContext, successor
 		const family = db.families.find((x) => x.id === f.familyId)!;
 		if (f.outcome === 'needs_successor') family.members.find((m) => m.userId === successors[f.familyId])!.role = 'family_admin';
 		if (f.outcome === 'deleted') purgeFamily(db, f.familyId);
-		else family.members = family.members.filter((m) => m.userId !== ctx.userId);
+		else family.members = family.members.filter((m) => m.userId !== userId);
 	}
-	for (const invitation of db.invitations) if (invitation.createdBy === ctx.userId) invitation.revokedAt ??= ctx.now;
-	db.ratings = db.ratings.filter((r) => r.userId !== ctx.userId);
-	db.users = db.users.filter((u) => u.id !== ctx.userId);
+	for (const invitation of db.invitations) if (invitation.createdBy === userId) invitation.revokedAt ??= ctx.now;
+	for (const invitation of db.appInvitations)
+		if (invitation.createdBy === userId && invitation.status === 'pending') Object.assign(invitation, { status: 'revoked', revokedAt: ctx.now });
+	db.connectedAgents = db.connectedAgents.filter((a) => a.userId !== userId);
+	db.ratings = db.ratings.filter((r) => r.userId !== userId);
+	db.users = db.users.filter((u) => u.id !== userId);
 	return ok({ deletedFamilies: deleted });
 }
