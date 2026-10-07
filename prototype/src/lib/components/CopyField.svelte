@@ -27,7 +27,7 @@
 </div>
 
 <style>
-	.copy-field { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 12px; }
-	code { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font: 0.8125rem/1.5 ui-monospace, 'SF Mono', Menlo, monospace; overflow-wrap: anywhere; user-select: all; }
+	.copy-field { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; }
+	code { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font: 0.8125rem/1.5 ui-monospace, 'SF Mono', Menlo, monospace; white-space: pre; overflow-x: auto; user-select: all; }
 	.text-button { flex: none; }
 </style>

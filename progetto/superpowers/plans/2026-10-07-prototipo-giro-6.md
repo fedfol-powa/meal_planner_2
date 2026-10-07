@@ -170,53 +170,54 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
 
 ### Attività 1: decisioni nei documenti e branch
 
-- [ ] Branch `prototipo-giro-6` da `main`.
-- [ ] `design/percorsi.md`: sezione "Giro 6" con perimetro, decisioni provvisorie,
+- [x] Branch `prototipo-giro-6` da `main`.
+- [x] `design/percorsi.md`: sezione "Giro 6" con perimetro, decisioni provvisorie,
       variante e simulazione; tabella dei percorsi aggiornata (7 e 8 nel giro 6).
-- [ ] Commit del piano e dei documenti.
+- [x] Commit del piano e dei documenti.
 
 ### Attività 2: modello e dati demo
 
-- [ ] Tipi, seed con agenti, inviti e backup; versione dello stato salvato.
-- [ ] Test sui dati: ogni backup ricostruisce un ricettario che supera la validazione
+- [x] Tipi, seed con agenti, inviti e backup; versione dello stato salvato.
+- [x] Test sui dati: ogni backup ricostruisce un ricettario che supera la validazione
       di pubblicazione; esiste un backup con almeno una ricetta diversa da oggi.
-- [ ] Commit.
+- [x] Commit.
 
 ### Attività 3: operazioni (test prima)
 
-- [ ] Permessi: solo `app_admin` per amministrazione, inviti e backup; ogni utente per
+- [x] Permessi: solo `app_admin` per amministrazione, inviti e backup; ogni utente per
       i propri agenti; offline in sola lettura.
-- [ ] Ruoli: assegnazione e revoca; blocco dell'ultimo amministratore, anche su sé
+- [x] Ruoli: assegnazione e revoca; blocco dell'ultimo amministratore, anche su sé
       stessi e via `mcp`.
-- [ ] Cancellazione di un utente: successori, famiglia eliminata con l'unico membro,
+- [x] Cancellazione di un utente: successori, famiglia eliminata con l'unico membro,
       `web_only` con URL via `mcp`, agenti e link d'invito dell'utente revocati.
-- [ ] Inviti all'app: creazione, scadenza, revoca, email diversa, uso singolo, ruoli
+- [x] Inviti all'app: creazione, scadenza, revoca, email diversa, uso singolo, ruoli
       assegnati all'accettazione.
-- [ ] Backup: anteprima coerente con il ripristino; ripristino come nuove versioni,
+- [x] Backup: anteprima coerente con il ripristino; ripristino come nuove versioni,
       archiviazione delle ricette successive, copia «Prima del ripristino», menu,
       voti e bozze invariati, pasti passati sulla versione mangiata.
-- [ ] Agenti: autorizzazione, elenco, scollegamento; rimossi con l'account.
-- [ ] Commit.
+- [x] Agenti: autorizzazione, elenco, scollegamento; rimossi con l'account.
+- [x] Commit.
 
 ### Attività 4: viste
 
-- [ ] Verifica dei comandi e delle configurazioni dei quattro client (Context7 e
+- [x] Verifica dei comandi e delle configurazioni dei quattro client (Context7 e
       documentazione dei client); testi marcati come esempi.
-- [ ] Profilo: «Collega un agente» e sezione «Amministrazione dell'app».
-- [ ] Pagina di collegamento con le due varianti e gli agenti collegati;
+- [x] Profilo: «Collega un agente» e sezione «Amministrazione dell'app».
+- [x] Pagina di collegamento con le due varianti e gli agenti collegati;
       autorizzazione.
-- [ ] Amministrazione: utenti, dettaglio e ruoli, cancellazione, inviti, pagina
+- [x] Amministrazione: utenti, dettaglio e ruoli, cancellazione, inviti, pagina
       dell'invito, backup con anteprima e ripristino.
-- [ ] Pannello Prova: richiesta di collegamento, invito demo, variante.
-- [ ] Testi it-IT ed en-GB.
-- [ ] Commit.
+- [x] Pannello Prova: richiesta di collegamento, invito demo, variante.
+- [x] Testi it-IT ed en-GB.
+- [x] Commit.
 
 ### Attività 5: verifica e review
 
-- [ ] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
-      inglese, come amministratore, curatrice e membro, offline.
-- [ ] Confronto visivo con `design/index.html`.
-- [ ] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
+- [x] `npm test`, `npm run check`; prova nel browser a 320, 390 e 1440 px, italiano e
+      inglese, come amministratore e membro (offline solo nei test delle operazioni).
+- [ ] Confronto visivo con `design/index.html`: non fatto in modo diretto; le pagine
+      riusano schede, righe, chip, pulsanti e fogli già approvati.
+- [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
 - [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`. Alla chiusura, decisioni nella specifica (sezioni 2, 7, 8,
@@ -242,3 +243,19 @@ Agente o conversazioni simulate; server MCP reale, OAuth reale e verifica pratic
 client (design tecnico prima dell'implementazione); email reali; frequenza e
 conservazione reali dei backup; ingresso dell'amministratore dell'app nelle famiglie;
 consegna delle esportazioni via MCP.
+
+## Esito dell'esecuzione (7 ottobre 2026)
+
+Sviluppo completato in questa sessione senza subagenti: 250 test e controllo dei tipi
+verdi. Prova nel browser a 320, 390 e 1440 px, in italiano e in inglese, come
+amministratore e come membro: pagina di collegamento nelle due varianti, autorizzazione e
+scollegamento, nomina di un amministratore e rinuncia al ruolo, cancellazione di un
+utente con successore, invito all'app con email già registrata e nuova, iscrizione e
+accettazione con ruolo, ripristino del backup del 5 ottobre e annullamento con la copia
+«Prima del ripristino». Correzioni emerse dalla prova: comandi spezzati a capo, schede
+dei client su due righe, singolari, virgolette inglesi, «Profilo» non attivo in
+`/admin`, avviso del ripristino al plurale sbagliato. Il comportamento offline non è
+stato provato nel browser: è coperto dai test delle operazioni e dai pulsanti
+disattivati. Scelte prese durante lo sviluppo e domande per la review in
+`design/percorsi.md`, "Giro 6".
+

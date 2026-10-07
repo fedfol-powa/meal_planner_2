@@ -18,7 +18,7 @@
 	const curator = $derived(app.user.globalRoles.includes('recipe_curator'));
 	let leaving = $state<ConnectedAgent | null>(null);
 
-	const lastUse = (at: string) => (at.slice(0, 10) === app.settings.now.slice(0, 10) ? at.slice(11) : formatDateTime(app.locale, at));
+	const lastUse = (at: string) => (at.slice(0, 10) === app.settings.now.slice(0, 10) ? app.t('agents.today', { time: at.slice(11) }) : formatDateTime(app.locale, at));
 
 	function disconnect() {
 		if (!leaving) return;
@@ -56,12 +56,12 @@
 			<h2 id="try-title">{app.t('agents.try')}</h2>
 			<p>{app.t('agents.tryBody')}</p>
 			<ul class="examples">
-				<li>«{app.t('agents.tryExample1')}»</li>
-				<li>«{app.t('agents.tryExample2')}»</li>
+				<li>{app.t('agents.tryExample1')}</li>
+				<li>{app.t('agents.tryExample2')}</li>
 			</ul>
 			{#if curator}
 				<h3>{app.t('agents.curatorExample')}</h3>
-				<ul class="examples"><li>«{app.t('agents.curatorExampleBody')}»</li></ul>
+				<ul class="examples"><li>{app.t('agents.curatorExampleBody')}</li></ul>
 				<details class="guide">
 					<summary>{app.t('agents.guide')}</summary>
 					<p class="meta-line">{app.t('agents.guideNote')}</p>

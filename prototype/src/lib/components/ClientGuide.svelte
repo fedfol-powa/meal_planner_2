@@ -42,7 +42,7 @@
 {/if}
 
 <style>
-	.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+	.tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 6px; margin: 4px 0 12px; }
 	.tabs button { min-height: 40px; padding: 6px 12px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 700 0.875rem/1.3 var(--text-font); cursor: pointer; }
 	.tabs [aria-selected='true'] { color: #fff; background: var(--ink); }
 	.steps { margin: 0; padding-left: 20px; }

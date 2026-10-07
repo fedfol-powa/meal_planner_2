@@ -46,7 +46,7 @@
 			<StateNotice title={app.t(user.error === 'forbidden' ? 'admin.forbidden' : errorKey(user.error))} />
 		{:else}
 			{@const u = user.value}
-			<p class="meta-line email">{u.email}{#if u.agents} · {app.t('admin.agents', { count: u.agents })}{/if}</p>
+			<p class="meta-line email">{u.email}{#if u.agents}{` · ${u.agents === 1 ? app.t('admin.agentsOne') : app.t('admin.agents', { count: u.agents })}`}{/if}</p>
 
 			<section class="settings-card" aria-labelledby="roles-title">
 				<h2 id="roles-title">{app.t('admin.roles')}</h2>

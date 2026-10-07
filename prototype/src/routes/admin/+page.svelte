@@ -44,7 +44,7 @@
 							<li>
 								<a class="row-link" href="/admin/users/{user.id}">
 									<span class="row-main">
-										<span>{user.name}{#if user.isSelf}<span class="you"> · {app.t('admin.you')}</span>{/if}</span>
+										<span>{user.name}{#if user.isSelf}<span class="you">{` · ${app.t("admin.you")}`}</span>{/if}</span>
 										<small>{user.email}</small>
 										{#if user.roles.length}<span class="chips">{#each user.roles as role (role)}<span class="label-chip">{app.t(`admin.role.${role}` as const)}</span>{/each}</span>{/if}
 									</span>

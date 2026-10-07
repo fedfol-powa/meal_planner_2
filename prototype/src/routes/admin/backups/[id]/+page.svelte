@@ -16,10 +16,12 @@
 	const SHOWN = 5;
 
 	function restore() {
+		if (!preview.ok) return;
+		const date = formatDateTime(app.locale, preview.value.backup.takenAt);
 		const result = restoreCatalogue(app.db, app.ctx, backupId);
 		if (!result.ok) return app.notify(app.t(errorKey(result.error)));
 		app.update(() => {});
-		app.notify(app.t('admin.restore.done', result.value));
+		app.notify(app.t('admin.restore.done', { date }));
 		goto('/admin#backups', { replaceState: true });
 	}
 </script>

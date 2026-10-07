@@ -945,7 +945,7 @@ ricettario?
 
 ## Giro 6: percorsi 7 e 8
 
-Stato: in sviluppo dal 7 ottobre 2026.
+Stato: sviluppato il 7 ottobre 2026, in attesa della review su iPhone.
 Piano: [2026-10-07-prototipo-giro-6.md](../progetto/superpowers/plans/2026-10-07-prototipo-giro-6.md).
 
 ### Perimetro
@@ -983,3 +983,67 @@ piano del giro, approvato il 7 ottobre 2026.
 - Backup giornalieri degli ultimi 7 giorni e settimanali delle 4 settimane precedenti,
   ricavati dallo storico delle versioni; frequenza e conservazione dimostrative.
 - Pannello Prova: «Un agente chiede l'accesso» e «Apri l'invito all'app demo».
+
+### Rotte, componenti e operazioni del giro
+
+- **Rotte:** `/profile/agents` (collegamento e agenti collegati), `/authorize?client=…`
+  (consenso simulato, senza barra di navigazione, richiede l'accesso), `/admin`
+  (utenti, inviti all'app, backup), `/admin/users/[id]`, `/admin/users/[id]/delete`,
+  `/admin/backups/[id]` (anteprima e ripristino), `/invite/app/[token]`.
+- **Componenti nuovi:** `CopyField` (comando o indirizzo con «Copia»), `ClientGuide`
+  (schede o fisarmonica), `InviteSheet`, `DeletionFamilies` (esito famiglia per
+  famiglia, ora condiviso con la cancellazione dell'account); `ShareLinkSheet` accetta
+  titolo e testo.
+- **Operazioni simulate:** `admin.ts` (`listUsers`, `getUserAdmin`, `setUserRole`,
+  `getUserDeletionPlan`, `deleteUser`), `app-invitations.ts` (`listAppInvitations`,
+  `createAppInvitation`, `revokeAppInvitation`, `getAppInvitation`,
+  `acceptAppInvitation`), `catalogue-backup.ts` (`listCatalogueBackups`,
+  `previewCatalogueRestore`, `restoreCatalogue`), `agents.ts` (`listConnectedAgents`,
+  `authorizeAgent`, `disconnectAgent`). La cancellazione di un utente e quella del
+  proprio account usano la stessa logica (`planDeletion`, `performDeletion` in
+  `account.ts`). Indirizzo d'esempio e passaggi dei client in `src/lib/mcp-clients.ts`.
+
+### Scelte prese durante lo sviluppo
+
+- **Comandi dei client** verificati con Context7 il 7 ottobre 2026: Claude Code
+  `claude mcp add --transport http --scope user app-famiglia <indirizzo>` e accesso da
+  `/mcp`; Codex `codex mcp add app-famiglia --url <indirizzo>`, che avvia l'accesso, e
+  `codex mcp login`; Claude Desktop da Impostazioni → Connettori → «Aggiungi connettore
+  personalizzato». I passaggi di ChatGPT non sono verificati e la pagina lo dice. Ogni
+  client ha la nota «esempio da verificare prima del rilascio».
+- **Pagina di collegamento:** indirizzo, client, accesso, esempi (per i curatori anche
+  il flusso di curatela e le istruzioni sugli ingredienti servite all'agente), nota
+  sull'eliminazione delle famiglie e, in fondo, gli agenti collegati. «Scollega» spiega
+  anche come togliere il servizio dal client.
+- **Autorizzazione:** stesso stile delle pagine d'invito; elenca cosa l'agente potrà
+  fare secondo i ruoli dell'utente e cosa no (eliminare famiglie, vedere le
+  credenziali). Riautorizzare lo stesso client sostituisce l'accesso precedente.
+- **Amministrazione:** nomina di un amministratore e rinuncia al proprio ruolo con
+  conferma; l'interruttore dell'ultimo amministratore è bloccato con il motivo. Le
+  famiglie di un utente si vedono solo per nome e ruolo. Un utente non si cancella da
+  qui da solo: la pagina rimanda alle proprie preferenze.
+- **Inviti all'app:** un nuovo invito alla stessa email revoca quello in attesa; a
+  un'email che ha già un account l'invito non si crea e si apre l'utente. Il link si
+  copia come quelli della famiglia (nessuna email). Con un altro account la pagina
+  dell'invito propone di uscire e rientrare; dopo l'iscrizione si torna all'invito.
+- **Backup:** i backup demo si ricavano dallo storico delle versioni; il contenuto non è
+  copiato, ogni copia indica la versione di ogni ricetta e copia gli ingredienti. Quelli
+  precedenti al 5 ottobre archiviano le 16 ricette aggiunte quel giorno, compresi pasti
+  di questa settimana (che restano leggibili). L'anteprima elenca le prime cinque ricette
+  per gruppo e il resto a richiesta.
+- **Profilo:** la sezione «In arrivo» è sparita; «Collega un agente» sta in Account,
+  «Amministrazione dell'app» ha Utenti e ruoli, Inviti all'app, Backup del ricettario.
+  Nella barra in basso «Profilo» resta attivo anche in `/admin`.
+
+### Domande per la review
+
+1. Variante: client a schede o a fisarmonica.
+2. Pagina di collegamento: comprensibile per chi non è tecnico? Troppi contenuti?
+3. Autorizzazione: chiara su chi si collega e cosa potrà fare?
+4. Amministrazione: le tre sezioni in una pagina vanno bene su iPhone? L'elenco dei
+   backup (11 copie) è troppo lungo?
+5. Inviti all'app: uso singolo e legame con l'email sono giusti?
+6. Ripristino del catalogo: l'anteprima si capisce? Archiviare le ricette nate dopo,
+   anche se sono nei menu di questa settimana, è accettabile? La copia «Prima del
+   ripristino» basta come annullamento?
+

@@ -35,6 +35,8 @@ i file che un browser aperto potrebbe ancora chiedere.
   Giulia (senza famiglie), tre inviti e le impostazioni della Famiglia Folloni ricavate
   dalle regole di origine. Dal giro 5 Lucia è curatrice; versioni, bozze di Lucia, la
   seconda versione degli hamburger di cavallo e la ricetta archiviata sono inventate.
+  Dal giro 6 agenti collegati, inviti all'app e backup del ricettario (ricavati dallo
+  storico delle versioni) sono inventati.
 - Lo stato salvato ha una versione (`STORAGE_KEY` in `src/lib/store/persistence.ts`):
   va incrementata quando cambiano dati di partenza o impostazioni.
 
@@ -46,7 +48,9 @@ dati demo. Simula anche un altro membro che cambia un pasto (giro 2) o spunta un
 voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e scenario
 «Primo accesso», apertura dei link d'invito demo e del link di eliminazione della famiglia.
 Dal giro 5: un'altra curatrice che salva la bozza aperta (conflitto) e la disposizione
-delle lingue nel modulo della ricetta (ancora da scegliere).
+delle lingue nel modulo della ricetta (ancora da scegliere). Dal giro 6: un agente che
+chiede l'accesso (schermata di autorizzazione), gli inviti all'app demo e la variante dei
+client nella pagina di collegamento.
 
 ## Struttura
 
@@ -55,9 +59,12 @@ delle lingue nel modulo della ricetta (ancora da scegliere).
 (revisione dei pasti in `revision.ts`, suggerimenti simulati in `suggestions.ts`,
 spesa in `shopping.ts` e liste salvate in `shopping-lists.ts`, famiglia e account in
 `family.ts`, `invitations.ts`, `onboarding.ts`, `account.ts`; curatela in
-`curation.ts`, con la validazione condivisa in `src/lib/domain/recipe-validation.ts`) ·
+`curation.ts`, con la validazione condivisa in `src/lib/domain/recipe-validation.ts`;
+dal giro 6 amministrazione in `admin.ts`, `app-invitations.ts`, `catalogue-backup.ts`,
+agenti in `agents.ts` e passaggi dei client in `src/lib/mcp-clients.ts`) ·
 `src/lib/store` stato e persistenza · `src/lib/components` componenti ·
 `src/routes` viste (`/menu`, `/shopping/[week]`, `/recipes`, `/recipes/[id]`, `/profile` e sottopagine,
 `/welcome`, `/welcome/family`, `/invite/[token]`, dal giro 5 `/recipes/new`,
-`/recipes/drafts/[id]`, `/recipes/[id]/versions` e `/recipes/[id]/versions/[version]`).
+`/recipes/drafts/[id]`, `/recipes/[id]/versions` e `/recipes/[id]/versions/[version]`,
+dal giro 6 `/profile/agents`, `/authorize`, `/admin` e sottopagine, `/invite/app/[token]`).
 Il progetto usa SvelteKit 3: alias `#lib/...` con estensione esplicita.

@@ -48,7 +48,7 @@
 			<h2 id="account-title">{app.t('profile.account')}</h2>
 			<ul class="row-list">
 				<li><a class="row-link" href="/profile/preferences"><svg class="icon" aria-hidden="true"><use href="#icon-user" /></svg><span class="row-main">{app.t('profile.preferences')}<small>{app.t('profile.preferencesHint')}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
-				<li><a class="row-link" href="/profile/agents"><svg class="icon" aria-hidden="true"><use href="#icon-link" /></svg><span class="row-main">{app.t('profile.agents')}<small>{agents ? app.t('profile.agentsCount', { count: agents }) : app.t('profile.agentsHint')}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+				<li><a class="row-link" href="/profile/agents"><svg class="icon" aria-hidden="true"><use href="#icon-link" /></svg><span class="row-main">{app.t('profile.agents')}<small>{agents === 1 ? app.t('profile.agentsCountOne') : agents ? app.t('profile.agentsCount', { count: agents }) : app.t('profile.agentsHint')}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
 			</ul>
 		</section>
 
