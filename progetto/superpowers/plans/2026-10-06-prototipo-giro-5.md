@@ -216,7 +216,7 @@ Dichiarata nell'interfaccia dove serve e in `design/percorsi.md`.
 - [x] Confronto visivo con `design/index.html`.
 - [x] `design/percorsi.md`: rotte, componenti, operazioni, domande per la review;
       README del prototipo.
-- [ ] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
+- [x] `npm run preview:lan` e review dell'utente su iPhone; esito qui e in
       `design/percorsi.md`; alla chiusura, decisioni nella specifica (sezioni 2, 5, 8,
       parte funzionale "Il ricettario", 15 "Ciclo di curatela", "Backup e ripristino",
       "Caricamento da file", e 17 per R1).
@@ -250,3 +250,14 @@ orizzontale dei campi affiancati, avviso che copriva i pulsanti del modulo, etic
 dei passi spezzate a 320 px, quantità vuota che impediva di salvare una bozza.
 Scelte prese durante lo sviluppo e domande per la review in `design/percorsi.md`,
 "Giro 5".
+
+## Esito della review (7 ottobre 2026)
+
+Approvato dall'utente dopo la prova su iPhone. Modifiche: bozze a schede e archiviate
+in fondo al ricettario; meno etichette nel modulo, solo a pagina unica; pubblicazione
+in un passo senza verifica esplicita; avviso della versione solo ai curatori; versione
+precedente aperta com'era con il ripristino, senza confronto; varietà degli ingredienti
+in testo libero con confronto normalizzato, consigli e istruzioni per l'agente. Resta
+da scegliere la disposizione delle lingue nel modulo. Decisioni riportate nella
+specifica (sezioni 2, 5, 6, 8, 10, 13, 14, 15, 16 e 17) e in `design/design.md`; esito
+in `design/percorsi.md`, "Giro 5".

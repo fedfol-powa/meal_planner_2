@@ -1,7 +1,7 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 6 ottobre 2026 (quarto giro del prototipo approvato)
+Ultimo aggiornamento: 7 ottobre 2026 (quinto giro del prototipo approvato)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -49,9 +49,10 @@ sezione 15 e non vanno trattati come decisioni approvate.
   e pubblicazione della ricetta solo quando le informazioni richieste sono complete;
 - bozze persistenti, riprendibili e visibili anche in una sezione dell'app, separate
   dal catalogo pubblicato, condivise e modificabili da tutti i curatori;
-- percorso manuale web per creare, modificare, verificare e pubblicare ricette,
-  comprese quelle in bozza, senza funzionalità AI. Priorità bassa: da implementare
-  dopo le altre funzionalità; eventuale caricamento da file da definire;
+- percorso manuale web per creare, modificare e pubblicare ricette, comprese quelle in
+  bozza, con gli stessi controlli di MCP e senza funzionalità AI. Priorità bassa: da
+  implementare dopo le altre funzionalità; caricamento da file escluso per ora (quinto
+  giro del prototipo);
 - ogni curatore può modificare l'intero ricettario, comprese le ricette degli altri
   curatori; occorre gestire backup e ripristino per recuperare errori imprevisti;
 - ripristino di una singola ricetta accessibile ai curatori; ripristino dell'intero
@@ -236,19 +237,34 @@ pubblicare una ricetta importata dal vecchio progetto. Le indicazioni esplicite 
 Il lavoro incompleto può essere **salvato come bozza** e ripreso in seguito. Le bozze
 sono visibili anche in una sezione dell'app dedicata alla curatela e non vengono proposte
 nei menu né usate per la spesa finché non sono pubblicate. Sono condivise e modificabili
-da tutti i curatori, mostrando autore e ultima modifica.
+da tutti i curatori, mostrando autore e ultima modifica. Se due curatori salvano la
+stessa bozza, chi arriva secondo viene avvisato e sceglie quale versione tenere: nessuno
+sovrascrive il lavoro dell'altro senza saperlo.
+
+Ogni ingrediente di una ricetta è un prodotto del catalogo (Pomodori, Uva) e può avere
+una **varietà** scritta liberamente, solo quando cambia cosa si compra («Roma», «gialla
+senza semi»); non serve un elenco di varietà preparato in anticipo. La lista della
+spesa tiene separate le varietà diverse.
 
 È previsto anche un **percorso manuale nell'app**, da realizzare per ultimo: un curatore
-può compilare una ricetta, salvare o modificare una bozza, far verificare i dati,
-correggere i problemi segnalati e pubblicare quando tutti i requisiti sono soddisfatti.
-Questo percorso non usa AI: il sistema controlla i dati inseriti. È da valutare anche
-un caricamento da file. La consultazione delle bozze nell'app resta prevista già nel
-percorso iniziale di curatela MCP.
+può compilare una ricetta, salvare o modificare una bozza e pubblicarla; se mancano
+dati, la pubblicazione non avviene e il modulo mostra cosa correggere. Questo percorso
+non usa AI: il sistema controlla i dati inseriti. Il percorso consigliato resta quello
+con il proprio agente via MCP. Il caricamento da file non è previsto per ora. La
+consultazione delle bozze nell'app resta prevista già nel percorso iniziale di curatela
+MCP.
 
 Ogni curatore può modificare **tutto il ricettario**, anche le ricette inserite da altri.
+Una modifica nasce come bozza collegata alla ricetta: le famiglie continuano a vedere la
+versione pubblicata finché la modifica non è completa e pubblicata. Ogni pubblicazione
+crea una nuova **versione**; i pasti già mangiati restano come erano, mentre oggi, i
+pasti futuri e la lista della spesa usano subito la versione nuova. Una ricetta che non
+serve più si **archivia**: esce dal ricettario e dai suggerimenti, resta leggibile nei
+pasti e si può riportare nel ricettario.
+
 Il sistema deve consentire il recupero dagli errori tramite backup e ripristino; il
-curatore può tornare a una versione precedente di una ricetta, mentre il recupero
-dell'intero catalogo è riservato agli amministratori dell'app (sezione 8).
+curatore può aprire una versione precedente di una ricetta e ripristinarla, mentre il
+recupero dell'intero catalogo è riservato agli amministratori dell'app (sezione 8).
 
 ### Lingua e unità di misura
 
@@ -299,6 +315,7 @@ verificate nel design di questo percorso e riportate qui (sezioni 7 e 15).
   attiva, fa solo da giudice tra settimane già valide. Questo vincolo non impedisce
   all'agente dell'utente di aiutarlo nelle modifiche manuali o nella cura del ricettario.
 - Non permette di aggiungere ricette senza il ruolo di curatore.
+- Non carica ricette da file: si aggiungono tramite l'agente o dal modulo dei curatori.
 - Non espone uno storico completo delle modifiche ai pasti (si mostra solo l'ultima).
 - Non manda notifiche sui menu; restano i messaggi previsti per accesso, inviti e
   segnalazione degli errori del job all'operatore del servizio.
@@ -368,15 +385,15 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 | Tabella | Campi principali |
 |---|---|
-| `recipes` | `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `archived_at`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna |
+| `recipes` | `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna |
 | `recipe_translations` | `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
-| `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua |
+| `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua; è il prodotto generico (Pomodori, Uva), senza varietà, taglia o preparazione nel nome. Reparto, dispensa, equivalenze ed evitati valgono per tutte le varietà |
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
-| `recipe_ingredients` | `recipe_id`, `ingredient_id`, `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `preparation` (tritato, a dadini, succo, scorza…: dettaglio della ricetta che non cambia l'ingrediente da comprare), `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni |
+| `recipe_ingredients` | `recipe_id`, `ingredient_id`, `variety` (testo libero e facoltativo, tradotto in `recipe_ingredient_translations`: «Roma», «gialla senza semi»; solo quando cambia cosa si compra), `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `preparation` (tritato, a dadini, succo, scorza…: dettaglio della ricetta che non cambia l'ingrediente da comprare), `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni. Lo stesso ingrediente compare più volte in una ricetta solo con varietà diverse (confronto normalizzato, quinto giro del prototipo) |
 | `ingredient_unit_equivalences` | `ingredient_id`, `from_unit`, `to_unit`, `factor`, `scope` (`recipe` o `shopping`), `source`: equivalenze verificate per ingrediente (tazza USA in grammi o pezzi, succo di limone in limoni) |
 | `books` | `id`, `title`: titolo bibliografico originale |
-| `recipe_drafts` | Proposta: `id`, `created_by`, `updated_by`, `updated_at`, dati parziali e riferimento opzionale alla ricetta pubblicata da modificare. Bozze persistenti separate dal catalogo, condivise e modificabili da tutti i curatori |
-| `recipe_revisions` | Proposta: `recipe_id`, `version`, contenuto completo della versione, autore, data e canale; base per confrontare e ripristinare una ricetta senza perdere lo storico |
+| `recipe_drafts` | `id`, `recipe_id`, `kind` (`new`: ricetta mai pubblicata, con `recipes` in stato bozza; `revision`: modifica di una ricetta pubblicata), `base_version`, contenuto parziale, `created_by`, `updated_by`, `updated_at`, `revision` (cresce a ogni salvataggio e serve a riconoscere i conflitti). Una sola revisione aperta per ricetta. I salvataggi sovrascritti in un conflitto restano nella cronologia della bozza |
+| `recipe_versions` | `recipe_id`, `version`, contenuto completo pubblicato (testi, fonte, attributi, righe di ingredienti), `published_by`, `published_at`, `restored_from`; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
 | Backup del catalogo | Copie recuperabili del ricettario e delle sue dipendenze; frequenza, conservazione, collocazione e procedura da definire nel design operativo |
 
 **Utenti, ruoli globali e amministrazione:**
@@ -460,9 +477,10 @@ nel percorso di primo accesso.
 **Ruoli globali:**
 
 - `recipe_curator`: salva e riprende bozze, pubblica ricette complete e modifica l'intero
-  ricettario, anche le ricette e le bozze inserite da altri. Le bozze hanno una sezione
-  nell'app; il percorso guidato è disponibile tramite MCP e il percorso manuale web
-  viene realizzato nell'ultima fase. Può ripristinare una versione precedente di una
+  ricettario, anche le ricette e le bozze inserite da altri; archivia una ricetta e la
+  riporta nel ricettario. Le bozze hanno una sezione nell'app; il percorso guidato è
+  disponibile tramite MCP (percorso consigliato) e il percorso manuale web viene
+  realizzato nell'ultima fase. Può ripristinare una versione precedente di una
   singola ricetta;
 - `app_admin`: gestisce utenti, ruoli e inviti dell'app, inclusa la nomina di altri
   amministratori e la cancellazione degli utenti; può ripristinare l'intero catalogo
@@ -622,6 +640,17 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   (come fa oggi il sito del progetto di origine con `Referrer-Policy: no-referrer`).
   Per `book` si mostrano titolo e pagine; per `home` nessun collegamento. Per gli slot
   liberi, il testo.
+- **Versione della ricetta nei pasti (review R1, deciso nel quinto giro del prototipo):**
+  un pasto passato mostra la ricetta nella versione in vigore quando è diventato passato,
+  anche nella scheda ricetta aperta da quel pasto e nella lista della sua settimana;
+  oggi e i pasti futuri usano la versione corrente, quindi una correzione del curatore
+  arriva subito anche alla spesa (una voce già spuntata che aumenta torna da spuntare).
+  Lo slot conserva solo `recipe_id`: la versione si ricava da `recipe_versions` e
+  dall'istante in cui il pasto è passato. Solo i curatori vedono nella scheda l'avviso
+  che la ricetta è stata aggiornata dopo, con il collegamento alla versione attuale.
+- **Ricette archiviate:** restano leggibili e votabili dai pasti che le usano, anche
+  futuri, finché la famiglia non li cambia; non compaiono in ricerca, suggerimenti e
+  nuove generazioni.
 
 - **Cosa è modificabile, deciso il 6 ottobre 2026:** tutto, in ogni settimana visibile,
   passata, in corso o futura. Nessuna azione dipende dalla settimana.
@@ -708,9 +737,13 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   1. si parte da tutti gli slot della settimana con ricetta (pasti liberi, vuoti e
      ricette senza ingredienti esclusi, questi ultimi segnalati);
   2. si scalano gli ingredienti;
-  3. si consolida per ingrediente: righe che differiscono solo per preparazione,
-     taglia o forma della parola sono lo stesso ingrediente; prodotti diversi restano
-     voci diverse (mandorle in scaglie, pomodorini perini). Le unità compatibili si
+  3. si consolida per ingrediente e varietà: righe che differiscono solo per
+     preparazione, taglia o forma della parola sono lo stesso ingrediente; prodotti
+     diversi restano voci diverse (mandorle in scaglie, pomodorini perini). Righe con lo
+     stesso ingrediente e varietà diverse sono voci separate («Pomodori Roma», «Pomodori»);
+     grafie della stessa varietà si sommano (confronto che ignora maiuscole, accenti,
+     punteggiatura e parole come «tipo») e la voce mostra la grafia più usata. Gli
+     evitati della famiglia valgono per tutte le varietà. Le unità compatibili si
      sommano in una rappresentazione comune; le incompatibili restano sulla stessa
      voce ("50 g + 100 ml");
   4. si convertono nelle unità di acquisto le righe con un'equivalenza di ambito
@@ -870,7 +903,9 @@ della loro assenza da un file YAML.
 1. Il curatore collega il proprio agente e indica la ricetta e la sua fonte, oppure
    fornisce direttamente le informazioni per una ricetta di casa.
 2. Il servizio espone i dati richiesti e i vincoli; l'agente raccoglie le informazioni e
-   chiede quelle mancanti. La guida non deve dipendere dalla memoria di un singolo agente.
+   chiede quelle mancanti. La guida non deve dipendere dalla memoria di un singolo agente:
+   il servizio fornisce istruzioni scritte, a partire da quelle sugli ingredienti decise
+   nel quinto giro del prototipo (sotto, "Ingredienti e varietà").
 3. La validazione sul server restituisce campi mancanti e incoerenze in forma strutturata,
    così l'agente può proseguire con domande mirate.
    Le informazioni parziali possono essere salvate in una bozza persistente e recuperate
@@ -885,7 +920,9 @@ della loro assenza da un file YAML.
 alla conversazione con l'agente. È consultabile nella sezione di curatela dell'app e
 recuperabile tramite MCP. Dal 6 ottobre 2026 la sezione di curatela per la
 consultazione è in testa al ricettario: una sezione "Bozze" collassabile, visibile
-solo ai curatori, con i dati che mancano per pubblicare. Un pasto passato che usa una
+solo ai curatori, con una scheda per bozza (Nuova o Modifica, nome, chi l'ha salvata e
+quando, dati che mancano per pubblicare); le ricette archiviate sono in fondo al
+ricettario, in una sezione chiusa (quinto giro). Un pasto passato che usa una
 ricetta in bozza mostra nome e descrizione; la scheda si apre solo ai curatori e il
 voto non è disponibile finché la ricetta non è pubblicata. Tutti i curatori possono consultare e modificare le bozze
 degli altri; autore e ultima modifica sono visibili. Salvare una bozza non pubblica
@@ -893,37 +930,50 @@ una ricetta: la completezza resta vincolante per l'ingresso nel catalogo utilizz
 dalle famiglie.
 
 Il salvataggio di una bozza applica controlli sui dati forniti senza richiedere i campi
-ancora mancanti. La pubblicazione applica invece l'intera validazione. Campi obbligatori
-specifici per tipo di fonte vanno esplicitati prima dell'implementazione (sezione 15).
-Sono già obbligatori per pubblicare ingredienti verificati, quantità e unità quando
-applicabili, porzioni di riferimento e testi richiesti in italiano e inglese britannico.
-La collaborazione fra curatori deve gestire i conflitti senza sovrascrivere
-silenziosamente le modifiche altrui; il meccanismo sarà precisato nel design.
+ancora mancanti: rifiuta solo dati sbagliati (indirizzo non valido, numeri non
+positivi, ingrediente inesistente o ripetuto), accetta quantità e testi ancora vuoti.
+La pubblicazione applica invece l'intera validazione.
 
-**Percorso manuale web confermato, a bassa priorità:**
+**Campi obbligatori per pubblicare, decisi nel quinto giro del prototipo:** nome e
+descrizione in italiano e inglese britannico; durata; porzioni di riferimento; almeno un
+ingrediente, ciascuno con quantità e unità quando applicabili (oppure "q.b." o una
+quantità a parole nelle due lingue) e con la varietà nelle due lingue se indicata; per
+le fonti `web` e `youtube` l'indirizzo, per `book` libro e pagine, per `home` nessun
+dato aggiuntivo. Il gruppo alimentare resta facoltativo.
+
+**Conflitti fra curatori, decisi nel quinto giro:** ogni salvataggio dichiara la
+revisione della bozza da cui parte. Se nel frattempo un altro curatore ha salvato, il
+salvataggio è rifiutato con autore, momento e campi cambiati da ciascuno; chi salva
+sceglie se prendere l'altra versione o sovrascriverla consapevolmente, e quella
+sovrascritta resta nella cronologia della bozza. Allo stesso modo, pubblicare una
+revisione partita da una versione superata richiede una conferma esplicita.
+
+**Percorso manuale web confermato, a bassa priorità** (secondario rispetto a MCP;
+forma provata nel quinto giro):
 
 1. Il curatore crea una ricetta da un modulo oppure apre una bozza esistente, anche
-   iniziata tramite MCP o da un altro curatore.
-2. Inserisce o modifica i dati e può salvare la bozza incompleta.
-3. Richiede la verifica: il servizio controlla dati, completezza e coerenza e mostra
-   campi mancanti ed errori, usando gli stessi validatori del percorso MCP.
-4. Corregge i dati e può ripetere la verifica. Una modifica rende non più valido il
-   precedente esito di verifica per la pubblicazione.
-5. Pubblica la ricetta completa; il server riesegue sempre i controlli sull'ultima
-   versione e verifica i permessi, indipendentemente da precedenti verifiche positive.
+   iniziata tramite MCP o da un altro curatore. Il modulo è una pagina unica a sezioni
+   (nome e descrizione, fonte, pasto e porzioni, ingredienti); la disposizione delle
+   due lingue è ancora da scegliere.
+2. Inserisce o modifica i dati e può salvare la bozza incompleta con «Salva bozza»;
+   uscendo con modifiche non salvate l'app chiede se salvarle.
+3. «Pubblica» salva le modifiche e applica l'intera validazione, con gli stessi
+   validatori del percorso MCP: se passa la ricetta è pubblicata, altrimenti resta in
+   bozza e il modulo mostra in cima e accanto ai campi cosa correggere. Non c'è un passo
+   di verifica separato (deciso nella review del quinto giro); il server riesegue sempre
+   i controlli e verifica i permessi.
 
 Non sono usate funzionalità AI nel percorso manuale: niente compilazione, classificazione
 o traduzione automatica tramite modelli. I dati e le traduzioni richiesti sono inseriti
 dal curatore. La verifica automatica applica regole deterministiche e non certifica
 da sola che ingredienti e quantità siano stati trascritti correttamente dalla fonte.
 
-**Caricamento da file, opzione da definire:** se incluso, deve leggere uno dei formati
-concordati senza AI e portare i dati in una bozza verificabile e modificabile, applicando
-gli stessi controlli del modulo. Formati, numero di ricette per file, errori di lettura
-e duplicati saranno definiti nel design di questa funzione. L'upload non pubblica
-direttamente nel catalogo e non sostituisce la verifica dei dati.
+**Caricamento da file, non previsto per ora** (deciso nel quinto giro): l'aggiunta passa
+dall'agente MCP o dal modulo. Se tornasse utile, dovrà leggere uno dei formati concordati
+senza AI e portare i dati in una bozza modificabile, con gli stessi controlli del modulo,
+senza pubblicare direttamente nel catalogo.
 
-Il percorso manuale, inclusa la modifica web delle bozze e l'eventuale upload, viene
+Il percorso manuale, inclusa la modifica web delle bozze, viene
 implementato dopo le altre funzionalità (M6). La sezione web per consultare le bozze e
 il lavoro guidato tramite MCP restano parte della curatela iniziale. Una stessa bozza
 deve poter passare da MCP al modulo manuale e viceversa, senza creare copie distinte.
@@ -933,6 +983,28 @@ trascritti per `base_servings`, mai dedotti dal nome del piatto. Un validatore s
 non prova la correttezza della trascrizione: la provenienza e le verifiche devono far
 parte del percorso di curatela. Ingredienti equivalenti si collegano alla stessa entità
 canonica, anche se i nomi sono in lingue diverse.
+
+**Ingredienti e varietà, decisi nel quinto giro del prototipo:**
+
+- l'ingrediente del catalogo è il prodotto generico; si cerca prima di crearne uno nuovo
+  (la ricerca trova anche le varietà già usate) e un ingrediente nuovo ha nome nelle due
+  lingue e reparto, senza varietà, taglia o preparazione nel nome;
+- la **varietà** è testo libero e facoltativo sulla riga della ricetta, nelle due lingue,
+  solo quando cambia cosa si compra (cultivar o tipo: «Roma», «cuore di bue», «gialla
+  senza semi»). Taglia, maturazione e preparazione non sono varietà e restano nel testo
+  della fonte o nella preparazione. Non esiste un elenco di varietà da mappare;
+- il testo si salva com'è scritto, ripulito dagli spazi; i confronti (spesa, suggerimenti,
+  righe ripetute) ignorano maiuscole, accenti, punteggiatura e parole come «tipo» e
+  «varietà». Tutto minuscolo è escluso perché rovinerebbe i nomi propri;
+- all'inserimento il sistema dà consigli che non bloccano: una grafia diversa di una
+  varietà già usata per quell'ingrediente, il nome dell'ingrediente ripetuto («Pomodoro
+  Roma» → «Roma»), parole di preparazione. Gli stessi controlli valgono per il modulo e
+  per MCP, che ha operazioni per elencare le varietà note e controllare un testo;
+- se la fonte cita due volte lo stesso ingrediente senza varietà diverse, le quantità si
+  uniscono in una riga e il testo della fonte le riporta entrambe;
+- le istruzioni per l'agente su questi punti sono una bozza nel prototipo
+  (`prototype/src/lib/operations/curation-guide.ts`, copia italiana in
+  `design/percorsi.md`) e diventeranno parte della guida servita da MCP (sezione 13).
 
 **Completezza degli ingredienti confermata:** per pubblicare occorrono un elenco
 verificato degli ingredienti, quantità e unità quando applicabili e `base_servings`
@@ -953,27 +1025,35 @@ sono eseguiti in CI; la CI non sostituisce la validazione di ogni scrittura sul 
 
 **Modifica dell'intero ricettario confermata:** ogni curatore può modificare le ricette
 di qualunque autore. Le modifiche pubblicate devono rispettare gli stessi controlli
-di completezza, unità, riferimenti e fonti delle nuove ricette. È proposta una bozza di
-revisione per lavorare su una ricetta pubblicata senza esporre dati incompleti alle
-famiglie; gestione dei conflitti fra curatori e comportamento dei pasti pregressi
-rispetto alle versioni successive sono da definire nel design.
+di completezza, unità, riferimenti e fonti delle nuove ricette. **Deciso nel quinto
+giro:** «Modifica» crea una bozza di revisione collegata alla ricetta (una sola aperta
+per ricetta, ripresa da chiunque); le famiglie vedono la versione pubblicata finché la
+revisione non viene pubblicata come versione successiva. I pasti passati restano sulla
+versione con cui sono stati mangiati (sezione 5); conflitti come sopra.
 
-**Archiviazione:** resta necessario conservare leggibili i menu che usano una ricetta.
-La precedente archiviazione automatica per assenza dal YAML è eliminata; il percorso
-esplicito di archiviazione è da definire. La cancellazione del curatore non implica
-la cancellazione delle ricette che ha contribuito.
+**Archiviazione, decisa nel quinto giro:** qualunque curatore archivia una ricetta
+pubblicata (con «Annulla» subito dopo) e la riporta nel ricettario dall'elenco delle
+archiviate. Una ricetta archiviata esce da ricettario, ricerca, suggerimenti e
+generazioni; i pasti che la usano restano leggibili e votabili, anche quelli futuri,
+finché la famiglia non li cambia. La precedente archiviazione automatica per assenza dal
+YAML è eliminata. Una bozza nuova mai pubblicata si può eliminare solo se nessun pasto
+la cita; una revisione si può scartare. La cancellazione del curatore non implica la
+cancellazione delle ricette che ha contribuito.
 
 **Backup e ripristino richiesti:** il ricettario deve poter essere recuperato dopo
 modifiche errate o eventi imprevisti. Il design deve coprire ricette, ingredienti,
 traduzioni, fonti, riferimenti ai libri e bozze, mantenendo coerenti i collegamenti con
 i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di backup.
 
-**Recupero su due livelli:** la divisione dei permessi è confermata. Il funzionamento
-dettagliato seguente è la proposta da precisare nel design:
+**Recupero su due livelli:** la divisione dei permessi è confermata.
 
-- **Singola ricetta:** mantenere versioni con autore e data, confrontarle e ripristinare
-  quella scelta come nuova revisione. L'operazione non elimina le revisioni successive
-  dallo storico e non modifica le altre ricette. Accessibile ai curatori.
+- **Singola ricetta, decisa nel quinto giro:** dal menu della ricetta, «Versioni» elenca
+  le versioni con autore e data; una versione precedente si apre com'era e
+  «Ripristina» la ripubblica subito come nuova versione, dopo una conferma. Nessun
+  confronto campo per campo (escluso nella review). Lo storico resta intero; il
+  ripristino riporta solo campi e righe di ingredienti di quella ricetta, non le entità
+  condivise (ingredienti del catalogo, nomi, reparti), e non avviene se la vecchia
+  versione non supera i controlli di oggi. Accessibile ai curatori.
 - **Intero catalogo:** copie di backup recuperabili con procedura di ripristino,
   anteprima dell'impatto e verifica della coerenza. Il ripristino complessivo è riservato
   agli amministratori dell'app, perché può annullare modifiche di più
@@ -1040,11 +1120,10 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   controllo dei conflitti; atomicità della pubblicazione;
   import con i casi presi dal ricettario attuale e nessuna sovrascrittura dei contributi
   già presenti. Cambi di codice ed esportazioni non devono sostituire il catalogo.
-- **Curatela manuale (M6)**: creazione, modifica di bozze anche altrui, verifica ripetuta
-  dopo una correzione e pubblicazione con gli stessi vincoli di MCP; nessuna chiamata a
-  servizi AI; ripresa della stessa bozza fra web e MCP e gestione dei conflitti. Se
-  previsto l'upload, file non validi e duplicati non devono provocare pubblicazioni
-  parziali o sovrascritture implicite.
+- **Curatela manuale (M6)**: creazione, modifica di bozze anche altrui, pubblicazione
+  rifiutata finché mancano dati e riuscita dopo la correzione, con gli stessi vincoli di
+  MCP; nessuna chiamata a servizi AI; ripresa della stessa bozza fra web e MCP e
+  gestione dei conflitti fra curatori.
 - **Recupero del catalogo**: ripristino di una singola ricetta e di un backup completo
   rispettivamente da curatori e amministratori dell'app, con rifiuto delle operazioni
   non autorizzate; coerenza fra ricette, ingredienti, traduzioni e bozze;
@@ -1099,13 +1178,13 @@ il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
 | **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì, generazione su richiesta anche via MCP. Poi, come esperimento separato, giudice AI opzionale | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
 | **M4 Lista della spesa** | Lista della settimana, consolidamento, conversioni ed equivalenze, spunte condivise e offline, PDF, condivisione, Bring!, esportazioni MCP | Si prepara e si fa la spesa nella lingua personale e nelle unità della famiglia |
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
-| **M6 Curatela manuale — ultima priorità** | Modulo web senza AI per creare, modificare, verificare e pubblicare ricette, modifica e nuova verifica delle bozze condivise; eventuale upload da file da definire | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
+| **M6 Curatela manuale — ultima priorità** | Modulo web senza AI per creare, modificare e pubblicare ricette, comprese le bozze condivise, con gli stessi controlli di MCP | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
 
 Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
 rispetta dalla sua prima versione, con l'eccezione esplicita dell'eliminazione delle
 famiglie, per cui MCP restituisce il link all'app. La collocazione delle attività nella roadmap non
 rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
-La priorità finale di M6 riguarda il modulo manuale e l'eventuale upload, non la
+La priorità finale di M6 riguarda il modulo manuale, non la
 consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
 
 ### 11. Convivenza con il progetto di origine
@@ -1189,7 +1268,7 @@ implicite alla copertura delle operazioni.
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
 | Spesa | Leggere la lista di una settimana, spuntare voci, aggiungere voci libere, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
-| Curatela | Conoscere i requisiti, salvare e riprendere bozze, validare e pubblicare ricette complete, modificare ricette di qualunque autore e ripristinare una versione precedente di una singola ricetta |
+| Curatela | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa gestione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
 | Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo da backup; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
@@ -1225,6 +1304,8 @@ un modello o un fornitore AI al client MCP.
 - chiarisce che l'eliminazione delle famiglie si completa soltanto nell'app, tramite
   il collegamento restituito dall'agente;
 - include un esempio per verificare il collegamento e un esempio del flusso del curatore;
+- per i curatori, rimanda alle istruzioni scritte che il servizio fornisce all'agente
+  (ingredienti, varietà e quantità: sezione 8);
 - descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
 
 I client iniziali sono scelti; comandi e modalità di collegamento effettivi vanno
@@ -1284,6 +1365,15 @@ fissi e tempi per pasto, regole a modelli, ingredienti, libri, unità, «Avanzat
 "non proporre più", preferenze, uscita, eliminazione della famiglia e cancellazione
 dell'account su pagine dedicate con conferma a pulsante. Le azioni irreversibili usano
 un pulsante rosso. Dettagli in `design/percorsi.md`.
+
+**Quinto giro approvato il 7 ottobre 2026:** Curatela. Bozze in testa al ricettario a
+schede e archiviate in fondo; «+» per una ricetta nuova; menu «…» nella scheda ricetta
+per i curatori (modifica tramite bozza di revisione, versioni, archiviazione); modulo
+manuale a pagina unica con «Salva bozza» e «Pubblica» in un passo, problemi in cima e
+accanto ai campi, avviso di conflitto fra curatori e richiesta di salvare uscendo;
+varietà degli ingredienti in testo libero con consigli; versione precedente aperta
+com'era con «Ripristina»; versione dei pasti passati (R1). Il percorso consigliato per
+la curatela resta MCP. Dettagli in `design/percorsi.md`.
 
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
@@ -1378,10 +1468,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|---|
 | Utenti e inviti | Regole degli inviti all'app, ruoli eventualmente assegnati all'accettazione, gestione degli inviti familiari da parte dell'amministrazione globale. Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
-| Completezza delle ricette | Campi specifici per ogni fonte e momento della conferma del curatore; ingredienti, quantità e unità applicabili, porzioni ed entrambe le lingue già obbligatori per pubblicare. Rappresentazione nello storico importato delle ricette ancora in bozza, senza esporre le bozze alle famiglie | Sezioni 8, 11 e 12 |
-| Ciclo di curatela | Revisione delle ricette già pubblicate, archiviazione e gestione di contributi simultanei; versione della ricetta associata ai pasti già scelti (review R1). Condivisione delle bozze e percorso manuale web già confermati | Sezioni 2, 5 e 8 |
-| Caricamento da file | Inclusione dell'upload opzionale, formati, singola ricetta o caricamento multiplo, errori e duplicati; priorità M6 | Sezioni 8 e 10 |
-| Backup e ripristino | Dettagli dello storico delle versioni, effetti sui pasti pregressi, frequenza e conservazione dei backup, perdita di lavoro tollerata e procedura di recupero; permessi già confermati | Sezioni 2, 8, 9 e 13 |
+| Completezza delle ricette | Momento della conferma del curatore nel percorso MCP. Decisi nel quinto giro i campi obbligatori per pubblicare, anche per tipo di fonte (sezione 8) | Sezioni 8, 11 e 12 |
+| Backup e ripristino | Backup dell'intero catalogo: frequenza e conservazione, perdita di lavoro tollerata, procedura di recupero e destino delle ricette successive al backup (review R1, percorso 8). Deciso nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
 | MCP | Verifica dei quattro client scelti, autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi | Sezioni 1 e 13 |
@@ -1413,6 +1501,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, secondo giro del prototipo approvato | Revisione dei pasti: niente avvisi di settimana; vince l'ultimo salvataggio senza conflitto; ultima modifica senza canale; scambio nella stessa settimana con piatto e nota; "non proporre più" che apre la scelta del sostituto; "proponimene altri" al posto di "proponimene un altro"; voto solo visualizzato nei suggerimenti; annullamento delle proprie modifiche; azioni dalla matita in un pannello nella scheda (porzioni, cambia ricetta, nota), con pasto libero, esclusione e scambio dentro "Cambia ricetta" |
 | 6 ottobre 2026, terzo giro del prototipo approvato | Spesa: una lista per settimana con tutti i pasti, aperta dal Menu, senza scelta dei pasti, altre liste o archivio; persistente e condivisa, con spunte che valgono per "ce l'ho già" e "comprato", voci libere e modifica offline con coda locale; quantità che seguono i pasti, pezzi interi, unità di acquisto e tazze USA tramite equivalenze per ingrediente; voci distinte solo per prodotti diversi; esportazioni nel menu "…". Tolta la scorciatoia "solo quelli non ancora in lista" |
 | 6 ottobre 2026, quarto giro del prototipo approvato | Famiglia e account: rientro dopo la rimozione solo con un link nuovo (R2); impostazioni tutte visibili tranne i pesi, con «Avanzate» e regole a modelli; wizard minimo (nome e unità) e prima generazione da oggi a domenica più la settimana successiva dopo mercoledì alle 20:00; vista «Tu» rinominata «Profilo», con cambio di famiglia; pagine dedicate per eliminare la famiglia e cancellare l'account con conferma a pulsante; pulsanti rossi per le azioni irreversibili; i suggerimenti rispettano le impostazioni della famiglia |
+| 7 ottobre 2026, quinto giro del prototipo approvato | Curatela: pasti passati sulla versione con cui sono stati mangiati, oggi e futuri sulla corrente (R1); modifica tramite bozza di revisione; conflitti fra curatori rifiutati e risolti consapevolmente; archiviazione reversibile; ripristino di una versione aperta com'era, senza confronto; pubblicazione in un passo senza verifica esplicita; campi obbligatori per tipo di fonte; varietà degli ingredienti in testo libero con confronto normalizzato e consigli, istruzioni per l'agente; caricamento da file escluso per ora; avviso della versione solo ai curatori; percorso MCP consigliato rispetto al modulo |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
@@ -1446,6 +1535,12 @@ recupero singolo promette di non farlo. È una decisione di prodotto ancora aper
 non un'impossibilità tecnica dimostrata. Occorre scegliere la versione usata dai pasti,
 il destino delle ricette successive al backup e l'ambito delle dipendenze ripristinate.
 **Quando:** rappresentare i casi in P0, chiudere la semantica prima dello schema M1.
+**Decisione del 7 ottobre 2026 (quinto giro del prototipo), per la singola ricetta:** i
+pasti passati usano la versione in vigore quando sono diventati passati, oggi e i pasti
+futuri la corrente (sezione 5); il ripristino di una ricetta riporta solo i suoi campi e
+le sue righe, non le entità condivise, e si rifiuta se non supera i controlli di oggi
+(sezione 8). Resta aperto il ripristino dell'intero catalogo da backup (ricette
+successive al backup), da chiudere con il percorso Amministrazione dell'app.
 
 **R2 — Impatto alto sul controllo degli accessi: rientro dopo rimozione.**
 Sezione 7. Gli inviti familiari sono riutilizzabili per sette giorni: secondo il flusso

@@ -45,8 +45,8 @@ famiglia, lingua, unità, data e ora simulate, scenario, modalità offline e azz
 dati demo. Simula anche un altro membro che cambia un pasto (giro 2) o spunta una
 voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e scenario
 «Primo accesso», apertura dei link d'invito demo e del link di eliminazione della famiglia.
-Dal giro 5: un'altra curatrice che salva la bozza aperta (conflitto) e le varianti del
-modulo della ricetta.
+Dal giro 5: un'altra curatrice che salva la bozza aperta (conflitto) e la disposizione
+delle lingue nel modulo della ricetta (ancora da scegliere).
 
 ## Struttura
 

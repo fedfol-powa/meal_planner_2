@@ -1,10 +1,10 @@
 # Percorsi del prototipo di App Famiglia
 
 Creato: 6 ottobre 2026
-Ultimo aggiornamento: 6 ottobre 2026
+Ultimo aggiornamento: 7 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
-primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026; quinto giro (Curatela)
-in review.
+primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
+(Curatela) il 7 ottobre; prossimo percorso: MCP.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -60,7 +60,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
-| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | In review |
+| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | Approvato il 7 ottobre 2026 |
 | 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
 | 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
 
@@ -738,7 +738,10 @@ simulato) sono nel piano del giro.
 
 ## Giro 5: percorso 6
 
-Stato: sviluppo completato il 6 ottobre 2026; in attesa della review su iPhone.
+Stato: approvato dall'utente il 7 ottobre 2026 dopo la review su iPhone; decisioni
+riportate nella specifica (sezioni 2, 5, 6, 8, 10, 13, 14, 15, 16 e 17, parte
+funzionale "Il ricettario") e in `design.md`. Le sezioni che seguono conservano la
+storia del giro: vale la "Review del giro".
 Piano: [2026-10-06-prototipo-giro-5.md](../progetto/superpowers/plans/2026-10-06-prototipo-giro-5.md).
 
 ### Perimetro
@@ -919,3 +922,23 @@ questa è la copia italiana per la review.
 
 Domande per la review: le regole 3 e 5 sono giuste? Servono esempi da ricette vere del
 ricettario?
+
+### Review del giro (7 ottobre 2026, chiusa con approvazione)
+
+- **Modulo:** pagina unica a sezioni (tolta la variante a passi). Resta da scegliere
+  la disposizione delle lingue (affiancate o con selettore): la variante è ancora nel
+  pannello Prova, con «affiancate» predefinita.
+- **Nessuna verifica esplicita:** «Pubblica» salva e pubblica se i controlli passano,
+  altrimenti mostra cosa correggere; una ricetta nuova incompleta resta in bozza. Tolte
+  la sezione e il pulsante «Verifica», lo stato di bozza verificata e l'etichetta
+  «Pronta da pubblicare» dalle schede. Per MCP resta un controllo senza pubblicare
+  (`checkDraft`).
+- **Avviso della versione** sulla scheda aperta da un pasto passato: solo ai curatori;
+  la versione mostrata resta quella mangiata per tutti.
+- **Versioni:** niente confronto campo per campo; una versione precedente si apre
+  com'era, con «Ripristina questa versione» (`getRecipeVersion`).
+- **Bozze a schede**, archiviate in fondo, meno etichette in «Pasto e porzioni», «+»
+  allineato ai filtri, varietà degli ingredienti e istruzioni per l'agente: come nella
+  "Prima prova su iPhone".
+- **Confermati:** avviso di conflitto, archiviazione, campi obbligatori per pubblicare,
+  regole della varietà e dell'unione delle righe, decisioni della preparazione.

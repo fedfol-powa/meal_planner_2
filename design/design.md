@@ -304,3 +304,41 @@ modifica sotto il titolo. Su schermi larghi la pagina è una colonna di 720 px.
   a tutta larghezza.
 - **Scheda dopo la prima generazione:** riquadro compatto sopra la barra del mese, con
   i colori dei pasti liberi, due link e la ×.
+
+## Curatela (quinto giro, approvato il 7 ottobre 2026)
+
+Visibile solo ai curatori; ai membri il ricettario non cambia.
+
+- **Ricettario:** accanto al titolo un «+» (26 px, senza riquadro) per una ricetta
+  nuova, nello stesso box da 48 px dell'icona dei filtri, così le due icone sono in
+  colonna. Ordine: Bozze, ricette, Archiviate; le due sezioni dei curatori hanno il
+  titolo in Agrandir Tight con una freccia che le apre e chiude (Archiviate chiusa).
+- **Schede delle bozze:** schede bianche con ombra, senza foto; in alto l'etichetta
+  «Nuova» (grigia) o «Modifica» (verde) come le etichette dei pasti e, a destra, chi ha
+  salvato e la data breve («Lucia · 6 ott», 13 px grigio); titolo in Agrandir 17 px su
+  al massimo due righe; in fondo i dati mancanti come etichette da 12 px con bordo
+  sottile («Porzioni», «Ingredienti», «Traduzione»). Nessuna etichetta quando la bozza
+  è completa. Una colonna su telefono, due su schermi larghi.
+- **Menu «…»** in alto a destra della scheda ricetta (stesso componente della lista
+  della spesa, `ActionMenu`): Modifica (o «Riprendi la modifica in corso»), Versioni,
+  Archivia / Ripristina dall'archivio. Una ricetta archiviata mostra l'etichetta
+  grigia «Archiviata» con chi e quando.
+- **Modulo della ricetta:** pagina secondaria a colonna di 640 px; sotto il titolo
+  l'etichetta Nuova/Modifica e chi l'ha iniziata e salvata; una fila di pillole
+  (bordo sottile, raggio pieno) porta alle sezioni, ciascuna in una `settings-card`.
+  In fondo una barra fissa con «Salva bozza» e «Pubblica» (primario); gli avvisi in
+  basso salgono sopra la barra. Testi di spiegazione ridotti al minimo; le scelte
+  evidenti non hanno etichetta visibile.
+- **Problemi da correggere:** riquadro bianco con bordo sinistro rosso in cima, un
+  collegamento per problema che porta al campo; accanto al campo solo il problema, in
+  rosso 13 px.
+- **Righe degli ingredienti:** nome dell'ingrediente in grassetto con una matita per
+  cambiarlo, × per toglierla; «+ Varietà» in verde apre il campo della varietà; sotto,
+  tipo di quantità, numero e unità sulla stessa riga, testo della fonte, casella
+  «facoltativo». I consigli sulla varietà sono testo grigio 13 px con «Usa».
+- **Fogli dal basso** per scegliere l'ingrediente, per il conflitto fra curatori, per
+  la ricetta cambiata nel frattempo, per l'uscita senza salvare e per eliminare o
+  scartare (pulsante rosso, come nel quarto giro).
+- **Versioni:** elenco in una `settings-card` con «Versione N», autore e data; la
+  versione precedente si apre come una scheda ricetta senza foto, con «Ripristina
+  questa versione» a tutta larghezza sotto.
