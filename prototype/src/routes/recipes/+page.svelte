@@ -93,8 +93,20 @@
 			{/if}
 		</section>
 	{/if}
+	{#if !result.ok}
+		<StateNotice title={app.t('error.forbidden')} />
+	{:else if result.value.length === 0}
+		<StateNotice title={app.t('recipes.noResults.title')} body={app.t('recipes.noResults.body')}>
+			<button type="button" class="text-button" onclick={() => update({})}>{app.t('recipes.reset')}</button>
+		</StateNotice>
+	{:else}
+		<p class="meta-line" role="status">{app.t('recipes.count', { count: result.value.length })}</p>
+		<div class="recipe-list">
+			{#each result.value as item (item.recipe.id)}<RecipeCard card={toCard(item)} system={app.family?.measurementSystem ?? 'metric'} />{/each}
+		</div>
+	{/if}
 	{#if curation && curation.archived.length}
-		<section class="curation" aria-labelledby="archived-title">
+		<section class="curation archived" aria-labelledby="archived-title">
 			<h2 id="archived-title"><button type="button" class="section-toggle" aria-expanded={archivedOpen} onclick={() => (archivedOpen = !archivedOpen)}>
 				{app.t('recipes.archived', { count: curation.archived.length })}
 				<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg>
@@ -111,18 +123,6 @@
 			{/if}
 		</section>
 	{/if}
-	{#if !result.ok}
-		<StateNotice title={app.t('error.forbidden')} />
-	{:else if result.value.length === 0}
-		<StateNotice title={app.t('recipes.noResults.title')} body={app.t('recipes.noResults.body')}>
-			<button type="button" class="text-button" onclick={() => update({})}>{app.t('recipes.reset')}</button>
-		</StateNotice>
-	{:else}
-		<p class="meta-line" role="status">{app.t('recipes.count', { count: result.value.length })}</p>
-		<div class="recipe-list">
-			{#each result.value as item (item.recipe.id)}<RecipeCard card={toCard(item)} system={app.family?.measurementSystem ?? 'metric'} />{/each}
-		</div>
-	{/if}
 </section>
 
 <style>
@@ -132,6 +132,7 @@
 	.add-recipe { display: grid; place-items: center; width: 44px; height: 44px; margin: -8px -8px 8px 0; border-radius: 8px; color: var(--ink); }
 	.add-recipe .icon { width: 26px; height: 26px; }
 	.curation { margin-bottom: 20px; }
+	.archived { margin: 24px 0 0; }
 	.curation h2 { margin: 0 0 8px; }
 	.curation .settings-card { padding-block: 4px; }
 	.section-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }

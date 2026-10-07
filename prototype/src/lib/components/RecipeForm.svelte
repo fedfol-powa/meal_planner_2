@@ -390,7 +390,8 @@
 				<section class="settings-card" id="section-meal">
 					<h2>{app.t('curation.section.meal')}</h2>
 					<fieldset>
-						<legend>{app.t('curation.field.mealType')}</legend>
+						<!-- The choices speak for themselves under the section title: the legend stays for screen readers. -->
+						<legend class="visually-hidden">{app.t('curation.field.mealType')}</legend>
 						{#each MEAL_TYPES as type (type)}
 							<label class="choice"><input type="radio" name="meal" value={type} bind:group={content.mealType} />{app.t(`curation.mealType.${type}`)}</label>
 						{/each}
@@ -411,7 +412,6 @@
 							{#each issuesFor('baseServings') as issue (issue.code)}<span class="field-error">{inline(issue)}</span>{/each}
 						</label>
 					</div>
-					<p class="meta-line">{app.t('curation.baseServingsHint')}</p>
 				</section>
 			{/if}
 
