@@ -21,11 +21,9 @@ export interface PrototypeSettings {
 export interface PrototypeVariants {
 	recipeForm: 'sections' | 'steps';
 	formLanguages: 'stacked' | 'switch';
-	/** Added after the first review on iPhone; saved states without it get the default. */
-	draftList: 'cards' | 'strip' | 'rows';
 }
 
-export const DEFAULT_VARIANTS: PrototypeVariants = { recipeForm: 'sections', formLanguages: 'stacked', draftList: 'cards' };
+export const DEFAULT_VARIANTS: PrototypeVariants = { recipeForm: 'sections', formLanguages: 'stacked' };
 
 export interface Persisted {
 	version: 21;

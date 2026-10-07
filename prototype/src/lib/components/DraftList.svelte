@@ -3,11 +3,10 @@
 	import type { DraftSummary } from '#lib/operations/curation.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	// Drafts at the top of the catalogue (round 5). Three forms to compare on iPhone (pannello Prova):
-	// cards, a horizontal strip of small cards, rows. Same content: kind, title, who and when, what is missing.
+	// Drafts at the top of the catalogue as cards (chosen on iPhone, round 5): kind, title, who and when,
+	// what is still missing.
 	let { drafts }: { drafts: DraftSummary[] } = $props();
 
-	const style = $derived(app.settings.variants.draftList);
 	const shortDate = (at: string) =>
 		new Intl.DateTimeFormat(app.locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${at.slice(0, 10)}T12:00:00Z`));
 </script>
@@ -30,22 +29,11 @@
 	</span>
 {/snippet}
 
-{#if style === 'rows'}
-	<ul class="rows settings-card">
-		{#each drafts as draft (draft.id)}
-			<li><a class="draft row" href="/recipes/drafts/{draft.id}">
-				<span class="row-body">{@render body(draft)}</span>
-				<svg class="icon chevron" aria-hidden="true"><use href="#icon-chevron-right" /></svg>
-			</a></li>
-		{/each}
-	</ul>
-{:else}
-	<ul class={style === 'strip' ? 'strip' : 'cards'}>
-		{#each drafts as draft (draft.id)}
-			<li><a class="draft card" href="/recipes/drafts/{draft.id}">{@render body(draft)}</a></li>
-		{/each}
-	</ul>
-{/if}
+<ul class="cards">
+	{#each drafts as draft (draft.id)}
+		<li><a class="draft card" href="/recipes/drafts/{draft.id}">{@render body(draft)}</a></li>
+	{/each}
+</ul>
 
 <style>
 	ul { margin: 0; padding: 0; list-style: none; }
@@ -62,14 +50,4 @@
 	.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 	@media (max-width: 767px) { .cards { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 
-	.strip { display: grid; grid-auto-flow: column; grid-auto-columns: min(72%, 260px); gap: 12px; margin: 0 -24px; padding: 2px 24px 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 24px; scrollbar-width: none; }
-	.strip li { scroll-snap-align: start; }
-	.strip .card { min-height: 148px; }
-	@media (max-width: 767px) { .strip { margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; } }
-
-	.rows { padding-block: 0; }
-	.rows li + li { border-top: 1px solid var(--rule); }
-	.row { align-items: center; gap: 12px; min-height: 52px; padding: 14px 0; }
-	.row-body { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6px; }
-	.chevron { color: var(--muted); }
 </style>

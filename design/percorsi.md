@@ -839,8 +839,7 @@ I default proposti (ingressi, «Salva bozza» esplicito, verifica prima di
 
 ### Domande per la review
 
-1. Varianti: modulo a pagina unica o a passi; lingue affiancate o con selettore;
-   bozze nel ricettario a schede, scorrevoli o a righe.
+1. Varianti: modulo a pagina unica o a passi; lingue affiancate o con selettore.
 2. Verifica esplicita prima di «Pubblica»: chiara o un passaggio di troppo?
 3. R1: l'avviso sulla scheda aperta da un pasto passato basta, o serve un segno anche
    nella scheda del pasto? Va mostrato ai membri o solo ai curatori?
@@ -915,8 +914,8 @@ questa è la copia italiana per la review.
 
 - **Schede delle bozze** (giudicate poco belle nella prova): stesso contenuto più
   asciutto (etichetta Nuova o Modifica, titolo nel font delle schede, «Lucia · 6 ott»,
-  dati mancanti come etichette brevi: Porzioni, Ingredienti, Traduzione) in tre
-  varianti del pannello Prova: schede, schede scorrevoli, righe (`DraftList`).
+  dati mancanti come etichette brevi: Porzioni, Ingredienti, Traduzione), provato in
+  tre varianti; scelte le **schede** (`DraftList`), tolte le scorrevoli e le righe.
 
 Domande per la review: le regole 3 e 5 sono giuste? Servono esempi da ricette vere del
 ricettario?
