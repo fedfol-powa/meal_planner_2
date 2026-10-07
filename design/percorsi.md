@@ -4,7 +4,7 @@ Creato: 6 ottobre 2026
 Ultimo aggiornamento: 7 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
-(Curatela) il 7 ottobre; prossimo percorso: MCP.
+(Curatela) il 7 ottobre; sesto giro (MCP e Amministrazione dell'app) in corso.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -61,8 +61,8 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
 | 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | Approvato il 7 ottobre 2026 |
-| 7 | MCP | Pagina di istruzioni, conversazioni simulate, rimando all'app per l'eliminazione delle famiglie | Da definire | — |
-| 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | Da definire | — |
+| 7 | MCP | Pagina di collegamento per i client, autorizzazione nel browser, agenti collegati, rimando all'app per l'eliminazione delle famiglie (niente conversazioni simulate, deciso il 7 ottobre 2026) | 6 | In corso |
+| 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | 6 | In corso |
 
 La composizione dei giri successivi al primo si decide alla fine di ogni review.
 
@@ -942,3 +942,44 @@ ricettario?
   "Prima prova su iPhone".
 - **Confermati:** avviso di conflitto, archiviazione, campi obbligatori per pubblicare,
   regole della varietà e dell'unione delle righe, decisioni della preparazione.
+
+## Giro 6: percorsi 7 e 8
+
+Stato: in sviluppo dal 7 ottobre 2026.
+Piano: [2026-10-07-prototipo-giro-6.md](../progetto/superpowers/plans/2026-10-07-prototipo-giro-6.md).
+
+### Perimetro
+
+Percorso 7 (specifica, sezione 13): pagina di collegamento per Codex CLI, Claude Code,
+ChatGPT e Claude Desktop, schermata di autorizzazione nel browser, agenti collegati e
+scollegamento. Percorso 8 (sezioni 7 e 8): utenti, ruoli e nomina di amministratori,
+inviti all'app, cancellazione degli utenti, ripristino dell'intero ricettario da backup.
+
+### Decisioni della preparazione (7 ottobre 2026, provvisorie)
+
+1. **Un solo giro** per i percorsi 7 e 8.
+2. **Nessun agente simulato:** per MCP solo la pagina con le configurazioni, la
+   schermata di autorizzazione e gli agenti collegati. Le operazioni simulate restano
+   la bozza di quelle condivise con MCP e le regole per canale si provano nei test.
+3. **Inviti all'app con ruoli facoltativi** (curatore, amministratore dell'app),
+   assegnati all'accettazione; link valido 7 giorni, revocabile, a uso singolo e
+   legato all'email. Iscrizione aperta; nessun ingresso in famiglie.
+4. **Ripristino del ricettario da backup:** le ricette del backup tornano com'erano
+   come nuova versione (storico intero); quelle nate dopo vengono archiviate; anteprima
+   con i numeri prima della conferma.
+
+I default proposti (ingressi dal Profilo, contenuti della pagina di collegamento,
+autorizzazione, sezioni dell'amministrazione, copia «Prima del ripristino») sono nel
+piano del giro, approvato il 7 ottobre 2026.
+
+### Varianti nel pannello Prova
+
+- **Client nella pagina di collegamento:** a schede o a fisarmonica.
+
+### Simulazione dei dati
+
+- Agenti collegati: Federico con Claude Code e ChatGPT, Lucia con Claude Desktop.
+- Inviti all'app: uno in attesa (curatrice), uno scaduto, uno accettato (Lucia).
+- Backup giornalieri degli ultimi 7 giorni e settimanali delle 4 settimane precedenti,
+  ricavati dallo storico delle versioni; frequenza e conservazione dimostrative.
+- Pannello Prova: «Un agente chiede l'accesso» e «Apri l'invito all'app demo».
