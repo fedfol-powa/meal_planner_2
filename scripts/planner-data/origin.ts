@@ -35,7 +35,7 @@ export function readOriginRecipes(originDirectory: string): OriginRecipe[] {
 
 /** Same slugs as the prototype demo data. */
 export function slug(text: string): string {
-	return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+	return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 const AMOUNT = String.raw`(\d+(?:[.,]\d+)?)(?:\s*-\s*(\d+(?:[.,]\d+)?))?\s*(minuti|min|ore|ora|h)\b`;

@@ -22,7 +22,7 @@ const names = new Map(all.map((r) => [r.id, r.nome]));
 const byId = new Map(recipes.map((r) => [r.id, r]));
 const settings = curatorFamilySettings();
 const restrictions = curatorRestrictions(recipes);
-const familyScores = familyScoresOf(all);
+const familyScores = familyScoresOf(catalogue);
 const ownedBookIds = [...new Set(recipes.flatMap((r) => (r.bookId ? [r.bookId] : [])))];
 const startHistory = historyOf(all, FIRST_WEEK);
 

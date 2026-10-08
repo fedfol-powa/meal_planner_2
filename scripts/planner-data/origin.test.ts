@@ -1,7 +1,7 @@
-import { mkdirSync, mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { durationOf, familyScoresOf, historyOf, originDir, publishable, slug, type OriginRecipe } from './origin.ts';
 
 const origin = (over: Partial<OriginRecipe>): OriginRecipe => ({
@@ -13,6 +13,7 @@ describe('origin data', () => {
 	it('slugs Italian names like the prototype', () => {
 		expect(slug('Cipolla rossa di Tropea (o 1 cipollotto)')).toBe('cipolla-rossa-di-tropea-o-1-cipollotto');
 		expect(slug('Petto di pollo')).toBe('petto-di-pollo');
+		expect(slug('Caffè perché più')).toBe('caffe-perche-piu');
 	});
 	it('reads durations: ranges take the maximum, "+" adds up, text without numbers is unknown', () => {
 		expect(durationOf('25-30 min')).toBe(30);
@@ -50,15 +51,25 @@ describe('origin data', () => {
 });
 
 describe('originDir', () => {
+	const created: string[] = [];
+	const tempDir = () => {
+		const dir = mkdtempSync(join(tmpdir(), 'origin-'));
+		created.push(dir);
+		return dir;
+	};
+	afterEach(() => {
+		for (const dir of created.splice(0)) rmSync(dir, { recursive: true, force: true });
+	});
+
 	it('finds the origin project next to the repository, also from a worktree under .worktrees/', () => {
-		const base = mkdtempSync(join(tmpdir(), 'origin-'));
+		const base = tempDir();
 		mkdirSync(join(base, 'meal_planner'));
 		mkdirSync(join(base, 'meal_planner_2', '.worktrees', 'branch'), { recursive: true });
 		expect(originDir(join(base, 'meal_planner_2'), {})).toBe(join(base, 'meal_planner'));
 		expect(originDir(join(base, 'meal_planner_2', '.worktrees', 'branch'), {})).toBe(join(base, 'meal_planner'));
 	});
 	it('prefers MEAL_PLANNER_ORIGIN and fails clearly when nothing is found', () => {
-		const base = mkdtempSync(join(tmpdir(), 'origin-'));
+		const base = tempDir();
 		expect(originDir(base, { MEAL_PLANNER_ORIGIN: '/somewhere' })).toBe('/somewhere');
 		expect(() => originDir(base, {})).toThrow(/MEAL_PLANNER_ORIGIN/);
 	});

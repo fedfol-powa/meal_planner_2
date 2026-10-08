@@ -1,6 +1,6 @@
 # Report del pianificatore (esperimento M0)
 
-Generato da `npm run planner-report`: 20 settimane dal 2026-10-12. Catalogo: 52 ricette pubblicabili su 56. Storico iniziale: 47 pasti mangiati. Voti: 30 ricette votate. Impostazioni dalle regole d'origine (`scripts/planner-data/family.ts`).
+Generato da `npm run planner-report`: 20 settimane dal 2026-10-12. Catalogo: 52 ricette pubblicabili su 56. Storico iniziale: 47 pasti mangiati. Voti: 29 ricette votate. Impostazioni dalle regole d'origine (`scripts/planner-data/family.ts`).
 
 ## Sintesi
 
