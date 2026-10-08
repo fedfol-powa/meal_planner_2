@@ -84,8 +84,8 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 ## Stack di riferimento
 
 Deciso l'8 ottobre 2026 dopo la verifica dell'architettura: interfaccia React (SPA con
-Vite, TanStack Router e TanStack Query); server Hono in un Worker di Cloudflare, che
-serve anche la SPA e implementa un contratto unico delle operazioni, da cui derivano
+Vite, TanStack Router e TanStack Query); server in un Worker di Cloudflare (con Hono, da
+confermare insieme alla libreria del contratto), che serve anche la SPA e implementa un contratto unico delle operazioni, da cui derivano
 API web, OpenAPI e strumenti MCP; Supabase sul piano gratuito (Postgres, Auth con
 server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
 un'esportazione notturna al posto dei backup della piattaforma; email con Resend;

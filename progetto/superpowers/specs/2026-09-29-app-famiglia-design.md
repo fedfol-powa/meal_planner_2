@@ -85,7 +85,8 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 - interfaccia in React invece di Svelte: SPA con Vite, TanStack Router e TanStack Query;
   il prototipo Svelte resta il riferimento eseguibile dei percorsi approvati;
 - backend scritto come un unico strato di operazioni applicative con un contratto
-  esplicito, servito da Hono su Cloudflare Workers, da cui derivano l'API dell'app
+  esplicito, servito da un server su Cloudflare Workers (con Hono, da confermare
+  insieme alla libreria del contratto), da cui derivano l'API dell'app
   web, l'API documentata OpenAPI e gli strumenti MCP; la libreria del contratto è
   ancora da scegliere (sezione 15);
 - MCP nella stessa applicazione, autenticato con il server OAuth 2.1 di Supabase Auth;
@@ -99,7 +100,7 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 
 **Decisioni confermate l'8 ottobre 2026, hosting e costi:**
 
-- server Hono in un Worker di Cloudflare, che serve anche la SPA come file statici, al
+- server in un Worker di Cloudflare (Hono da confermare, sezione 15), che serve anche la SPA come file statici, al
   posto della funzione su Netlify; collegamento a Supabase tramite Hyperdrive;
 - Supabase sul piano gratuito: i backup della piattaforma mancano e li sostituisce
   un'esportazione notturna del database; la pausa per inattività si evita con il job
@@ -376,7 +377,7 @@ meal_planner_2/
 ├── contract/                     contratto delle operazioni: schemi, errori, metadati
 ├── domain/                       TypeScript puro: pianificatore, unità, spesa,
 │                                 validazione, schema del documento ricetta, versioni
-├── server/                       Hono: implementazione delle operazioni, MCP, job
+├── server/                       Worker: implementazione delle operazioni, MCP, job
 ├── web/                          React (Vite, TanStack Router e Query), PWA mobile-first
 ├── supabase/migrations/          schema SQL, funzioni transazionali e policy RLS
 ├── scripts/                      importazione, esportazione, report del pianificatore
@@ -392,9 +393,11 @@ meal_planner_2/
   leggono operazioni pubbliche. Token e componenti seguono `design/`; il codice del
   prototipo Svelte si riscrive, mentre la logica di dominio TypeScript e i suoi test si
   riusano.
-- **Server: Hono in un Worker di Cloudflare** (runtime Workers con l'opzione
+- **Server in un Worker di Cloudflare** (runtime Workers con l'opzione
   `nodejs_compat`), che serve anche la SPA come file statici dallo stesso dominio
-  (deciso l'8 ottobre 2026 al posto di Netlify). Espone tutte le rotte server:
+  (deciso l'8 ottobre 2026 al posto di Netlify). Rotte e passaggi comuni sono previsti
+  con Hono, da confermare insieme alla libreria del contratto (sezione 15). Espone
+  tutte le rotte server:
 
   | Rotta | Consumatore | Contenuto |
   |---|---|---|
@@ -429,7 +432,7 @@ generico alle tabelle. Il prototipo le abbozza in
 stesso percorso:
 
 ```
-Hono → verifica del JWT di Supabase → contesto (utente, canale, lingua)
+Worker → verifica del JWT di Supabase → contesto (utente, canale, lingua)
      → permessi: appartenenza alla famiglia o ruolo globale; limiti di frequenza
      → transazione Postgres → dominio puro → registro (meal_changes, canale)
      → vista localizzata
@@ -525,7 +528,7 @@ identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani
 - **React** invece di Svelte (8 ottobre 2026, scelta dell'utente dopo il prototipo):
   ecosistema più ampio e maggiore familiarità degli agenti che scrivono il codice. Il
   costo è la riscrittura delle schermate del prototipo.
-- **SPA con server Hono** invece di Next.js o TanStack Start: il rendering lato server
+- **SPA con un server separato** invece di Next.js o TanStack Start: il rendering lato server
   non serve; le Server Actions di Next.js non si prestano a una coda offline
   ripetibile né a MCP, che richiederebbero comunque rotte separate; le funzioni server
   di TanStack Start sono di nuovo un'API implicita. Un contratto esplicito servito da
@@ -1520,7 +1523,7 @@ non accesso generico alle tabelle.
 
 **Architettura decisa l'8 ottobre 2026** (sezione 1):
 
-- **Stessa applicazione.** Il server MCP è la rotta `/mcp` della funzione Hono, con il
+- **Stessa applicazione.** Il server MCP è la rotta `/mcp` del server nel Worker, con il
   trasporto Streamable HTTP senza stato, adatto alle funzioni serverless; non è un
   servizio separato.
 - **Autenticazione con il server OAuth 2.1 di Supabase Auth**, conforme alla
