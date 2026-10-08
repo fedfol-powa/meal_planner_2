@@ -38,13 +38,16 @@ export const TOP_K = 4;
 export const KNOWN_NEW_MIN_COOKED = 10;
 export const MAX_REPAIR_ROUNDS = 20;
 
-const plain = (servings: number): SlotSetting => ({ servings, fixedText: null, maxMinutes: null });
+/** Default time limit of weekday lunches (decided 8 October 2026); every family can change it. */
+export const WEEKDAY_LUNCH_MINUTES = 30;
 
-/** New family (spec section 2): every lunch and dinner for `servings`, no fixed meals, limits or rules. */
+const plain = (servings: number, maxMinutes: number | null = null): SlotSetting => ({ servings, fixedText: null, maxMinutes });
+
+/** New family (spec section 2): every lunch and dinner for `servings`, weekday lunches within 30 minutes, no fixed meals or rules. */
 export function defaultPlannerSettings(servings = 2): PlannerSettings {
 	return {
 		slots: {
-			lunch: Array.from({ length: 7 }, () => plain(servings)),
+			lunch: Array.from({ length: 7 }, (_, day) => plain(servings, day < 5 ? WEEKDAY_LUNCH_MINUTES : null)),
 			dinner: Array.from({ length: 7 }, () => plain(servings))
 		},
 		rules: [],

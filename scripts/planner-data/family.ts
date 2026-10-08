@@ -1,5 +1,6 @@
 // The curator's family settings, from the origin project's rules (../meal_planner/progetto/REGOLE.md):
-// diners matrix, Saturday dinner free, Sunday lunch pizza, quick Monday and Wednesday dinners (20 min),
+// diners matrix, Saturday dinner free, Sunday lunch pizza, weekday lunches within 30 min ("piatti da circa
+// 20-30 minuti", the new default since 8 October 2026), quick Monday and Wednesday dinners (20 min),
 // pasta only at lunch, fish on Friday, no fishmonger fish on Monday (canned fish allowed, the user on
 // 8 October 2026), 7 known and 5 new ± 1, cucumbers as rare
 // as possible. Not expressible with the rule templates: no skottle on Monday evening.
@@ -10,7 +11,7 @@ const slot = (servings: number, fixedText: string | null = null, maxMinutes: num
 export function curatorFamilySettings(): PlannerSettings {
 	return {
 		slots: {
-			lunch: [slot(2), slot(3), slot(3), slot(3), slot(3), slot(4), slot(4, 'Pizza')],
+			lunch: [slot(2, null, 30), slot(3, null, 30), slot(3, null, 30), slot(3, null, 30), slot(3, null, 30), slot(4), slot(4, 'Pizza')],
 			dinner: [slot(2, null, 20), slot(4), slot(2, null, 20), slot(4), slot(4), slot(4, 'Cena libera'), slot(4)]
 		},
 		rules: [
