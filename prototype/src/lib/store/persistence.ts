@@ -17,13 +17,13 @@ export interface PrototypeSettings {
 }
 
 export interface Persisted {
-	version: 24;
+	version: 25;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
 // Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
-export const STORAGE_KEY = 'app-famiglia-prototype-v24';
+export const STORAGE_KEY = 'app-famiglia-prototype-v25';
 
 /** First language (round 4 default): Italian browsers get it-IT, every other browser en-GB. */
 export function detectLocale(languages: readonly string[] | undefined): Locale {
@@ -36,7 +36,7 @@ function browserLanguages(): readonly string[] | undefined {
 
 export function createInitial(): Persisted {
 	return {
-		version: 24,
+		version: 25,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -51,7 +51,7 @@ export function createInitial(): Persisted {
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	if (!v || v.version !== 24 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	if (!v || v.version !== 25 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
 	const s = v.settings;
 	return (
 		!!s &&
@@ -62,7 +62,8 @@ function isPersisted(value: unknown): value is Persisted {
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
 		Array.isArray(v.db.connectedAgents) &&
 		Array.isArray(v.db.appInvitations) &&
-		Array.isArray(v.db.catalogueBackups) &&
+		Array.isArray(v.db.recipeStatusChanges) &&
+		Array.isArray(v.db.catalogueRestores) &&
 		Array.isArray(v.db.invitations) &&
 		Array.isArray(v.db.removals) &&
 		Array.isArray(v.db.recipeVersions) &&

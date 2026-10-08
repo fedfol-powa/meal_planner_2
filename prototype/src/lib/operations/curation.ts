@@ -436,6 +436,7 @@ export function archiveRecipe(db: DemoDatabase, ctx: OperationContext, recipeId:
 	if (!recipe) return fail('not_found');
 	if (recipe.status !== 'published') return fail('not_allowed');
 	Object.assign(recipe, { status: 'archived', archivedBy: ctx.userId, archivedAt: ctx.now });
+	db.recipeStatusChanges.push({ recipeId, status: 'archived', by: ctx.userId, at: ctx.now });
 	return ok(null);
 }
 
@@ -446,5 +447,6 @@ export function unarchiveRecipe(db: DemoDatabase, ctx: OperationContext, recipeI
 	if (!recipe) return fail('not_found');
 	if (recipe.status !== 'archived') return fail('not_allowed');
 	Object.assign(recipe, { status: 'published', archivedBy: null, archivedAt: null });
+	db.recipeStatusChanges.push({ recipeId, status: 'published', by: ctx.userId, at: ctx.now });
 	return ok(null);
 }

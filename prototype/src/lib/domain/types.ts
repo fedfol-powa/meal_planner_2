@@ -102,8 +102,8 @@ export interface RecipeVersion {
 	publishedAt: LocalDateTime;
 	/** Set when the version republishes an older one. */
 	restoredFrom: number | null;
-	/** Set when the version comes from a whole catalogue restore (round 6). */
-	restoredFromBackup?: string;
+	/** Set when the version comes from a whole catalogue restore: the instant restored. */
+	restoredFromInstant?: LocalDateTime;
 }
 
 /** One save of a draft; overwritten saves stay here, recoverable (round 5, conflicts). */
@@ -343,16 +343,19 @@ export interface AppInvitation {
 	revokedAt: LocalDateTime | null;
 }
 
-/**
- * A copy of the whole catalogue (round 6, simulated). Recipe contents are not copied: each entry points
- * to a version kept in recipe_versions. Ingredients are copied because they are shared entities.
- */
-export interface CatalogueBackup {
-	id: string;
-	takenAt: LocalDateTime;
-	kind: 'daily' | 'weekly' | 'pre_restore';
-	recipes: { recipeId: string; version: number; status: 'published' | 'archived' }[];
-	ingredients: Ingredient[];
+/** recipe_status_changes: append-only archive and return history, to rebuild the catalogue at a date. */
+export interface RecipeStatusChange {
+	recipeId: string;
+	status: 'published' | 'archived';
+	by: string;
+	at: LocalDateTime;
+}
+
+/** A whole catalogue restore to a point in time (spec section 8, 8 October 2026). */
+export interface CatalogueRestore {
+	at: LocalDateTime;
+	restoredTo: LocalDateTime;
+	by: string;
 }
 
 export interface DemoDatabase {
@@ -373,5 +376,6 @@ export interface DemoDatabase {
 	recipeDrafts: RecipeDraft[];
 	connectedAgents: ConnectedAgent[];
 	appInvitations: AppInvitation[];
-	catalogueBackups: CatalogueBackup[];
+	recipeStatusChanges: RecipeStatusChange[];
+	catalogueRestores: CatalogueRestore[];
 }

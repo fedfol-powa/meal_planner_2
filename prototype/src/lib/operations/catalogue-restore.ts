@@ -1,48 +1,59 @@
-import { changedFields, contentOf, plainCopy } from '#lib/domain/recipe-content.ts';
+import { changedFields, contentOf } from '#lib/domain/recipe-content.ts';
 import { validateForPublish, type ValidationIssue } from '#lib/domain/recipe-validation.ts';
-import type { CatalogueBackup, DemoDatabase, Locale, LocalDateTime, Recipe } from '#lib/domain/types.ts';
+import type { DemoDatabase, Locale, LocalDateTime, Recipe } from '#lib/domain/types.ts';
 import { localized } from './access';
 import { adminGuard } from './admin';
 import { fail, ok, type OperationContext, type OpResult } from './context';
 
-/** A copy of the catalogue as it is now: published and archived recipes, all ingredients. */
-export function snapshotCatalogue(db: DemoDatabase, id: string, takenAt: LocalDateTime, kind: CatalogueBackup['kind']): CatalogueBackup {
-	return {
-		id, takenAt, kind,
-		recipes: db.recipes.filter((r) => r.status !== 'draft').map((r) => ({ recipeId: r.id, version: r.version, status: r.status as 'published' | 'archived' })),
-		ingredients: plainCopy(db.ingredients)
-	};
+/**
+ * Whole catalogue restore to a point in time (spec section 8, decided 8 October 2026): the catalogue at
+ * any instant is rebuilt from the append-only history (recipe_versions, recipe_status_changes), so there
+ * are no periodic copies to list. Catalogue ingredients have no history in the prototype: the real app
+ * restores them from ingredient_versions.
+ */
+
+const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+/** The minute before `at`, used to undo a restore (it only writes new versions and status changes). */
+export function minuteBefore(at: LocalDateTime): LocalDateTime {
+	return new Date(Date.parse(`${at}:00Z`) - 60_000).toISOString().slice(0, 16);
 }
 
-/**
- * The copy the catalogue would have had at `takenAt`, rebuilt from the version history (demo backups):
- * the last version published by then and whether the recipe was already archived.
- */
-export function catalogueAt(db: DemoDatabase, id: string, takenAt: LocalDateTime, kind: CatalogueBackup['kind']): CatalogueBackup {
-	const recipes: CatalogueBackup['recipes'] = [];
+interface CatalogueEntry {
+	recipeId: string;
+	version: number;
+	status: 'published' | 'archived';
+}
+
+/** Recipes published by `at`, with the version in force and whether they were archived then. */
+export function catalogueAt(db: DemoDatabase, at: LocalDateTime): CatalogueEntry[] {
+	const entries: CatalogueEntry[] = [];
 	for (const recipe of db.recipes) {
-		const versions = db.recipeVersions.filter((v) => v.recipeId === recipe.id && v.publishedAt <= takenAt);
+		const versions = db.recipeVersions.filter((v) => v.recipeId === recipe.id && v.publishedAt <= at);
 		if (!versions.length) continue;
 		const version = Math.max(...versions.map((v) => v.version));
-		recipes.push({ recipeId: recipe.id, version, status: recipe.archivedAt !== null && recipe.archivedAt <= takenAt ? 'archived' : 'published' });
+		const change = db.recipeStatusChanges.filter((c) => c.recipeId === recipe.id && c.at <= at).at(-1);
+		entries.push({ recipeId: recipe.id, version, status: change?.status ?? 'published' });
 	}
-	return { id, takenAt, kind, recipes, ingredients: plainCopy(db.ingredients) };
+	return entries;
 }
 
-export interface BackupRow {
-	id: string;
-	takenAt: LocalDateTime;
-	kind: CatalogueBackup['kind'];
-	recipes: number;
+export interface RestoreRow {
+	at: LocalDateTime;
+	restoredTo: LocalDateTime;
+	byName: string;
+	/** The instant to restore to undo it. */
+	undoAt: LocalDateTime;
 }
 
-export function listCatalogueBackups(db: DemoDatabase, ctx: OperationContext): OpResult<BackupRow[]> {
+/** Restores done so far, newest first: each can be undone by restoring the minute before it. */
+export function listCatalogueRestores(db: DemoDatabase, ctx: OperationContext): OpResult<RestoreRow[]> {
 	const allowed = adminGuard(db, ctx, false);
 	if (!allowed.ok) return allowed;
 	return ok(
-		db.catalogueBackups
-			.map((b) => ({ id: b.id, takenAt: b.takenAt, kind: b.kind, recipes: b.recipes.filter((r) => r.status === 'published').length }))
-			.sort((a, b) => b.takenAt.localeCompare(a.takenAt))
+		db.catalogueRestores
+			.map((r) => ({ at: r.at, restoredTo: r.restoredTo, byName: db.users.find((u) => u.id === r.by)?.displayName ?? '', undoAt: minuteBefore(r.at) }))
+			.sort((a, b) => b.at.localeCompare(a.at))
 	);
 }
 
@@ -52,40 +63,30 @@ export interface RecipeChange {
 }
 
 export interface RestorePreview {
-	backup: BackupRow;
-	/** Content goes back to the version of the backup, as a new version. */
+	at: LocalDateTime;
+	/** Content goes back to the version in force then, as a new version. */
 	reverted: (RecipeChange & { fromVersion: number; toVersion: number })[];
-	/** Born after the backup, or archived in it: out of the catalogue, meals still readable. */
+	/** Born after that instant, or archived then: out of the catalogue, meals still readable. */
 	archived: RecipeChange[];
-	/** Archived now, published in the backup: back in the catalogue. */
+	/** Archived now, published then: back in the catalogue. */
 	unarchived: RecipeChange[];
-	/** The version of the backup fails today's checks: the recipe stays as it is. */
+	/** The version in force then fails today's checks: the recipe stays as it is. */
 	blocked: (RecipeChange & { issues: ValidationIssue[] })[];
 	unchanged: number;
-	/** Catalogue ingredients whose name, department or pantry flag go back. */
-	ingredients: number;
 	/** Drafts are not touched. */
 	drafts: number;
 }
 
-interface Plan {
-	preview: RestorePreview;
-	backup: CatalogueBackup;
-}
-
 const nameOf = (recipe: Pick<Recipe, 'name'>, locale: Locale) => localized(recipe.name, locale).text;
 
-function plan(db: DemoDatabase, ctx: OperationContext, backupId: string): OpResult<Plan> {
-	const backup = db.catalogueBackups.find((b) => b.id === backupId);
-	if (!backup) return fail('not_found');
+function plan(db: DemoDatabase, ctx: OperationContext, at: LocalDateTime): OpResult<RestorePreview> {
+	if (!LOCAL_DATE_TIME.test(at) || at >= ctx.now) return fail('invalid');
 	const locale = db.users.find((u) => u.id === ctx.userId)?.locale ?? 'it-IT';
-	const preview: RestorePreview = {
-		backup: { id: backup.id, takenAt: backup.takenAt, kind: backup.kind, recipes: backup.recipes.filter((r) => r.status === 'published').length },
-		reverted: [], archived: [], unarchived: [], blocked: [], unchanged: 0, ingredients: 0, drafts: db.recipeDrafts.length
-	};
+	const then = catalogueAt(db, at);
+	const preview: RestorePreview = { at, reverted: [], archived: [], unarchived: [], blocked: [], unchanged: 0, drafts: db.recipeDrafts.length };
 	for (const recipe of db.recipes.filter((r) => r.status !== 'draft')) {
 		const change = { recipeId: recipe.id, name: nameOf(recipe, locale) };
-		const entry = backup.recipes.find((e) => e.recipeId === recipe.id);
+		const entry = then.find((e) => e.recipeId === recipe.id);
 		if (!entry) {
 			if (recipe.status === 'published') preview.archived.push(change);
 			else preview.unchanged++;
@@ -105,34 +106,27 @@ function plan(db: DemoDatabase, ctx: OperationContext, backupId: string): OpResu
 		}
 		if (!touched) preview.unchanged++;
 	}
-	preview.ingredients = backup.ingredients.filter((saved) => {
-		const current = db.ingredients.find((i) => i.id === saved.id);
-		return !current || JSON.stringify(current) !== JSON.stringify(saved);
-	}).length;
-	return ok({ preview, backup });
+	return ok(preview);
 }
 
-export function previewCatalogueRestore(db: DemoDatabase, ctx: OperationContext, backupId: string): OpResult<RestorePreview> {
+export function previewCatalogueRestore(db: DemoDatabase, ctx: OperationContext, at: LocalDateTime): OpResult<RestorePreview> {
 	const allowed = adminGuard(db, ctx, false);
 	if (!allowed.ok) return allowed;
-	const planned = plan(db, ctx, backupId);
-	return planned.ok ? ok(planned.value.preview) : planned;
+	return plan(db, ctx, at);
 }
 
 /**
- * Restores the whole catalogue (round 6, provisional): a copy "before the restore" first; recipes of the
- * backup republished as new versions (history kept), recipes born after archived, ingredients of the
- * backup put back (newer ones stay). Menus, ratings, drafts, families and users are not touched; past
- * meals keep the version eaten (review R1).
+ * Takes the whole catalogue back to `at`: recipes republished as new versions (history kept), recipes
+ * born after archived, archived ones published then brought back. Menus, ratings, drafts, families and
+ * users are not touched; past meals keep the version eaten (review R1).
  */
-export function restoreCatalogue(db: DemoDatabase, ctx: OperationContext, backupId: string): OpResult<{ reverted: number; archived: number; unarchived: number }> {
+export function restoreCatalogue(db: DemoDatabase, ctx: OperationContext, at: LocalDateTime): OpResult<{ reverted: number; archived: number; unarchived: number }> {
 	const allowed = adminGuard(db, ctx, true);
 	if (!allowed.ok) return allowed;
-	const planned = plan(db, ctx, backupId);
+	const planned = plan(db, ctx, at);
 	if (!planned.ok) return planned;
-	const { preview, backup } = planned.value;
+	const preview = planned.value;
 
-	db.catalogueBackups.push(snapshotCatalogue(db, `backup-before-${ctx.now.replace(/\D/g, '')}`, ctx.now, 'pre_restore'));
 	const recipe = (id: string) => db.recipes.find((r) => r.id === id)!;
 	for (const item of preview.reverted) {
 		const target = recipe(item.recipeId);
@@ -141,15 +135,17 @@ export function restoreCatalogue(db: DemoDatabase, ctx: OperationContext, backup
 		target.version++;
 		db.recipeVersions.push({
 			recipeId: target.id, version: target.version, content: contentOf(content), publishedBy: ctx.userId, publishedAt: ctx.now,
-			restoredFrom: item.toVersion, restoredFromBackup: backup.id
+			restoredFrom: item.toVersion, restoredFromInstant: at
 		});
 	}
-	for (const item of preview.archived) Object.assign(recipe(item.recipeId), { status: 'archived', archivedBy: ctx.userId, archivedAt: ctx.now });
-	for (const item of preview.unarchived) Object.assign(recipe(item.recipeId), { status: 'published', archivedBy: null, archivedAt: null });
-	for (const saved of backup.ingredients) {
-		const current = db.ingredients.find((i) => i.id === saved.id);
-		if (current) Object.assign(current, plainCopy(saved));
-		else db.ingredients.push(plainCopy(saved));
+	for (const item of preview.archived) {
+		Object.assign(recipe(item.recipeId), { status: 'archived', archivedBy: ctx.userId, archivedAt: ctx.now });
+		db.recipeStatusChanges.push({ recipeId: item.recipeId, status: 'archived', by: ctx.userId, at: ctx.now });
 	}
+	for (const item of preview.unarchived) {
+		Object.assign(recipe(item.recipeId), { status: 'published', archivedBy: null, archivedAt: null });
+		db.recipeStatusChanges.push({ recipeId: item.recipeId, status: 'published', by: ctx.userId, at: ctx.now });
+	}
+	db.catalogueRestores.push({ at: ctx.now, restoredTo: at, by: ctx.userId });
 	return ok({ reverted: preview.reverted.length, archived: preview.archived.length, unarchived: preview.unarchived.length });
 }

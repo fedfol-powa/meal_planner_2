@@ -1,7 +1,7 @@
 # Percorsi del prototipo di App Famiglia
 
 Creato: 6 ottobre 2026
-Ultimo aggiornamento: 7 ottobre 2026
+Ultimo aggiornamento: 8 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
 (Curatela) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre; tutti i
@@ -1063,3 +1063,24 @@ piano del giro, approvato il 7 ottobre 2026.
   successive (anche se nei menu della settimana) e copia «Prima del ripristino», e le
   decisioni della preparazione.
 
+
+### Aggiornamento dopo la verifica dell'architettura (8 ottobre 2026)
+
+Il ripristino dell'intero ricettario non usa più copie periodiche: lo stato a una data
+si ricostruisce dallo storico (specifica, sezioni 2 e 8). Nel prototipo:
+
+- **Amministrazione:** la sezione «Backup del ricettario» diventa «Ripristino del
+  ricettario», con giorno e ora (di default ieri alle 23:59) e «Vedi l'anteprima»;
+  sotto, «Ripristini fatti» con chi e quando. Toccare un ripristino apre l'anteprima del
+  minuto prima, che lo annulla: sostituisce la copia «Prima del ripristino».
+- **Rotta:** `/admin/restore?at=<giorno>T<ora>` al posto di `/admin/backups/[id]`;
+  anteprima e conferma restano quelle approvate nel sesto giro.
+- **Operazioni:** `catalogue-restore.ts` (`catalogueAt`, `listCatalogueRestores`,
+  `previewCatalogueRestore`, `restoreCatalogue`) al posto di `catalogue-backup.ts`;
+  archiviazioni e ritorni nel ricettario si registrano in `recipeStatusChanges`
+  (`recipe_status_changes` della specifica), i ripristini in `catalogueRestores`. Gli
+  ingredienti del catalogo non hanno storico nel prototipo: l'app li ripristina da
+  `ingredient_versions`.
+
+L'app vera sarà scritta in React (specifica, sezione 1); il prototipo resta in Svelte
+come riferimento eseguibile dei percorsi.

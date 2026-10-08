@@ -7,14 +7,21 @@
 	import { errorKey } from '#lib/i18n/errors.ts';
 	import { listUsers } from '#lib/operations/admin.ts';
 	import { listAppInvitations, revokeAppInvitation } from '#lib/operations/app-invitations.ts';
-	import { listCatalogueBackups } from '#lib/operations/catalogue-backup.ts';
+	import { goto } from '$app/navigation';
+	import { addDays } from '#lib/domain/calendar.ts';
+	import { listCatalogueRestores } from '#lib/operations/catalogue-restore.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	// App administration (round 6): users and roles, app invitations, recipe book backups, on one page.
+	// App administration (round 6): users and roles, app invitations, recipe book restore, on one page.
+	// The restore takes the recipe book back to a chosen moment, rebuilt from the history (8 October 2026).
 	let text = $state('');
 	const users = $derived(listUsers(app.db, app.ctx, text));
 	const invitations = $derived(listAppInvitations(app.db, app.ctx));
-	const backups = $derived(listCatalogueBackups(app.db, app.ctx));
+	const restores = $derived(listCatalogueRestores(app.db, app.ctx));
+	let restoreDay = $state(addDays(app.settings.now.slice(0, 10), -1));
+	let restoreTime = $state('23:59');
+	const restoreAt = $derived(`${restoreDay}T${restoreTime}`);
+	const restoreInPast = $derived(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(restoreAt) && restoreAt < app.settings.now);
 	let inviting = $state(false);
 	let shared = $state<{ url: string; email: string } | null>(null);
 
@@ -96,15 +103,22 @@
 				{/if}
 			</section>
 
-			<section class="settings-card" id="backups" aria-labelledby="backups-title">
-				<h2 id="backups-title">{app.t('admin.backups')}</h2>
-				<p class="meta-line">{app.t('admin.backupsIntro')}</p>
-				{#if backups.ok}
+			<section class="settings-card" id="restore" aria-labelledby="restore-title">
+				<h2 id="restore-title">{app.t('admin.restoreSection')}</h2>
+				<p class="meta-line">{app.t('admin.restoreSectionIntro')}</p>
+				<div class="moment">
+					<label class="field">{app.t('admin.restore.day')}<input type="date" bind:value={restoreDay} max={app.settings.now.slice(0, 10)} /></label>
+					<label class="field">{app.t('admin.restore.time')}<input type="time" bind:value={restoreTime} /></label>
+				</div>
+				{#if !restoreInPast}<p class="meta-line">{app.t('admin.restore.past')}</p>{/if}
+				<button type="button" class="text-button" disabled={!restoreInPast} onclick={() => goto(`/admin/restore?at=${restoreAt}`)}>{app.t('admin.restore.previewButton')}</button>
+				{#if restores.ok && restores.value.length}
+					<h3>{app.t('admin.restores')}</h3>
 					<ul class="row-list">
-						{#each backups.value as backup (backup.id)}
+						{#each restores.value as restore (restore.at)}
 							<li>
-								<a class="row-link" href="/admin/backups/{backup.id}">
-									<span class="row-main">{formatDateTime(app.locale, backup.takenAt)}<small>{app.t(`admin.backup.${backup.kind}` as const)} · {app.t('admin.backup.recipes', { count: backup.recipes })}</small></span>
+								<a class="row-link" href="/admin/restore?at={restore.undoAt}">
+									<span class="row-main">{app.t('admin.restoreRow', { date: formatDateTime(app.locale, restore.at), target: formatDateTime(app.locale, restore.restoredTo) })}<small>{app.t('admin.restoreRowHint', { name: restore.byName })}</small></span>
 									<svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg>
 								</a>
 							</li>
@@ -120,6 +134,9 @@
 <ShareLinkSheet url={shared?.url ?? null} onClose={() => (shared = null)} title={app.t('admin.inviteShareTitle')} body={app.t('admin.inviteShareBody', { email: shared?.email ?? '' })} />
 
 <style>
+	.moment { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+	.moment input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 1rem/1.5 var(--text-font); }
+	h3 { margin: 20px 0 4px; }
 	.search { width: 100%; min-height: 44px; margin: 4px 0 8px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font: inherit; box-sizing: border-box; }
 	.you { color: var(--muted); font-weight: 400; }
 	.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }

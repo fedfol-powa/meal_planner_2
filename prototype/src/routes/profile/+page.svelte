@@ -69,7 +69,7 @@
 				<ul class="row-list">
 					<li><a class="row-link" href="/admin#users"><svg class="icon" aria-hidden="true"><use href="#icon-users" /></svg><span class="row-main">{app.t('profile.admin.users')}<small>{app.t('profile.admin.usersCount', { count: app.db.users.length })}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
 					<li><a class="row-link" href="/admin#invitations"><svg class="icon" aria-hidden="true"><use href="#icon-plus" /></svg><span class="row-main">{app.t('profile.admin.invitations')}<small>{app.t('profile.admin.invitationsCount', { count: pendingInvitations })}</small></span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
-					<li><a class="row-link" href="/admin#backups"><svg class="icon" aria-hidden="true"><use href="#icon-book" /></svg><span class="row-main">{app.t('profile.admin.backups')}</span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
+					<li><a class="row-link" href="/admin#restore"><svg class="icon" aria-hidden="true"><use href="#icon-book" /></svg><span class="row-main">{app.t('profile.admin.restore')}</span><svg class="icon" aria-hidden="true"><use href="#icon-chevron-right" /></svg></a></li>
 				</ul>
 			</section>
 		{/if}
