@@ -1,0 +1,17 @@
+{
+	"name": "app-famiglia",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc -p tsconfig.json",
+		"planner-report": "node scripts/planner-report.ts",
+		"recipe-attributes-table": "node scripts/recipe-attributes-table.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^26.6.4",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.11",
+		"yaml": "^2.9.1"
+	}
+}
