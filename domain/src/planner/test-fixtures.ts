@@ -1,4 +1,4 @@
-import { CREA_RANGES, DEFAULT_KNOWN_NEW, DEFAULT_WEIGHTS } from './settings.ts';
+import { creaRanges, DEFAULT_KNOWN_NEW, DEFAULT_WEIGHTS } from './settings.ts';
 import { CARBOHYDRATE_GROUPS, CATEGORIES, PROTEIN_GROUPS, type PlannerInput, type PlannerRecipe, type PlannerSettings, type SlotSetting } from './types.ts';
 
 export function recipe(id: string, over: Partial<PlannerRecipe> = {}): PlannerRecipe {
@@ -35,7 +35,7 @@ export function familySettings(): PlannerSettings {
 			{ kind: 'never_fresh_fish', weekday: 0 }
 		],
 		knownNew: { ...DEFAULT_KNOWN_NEW },
-		groupRanges: structuredClone(CREA_RANGES),
+		groupRanges: creaRanges(),
 		weights: { ...DEFAULT_WEIGHTS }
 	};
 }

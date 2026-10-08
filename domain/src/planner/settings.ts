@@ -46,6 +46,11 @@ export const MAX_REPAIR_ROUNDS = 20;
 /** Default time limit of weekday lunches (decided 8 October 2026); every family can change it. */
 export const WEEKDAY_LUNCH_MINUTES = 30;
 
+/** A fresh copy of the CREA ranges, safe to edit (plain JavaScript, no runtime globals). */
+export function creaRanges(): Record<FoodGroup, GroupRange> {
+	return Object.fromEntries(Object.entries(CREA_RANGES).map(([group, range]) => [group, { ...range }])) as Record<FoodGroup, GroupRange>;
+}
+
 const plain = (servings: number, maxMinutes: number | null = null): SlotSetting => ({ servings, fixedText: null, maxMinutes });
 
 /** New family (spec section 2): every lunch and dinner for `servings`, weekday lunches within 30 minutes, no fixed meals or rules. */
@@ -57,7 +62,7 @@ export function defaultPlannerSettings(servings = 2): PlannerSettings {
 		},
 		rules: [],
 		knownNew: { ...DEFAULT_KNOWN_NEW },
-		groupRanges: structuredClone(CREA_RANGES),
+		groupRanges: creaRanges(),
 		weights: { ...DEFAULT_WEIGHTS }
 	};
 }

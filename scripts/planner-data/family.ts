@@ -4,7 +4,7 @@
 // pasta only at lunch, fish on Friday, no fishmonger fish on Monday (canned fish allowed, the user on
 // 8 October 2026), 7 known and 5 new ± 1, cucumbers as rare
 // as possible. Not expressible with the rule templates: no skottle on Monday evening.
-import { CREA_RANGES, DEFAULT_KNOWN_NEW, DEFAULT_WEIGHTS, type IngredientRestriction, type PlannerRecipe, type PlannerSettings, type SlotSetting } from '../../domain/src/planner/index.ts';
+import { creaRanges, DEFAULT_KNOWN_NEW, DEFAULT_WEIGHTS, type IngredientRestriction, type PlannerRecipe, type PlannerSettings, type SlotSetting } from '../../domain/src/planner/index.ts';
 
 const slot = (servings: number, fixedText: string | null = null, maxMinutes: number | null = null): SlotSetting => ({ servings, fixedText, maxMinutes });
 
@@ -20,7 +20,7 @@ export function curatorFamilySettings(): PlannerSettings {
 			{ kind: 'never_fresh_fish', weekday: 0 }
 		],
 		knownNew: { ...DEFAULT_KNOWN_NEW },
-		groupRanges: structuredClone(CREA_RANGES),
+		groupRanges: creaRanges(),
 		weights: { ...DEFAULT_WEIGHTS }
 	};
 }
