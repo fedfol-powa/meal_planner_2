@@ -535,7 +535,7 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 | Tabella | Campi principali |
 |---|---|
-| `families` | `name`, `settings` (vedi sotto), `time_zone` (fuso IANA, `Europe/Rome` nei dati demo), `created_at`. Il fuso stabilisce quando un pasto diventa passato (sezione 5) e la versione mostrata dai pasti passati (R1): come si sceglie e se si può cambiare va deciso prima dello schema (sezione 15) |
+| `families` | `name`, `settings` (vedi sotto), `time_zone` (fuso IANA, `Europe/Rome` nei dati demo), `created_at`. Il fuso stabilisce quando un pasto diventa passato (sezione 5), la versione mostrata dai pasti passati (R1) e quando scatta la generazione del mercoledì (sezione 4); regole decise l'8 ottobre 2026 nelle impostazioni, qui sotto |
 | `family_members` | `family_id`, `user_id`, `role` (`family_admin`/`member`), `joined_at` |
 | `family_invitations` | `token`, `family_id`, `created_by`, `created_at`, `expires_at` (7 giorni), `revoked_at` |
 | `family_removals` | `family_id`, `user_id`, `removed_by`, `removed_at`: rimozioni di membri; un invito creato prima di `removed_at` non fa rientrare quella persona (review R2, deciso il 6 ottobre 2026) |
@@ -575,6 +575,16 @@ cambiandolo. Una settimana generata è visibile da `generated_at`.
 - intervalli settimanali per gruppo alimentare (sezione 3);
 - pesi del punteggio (non mostrati nell'interfaccia);
 - sistema di misura (`measurement_system`): `metric` oppure `uk_imperial`.
+
+**Fuso orario della famiglia** (`families.time_zone`, deciso l'8 ottobre 2026): alla
+creazione si prende il fuso del browser di chi crea la famiglia, oppure quello
+dichiarato dall'agente se la famiglia nasce via MCP, validato come fuso IANA; se manca
+o non è valido si usa `Europe/Rome`. Gli amministratori della famiglia lo cambiano
+nelle impostazioni, come le altre. Il cambio vale per tutto, anche per i pasti passati:
+gli istanti in cui un pasto diventa passato si ricalcolano con il nuovo fuso, quindi
+può spostarsi di qualche ora il momento da cui un pasto conta come mangiato e, solo per
+una ricetta aggiornata proprio in quelle ore, la versione mostrata da quel pasto (R1).
+Nessun dato salvato cambia. Il fuso non dipende dalla lingua né dal sistema di misura.
 
 Nell'app (quarto giro del prototipo) le impostazioni si vedono tutte tranne i pesi del
 punteggio: le modificano solo gli amministratori della famiglia, i membri le leggono;
@@ -730,11 +740,13 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 
 ### 4. Job settimanale
 
-- `pg_cron` in Supabase lavora in UTC. Il job è pianificato ogni ora il mercoledì tra le
-  17:00 e le 22:00 UTC e chiama con `pg_net` la rotta `/internal/jobs/weekly` del
-  server, protetta da un segreto condiviso (rivisto l'8 ottobre 2026: niente Edge
-  Function). Il codice considera solo le famiglie per cui sono passate le 20:00 nel
-  loro fuso (`families.time_zone`), così l'ora legale non richiede di cambiare il cron.
+- `pg_cron` in Supabase lavora in UTC. Il job gira ogni ora e chiama con `pg_net` la
+  rotta `/internal/jobs/weekly` del server, protetta da un segreto condiviso (rivisto
+  l'8 ottobre 2026: niente Edge Function). Il codice considera solo le famiglie per cui
+  è già passato il mercoledì alle 20:00 nel loro fuso (`families.time_zone`) e manca la
+  settimana successiva: famiglie in fusi diversi sono servite all'ora giusta e l'ora
+  legale non richiede di cambiare il cron. Un'esecuzione senza famiglie da servire non
+  fa nulla.
 - **Dispatcher**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
   e per il lunedì successivo.
 - **Worker**: elabora le famiglie **una alla volta**, ciascuna in una chiamata separata
@@ -752,8 +764,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   l'app dopo un fallimento del job attende circa un secondo in più e trova il menu.
   Senza realtime, chi ha già l'app aperta vede la settimana nuova alla riapertura o
   aggiornando.
-- **Errori**: un errore riguarda solo la sua famiglia. Si ritenta all'esecuzione successiva
-  fino all'ultima finestra utile. Alla fine arriva un'email al referente operativo del
+- **Errori**: un errore riguarda solo la sua famiglia. Si ritenta all'esecuzione
+  successiva; se dopo 12 ore dalle 20:00 del mercoledì della famiglia la settimana manca
+  ancora, arriva un'email al referente operativo del
   servizio con le famiglie ancora senza bozza. Questo destinatario va configurato
   esplicitamente: assegnare il nuovo ruolo di curatore non abilita a ricevere segnalazioni
   sulle altre famiglie. Contenuti e accessi operativi devono rispettare la separazione
@@ -793,10 +806,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   passata, in corso o futura. Nessuna azione dipende dalla settimana.
   - **Istante in cui un pasto diventa passato, confermato il 6 ottobre 2026:** il
     pranzo alle 15:30 e la cena alle 23:00, nell'ora locale della famiglia
-    (Europe/Rome nei dati demo). Serve solo a stabilire da quando un pasto conta come
-    mangiato nello storico; non blocca modifiche. Fuso orario
-    della famiglia ed eventuale personalizzazione degli orari da valutare nel percorso
-    Famiglia e account.
+    (`families.time_zone`, sezione 2; Europe/Rome nei dati demo). Serve solo a
+    stabilire da quando un pasto conta come mangiato nello storico; non blocca
+    modifiche. Personalizzare questi orari non è previsto per ora.
 - **Navigazione fra i giorni:** sopra il selettore dei sette giorni il mese e un'icona
   aprono un calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
   senza menu non sono selezionabili.
@@ -1715,7 +1727,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimenti iniziali su pianificatore con i dati reali e accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla curatela MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
 | Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Da verificare: Hono sulle Functions Node di Netlify, query del server nel ruolo dell'utente con RLS e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query | Sezione 1 |
-| Calendario | **Fuso orario della famiglia, da decidere prima dello schema** (`families.time_zone`: come si sceglie, se si può cambiare e con quali effetti sui pasti passati e su R1). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
+| Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
 | Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
@@ -1743,7 +1755,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, quarto giro del prototipo approvato | Famiglia e account: rientro dopo la rimozione solo con un link nuovo (R2); impostazioni tutte visibili tranne i pesi, con «Avanzate» e regole a modelli; wizard minimo (nome e unità) e prima generazione da oggi a domenica più la settimana successiva dopo mercoledì alle 20:00; vista «Tu» rinominata «Profilo», con cambio di famiglia; pagine dedicate per eliminare la famiglia e cancellare l'account con conferma a pulsante; pulsanti rossi per le azioni irreversibili; i suggerimenti rispettano le impostazioni della famiglia |
 | 7 ottobre 2026, quinto giro del prototipo approvato | Curatela: pasti passati sulla versione con cui sono stati mangiati, oggi e futuri sulla corrente (R1); modifica tramite bozza di revisione; conflitti fra curatori rifiutati e risolti consapevolmente; archiviazione reversibile; ripristino di una versione aperta com'era, senza confronto; pubblicazione in un passo senza verifica esplicita; campi obbligatori per tipo di fonte; varietà degli ingredienti in testo libero con confronto normalizzato e consigli, istruzioni per l'agente; caricamento da file escluso per ora; avviso della versione solo ai curatori; percorso MCP consigliato rispetto al modulo |
 | 7 ottobre 2026, sesto giro del prototipo approvato | MCP e Amministrazione dell'app: nessun agente simulato; selettore di lingua nel modulo della ricetta; pagina «Collega un agente» senza introduzione, con client a fisarmonica, comandi d'esempio verificati e agenti collegati da scollegare; schermata di autorizzazione nel browser; amministrazione dal Profilo con utenti e ruoli (conferma per nominare amministratori, ultimo amministratore bloccato, famiglie solo per nome e ruolo), cancellazione di un utente con le regole dell'account; inviti all'app per un'email con ruoli facoltativi, 7 giorni, uso singolo e revoca, senza ingresso in famiglie; ripristino dell'intero catalogo come nuova versione con archiviazione delle ricette successive, anteprima e copia prima del ripristino |
-| 8 ottobre 2026, verifica dell'architettura | Dopo una challenge del piano e dell'architettura iniziali alla luce del prototipo: interfaccia in React (SPA con Vite, TanStack Router e Query) al posto di Svelte; strato unico di operazioni con contratto esplicito servito da Hono su Netlify, da cui derivano API web, OpenAPI e strumenti MCP (libreria del contratto aperta); MCP nella stessa app con il server OAuth 2.1 di Supabase e canale ricavato dal claim `client_id`; job con `pg_cron` verso il server, senza Edge Function né Deno; ricetta come documento con proiezioni; ripristino dell'intero catalogo a una data dallo storico, senza copie periodiche; spunte della spesa per ingrediente e varietà, cronologia delle bozze in tabella e fuso orario della famiglia nel modello. Poi confermata la generazione pigra come rete di sicurezza del job e aggiornato il prototipo (ripristino del catalogo scegliendo giorno e ora, con elenco dei ripristini da annullare). Campi bilingui restano una proposta; le fasi di rilascio diventano un punto aperto |
+| 8 ottobre 2026, verifica dell'architettura | Dopo una challenge del piano e dell'architettura iniziali alla luce del prototipo: interfaccia in React (SPA con Vite, TanStack Router e Query) al posto di Svelte; strato unico di operazioni con contratto esplicito servito da Hono su Netlify, da cui derivano API web, OpenAPI e strumenti MCP (libreria del contratto aperta); MCP nella stessa app con il server OAuth 2.1 di Supabase e canale ricavato dal claim `client_id`; job con `pg_cron` verso il server, senza Edge Function né Deno; ricetta come documento con proiezioni; ripristino dell'intero catalogo a una data dallo storico, senza copie periodiche; spunte della spesa per ingrediente e varietà, cronologia delle bozze in tabella e fuso orario della famiglia nel modello. Poi confermata la generazione pigra come rete di sicurezza del job e aggiornato il prototipo (ripristino del catalogo scegliendo giorno e ora, con elenco dei ripristini da annullare). Campi bilingui restano una proposta; le fasi di rilascio diventano un punto aperto. Deciso il fuso orario della famiglia: dal browser alla creazione, modificabile dagli amministratori, ricalcolato anche per i pasti passati; job orario per famiglie in fusi diversi |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
