@@ -9,6 +9,7 @@ recipes:
   wok-pollo-peperoni-riso-basmati:
     meal_type: both
     protein_group: white_meat
+    fresh_fish: false
     carbohydrate_group: rice
     category: wok
     has_vegetables: true
@@ -21,6 +22,7 @@ recipes:
   pasta-melanzane-pomodoro-ricotta:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -33,6 +35,7 @@ recipes:
   frittata-forno-bietole-ricotta:
     meal_type: both
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: none
     category: oven_bake
     has_vegetables: true
@@ -45,6 +48,7 @@ recipes:
   noodles-wok-uova-verdure:
     meal_type: lunch
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: pasta
     category: wok
     has_vegetables: true
@@ -57,6 +61,7 @@ recipes:
   merluzzo-pomodoro-olive-cous-cous:
     meal_type: both
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: cereals
     category: pan
     has_vegetables: true
@@ -69,6 +74,7 @@ recipes:
   wrap-frittata-hummus:
     meal_type: lunch
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: true
@@ -81,6 +87,7 @@ recipes:
   gamberi-zucchine-skottle:
     meal_type: both
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: bread
     category: skottle
     has_vegetables: true
@@ -93,6 +100,7 @@ recipes:
   uova-pomodoro-padella:
     meal_type: both
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: none
     category: pan
     has_vegetables: true
@@ -105,6 +113,7 @@ recipes:
   polpette-melanzane-forno:
     meal_type: both
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: none
     category: oven_bake
     has_vegetables: true
@@ -117,6 +126,7 @@ recipes:
   pappardelle-alfredo:
     meal_type: lunch
     protein_group: cheese
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -129,6 +139,7 @@ recipes:
   pasta-pesto-genovese:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -141,6 +152,7 @@ recipes:
   hamburger-cavallo:
     meal_type: both
     protein_group: red_meat
+    fresh_fish: false
     carbohydrate_group: bread
     category: burger
     has_vegetables: false
@@ -153,6 +165,7 @@ recipes:
   pasta-tonno:
     meal_type: lunch
     protein_group: fish
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -160,11 +173,12 @@ recipes:
     seasons: []
     primary_ingredient: tonno-sott-olio
     uncertain: []
-    note: "Tonno in scatola: conta come pesce, quindi mai il lunedì con la regola attuale."
+    note: "Tonno in scatola: conta come pesce negli intervalli, ma non è pesce fresco, quindi ammesso il lunedì."
 
   spaghetti-pomodoro:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -177,18 +191,20 @@ recipes:
   pasta-sugo-pesce:
     meal_type: lunch
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
     is_heavy: false
     seasons: []
     primary_ingredient: sugo-di-pesce
-    uncertain: []
-    note: null
+    uncertain: [fresh_fish]
+    note: "Sugo di pesce: proposto come pesce di pescheria, quindi mai il lunedì; se è un sugo pronto o in scatola va tolto."
 
   penne-baffo:
     meal_type: lunch
     protein_group: cured_meat
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -201,6 +217,7 @@ recipes:
   pasta-zucca-salsiccia-robiola:
     meal_type: lunch
     protein_group: red_meat
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -213,6 +230,7 @@ recipes:
   orecchiette-broccoli:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -225,6 +243,7 @@ recipes:
   pasta-crema-peperoni:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -237,6 +256,7 @@ recipes:
   bistecche-tonno-skottle:
     meal_type: both
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: none
     category: skottle
     has_vegetables: false
@@ -249,6 +269,7 @@ recipes:
   branzino-barbecue:
     meal_type: both
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: none
     category: grill
     has_vegetables: false
@@ -261,6 +282,7 @@ recipes:
   sovracosce-pollo-griglia:
     meal_type: both
     protein_group: white_meat
+    fresh_fish: false
     carbohydrate_group: none
     category: grill
     has_vegetables: false
@@ -273,6 +295,7 @@ recipes:
   burrito-vegan:
     meal_type: lunch
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: true
@@ -285,6 +308,7 @@ recipes:
   caviale-melanzane-panino:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: true
@@ -297,6 +321,7 @@ recipes:
   riso-curry-giappone:
     meal_type: both
     protein_group: red_meat
+    fresh_fish: false
     carbohydrate_group: rice
     category: wok
     has_vegetables: true
@@ -309,6 +334,7 @@ recipes:
   omelette-spinaci-montasio:
     meal_type: both
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: none
     category: pan
     has_vegetables: true
@@ -321,6 +347,7 @@ recipes:
   straccetti-pollo-limone:
     meal_type: both
     protein_group: white_meat
+    fresh_fish: false
     carbohydrate_group: none
     category: pan
     has_vegetables: false
@@ -333,6 +360,7 @@ recipes:
   riso-lenticchie-zucca:
     meal_type: both
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: rice
     category: pan
     has_vegetables: true
@@ -345,6 +373,7 @@ recipes:
   riso-wok-broccoli-gamberi:
     meal_type: both
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: rice
     category: wok
     has_vegetables: true
@@ -357,6 +386,7 @@ recipes:
   riso-cantonese-casa:
     meal_type: both
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: rice
     category: wok
     has_vegetables: true
@@ -369,6 +399,7 @@ recipes:
   zuppa-fagioli-veloce-guanciale:
     meal_type: both
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: none
     category: soup
     has_vegetables: false
@@ -381,6 +412,7 @@ recipes:
   piadine-pollo-hummus-carote:
     meal_type: both
     protein_group: white_meat
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: true
@@ -393,6 +425,7 @@ recipes:
   orata-padella-patate-pomodorini:
     meal_type: both
     protein_group: fish
+    fresh_fish: true
     carbohydrate_group: potatoes
     category: pan
     has_vegetables: true
@@ -405,6 +438,7 @@ recipes:
   lonza-maiale-limone:
     meal_type: both
     protein_group: red_meat
+    fresh_fish: false
     carbohydrate_group: none
     category: pan
     has_vegetables: false
@@ -417,6 +451,7 @@ recipes:
   fettine-pizzaiola-prezzemolo:
     meal_type: both
     protein_group: red_meat
+    fresh_fish: false
     carbohydrate_group: none
     category: pan
     has_vegetables: false
@@ -429,6 +464,7 @@ recipes:
   lenticchie-comidista:
     meal_type: both
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: potatoes
     category: soup
     has_vegetables: true
@@ -441,6 +477,7 @@ recipes:
   pasta-robiola-speck:
     meal_type: lunch
     protein_group: cured_meat
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -453,6 +490,7 @@ recipes:
   pasta-ricotta-zafferano:
     meal_type: lunch
     protein_group: cheese
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: false
@@ -465,6 +503,7 @@ recipes:
   couscous-verdure-tonno:
     meal_type: lunch
     protein_group: fish
+    fresh_fish: false
     carbohydrate_group: cereals
     category: salad
     has_vegetables: true
@@ -477,6 +516,7 @@ recipes:
   couscous-verdure:
     meal_type: lunch
     protein_group: vegetarian
+    fresh_fish: false
     carbohydrate_group: cereals
     category: salad
     has_vegetables: true
@@ -489,6 +529,7 @@ recipes:
   pappardelle-salsiccia-porri:
     meal_type: lunch
     protein_group: red_meat
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -501,6 +542,7 @@ recipes:
   pollo-corn-flakes:
     meal_type: both
     protein_group: white_meat
+    fresh_fish: false
     carbohydrate_group: none
     category: pan
     has_vegetables: false
@@ -513,6 +555,7 @@ recipes:
   piadine-bresaola-stracchino-pesto-rosso:
     meal_type: both
     protein_group: cured_meat
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: false
@@ -525,6 +568,7 @@ recipes:
   riso-ceci-spinaci-mandorle:
     meal_type: both
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: rice
     category: pan
     has_vegetables: true
@@ -537,6 +581,7 @@ recipes:
   spaghetti-riso-tofu-verdure-wok:
     meal_type: both
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: rice
     category: wok
     has_vegetables: true
@@ -549,6 +594,7 @@ recipes:
   paccheri-radicchio-bresaola-ricotta-noci:
     meal_type: lunch
     protein_group: cured_meat
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -561,6 +607,7 @@ recipes:
   ditali-cremosi-zucca-ceci:
     meal_type: lunch
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -573,6 +620,7 @@ recipes:
   trofie-funghi-piselli-ricotta:
     meal_type: lunch
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -585,6 +633,7 @@ recipes:
   fusilli-ricotta-spinaci-noci:
     meal_type: lunch
     protein_group: cheese
+    fresh_fish: false
     carbohydrate_group: pasta
     category: other
     has_vegetables: true
@@ -597,6 +646,7 @@ recipes:
   wrap-fagioli-neri-cheddar:
     meal_type: both
     protein_group: legumes
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: true
@@ -609,6 +659,7 @@ recipes:
   erbazzone-uova-strapazzate-stracchino:
     meal_type: both
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: none
     category: savoury_pie
     has_vegetables: true
@@ -621,6 +672,7 @@ recipes:
   sandwich-uova-mozzarella-pomodoro-tacchino:
     meal_type: both
     protein_group: eggs
+    fresh_fish: false
     carbohydrate_group: bread
     category: wrap_sandwich
     has_vegetables: false

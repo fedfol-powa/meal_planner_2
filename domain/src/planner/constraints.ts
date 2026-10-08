@@ -26,6 +26,7 @@ export function fitsSlot(recipe: PlannerRecipe, slot: SlotRef, rules: MealRule[]
 	for (const rule of rules) {
 		if (rule.kind === 'only_lunch' && slot.mealType === 'dinner' && kinds.includes(rule.dish)) return false;
 		if (rule.kind === 'never_on' && rule.weekday === weekday && recipe.proteinGroup === rule.group) return false;
+		if (rule.kind === 'never_fresh_fish' && rule.weekday === weekday && recipe.isFreshFish) return false;
 	}
 	return true;
 }

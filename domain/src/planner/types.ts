@@ -30,6 +30,8 @@ export interface PlannerRecipe {
 	durationMinutes: number | null;
 	mealType: RecipeMealType;
 	proteinGroup: ProteinGroup;
+	/** Fish bought at the fishmonger (not canned): the fishmonger is closed on some days. */
+	isFreshFish: boolean;
 	carbohydrateGroup: CarbohydrateGroup;
 	category: Category;
 	hasVegetables: boolean;
@@ -53,7 +55,8 @@ export interface SlotSetting {
 export type MealRule =
 	| { kind: 'only_lunch'; dish: DishKind }
 	| { kind: 'at_least_one'; group: ProteinGroup; weekday: number }
-	| { kind: 'never_on'; group: ProteinGroup; weekday: number };
+	| { kind: 'never_on'; group: ProteinGroup; weekday: number }
+	| { kind: 'never_fresh_fish'; weekday: number };
 
 export interface GroupRange {
 	min: number;

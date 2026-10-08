@@ -7,6 +7,7 @@ export function recipe(id: string, over: Partial<PlannerRecipe> = {}): PlannerRe
 		durationMinutes: 20,
 		mealType: 'both',
 		proteinGroup: 'vegetarian',
+		isFreshFish: false,
 		carbohydrateGroup: 'none',
 		category: 'other',
 		hasVegetables: true,
@@ -21,7 +22,7 @@ export function recipe(id: string, over: Partial<PlannerRecipe> = {}): PlannerRe
 
 const slot = (servings: number, fixedText: string | null = null, maxMinutes: number | null = null): SlotSetting => ({ servings, fixedText, maxMinutes });
 
-/** Shaped like the curator's family (origin REGOLE.md): 12 planned meals, Friday fish, no fish on Monday. */
+/** Shaped like the curator's family (origin REGOLE.md): 12 planned meals, Friday fish, no fresh fish on Monday. */
 export function familySettings(): PlannerSettings {
 	return {
 		slots: {
@@ -31,7 +32,7 @@ export function familySettings(): PlannerSettings {
 		rules: [
 			{ kind: 'only_lunch', dish: 'pasta' },
 			{ kind: 'at_least_one', group: 'fish', weekday: 4 },
-			{ kind: 'never_on', group: 'fish', weekday: 0 }
+			{ kind: 'never_fresh_fish', weekday: 0 }
 		],
 		knownNew: { ...DEFAULT_KNOWN_NEW },
 		groupRanges: structuredClone(CREA_RANGES),
@@ -45,6 +46,7 @@ export function syntheticCatalogue(size = 60): PlannerRecipe[] {
 		const carbohydrateGroup = CARBOHYDRATE_GROUPS[i % CARBOHYDRATE_GROUPS.length];
 		return recipe(`r${String(i).padStart(2, '0')}`, {
 			proteinGroup: PROTEIN_GROUPS[i % PROTEIN_GROUPS.length],
+			isFreshFish: PROTEIN_GROUPS[i % PROTEIN_GROUPS.length] === 'fish' && i % 3 !== 0,
 			carbohydrateGroup,
 			category: CATEGORIES[(i * 3) % CATEGORIES.length],
 			durationMinutes: [10, 15, 20, 25, 30, 40][i % 6],

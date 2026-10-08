@@ -6,6 +6,7 @@ import { durationOf, slug, type OriginRecipe } from './origin.ts';
 export interface RecipeAttributes {
 	mealType: RecipeMealType;
 	proteinGroup: ProteinGroup;
+	freshFish: boolean;
 	carbohydrateGroup: CarbohydrateGroup;
 	category: Category;
 	hasVegetables: boolean;
@@ -48,9 +49,13 @@ export function parseAttributes(text: string, recipes: OriginRecipe[]): { attrib
 		if (primary !== null && (typeof primary !== 'string' || !lines.includes(primary))) errors.push(`${recipe.id}: primary_ingredient "${String(primary)}" is not one of its ingredients`);
 		const duration = entry.duration_minutes ?? null;
 		if (duration !== null && (typeof duration !== 'number' || !Number.isInteger(duration) || duration <= 0)) errors.push(`${recipe.id}: duration_minutes must be a positive whole number`);
+		const proteinGroup = oneOf('protein_group', PROTEIN_GROUPS);
+		const freshFish = flag('fresh_fish');
+		if (freshFish && proteinGroup !== 'fish') errors.push(`${recipe.id}: fresh_fish is only for fish recipes`);
 		attributes.set(recipe.id, {
 			mealType: oneOf('meal_type', MEAL_TYPES),
-			proteinGroup: oneOf('protein_group', PROTEIN_GROUPS),
+			proteinGroup,
+			freshFish,
 			carbohydrateGroup: oneOf('carbohydrate_group', CARBOHYDRATE_GROUPS),
 			category: oneOf('category', CATEGORIES),
 			hasVegetables: flag('has_vegetables'),
@@ -74,6 +79,7 @@ export function toPlannerRecipes(recipes: OriginRecipe[], attributes: Map<string
 			durationMinutes: a.durationMinutes ?? durationOf(recipe.tempo),
 			mealType: a.mealType,
 			proteinGroup: a.proteinGroup,
+			isFreshFish: a.freshFish,
 			carbohydrateGroup: a.carbohydrateGroup,
 			category: a.category,
 			hasVegetables: a.hasVegetables,

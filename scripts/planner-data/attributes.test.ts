@@ -13,6 +13,7 @@ recipes:
   wok:
     meal_type: both
     protein_group: white_meat
+    fresh_fish: false
     carbohydrate_group: rice
     category: wok
     has_vegetables: true
@@ -38,6 +39,13 @@ describe('parseAttributes', () => {
 		expect(errors).toContain('wok: protein_group "chicken" is not allowed');
 		expect(errors).toContain('wok: primary_ingredient "salmone" is not one of its ingredients');
 		expect(errors).toContain('other: missing');
+	});
+	it('reads fresh fish and refuses it on a recipe whose protein is not fish', () => {
+		const { attributes, errors } = parseAttributes(valid, [wok]);
+		expect(errors).toEqual([]);
+		expect(toPlannerRecipes([wok], attributes)[0].isFreshFish).toBe(false);
+		expect(parseAttributes(valid.replace('fresh_fish: false', 'fresh_fish: true'), [wok]).errors).toContain('wok: fresh_fish is only for fish recipes');
+		expect(parseAttributes(valid.replace('    fresh_fish: false\n', ''), [wok]).errors).toContain('wok: fresh_fish must be true or false');
 	});
 	it('lets a duration override the origin text', () => {
 		const { attributes } = parseAttributes(valid.replace('seasons: []', 'seasons: []\n    duration_minutes: 40'), [wok]);

@@ -24,7 +24,7 @@ const yes = (v: boolean) => (v ? 'sì' : 'no');
 const rows = recipes.map((r) => {
 	const a = attributes.get(r.id)!;
 	const doubt = a.uncertain.length ? ` ⚠ ${a.uncertain.join(', ')}` : '';
-	return `| ${r.nome}${doubt} | ${a.durationMinutes ?? durationOf(r.tempo) ?? '?'} | ${label[a.mealType]} | ${label[a.proteinGroup]} | ${label[a.carbohydrateGroup]} | ${label[a.category]} | ${yes(a.hasVegetables)} | ${yes(a.isHeavy)} | ${a.seasons.map((s) => label[s]).join(', ') || 'tutto l’anno'} | ${a.primaryIngredient ?? '—'} | ${a.note ?? ''} |`;
+	return `| ${r.nome}${doubt} | ${a.durationMinutes ?? durationOf(r.tempo) ?? '?'} | ${label[a.mealType]} | ${label[a.proteinGroup]}${a.freshFish ? ' (pescheria)' : ''} | ${label[a.carbohydrateGroup]} | ${label[a.category]} | ${yes(a.hasVegetables)} | ${yes(a.isHeavy)} | ${a.seasons.map((s) => label[s]).join(', ') || 'tutto l’anno'} | ${a.primaryIngredient ?? '—'} | ${a.note ?? ''} |`;
 });
 const table = [
 	'# Attributi delle ricette per il pianificatore',

@@ -29,6 +29,18 @@ describe('fitsSlot', () => {
 	});
 });
 
+describe('fresh fish', () => {
+	it('keeps fishmonger fish off the day of the rule, canned fish allowed', () => {
+		const fresh = recipe('orata', { proteinGroup: 'fish', isFreshFish: true });
+		const canned = recipe('tonno', { proteinGroup: 'fish', isFreshFish: false });
+		const monday = { date: '2026-10-12', mealType: 'lunch' as const, maxMinutes: null };
+		const rule: MealRule[] = [{ kind: 'never_fresh_fish', weekday: 0 }];
+		expect(fitsSlot(fresh, monday, rule)).toBe(false);
+		expect(fitsSlot(canned, monday, rule)).toBe(true);
+		expect(fitsSlot(fresh, { ...monday, date: '2026-10-13' }, rule)).toBe(true);
+	});
+});
+
 describe('isAvailable', () => {
 	it('drops exclusions, books not owned and avoided ingredients that are not optional', () => {
 		const input = baseInput({ exclusions: ['x'], ownedBookIds: ['owned'], restrictions: [{ ingredientId: 'peperoncino', restriction: 'avoid', weeklyMax: null }] });

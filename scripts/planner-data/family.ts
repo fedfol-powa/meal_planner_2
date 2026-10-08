@@ -1,6 +1,7 @@
 // The curator's family settings, from the origin project's rules (../meal_planner/progetto/REGOLE.md):
 // diners matrix, Saturday dinner free, Sunday lunch pizza, quick Monday and Wednesday dinners (20 min),
-// pasta only at lunch, fish on Friday, no fresh fish on Monday, 7 known and 5 new ± 1, cucumbers as rare
+// pasta only at lunch, fish on Friday, no fishmonger fish on Monday (canned fish allowed, the user on
+// 8 October 2026), 7 known and 5 new ± 1, cucumbers as rare
 // as possible. Not expressible with the rule templates: no skottle on Monday evening.
 import { CREA_RANGES, DEFAULT_KNOWN_NEW, DEFAULT_WEIGHTS, type IngredientRestriction, type PlannerRecipe, type PlannerSettings, type SlotSetting } from '../../domain/src/planner/index.ts';
 
@@ -15,7 +16,7 @@ export function curatorFamilySettings(): PlannerSettings {
 		rules: [
 			{ kind: 'only_lunch', dish: 'pasta' },
 			{ kind: 'at_least_one', group: 'fish', weekday: 4 },
-			{ kind: 'never_on', group: 'fish', weekday: 0 }
+			{ kind: 'never_fresh_fish', weekday: 0 }
 		],
 		knownNew: { ...DEFAULT_KNOWN_NEW },
 		groupRanges: structuredClone(CREA_RANGES),
