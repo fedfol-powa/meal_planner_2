@@ -1,6 +1,7 @@
 import { daysBetween, mealIndex, seasonOf } from './calendar.ts';
+import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { foodGroupsOf, sharedFeatures, uses } from './groups.ts';
-import { KNOWN_NEW_MIN_COOKED, SIMILARITY_WINDOW } from './settings.ts';
+import { SIMILARITY_WINDOW } from './settings.ts';
 import type { IsoDate, MealType, PlannerInput, PlannerRecipe } from './types.ts';
 
 export interface Placed {
@@ -15,8 +16,9 @@ export interface ScoreContext {
 	week: Placed[];
 	/** Past meals whose recipe is in the catalogue. */
 	past: Placed[];
-	/** Recipes the family has cooked at least once ("known"). */
-	cookedIds: Set<string>;
+	/** Recipes cooked within the known window ("known"); the others count as new. */
+	knownIds: Set<string>;
+	knownNewApplies: boolean;
 }
 
 export function buildContext(input: PlannerInput, week: Placed[]): ScoreContext {
@@ -25,7 +27,7 @@ export function buildContext(input: PlannerInput, week: Placed[]): ScoreContext 
 		const recipe = byId.get(m.recipeId);
 		return recipe ? [{ date: m.date, mealType: m.mealType, recipe }] : [];
 	});
-	return { input, week, past, cookedIds: new Set(input.history.map((m) => m.recipeId)) };
+	return { input, week, past, knownIds: knownRecipeIds(input), knownNewApplies: knownNewApplies(input) };
 }
 
 const NEUTRAL_STARS = 3;
@@ -62,11 +64,11 @@ export function scoreCandidate(recipe: PlannerRecipe, slot: { date: IsoDate; mea
 	const vegetables = recipe.hasVegetables ? 1 : 0;
 
 	let knownNew = 0;
-	if (ctx.cookedIds.size >= KNOWN_NEW_MIN_COOKED) {
+	if (ctx.knownNewApplies) {
 		const target = settings.knownNew;
-		const known = ctx.week.filter((p) => ctx.cookedIds.has(p.recipe.id)).length;
+		const known = ctx.week.filter((p) => ctx.knownIds.has(p.recipe.id)).length;
 		const fresh = ctx.week.length - known;
-		if (ctx.cookedIds.has(recipe.id)) knownNew = known < target.known ? 1 : known >= target.known + target.tolerance ? -1 : 0;
+		if (ctx.knownIds.has(recipe.id)) knownNew = known < target.known ? 1 : known >= target.known + target.tolerance ? -1 : 0;
 		else knownNew = fresh < target.new ? 1 : fresh >= target.new + target.tolerance ? -1 : 0;
 	}
 

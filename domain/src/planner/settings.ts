@@ -19,7 +19,7 @@ export const DEFAULT_WEIGHTS: ScoreWeights = {
 	recency: 1,
 	season: 1,
 	balance: 2,
-	similarity: 2,
+	similarity: 4,
 	vegetables: 0.5,
 	knownNew: 1.5,
 	limit: 1
@@ -36,6 +36,8 @@ export const LOW_SCORE = 2;
 export const TOP_K = 4;
 /** The known/new quota applies once the family has cooked this many recipes. */
 export const KNOWN_NEW_MIN_COOKED = 10;
+/** A recipe not cooked for this many weeks counts as new again for the quota. */
+export const KNOWN_WINDOW_WEEKS = 8;
 export const MAX_REPAIR_ROUNDS = 20;
 
 /** Default time limit of weekday lunches (decided 8 October 2026); every family can change it. */

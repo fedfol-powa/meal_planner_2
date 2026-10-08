@@ -1,7 +1,8 @@
-import { weekdayOf } from './calendar.ts';
+import { mealIndex, weekdayOf } from './calendar.ts';
 import { candidatesFor, fitsSlot, slotRefOf } from './constraints.ts';
-import { foodGroupsOf } from './groups.ts';
-import { KNOWN_NEW_MIN_COOKED, MAX_REPAIR_ROUNDS } from './settings.ts';
+import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
+import { foodGroupsOf, sharedFeatures } from './groups.ts';
+import { MAX_REPAIR_ROUNDS, SIMILARITY_WINDOW } from './settings.ts';
 import { FOOD_GROUPS, type PlannedSlot, type PlannedWeek, type PlannerInput, type PlannerRecipe } from './types.ts';
 
 export interface RuleProblem {
@@ -36,9 +37,9 @@ export function weekRuleProblems(week: PlannedWeek, input: PlannerInput): RulePr
 		if (count > range.max) problems.push({ kind: 'group_above', detail: group, amount: count - range.max });
 		if (count < range.min) problems.push({ kind: 'group_below', detail: group, amount: range.min - count });
 	}
-	const cooked = new Set(input.history.map((m) => m.recipeId));
-	if (cooked.size >= KNOWN_NEW_MIN_COOKED) {
-		const known = placed.filter((p) => cooked.has(p.recipe.id)).length;
+	if (knownNewApplies(input)) {
+		const knownIds = knownRecipeIds(input);
+		const known = placed.filter((p) => knownIds.has(p.recipe.id)).length;
 		const off = Math.abs(known - settings.knownNew.known) - settings.knownNew.tolerance;
 		if (off > 0) problems.push({ kind: 'known_new', detail: `${known} known`, amount: off });
 	}
@@ -84,21 +85,40 @@ function alternatives(week: PlannedWeek, input: PlannerInput): PlannedWeek[] {
 	return result;
 }
 
+/** How repetitive the week is: shared features of nearby meals, weighted by closeness, previous week included. */
+export function weekSimilarity(week: PlannedWeek, input: PlannerInput): number {
+	const byId = new Map(input.recipes.map((r) => [r.id, r]));
+	const meals = [...input.history.filter((m) => m.date < week.weekStart), ...week.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []))];
+	const placed = meals.flatMap((m) => {
+		const recipe = byId.get(m.recipeId);
+		return recipe ? [{ index: mealIndex(m.date, m.mealType), inWeek: m.date >= week.weekStart, recipe }] : [];
+	});
+	let total = 0;
+	for (const a of placed) {
+		if (!a.inWeek) continue;
+		for (const b of placed) {
+			const distance = a.index - b.index;
+			if (distance > 0 && distance <= SIMILARITY_WINDOW) total += sharedFeatures(a.recipe, b.recipe).length / distance;
+		}
+	}
+	return total;
+}
+
+/** Local repair: each round keeps the change that fixes most; among equal fixes, the least repetitive week. */
 export function repairWeek(week: PlannedWeek, input: PlannerInput): PlannedWeek {
 	let current = week;
 	for (let round = 0; round < MAX_REPAIR_ROUNDS; round++) {
-		let bestScore = problemScore(weekRuleProblems(current, input));
-		if (bestScore === 0) break;
-		let best: PlannedWeek | null = null;
+		const currentScore = problemScore(weekRuleProblems(current, input));
+		if (currentScore === 0) break;
+		let best: { week: PlannedWeek; score: number; similarity: number } | null = null;
 		for (const alternative of alternatives(current, input)) {
 			const score = problemScore(weekRuleProblems(alternative, input));
-			if (score < bestScore) {
-				best = alternative;
-				bestScore = score;
-			}
+			if (score >= currentScore) continue;
+			const similarity = weekSimilarity(alternative, input);
+			if (!best || score < best.score || (score === best.score && similarity < best.similarity)) best = { week: alternative, score, similarity };
 		}
 		if (!best) break;
-		current = best;
+		current = best.week;
 	}
 	return current;
 }

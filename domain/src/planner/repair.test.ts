@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { addDays } from './calendar.ts';
 import { hardViolations } from './constraints.ts';
 import { repairWeek, weekRuleProblems } from './repair.ts';
 import { baseInput, recipe } from './test-fixtures.ts';
@@ -31,12 +32,35 @@ describe('weekRuleProblems', () => {
 	});
 });
 
+describe('known/new quota', () => {
+	it('counts recipes not cooked for longer than the window as new', () => {
+		const recipes = veg(12);
+		const longAgo = recipes.map((r, i) => ({ date: addDays('2026-06-01', i), mealType: 'lunch' as const, recipeId: r.id }));
+		const input = baseInput({ recipes, history: longAgo });
+		const problem = weekRuleProblems(weekWith(input, recipes.map((r) => r.id)), input).find((p) => p.kind === 'known_new');
+		expect(problem).toEqual({ kind: 'known_new', detail: '0 known', amount: 6 });
+	});
+});
+
 describe('repairWeek', () => {
 	it('brings fish to Friday without breaking hard constraints', () => {
 		const recipes = [...veg(12), recipe('fish1', { proteinGroup: 'fish' }), recipe('fish2', { proteinGroup: 'fish' })];
 		const input = baseInput({ recipes });
 		const repaired = repairWeek(weekWith(input, veg(12).map((r) => r.id)), input);
 		expect(weekRuleProblems(repaired, input).some((p) => p.kind === 'rule')).toBe(false);
+		expect(hardViolations(repaired, input)).toEqual([]);
+	});
+
+	it('among equal fixes, keeps Friday fish away from Thursday dinner fish', () => {
+		const recipes = [...veg(11), recipe('fish1', { proteinGroup: 'fish' }), recipe('fish2', { proteinGroup: 'fish' })];
+		const input = baseInput({ recipes });
+		const ids = veg(11).map((r) => r.id);
+		ids.splice(7, 0, 'fish1'); // eighth planned meal: Thursday dinner
+		const repaired = repairWeek(weekWith(input, ids), input);
+		const fridayLunch = repaired.slots.find((s) => s.date === '2026-10-16' && s.mealType === 'lunch')!;
+		const fridayDinner = repaired.slots.find((s) => s.date === '2026-10-16' && s.mealType === 'dinner')!;
+		expect(fridayLunch.content).not.toEqual({ kind: 'recipe', recipeId: 'fish2' });
+		expect(fridayDinner.content).toEqual({ kind: 'recipe', recipeId: 'fish2' });
 		expect(hardViolations(repaired, input)).toEqual([]);
 	});
 

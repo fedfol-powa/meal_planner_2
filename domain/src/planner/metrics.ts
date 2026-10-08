@@ -1,7 +1,7 @@
 import { mealIndex } from './calendar.ts';
 import { foodGroupsOf, sharedFeatures } from './groups.ts';
+import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { weekRuleProblems, type RuleProblem } from './repair.ts';
-import { KNOWN_NEW_MIN_COOKED } from './settings.ts';
 import { FOOD_GROUPS, type FoodGroup, type PastMeal, type PlannedWeek, type PlannerInput } from './types.ts';
 
 export interface ClosePair {
@@ -31,8 +31,8 @@ export function weekMetrics(week: PlannedWeek, input: PlannerInput): WeekMetrics
 		return recipe ? [recipe] : [];
 	});
 	const groupCounts = Object.fromEntries(FOOD_GROUPS.map((g) => [g, recipes.filter((r) => foodGroupsOf(r).includes(g)).length])) as Record<FoodGroup, number>;
-	const cooked = new Set(input.history.map((m) => m.recipeId));
-	const known = recipes.filter((r) => cooked.has(r.id)).length;
+	const knownIds = knownRecipeIds(input);
+	const known = recipes.filter((r) => knownIds.has(r.id)).length;
 
 	const timeline = [...input.history.filter((m) => m.date < week.weekStart), ...meals].sort((a, b) => mealIndex(a.date, a.mealType) - mealIndex(b.date, b.mealType));
 	const closePairs: ClosePair[] = [];
@@ -54,7 +54,7 @@ export function weekMetrics(week: PlannedWeek, input: PlannerInput): WeekMetrics
 		problems: weekRuleProblems(week, input),
 		known,
 		fresh: recipes.length - known,
-		knownNewApplies: cooked.size >= KNOWN_NEW_MIN_COOKED,
+		knownNewApplies: knownNewApplies(input),
 		noMatch: week.slots.filter((s) => s.content.kind === 'no_match').length,
 		closePairs
 	};
