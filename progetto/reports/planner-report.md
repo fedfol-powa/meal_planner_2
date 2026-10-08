@@ -8,6 +8,7 @@ Generato da `npm run planner-report`: 20 settimane dal 2026-10-12. Catalogo: 52 
 - Pasti «nessuna ricetta adatta»: **0** su 240
 - Settimane con regole non rispettate (venerdì pesce, intervalli, note/nuove): **17** su 20
 - Ricette usate almeno una volta: **52** su 52
+- Piatti cambiati dalla riparazione delle regole di settimana: **41**, in 18 settimane su 20
 - Pasti fuori stagione: **15** (segnati con «fuori stagione» nelle settimane)
 
 ### Gruppi alimentari per settimana

@@ -23,6 +23,11 @@ export function plannedSlots(input: PlannerInput): PlannedSlot[] {
 
 /** Generates the week (spec section 3). Same input, same week: the seed comes from family and week. */
 export function generateWeek(rawInput: PlannerInput): PlannedWeek {
+	return repairWeek(fillWeek(rawInput), rawInput);
+}
+
+/** Steps 1-3 and 5 without the repair: the greedy, weighted fill of the slots. */
+export function fillWeek(rawInput: PlannerInput): PlannedWeek {
 	const input = withSortedCatalogue(rawInput);
 	const random = createRandom(seedFrom(`${input.familyId}:${input.weekStart}`));
 	const slots = plannedSlots(input);
@@ -44,5 +49,5 @@ export function generateWeek(rawInput: PlannerInput): PlannedWeek {
 		slot.content = { kind: 'recipe', recipeId: choice.id };
 		placed.push({ date: slot.date, mealType: slot.mealType, recipe: choice });
 	}
-	return repairWeek({ weekStart: input.weekStart, slots }, input);
+	return { weekStart: input.weekStart, slots };
 }

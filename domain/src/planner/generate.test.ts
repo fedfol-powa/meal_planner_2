@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { addDays } from './calendar.ts';
 import { hardViolations } from './constraints.ts';
-import { generateWeek } from './generate.ts';
+import { fillWeek, generateWeek } from './generate.ts';
+import { repairWeek } from './repair.ts';
 import { baseInput, recipe, syntheticCatalogue } from './test-fixtures.ts';
 import type { PastMeal } from './types.ts';
 
@@ -21,6 +22,11 @@ describe('generateWeek', () => {
 		const input = baseInput();
 		expect(generateWeek(input)).toEqual(generateWeek(baseInput()));
 		expect(recipeIds(generateWeek(baseInput({ weekStart: '2026-10-19' })))).not.toEqual(recipeIds(generateWeek(input)));
+	});
+
+	it('is the greedy fill followed by the repair', () => {
+		const input = baseInput();
+		expect(generateWeek(input)).toEqual(repairWeek(fillWeek(input), input));
 	});
 
 	it('marks slots without candidates instead of failing', () => {

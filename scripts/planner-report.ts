@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addDays, FOOD_GROUPS, generateWeek, hardViolations, isOutOfSeason, weekdayOf, weekMetrics, type PastMeal, type PlannedWeek, type PlannerInput, type WeekMetrics } from '../domain/src/planner/index.ts';
+import { addDays, fillWeek, FOOD_GROUPS, generateWeek, hardViolations, isOutOfSeason, weekdayOf, weekMetrics, type PastMeal, type PlannedWeek, type PlannerInput, type WeekMetrics } from '../domain/src/planner/index.ts';
 import { parseAttributes, toPlannerRecipes } from './planner-data/attributes.ts';
 import { curatorFamilySettings, curatorRestrictions } from './planner-data/family.ts';
 import { familyScoresOf, historyOf, originDir, publishable, readOriginRecipes } from './planner-data/origin.ts';
@@ -31,11 +31,13 @@ const DAY_LABEL = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const MEAL_LABEL = { lunch: 'pranzo', dinner: 'cena' };
 
 let history: PastMeal[] = startHistory;
-const results: { input: PlannerInput; week: PlannedWeek; metrics: WeekMetrics; violations: string[] }[] = [];
+const results: { input: PlannerInput; week: PlannedWeek; metrics: WeekMetrics; violations: string[]; repaired: number }[] = [];
 for (let i = 0; i < WEEKS; i++) {
 	const input: PlannerInput = { familyId: 'family-curator', weekStart: addDays(FIRST_WEEK, 7 * i), settings, recipes, ownedBookIds, exclusions: [], restrictions, familyScores, globalScores: {}, history };
 	const week = generateWeek(input);
-	results.push({ input, week, metrics: weekMetrics(week, input), violations: hardViolations(week, input) });
+	const fill = fillWeek(input);
+	const repaired = week.slots.filter((s, j) => JSON.stringify(s.content) !== JSON.stringify(fill.slots[j].content)).length;
+	results.push({ input, week, metrics: weekMetrics(week, input), violations: hardViolations(week, input), repaired });
 	history = [...history, ...week.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []))];
 }
 
@@ -55,6 +57,7 @@ const lines: string[] = [
 	`- Pasti «nessuna ricetta adatta»: **${results.reduce((n, r) => n + r.metrics.noMatch, 0)}** su ${results.reduce((n, r) => n + r.week.slots.filter((s) => s.content.kind !== 'free').length, 0)}`,
 	`- Settimane con regole non rispettate (venerdì pesce, intervalli, note/nuove): **${results.filter((r) => r.metrics.problems.length > 0).length}** su ${WEEKS}`,
 	`- Ricette usate almeno una volta: **${usage.size}** su ${recipes.length}`,
+	`- Piatti cambiati dalla riparazione delle regole di settimana: **${results.reduce((n, r) => n + r.repaired, 0)}**, in ${results.filter((r) => r.repaired > 0).length} settimane su ${WEEKS}`,
 	`- Pasti fuori stagione: **${results.reduce((n, r) => n + r.metrics.outOfSeason, 0)}** (segnati con «fuori stagione» nelle settimane)`,
 	'',
 	'### Gruppi alimentari per settimana',
