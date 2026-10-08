@@ -1,8 +1,8 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 8 ottobre 2026 (architettura rivista dopo il prototipo: React e
-contratto delle operazioni)
+Ultimo aggiornamento: 8 ottobre 2026 (hosting su Cloudflare Workers con Supabase
+gratuito e Resend; letture dalla copia sul dispositivo)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -85,17 +85,29 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 - interfaccia in React invece di Svelte: SPA con Vite, TanStack Router e TanStack Query;
   il prototipo Svelte resta il riferimento eseguibile dei percorsi approvati;
 - backend scritto come un unico strato di operazioni applicative con un contratto
-  esplicito, servito da una funzione Hono su Netlify, da cui derivano l'API dell'app
+  esplicito, servito da Hono su Cloudflare Workers, da cui derivano l'API dell'app
   web, l'API documentata OpenAPI e gli strumenti MCP; la libreria del contratto è
   ancora da scegliere (sezione 15);
 - MCP nella stessa applicazione, autenticato con il server OAuth 2.1 di Supabase Auth;
-- niente Edge Function né Deno: un solo runtime Node per app, MCP e job;
+- niente Edge Function né Deno: un solo runtime server (Workers) per app, MCP e job;
 - ricetta come documento con un unico schema per bozze, versioni, YAML e MCP;
 - ripristino dell'intero ricettario calcolato dallo storico delle versioni, senza
   copie periodiche del catalogo;
 - generazione pigra della settimana come rete di sicurezza del job del mercoledì;
 - fasi di rilascio da ripensare con la nuova architettura: la tabella della sezione 10
   resta il riferimento precedente, non un piano confermato (sezione 15).
+
+**Decisioni confermate l'8 ottobre 2026, hosting e costi:**
+
+- server Hono in un Worker di Cloudflare, che serve anche la SPA come file statici, al
+  posto della funzione su Netlify; collegamento a Supabase tramite Hyperdrive;
+- Supabase sul piano gratuito: i backup della piattaforma mancano e li sostituisce
+  un'esportazione notturna del database; la pausa per inattività si evita con il job
+  orario;
+- email di Supabase Auth e del server con Resend, piano gratuito, da un dominio ancora
+  da scegliere;
+- letture dalla copia salvata sul dispositivo, verificata con contatori di versione:
+  il server trasferisce una vista solo quando è cambiata.
 
 ---
 
@@ -380,8 +392,9 @@ meal_planner_2/
   leggono operazioni pubbliche. Token e componenti seguono `design/`; il codice del
   prototipo Svelte si riscrive, mentre la logica di dominio TypeScript e i suoi test si
   riusano.
-- **Server: una funzione Hono su Netlify** (runtime Node) accanto al sito statico della
-  SPA. Espone tutte le rotte server:
+- **Server: Hono in un Worker di Cloudflare** (runtime Workers con l'opzione
+  `nodejs_compat`), che serve anche la SPA come file statici dallo stesso dominio
+  (deciso l'8 ottobre 2026 al posto di Netlify). Espone tutte le rotte server:
 
   | Rotta | Consumatore | Contenuto |
   |---|---|---|
@@ -391,12 +404,20 @@ meal_planner_2/
   | `/shopping-lists/<token>` | Bring! | Pagina HTML con JSON-LD resa dal server (sezione 6) |
   | `/internal/jobs/*` | `pg_cron` | Generazione settimanale, protetta da un segreto (sezione 4) |
 
-- **Supabase**: Postgres, Auth (link via email, Google e server OAuth 2.1 per MCP),
-  RLS, `pg_cron` e backup della piattaforma. Il repository è già collegato
+- **Supabase sul piano gratuito**: Postgres, Auth (link via email, Google e server
+  OAuth 2.1 per MCP), RLS e `pg_cron`. Il piano gratuito non comprende i backup della
+  piattaforma: li sostituisce un'esportazione notturna (sezione 8). Il repository è già collegato
   all'organizzazione Supabase tramite l'integrazione GitHub: nel M1 si verifica come
   applica le migrazioni (branch di produzione, cartella) e ci si allinea.
-- **Un solo runtime.** Il modulo `domain/` gira solo nel server Node: il job
-  settimanale non usa più un'Edge Function e non serve la compatibilità con Deno.
+- **Collegamento al database con Hyperdrive**, il pool di connessioni di Cloudflare,
+  con un driver Postgres (`pg` o `postgres.js`). La cache delle query di Hyperdrive
+  resta disattivata: le letture dipendono dall'utente tramite RLS e devono arrivare al
+  database. La stringa di connessione sta nella configurazione di Hyperdrive, non nel
+  codice.
+- **Email con Resend** (sezione 7): SMTP di Supabase Auth e API per le email del server.
+- **Un solo runtime.** Il modulo `domain/` gira solo nel Worker: il job settimanale non
+  usa un'Edge Function e non serve la compatibilità con Deno. `domain/` resta
+  TypeScript puro, senza dipendenze dal runtime.
 - **Il database è la fonte di verità del catalogo.** Le scritture avvengono attraverso
   operazioni autorizzate e validate sul server. Importazioni ed esportazioni YAML non
   costituiscono una seconda copia modificabile da sincronizzare automaticamente.
@@ -414,12 +435,25 @@ Hono → verifica del JWT di Supabase → contesto (utente, canale, lingua)
      → vista localizzata
 ```
 
+- **Token verificati nel Worker** con le chiavi pubbliche del progetto Supabase
+  (`/auth/v1/.well-known/jwks.json`, libreria `jose`), tenute in memoria: non serve un
+  segreto condiviso fra Cloudflare e Supabase. Requisito: chiavi di firma asimmetriche
+  nel progetto Supabase. L'app web ottiene il token con il login della libreria di
+  Supabase nel browser, gli agenti dal server OAuth (sezione 13).
+- **Query nel ruolo dell'utente.** Ogni operazione apre una transazione e imposta per
+  prima cosa `set local role authenticated` e `set_config('request.jwt.claims', …, true)`
+  con i campi del token verificato, così `auth.uid()` e le policy valgono come per
+  l'utente. Le impostazioni durano solo la transazione e non passano ad altre richieste
+  che riusano la stessa connessione del pool. Il token non arriva a Postgres; l'utenza
+  tecnica del server può assumere il ruolo `authenticated` e non ha altri poteri oltre
+  al necessario. Il job settimanale usa un ruolo di servizio limitato al suo compito.
+
 - **Permessi su due livelli con compiti distinti.** L'RLS resta la garanzia
   dell'isolamento fra famiglie e del confine dei ruoli globali anche per le query del
   server, che girano con l'identità dell'utente. Le regole dei flussi (ultimo
   amministratore, conflitti, completezza, eccezioni solo web) stanno nelle operazioni.
-  Come eseguire le query del server nel ruolo dell'utente con l'accesso tipizzato al
-  database (per esempio Drizzle) è da verificare (sezione 15).
+  Il meccanismo del ruolo dell'utente, descritto sopra, va provato con Hyperdrive e con
+  l'accesso tipizzato al database, per esempio Drizzle (sezione 15).
 - **Transazioni.** Le operazioni che toccano molte righe (pubblicazione, ripristini,
   eliminazione di una famiglia o di un account) sono atomiche, in una transazione o in
   una funzione Postgres.
@@ -454,6 +488,17 @@ di validazione condivisi con `domain/`. Regole:
   identificativo generato dal client: ripetere la stessa richiesta non duplica nulla.
 - **Famiglia esplicita.** Le operazioni di famiglia ricevono `familyId`, perché una
   persona può far parte di più famiglie; utente e canale arrivano solo dal token.
+- **Letture dalla copia sul dispositivo** (deciso l'8 ottobre 2026). Ogni famiglia ha
+  un contatore di versione che cresce a ogni modifica dei suoi dati (pasti, spesa, voti,
+  impostazioni, membri, settimana nuova); il ricettario ne ha uno suo, comune a tutte
+  le famiglie. Le letture restituiscono la versione e ricevono quella già posseduta dal
+  client: se non è cambiata, il server risponde che la vista è invariata (HTTP 304 con
+  `ETag`) senza ricalcolarla né trasferirla. Il client conserva le risposte sul
+  dispositivo (cache persistita di TanStack Query in IndexedDB), le mostra subito
+  all'apertura e verifica la versione all'apertura e al ritorno in primo piano; le
+  proprie modifiche aggiornano la copia locale senza rileggere. Ciò che dipende solo
+  dall'ora, come i pasti già passati, si calcola sul dispositivo. Gli agenti MCP leggono
+  sempre dal server. Cosa fa crescere ciascun contatore si fissa nel piano.
 - **Modifiche solo additive.** App e server si pubblicano insieme, ma richieste in coda
   offline e agenti possono usare una forma precedente: si aggiungono campi facoltativi
   e operazioni, non si rinominano né si tolgono senza un periodo di compatibilità.
@@ -469,7 +514,14 @@ identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani
   isolamento tra famiglie garantito dal database (RLS); il modello è relazionale.
   Scelta rafforzata l'8 ottobre: il server OAuth 2.1 di Supabase Auth è conforme a MCP
   (registrazione dinamica dei client, pagina di consenso dell'app, revoca) ed evita di
-  costruire in casa la parte più rischiosa.
+  costruire in casa la parte più rischiosa. Sul piano gratuito (8 ottobre 2026):
+  500 MB di database e 50.000 utenti attivi al mese bastano; la pausa dopo una
+  settimana con poche query degli utenti si evita con il job orario, che interroga il
+  database dal Worker ogni ora; i backup mancano e li sostituisce un'esportazione
+  notturna (sezione 8). Valutate e scartate lo stesso giorno, per costo, due
+  alternative: tutto su Cloudflare con D1 e Better Auth (niente RLS, solo transazioni a
+  blocchi senza letture intermedie, autenticazione e server OAuth a carico nostro) e
+  Neon con Better Auth (si perde il server OAuth già pronto).
 - **React** invece di Svelte (8 ottobre 2026, scelta dell'utente dopo il prototipo):
   ecosistema più ampio e maggiore familiarità degli agenti che scrivono il codice. Il
   costo è la riscrittura delle schermate del prototipo.
@@ -478,11 +530,17 @@ identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani
   ripetibile né a MCP, che richiederebbero comunque rotte separate; le funzioni server
   di TanStack Start sono di nuovo un'API implicita. Un contratto esplicito servito da
   un server indipendente dal frontend si prova da solo e resta portabile fra host.
-- **Netlify** invece di Vercel (28-29 settembre 2026): il piano Hobby di Vercel è solo
-  per uso personale non commerciale e i suoi cron girano al massimo una volta al giorno
-  con un'ora di tolleranza. Il cron sta comunque in Supabase. Le funzioni sincrone di
-  Netlify durano fino a 60 secondi, sufficienti per MCP e per la generazione di una
-  famiglia (documentazione consultata l'8 ottobre 2026).
+- **Cloudflare Workers** invece di Netlify (8 ottobre 2026, per il costo): i file
+  statici sono gratuiti e senza limiti, il piano gratuito comprende 100.000 richieste al
+  giorno e quello a pagamento costa 5 $ al mese, senza costi legati al numero di
+  pubblicazioni (il piano gratuito di Netlify, a crediti, ne spende circa 15 per ogni
+  pubblicazione in produzione). Hono gira in modo nativo. Si conta il tempo di CPU, non
+  la durata: l'attesa di Postgres o del giudice non pesa. Il piano gratuito concede 10
+  ms di CPU per richiesta, da confrontare con il pianificatore (sezione 15); se non
+  bastano si passa al piano a pagamento, fino a 5 minuti. Netlify era stato preferito a
+  Vercel il 28-29 settembre perché il piano Hobby di Vercel è solo per uso personale non
+  commerciale e i suoi cron girano al massimo una volta al giorno; il cron sta comunque
+  in Supabase. Documentazione consultata l'8 ottobre 2026.
 
 ### 2. Modello dei dati
 
@@ -741,8 +799,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 ### 4. Job settimanale
 
 - `pg_cron` in Supabase lavora in UTC. Il job gira ogni ora e chiama con `pg_net` la
-  rotta `/internal/jobs/weekly` del server, protetta da un segreto condiviso (rivisto
-  l'8 ottobre 2026: niente Edge Function). Il codice considera solo le famiglie per cui
+  rotta `/internal/jobs/weekly` del server, protetta da un segreto condiviso conservato
+  nel Vault di Supabase e fra i segreti del Worker (rivisto l'8 ottobre 2026: niente
+  Edge Function). Le chiamate orarie, che interrogano il database dal Worker, tengono
+  anche attivo il progetto gratuito di Supabase. Il codice considera solo le famiglie per cui
   è già passato il mercoledì alle 20:00 nel loro fuso (`families.time_zone`) e manca la
   settimana successiva: famiglie in fusi diversi sono servite all'ora giusta e l'ora
   legale non richiede di cambiare il cron. Un'esecuzione senza famiglie da servire non
@@ -750,7 +810,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Dispatcher**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
   e per il lunedì successivo.
 - **Worker**: elabora le famiglie **una alla volta**, ciascuna in una chiamata separata
-  alla funzione del server (al massimo 60 secondi su Netlify), così un errore o un
+  al server (su Workers conta il tempo di CPU, non la durata: 10 ms per richiesta sul
+  piano gratuito, fino a 5 minuti su quello a pagamento), così un errore o un
   rallentamento riguarda solo quella famiglia. Per ogni famiglia genera la settimana
   successiva in un'unica transazione, se non esiste già: l'unicità di (`family_id`,
   `starts_on`) impedisce doppioni anche con esecuzioni concorrenti. Con il giudice
@@ -848,7 +909,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Concorrenza, decisa il 6 ottobre 2026:** vince l'ultimo salvataggio, senza avviso di
   conflitto; il registro `meal_changes` conserva tutte le modifiche e l'ultima modifica
   mostrata dice chi ha cambiato il pasto. Niente realtime in v1: aggiornamento
-  all'apertura e a richiesta dell'utente.
+  all'apertura, al ritorno in primo piano e a richiesta dell'utente, con il controllo
+  della versione della sezione 1.
 - **Offline**: l'ultima settimana caricata resta consultabile in sola lettura, tranne
   la lista della spesa (sezione 6), modificabile anche offline.
 
@@ -943,9 +1005,14 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 ### 7. Account, Famiglia, inviti
 
 - **Supabase Auth**: magic link via email e Google. Iscrizione aperta.
-- **SMTP personalizzato** (per esempio Resend): il servizio email di default di Supabase
-  manda al massimo 2 email all'ora ed è solo per le prove. Con un SMTP personalizzato il
-  limite parte da 30 all'ora ed è configurabile.
+- **Email con Resend** (deciso l'8 ottobre 2026), piano gratuito: 3.000 email al mese,
+  al massimo 100 al giorno; oltre il limite l'invio si sospende, senza addebiti.
+  Supabase Auth lo usa come SMTP personalizzato per link di accesso e inviti; il server
+  lo chiama via API per le proprie email (segnalazioni del job, sezione 4). Il servizio
+  di default di Supabase non basta: consegna solo agli indirizzi dei membri del team
+  dell'organizzazione Supabase, con pochi invii all'ora ed è solo per le prove. Con un
+  SMTP personalizzato Supabase parte da 30 email all'ora, configurabile. Serve un
+  dominio di invio verificato, ancora da scegliere (sezione 15).
 - **Inviti alla famiglia**:
   - link `/invite/<token>`, valido 7 giorni, riusabile fino alla scadenza, revocabile;
     gli amministratori lo creano, lo condividono e lo revocano dalla pagina dei membri,
@@ -1247,10 +1314,11 @@ i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di ba
 
 Storico e backup hanno scopi distinti: lo storico permette di correggere un contributo
 o riportare il catalogo a una data; la perdita o il danneggiamento del database sono
-coperti dai backup della piattaforma Supabase, che riguardano l'intero database e
-quindi anche i dati delle famiglie. Piano di Supabase, perdita massima di lavoro
-accettabile, tempi di recupero e modalità operative si definiscono prima dell'uso del
-catalogo in produzione. La procedura dovrà essere provata con un ripristino in un
+coperti da un'esportazione notturna dell'intero database, che comprende quindi anche i
+dati delle famiglie. Il piano gratuito di Supabase non offre backup della piattaforma
+(deciso l'8 ottobre 2026): l'esportazione va in R2 di Cloudflare e la perdita massima
+di lavoro è di circa un giorno. Strumento, conservazione, cifratura, tempi di recupero
+e modalità operative si definiscono prima dell'uso del catalogo in produzione. La procedura dovrà essere provata con un ripristino in un
 ambiente di verifica.
 
 Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
@@ -1317,7 +1385,7 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   storico; coerenza fra ricette, proiezioni, ingredienti, traduzioni e bozze;
   conservazione dei riferimenti dai pasti e assenza di modifiche a dati e ruoli
   familiari; annullamento di un ripristino ripristinando l'istante precedente. Il
-  collaudo comprende anche l'effettivo recupero da un backup della piattaforma.
+  collaudo comprende anche l'effettivo recupero da un'esportazione notturna.
 - **Contratto e operazioni**: test delle operazioni contro il Supabase locale, con
   l'identità di utenti diversi, così permessi e RLS si provano insieme; test ricavati
   dal contratto che verificano per ogni operazione la scelta esplicita di esposizione
@@ -1390,7 +1458,7 @@ consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
 ### 11. Convivenza con il progetto di origine
 
 - `meal_planner` resta com'è: YAML, PDF e sito Netlify pubblicato da `main`. Questa app è
-  separata, con il suo repository, il suo sito Netlify e il suo progetto Supabase.
+  separata, con il suo repository, il suo Worker su Cloudflare e il suo progetto Supabase.
 - Il ricettario del progetto di origine è la fonte dell'import iniziale. Fino allo
   spegnimento del vecchio flusso, lo script di import è **rilanciabile**: prepara per la
   revisione solo le schede nuove, riconosciute tramite lo slug di origine, e non tocca
@@ -1720,13 +1788,14 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Momento della conferma del curatore nel percorso MCP. Decisi nel quinto giro i campi obbligatori per pubblicare, anche per tipo di fonte (sezione 8) | Sezioni 8, 11 e 12 |
-| Backup e ripristino | Piano Supabase e backup della piattaforma per i guasti del database: perdita di lavoro tollerata, tempi e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 2, 8, 9 e 13 |
+| Backup e ripristino | Esportazione notturna in R2 al posto dei backup della piattaforma (piano gratuito di Supabase, deciso l'8 ottobre): strumento, conservazione, cifratura, tempi e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione. Proposta dell'8 ottobre da valutare: campi bilingui (`{it-IT, en-GB}` validati dallo schema) al posto delle tabelle `*_translations`, dato che le lingue sono due, fisse ed entrambe obbligatorie | Sezioni 2 e 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
 | MCP | Verifica dei quattro client scelti con il server OAuth 2.1 di Supabase (comandi d'esempio nel sesto giro, ChatGPT da verificare), raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimenti iniziali su pianificatore con i dati reali e accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla curatela MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
-| Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Da verificare: Hono sulle Functions Node di Netlify, query del server nel ruolo dell'utente con RLS e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query | Sezione 1 |
+| Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Da verificare: libreria del contratto e SDK MCP sul runtime Workers, query del server nel ruolo dell'utente con RLS tramite Hyperdrive e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query, cosa fa crescere i contatori di versione delle letture | Sezione 1 |
+| Hosting e costi | Tempo di CPU del pianificatore e del giudice rispetto ai 10 ms per richiesta del piano gratuito di Workers (altrimenti piano a pagamento, 5 $ al mese); disponibilità del server OAuth 2.1 di Supabase sul piano gratuito; pausa del progetto gratuito evitata davvero dal job orario; dominio dell'app e di invio delle email. Decisi l'8 ottobre Cloudflare Workers, Supabase gratuito e Resend | Sezioni 1, 4, 7 e 8 |
 | Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
 | Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
@@ -1756,6 +1825,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 7 ottobre 2026, quinto giro del prototipo approvato | Curatela: pasti passati sulla versione con cui sono stati mangiati, oggi e futuri sulla corrente (R1); modifica tramite bozza di revisione; conflitti fra curatori rifiutati e risolti consapevolmente; archiviazione reversibile; ripristino di una versione aperta com'era, senza confronto; pubblicazione in un passo senza verifica esplicita; campi obbligatori per tipo di fonte; varietà degli ingredienti in testo libero con confronto normalizzato e consigli, istruzioni per l'agente; caricamento da file escluso per ora; avviso della versione solo ai curatori; percorso MCP consigliato rispetto al modulo |
 | 7 ottobre 2026, sesto giro del prototipo approvato | MCP e Amministrazione dell'app: nessun agente simulato; selettore di lingua nel modulo della ricetta; pagina «Collega un agente» senza introduzione, con client a fisarmonica, comandi d'esempio verificati e agenti collegati da scollegare; schermata di autorizzazione nel browser; amministrazione dal Profilo con utenti e ruoli (conferma per nominare amministratori, ultimo amministratore bloccato, famiglie solo per nome e ruolo), cancellazione di un utente con le regole dell'account; inviti all'app per un'email con ruoli facoltativi, 7 giorni, uso singolo e revoca, senza ingresso in famiglie; ripristino dell'intero catalogo come nuova versione con archiviazione delle ricette successive, anteprima e copia prima del ripristino |
 | 8 ottobre 2026, verifica dell'architettura | Dopo una challenge del piano e dell'architettura iniziali alla luce del prototipo: interfaccia in React (SPA con Vite, TanStack Router e Query) al posto di Svelte; strato unico di operazioni con contratto esplicito servito da Hono su Netlify, da cui derivano API web, OpenAPI e strumenti MCP (libreria del contratto aperta); MCP nella stessa app con il server OAuth 2.1 di Supabase e canale ricavato dal claim `client_id`; job con `pg_cron` verso il server, senza Edge Function né Deno; ricetta come documento con proiezioni; ripristino dell'intero catalogo a una data dallo storico, senza copie periodiche; spunte della spesa per ingrediente e varietà, cronologia delle bozze in tabella e fuso orario della famiglia nel modello. Poi confermata la generazione pigra come rete di sicurezza del job e aggiornato il prototipo (ripristino del catalogo scegliendo giorno e ora, con elenco dei ripristini da annullare). Campi bilingui restano una proposta; le fasi di rilascio diventano un punto aperto. Deciso il fuso orario della famiglia: dal browser alla creazione, modificabile dagli amministratori, ricalcolato anche per i pasti passati; job orario per famiglie in fusi diversi |
+| 8 ottobre 2026, hosting e costi | Cloudflare Workers al posto di Netlify per server e SPA, con Hyperdrive verso Supabase; Supabase sul piano gratuito, con esportazione notturna in R2 al posto dei backup della piattaforma e pausa evitata dal job orario; email con Resend gratuito per Supabase Auth e per il server, dominio da scegliere; token verificati con le chiavi pubbliche di Supabase e query nel ruolo dell'utente dentro la transazione; letture dalla copia sul dispositivo con contatori di versione e risposta «invariato». Valutate e scartate: tutto su Cloudflare con D1 e Better Auth, Neon con Better Auth |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
@@ -1850,7 +1920,8 @@ anche la posizione degli slot; nel secondo caso occorre adeguare il payload.
   requisito. [Gestione utenti Supabase](https://supabase.com/docs/guides/auth/managing-user-data).
 - Il recupero applicativo del catalogo deve essere distinto dal ripristino dell'intero
   database, per rispettare l'indipendenza dei dati familiari richiesta in R1 (8 ottobre
-  2026: il primo si ricava dallo storico, il secondo è dei backup della piattaforma).
+  2026: il primo si ricava dallo storico, il secondo dall'esportazione notturna del
+  database, perché il piano gratuito di Supabase non ha backup della piattaforma).
   [Backup Supabase](https://supabase.com/docs/guides/platform/backups).
 - Prima di M3 serve una classificazione unica di vincoli rigidi, obiettivi e deroghe:
   `weekly_max`, massimi degli intervalli e venerdì pesce devono avere esiti verificabili

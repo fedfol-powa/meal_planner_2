@@ -67,7 +67,8 @@ della decisione di prodotto, non una fonte parallela di requisiti.
   (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Curatela) e
   il sesto (MCP e Amministrazione dell'app) il 7 ottobre: tutti i percorsi sono stati
   rivisti. L'8 ottobre 2026 è stata verificata l'architettura (React, contratto delle
-  operazioni, specifica sezione 1); resta la revisione dei piani.
+  operazioni, specifica sezione 1) e scelto l'hosting (Cloudflare Workers, Supabase
+  gratuito, Resend); resta la revisione dei piani.
   Il prototipo è in `prototype/`
   (istruzioni nel suo README).
 - Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
@@ -83,11 +84,14 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 ## Stack di riferimento
 
 Deciso l'8 ottobre 2026 dopo la verifica dell'architettura: interfaccia React (SPA con
-Vite, TanStack Router e TanStack Query); server Hono in una funzione Netlify che
-implementa un contratto unico delle operazioni, da cui derivano API web, OpenAPI e
-strumenti MCP; Supabase (Postgres, Auth con server OAuth 2.1 per MCP, RLS, pg_cron);
-modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Motivazioni,
-contratto e punti ancora aperti (libreria del contratto, oRPC o alternative) sono nella
+Vite, TanStack Router e TanStack Query); server Hono in un Worker di Cloudflare, che
+serve anche la SPA e implementa un contratto unico delle operazioni, da cui derivano
+API web, OpenAPI e strumenti MCP; Supabase sul piano gratuito (Postgres, Auth con
+server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
+un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
+modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
+l'8 ottobre 2026 per il costo. Motivazioni, contratto e punti ancora aperti (libreria
+del contratto, CPU del pianificatore sul piano gratuito di Workers, dominio) sono nella
 specifica, sezioni 1 e 15. Il prototipo in `prototype/` resta in Svelte come
 riferimento dei percorsi.
 
@@ -107,7 +111,7 @@ default, non regole di questa app.
 ## Regole di lavoro
 
 - Pianifica prima di eseguire e fatti approvare il piano dall'utente.
-- Documentazione di librerie e servizi (SvelteKit, Supabase, Netlify...): consultala con
+- Documentazione di librerie e servizi (React, Hono, Supabase, Cloudflare...): consultala con
   Context7 invece di andare a memoria.
 - Ingredienti delle ricette: solo se verificati sulla fonte o forniti dall'utente, mai
   dedotti dal nome del piatto (stessa regola del progetto di origine).
