@@ -113,10 +113,11 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   verificato in Resend;
 - DNS di `qunidi.it` spostato da Aruba a Cloudflare (piano gratuito), perché il dominio
   personalizzato di un Worker richiede una zona attiva su Cloudflare; la registrazione
-  del dominio resta su Aruba. Prima di cambiare i nameserver si confrontano i record
-  esistenti su Aruba con quelli importati da Cloudflare, in particolare MX, SPF e DKIM
-  di eventuali caselle di posta; il record dell'app lo crea Cloudflare, quelli di
-  verifica di Resend si aggiungono a mano;
+  del dominio resta su Aruba. Su `qunidi.it` non c'è posta collegata (verificato con
+  l'utente l'8 ottobre 2026), quindi la migrazione non rischia di interrompere caselle
+  esistenti; si confrontano comunque i record su Aruba con quelli importati da
+  Cloudflare prima di cambiare i nameserver. Il record dell'app lo crea Cloudflare,
+  quelli di verifica di Resend si aggiungono a mano;
 - letture dalla copia salvata sul dispositivo, verificata con contatori di versione:
   il server trasferisce una vista solo quando è cambiata.
 
