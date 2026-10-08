@@ -89,10 +89,10 @@ confermare insieme alla libreria del contratto), che serve anche la SPA e implem
 API web, OpenAPI e strumenti MCP; Supabase sul piano gratuito (Postgres, Auth con
 server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
 un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
-app ed email sul dominio `cosasimangia.qunidi.it`;
+app ed email sul dominio `cosasimangia.qunidi.it`, con il DNS di `qunidi.it` su Cloudflare;
 modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
 l'8 ottobre 2026 per il costo. Motivazioni, contratto e punti ancora aperti (libreria
-del contratto, CPU del pianificatore sul piano gratuito di Workers, DNS del dominio) sono nella
+del contratto, CPU del pianificatore sul piano gratuito di Workers) sono nella
 specifica, sezioni 1 e 15. Il prototipo in `prototype/` resta in Svelte come
 riferimento dei percorsi.
 
