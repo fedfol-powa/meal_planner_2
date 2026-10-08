@@ -91,8 +91,9 @@ server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive
 un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
 app ed email sul dominio `cosasimangia.qunidi.it`, con il DNS di `qunidi.it` su Cloudflare;
 modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
-l'8 ottobre 2026 per il costo. Motivazioni, contratto e punti ancora aperti (libreria
-del contratto, CPU del pianificatore sul piano gratuito di Workers) sono nella
+l'8 ottobre 2026 per il costo. Workers sul piano a pagamento da 5 $ al mese (CPU
+del pianificatore circa 12 ms per settimana). Motivazioni, contratto e punti ancora
+aperti (libreria del contratto) sono nella
 specifica, sezioni 1 e 15. Il prototipo in `prototype/` resta in Svelte come
 riferimento dei percorsi.
 
