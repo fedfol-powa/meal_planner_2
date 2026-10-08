@@ -1,4 +1,4 @@
-# Prototipo di App Famiglia
+# Prototipo di Cosa si mangia
 
 Prototipo esplorativo, solo client, per rivedere flussi e superfici prima
 dell'implementazione. Requisiti: `../progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`;

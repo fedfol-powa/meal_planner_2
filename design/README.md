@@ -1,7 +1,7 @@
 # Riferimento visivo approvato
 
 Il 4 ottobre 2026 l’utente ha approvato il linguaggio visivo rappresentato da
-[index.html](index.html) come base definitiva per il futuro prototipo di App Famiglia.
+[index.html](index.html) come base definitiva per il futuro prototipo di Cosa si mangia.
 Le regole operative sono in [design.md](design.md); la decisione e i requisiti di
 prodotto restano nella [specifica, sezione 14](../progetto/superpowers/specs/2026-09-29-app-famiglia-design.md).
 

@@ -29,7 +29,7 @@
 
 <section class="secondary-view app-view authorize" aria-labelledby="authorize-title">
 	<div class="column">
-		<p class="brand">App Famiglia</p>
+		<p class="brand">Cosa si mangia?</p>
 		{#if !client}
 			<h1 id="authorize-title">{app.t('authorize.unknown')}</h1>
 			<p class="lead">{app.t('authorize.unknownBody')}</p>

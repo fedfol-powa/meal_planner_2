@@ -1,4 +1,4 @@
-# Percorsi del prototipo di App Famiglia
+# Percorsi del prototipo di Cosa si mangia
 
 Creato: 6 ottobre 2026
 Ultimo aggiornamento: 8 ottobre 2026

@@ -28,7 +28,7 @@
 
 <section class="secondary-view app-view invite" aria-labelledby="app-invite-title">
 	<div class="column">
-		<p class="brand">App Famiglia</p>
+		<p class="brand">Cosa si mangia?</p>
 		{#if invitation.status === 'valid'}
 			<h1 id="app-invite-title">{app.t('appInvite.title')}</h1>
 			<p class="lead">{app.t('appInvite.body', { name: invitation.invitedByName ?? '' })}</p>

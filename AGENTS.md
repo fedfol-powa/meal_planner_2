@@ -1,4 +1,4 @@
-# AGENTS.md - App Famiglia (meal_planner_2)
+# AGENTS.md - Cosa si mangia (meal_planner_2)
 
 Istruzioni per qualsiasi agente (Claude Code, Codex o altri) che lavora in questo
 repository. Rispondi e scrivi la documentazione di progetto in italiano, con gli accenti

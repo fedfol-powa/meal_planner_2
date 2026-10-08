@@ -1,4 +1,4 @@
-# App Famiglia
+# Cosa si mangia
 
 Il menu della settimana, pronto ogni mercoledì sera e rivisto insieme in famiglia. Con la
 lista della spesa dei pasti che scegli tu.

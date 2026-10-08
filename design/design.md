@@ -2,7 +2,7 @@
 version: "1.0"
 status: "approved"
 approvedOn: "2026-10-04"
-name: "App Famiglia"
+name: "Cosa si mangia"
 reference: "index.html"
 colors:
   canvas: "#FAF8F3"
@@ -85,7 +85,7 @@ layout:
   minimumControlHeight: "44px"
 ---
 
-# Linguaggio visivo approvato di App Famiglia
+# Linguaggio visivo approvato di Cosa si mangia
 
 **Approvato dall’utente il 4 ottobre 2026 come linguaggio definitivo per il prototipo.**
 Questa guida applica la decisione registrata nella
@@ -267,7 +267,7 @@ quei requisiti e non approva automaticamente i dettagli funzionali dimostrativi.
 La struttura HTML e il CSS inline sono un esempio verificabile. Nel prototipo
 riorganizzarli in token e componenti condivisi secondo il piano approvato, mantenendo
 la resa. Gli screenshot del sito esterno documentano la ricerca; quelli
-`preview-*` e `index.html` documentano la variante approvata di App Famiglia.
+`preview-*` e `index.html` documentano la variante approvata di Cosa si mangia.
 
 ## Lista della spesa (terzo giro, approvato il 6 ottobre 2026)
 
@@ -300,7 +300,7 @@ modifica sotto il titolo. Su schermi larghi la pagina è una colonna di 720 px.
   finale, versione a contorno rosso per l'ingresso alla pagina o al foglio; stanno in
   fondo alla vista, separati dal resto. Nessuna parola da scrivere per confermare.
 - **Pagine di ingresso** (accesso, wizard, invito): senza navbar, colonna di 420 px,
-  marchio "App Famiglia" in verde maiuscolo, titolo in Agrandir Tight 28 px, pulsanti
+  marchio "Cosa si mangia?" in verde maiuscolo, titolo in Agrandir Tight 28 px, pulsanti
   a tutta larghezza.
 - **Scheda dopo la prima generazione:** riquadro compatto sopra la barra del mese, con
   i colori dei pasti liberi, due link e la ×.

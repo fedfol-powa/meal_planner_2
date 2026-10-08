@@ -1,8 +1,8 @@
-# App Famiglia: requisiti e design
+# Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 8 ottobre 2026 (hosting su Cloudflare Workers con Supabase
-gratuito e Resend; letture dalla copia sul dispositivo)
+Ultimo aggiornamento: 8 ottobre 2026 (nome dell'app «Cosa si mangia»; hosting su
+Cloudflare Workers con Supabase gratuito e Resend; letture dalla copia sul dispositivo)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -119,6 +119,15 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 Un'app sul telefono che ogni settimana prepara da sola il menu di pranzi e cene della
 famiglia, lo lascia rivedere a tutti per qualche giorno e, quando serve, trasforma i pasti
 scelti in una lista della spesa.
+
+### Il nome
+
+L'app si chiama **Cosa si mangia**: la domanda che ogni famiglia si fa, a cui l'app
+risponde con il menu della settimana. Nel marchio (pagine di ingresso, titolo, icona) si
+scrive con il punto di domanda, «Cosa si mangia?»; nel testo corrente e nei nomi da
+digitare, come quello del connettore MCP, si scrive senza. Il nome resta uguale anche
+nell'interfaccia in inglese britannico. I nomi tecnici del repository, di file e codice
+non cambiano.
 
 ### Il problema che risolve
 
@@ -1480,7 +1489,7 @@ consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
 **Confermato:** lingua scelta per utente, italiano e inglese britannico nella prima
 versione. Il sistema di misura appartiene invece alla famiglia; nessuna scelta impone
 automaticamente l'altra. Le nuove pagine di guida MCP e amministrazione fanno parte
-dell'esperienza tradotta.
+dell'esperienza tradotta. Il nome dell'app, «Cosa si mangia», non si traduce.
 
 **Ambito del design proposto:**
 
@@ -1829,6 +1838,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 7 ottobre 2026, sesto giro del prototipo approvato | MCP e Amministrazione dell'app: nessun agente simulato; selettore di lingua nel modulo della ricetta; pagina «Collega un agente» senza introduzione, con client a fisarmonica, comandi d'esempio verificati e agenti collegati da scollegare; schermata di autorizzazione nel browser; amministrazione dal Profilo con utenti e ruoli (conferma per nominare amministratori, ultimo amministratore bloccato, famiglie solo per nome e ruolo), cancellazione di un utente con le regole dell'account; inviti all'app per un'email con ruoli facoltativi, 7 giorni, uso singolo e revoca, senza ingresso in famiglie; ripristino dell'intero catalogo come nuova versione con archiviazione delle ricette successive, anteprima e copia prima del ripristino |
 | 8 ottobre 2026, verifica dell'architettura | Dopo una challenge del piano e dell'architettura iniziali alla luce del prototipo: interfaccia in React (SPA con Vite, TanStack Router e Query) al posto di Svelte; strato unico di operazioni con contratto esplicito servito da Hono su Netlify, da cui derivano API web, OpenAPI e strumenti MCP (libreria del contratto aperta); MCP nella stessa app con il server OAuth 2.1 di Supabase e canale ricavato dal claim `client_id`; job con `pg_cron` verso il server, senza Edge Function né Deno; ricetta come documento con proiezioni; ripristino dell'intero catalogo a una data dallo storico, senza copie periodiche; spunte della spesa per ingrediente e varietà, cronologia delle bozze in tabella e fuso orario della famiglia nel modello. Poi confermata la generazione pigra come rete di sicurezza del job e aggiornato il prototipo (ripristino del catalogo scegliendo giorno e ora, con elenco dei ripristini da annullare). Campi bilingui restano una proposta; le fasi di rilascio diventano un punto aperto. Deciso il fuso orario della famiglia: dal browser alla creazione, modificabile dagli amministratori, ricalcolato anche per i pasti passati; job orario per famiglie in fusi diversi |
 | 8 ottobre 2026, hosting e costi | Cloudflare Workers al posto di Netlify per server e SPA, con Hyperdrive verso Supabase; Supabase sul piano gratuito, con esportazione notturna in R2 al posto dei backup della piattaforma e pausa evitata dal job orario; email con Resend gratuito per Supabase Auth e per il server, dominio da scegliere; token verificati con le chiavi pubbliche di Supabase e query nel ruolo dell'utente dentro la transazione; letture dalla copia sul dispositivo con contatori di versione e risposta «invariato». Valutate e scartate: tutto su Cloudflare con D1 e Better Auth, Neon con Better Auth |
+| 8 ottobre 2026, nome dell'app | Scelto «Cosa si mangia» al posto di «App Famiglia»: punto di domanda solo nel marchio, nome identico in inglese britannico; nomi tecnici invariati |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026

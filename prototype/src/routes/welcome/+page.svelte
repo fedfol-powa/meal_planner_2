@@ -56,7 +56,7 @@
 
 <section class="secondary-view app-view welcome" aria-labelledby="welcome-title">
 	<div class="column">
-		<p class="brand">App Famiglia</p>
+		<p class="brand">Cosa si mangia?</p>
 		{#if !app.signedIn}
 			{#if step === 'start'}
 				<h1 id="welcome-title">{app.t('welcome.title')}</h1>
