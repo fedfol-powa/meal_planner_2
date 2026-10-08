@@ -1,8 +1,8 @@
-import { mealIndex } from './calendar.ts';
+import { mealIndex, seasonOf } from './calendar.ts';
 import { foodGroupsOf, sharedFeatures } from './groups.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { weekRuleProblems, type RuleProblem } from './repair.ts';
-import { FOOD_GROUPS, type FoodGroup, type PastMeal, type PlannedWeek, type PlannerInput } from './types.ts';
+import { FOOD_GROUPS, type FoodGroup, type IsoDate, type PastMeal, type PlannedWeek, type PlannerInput, type PlannerRecipe } from './types.ts';
 
 export interface ClosePair {
 	first: PastMeal;
@@ -18,7 +18,14 @@ export interface WeekMetrics {
 	fresh: number;
 	knownNewApplies: boolean;
 	noMatch: number;
+	/** Meals whose recipe is not in season on that date. */
+	outOfSeason: number;
 	closePairs: ClosePair[];
+}
+
+/** True when the recipe has seasons and the date falls in none of them. */
+export function isOutOfSeason(recipe: PlannerRecipe, date: IsoDate): boolean {
+	return recipe.seasons.length > 0 && !recipe.seasons.includes(seasonOf(date));
 }
 
 const CLOSE_DISTANCE = 2;
@@ -56,6 +63,10 @@ export function weekMetrics(week: PlannedWeek, input: PlannerInput): WeekMetrics
 		fresh: recipes.length - known,
 		knownNewApplies: knownNewApplies(input),
 		noMatch: week.slots.filter((s) => s.content.kind === 'no_match').length,
+		outOfSeason: meals.filter((m) => {
+			const recipe = byId.get(m.recipeId);
+			return recipe !== undefined && isOutOfSeason(recipe, m.date);
+		}).length,
 		closePairs
 	};
 }

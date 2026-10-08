@@ -1,8 +1,9 @@
-import { mealIndex, weekdayOf } from './calendar.ts';
+import { weekdayOf } from './calendar.ts';
 import { candidatesFor, fitsSlot, slotRefOf } from './constraints.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
-import { foodGroupsOf, sharedFeatures } from './groups.ts';
-import { MAX_REPAIR_ROUNDS, SIMILARITY_WINDOW } from './settings.ts';
+import { foodGroupsOf } from './groups.ts';
+import { buildContext, scoreCandidate, type ScoreContext } from './score.ts';
+import { MAX_REPAIR_ROUNDS } from './settings.ts';
 import { FOOD_GROUPS, type PlannedSlot, type PlannedWeek, type PlannerInput, type PlannerRecipe } from './types.ts';
 
 export interface RuleProblem {
@@ -85,37 +86,28 @@ function alternatives(week: PlannedWeek, input: PlannerInput): PlannedWeek[] {
 	return result;
 }
 
-/** How repetitive the week is: shared features of nearby meals, weighted by closeness, previous week included. */
-export function weekSimilarity(week: PlannedWeek, input: PlannerInput): number {
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
-	const meals = [...input.history.filter((m) => m.date < week.weekStart), ...week.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []))];
-	const placed = meals.flatMap((m) => {
-		const recipe = byId.get(m.recipeId);
-		return recipe ? [{ index: mealIndex(m.date, m.mealType), inWeek: m.date >= week.weekStart, recipe }] : [];
-	});
-	let total = 0;
-	for (const a of placed) {
-		if (!a.inWeek) continue;
-		for (const b of placed) {
-			const distance = a.index - b.index;
-			if (distance > 0 && distance <= SIMILARITY_WINDOW) total += sharedFeatures(a.recipe, b.recipe).length / distance;
-		}
-	}
-	return total;
+/**
+ * How good the week is as a whole: the candidate score of every recipe given the rest of the week (liking,
+ * season, recency, similarity, vegetables…). `base` is a context built once for the input.
+ */
+export function weekQuality(week: PlannedWeek, input: PlannerInput, base: ScoreContext = buildContext(input, [])): number {
+	const placed = recipesOf(week, input).map((p) => ({ date: p.slot.date, mealType: p.slot.mealType, recipe: p.recipe }));
+	return placed.reduce((sum, p, i) => sum + scoreCandidate(p.recipe, p, { ...base, week: placed.filter((_, j) => j !== i) }), 0);
 }
 
-/** Local repair: each round keeps the change that fixes most; among equal fixes, the least repetitive week. */
+/** Local repair: each round keeps the change that fixes most; among equal fixes, the best week by score. */
 export function repairWeek(week: PlannedWeek, input: PlannerInput): PlannedWeek {
+	const base = buildContext(input, []);
 	let current = week;
 	for (let round = 0; round < MAX_REPAIR_ROUNDS; round++) {
 		const currentScore = problemScore(weekRuleProblems(current, input));
 		if (currentScore === 0) break;
-		let best: { week: PlannedWeek; score: number; similarity: number } | null = null;
+		let best: { week: PlannedWeek; score: number; quality: number } | null = null;
 		for (const alternative of alternatives(current, input)) {
 			const score = problemScore(weekRuleProblems(alternative, input));
-			if (score >= currentScore) continue;
-			const similarity = weekSimilarity(alternative, input);
-			if (!best || score < best.score || (score === best.score && similarity < best.similarity)) best = { week: alternative, score, similarity };
+			if (score >= currentScore || (best && score > best.score)) continue;
+			const quality = weekQuality(alternative, input, base);
+			if (!best || score < best.score || quality > best.quality) best = { week: alternative, score, quality };
 		}
 		if (!best) break;
 		current = best.week;

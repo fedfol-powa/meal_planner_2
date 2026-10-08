@@ -2,7 +2,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { addDays, FOOD_GROUPS, generateWeek, hardViolations, weekdayOf, weekMetrics, type PastMeal, type PlannedWeek, type PlannerInput, type WeekMetrics } from '../domain/src/planner/index.ts';
+import { addDays, FOOD_GROUPS, generateWeek, hardViolations, isOutOfSeason, weekdayOf, weekMetrics, type PastMeal, type PlannedWeek, type PlannerInput, type WeekMetrics } from '../domain/src/planner/index.ts';
 import { parseAttributes, toPlannerRecipes } from './planner-data/attributes.ts';
 import { curatorFamilySettings, curatorRestrictions } from './planner-data/family.ts';
 import { familyScoresOf, historyOf, originDir, publishable, readOriginRecipes } from './planner-data/origin.ts';
@@ -55,6 +55,7 @@ const lines: string[] = [
 	`- Pasti «nessuna ricetta adatta»: **${results.reduce((n, r) => n + r.metrics.noMatch, 0)}** su ${results.reduce((n, r) => n + r.week.slots.filter((s) => s.content.kind !== 'free').length, 0)}`,
 	`- Settimane con regole non rispettate (venerdì pesce, intervalli, note/nuove): **${results.filter((r) => r.metrics.problems.length > 0).length}** su ${WEEKS}`,
 	`- Ricette usate almeno una volta: **${usage.size}** su ${recipes.length}`,
+	`- Pasti fuori stagione: **${results.reduce((n, r) => n + r.metrics.outOfSeason, 0)}** (segnati con «fuori stagione» nelle settimane)`,
 	'',
 	'### Gruppi alimentari per settimana',
 	'',
@@ -91,7 +92,9 @@ for (const { week, metrics } of results) {
 			if (slot.content.kind === 'free') return `_${slot.content.text}_`;
 			if (slot.content.kind === 'no_match') return '**nessuna ricetta adatta**';
 			const recipe = byId.get(slot.content.recipeId)!;
-			return `${names.get(recipe.id)} · ${recipe.durationMinutes ?? '?'} min · ${slot.servings} porz.`;
+			const stars = familyScores[recipe.id] ? `${familyScores[recipe.id]}★` : 'senza voto';
+			const season = isOutOfSeason(recipe, date) ? ' · **fuori stagione**' : '';
+			return `${names.get(recipe.id)} · ${recipe.durationMinutes ?? '?'} min · ${slot.servings} porz. · ${stars}${season}`;
 		};
 		lines.push(`| ${DAY_LABEL[day]} ${date.slice(8)} | ${cell('lunch')} | ${cell('dinner')} |`);
 	}

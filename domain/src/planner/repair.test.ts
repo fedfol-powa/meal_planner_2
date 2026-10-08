@@ -64,6 +64,17 @@ describe('repairWeek', () => {
 		expect(hardViolations(repaired, input)).toEqual([]);
 	});
 
+	it('among equal fixes, prefers the recipe in season', () => {
+		const recipes = [...veg(12), recipe('fishSummer', { proteinGroup: 'fish', seasons: ['summer'] }), recipe('fishAnytime', { proteinGroup: 'fish' })];
+		const input = baseInput({ recipes });
+		input.settings.groupRanges.fish = { min: 0, max: 3 }; // only the Friday rule asks for one fish
+		const repaired = repairWeek(weekWith(input, veg(12).map((r) => r.id)), input);
+		const used = repaired.slots.flatMap((s) => (s.content.kind === 'recipe' ? [s.content.recipeId] : []));
+		expect(used).toContain('fishAnytime');
+		expect(used).not.toContain('fishSummer');
+		expect(hardViolations(repaired, input)).toEqual([]);
+	});
+
 	it('stops when nothing can fix the week', () => {
 		const input = baseInput({ recipes: veg(12) });
 		const week = weekWith(input, veg(12).map((r) => r.id));
