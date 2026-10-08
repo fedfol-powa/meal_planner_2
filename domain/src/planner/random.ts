@@ -8,6 +8,11 @@ export function seedFrom(text: string): number {
 	return hash >>> 0;
 }
 
+/** Plain code-point order: the same on every runtime, unlike localeCompare. */
+export function compareIds(a: string, b: string): number {
+	return a < b ? -1 : a > b ? 1 : 0;
+}
+
 export type Random = () => number;
 
 /** Mulberry32: small, fast and deterministic, enough to choose among good candidates. */

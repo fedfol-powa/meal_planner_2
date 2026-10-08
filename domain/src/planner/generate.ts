@@ -1,6 +1,6 @@
 import { addDays } from './calendar.ts';
 import { candidatesFor, slotRefOf, slotSettingOf } from './constraints.ts';
-import { createRandom, seedFrom, weightedPick } from './random.ts';
+import { compareIds, createRandom, seedFrom, weightedPick } from './random.ts';
 import { repairWeek } from './repair.ts';
 import { buildContext, scoreCandidate, type Placed } from './score.ts';
 import { TOP_K } from './settings.ts';
@@ -36,7 +36,7 @@ export function generateWeek(input: PlannerInput): PlannedWeek {
 		const ctx = buildContext(input, placed);
 		const ranked = candidates
 			.map((recipe) => ({ recipe, score: scoreCandidate(recipe, slot, ctx) }))
-			.sort((a, b) => b.score - a.score || a.recipe.id.localeCompare(b.recipe.id))
+			.sort((a, b) => b.score - a.score || compareIds(a.recipe.id, b.recipe.id))
 			.slice(0, TOP_K);
 		const floor = ranked[ranked.length - 1].score;
 		const choice = weightedPick(ranked.map((r) => ({ item: r.recipe, weight: r.score - floor + 1 })), random);
