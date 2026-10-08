@@ -508,7 +508,7 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 | Tabella | Campi principali |
 |---|---|
-| `recipes` | Identità, stato e proiezione della versione corrente: `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna |
+| `recipes` | Identità, stato e proiezione della versione corrente: `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group` (`fish`/`white_meat`/`red_meat`/`cured_meat`/`legumes`/`eggs`/`cheese`/`vegetarian`: proteina principale), `is_fresh_fish` (pesce di pescheria, non in scatola), `carbohydrate_group` (`pasta`/`rice`/`potatoes`/`bread`/`cereals`/`none`), `has_vegetables`, `category` (tipo di piatto: `wok`/`skottle`/`oven_bake`/`grill`/`pan`/`soup`/`salad`/`savoury_pie`/`wrap_sandwich`/`burger`/`other`), `meal_type` (`lunch`/`dinner`/`both`), `seasons` (vuoto = tutto l'anno), `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna. Vocabolari confermati l'8 ottobre 2026 con la classificazione delle 52 ricette d'origine (`scripts/import/recipe-attributes.yaml`, input anche dell'import); l'ingrediente principale per la somiglianza è `recipe_ingredients.is_primary`, sempre una riga della lista verificata |
 | `recipe_translations` | Proiezione: `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
 | `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua; è il prodotto generico (Pomodori, Uva), senza varietà, taglia o preparazione nel nome. Reparto, dispensa, equivalenze ed evitati valgono per tutte le varietà |
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
@@ -591,10 +591,14 @@ punteggio: le modificano solo gli amministratori della famiglia, i membri le leg
 si salvano a ogni modifica e valgono per le generazioni successive e per i
 suggerimenti, senza cambiare i menu già fatti. Quota note/nuove e intervalli per
 gruppo alimentare stanno in una sezione «Avanzate» chiusa. Le regole di pasto si
-scelgono da tre modelli (un gruppo almeno una volta in un giorno, mai un gruppo in un
-giorno, un tipo di piatto solo a pranzo), senza regole in testo libero. Una famiglia
-nuova parte con tutti i pranzi e le cene pianificati per 2 porzioni, senza pasti
-fissi, limiti, regole, ingredienti evitati né libri, e con gli intervalli CREA.
+scelgono da quattro modelli (un gruppo almeno una volta in un giorno, mai un gruppo in un
+giorno, mai pesce di pescheria in un giorno, un tipo di piatto solo a pranzo), senza
+regole in testo libero; il modello sul pesce di pescheria è stato aggiunto l'8 ottobre
+2026, perché il divieto del lunedì riguarda la pescheria chiusa, non il pesce in scatola.
+Una famiglia nuova parte con tutti i pranzi e le cene pianificati per 2 porzioni, i
+pranzi da lunedì a venerdì entro 30 minuti (default deciso l'8 ottobre 2026 dopo
+l'esperimento del pianificatore, modificabile), senza pasti fissi, altri limiti, regole,
+ingredienti evitati né libri, e con gli intervalli CREA.
 
 **Preferenze personali** (`profiles`): lingua `it-IT` oppure `en-GB`, indipendente dalla
 famiglia e dal suo sistema di misura. Rilevamento iniziale e valori predefiniti da definire
@@ -647,10 +651,14 @@ valere anche per le operazioni eseguite da amministratori dell'app.
 
 **Vincoli rigidi** (filtrano, mai violati dalla generazione):
 
-- limiti dello slot: tempo, pasto adatto, niente pesce fresco il lunedì, niente pasta a cena;
+- limiti dello slot: tempo (una ricetta senza durata non entra in uno slot con tempo
+  massimo), pasto adatto e regole di pasto della famiglia (per esempio niente pesce di
+  pescheria il lunedì, niente pasta a cena);
 - esclusioni, ricette archiviate, libri non posseduti;
 - ingrediente con restrizione `avoid` come ingrediente non opzionale;
-- stessa ricetta usata nelle ultime 2 settimane;
+- stessa ricetta usata nei 14 giorni prima della settimana o già nella settimana;
+- ingrediente con restrizione `limit` oltre `weekly_max` (reso vincolo rigido
+  nell'esperimento dell'8 ottobre 2026);
 - punteggio famiglia ≤ 2 stelle, salvo mancanza di alternative.
 
 **Punteggio** (vincoli morbidi):
@@ -662,9 +670,16 @@ valere anche per le operazioni eseguite da amministratori dell'app.
 - **somiglianza**: penalità per pasti vicini che condividono proteina principale,
   carboidrato principale, ingrediente principale o categoria. Il peso decresce con la
   distanza in pasti. La finestra è mobile e attraversa le settimane;
-- **quota note/nuove**: "nota" vuol dire cucinata da questa famiglia almeno una volta. La
-  quota si applica da quando la famiglia ha almeno 10 ricette cucinate;
-- **ingredienti con restrizione `limit`**: penalità, e al massimo `weekly_max` volte.
+- **quota note/nuove**: "nota" vuol dire cucinata da questa famiglia nelle ultime 8
+  settimane; una ricetta non cucinata da più tempo conta di nuovo come nuova (deciso l'8
+  ottobre 2026). La quota si applica da quando la famiglia ha almeno 10 ricette
+  cucinate;
+- **ingredienti con restrizione `limit`**: penalità, oltre al massimo settimanale.
+
+**Valori di partenza dell'esperimento dell'8 ottobre 2026** (`domain/src/planner/settings.ts`,
+da ritoccare con l'uso): somiglianza su una finestra di 6 pasti, scelta pesata fra i
+migliori 4 candidati, pesi gradimento 3, tempo dall'ultima volta 1, stagione 1,
+equilibrio 2, somiglianza 4, verdure 0,5, quota 1,5, ingredienti limitati 1.
 
 **Intervalli di default per gruppo alimentare** sui pasti pianificati della settimana.
 Sono derivati dalle frequenze CREA 2018 per l'adulto, pensate per 14 pasti, e adattati ai
@@ -690,12 +705,25 @@ Fonte: CREA, "Le giuste porzioni e le frequenze di consumo consigliate"
 **Algoritmo:**
 
 1. prepara gli slot dalla matrice, con porzioni e slot fissi;
-2. ordina gli slot da riempire dal più vincolato (cene veloci, venerdì pesce);
+2. riempie per primo lo slot con meno candidati validi, ricalcolato a ogni passo (a
+   parità, in ordine cronologico);
 3. per ogni slot calcola il punteggio dei candidati nel contesto della settimana e ne sceglie
-   uno a caso tra i migliori 3-5, pesando la scelta sul punteggio;
+   uno a caso tra i migliori 4, pesando la scelta sul punteggio;
 4. controlla le regole di settimana (venerdì pesce, quota, intervalli) e le ripara con
-   scambi locali;
+   sostituzioni di una ricetta o scambi fra due slot che non rompono vincoli rigidi;
+   ogni giro tiene la modifica che sistema di più e, a parità, quella che lascia la
+   settimana meno ripetitiva (così il pesce del venerdì non finisce accanto a quello del
+   giovedì sera);
 5. se uno slot non ha candidati validi resta vuoto, segnato "nessuna ricetta adatta".
+
+**Esito dell'esperimento dell'8 ottobre 2026** (M0, codice in `domain/src/planner/`,
+report in `progetto/reports/planner-report.md`): 20 settimane per la famiglia del
+curatore, con le 52 ricette pubblicabili del progetto d'origine e le sue regole, senza
+violazioni dei vincoli rigidi né pasti senza ricetta, con gruppi sempre negli intervalli
+e venerdì pesce sempre presente; settimane giudicate credibili dall'utente. Con 52
+ricette la quota note/nuove non si rispetta (dopo tre settimane le nuove scendono a 0-2
+su 12): servono circa 25-30 ricette in più, lavoro della curatela. Non esprimibile con
+i modelli di regola la regola d'origine «niente skottle il lunedì sera».
 
 Il seme casuale è derivato da famiglia e settimana: a parità di ingresso la settimana è la
 stessa, e quindi testabile. Il perché di una scelta non viene salvato né mostrato: non è un
@@ -1278,10 +1306,12 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   - test unitari per regola su un catalogo di prova;
   - test di proprietà: su centinaia di semi, zero violazioni dei vincoli rigidi e ogni slot
     pieno o segnato "nessuna ricetta adatta";
-  - **report di qualità**: `scripts/planner-report` genera 20 settimane con i dati
-    reali della famiglia del curatore e riporta violazioni, gruppi rispetto agli
-    intervalli, quota note/nuove, coppie simili più vicine e ripetizioni. Va guardato prima
-    di attivare il job.
+  - **report di qualità**: `npm run planner-report` (`scripts/planner-report.ts`) genera 20
+    settimane con i dati reali della famiglia del curatore e riporta violazioni, gruppi
+    rispetto agli intervalli, quota note/nuove, coppie simili più vicine e ripetizioni,
+    in `progetto/reports/planner-report.md`. Va guardato prima di attivare il job. Prima
+    esecuzione l'8 ottobre 2026 (esito nella sezione 3); i test unitari e di proprietà
+    del pianificatore sono in `domain/src/planner/`.
 - **Giudice** (solo se lo si sperimenta):
   - test unitari della ricaduta: spento, timeout, errore, risposta non valida portano sempre
     alla candidata migliore a regole;
@@ -1725,11 +1755,11 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
 | MCP | Verifica dei quattro client scelti con il server OAuth 2.1 di Supabase (comandi d'esempio nel sesto giro, ChatGPT da verificare), raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
-| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimenti iniziali su pianificatore con i dati reali e accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla curatela MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
+| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimento del pianificatore con i dati reali svolto l'8 ottobre (esito nella sezione 3), da fare quello sull'accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla curatela MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
 | Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Da verificare: Hono sulle Functions Node di Netlify, query del server nel ruolo dell'utente con RLS e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query | Sezione 1 |
 | Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
-| Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
+| Pianificatore e giudice | Classificazione dei vincoli in parte decisa nell'esperimento dell'8 ottobre: vincoli rigidi (compreso il massimo settimanale degli ingredienti limitati) filtrano, voto ≤ 2 ammesso solo senza alternative, slot senza candidati segnati «nessuna ricetta adatta», regole di settimana (venerdì pesce, intervalli, quota) riparate quando possibile e altrimenti mostrate nel report. Restano: come mostrare alla famiglia una regola non soddisfatta, un modello di regola per «niente skottle il lunedì sera», crescita del ricettario per la quota note/nuove; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
 ### 16. Registro delle revisioni
 
@@ -1756,6 +1786,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 7 ottobre 2026, quinto giro del prototipo approvato | Curatela: pasti passati sulla versione con cui sono stati mangiati, oggi e futuri sulla corrente (R1); modifica tramite bozza di revisione; conflitti fra curatori rifiutati e risolti consapevolmente; archiviazione reversibile; ripristino di una versione aperta com'era, senza confronto; pubblicazione in un passo senza verifica esplicita; campi obbligatori per tipo di fonte; varietà degli ingredienti in testo libero con confronto normalizzato e consigli, istruzioni per l'agente; caricamento da file escluso per ora; avviso della versione solo ai curatori; percorso MCP consigliato rispetto al modulo |
 | 7 ottobre 2026, sesto giro del prototipo approvato | MCP e Amministrazione dell'app: nessun agente simulato; selettore di lingua nel modulo della ricetta; pagina «Collega un agente» senza introduzione, con client a fisarmonica, comandi d'esempio verificati e agenti collegati da scollegare; schermata di autorizzazione nel browser; amministrazione dal Profilo con utenti e ruoli (conferma per nominare amministratori, ultimo amministratore bloccato, famiglie solo per nome e ruolo), cancellazione di un utente con le regole dell'account; inviti all'app per un'email con ruoli facoltativi, 7 giorni, uso singolo e revoca, senza ingresso in famiglie; ripristino dell'intero catalogo come nuova versione con archiviazione delle ricette successive, anteprima e copia prima del ripristino |
 | 8 ottobre 2026, verifica dell'architettura | Dopo una challenge del piano e dell'architettura iniziali alla luce del prototipo: interfaccia in React (SPA con Vite, TanStack Router e Query) al posto di Svelte; strato unico di operazioni con contratto esplicito servito da Hono su Netlify, da cui derivano API web, OpenAPI e strumenti MCP (libreria del contratto aperta); MCP nella stessa app con il server OAuth 2.1 di Supabase e canale ricavato dal claim `client_id`; job con `pg_cron` verso il server, senza Edge Function né Deno; ricetta come documento con proiezioni; ripristino dell'intero catalogo a una data dallo storico, senza copie periodiche; spunte della spesa per ingrediente e varietà, cronologia delle bozze in tabella e fuso orario della famiglia nel modello. Poi confermata la generazione pigra come rete di sicurezza del job e aggiornato il prototipo (ripristino del catalogo scegliendo giorno e ora, con elenco dei ripristini da annullare). Campi bilingui restano una proposta; le fasi di rilascio diventano un punto aperto. Deciso il fuso orario della famiglia: dal browser alla creazione, modificabile dagli amministratori, ricalcolato anche per i pasti passati; job orario per famiglie in fusi diversi |
+| 8 ottobre 2026, esperimento del pianificatore (M0) | Generazione della settimana in `domain/src/planner/` provata su 20 settimane con le 52 ricette pubblicabili d'origine: nessuna violazione, settimane credibili per l'utente. Confermati i vocabolari degli attributi delle ricette e la loro classificazione; il lunedì vale per il pesce di pescheria (nuovo attributo e nuovo modello di regola), il pesce in scatola è ammesso; pranzi feriali entro 30 minuti come default delle famiglie nuove; una ricetta non cucinata da 8 settimane torna «nuova» per la quota; peso della somiglianza più alto e riparazione che, a parità, sceglie la settimana meno ripetitiva. Il ricettario attuale è troppo piccolo per la quota note/nuove |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
