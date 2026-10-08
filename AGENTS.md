@@ -66,7 +66,8 @@ della decisione di prodotto, non una fonte parallela di requisiti.
   Ricettario e voti), il secondo (Revisione dei pasti), il terzo (Spesa) e il quarto
   (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Curatela) e
   il sesto (MCP e Amministrazione dell'app) il 7 ottobre: tutti i percorsi sono stati
-  rivisti. Resta la verifica dell'architettura prima della revisione dei piani.
+  rivisti. L'8 ottobre 2026 è stata verificata l'architettura (React, contratto delle
+  operazioni, specifica sezione 1); resta la revisione dei piani.
   Il prototipo è in `prototype/`
   (istruzioni nel suo README).
 - Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
@@ -81,10 +82,14 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 
 ## Stack di riferimento
 
-SvelteKit su Netlify, Supabase (Postgres, Auth, RLS, pg_cron, Edge Functions), modulo
-TypeScript `planner/` condiviso. Le motivazioni e la proposta di operazioni condivise
-tra web e MCP sono nella specifica, sezione 1. L'architettura va riverificata dopo
-il prototipo, prima dell'implementazione.
+Deciso l'8 ottobre 2026 dopo la verifica dell'architettura: interfaccia React (SPA con
+Vite, TanStack Router e TanStack Query); server Hono in una funzione Netlify che
+implementa un contratto unico delle operazioni, da cui derivano API web, OpenAPI e
+strumenti MCP; Supabase (Postgres, Auth con server OAuth 2.1 per MCP, RLS, pg_cron);
+modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Motivazioni,
+contratto e punti ancora aperti (libreria del contratto, oRPC o alternative) sono nella
+specifica, sezioni 1 e 15. Il prototipo in `prototype/` resta in Svelte come
+riferimento dei percorsi.
 
 L'utente ha creato l'organizzazione Supabase e collegato questo repository tramite
 l'integrazione GitHub: lo schema va creato da codice (`supabase/migrations/`). Verifica la

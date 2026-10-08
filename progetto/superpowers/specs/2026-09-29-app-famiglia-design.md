@@ -1,7 +1,8 @@
 # App Famiglia: requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 7 ottobre 2026 (sesto giro del prototipo approvato)
+Ultimo aggiornamento: 8 ottobre 2026 (architettura rivista dopo il prototipo: React e
+contratto delle operazioni)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -78,6 +79,23 @@ L'approvazione dei requisiti non equivale all'approvazione di un piano di implem
 `design/index.html`, derivato dallo studio di HelloFresh e rivisto dall'utente su
 iPhone, è quello definitivo da utilizzare nella progettazione e nello sviluppo del
 prototipo. La guida `design/design.md` applica la decisione della sezione 14.
+
+**Decisioni confermate l'8 ottobre 2026, verifica dell'architettura dopo il prototipo:**
+
+- interfaccia in React invece di Svelte: SPA con Vite, TanStack Router e TanStack Query;
+  il prototipo Svelte resta il riferimento eseguibile dei percorsi approvati;
+- backend scritto come un unico strato di operazioni applicative con un contratto
+  esplicito, servito da una funzione Hono su Netlify, da cui derivano l'API dell'app
+  web, l'API documentata OpenAPI e gli strumenti MCP; la libreria del contratto è
+  ancora da scegliere (sezione 15);
+- MCP nella stessa applicazione, autenticato con il server OAuth 2.1 di Supabase Auth;
+- niente Edge Function né Deno: un solo runtime Node per app, MCP e job;
+- ricetta come documento con un unico schema per bozze, versioni, YAML e MCP;
+- ripristino dell'intero ricettario calcolato dallo storico delle versioni, senza
+  copie periodiche del catalogo;
+- generazione pigra della settimana come rete di sicurezza del job del mercoledì;
+- fasi di rilascio da ripensare con la nuova architettura: la tabella della sezione 10
+  resta il riferimento precedente, non un piano confermato (sezione 15).
 
 ---
 
@@ -305,10 +323,10 @@ nominare altri amministratori dell'app. Le stesse operazioni sono disponibili vi
 salvo le cancellazioni di account che eliminerebbero anche una famiglia: in quel caso
 MCP rimanda alla pagina dell'app, senza eseguire la cancellazione.
 
-Gli amministratori dell'app possono inoltre ripristinare l'intero ricettario da backup.
-Questo recupero riguarda il catalogo, senza ripristinare i dati privati delle famiglie:
-le ricette tornano com'erano come nuova versione, quelle nate dopo il backup vengono
-archiviate, e prima di confermare si vede un'anteprima.
+Gli amministratori dell'app possono inoltre riportare l'intero ricettario com'era in
+un momento passato. Questo recupero riguarda il catalogo, senza ripristinare i dati
+privati delle famiglie: le ricette tornano com'erano come nuova versione, quelle nate
+dopo quel momento vengono archiviate, e prima di confermare si vede un'anteprima.
 
 Gli inviti all'app e quelli a una famiglia hanno scopi distinti. L'iscrizione resta
 aperta: un invito all'app chiama una persona precisa e può darle il ruolo di curatore
@@ -332,58 +350,157 @@ nel sesto giro del prototipo, sezione 7.
 
 ### 1. Architettura
 
-Lo stack di riferimento resta SvelteKit, Netlify, Supabase e TypeScript. L'aumento delle
-operazioni server e l'introduzione di MCP vanno verificati dopo il prototipo, prima di
-confermare la distribuzione dei componenti e scrivere i nuovi piani.
+Verificata dopo il prototipo e decisa l'8 ottobre 2026. Il prototipo ha spostato il
+baricentro dal client al server: bozze con conflitti, versioni, ripristini,
+amministrazione, cancellazioni vincolate, parità MCP e spesa offline richiedono uno
+strato applicativo vero, non un client che scrive direttamente nel database protetto
+da RLS con poche funzioni di contorno, come previsto nella base del 29 settembre.
 
-**Struttura logica proposta**, da precisare nei piani successivi al prototipo:
+**Struttura:**
 
 ```
 meal_planner_2/
-├── prototype/                    prototipo da costruire, conservato nel repository
-├── planner/                      modulo TypeScript puro: regole, punteggio, scalatura, lista
-├── application/                  operazioni condivise da app web e MCP
-├── catalog/                      schema, validazione e gestione del ricettario
-├── mcp/                          accesso MCP alle operazioni applicative
-├── app/                          SvelteKit, mobile-first, installabile (PWA)
-├── supabase/migrations/          schema SQL e policy RLS
-├── supabase/functions/           Edge Function del job settimanale
-├── scripts/                      importazione, esportazione e verifiche
+├── prototype/                    prototipo Svelte, riferimento dei percorsi approvati
+├── contract/                     contratto delle operazioni: schemi, errori, metadati
+├── domain/                       TypeScript puro: pianificatore, unità, spesa,
+│                                 validazione, schema del documento ricetta, versioni
+├── server/                       Hono: implementazione delle operazioni, MCP, job
+├── web/                          React (Vite, TanStack Router e Query), PWA mobile-first
+├── supabase/migrations/          schema SQL, funzioni transazionali e policy RLS
+├── scripts/                      importazione, esportazione, report del pianificatore
 └── progetto/                     spec, piani, regole di progetto
 ```
 
-- **Hosting app: Netlify** (adapter SvelteKit ufficiale), come scelta di riferimento.
-  Il backend deve coprire anche catalogo, operazioni condivise, amministrazione e accesso
-  MCP. Trasporto e collocazione del server MCP si decidono dopo la verifica architetturale.
-- **Supabase**: Postgres, Auth, RLS, `pg_cron`, Edge Functions. Il repository è già
-  collegato all'organizzazione Supabase tramite l'integrazione GitHub: nel M1 si verifica
-  come applica le migrazioni (branch di produzione, cartella) e ci si allinea.
-- **Il modulo `planner/`** è TypeScript senza dipendenze di runtime, così lo importano
-  sia l'Edge Function (Deno) sia l'app (Node): una sola implementazione per bozza,
-  suggerimenti, scalatura e lista.
+**Componenti:**
+
+- **Interfaccia: React come SPA** costruita con Vite, con TanStack Router per le rotte e
+  TanStack Query per dati, cache e mutazioni. Installabile come PWA; il service worker
+  serve la consultazione offline e la coda della spesa (sezione 6). Non serve il
+  rendering lato server: l'app è dietro accesso e le poche pagine pubbliche (inviti)
+  leggono operazioni pubbliche. Token e componenti seguono `design/`; il codice del
+  prototipo Svelte si riscrive, mentre la logica di dominio TypeScript e i suoi test si
+  riusano.
+- **Server: una funzione Hono su Netlify** (runtime Node) accanto al sito statico della
+  SPA. Espone tutte le rotte server:
+
+  | Rotta | Consumatore | Contenuto |
+  |---|---|---|
+  | `/api/rpc/*` | App web | Operazioni con tipi condivisi end-to-end |
+  | `/api/*` e `openapi.json` | Test, documentazione, eventuali client futuri | Stesse operazioni in forma REST documentata, generata dal contratto |
+  | `/mcp` | Agenti | Strumenti MCP generati dal contratto (sezione 13) |
+  | `/shopping-lists/<token>` | Bring! | Pagina HTML con JSON-LD resa dal server (sezione 6) |
+  | `/internal/jobs/*` | `pg_cron` | Generazione settimanale, protetta da un segreto (sezione 4) |
+
+- **Supabase**: Postgres, Auth (link via email, Google e server OAuth 2.1 per MCP),
+  RLS, `pg_cron` e backup della piattaforma. Il repository è già collegato
+  all'organizzazione Supabase tramite l'integrazione GitHub: nel M1 si verifica come
+  applica le migrazioni (branch di produzione, cartella) e ci si allinea.
+- **Un solo runtime.** Il modulo `domain/` gira solo nel server Node: il job
+  settimanale non usa più un'Edge Function e non serve la compatibilità con Deno.
 - **Il database è la fonte di verità del catalogo.** Le scritture avvengono attraverso
   operazioni autorizzate e validate sul server. Importazioni ed esportazioni YAML non
   costituiscono una seconda copia modificabile da sincronizzare automaticamente.
-- **App e MCP condividono le operazioni di dominio.** Permessi, validazione, limiti,
-  conflitti e attribuzione delle modifiche devono avere lo stesso comportamento.
-- **Lingua del codice:** identificatori, nomi tecnici di file e directory, tabelle,
-  colonne, enum, API, strumenti MCP, commenti e test in inglese. Le etichette visibili
-  sono localizzate; il nome visualizzato di una ricetta o di un ingrediente non è un
-  identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani.
-- **Motivazioni delle scelte** (decise in conversazione il 28-29 settembre 2026):
-  - Supabase invece di Django o Firebase: login, inviti e isolamento tra famiglie garantito
-    dal database (RLS); il modello è relazionale.
-  - SvelteKit invece di Next.js: meno JavaScript sul telefono, meno complessità, neutrale
-    tra host.
-  - Netlify invece di Vercel: il piano Hobby di Vercel è solo per uso personale non
-    commerciale e i suoi cron girano al massimo una volta al giorno con un'ora di
-    tolleranza. Il job sta comunque in Supabase, quindi l'host serve solo l'app.
+
+**Strato delle operazioni.** Ogni funzione dell'app è un'operazione applicativa
+(`meals.changeRecipe`, `shopping.toggleItem`, `curation.publish`…), non un accesso
+generico alle tabelle. Il prototipo le abbozza in
+`prototype/src/lib/operations/`, punto di partenza dell'elenco. Ogni richiesta segue lo
+stesso percorso:
+
+```
+Hono → verifica del JWT di Supabase → contesto (utente, canale, lingua)
+     → permessi: appartenenza alla famiglia o ruolo globale; limiti di frequenza
+     → transazione Postgres → dominio puro → registro (meal_changes, canale)
+     → vista localizzata
+```
+
+- **Permessi su due livelli con compiti distinti.** L'RLS resta la garanzia
+  dell'isolamento fra famiglie e del confine dei ruoli globali anche per le query del
+  server, che girano con l'identità dell'utente. Le regole dei flussi (ultimo
+  amministratore, conflitti, completezza, eccezioni solo web) stanno nelle operazioni.
+  Come eseguire le query del server nel ruolo dell'utente con l'accesso tipizzato al
+  database (per esempio Drizzle) è da verificare (sezione 15).
+- **Transazioni.** Le operazioni che toccano molte righe (pubblicazione, ripristini,
+  eliminazione di una famiglia o di un account) sono atomiche, in una transazione o in
+  una funzione Postgres.
+- **Canale ricavato dal token.** Le sessioni dell'app web non hanno il claim
+  `client_id`, i token rilasciati agli agenti dal server OAuth di Supabase sì: è il
+  modo verificabile, richiesto dalla sezione 13, per distinguere web e MCP senza fidarsi
+  di un parametro dell'agente.
+- **Revoca immediata.** Un JWT resta valido fino alla scadenza anche dopo la
+  cancellazione di un account (sezione 17): le operazioni verificano a ogni richiesta
+  che l'utente esista e che l'accesso dell'agente non sia stato revocato.
+
+**Contratto delle operazioni.** Il contratto è la fonte unica della forma dell'API per
+app web, MCP, coda offline e test. Si scrive separato dall'implementazione, con schemi
+di validazione condivisi con `domain/`. Regole:
+
+- **Ogni operazione dichiara** input, output, errori possibili con i relativi dati e
+  metadati: area, esposizione MCP (`mcp`), riservata al web con URL di rimando
+  (`webOnly`), accodabile offline (`offline`), ruolo richiesto. Un test verifica che
+  ogni operazione abbia una scelta esplicita di esposizione.
+- **Viste già pronte.** Le letture restituiscono testi nella lingua dell'utente,
+  quantità scalate e convertite nel sistema della famiglia, voti (media e proprio) e
+  ultima modifica: web e MCP mostrano gli stessi contenuti e il client resta sottile.
+- **Errori a codici, non testi**: `forbidden`, `not_found`, `invalid` con il percorso
+  dei campi, `conflict` con autore, momento e campi cambiati, `last_admin`,
+  `last_app_admin`, `sole_member`, `web_only` con l'URL della pagina. Il web li
+  traduce; per MCP il server li rende nella lingua dell'utente.
+- **Concorrenza dichiarata.** Le bozze portano la revisione di partenza e ricevono
+  `conflict` se superata (sezione 8); i pasti seguono l'ultimo salvataggio e la
+  risposta indica chi ha cambiato e quando, con l'identificativo della modifica per
+  l'annullamento (sezione 5).
+- **Idempotenza.** Le creazioni e le operazioni accodabili offline portano un
+  identificativo generato dal client: ripetere la stessa richiesta non duplica nulla.
+- **Famiglia esplicita.** Le operazioni di famiglia ricevono `familyId`, perché una
+  persona può far parte di più famiglie; utente e canale arrivano solo dal token.
+- **Modifiche solo additive.** App e server si pubblicano insieme, ma richieste in coda
+  offline e agenti possono usare una forma precedente: si aggiungono campi facoltativi
+  e operazioni, non si rinominano né si tolgono senza un periodo di compatibilità.
+
+**Lingua del codice:** identificatori, nomi tecnici di file e directory, tabelle,
+colonne, enum, API, strumenti MCP, commenti e test in inglese. Le etichette visibili
+sono localizzate; il nome visualizzato di una ricetta o di un ingrediente non è un
+identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani.
+
+**Motivazioni delle scelte:**
+
+- **Supabase** invece di Django o Firebase (28-29 settembre 2026): login, inviti e
+  isolamento tra famiglie garantito dal database (RLS); il modello è relazionale.
+  Scelta rafforzata l'8 ottobre: il server OAuth 2.1 di Supabase Auth è conforme a MCP
+  (registrazione dinamica dei client, pagina di consenso dell'app, revoca) ed evita di
+  costruire in casa la parte più rischiosa.
+- **React** invece di Svelte (8 ottobre 2026, scelta dell'utente dopo il prototipo):
+  ecosistema più ampio e maggiore familiarità degli agenti che scrivono il codice. Il
+  costo è la riscrittura delle schermate del prototipo.
+- **SPA con server Hono** invece di Next.js o TanStack Start: il rendering lato server
+  non serve; le Server Actions di Next.js non si prestano a una coda offline
+  ripetibile né a MCP, che richiederebbero comunque rotte separate; le funzioni server
+  di TanStack Start sono di nuovo un'API implicita. Un contratto esplicito servito da
+  un server indipendente dal frontend si prova da solo e resta portabile fra host.
+- **Netlify** invece di Vercel (28-29 settembre 2026): il piano Hobby di Vercel è solo
+  per uso personale non commerciale e i suoi cron girano al massimo una volta al giorno
+  con un'ora di tolleranza. Il cron sta comunque in Supabase. Le funzioni sincrone di
+  Netlify durano fino a 60 secondi, sufficienti per MCP e per la generazione di una
+  famiglia (documentazione consultata l'8 ottobre 2026).
 
 ### 2. Modello dei dati
 
-Il modello seguente conserva i concetti approvati e usa nomi tecnici inglesi. I nuovi
-dettagli di schema sono una proposta da verificare dopo il prototipo; il piano M1a
-precedente non è una migrazione pronta da applicare.
+Il modello seguente conserva i concetti approvati e usa nomi tecnici inglesi. È stato
+rivisto dopo il prototipo (8 ottobre 2026); i dettagli di schema si confermano nei
+piani. Il piano M1a precedente non è una migrazione pronta da applicare.
+
+**La ricetta è un documento** (deciso l'8 ottobre 2026). Un unico schema, definito in
+`domain/` e usato dal contratto, descrive il contenuto di una ricetta: testi nelle due
+lingue, fonte, attributi del pianificatore, porzioni e righe di ingredienti con
+varietà, quantità e unità. Lo stesso schema vale per la bozza (documento parziale), la
+versione pubblicata (documento completo e immutabile), l'import e l'export YAML, gli
+strumenti MCP e il modulo dei curatori; la validazione di bozza e di pubblicazione
+(sezione 8) sono due livelli dello stesso schema. Le colonne di `recipes`,
+`recipe_translations` e `recipe_ingredients` sono **proiezioni** della versione
+corrente, ricalcolate nella stessa transazione della pubblicazione o del ripristino:
+servono a cercare, pianificare e fare la spesa, ma la fonte del contenuto resta la
+versione.
 
 **Catalogo** (lettura delle ricette pubblicate per gli utenti autenticati; aggiunta e
 modifica dell'intero ricettario tramite operazioni autorizzate ai curatori e validate
@@ -391,16 +508,18 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 
 | Tabella | Campi principali |
 |---|---|
-| `recipes` | `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna |
-| `recipe_translations` | `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
+| `recipes` | Identità, stato e proiezione della versione corrente: `id`, `slug`, `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group`, `carbohydrate_group`, `has_vegetables`, `category`, `meal_type` (`lunch`/`dinner`/`both`), `seasons`, `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna |
+| `recipe_translations` | Proiezione: `recipe_id`, `locale`, `name`, `description`: stessa ricetta e stessi attributi di classificazione, testi nelle lingue supportate |
 | `ingredients` | `id`, `slug`, `department`, `is_pantry`: identità unica dell'ingrediente, indipendente dalla lingua; è il prodotto generico (Pomodori, Uva), senza varietà, taglia o preparazione nel nome. Reparto, dispensa, equivalenze ed evitati valgono per tutte le varietà |
 | `ingredient_translations` | `ingredient_id`, `locale`, `name`, `synonyms` |
-| `recipe_ingredients` | `recipe_id`, `ingredient_id`, `variety` (testo libero e facoltativo, tradotto in `recipe_ingredient_translations`: «Roma», «gialla senza semi»; solo quando cambia cosa si compra), `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `preparation` (tritato, a dadini, succo, scorza…: dettaglio della ricetta che non cambia l'ingrediente da comprare), `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni. Lo stesso ingrediente compare più volte in una ricetta solo con varietà diverse (confronto normalizzato, quinto giro del prototipo) |
+| `ingredient_versions` | `ingredient_id`, `version`, contenuto completo dell'ingrediente (reparto, dispensa, nomi e sinonimi nelle due lingue), `changed_by`, `changed_at`: storico in sola aggiunta, scritto a ogni creazione o modifica di un ingrediente del catalogo; serve al ripristino a una data (sezione 8) |
+| `recipe_ingredients` | Proiezione: `recipe_id`, `ingredient_id`, `variety` (testo libero e facoltativo, tradotto in `recipe_ingredient_translations`: «Roma», «gialla senza semi»; solo quando cambia cosa si compra), `quantity` (numero o null quando la quantità non è numerica), `unit`, `source_text`, `preparation` (tritato, a dadini, succo, scorza…: dettaglio della ricetta che non cambia l'ingrediente da comprare), `is_optional`, `is_primary`; conservazione della quantità e dell'unità della fonte da precisare nel design delle conversioni. Lo stesso ingrediente compare più volte in una ricetta solo con varietà diverse (confronto normalizzato, quinto giro del prototipo) |
 | `ingredient_unit_equivalences` | `ingredient_id`, `from_unit`, `to_unit`, `factor`, `scope` (`recipe` o `shopping`), `source`: equivalenze verificate per ingrediente (tazza USA in grammi o pezzi, succo di limone in limoni) |
 | `books` | `id`, `title`: titolo bibliografico originale |
-| `recipe_drafts` | `id`, `recipe_id`, `kind` (`new`: ricetta mai pubblicata, con `recipes` in stato bozza; `revision`: modifica di una ricetta pubblicata), `base_version`, contenuto parziale, `created_by`, `updated_by`, `updated_at`, `revision` (cresce a ogni salvataggio e serve a riconoscere i conflitti). Una sola revisione aperta per ricetta. I salvataggi sovrascritti in un conflitto restano nella cronologia della bozza |
-| `recipe_versions` | `recipe_id`, `version`, contenuto completo pubblicato (testi, fonte, attributi, righe di ingredienti), `published_by`, `published_at`, `restored_from` (versione ripubblicata) e, per un ripristino dell'intero catalogo, il backup di provenienza; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
-| Backup del catalogo | Copie recuperabili del ricettario e delle sue dipendenze: per ogni ricetta pubblicata o archiviata la versione e lo stato, più gli ingredienti del catalogo; tipo giornaliero, settimanale o «prima del ripristino». Frequenza, conservazione, collocazione e procedura da definire nel design operativo |
+| `recipe_drafts` | `id`, `recipe_id`, `kind` (`new`: ricetta mai pubblicata, con `recipes` in stato bozza; `revision`: modifica di una ricetta pubblicata), `base_version`, `content` (documento parziale), `created_by`, `updated_by`, `updated_at`, `revision` (cresce a ogni salvataggio e serve a riconoscere i conflitti). Una sola revisione aperta per ricetta |
+| `recipe_draft_saves` | `draft_id`, `revision`, `content`, `saved_by`, `saved_at`, `channel`, `overwritten` (sì se un salvataggio successivo l'ha sovrascritto in un conflitto): cronologia della bozza in sola aggiunta, da cui si recupera una versione sovrascritta (sezione 8) |
+| `recipe_versions` | `recipe_id`, `version`, `content` (documento completo pubblicato), `published_by`, `published_at`, `restored_from` (versione ripubblicata) e, per un ripristino dell'intero catalogo, la data ripristinata; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
+| `recipe_status_changes` | `recipe_id`, `status`, `changed_by`, `changed_at`: storico in sola aggiunta di pubblicazioni, archiviazioni e ritorni nel ricettario. Con `recipe_versions` e `ingredient_versions` permette di ricostruire il catalogo com'era a qualunque istante, senza copie periodiche (deciso l'8 ottobre 2026, sezione 8) |
 
 **Utenti, ruoli globali e amministrazione:**
 
@@ -409,14 +528,14 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `profiles` | `user_id`, `display_name`, `locale` (`it-IT`/`en-GB`) |
 | `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`) |
 | `app_invitations` | Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia: `email` del destinatario, ruoli globali da assegnare all'accettazione (anche nessuno), autore, creazione, scadenza a 7 giorni, stato (`pending`/`accepted`/`revoked`, scaduto calcolato), chi l'ha accettato e quando (sesto giro) |
-| `agent_authorizations` | Agenti autorizzati da un utente tramite MCP: client, data del collegamento, ultimo uso; revoca dall'app. Il meccanismo (per esempio OAuth) si decide nel design tecnico di MCP (sesto giro) |
+| `agent_authorizations` | Agenti autorizzati da un utente tramite MCP: client, data del collegamento, ultimo uso; revoca dall'app (sesto giro). Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13); questa tabella serve solo per i dati che Supabase non fornisce, per esempio l'ultimo uso registrato a ogni chiamata MCP (da verificare) |
 | Tracciamento del catalogo e dell'amministrazione | Proposta: autore, data, operazione e canale (`web`/`mcp`/`import`), con regole di conservazione da definire |
 
 **Per famiglia** (RLS: si vede e si scrive solo nella propria famiglia):
 
 | Tabella | Campi principali |
 |---|---|
-| `families` | `name`, `settings` (vedi sotto), `created_at` |
+| `families` | `name`, `settings` (vedi sotto), `time_zone` (fuso IANA, `Europe/Rome` nei dati demo), `created_at`. Il fuso stabilisce quando un pasto diventa passato (sezione 5) e la versione mostrata dai pasti passati (R1): come si sceglie e se si può cambiare va deciso prima dello schema (sezione 15) |
 | `family_members` | `family_id`, `user_id`, `role` (`family_admin`/`member`), `joined_at` |
 | `family_invitations` | `token`, `family_id`, `created_by`, `created_at`, `expires_at` (7 giorni), `revoked_at` |
 | `family_removals` | `family_id`, `user_id`, `removed_by`, `removed_at`: rimozioni di membri; un invito creato prima di `removed_at` non fa rientrare quella persona (review R2, deciso il 6 ottobre 2026) |
@@ -429,8 +548,8 @@ sul server; bozze escluse dall'accesso ordinario al catalogo):
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
 | `weekly_jobs` | `family_id`, `target_week`, `status`, `attempts`, `error`, `updated_at` |
 | `shopping_lists` | `family_id`, `week_id`, `updated_by`, `updated_at`: la lista della settimana, una per (`family_id`, `week_id`), creata alla prima modifica |
-| `shopping_list_checks` | `shopping_list_id`, `ingredient_id`, `quantity_at_check` (jsonb), `checked_by`, `checked_at`: voce spuntata con la quantità del momento |
-| `shopping_list_items` | `shopping_list_id`, `text`, `checked`, `created_by`, `created_at`: voci libere; più gli ingredienti esclusi rimessi in lista (`shopping_list_added_back`) |
+| `shopping_list_checks` | `shopping_list_id`, `ingredient_id`, `variety_key`, `quantity_at_check` (jsonb), `checked_by`, `checked_at`: voce spuntata con la quantità del momento. La voce è identificata da ingrediente e varietà, perché varietà diverse sono voci diverse (sezione 6): `variety_key` è il testo italiano della varietà normalizzato come nel consolidamento, vuoto senza varietà. Se un curatore cambia la grafia in modo che la forma normalizzata cambi, la spunta non corrisponde più a nessuna voce e si perde, come per una voce uscita dalla lista |
+| `shopping_list_items` | `shopping_list_id`, `client_id` (generato dal dispositivo, per l'idempotenza offline), `text`, `checked`, `created_by`, `created_at`: voci libere; più gli ingredienti esclusi rimessi in lista (`shopping_list_added_back`, con la stessa chiave di ingrediente e varietà) |
 | `temporary_lists` | `token`, `items` (jsonb), `expires_at` (30 minuti), per l'esportazione Bring! |
 
 **Viste:**
@@ -603,8 +722,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   un'implementazione per fornitore, scelta da configurazione. I candidati da provare sono
   Jev (jevmodel.org, API di scoring a $0,042 per milione di token in ingresso, pubblica dal
   21 settembre 2026, multilingue in beta) e un modello piccolo ospitato come Claude Haiku
-  4.5. Modelli locali esclusi: le Edge Functions non li possono eseguire (256 MB, 2 s di
-  CPU) e un server dedicato va contro l'impostazione a gestione minima.
+  4.5. Modelli locali esclusi: le funzioni serverless non li possono eseguire e un
+  server dedicato va contro l'impostazione a gestione minima.
 - **Attivazione.** C'è un interruttore globale, spento di default, più uno per famiglia per
   il test alla cieca. Si accende in produzione solo se la valutazione (sezione 9) mostra un
   vantaggio chiaro.
@@ -612,16 +731,27 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 ### 4. Job settimanale
 
 - `pg_cron` in Supabase lavora in UTC. Il job è pianificato ogni ora il mercoledì tra le
-  17:00 e le 22:00 UTC. Il codice controlla di essere dopo le 20:00 Europe/Rome, così l'ora
-  legale non richiede di cambiare il cron.
+  17:00 e le 22:00 UTC e chiama con `pg_net` la rotta `/internal/jobs/weekly` del
+  server, protetta da un segreto condiviso (rivisto l'8 ottobre 2026: niente Edge
+  Function). Il codice considera solo le famiglie per cui sono passate le 20:00 nel
+  loro fuso (`families.time_zone`), così l'ora legale non richiede di cambiare il cron.
 - **Dispatcher**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
   e per il lunedì successivo.
-- **Worker**: invoca l'Edge Function **una volta per famiglia**, perché i limiti di Supabase
-  sono 2 secondi di CPU per richiesta e 150 secondi di durata sul piano Free. Per ogni
-  famiglia genera la settimana successiva in un'unica transazione, se non esiste già.
-  Con il giudice attivo genera le candidate e chiama il giudice fuori dalla transazione:
-  l'attesa della risposta è I/O e non consuma i 2 secondi di CPU. Non c'è chiusura della
-  settimana precedente (decisione del 6 ottobre 2026, sezione 2).
+- **Worker**: elabora le famiglie **una alla volta**, ciascuna in una chiamata separata
+  alla funzione del server (al massimo 60 secondi su Netlify), così un errore o un
+  rallentamento riguarda solo quella famiglia. Per ogni famiglia genera la settimana
+  successiva in un'unica transazione, se non esiste già: l'unicità di (`family_id`,
+  `starts_on`) impedisce doppioni anche con esecuzioni concorrenti. Con il giudice
+  attivo genera le candidate e chiama il giudice fuori dalla transazione. Il carico
+  reale del pianificatore va misurato (sezione 17). Non c'è chiusura della settimana
+  precedente (decisione del 6 ottobre 2026, sezione 2).
+- **Generazione pigra** (decisa l'8 ottobre 2026): se la famiglia apre l'app o un
+  agente legge il menu dopo l'orario del job e la settimana successiva non esiste, il
+  server la genera in quella richiesta, senza giudice, con lo stesso vincolo di
+  unicità. Il job resta il percorso normale e questa è la rete di sicurezza: chi apre
+  l'app dopo un fallimento del job attende circa un secondo in più e trova il menu.
+  Senza realtime, chi ha già l'app aperta vede la settimana nuova alla riapertura o
+  aggiornando.
 - **Errori**: un errore riguarda solo la sua famiglia. Si ritenta all'esecuzione successiva
   fino all'ultima finestra utile. Alla fine arriva un'email al referente operativo del
   servizio con le famiglie ancora senza bozza. Questo destinatario va configurato
@@ -779,7 +909,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Offline**: la lista è l'unica parte dell'app modificabile offline (spunte, voci
   libere, ingredienti rimessi): le modifiche restano sul dispositivo in una coda locale
   e si inviano al ritorno della rete, con la regola dell'ultimo salvataggio per voce;
-  l'interfaccia segnala le modifiche da sincronizzare. Bring! richiede la rete.
+  l'interfaccia segnala le modifiche da sincronizzare. Ogni modifica in coda porta un
+  identificativo generato dal dispositivo, così un invio ripetuto non la applica due
+  volte (sezione 1, contratto delle operazioni). Bring! richiede la rete.
 - **Esportazioni** (dal menu "…" della lista; escludono le voci spuntate e includono le
   voci libere):
   - PDF di una pagina;
@@ -831,7 +963,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   nominare altri amministratori e cancellare utenti. Le operazioni devono essere
   disponibili anche via MCP. Forma decisa nel sesto giro del prototipo: dal Profilo,
   pagina `/admin` con le sezioni Utenti (ricerca per nome o email, ruoli come
-  etichette), Inviti all'app e Backup del ricettario. Il dettaglio di un utente ha gli
+  etichette), Inviti all'app e Ripristino del ricettario (dall'8 ottobre 2026 si
+  sceglie giorno e ora invece di una copia, con l'elenco dei ripristini fatti da cui
+  annullarli; sezione 8). Il dettaglio di un utente ha gli
   interruttori dei due ruoli: la nomina di un amministratore e la rinuncia al proprio
   ruolo chiedono conferma, l'interruttore dell'ultimo amministratore è bloccato con il
   motivo. Le famiglie di un utente si vedono solo per nome e ruolo, senza contenuti.
@@ -839,7 +973,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   cancellazione dell'account, in terza persona; il proprio account si cancella solo
   dalle proprie preferenze. La nomina iniziale di Federico sarà prevista nella
   configurazione iniziale, con identità verificata; i dettagli si definiscono nel piano.
-- **Recupero del ricettario**: il ripristino completo da backup è riservato agli
+- **Recupero del ricettario**: il ripristino completo a una data è riservato agli
   amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
   i curatori hanno invece il ripristino della singola ricetta.
 - **Primo accesso** (quarto giro del prototipo): email con link di accesso o Google; a
@@ -1042,7 +1176,9 @@ validazione. La pubblicazione richiede anche entrambe le lingue (sezione 12).
 **Validazione condivisa:** schema, identificatori unici, riferimenti a ingredienti e
 libri esistenti, quantità e unità ammesse, porzioni di riferimento, attributi del
 pianificatore e dati della fonte coerenti con il tipo. La stessa logica serve l'aggiunta
-MCP, le operazioni manuali web del curatore e l'importazione. I test di questa logica
+MCP, le operazioni manuali web del curatore e l'importazione: è lo schema del documento
+ricetta (sezione 2), applicato con i controlli parziali al salvataggio di una bozza e
+con quelli completi alla pubblicazione. I test di questa logica
 sono eseguiti in CI; la CI non sostituisce la validazione di ogni scrittura sul server.
 
 **Modifica dell'intero ricettario confermata:** ogni curatore può modificare le ricette
@@ -1076,27 +1212,34 @@ i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di ba
   ripristino riporta solo campi e righe di ingredienti di quella ricetta, non le entità
   condivise (ingredienti del catalogo, nomi, reparti), e non avviene se la vecchia
   versione non supera i controlli di oggi. Accessibile ai curatori.
-- **Intero catalogo:** copie di backup recuperabili con procedura di ripristino,
-  anteprima dell'impatto e verifica della coerenza. Il ripristino complessivo è riservato
+- **Intero catalogo:** ripristino a una data scelta, con anteprima dell'impatto e
+  verifica della coerenza. **Deciso l'8 ottobre 2026:** lo stato del catalogo a una
+  data si ricostruisce dallo storico in sola aggiunta (`recipe_versions`,
+  `recipe_status_changes`, `ingredient_versions`, sezione 2), senza copie giornaliere o
+  settimanali da pianificare e conservare. Ciò che il sesto giro chiamava «backup» è
+  quindi un istante dello storico. Il ripristino complessivo è riservato
   agli amministratori dell'app, perché può annullare modifiche di più
   curatori. Il recupero del catalogo non deve riavvolgere menu, voti, utenti o permessi
   delle famiglie e non concede accesso ai loro contenuti. **Deciso nel sesto giro del
-  prototipo:** le ricette presenti nel backup tornano com'erano, pubblicate come nuova
-  versione (lo storico resta intero); quelle nate dopo il backup, o archiviate allora,
-  vengono archiviate, non cancellate, e i pasti che le citano restano leggibili;
-  quelle archiviate oggi ma pubblicate nel backup tornano nel ricettario. Una ricetta
-  la cui versione del backup non supera i controlli di oggi resta com'è e l'anteprima
-  lo dice. Gli ingredienti del catalogo tornano come nel backup; quelli nati dopo
-  restano. Bozze, menu, voti, famiglie e utenti non cambiano; i pasti passati restano
-  sulla versione mangiata (R1). L'anteprima mostra le ricette per gruppo prima della
-  conferma; prima del ripristino si salva una copia «Prima del ripristino», che basta
-  ripristinare per tornare indietro.
+  prototipo,** con il riferimento alla data invece che alla copia: le ricette pubblicate
+  a quella data tornano com'erano, pubblicate come nuova versione (lo storico resta
+  intero); quelle nate dopo, o archiviate allora, vengono archiviate, non cancellate, e
+  i pasti che le citano restano leggibili; quelle archiviate oggi ma pubblicate allora
+  tornano nel ricettario. Una ricetta la cui versione di allora non supera i controlli
+  di oggi resta com'è e l'anteprima lo dice. Gli ingredienti del catalogo tornano come
+  erano allora; quelli nati dopo restano. Bozze, menu, voti, famiglie e utenti non
+  cambiano; i pasti passati restano sulla versione mangiata (R1). L'anteprima mostra le
+  ricette per gruppo prima della conferma. Il ripristino scrive solo nuove versioni,
+  quindi per annullarlo basta ripristinare l'istante che lo precede: la copia «Prima
+  del ripristino» del sesto giro non serve più.
 
-Storico delle revisioni e backup hanno scopi distinti: il primo permette di correggere
-un contributo, il secondo deve coprire anche la perdita o il danneggiamento dei dati.
-Frequenza e conservazione delle copie, perdita massima di lavoro accettabile, tempi di
-recupero e modalità operative si definiscono prima dell'uso del catalogo in produzione.
-La procedura dovrà essere provata con un ripristino in un ambiente di verifica.
+Storico e backup hanno scopi distinti: lo storico permette di correggere un contributo
+o riportare il catalogo a una data; la perdita o il danneggiamento del database sono
+coperti dai backup della piattaforma Supabase, che riguardano l'intero database e
+quindi anche i dati delle famiglie. Piano di Supabase, perdita massima di lavoro
+accettabile, tempi di recupero e modalità operative si definiscono prima dell'uso del
+catalogo in produzione. La procedura dovrà essere provata con un ripristino in un
+ambiente di verifica.
 
 Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
 stessi permessi e controlli. Il design distinguerà queste azioni dai compiti operativi
@@ -1156,11 +1299,19 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   rifiutata finché mancano dati e riuscita dopo la correzione, con gli stessi vincoli di
   MCP; nessuna chiamata a servizi AI; ripresa della stessa bozza fra web e MCP e
   gestione dei conflitti fra curatori.
-- **Recupero del catalogo**: ripristino di una singola ricetta e di un backup completo
-  rispettivamente da curatori e amministratori dell'app, con rifiuto delle operazioni
-  non autorizzate; coerenza fra ricette, ingredienti, traduzioni e bozze;
-  conservazione dei riferimenti dai pasti e assenza di modifiche a dati e ruoli familiari.
-  Il collaudo comprende l'effettivo recupero da una copia di backup, non solo la sua creazione.
+- **Recupero del catalogo**: ripristino di una singola ricetta e dell'intero catalogo a
+  una data rispettivamente da curatori e amministratori dell'app, con rifiuto delle
+  operazioni non autorizzate; ricostruzione esatta del catalogo a una data dallo
+  storico; coerenza fra ricette, proiezioni, ingredienti, traduzioni e bozze;
+  conservazione dei riferimenti dai pasti e assenza di modifiche a dati e ruoli
+  familiari; annullamento di un ripristino ripristinando l'istante precedente. Il
+  collaudo comprende anche l'effettivo recupero da un backup della piattaforma.
+- **Contratto e operazioni**: test delle operazioni contro il Supabase locale, con
+  l'identità di utenti diversi, così permessi e RLS si provano insieme; test ricavati
+  dal contratto che verificano per ogni operazione la scelta esplicita di esposizione
+  MCP, la presenza dello strumento corrispondente e la risposta `web_only` con URL per
+  le operazioni riservate al web; idempotenza delle operazioni accodabili offline;
+  rifiuto delle richieste dopo la cancellazione dell'account o la revoca dell'agente.
 - **Lingue**: copertura di italiano e inglese britannico, identità stabili del catalogo,
   formattazione e rifiuto della pubblicazione quando manca un testo richiesto in una
   delle due lingue, anche per importazione e percorso manuale. Una bozza può invece
@@ -1200,7 +1351,12 @@ Ogni fase ha il suo piano in `progetto/superpowers/plans/` e rimanda alle sezion
 specifica. Il piano del 29 settembre per M1a è **superato nelle parti su Git come fonte
 del catalogo, sincronizzazione, permessi e codice italiano** e non va eseguito come
 scritto. M1b non è ancora stato scritto. La nuova ripartizione di M1 sarà definita dopo
-il prototipo; la tabella seguente è il percorso aggiornato di riferimento.
+il prototipo; la tabella seguente è il percorso di riferimento precedente alla verifica
+dell'architettura. **Punto aperto dall'8 ottobre 2026** (sezione 15): le fasi vanno
+ripensate alla luce della nuova architettura e della challenge del piano (esperimenti
+iniziali su pianificatore e accesso MCP, dipendenza fra curatela e pubblicazione del
+ricettario importato, ampiezza di M1, collocazione di amministrazione, inviti all'app e
+ripristino dell'intero catalogo). Fino ad allora la tabella non è un piano confermato.
 
 | Fase | Contenuto | Risultato |
 |---|---|---|
@@ -1280,9 +1436,28 @@ dei libri.
 **Requisito:** ogni operazione disponibile nell'app deve avere un equivalente MCP per
 lo stesso utente e con gli stessi permessi, **tranne l'eliminazione di una famiglia**,
 che MCP può soltanto indirizzare alla pagina dell'app. Il server espone operazioni applicative,
-non accesso generico alle tabelle. È proposto un server remoto collegabile all'account;
-protocollo di autenticazione, trasporto, hosting e compatibilità dei client saranno
-verificati con la documentazione aggiornata prima dell'implementazione.
+non accesso generico alle tabelle.
+
+**Architettura decisa l'8 ottobre 2026** (sezione 1):
+
+- **Stessa applicazione.** Il server MCP è la rotta `/mcp` della funzione Hono, con il
+  trasporto Streamable HTTP senza stato, adatto alle funzioni serverless; non è un
+  servizio separato.
+- **Autenticazione con il server OAuth 2.1 di Supabase Auth**, conforme alla
+  specifica di autorizzazione MCP: metadati di scoperta, registrazione dinamica dei
+  client, flusso con PKCE e pagina di consenso ospitata dall'app (`/authorize`, sesto
+  giro). Il server MCP verifica i token come risorsa protetta. Scollegare un agente
+  dall'app revoca la sua autorizzazione, con i token di aggiornamento e le sessioni di
+  quel client.
+- **Strumenti generati dal contratto delle operazioni**, con i metadati di esposizione
+  di ciascuna operazione: nessuno strumento scritto a mano che possa divergere dal web.
+  Raggruppamento degli strumenti (uno per operazione o uno per area con l'azione come
+  parametro) da provare sui client (sezione 15).
+- **Istruzioni per l'agente**, a partire da quelle sugli ingredienti (sezione 8),
+  servite dal server MCP stesso, non solo descritte nella pagina dell'app.
+
+Compatibilità effettiva dei quattro client e consegna delle esportazioni restano da
+verificare con una prova prima dell'implementazione (sezione 15).
 
 **Client obiettivo confermati per la prima versione:** Codex CLI, Claude Code, ChatGPT
 e Claude Desktop. Questa scelta definisce il perimetro da supportare e documentare;
@@ -1301,7 +1476,7 @@ implicite alla copertura delle operazioni.
 | Spesa | Leggere la lista di una settimana, spuntare voci, aggiungere voci libere, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
 | Curatela | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa gestione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
-| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo da backup; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
+| Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo a una data; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
 sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
@@ -1318,8 +1493,11 @@ La restrizione deve essere applicata sul server e coprire anche le cancellazioni
 indirette tramite eliminazione dell'account dell'unico membro. Nascondere un comando
 nella lista degli strumenti non basta: il design deve distinguere il contesto di
 accesso web da quello MCP in modo verificabile, senza fidarsi di un parametro con cui
-l'agente dichiara il canale della richiesta. Le altre operazioni rimangono disponibili
-via MCP secondo i ruoli già concordati.
+l'agente dichiara il canale della richiesta. **Meccanismo deciso l'8 ottobre 2026:** i
+token rilasciati agli agenti dal server OAuth portano il claim `client_id`, assente
+nelle sessioni dell'app web; le operazioni riservate al web rifiutano con `web_only` e
+l'URL della pagina ogni richiesta che lo contiene, qualunque rotta usi. Le altre
+operazioni rimangono disponibili via MCP secondo i ruoli già concordati.
 
 Un agente può assistere il curatore o l'utente nelle operazioni manuali, ma il
 pianificatore automatico resta il sistema a regole della sezione 3. L'app non impone
@@ -1513,7 +1691,8 @@ funzionamento dell'autenticazione o l'applicazione dei permessi: questi richiedo
 successive verifiche tecniche.
 
 **Criterio di passaggio all'implementazione:** review del prototipo, decisioni riportate
-nelle sezioni pertinenti di questo documento, verifica dell'architettura risultante,
+nelle sezioni pertinenti di questo documento, verifica dell'architettura risultante
+(svolta l'8 ottobre 2026, sezione 1, con i punti aperti della sezione 15),
 piani aggiornati e approvati, scelta del metodo di esecuzione. Il linguaggio visivo
 è già approvato; le ulteriori decisioni sulle superfici e sui flussi entreranno qui
 insieme ai riferimenti ai file del prototipo completo.
@@ -1529,13 +1708,14 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Completezza delle ricette | Momento della conferma del curatore nel percorso MCP. Decisi nel quinto giro i campi obbligatori per pubblicare, anche per tipo di fonte (sezione 8) | Sezioni 8, 11 e 12 |
-| Backup e ripristino | Backup dell'intero catalogo: frequenza e conservazione (nel prototipo giornalieri per 7 giorni e settimanali per 4, dimostrativi), perdita di lavoro tollerata e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima, copia prima del ripristino) | Sezioni 2, 8, 9 e 13 |
-| Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione | Sezione 12 |
+| Backup e ripristino | Piano Supabase e backup della piattaforma per i guasti del database: perdita di lavoro tollerata, tempi e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 2, 8, 9 e 13 |
+| Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione. Proposta dell'8 ottobre da valutare: campi bilingui (`{it-IT, en-GB}` validati dallo schema) al posto delle tabelle `*_translations`, dato che le lingue sono due, fisse ed entrambe obbligatorie | Sezioni 2 e 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
-| MCP | Verifica dei quattro client scelti (comandi d'esempio nel sesto giro, ChatGPT da verificare), meccanismo di autenticazione e revoca, trasporto e hosting, consegna delle esportazioni e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app | Sezioni 1 e 13 |
-| Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); resta la verifica dell'architettura risultante prima dei nuovi piani (`design/percorsi.md`) | Sezione 14 |
-| Implementazione | Revisione dello stack rispetto al prototipo, nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase | Sezioni 1 e 10 |
-| Calendario | Fuso orario della famiglia (istante in cui un pasto diventa passato confermato nella sezione 5); generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro) | Sezioni 2, 4 e 5 |
+| MCP | Verifica dei quattro client scelti con il server OAuth 2.1 di Supabase (comandi d'esempio nel sesto giro, ChatGPT da verificare), raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
+| Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
+| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimenti iniziali su pianificatore con i dati reali e accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla curatela MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
+| Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Da verificare: Hono sulle Functions Node di Netlify, query del server nel ruolo dell'utente con RLS e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query | Sezione 1 |
+| Calendario | **Fuso orario della famiglia, da decidere prima dello schema** (`families.time_zone`: come si sceglie, se si può cambiare e con quali effetti sui pasti passati e su R1). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4) | Sezioni 3, 8 e 11 |
 | Pianificatore e giudice | Classificazione univoca dei vincoli e degli esiti quando non soddisfacibili; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
@@ -1563,6 +1743,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 6 ottobre 2026, quarto giro del prototipo approvato | Famiglia e account: rientro dopo la rimozione solo con un link nuovo (R2); impostazioni tutte visibili tranne i pesi, con «Avanzate» e regole a modelli; wizard minimo (nome e unità) e prima generazione da oggi a domenica più la settimana successiva dopo mercoledì alle 20:00; vista «Tu» rinominata «Profilo», con cambio di famiglia; pagine dedicate per eliminare la famiglia e cancellare l'account con conferma a pulsante; pulsanti rossi per le azioni irreversibili; i suggerimenti rispettano le impostazioni della famiglia |
 | 7 ottobre 2026, quinto giro del prototipo approvato | Curatela: pasti passati sulla versione con cui sono stati mangiati, oggi e futuri sulla corrente (R1); modifica tramite bozza di revisione; conflitti fra curatori rifiutati e risolti consapevolmente; archiviazione reversibile; ripristino di una versione aperta com'era, senza confronto; pubblicazione in un passo senza verifica esplicita; campi obbligatori per tipo di fonte; varietà degli ingredienti in testo libero con confronto normalizzato e consigli, istruzioni per l'agente; caricamento da file escluso per ora; avviso della versione solo ai curatori; percorso MCP consigliato rispetto al modulo |
 | 7 ottobre 2026, sesto giro del prototipo approvato | MCP e Amministrazione dell'app: nessun agente simulato; selettore di lingua nel modulo della ricetta; pagina «Collega un agente» senza introduzione, con client a fisarmonica, comandi d'esempio verificati e agenti collegati da scollegare; schermata di autorizzazione nel browser; amministrazione dal Profilo con utenti e ruoli (conferma per nominare amministratori, ultimo amministratore bloccato, famiglie solo per nome e ruolo), cancellazione di un utente con le regole dell'account; inviti all'app per un'email con ruoli facoltativi, 7 giorni, uso singolo e revoca, senza ingresso in famiglie; ripristino dell'intero catalogo come nuova versione con archiviazione delle ricette successive, anteprima e copia prima del ripristino |
+| 8 ottobre 2026, verifica dell'architettura | Dopo una challenge del piano e dell'architettura iniziali alla luce del prototipo: interfaccia in React (SPA con Vite, TanStack Router e Query) al posto di Svelte; strato unico di operazioni con contratto esplicito servito da Hono su Netlify, da cui derivano API web, OpenAPI e strumenti MCP (libreria del contratto aperta); MCP nella stessa app con il server OAuth 2.1 di Supabase e canale ricavato dal claim `client_id`; job con `pg_cron` verso il server, senza Edge Function né Deno; ricetta come documento con proiezioni; ripristino dell'intero catalogo a una data dallo storico, senza copie periodiche; spunte della spesa per ingrediente e varietà, cronologia delle bozze in tabella e fuso orario della famiglia nel modello. Poi confermata la generazione pigra come rete di sicurezza del job e aggiornato il prototipo (ripristino del catalogo scegliendo giorno e ora, con elenco dei ripristini da annullare). Campi bilingui restano una proposta; le fasi di rilascio diventano un punto aperto |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 
 ### 17. Review avversariale del 3 ottobre 2026
@@ -1650,12 +1831,14 @@ anche la posizione degli slot; nel secondo caso occorre adeguare il payload.
 **Verifiche tecniche da portare nei piani, senza nuove decisioni implicite:**
 
 - La revoca degli accessi richiesta dalla sezione 7 deve coprire anche token già
-  emessi, letture del catalogo e sessioni MCP. La documentazione Supabase consultata
+  emessi, letture del catalogo e sessioni MCP (8 ottobre 2026: le operazioni verificano
+  a ogni richiesta utente e autorizzazione, sezione 1). La documentazione Supabase consultata
   dal revisore tramite Context7 precisa che eliminare un utente non invalida subito
   tutti i suoi JWT: la cancellazione dell'account non basta da sola a realizzare il
   requisito. [Gestione utenti Supabase](https://supabase.com/docs/guides/auth/managing-user-data).
 - Il recupero applicativo del catalogo deve essere distinto dal ripristino dell'intero
-  database, per rispettare l'indipendenza dei dati familiari richiesta in R1.
+  database, per rispettare l'indipendenza dei dati familiari richiesta in R1 (8 ottobre
+  2026: il primo si ricava dallo storico, il secondo è dei backup della piattaforma).
   [Backup Supabase](https://supabase.com/docs/guides/platform/backups).
 - Prima di M3 serve una classificazione unica di vincoli rigidi, obiettivi e deroghe:
   `weekly_max`, massimi degli intervalli e venerdì pesce devono avere esiti verificabili
