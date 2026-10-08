@@ -21,6 +21,16 @@ describe('origin data', () => {
 		expect(durationOf('Secondo confezione')).toBeNull();
 		expect(durationOf(null)).toBeNull();
 	});
+	it('reads hours and refuses units it does not know', () => {
+		expect(durationOf('1 ora')).toBe(60);
+		expect(durationOf('1 h')).toBe(60);
+		expect(durationOf('1 h 30 min')).toBe(90);
+		expect(durationOf('1,5 ore')).toBe(90);
+		expect(durationOf('1-2 ore')).toBe(120);
+		expect(durationOf('20 minuti + 1 ora di forno')).toBe(80);
+		expect(durationOf('2 giorni')).toBeNull();
+		expect(durationOf('30')).toBeNull();
+	});
 	it('keeps only recipes with verified ingredients and reference servings', () => {
 		expect(publishable(origin({}))).toBe(true);
 		expect(publishable(origin({ ingredienti: null }))).toBe(false);

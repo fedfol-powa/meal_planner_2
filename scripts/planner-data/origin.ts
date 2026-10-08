@@ -38,13 +38,27 @@ export function slug(text: string): string {
 	return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-/** "25-30 min" → 30, "20 min + 40 min forno" → 60; null without numbers. */
+const AMOUNT = String.raw`(\d+(?:[.,]\d+)?)(?:\s*-\s*(\d+(?:[.,]\d+)?))?\s*(minuti|min|ore|ora|h)\b`;
+const number = (text: string) => Number(text.replace(',', '.'));
+
+/**
+ * Minutes from the origin's free text: "25-30 min" → 30 (ranges take the maximum), "20 min + 40 min forno"
+ * → 60, "1 h 30 min" → 90, "1,5 ore" → 90. Null without numbers, or when a number has no known unit
+ * ("2 giorni", "30"): better no duration than a wrong one.
+ */
 export function durationOf(text: string | null | undefined): number | null {
 	if (!text || !/\d/.test(text)) return null;
-	return text.split('+').reduce((sum, part) => {
-		const numbers = part.match(/\d+/g)?.map(Number) ?? [];
-		return sum + (numbers.length ? Math.max(...numbers) : 0);
-	}, 0);
+	let total = 0;
+	for (const part of text.split('+')) {
+		let rest = part;
+		for (const match of part.matchAll(new RegExp(AMOUNT, 'gi'))) {
+			const value = Math.max(number(match[1]), match[2] ? number(match[2]) : 0);
+			total += /^(ore|ora|h)$/i.test(match[3]) ? value * 60 : value;
+			rest = rest.replace(match[0], '');
+		}
+		if (/\d/.test(rest)) return null;
+	}
+	return Math.round(total);
 }
 
 export function publishable(recipe: OriginRecipe): boolean {
