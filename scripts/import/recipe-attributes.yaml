@@ -1,0 +1,683 @@
+# Attributi delle ricette per il pianificatore (esperimento M0, 8 ottobre 2026).
+# Proposta dell'agente dai dati già verificati del progetto d'origine (nome, tag, tempo,
+# ingredienti, storico), da rivedere con l'utente; diventa anche input dell'import.
+# Valori ammessi: domain/src/planner/types.ts. primary_ingredient è sempre una riga
+# della lista verificata della ricetta (slug), mai dedotta dal nome del piatto.
+# uncertain elenca i campi su cui la proposta non è sicura.
+
+recipes:
+  wok-pollo-peperoni-riso-basmati:
+    meal_type: both
+    protein_group: white_meat
+    fresh_fish: false
+    carbohydrate_group: rice
+    category: wok
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: petto-di-pollo
+    uncertain: []
+    note: null
+
+  pasta-melanzane-pomodoro-ricotta:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [summer, autumn]
+    primary_ingredient: melanzana-piccola
+    uncertain: [protein_group, seasons]
+    note: "Ricotta come condimento, non proteina principale; melanzane e pomodoro freschi di stagione estiva."
+
+  frittata-forno-bietole-ricotta:
+    meal_type: both
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: none
+    category: oven_bake
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: uova
+    uncertain: []
+    note: null
+
+  noodles-wok-uova-verdure:
+    meal_type: lunch
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: wok
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: uova
+    uncertain: [carbohydrate_group, meal_type]
+    note: "Noodles di grano o di riso: trattati come pasta, quindi solo a pranzo («mai pasta a cena»)."
+
+  merluzzo-pomodoro-olive-cous-cous:
+    meal_type: both
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: cereals
+    category: pan
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: filetti-di-merluzzo
+    uncertain: []
+    note: null
+
+  wrap-frittata-hummus:
+    meal_type: lunch
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: ceci-precotti
+    uncertain: [protein_group]
+    note: "Il nome dice frittata ma le uova non sono nell'elenco verificato: proteina dai ceci dell'hummus (c'è anche emmentaler). Da controllare la scheda."
+
+  gamberi-zucchine-skottle:
+    meal_type: both
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: bread
+    category: skottle
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: code-di-gambero
+    uncertain: []
+    note: null
+
+  uova-pomodoro-padella:
+    meal_type: both
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: none
+    category: pan
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: uova-medie
+    uncertain: []
+    note: null
+
+  polpette-melanzane-forno:
+    meal_type: both
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: none
+    category: oven_bake
+    has_vegetables: true
+    is_heavy: false
+    seasons: [summer, autumn]
+    primary_ingredient: melanzane
+    uncertain: [seasons]
+    note: "60 minuti complessivi (20 + 40 di forno): mai nelle cene veloci."
+
+  pappardelle-alfredo:
+    meal_type: lunch
+    protein_group: cheese
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: true
+    seasons: []
+    primary_ingredient: parmigiano
+    uncertain: [protein_group, is_heavy]
+    note: "Burro e parmigiano come condimento principale."
+
+  pasta-pesto-genovese:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: pesto-alla-genovese
+    uncertain: []
+    note: null
+
+  hamburger-cavallo:
+    meal_type: both
+    protein_group: red_meat
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: burger
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: hamburger-di-cavallo
+    uncertain: []
+    note: null
+
+  pasta-tonno:
+    meal_type: lunch
+    protein_group: fish
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: tonno-sott-olio
+    uncertain: []
+    note: "Tonno in scatola: conta come pesce negli intervalli, ma non è pesce fresco, quindi ammesso il lunedì."
+
+  spaghetti-pomodoro:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: passata-di-pomodoro
+    uncertain: []
+    note: null
+
+  pasta-sugo-pesce:
+    meal_type: lunch
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: sugo-di-pesce
+    uncertain: [fresh_fish]
+    note: "Sugo di pesce: proposto come pesce di pescheria, quindi mai il lunedì; se è un sugo pronto o in scatola va tolto."
+
+  penne-baffo:
+    meal_type: lunch
+    protein_group: cured_meat
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: true
+    seasons: []
+    primary_ingredient: prosciutto-cotto
+    uncertain: [is_heavy]
+    note: "Panna e prosciutto cotto."
+
+  pasta-zucca-salsiccia-robiola:
+    meal_type: lunch
+    protein_group: red_meat
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: true
+    seasons: [autumn, winter]
+    primary_ingredient: salsicce
+    uncertain: [protein_group, is_heavy]
+    note: "Salsiccia come carne rossa (non salume); con robiola."
+
+  orecchiette-broccoli:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: broccolo
+    uncertain: []
+    note: null
+
+  pasta-crema-peperoni:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [summer, autumn]
+    primary_ingredient: peperoni-rossi
+    uncertain: [seasons]
+    note: null
+
+  bistecche-tonno-skottle:
+    meal_type: both
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: none
+    category: skottle
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: tonno
+    uncertain: []
+    note: null
+
+  branzino-barbecue:
+    meal_type: both
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: none
+    category: grill
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: filetti-di-branzino
+    uncertain: []
+    note: null
+
+  sovracosce-pollo-griglia:
+    meal_type: both
+    protein_group: white_meat
+    fresh_fish: false
+    carbohydrate_group: none
+    category: grill
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: sovracosce-di-pollo-disossate-e-spellate
+    uncertain: []
+    note: null
+
+  burrito-vegan:
+    meal_type: lunch
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: fagioli-rossi-in-scatola
+    uncertain: []
+    note: "Pranzo al sacco; ricetta da libro."
+
+  caviale-melanzane-panino:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: caviale-di-melanzane
+    uncertain: [protein_group]
+    note: "Pranzo al sacco freddo; la feta è un condimento."
+
+  riso-curry-giappone:
+    meal_type: both
+    protein_group: red_meat
+    fresh_fish: false
+    carbohydrate_group: rice
+    category: wok
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: carne-di-maiale-macinata
+    uncertain: []
+    note: "Ricetta da libro."
+
+  omelette-spinaci-montasio:
+    meal_type: both
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: none
+    category: pan
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: uova
+    uncertain: []
+    note: null
+
+  straccetti-pollo-limone:
+    meal_type: both
+    protein_group: white_meat
+    fresh_fish: false
+    carbohydrate_group: none
+    category: pan
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: petto-di-pollo
+    uncertain: []
+    note: null
+
+  riso-lenticchie-zucca:
+    meal_type: both
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: rice
+    category: pan
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: lenticchie-cotte
+    uncertain: []
+    note: null
+
+  riso-wok-broccoli-gamberi:
+    meal_type: both
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: rice
+    category: wok
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: gamberi-freschi-puliti
+    uncertain: []
+    note: null
+
+  riso-cantonese-casa:
+    meal_type: both
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: rice
+    category: wok
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: uova
+    uncertain: [protein_group]
+    note: "Uova e prosciutto cotto: proposta uova come proteina principale."
+
+  zuppa-fagioli-veloce-guanciale:
+    meal_type: both
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: none
+    category: soup
+    has_vegetables: false
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati
+    uncertain: []
+    note: null
+
+  piadine-pollo-hummus-carote:
+    meal_type: both
+    protein_group: white_meat
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: pollo-gia-cotto
+    uncertain: []
+    note: null
+
+  orata-padella-patate-pomodorini:
+    meal_type: both
+    protein_group: fish
+    fresh_fish: true
+    carbohydrate_group: potatoes
+    category: pan
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: filetti-di-orata-spinati-e-senza-pelle
+    uncertain: []
+    note: null
+
+  lonza-maiale-limone:
+    meal_type: both
+    protein_group: red_meat
+    fresh_fish: false
+    carbohydrate_group: none
+    category: pan
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: fette-di-lonza-di-maiale
+    uncertain: []
+    note: null
+
+  fettine-pizzaiola-prezzemolo:
+    meal_type: both
+    protein_group: red_meat
+    fresh_fish: false
+    carbohydrate_group: none
+    category: pan
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: reale-di-vitellone-o-di-bovino-a-fettine
+    uncertain: [has_vegetables]
+    note: "Il pomodoro è il sugo, non una porzione di verdura."
+
+  lenticchie-comidista:
+    meal_type: both
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: potatoes
+    category: soup
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: lenticchie-meglio-pardine
+    uncertain: [carbohydrate_group]
+    note: "Patate nello stufato: contate come carboidrato principale."
+
+  pasta-robiola-speck:
+    meal_type: lunch
+    protein_group: cured_meat
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: speck-da-tagliare-a-cubetti
+    uncertain: [is_heavy]
+    note: null
+
+  pasta-ricotta-zafferano:
+    meal_type: lunch
+    protein_group: cheese
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: ricotta-vaccina
+    uncertain: [protein_group]
+    note: "Ricotta come condimento principale."
+
+  couscous-verdure-tonno:
+    meal_type: lunch
+    protein_group: fish
+    fresh_fish: false
+    carbohydrate_group: cereals
+    category: salad
+    has_vegetables: true
+    is_heavy: false
+    seasons: [spring, summer]
+    primary_ingredient: tonno-sott-olio-peso-sgocciolato
+    uncertain: [protein_group, seasons]
+    note: "Tonno e fagioli rossi: proposto pesce. Piatto freddo da pranzo al sacco."
+
+  couscous-verdure:
+    meal_type: lunch
+    protein_group: vegetarian
+    fresh_fish: false
+    carbohydrate_group: cereals
+    category: salad
+    has_vegetables: true
+    is_heavy: false
+    seasons: [spring, summer]
+    primary_ingredient: null
+    uncertain: [seasons]
+    note: "Nessun ingrediente caratterizza da solo il piatto. 45 minuti."
+
+  pappardelle-salsiccia-porri:
+    meal_type: lunch
+    protein_group: red_meat
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: salsiccia
+    uncertain: [protein_group, is_heavy]
+    note: "40 minuti."
+
+  pollo-corn-flakes:
+    meal_type: both
+    protein_group: white_meat
+    fresh_fish: false
+    carbohydrate_group: none
+    category: pan
+    has_vegetables: false
+    is_heavy: true
+    seasons: []
+    primary_ingredient: petto-di-pollo
+    uncertain: []
+    note: "Impanato e fritto in olio di semi."
+
+  piadine-bresaola-stracchino-pesto-rosso:
+    meal_type: both
+    protein_group: cured_meat
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: bresaola
+    uncertain: [has_vegetables]
+    note: "Rucola in piccola quantità."
+
+  riso-ceci-spinaci-mandorle:
+    meal_type: both
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: rice
+    category: pan
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: ceci-in-scatola
+    uncertain: []
+    note: null
+
+  spaghetti-riso-tofu-verdure-wok:
+    meal_type: both
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: rice
+    category: wok
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: tofu-affumicato
+    uncertain: [carbohydrate_group]
+    note: "Spaghetti di riso: proposti come riso, non come pasta, quindi ammessi a cena. Tofu come legume."
+
+  paccheri-radicchio-bresaola-ricotta-noci:
+    meal_type: lunch
+    protein_group: cured_meat
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: bresaola
+    uncertain: []
+    note: null
+
+  ditali-cremosi-zucca-ceci:
+    meal_type: lunch
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn, winter]
+    primary_ingredient: ceci-gia-cotti-e-sgocciolati
+    uncertain: []
+    note: null
+
+  trofie-funghi-piselli-ricotta:
+    meal_type: lunch
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: [autumn]
+    primary_ingredient: funghi-champignon-puliti
+    uncertain: [protein_group, seasons]
+    note: "Piselli contati come legume; anche ricotta."
+
+  fusilli-ricotta-spinaci-noci:
+    meal_type: lunch
+    protein_group: cheese
+    fresh_fish: false
+    carbohydrate_group: pasta
+    category: other
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: spinaci-freschi-puliti
+    uncertain: [protein_group]
+    note: null
+
+  wrap-fagioli-neri-cheddar:
+    meal_type: both
+    protein_group: legumes
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: fagioli-neri-scolati-e-sciacquati
+    uncertain: []
+    note: null
+
+  erbazzone-uova-strapazzate-stracchino:
+    meal_type: both
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: none
+    category: savoury_pie
+    has_vegetables: true
+    is_heavy: false
+    seasons: []
+    primary_ingredient: erbazzone-congelato
+    uncertain: [has_vegetables]
+    note: "Tempo «secondo confezione»: senza durata, non va negli slot con tempo massimo. Erbazzone come verdura (bietole) da controllare."
+
+  sandwich-uova-mozzarella-pomodoro-tacchino:
+    meal_type: both
+    protein_group: eggs
+    fresh_fish: false
+    carbohydrate_group: bread
+    category: wrap_sandwich
+    has_vegetables: false
+    is_heavy: false
+    seasons: []
+    primary_ingredient: uova
+    uncertain: [protein_group, has_vegetables]
+    note: "Uova, mozzarella e tacchino: proposte uova come proteina principale."
