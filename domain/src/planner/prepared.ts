@@ -4,18 +4,23 @@ import type { IsoDate, MealType, PlannerInput, PlannerRecipe } from './types.ts'
 
 /**
  * What every step derives from the history and the catalogue, computed once per input instead of once per
- * candidate, slot and repair alternative. The input is treated as immutable while a week is generated.
+ * candidate, slot and repair alternative. Internal to the planner (not exported by index.ts): the cache is
+ * keyed by the input object, so the input must not be changed after it is passed to the planner.
  */
 export interface Prepared {
-	byId: Map<string, PlannerRecipe>;
+	byId: ReadonlyMap<string, PlannerRecipe>;
 	/** Recipes used in the RECENT_DAYS before the week: never proposed again. */
-	recentIds: Set<string>;
+	recentIds: ReadonlySet<string>;
 	/** Recipes cooked within KNOWN_WINDOW_WEEKS: "known" for the quota. */
-	knownIds: Set<string>;
+	knownIds: ReadonlySet<string>;
 	/** Different recipes ever cooked: the quota starts at KNOWN_NEW_MIN_COOKED. */
 	cookedCount: number;
-	/** Past meals of catalogue recipes that can still weigh on recency and similarity. */
-	past: { date: IsoDate; mealType: MealType; recipe: PlannerRecipe }[];
+	/**
+	 * Past meals of catalogue recipes that can still weigh: before the week (meals of the week itself, if
+	 * the history already holds some, are left out) and within FULL_RECENCY_DAYS, after which recency is at
+	 * its full value anyway; the similarity window is much shorter.
+	 */
+	past: readonly { date: IsoDate; mealType: MealType; recipe: PlannerRecipe }[];
 }
 
 const cache = new WeakMap<PlannerInput, Prepared>();

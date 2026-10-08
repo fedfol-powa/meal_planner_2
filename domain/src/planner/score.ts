@@ -16,9 +16,9 @@ export interface ScoreContext {
 	/** Recipes already placed in the week being generated. */
 	week: Placed[];
 	/** Past meals whose recipe is in the catalogue. */
-	past: Placed[];
+	past: readonly Placed[];
 	/** Recipes cooked within the known window ("known"); the others count as new. */
-	knownIds: Set<string>;
+	knownIds: ReadonlySet<string>;
 	knownNewApplies: boolean;
 }
 

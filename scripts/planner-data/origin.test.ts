@@ -29,6 +29,10 @@ describe('origin data', () => {
 		expect(durationOf('1,5 ore')).toBe(90);
 		expect(durationOf('1-2 ore')).toBe(120);
 		expect(durationOf('20 minuti + 1 ora di forno')).toBe(80);
+		expect(durationOf('15–20 min')).toBe(20);
+		expect(durationOf('1 minuto')).toBe(1);
+		expect(durationOf('2 ore e mezza')).toBeNull();
+		expect(durationOf('mezz’ora')).toBeNull();
 		expect(durationOf('2 giorni')).toBeNull();
 		expect(durationOf('30')).toBeNull();
 	});

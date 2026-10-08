@@ -92,7 +92,7 @@ un'esportazione notturna al posto dei backup della piattaforma; email con Resend
 app ed email sul dominio `cosasimangia.qunidi.it`, con il DNS di `qunidi.it` su Cloudflare;
 modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
 l'8 ottobre 2026 per il costo. Workers sul piano a pagamento da 5 $ al mese (CPU
-del pianificatore circa 12 ms per settimana). Motivazioni, contratto e punti ancora
+del pianificatore circa 20-25 ms per settimana). Motivazioni, contratto e punti ancora
 aperti (libreria del contratto) sono nella
 specifica, sezioni 1 e 15. Il prototipo in `prototype/` resta in Svelte come
 riferimento dei percorsi.

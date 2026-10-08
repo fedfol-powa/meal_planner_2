@@ -38,7 +38,9 @@ export function slug(text: string): string {
 	return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-const AMOUNT = String.raw`(\d+(?:[.,]\d+)?)(?:\s*-\s*(\d+(?:[.,]\d+)?))?\s*(minuti|min|ore|ora|h)\b`;
+const AMOUNT = String.raw`(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(\d+(?:[.,]\d+)?))?\s*(minuti|minuto|min|ore|ora|h)\b`;
+/** Fractions written in words ("2 ore e mezza", "un quarto d'ora"): no guess, no duration. */
+const WORDED_FRACTION = /mezz|quart/i;
 const number = (text: string) => Number(text.replace(',', '.'));
 
 /**
@@ -47,13 +49,13 @@ const number = (text: string) => Number(text.replace(',', '.'));
  * ("2 giorni", "30"): better no duration than a wrong one.
  */
 export function durationOf(text: string | null | undefined): number | null {
-	if (!text || !/\d/.test(text)) return null;
+	if (!text || !/\d/.test(text) || WORDED_FRACTION.test(text)) return null;
 	let total = 0;
 	for (const part of text.split('+')) {
 		let rest = part;
 		for (const match of part.matchAll(new RegExp(AMOUNT, 'gi'))) {
 			const value = Math.max(number(match[1]), match[2] ? number(match[2]) : 0);
-			total += /^(ore|ora|h)$/i.test(match[3]) ? value * 60 : value;
+			total += /^(ore|ora|h)$/i.test(match[3]) ? value * 60 : value; // minuti, minuto, min
 			rest = rest.replace(match[0], '');
 		}
 		if (/\d/.test(rest)) return null;

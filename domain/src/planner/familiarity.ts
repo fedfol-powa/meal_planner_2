@@ -6,7 +6,7 @@ import type { PlannerInput } from './types.ts';
  * "Known" recipes for the known/new quota: cooked by the family within the last KNOWN_WINDOW_WEEKS
  * before the week. A recipe not cooked for longer counts as new again (decided 8 October 2026).
  */
-export function knownRecipeIds(input: PlannerInput): Set<string> {
+export function knownRecipeIds(input: PlannerInput): ReadonlySet<string> {
 	return prepared(input).knownIds;
 }
 
