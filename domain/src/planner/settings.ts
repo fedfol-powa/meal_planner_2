@@ -22,7 +22,8 @@ export const DEFAULT_WEIGHTS: ScoreWeights = {
 	similarity: 4,
 	vegetables: 0.5,
 	knownNew: 1.5,
-	limit: 1
+	limit: 1,
+	rules: 2
 };
 
 export const DEFAULT_KNOWN_NEW = { known: 7, new: 5, tolerance: 1 };

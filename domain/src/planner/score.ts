@@ -1,4 +1,4 @@
-import { daysBetween, mealIndex, seasonOf } from './calendar.ts';
+import { daysBetween, mealIndex, seasonOf, weekdayOf } from './calendar.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { foodGroupsOf, sharedFeatures, uses } from './groups.ts';
 import { SIMILARITY_WINDOW } from './settings.ts';
@@ -74,6 +74,15 @@ export function scoreCandidate(recipe: PlannerRecipe, slot: { date: IsoDate; mea
 
 	const limit = -restrictions.filter((r) => r.restriction === 'limit' && uses(recipe, r.ingredientId)).length;
 
+	const weekday = weekdayOf(slot.date);
+	const rules = settings.rules.filter(
+		(rule) =>
+			rule.kind === 'at_least_one' &&
+			rule.weekday === weekday &&
+			recipe.proteinGroup === rule.group &&
+			!ctx.week.some((p) => weekdayOf(p.date) === weekday && p.recipe.proteinGroup === rule.group)
+	).length;
+
 	return (
 		w.liking * liking +
 		w.recency * recency +
@@ -82,6 +91,7 @@ export function scoreCandidate(recipe: PlannerRecipe, slot: { date: IsoDate; mea
 		w.similarity * similarity +
 		w.vegetables * vegetables +
 		w.knownNew * knownNew +
-		w.limit * limit
+		w.limit * limit +
+		w.rules * rules
 	);
 }

@@ -30,6 +30,21 @@ describe('scoreCandidate', () => {
 		expect(scoreCandidate(burger, monday, ctx)).toBeLessThan(scoreCandidate(beans, monday, ctx));
 	});
 
+	it('pushes toward an "at least one" rule not yet met on its day, and only there', () => {
+		const fish = recipe('fish', { proteinGroup: 'fish' });
+		const beans = recipe('beans', { proteinGroup: 'vegetarian' });
+		const input = baseInput({ recipes: [fish, beans] });
+		input.settings.groupRanges.fish = { min: 0, max: 3 }; // isolate the rule from the weekly range…
+		input.settings.weights.similarity = 0; // …and from the two Friday fish being alike
+		const friday = { date: '2026-10-16', mealType: 'lunch' as const };
+		const thursday = { date: '2026-10-15', mealType: 'lunch' as const };
+		const empty = buildContext(input, []);
+		expect(scoreCandidate(fish, friday, empty)).toBeGreaterThan(scoreCandidate(beans, friday, empty));
+		expect(scoreCandidate(fish, thursday, empty)).toBe(scoreCandidate(beans, thursday, empty));
+		const met = buildContext(input, [{ date: '2026-10-16', mealType: 'dinner', recipe: recipe('otherFish', { proteinGroup: 'fish' }) }]);
+		expect(scoreCandidate(fish, friday, met)).toBe(scoreCandidate(beans, friday, met));
+	});
+
 	it('prefers recipes in season', () => {
 		const summer = recipe('summer', { seasons: ['summer'] });
 		const always = recipe('always');

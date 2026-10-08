@@ -73,6 +73,8 @@ export interface ScoreWeights {
 	vegetables: number;
 	knownNew: number;
 	limit: number;
+	/** Pull toward an "at least one" rule not yet met on its day. */
+	rules: number;
 }
 
 export interface PlannerSettings {
