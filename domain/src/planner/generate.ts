@@ -1,7 +1,7 @@
 import { addDays } from './calendar.ts';
 import { candidatesFor, slotRefOf, slotSettingOf } from './constraints.ts';
 import { compareIds, createRandom, seedFrom, weightedPick } from './random.ts';
-import { repairWeek } from './repair.ts';
+import { repairWeek, withSortedCatalogue } from './repair.ts';
 import { buildContext, scoreCandidate, type Placed } from './score.ts';
 import { TOP_K } from './settings.ts';
 import { MEAL_TYPES, type PlannedSlot, type PlannedWeek, type PlannerInput } from './types.ts';
@@ -22,7 +22,8 @@ export function plannedSlots(input: PlannerInput): PlannedSlot[] {
 }
 
 /** Generates the week (spec section 3). Same input, same week: the seed comes from family and week. */
-export function generateWeek(input: PlannerInput): PlannedWeek {
+export function generateWeek(rawInput: PlannerInput): PlannedWeek {
+	const input = withSortedCatalogue(rawInput);
 	const random = createRandom(seedFrom(`${input.familyId}:${input.weekStart}`));
 	const slots = plannedSlots(input);
 	const open = slots.filter((s) => s.content.kind !== 'free');

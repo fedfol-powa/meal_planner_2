@@ -75,6 +75,16 @@ describe('repairWeek', () => {
 		expect(hardViolations(repaired, input)).toEqual([]);
 	});
 
+	it('does not depend on the order of the catalogue when two fixes tie completely', () => {
+		const twins = [recipe('fishA', { proteinGroup: 'fish' }), recipe('fishB', { proteinGroup: 'fish' })];
+		const run = (catalogue: ReturnType<typeof recipe>[]) => {
+			const input = baseInput({ recipes: [...veg(12), ...catalogue] });
+			input.settings.groupRanges.fish = { min: 0, max: 3 };
+			return repairWeek(weekWith(input, veg(12).map((r) => r.id)), input);
+		};
+		expect(run([...twins].reverse())).toEqual(run(twins));
+	});
+
 	it('stops when nothing can fix the week', () => {
 		const input = baseInput({ recipes: veg(12) });
 		const week = weekWith(input, veg(12).map((r) => r.id));

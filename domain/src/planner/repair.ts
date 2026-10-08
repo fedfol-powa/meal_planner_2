@@ -2,6 +2,7 @@ import { weekdayOf } from './calendar.ts';
 import { candidatesFor, fitsSlot, slotRefOf } from './constraints.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { foodGroupsOf } from './groups.ts';
+import { compareIds } from './random.ts';
 import { buildContext, scoreCandidate, type ScoreContext } from './score.ts';
 import { MAX_REPAIR_ROUNDS } from './settings.ts';
 import { FOOD_GROUPS, type PlannedSlot, type PlannedWeek, type PlannerInput, type PlannerRecipe } from './types.ts';
@@ -95,8 +96,14 @@ export function weekQuality(week: PlannedWeek, input: PlannerInput, base: ScoreC
 	return placed.reduce((sum, p, i) => sum + scoreCandidate(p.recipe, p, { ...base, week: placed.filter((_, j) => j !== i) }), 0);
 }
 
+/** The catalogue in id order, so that a query without ORDER BY cannot change the week. */
+export function withSortedCatalogue(input: PlannerInput): PlannerInput {
+	return { ...input, recipes: [...input.recipes].sort((a, b) => compareIds(a.id, b.id)) };
+}
+
 /** Local repair: each round keeps the change that fixes most; among equal fixes, the best week by score. */
-export function repairWeek(week: PlannedWeek, input: PlannerInput): PlannedWeek {
+export function repairWeek(week: PlannedWeek, rawInput: PlannerInput): PlannedWeek {
+	const input = withSortedCatalogue(rawInput);
 	const base = buildContext(input, []);
 	let current = week;
 	for (let round = 0; round < MAX_REPAIR_ROUNDS; round++) {
