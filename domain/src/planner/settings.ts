@@ -29,6 +29,8 @@ export const DEFAULT_WEIGHTS: ScoreWeights = {
 export const DEFAULT_KNOWN_NEW = { known: 7, new: 5, tolerance: 1 };
 /** Meals around a slot that weigh on similarity, across weeks. */
 export const SIMILARITY_WINDOW = 6;
+/** Days after which "time since last cooked" is at its full value. */
+export const FULL_RECENCY_DAYS = 56;
 /** A recipe used in the previous 14 days is not proposed again. */
 export const RECENT_DAYS = 14;
 /** Family score at or below this is excluded, unless there is nothing else. */

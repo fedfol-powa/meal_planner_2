@@ -1,5 +1,6 @@
 import { addDays, weekdayOf } from './calendar.ts';
 import { dishKindsOf, uses } from './groups.ts';
+import { prepared } from './prepared.ts';
 import { LOW_SCORE, RECENT_DAYS } from './settings.ts';
 import { MEAL_TYPES, type IngredientRestriction, type IsoDate, type MealRule, type MealType, type PastMeal, type PlannedSlot, type PlannedWeek, type PlannerInput, type PlannerRecipe, type PlannerSettings, type SlotSetting } from './types.ts';
 
@@ -56,12 +57,13 @@ export function withinLimits(candidate: PlannerRecipe, weekRecipes: PlannerRecip
 /** Recipes that can go in the slot given the rest of the week; low-rated ones only if nothing else fits. */
 export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: PlannerRecipe[]): PlannerRecipe[] {
 	const used = new Set(weekRecipes.map((r) => r.id));
+	const recent = prepared(input).recentIds;
 	const valid = input.recipes.filter(
 		(r) =>
 			!used.has(r.id) &&
 			isAvailable(r, input) &&
 			fitsSlot(r, slot, input.settings.rules) &&
-			!recentlyUsed(r.id, input.weekStart, input.history) &&
+			!recent.has(r.id) &&
 			withinLimits(r, weekRecipes, input.restrictions)
 	);
 	const liked = valid.filter((r) => (input.familyScores[r.id] ?? Infinity) > LOW_SCORE);
@@ -71,7 +73,7 @@ export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: P
 /** Every broken hard constraint of a generated week, as readable lines; empty when the week is valid. */
 export function hardViolations(week: PlannedWeek, input: PlannerInput): string[] {
 	const problems: string[] = [];
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
+	const { byId } = prepared(input);
 	let expected = 0;
 	for (let day = 0; day < 7; day++) {
 		for (const mealType of MEAL_TYPES) {

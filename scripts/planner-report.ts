@@ -31,10 +31,14 @@ const DAY_LABEL = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 const MEAL_LABEL = { lunch: 'pranzo', dinner: 'cena' };
 
 let history: PastMeal[] = startHistory;
+const cpuMs: number[] = [];
 const results: { input: PlannerInput; week: PlannedWeek; metrics: WeekMetrics; violations: string[]; repaired: number }[] = [];
 for (let i = 0; i < WEEKS; i++) {
 	const input: PlannerInput = { familyId: 'family-curator', weekStart: addDays(FIRST_WEEK, 7 * i), settings, recipes, ownedBookIds, exclusions: [], restrictions, familyScores, globalScores: {}, history };
+	const cpuStart = process.cpuUsage();
 	const week = generateWeek(input);
+	const cpu = process.cpuUsage(cpuStart);
+	cpuMs.push((cpu.user + cpu.system) / 1000);
 	const fill = fillWeek(input);
 	const repaired = week.slots.filter((s, j) => JSON.stringify(s.content) !== JSON.stringify(fill.slots[j].content)).length;
 	results.push({ input, week, metrics: weekMetrics(week, input), violations: hardViolations(week, input), repaired });
@@ -110,4 +114,7 @@ const output = resolve(root, 'progetto/reports/planner-report.md');
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, lines.join('\n'));
 console.log(`Scritto ${output}`);
+// CPU time changes at every run, so it stays out of the committed report.
+const sorted = [...cpuMs].sort((a, b) => a - b);
+console.log(`CPU per settimana (generazione completa): media ${(cpuMs.reduce((a, b) => a + b, 0) / cpuMs.length).toFixed(1)} ms, mediana ${sorted[Math.floor(sorted.length / 2)].toFixed(1)} ms, massimo ${sorted[sorted.length - 1].toFixed(1)} ms; storico finale ${history.length} pasti`);
 if (violations.length) process.exit(1);

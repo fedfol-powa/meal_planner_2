@@ -1,6 +1,7 @@
 import { mealIndex, seasonOf } from './calendar.ts';
 import { foodGroupsOf, sharedFeatures } from './groups.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
+import { prepared } from './prepared.ts';
 import { weekRuleProblems, type RuleProblem } from './repair.ts';
 import { FOOD_GROUPS, type FoodGroup, type IsoDate, type PastMeal, type PlannedWeek, type PlannerInput, type PlannerRecipe } from './types.ts';
 
@@ -31,7 +32,7 @@ export function isOutOfSeason(recipe: PlannerRecipe, date: IsoDate): boolean {
 const CLOSE_DISTANCE = 2;
 
 export function weekMetrics(week: PlannedWeek, input: PlannerInput): WeekMetrics {
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
+	const { byId } = prepared(input);
 	const meals: PastMeal[] = week.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []));
 	const recipes = meals.flatMap((m) => {
 		const recipe = byId.get(m.recipeId);

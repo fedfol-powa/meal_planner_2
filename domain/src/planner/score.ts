@@ -1,7 +1,8 @@
 import { daysBetween, mealIndex, seasonOf, weekdayOf } from './calendar.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { foodGroupsOf, sharedFeatures, uses } from './groups.ts';
-import { SIMILARITY_WINDOW } from './settings.ts';
+import { prepared } from './prepared.ts';
+import { FULL_RECENCY_DAYS, SIMILARITY_WINDOW } from './settings.ts';
 import type { IsoDate, MealType, PlannerInput, PlannerRecipe } from './types.ts';
 
 export interface Placed {
@@ -22,16 +23,10 @@ export interface ScoreContext {
 }
 
 export function buildContext(input: PlannerInput, week: Placed[]): ScoreContext {
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
-	const past = input.history.flatMap((m) => {
-		const recipe = byId.get(m.recipeId);
-		return recipe ? [{ date: m.date, mealType: m.mealType, recipe }] : [];
-	});
-	return { input, week, past, knownIds: knownRecipeIds(input), knownNewApplies: knownNewApplies(input) };
+	return { input, week, past: prepared(input).past, knownIds: knownRecipeIds(input), knownNewApplies: knownNewApplies(input) };
 }
 
 const NEUTRAL_STARS = 3;
-const FULL_RECENCY_DAYS = 56;
 
 export function scoreCandidate(recipe: PlannerRecipe, slot: { date: IsoDate; mealType: MealType }, ctx: ScoreContext): number {
 	const { settings, familyScores, globalScores, restrictions } = ctx.input;

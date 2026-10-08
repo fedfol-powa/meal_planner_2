@@ -2,6 +2,7 @@ import { weekdayOf } from './calendar.ts';
 import { candidatesFor, fitsSlot, slotRefOf } from './constraints.ts';
 import { knownNewApplies, knownRecipeIds } from './familiarity.ts';
 import { foodGroupsOf } from './groups.ts';
+import { prepared } from './prepared.ts';
 import { compareIds } from './random.ts';
 import { buildContext, scoreCandidate, type ScoreContext } from './score.ts';
 import { MAX_REPAIR_ROUNDS } from './settings.ts';
@@ -14,7 +15,7 @@ export interface RuleProblem {
 }
 
 function recipesOf(week: PlannedWeek, input: PlannerInput): { slot: PlannedSlot; recipe: PlannerRecipe }[] {
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
+	const { byId } = prepared(input);
 	return week.slots.flatMap((slot) => {
 		if (slot.content.kind !== 'recipe') return [];
 		const recipe = byId.get(slot.content.recipeId);
@@ -59,7 +60,7 @@ const withContent = (week: PlannedWeek, index: number, recipeId: string): Planne
 
 /** Single-slot replacements and two-slot swaps that keep every hard constraint. */
 function alternatives(week: PlannedWeek, input: PlannerInput): PlannedWeek[] {
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
+	const { byId } = prepared(input);
 	const idOf = (slot: PlannedSlot) => (slot.content.kind === 'recipe' ? slot.content.recipeId : null);
 	const result: PlannedWeek[] = [];
 	week.slots.forEach((slot, i) => {
