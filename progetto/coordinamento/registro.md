@@ -11,7 +11,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W2 schema | W2 schema | w1:p9 | fondamenta/schema | .worktrees/schema | Correzioni della seconda review, poi implementazione e PR (niente terza review di spec) | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | Spec e piano corretti e approvati; contesto pulito; implementazione dopo il merge di W4 (mandare messaggio di ripresa con via all implementazione) | 11/10 |
 | W4 unita-spesa | W4 unita-spesa | w1:pB | fondamenta/unita-spesa | .worktrees/unita-spesa | Aggiorna spec e piano per le equivalenze con preparazione; poi attesa del merge dello scheletro (PR #3) per implementare | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | Correzioni dalla review (verdetto «da rifare»); poi seconda review | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | Correzioni della seconda review, poi implementazione e PR (niente terza review di spec) | 11/10 |
 
 ## Revisori attivi
 
