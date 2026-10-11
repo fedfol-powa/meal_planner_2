@@ -39,7 +39,7 @@ export async function parseKeyList(value: string): Promise<Record<string, Backup
 	return keys;
 }
 
-function header(keyId: string): Uint8Array {
+function header(keyId: string): Uint8Array<ArrayBuffer> {
 	const id = new TextEncoder().encode(keyId);
 	if (id.length === 0 || id.length > 255) throw new Error('invalid key id');
 	const out = new Uint8Array(MAGIC.length + 2 + id.length);
