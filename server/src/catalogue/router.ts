@@ -3,7 +3,9 @@ import type { Implementer, OperationContext } from '../pipeline.ts';
 import { CURATOR_GUIDE } from './guide.ts';
 import { loadDraftRow } from './load.ts';
 import { draftViewOf, overview } from './views.ts';
-import { actorOf, createDraft, discardDraft, saveDraft, startRevision } from './write.ts';
+import { missingData } from '@app/domain/recipe';
+import { publicationCheck } from './check.ts';
+import { actorOf, createDraft, discardDraft, publishDraft, saveDraft, startRevision } from './write.ts';
 
 const notYet = () => {
 	throw appError('not_found');
@@ -30,9 +32,16 @@ export function catalogueRouter(os: Implementer) {
 		}),
 		saveDraft: os.catalogue.saveDraft.handler(async ({ context, input }) => draftView(context, (await saveDraft(context.tx, actorOf(context), input)).draftId)),
 		discardDraft: os.catalogue.discardDraft.handler(({ context, input }) => discardDraft(context.tx, actorOf(context), input)),
-		// Task 7
-		checkDraft: os.catalogue.checkDraft.handler(notYet),
-		publish: os.catalogue.publish.handler(notYet),
+		checkDraft: os.catalogue.checkDraft.handler(async ({ context, input }) => {
+			const row = await loadDraftRow(context.tx, input.draftId);
+			if (!row) throw appError('not_found');
+			const { issues, conversions } = await publicationCheck(context.tx, row.content);
+			return { revision: row.revision, issues, missing: missingData(issues), conversions };
+		}),
+		publish: os.catalogue.publish.handler(async ({ context, input }) => {
+			const { recipeId, version, conversions } = await publishDraft(context.tx, actorOf(context), input);
+			return { recipeId, version, conversions };
+		}),
 		// Task 8
 		searchRecipes: os.catalogue.searchRecipes.handler(notYet),
 		setArchived: os.catalogue.setArchived.handler(notYet),

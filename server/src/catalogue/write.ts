@@ -1,7 +1,10 @@
-import { blocksDraft, checkDraft, cleanDraft, projectDraftNames, recipeDraftSchema, type RecipeDraftDocument } from '@app/domain/recipe';
+import { blocksDraft, checkDraft, cleanDraft, projectDraftNames, recipeDraftSchema, toPublished, type RecipeDraftDocument } from '@app/domain/recipe';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
-import type { OperationContext } from '../pipeline.ts';
+import { lockCreations, writeInstant, type Actor } from './actor.ts';
+import { publicationCheck } from './check.ts';
+import type { Conversion } from './convert.ts';
+import { versionConflict, writeVersion } from './recipe-writes.ts';
 import { changedFields, sameDocument } from './fields.ts';
 import { isCited, loadAuthors, loadDraftRow, loadLookup } from './load.ts';
 import { slugify, uniqueSlug } from './slug.ts';
@@ -9,13 +12,7 @@ import { slugify, uniqueSlug } from './slug.ts';
 // Writes of the recipe book, reusable without the pipeline (the production import calls them
 // with channel 'import'). Signatures fixed with the coordinator (spec, section 1).
 
-export type Channel = 'web' | 'mcp' | 'import';
-/** Who writes and through which channel; the instant comes from the database (writeInstant). */
-export interface Actor {
-	userId: string;
-	channel: Channel;
-}
-export const actorOf = (context: OperationContext): Actor => ({ userId: context.userId, channel: context.channel });
+export { actorOf, lockCreations, writeInstant, type Actor, type Channel } from './actor.ts';
 
 export interface CreateDraftInput {
 	draftId: string;
@@ -37,20 +34,6 @@ export interface SaveDraftInput {
 export interface SavedDraft {
 	draftId: string;
 	revision: number;
-}
-
-/**
- * Creations of the catalogue wait for one another (few curators): the same id twice, or two
- * names giving the same slug, never race into a unique violation.
- */
-export async function lockCreations(tx: Tx): Promise<void> {
-	await tx`select pg_advisory_xact_lock(hashtext('app.catalogue_create'))`;
-}
-
-/** The instant of the writes, read after the locks: a wait never backdates a version (R1). */
-export async function writeInstant(tx: Tx): Promise<Date> {
-	const [row] = await tx<{ at: Date }[]>`select clock_timestamp() as at`;
-	return row!.at;
 }
 
 /** Trimmed, then checked as a draft: only wrong data is refused (spec section 8). */
@@ -173,4 +156,37 @@ export async function discardDraft(tx: Tx, actor: Actor, input: { draftId: strin
 	const at = await writeInstant(tx);
 	await tx`update app.recipe_drafts set closed_at = ${at}, closed_by = ${actor.userId}, outcome = 'discarded' where id = ${row.id}`;
 	return answer;
+}
+
+export interface PublishInput {
+	draftId: string;
+	confirmVersion?: number;
+}
+export interface Published {
+	recipeId: string;
+	version: number;
+	publishedAt: Date;
+	conversions: Conversion[];
+}
+
+export async function publishDraft(tx: Tx, actor: Actor, input: PublishInput): Promise<Published> {
+	const row = await loadDraftRow(tx, input.draftId, { lock: true }); // locks the draft and its recipe
+	if (!row) throw appError('not_found');
+	if (row.outcome === 'published') {
+		// Repeat after a lost answer: the version written when the draft was closed (same instant).
+		const [v] = await tx<{ version: number; published_at: Date }[]>`
+			select version, published_at from app.recipe_versions
+			where recipe_id = ${row.recipeId} and published_at = ${row.closedAt} and published_by is not distinct from ${row.closedBy}
+			order by version desc limit 1`;
+		if (v) return { recipeId: row.recipeId, version: v.version, publishedAt: v.published_at, conversions: [] };
+	}
+	if (row.closedAt) throw appError('not_found');
+	const { document, issues, conversions } = await publicationCheck(tx, row.content);
+	if (issues.length) throw appError('invalid', { issues });
+	if (row.kind === 'revision' && row.recipeVersion !== row.baseVersion && input.confirmVersion !== row.recipeVersion) {
+		await versionConflict(tx, row.recipeId, row.recipeVersion);
+	}
+	const { version, at } = await writeVersion(tx, actor, { recipeId: row.recipeId, document: toPublished(document), restoredFrom: null });
+	await tx`update app.recipe_drafts set closed_at = ${at}, closed_by = ${actor.userId}, outcome = 'published' where id = ${row.id}`;
+	return { recipeId: row.recipeId, version, publishedAt: at, conversions };
 }
