@@ -6,11 +6,14 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"observability": { "enabled": true },
 	// Hourly weekly job (spec section 4): next week for families past Wednesday 20:00, retries of open jobs.
-	"triggers": { "crons": ["0 * * * *"] },
+	// Nightly export to R2 at 02:30 UTC, retried at 04:30 when the night has none (spec section 8).
+	"triggers": { "crons": ["0 * * * *", "30 2,4 * * *"] },
 	"workers_dev": true,
 	"vars": {
 		// Supabase project URL; token issuer and JWKS are derived from it.
-		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co"
+		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
+		// Id of BACKUP_ENCRYPTION_KEY (a Worker secret), written in each export header.
+		"BACKUP_KEY_ID": "k1"
 	},
 	"version_metadata": { "binding": "CF_VERSION_METADATA" },
 	"assets": {
@@ -27,5 +30,7 @@
 			// Replace with the id returned when the coordinator approves creating it.
 			"id": "00000000000000000000000000000000"
 		}
-	]
+	],
+	// Nightly exports: private bucket in the EU jurisdiction, created by the owner before deploying.
+	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }]
 }

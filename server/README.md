@@ -20,6 +20,20 @@ Job settimanale in locale: `npm run dev -w server -- --test-scheduled`, poi
 per un istante diverso). Serve tutte le famiglie del database locale: su quello dei test,
 che ne contiene molte, genera settimane per ognuna.
 
+Esportazione notturna in locale (R2 simulato da Miniflare, chiave in `.env`): da
+`server/`, `npx wrangler dev --test-scheduled`, poi
+`curl "http://localhost:8787/cdn-cgi/local/scheduled?cron=30+2,4+*+*+*"`. Il log
+`backup_export_done` riporta la chiave completa dell'oggetto, che comincia già con
+`exports/`; per scaricarla, sempre da `server/`:
+
+```bash
+KEY='exports/2026-10-12T02-30Z.json.gz.enc'   # la chiave dal log
+npx wrangler r2 object get "cosasimangia-backups/$KEY" --local --jurisdiction eu --file ../export.bin
+```
+
+Il file finisce nella radice del repository, da cui si usa la CLI di ripristino
+(`supabase/README.md`).
+
 In locale Hyperdrive non fa da pool: le prove di concorrenza si fanno sul Worker pubblicato.
 
 ## Test
