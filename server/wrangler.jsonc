@@ -18,7 +18,7 @@
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application",
 		// Only these paths run the Worker; everything else is served as a static file.
-		"run_worker_first": ["/api/*", "/mcp", "/.well-known/*"]
+		"run_worker_first": ["/api/*", "/mcp", "/.well-known/*", "/shopping-lists/*"]
 	},
 	"hyperdrive": [
 		{
