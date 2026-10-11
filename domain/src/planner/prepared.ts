@@ -9,7 +9,7 @@ import type { IsoDate, MealType, PlannerInput, PlannerRecipe } from './types.ts'
  */
 export interface Prepared {
 	byId: ReadonlyMap<string, PlannerRecipe>;
-	/** Recipes used in the RECENT_DAYS before the week: never proposed again. */
+	/** Recipes used in the RECENT_DAYS before the week or planned in the RECENT_DAYS after it: never proposed. */
 	recentIds: ReadonlySet<string>;
 	/** Recipes cooked within KNOWN_WINDOW_WEEKS: "known" for the quota. */
 	knownIds: ReadonlySet<string>;
@@ -21,6 +21,8 @@ export interface Prepared {
 	 * its full value anyway; the similarity window is much shorter.
 	 */
 	past: readonly { date: IsoDate; mealType: MealType; recipe: PlannerRecipe }[];
+	/** Planned meals after the week within the similarity reach (7 days), catalogue recipes only. */
+	upcoming: readonly { date: IsoDate; mealType: MealType; recipe: PlannerRecipe }[];
 }
 
 const cache = new WeakMap<PlannerInput, Prepared>();
@@ -34,15 +36,26 @@ export function prepared(input: PlannerInput): Prepared {
 	const recentFrom = since(RECENT_DAYS);
 	const knownFrom = since(7 * KNOWN_WINDOW_WEEKS);
 	const pastFrom = since(FULL_RECENCY_DAYS);
+	const weekEnd = addDays(input.weekStart, 6);
+	const after = (input.upcoming ?? []).filter((m) => m.date > weekEnd);
+	const soonUntil = addDays(weekEnd, RECENT_DAYS);
+	const nearUntil = addDays(weekEnd, 7);
 	const result: Prepared = {
 		byId,
-		recentIds: new Set(before.filter((m) => m.date >= recentFrom).map((m) => m.recipeId)),
+		recentIds: new Set([
+			...before.filter((m) => m.date >= recentFrom).map((m) => m.recipeId),
+			...after.filter((m) => m.date <= soonUntil).map((m) => m.recipeId),
+		]),
 		knownIds: new Set(before.filter((m) => m.date >= knownFrom).map((m) => m.recipeId)),
 		cookedCount: new Set(input.history.map((m) => m.recipeId)).size,
 		past: before.flatMap((m) => {
 			const recipe = byId.get(m.recipeId);
 			return recipe && m.date >= pastFrom ? [{ date: m.date, mealType: m.mealType, recipe }] : [];
-		})
+		}),
+		upcoming: after.flatMap((m) => {
+			const recipe = byId.get(m.recipeId);
+			return recipe && m.date <= nearUntil ? [{ date: m.date, mealType: m.mealType, recipe }] : [];
+		}),
 	};
 	cache.set(input, result);
 	return result;

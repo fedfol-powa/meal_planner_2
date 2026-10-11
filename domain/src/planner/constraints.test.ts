@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { candidatesFor, fitsSlot, hardViolations, isAvailable, recentlyUsed, withinLimits } from './constraints.ts';
+import { candidatesFor, fitsSlot, hardViolations, isAvailable, recentlyUsed, usedSoonAfter, withinLimits } from './constraints.ts';
 import { baseInput, recipe } from './test-fixtures.ts';
 import type { MealRule, PlannedWeek } from './types.ts';
 
@@ -99,5 +99,15 @@ describe('hardViolations', () => {
 		expect(problems).toContain('2026-10-12 dinner: does not fit the slot');
 		expect(problems).toContain('2026-10-18 lunch: fixed meal changed');
 		expect(problems).toContain('2026-10-12 lunch: missing');
+	});
+});
+
+describe('usedSoonAfter', () => {
+	it('reports a recipe planned again within 14 days after the week', () => {
+		const input = baseInput({ upcoming: [{ date: '2026-11-01', mealType: 'lunch', recipeId: 'r00' }] });
+		const week: PlannedWeek = { weekStart: input.weekStart, slots: [{ date: '2026-10-12', mealType: 'lunch', servings: 2, content: { kind: 'recipe', recipeId: 'r00' } }] };
+		expect(hardViolations(week, input).some((p) => p.includes('planned again within two weeks'))).toBe(true);
+		// 1 November is the 14th day after Sunday 18 October, 2 November the 15th.
+		expect(usedSoonAfter('r00', '2026-10-12', [{ date: '2026-11-02', mealType: 'lunch', recipeId: 'r00' }])).toBe(false);
 	});
 });

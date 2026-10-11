@@ -52,6 +52,21 @@ describe('generateWeek', () => {
 		expect(() => generateWeek(baseInput({ from: { date: '2026-10-11', mealType: 'dinner' } }))).toThrow(RangeError);
 	});
 
+	it('does not repeat recipes already planned in the 14 days after the week (next week generated first)', () => {
+		const recipes = syntheticCatalogue(20);
+		const next = generateWeek(baseInput({ weekStart: '2026-10-19', recipes }));
+		const upcoming: PastMeal[] = next.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []));
+		const input = baseInput({ recipes, from: { date: '2026-10-14', mealType: 'dinner' }, upcoming });
+		const current = generateWeek(input);
+		const nextIds = new Set(upcoming.map((m) => m.recipeId));
+		expect(current.slots.filter((s) => s.content.kind === 'recipe' && nextIds.has(s.content.recipeId))).toEqual([]);
+		expect(hardViolations(current, input)).toEqual([]);
+	});
+
+	it("keeps today's weeks when nothing is planned after", () => {
+		expect(generateWeek(baseInput({ upcoming: [] }))).toEqual(generateWeek(baseInput()));
+	});
+
 	it('uses low-rated recipes when nothing else fits', () => {
 		const catalogue = syntheticCatalogue();
 		const input = baseInput({ familyScores: Object.fromEntries(catalogue.map((r) => [r.id, 1])) });

@@ -126,6 +126,8 @@ export interface PlannerInput {
 	history: PastMeal[];
 	/** First meal to plan: earlier meals of the week get no slot (current week generated halfway). */
 	from?: PlannerSlotRef;
+	/** Meals already planned after the week (weeks generated earlier), oldest first: neighbours, never changed. */
+	upcoming?: PastMeal[];
 }
 
 export type SlotContent = { kind: 'recipe'; recipeId: string } | { kind: 'free'; text: string } | { kind: 'no_match' };
