@@ -4,7 +4,6 @@ import type { ContractRouterClient } from '@orpc/contract';
 import { ORPCError } from '@orpc/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.ts';
-import { collectTools } from '../src/mcp.ts';
 import { messages } from '../src/messages.ts';
 import { router } from '../src/router.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
@@ -81,7 +80,15 @@ describe.skipIf(!hasDatabase)('channels with a real session', () => {
 			const user = await db.createUser();
 			const result = await mcp(testApp, env(), await tokenFor(user, { client_id: 'codex' }), 'tools/list');
 			const listed = result.body.result.tools as { name: string; inputSchema: { required?: string[] } }[];
-			expect(listed.map((tool) => tool.name).sort()).toEqual(collectTools(testContract).map((tool) => tool.name).sort());
+			// Written by hand: `test.webAppOnly` has `mcp: false` and must not be listed.
+			expect(listed.map((tool) => tool.name).sort()).toEqual([
+				'test_admin',
+				'test_appAdmin',
+				'test_curator',
+				'test_familyView',
+				'test_member',
+				'test_removeFamily',
+			]);
 			expect(listed.find((tool) => tool.name === 'test_member')?.inputSchema.required).toEqual(['familyId']);
 		});
 

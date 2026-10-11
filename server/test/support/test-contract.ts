@@ -23,6 +23,8 @@ export const testContract = {
 			.route({ method: 'POST', path: '/test/family-view', summary: 'Versioned read' })
 			.input(versionedInput(family))
 			.output(versionedOutput(z.object({ calls: z.number() }))),
+		webAppOnly: op({ mcp: false, offline: false, role: 'user' })
+			.route({ method: 'POST', path: '/test/web-app-only', summary: 'Not an MCP tool' }).input(empty).output(ok),
 	},
 };
 
@@ -39,5 +41,6 @@ export const testRouter = os.router({
 		appAdmin: os.test.appAdmin.handler(done),
 		removeFamily: os.test.removeFamily.handler(done),
 		familyView: os.test.familyView.handler(({ context }) => fresh(context, { calls: ++testHandlerCalls.familyView })),
+		webAppOnly: os.test.webAppOnly.handler(done),
 	},
 });
