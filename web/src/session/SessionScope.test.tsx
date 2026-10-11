@@ -462,7 +462,7 @@ describe('fake data shared by the languages (PR review, C13)', () => {
     rated = recipeId;
     const recipe = useQuery({ ...recipeQuery(deps, DEMO_FAMILY_ID, recipeId ?? ''), enabled: !!recipeId });
     const list = useQuery(searchQuery(deps, DEMO_FAMILY_ID, {}));
-    const listed = list.data?.find((item) => item.recipe.id === recipeId);
+    const listed = list.data?.items.find((item) => item.recipe.id === recipeId);
     const rate = useRateRecipe(DEMO_FAMILY_ID);
     const choose = useChooseLocale();
     const idle = useIsFetching() === 0 && !rate.isPending && recipe.isSuccess && list.isSuccess;

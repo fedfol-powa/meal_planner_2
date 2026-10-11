@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
+import { useMemo } from 'react';
 import { isBlocking } from '../api/errors';
 import { keepPreviousWithin, searchQuery, useQueryDeps } from '../api/queries';
 import type { FamilyView, RecipeQuery } from '../api/types';
@@ -9,7 +10,9 @@ import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { RecipeFilters } from '../components/RecipeFilters';
 import { StateNotice } from '../components/StateNotice';
-import { useT } from '../i18n/LocaleProvider';
+import { useLocale, useT } from '../i18n/LocaleProvider';
+import { resortByLastEaten } from '../lib/mealTime';
+import { useMealClock } from '../lib/useMealClock';
 import { toRecipeQuery, toRecipesSearch } from './search';
 
 const route = getRouteApi('/_app/recipes');
@@ -20,6 +23,7 @@ export function RecipesPage() {
 
 function RecipesView({ family }: { family: FamilyView }) {
   const t = useT();
+  const { locale } = useLocale();
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const query = toRecipeQuery(search);
@@ -30,7 +34,10 @@ function RecipesView({ family }: { family: FamilyView }) {
   const update = (next: RecipeQuery) => void navigate({ search: toRecipesSearch(next), replace: true });
   // Cached recipes stay visible only when the device is offline (review, finding 2).
   const blocked = results.isError && isBlocking(results.error, !!results.data);
-  const items = blocked ? undefined : results.data;
+  const read = blocked ? undefined : results.data?.items;
+  // «Recently eaten» moves on with the clock: a planned meal that passes needs no new read (spec of W6, decision 7).
+  const now = useMealClock(useMemo(() => (read ?? []).map((item) => item.upcoming), [read]));
+  const items = read && query.sort === 'lastEaten' ? resortByLastEaten(read, now, !!query.reversed, locale) : read;
 
   return (
     <section className="secondary-view app-view">
@@ -46,6 +53,7 @@ function RecipesView({ family }: { family: FamilyView }) {
             <button type="button" className="text-button" onClick={() => update({})}>{t('recipes.reset')}</button>
           </StateNotice>
         )}
+        {!!items?.length && <p className="meta-line" role="status">{t('recipes.count', { count: items.length })}</p>}
         {!!items?.length && (
           <div className="recipe-grid">
             {items.map((item) => (
@@ -56,7 +64,7 @@ function RecipesView({ family }: { family: FamilyView }) {
                 kind="recipe"
                 recipe={item.recipe}
                 freeText={null}
-                servings={item.servings}
+                servings={item.baseServings}
                 ingredients={item.ingredients}
                 note={null}
                 rating={item.rating}

@@ -3,6 +3,7 @@ import { createORPCClient, ORPCError } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { ContractRouterClient } from '@orpc/contract';
 import type { Credentials } from '../auth/backend';
+import { isOnline } from '../lib/connectivity';
 import { ApiError, isContractErrorCode, SessionClosedError } from './errors';
 
 export type RpcClient = ContractRouterClient<Contract, RpcContext>;
@@ -50,6 +51,8 @@ export function createRpcClient({ getCredentials, fetch }: RpcClientOptions): Rp
     // Right before the transport, after the token was read: a closed session sends nothing.
     fetch: (request, init, options) => {
       if (options.signal?.aborted) return Promise.reject(options.signal.reason);
+      // Offline when the request is ready to leave (e.g. after a slow token read): it fails, never waits for the network.
+      if (!isOnline()) return Promise.reject(new ApiError('network'));
       return fetch ? fetch(request) : globalThis.fetch(request, init);
     }
   });

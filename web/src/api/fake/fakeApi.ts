@@ -1,4 +1,4 @@
-import { addDays, daysBetween, isMealPast, localNow, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
+import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Locale } from '../../i18n/translate';
 import { isOnline } from '../../lib/connectivity';
 import { ApiError } from '../errors';
@@ -56,6 +56,14 @@ export interface FakeData {
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
 const localized = (text: Translated, locale: Locale) => text[locale] ?? text['it-IT'];
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+/** The instant a wall-clock time happens in a time zone, as ISO: the Worker sends it as `passesAt`. */
+function zonedInstant(local: LocalDateTime, timeZone: string): string {
+  const asUtc = Date.parse(`${local}:00Z`);
+  let instant = asUtc;
+  // Two rounds settle the offset also next to a change of daylight saving time.
+  for (let round = 0; round < 2; round++) instant = asUtc - (Date.parse(`${localNow(timeZone, new Date(instant))}:00Z`) - instant);
+  return new Date(instant).toISOString();
+}
 // Descending order with missing values last.
 const desc = <T extends string | number>(a: T | null, b: T | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? 1 : -1);
 
@@ -170,6 +178,13 @@ export function createFakeApi(options: FakeApiOptions): Api {
   function pastMeals(recipeId: string) {
     return visibleWeeks().flatMap((w) => w.slots).filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, now()));
   }
+  /** Every planned meal not yet past, soonest first, with the instant it passes (contract of W6). */
+  function upcomingMeals(recipeId: string) {
+    return visibleWeeks().flatMap((w) => w.slots)
+      .filter((s) => s.recipeId === recipeId && !isMealPast(s.date, s.mealType, now()))
+      .sort((a, b) => a.date.localeCompare(b.date) || MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType])
+      .map((s) => ({ date: s.date, mealType: s.mealType, passesAt: zonedInstant(`${s.date}T${MEAL_PAST_AT[s.mealType]}`, DEMO_FAMILY.timeZone) }));
+  }
   function mealView(slot: DemoSlot, locale: Locale): MealView {
     const recipe = slot.recipeId ? recipes.find((r) => r.id === slot.recipeId) ?? null : null;
     const isPublished = recipe?.status === 'published';
@@ -263,19 +278,25 @@ export function createFakeApi(options: FakeApiOptions): Api {
           .filter((r) => !query.maxMinutes || (r.durationMinutes !== null && r.durationMinutes <= query.maxMinutes))
           .filter((r) => !query.proteinGroup || r.proteinGroup === query.proteinGroup)
           .filter((r) => matches(r, locale, needle))
-          .map((r) => ({ r, item: { recipe: summary(r, locale), rating: ratingSummary(r.id), servings: r.baseServings ?? 1, ingredients: lines(r, r.baseServings ?? 1, locale) ?? [] } satisfies RecipeListItem }))
+          .map((r) => ({
+            r,
+            item: {
+              recipe: summary(r, locale), rating: ratingSummary(r.id), baseServings: r.baseServings ?? 1,
+              ingredients: lines(r, r.baseServings ?? 1, locale) ?? [], addedOn: r.addedOn, lastEatenOn: lastEaten(r.id), upcoming: upcomingMeals(r.id)
+            } satisfies RecipeListItem
+          }))
           .filter(({ item }) => !query.minStars || (item.rating.familyAverage ?? 0) >= query.minStars)
           .sort((a, b) => {
             const byName = a.item.recipe.name.localeCompare(b.item.recipe.name, locale);
             const primary =
               query.sort === 'rating' ? desc(a.item.rating.familyAverage, b.item.rating.familyAverage)
               : query.sort === 'added' ? desc(a.r.addedOn, b.r.addedOn)
-              : query.sort === 'lastEaten' ? desc(lastEaten(a.r.id), lastEaten(b.r.id))
+              : query.sort === 'lastEaten' ? desc(a.item.lastEatenOn, b.item.lastEatenOn)
               : 0;
             return primary || byName;
           })
           .map(({ item }) => item);
-        return respond(query.reversed ? items.reverse() : items);
+        return respond({ items: query.reversed ? items.reverse() : items });
       },
       // slotId is accepted and ignored: versions of past meals arrive with wave 2.
       async get({ familyId, recipeId, servings }) {
@@ -286,9 +307,13 @@ export function createFakeApi(options: FakeApiOptions): Api {
         const base = recipe.baseServings;
         const chosen = servings && Number.isInteger(servings) && servings > 0 && servings <= 50 ? servings : (base ?? 1);
         return respond({
-          recipe: summary(recipe, locale), baseServings: base, servings: chosen,
+          recipe: summary(recipe, locale), status: 'published' as const, baseServings: base ?? chosen, servings: chosen,
           ingredients: lines(recipe, chosen, locale) ?? [], rating: ratingSummary(recipe.id),
-          history: pastMeals(recipe.id).map((s) => ({ date: s.date, mealType: s.mealType })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
+          history: pastMeals(recipe.id)
+            .sort((a, b) => b.date.localeCompare(a.date) || MEAL_ORDER[b.mealType] - MEAL_ORDER[a.mealType])
+            .slice(0, 5)
+            .map((s) => ({ date: s.date, mealType: s.mealType })),
+          upcoming: upcomingMeals(recipe.id)
         });
       }
     },

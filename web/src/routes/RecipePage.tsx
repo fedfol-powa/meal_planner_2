@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useRouter } from '@tanstack/react-router';
-import type { ReactNode } from 'react';
-import { isBlocking } from '../api/errors';
+import { useMemo, type ReactNode } from 'react';
+import { isBlocking, toApiError } from '../api/errors';
 import { keepPreviousWithin, recipeQuery, useQueryDeps } from '../api/queries';
 import type { FamilyView } from '../api/types';
 import { FamilyGate } from '../components/FamilyGate';
@@ -12,9 +12,12 @@ import { PageHeader } from '../components/PageHeader';
 import { QueryError } from '../components/QueryError';
 import { RatingStars } from '../components/RatingStars';
 import { ServingsStepper } from '../components/ServingsStepper';
+import { StateNotice } from '../components/StateNotice';
 import { safeSourceUrl, sourceLine } from '../components/source';
 import { formatDayLong } from '../i18n/dates';
 import { useLocale, useT } from '../i18n/LocaleProvider';
+import { pastMeals } from '../lib/mealTime';
+import { useMealClock } from '../lib/useMealClock';
 import styles from './RecipePage.module.css';
 
 const route = getRouteApi('/_app/recipes/$recipeId');
@@ -34,6 +37,9 @@ function RecipeView({ family }: { family: FamilyView }) {
   const options = recipeQuery(useQueryDeps(), family.id, recipeId, search.servings, search.slot);
   // Previous data only while the servings change (second review, C7).
   const detail = useQuery({ ...options, placeholderData: keepPreviousWithin(options.queryKey, ['familyId', 'locale', 'recipeId', 'slotId']) });
+  // The last times move on with the clock: a planned meal that passes needs no new read (spec of W6, decision 7).
+  const view = detail.data;
+  const now = useMealClock(useMemo(() => (view ? [view.upcoming] : []), [view]));
 
   // Back to the menu day, or to the catalogue with its filters (history) when we came from there.
   const back =
@@ -59,12 +65,17 @@ function RecipeView({ family }: { family: FamilyView }) {
     <section className="secondary-view app-view"><div className="page-column">{content}</div></section>
   );
 
-  if (detail.isError && isBlocking(detail.error, !!detail.data)) {
-    return page(<><header className="page-header">{back}</header><QueryError error={detail.error} onRetry={() => void detail.refetch()} /></>);
+  if (detail.isError && isBlocking(detail.error, !!view)) {
+    // A draft, a recipe of a book the family does not own or one that never existed.
+    const notice = toApiError(detail.error).code === 'not_found'
+      ? <StateNotice title={t('recipe.unavailable.title')} body={t('recipe.unavailable.body')} />
+      : <QueryError error={detail.error} onRetry={() => void detail.refetch()} />;
+    return page(<><header className="page-header">{back}</header>{notice}</>);
   }
-  if (!detail.data) return page(<Loading />);
+  if (!view) return page(<Loading />);
 
-  const { recipe, rating, servings: shownServings, baseServings, ingredients, history } = detail.data;
+  const { recipe, rating, servings: shownServings, baseServings, ingredients } = view;
+  const history = pastMeals(view, now);
   // Only the servings changed: the stepper shows the request, the ingredients are being updated.
   const updating = detail.isPlaceholderData;
   const servings = updating ? (search.servings ?? shownServings) : shownServings;
@@ -90,11 +101,17 @@ function RecipeView({ family }: { family: FamilyView }) {
         {source && <p className="meal-source">{source}</p>}
         <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={family.id} />
         {recipe.description && <p className="description">{recipe.description}</p>}
-        {recipe.durationMinutes && <p className="meal-meta"><Icon name="clock" />{t('meal.minutes', { count: recipe.durationMinutes })}</p>}
+        {(recipe.durationMinutes || recipe.proteinGroup) && (
+          <p className="meal-meta">
+            {recipe.durationMinutes ? <><Icon name="clock" />{t('meal.minutes', { count: recipe.durationMinutes })}</> : null}
+            {recipe.durationMinutes && recipe.proteinGroup ? ' · ' : null}
+            {recipe.proteinGroup ? t(`group.${recipe.proteinGroup}`) : null}
+          </p>
+        )}
         <section className={styles.section} aria-labelledby="ingredients-title" aria-busy={updating}>
           <h2 id="ingredients-title" className={styles.heading}>{t('meal.ingredients')}</h2>
           <ServingsStepper value={servings} onChange={(value) => void navigate({ search: { ...search, servings: value }, replace: true })} />
-          {baseServings && <p className="meta-line">{t('recipe.baseServings', { count: baseServings })}</p>}
+          <p className="meta-line">{t('recipe.baseServings', { count: baseServings })}</p>
           <div className={updating ? styles.updating : undefined}>
             <IngredientList ingredients={ingredients} />
           </div>
