@@ -1,0 +1,24 @@
+-- Removes test data (prefix test-, emails @test.local), also when left over by an
+-- interrupted run of the counters test. Runs as postgres.
+do $$
+begin
+	if to_regclass('app.families') is not null then
+		delete from app.families where name like 'test-%';
+	end if;
+	delete from auth.users where email like '%@test.local';
+	if to_regclass('app.recipes') is not null then
+		delete from app.recipe_ingredients where recipe_id in (select id from app.recipes where slug like 'test-%');
+		delete from app.recipe_status_changes where recipe_id in (select id from app.recipes where slug like 'test-%');
+		delete from app.recipe_versions where recipe_id in (select id from app.recipes where slug like 'test-%');
+		delete from app.recipe_draft_saves where draft_id in (
+			select d.id from app.recipe_drafts d join app.recipes r on r.id = d.recipe_id where r.slug like 'test-%'
+		);
+		delete from app.recipe_drafts where recipe_id in (select id from app.recipes where slug like 'test-%');
+		delete from app.recipes where slug like 'test-%';
+		delete from app.ingredient_unit_equivalences where ingredient_id in (select id from app.ingredients where slug like 'test-%');
+		delete from app.ingredient_versions where ingredient_id in (select id from app.ingredients where slug like 'test-%');
+		delete from app.ingredients where slug like 'test-%';
+		delete from app.books where slug like 'test-%';
+	end if;
+end;
+$$;
