@@ -6873,8 +6873,12 @@ test.
 - [ ] `npm test` e `npm run typecheck` dalla radice e da `web/`; `npm run build` (il
   bundle non deve contenere `zod` né il contratto: `grep -c zod web/dist/assets/*.js`
   uguale a prima).
-- [ ] Prova con lo stack locale, se disponibile: login, `session.whoami` dal Worker
-  locale tramite il proxy, uscita; altrimenti dichiarata non eseguita.
+- [ ] Prova con lo stack locale (decisione del coordinatore: stack di W1 `w1-piattaforma`,
+  Auth sulla 55321, password di `app_server` impostata solo su quel database locale in un
+  `server/.env` non versionato, Worker con `wrangler dev` sulla 8788): test d'integrazione
+  facoltativo `src/api/live.test.ts` (accesso, `session.whoami` dal Worker, `renew()` con
+  token nuovo accettato, uscita, token vecchio rifiutato, chiusura unica al rifiuto) e
+  prova nel browser (accesso, Menu, «Esci» con copia e sessione cancellate).
 - [ ] Anteprima sulla porta 8767 riavviata; push e PR verso `main` con descrizione in
   italiano, `STATO: PR_APERTA <url>`.
 

@@ -27,6 +27,10 @@ linguaggio visivo in `../design/design.md`.
   finché il loro produttore non le aggiunge al contratto e all'elenco.
 - In sviluppo e in anteprima `/api` va al Worker locale (`npm run dev -w server`, porta
   8787; altra destinazione con `VITE_API_TARGET`).
+- Prova con lo stack vero: `src/api/live.test.ts` (accesso, lettura dal Worker, rinnovo,
+  uscita) gira solo con `LIVE_SUPABASE_URL`, `LIVE_SUPABASE_PUBLISHABLE_KEY`,
+  `LIVE_API_ORIGIN` (il Worker, per esempio `http://127.0.0.1:8788`), `LIVE_EMAIL` e
+  `LIVE_PASSWORD` (un utente di `supabase/seed.sql`); senza, è saltato.
 
 ## Sessione e dati sul dispositivo
 
