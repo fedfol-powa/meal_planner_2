@@ -9,8 +9,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 |---|---|---|---|---|---|---|
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Review di spec e piano «da rifare» (14 rilievi); correzioni da messaggi/w1-11-review-revisione-pasti.md (azione con actionId, tabella delle richieste, migrazione per le bozze); poi seconda review breve | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Revoca provata (funziona con session_is_active). Decisioni: riautorizzazione come Supabase (una riga per client); poteri dei token su Supabase Auth solo documentati per ora (utente), consenso veritiero. Scrive la spec | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | (branch nuovo) | .worktrees/spesa | Unità contate scalate arrotondate all'intero superiore (decisione dell'utente); a PR_APERTA review | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26 (web delle bozze) aperta, review Codex in corso; contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | correzioni/unita-contate | .worktrees/spesa | PR #27 (unità contate) aperta, review Codex in corso; contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Review di spec e piano «da rifare» (10 rilievi); correzioni da messaggi/w5-08-review-esportazione.md; poi seconda review breve. Prova di produzione dell'utente: voce separata dopo il bucket | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | (branch nuovo) | .worktrees/ricettario | PR #25 unita. Scheda aperta da un pasto con le porzioni del pasto (decisione dell'utente); a PR_APERTA review | 11/10 |
 
@@ -21,6 +21,8 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
+| Codex | PR #26 di W3 | R PR26 | — | in corso → revisioni/w3-pr26.md (worktree .worktrees/review-pr26) |
+| Codex | PR #27 di W4 | R PR27 | — | in corso → revisioni/w4-pr27.md (worktree .worktrees/review-pr27) |
 
 ## Domande in sospeso
 
