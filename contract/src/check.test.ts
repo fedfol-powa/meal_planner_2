@@ -40,6 +40,31 @@ describe('checkContract', () => {
 		expect(checkContract(contract)).toContain('remove: webOnly needs mcp exposure to answer web_only');
 	});
 
+	it('requires every webOnly path parameter in the input', () => {
+		const contract = {
+			remove: op({ mcp: { readOnly: false }, webOnly: { path: '/family/:familyId/:recipeId' }, offline: false, role: 'familyAdmin' })
+				.route(route)
+				.input(z.object({ familyId: z.uuid() }))
+				.output(z.object({})),
+		};
+		expect(checkContract(contract)).toEqual(['remove: webOnly path parameter :recipeId is not in the input']);
+	});
+
+	it('requires valid and unique MCP tool names', () => {
+		const contract = {
+			bad: { 'na me': op({ mcp: { readOnly: true }, offline: false, role: 'user' }).route(route).input(z.object({})).output(z.object({})) },
+			long: { [`x${'y'.repeat(64)}`]: op({ mcp: { readOnly: true }, offline: false, role: 'user' }).route(route).input(z.object({})).output(z.object({})) },
+			a: { b_c: op({ mcp: { readOnly: true }, offline: false, role: 'user' }).route(route).input(z.object({})).output(z.object({})) },
+			a_b: { c: op({ mcp: { readOnly: true }, offline: false, role: 'user' }).route(route).input(z.object({})).output(z.object({})) },
+			hidden: { 'na me': op({ mcp: false, offline: false, role: 'user' }).route(route).input(z.object({})).output(z.object({})) },
+		};
+		expect(checkContract(contract)).toEqual([
+			'bad.na me: MCP tool name bad_na me is not valid',
+			`long.x${'y'.repeat(64)}: MCP tool name long_x${'y'.repeat(64)} is not valid`,
+			'a_b.c: MCP tool name a_b_c is not unique',
+		]);
+	});
+
 	it('requires familyId for family roles', () => {
 		const contract = {
 			member: op({ mcp: false, offline: false, role: 'familyMember' }).route(route).input(z.object({})).output(z.object({})),
