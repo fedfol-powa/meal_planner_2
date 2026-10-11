@@ -21,8 +21,16 @@ linguaggio visivo in `../design/design.md`.
 
 - **Finta** (nessuna variabile): utente demo Federico nella Famiglia Folloni, nessun accesso.
 - **Vera**: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (per lo sviluppo, dallo
-  stack locale: `supabase status`). Accesso con email e password; finché il client oRPC
-  non c'è (seconda PR, dopo W1), i dati arrivano comunque dal client finto.
+  stack locale: `supabase status`). Accesso con email e password. Le aree elencate in
+  `SERVER_AREAS` (`src/api/types.ts`, oggi `session`) arrivano dal Worker con il client
+  oRPC (`/api/rpc`, token di Supabase a ogni richiesta); le altre restano sul client finto
+  finché il loro produttore non le aggiunge al contratto e all'elenco.
+- In sviluppo e in anteprima `/api` va al Worker locale (`npm run dev -w server`, porta
+  8787; altra destinazione con `VITE_API_TARGET`).
+- Prova con lo stack vero: `src/api/live.test.ts` (accesso, lettura dal Worker, rinnovo,
+  uscita) gira solo con `LIVE_SUPABASE_URL`, `LIVE_SUPABASE_PUBLISHABLE_KEY`,
+  `LIVE_API_ORIGIN` (il Worker, per esempio `http://127.0.0.1:8788`), `LIVE_EMAIL` e
+  `LIVE_PASSWORD` (un utente di `supabase/seed.sql`); senza, è saltato.
 
 ## Sessione e dati sul dispositivo
 
@@ -33,8 +41,9 @@ chiunque altro. «Esci», l'uscita da un'altra scheda e ogni cambio d'utente chi
 sessione con la stessa procedura e cancellano tutto.
 
 `unauthorized` dal server: un solo rinnovo per sessione, condiviso dalle chiamate
-rifiutate, che poi si ripetono una volta; se il rinnovo fallisce o il rifiuto si ripete,
-l'ingresso. `forbidden`: i dati di quella famiglia spariscono, anche dalle altre schede
+rifiutate e da `session.renew()`, poi le chiamate si ripetono una volta; se il rinnovo è
+rifiutato o il rifiuto si ripete, l'ingresso; senza rete la chiamata fallisce e la sessione
+resta. `forbidden`: i dati di quella famiglia spariscono, anche dalle altre schede
 (`BroadcastChannel`) e dalla copia, dove un segno per famiglia (`revoked:<utente>:<famiglia>`,
 aggiornato in una sola transazione di IndexedDB) impedisce di riscriverli finché una lettura
 nuova non riesce. Ogni lettura resta nella lingua in cui è partita, anche nel tentativo dopo
@@ -46,6 +55,12 @@ quella della versione in servizio; una nuova versione entra in servizio intera a
 riapertura dopo la sua installazione. Si registra solo nella build e solo in un contesto sicuro
 (`localhost` o HTTPS): sulla rete locale in `http` l'iPhone installa l'app ma non la
 apre offline.
+
+Per la coda della Spesa (W4) la sessione offre `renew()`, `SessionClosedError`,
+`onClose`, `onRevoke`, `store` e `channel`; `registerUserKeyPrefix` aggiunge chiavi per
+utente alla pulizia; `subscribeExtension` riceve i messaggi fra schede di un argomento.
+Offline con sessione non verificata solo la Spesa resta modificabile. Dettagli nella sezione
+«Seconda PR» della spec di dettaglio.
 
 ## Struttura
 

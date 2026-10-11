@@ -1,15 +1,21 @@
 import { persistQueryClientRestore } from '@tanstack/react-query-persist-client';
 import { useIsFetching, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
 import { meQuery, openingQuery, queryKeys, recipeQuery, searchQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
 import { useRateRecipe } from '../api/ratings';
+import { useApi } from '../api/ApiProvider';
+import { realClients } from '../api/clients';
+import { createRpcClient } from '../api/rpc';
+import { createRpcTestServer } from '../test/rpcServer';
+import { SessionClosedError, type Session } from './session';
 import type { Api, MeView, Read, RecipeDetailView, WeekView } from '../api/types';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import type { CreateApi } from './SessionScope';
+import type { SessionMessage } from './channel';
 import { useAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
 import { createMemoryHub } from '../test/memoryChannel';
@@ -115,7 +121,7 @@ describe('access refused by the server', () => {
   });
   it('signs out when the renewal is refused', async () => {
     const backend = createStubBackend(A);
-    backend.refreshResult = false;
+    backend.refreshResult = { kind: 'rejected' };
     const { store } = renderSession(<Probe />, { backend, api: api(() => Promise.reject(new ApiError('unauthorized'))) });
     await screen.findByText('auth: signedOut');
     expect(backend.signOutCalls).toBe(1);
@@ -259,9 +265,28 @@ describe('renewals of a previous identity (second review, C3)', () => {
     await waitFor(() => expect(backend.refreshCalls).toBe(1));
     act(() => backend.setUser(B));
     await screen.findByText('name: B');
-    await act(async () => renew(ok));
+    await act(async () => renew(ok ? { kind: 'ok', userId: 'a' } : { kind: 'rejected' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.getByText('name: B')).toBeTruthy();
+    expect(screen.getByText('auth: signedIn')).toBeTruthy();
+    expect(backend.signOutCalls).toBe(0);
+  });
+  it('never repeats a call of A when the renewal answers for B, and leaves B signed in (PR #17 review, finding 2)', async () => {
+    const backend = createStubBackend(A);
+    // Another tab signs in as B while A's renewal runs: the renewal answers with B's token.
+    backend.refresh = async () => {
+      backend.setUser(B);
+      return { kind: 'ok', userId: 'b' };
+    };
+    let runsOfA = 0;
+    renderSession(<Probe />, {
+      backend,
+      api: (id) => api(id === 'a' ? () => (runsOfA++ === 0 ? unauthorized() : Promise.resolve(meOf('a'))) : async () => meOf(id))(id)
+    });
+    await screen.findByText('name: B');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(runsOfA).toBe(1);
+    expect(screen.queryByText('name: A')).toBeNull();
     expect(screen.getByText('auth: signedIn')).toBeTruthy();
     expect(backend.signOutCalls).toBe(0);
   });
@@ -330,6 +355,20 @@ describe('other tabs of the same person (second review, C4)', () => {
     await screen.findByText('auth: signedIn');
     expect(screen.getByText('week: none')).toBeTruthy();
   });
+  it('treats as a sign-out only signedOut: extension messages and unknown types change nothing (second PR)', async () => {
+    const hub = createMemoryHub();
+    renderSession(<WeekProbe />, { backend: createStubBackend(A), channel: hub.channel(), api: tabApi(() => false) });
+    await screen.findByText('week: shown');
+    const other = hub.channel();
+    act(() => {
+      other.post({ type: 'extension', userId: 'a', topic: 'shopping-queue', payload: { type: 'reread' } });
+      other.post({ type: 'mystery', userId: 'a', familyId: 'f' } as unknown as SessionMessage);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(screen.getByText('auth: signedIn')).toBeTruthy();
+    expect(screen.getByText('allowed')).toBeTruthy();
+    expect(screen.getByText('week: shown')).toBeTruthy();
+  });
   it('a sign-out in one tab closes the session in the other, which does not write the copy again', async () => {
     const store = createMemoryStore();
     const hub = createMemoryHub();
@@ -380,7 +419,7 @@ describe('language of a read (PR review, C12)', () => {
     await waitFor(() => expect(backend.refreshCalls).toBe(1));
     fireEvent.click(screen.getByText('english'));
     await screen.findByText(`recipe: ${english}`);
-    await act(async () => renewal(true));
+    await act(async () => renewal({ kind: 'ok', userId: 'a' }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     // The Italian read came back after the change: nothing of it is kept.
     const cached = client!.getQueryData<Versioned<RecipeDetailView>>(italianKey);
@@ -464,5 +503,51 @@ describe('fake data shared by the languages (PR review, C13)', () => {
         expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, rated!, locale))?.data.rating.myStars).toBe(5);
       }
     }, { timeout: 3000 });
+  });
+});
+
+describe('credentials of the session that makes the call (PR #17 review, second pass)', () => {
+  it('sends nothing when the identity changes while the token of A is being read', async () => {
+    const server = createRpcTestServer();
+    const backend = createStubBackend(A);
+    const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+    let outcome = 'pending';
+    let sessionOfA: Session | null = null;
+    function CallProbe() {
+      const apiOfSession = useApi();
+      const session = useSession();
+      if (session.userId === 'a') sessionOfA = session;
+      const { state } = useAuth();
+      return (
+        <>
+          <p>auth: {state.status === 'signedIn' ? state.user.id : state.status}</p>
+          <button
+            onClick={() =>
+              void apiOfSession.session.whoami({}).then(
+                () => (outcome = 'sent'),
+                (error: unknown) => (outcome = error instanceof SessionClosedError ? 'closed' : String(error))
+              )
+            }
+          >
+            whoami
+          </button>
+        </>
+      );
+    }
+    renderSession(<CallProbe />, { backend, createApi: realClients({ rpc, latencyMs: 0 }) });
+    await screen.findByText('auth: a');
+    const release = backend.holdCredentials();
+    fireEvent.click(screen.getByText('whoami'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // B signs in (another tab) and the token read of A's call returns B's credentials,
+    // before React has run the effect that replaces the session.
+    backend.setUser(B);
+    expect(sessionOfA!.isClosed()).toBe(true);
+    release({ accessToken: 'token-of-b', userId: 'b' });
+    await vi.waitFor(() => expect(outcome).not.toBe('pending'));
+    expect(outcome).toBe('closed');
+    expect(server.fetch).not.toHaveBeenCalled();
+    await screen.findByText('auth: b');
+    expect(backend.signOutCalls).toBe(0);
   });
 });

@@ -1,7 +1,7 @@
 import react from '@vitejs/plugin-react';
 import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import type { Plugin } from 'vite';
+import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { precacheList } from './src/pwa/precache.ts';
 
@@ -21,22 +21,28 @@ function precacheManifest(): Plugin {
   };
 }
 
-export default defineConfig({
-  plugins: [react(), precacheManifest()],
-  define: { __BUILD_VERSION__: JSON.stringify(buildVersion) },
-  server: { port: 5174 },
-  build: {
-    rolldownOptions: {
-      // The service worker is a second entry, emitted at the root as /sw.js.
-      input: { main: 'index.html', sw: 'src/pwa/sw.ts' },
-      output: { entryFileNames: (chunk) => (chunk.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') }
+export default defineConfig(({ mode }) => {
+  // The Worker of W1 (`wrangler dev`, port 8787) answers /api in development and preview (second PR).
+  const apiTarget = loadEnv(mode, process.cwd(), 'VITE_').VITE_API_TARGET ?? 'http://localhost:8787';
+  const proxy = { '/api': { target: apiTarget, changeOrigin: true } };
+  return {
+    plugins: [react(), precacheManifest()],
+    define: { __BUILD_VERSION__: JSON.stringify(buildVersion) },
+    server: { port: 5174, proxy },
+    preview: { proxy },
+    build: {
+      rolldownOptions: {
+        // The service worker is a second entry, emitted at the root as /sw.js.
+        input: { main: 'index.html', sw: 'src/pwa/sw.ts' },
+        output: { entryFileNames: (chunk) => (chunk.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') }
+      }
+    },
+    test: {
+      environment: 'jsdom',
+      // Node 26 has its own localStorage, undefined without a file, that hides jsdom's.
+      execArgv: ['--no-experimental-webstorage'],
+      setupFiles: ['./src/test/setup.ts'],
+      include: ['src/**/*.test.{ts,tsx}']
     }
-  },
-  test: {
-    environment: 'jsdom',
-    // Node 26 has its own localStorage, undefined without a file, that hides jsdom's.
-    execArgv: ['--no-experimental-webstorage'],
-    setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}']
-  }
+  };
 });

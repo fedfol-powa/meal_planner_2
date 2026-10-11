@@ -1,6 +1,37 @@
+import type { ErrorCode } from '@app/contract';
 import type { MessageKey } from '../i18n/translate';
 
-export type ApiErrorCode = 'forbidden' | 'not_found' | 'invalid' | 'conflict' | 'unauthorized' | 'network' | 'unknown';
+/** The codes of the contract, written here so that no contract code enters the bundle. */
+export const CONTRACT_ERROR_CODES = [
+  'unauthorized',
+  'forbidden',
+  'not_found',
+  'invalid',
+  'conflict',
+  'last_admin',
+  'last_app_admin',
+  'sole_member',
+  'web_only',
+  'internal'
+] as const satisfies readonly ErrorCode[];
+// Fails to compile when the contract adds a code missing above.
+const complete: [Exclude<ErrorCode, (typeof CONTRACT_ERROR_CODES)[number]>] extends [never] ? true : never = true;
+void complete;
+
+/** Contract codes, plus `network` (no answer) and `unknown` (an answer that is not the contract's). */
+export type ApiErrorCode = ErrorCode | 'network' | 'unknown';
+
+/** Thrown by `call` on a closed session (or one superseded by a new identity): `run` is not executed. */
+export class SessionClosedError extends Error {
+  constructor() {
+    super('session closed');
+    this.name = 'SessionClosedError';
+  }
+}
+
+export function isContractErrorCode(code: string): code is ErrorCode {
+  return (CONTRACT_ERROR_CODES as readonly string[]).includes(code);
+}
 
 /** Errors are codes, never texts (spec section 1): the web translates them. */
 export class ApiError extends Error {

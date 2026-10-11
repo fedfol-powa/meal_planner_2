@@ -1,10 +1,11 @@
-import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, SessionCheck, SignInResult } from '../auth/backend';
+import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
 
 export interface StubBackend extends AuthBackend {
   nextSignIn: SignInResult;
   signOutCalls: number;
   signOutError: Error | null;
-  refreshResult: boolean;
+  /** null: `ok` with the current user. */
+  refreshResult: RenewResult | null;
   refreshCalls: number;
   /** A sign-in (user) or a sign-out (null), as Supabase reports them. */
   setUser(user: AuthUser | null): void;
@@ -14,8 +15,10 @@ export interface StubBackend extends AuthBackend {
   setCheck(next: SessionCheck): void;
   /** The next check() waits until the returned function answers it (identity not known yet). */
   holdCheck(): (check: SessionCheck) => void;
+  /** The next getCredentials() waits until the returned function answers it. */
+  holdCredentials(): (credentials: Credentials | null) => void;
   /** The next refresh() waits until the returned function answers it. */
-  holdRefresh(): (ok: boolean) => void;
+  holdRefresh(): (result: RenewResult) => void;
 }
 
 /** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
@@ -24,13 +27,14 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
   const listeners = new Set<(event: AuthEvent) => void>();
   const send = (event: AuthEvent) => listeners.forEach((listener) => listener(event));
   let heldCheck: Promise<SessionCheck> | null = null;
-  let heldRefresh: Promise<boolean> | null = null;
+  let heldRefresh: Promise<RenewResult> | null = null;
+  let heldCredentials: Promise<Credentials | null> | null = null;
   const backend: StubBackend = {
     mode,
     nextSignIn: { ok: true },
     signOutCalls: 0,
     signOutError: null,
-    refreshResult: true,
+    refreshResult: null,
     refreshCalls: 0,
     setUser(user) {
       current = user ? { status: 'signedIn', user } : { status: 'signedOut' };
@@ -47,9 +51,14 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
       heldCheck = new Promise<SessionCheck>((resolve) => (answer = resolve));
       return answer;
     },
+    holdCredentials() {
+      let answer: (credentials: Credentials | null) => void = () => {};
+      heldCredentials = new Promise<Credentials | null>((resolve) => (answer = resolve));
+      return answer;
+    },
     holdRefresh() {
-      let answer: (ok: boolean) => void = () => {};
-      heldRefresh = new Promise<boolean>((resolve) => (answer = resolve));
+      let answer: (result: RenewResult) => void = () => {};
+      heldRefresh = new Promise<RenewResult>((resolve) => (answer = resolve));
       return answer;
     },
     check() {
@@ -74,9 +83,15 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
       backend.refreshCalls += 1;
       const pending = heldRefresh;
       heldRefresh = null;
-      return pending ?? Promise.resolve(backend.refreshResult);
+      const fallback: RenewResult = current.status === 'signedOut' ? { kind: 'rejected' } : { kind: 'ok', userId: current.user.id };
+      return pending ?? Promise.resolve(backend.refreshResult ?? fallback);
     },
-    getAccessToken: async () => (current.status === 'signedOut' ? null : 'token')
+    getCredentials() {
+      const pending = heldCredentials;
+      heldCredentials = null;
+      const now: Credentials | null = current.status === 'signedOut' ? null : { accessToken: `token-of-${current.user.id}`, userId: current.user.id };
+      return pending ?? Promise.resolve(now);
+    }
   };
   return backend;
 }

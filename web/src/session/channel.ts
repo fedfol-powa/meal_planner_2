@@ -1,5 +1,11 @@
-/** What a tab tells the other tabs of the same browser (second review, C4). */
-export type SessionMessage = { type: 'signedOut'; userId: string } | { type: 'revoked'; userId: string; familyId: string };
+/**
+ * What a tab tells the other tabs of the same browser (second review, C4). `extension` carries
+ * the messages of a feature (topic `shopping-queue` for W4's queue); receivers ignore unknown types.
+ */
+export type SessionMessage =
+  | { type: 'signedOut'; userId: string }
+  | { type: 'revoked'; userId: string; familyId: string }
+  | { type: 'extension'; userId: string; topic: string; payload: unknown };
 
 export interface SessionChannel {
   post(message: SessionMessage): void;
@@ -18,4 +24,11 @@ export function createBroadcastChannel(name = 'cosasimangia-session'): SessionCh
       return () => channel.removeEventListener('message', onMessage);
     }
   };
+}
+
+/** Listener for one topic of extension messages; unknown types are ignored by every receiver. */
+export function subscribeExtension(channel: SessionChannel, topic: string, listener: (userId: string, payload: unknown) => void): () => void {
+  return channel.subscribe((message) => {
+    if (message.type === 'extension' && message.topic === topic) listener(message.userId, message.payload);
+  });
 }

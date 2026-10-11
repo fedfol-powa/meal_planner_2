@@ -168,6 +168,12 @@ export function createFakeApi(options: FakeApiOptions): Api {
   }
 
   const api: Api = {
+    session: {
+      // Same shape as the contract's answer; the real one comes from the Worker.
+      async whoami() {
+        return { userId, channel: 'web', clientId: null, locale: options.getLocale() };
+      }
+    },
     me: {
       async get() {
         const person = DEMO_PEOPLE.find((p) => p.id === userId);
@@ -289,5 +295,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { me: wrap(api.me), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
+  return { session: wrap(api.session), me: wrap(api.me), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
 }

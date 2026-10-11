@@ -2,7 +2,7 @@ import { persistQueryClientRestore, persistQueryClientSave } from '@tanstack/rea
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
 import 'fake-indexeddb/auto';
-import { cacheKey, clearRevoked, createIndexedDbStore, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
+import { cacheKey, clearRevoked, createIndexedDbStore, registerUserKeyPrefix, resetUserKeyPrefixes, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
 
 const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
 const options = (buster: string) => persistOptions(createPersister(createMemoryStore(), 'x'), buster).dehydrateOptions;
@@ -223,5 +223,35 @@ describe('concurrent revocation marks (PR review, C11)', () => {
     expect(await store.get('counter')).toBe(20);
     await store.transact(['counter'], () => [['counter', undefined]]);
     expect(await store.keys()).toEqual([]);
+  });
+});
+
+describe('registered per-user prefixes (second PR, W4 interface)', () => {
+  it('deletes the keys of every other user, or all of them after a confirmed sign-out', async () => {
+    resetUserKeyPrefixes();
+    // Registered at start-up, before any session exists.
+    registerUserKeyPrefix('shopping-queue:');
+    registerUserKeyPrefix('shopping-queue:');
+    const store = createMemoryStore();
+    store.entries.set('shopping-queue:a', { ops: [] });
+    store.entries.set('shopping-queue:b', { ops: [] });
+    store.entries.set('shopping-queue:ab', { ops: [] });
+    store.entries.set('elsewhere:a', 1);
+    await purgeOtherCopies(store, 'b');
+    expect([...store.entries.keys()].sort()).toEqual(['elsewhere:a', 'shopping-queue:b']);
+    await purgeOtherCopies(store, null);
+    expect([...store.entries.keys()]).toEqual(['elsewhere:a']);
+    resetUserKeyPrefixes();
+  });
+  it('reads the prefixes at each call', async () => {
+    resetUserKeyPrefixes();
+    const store = createMemoryStore();
+    store.entries.set('later:a', 1);
+    await purgeOtherCopies(store, 'b');
+    expect(store.entries.has('later:a')).toBe(true);
+    registerUserKeyPrefix('later:');
+    await purgeOtherCopies(store, 'b');
+    expect(store.entries.has('later:a')).toBe(false);
+    resetUserKeyPrefixes();
   });
 });

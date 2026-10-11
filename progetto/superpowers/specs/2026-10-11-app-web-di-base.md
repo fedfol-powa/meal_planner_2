@@ -6,7 +6,9 @@ corretta l'11 ottobre dopo la review (`progetto/coordinamento/revisioni/w5-spec-
 con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`) e
 dopo la seconda review (`progetto/coordinamento/revisioni/w5-spec-piano-2.md`, scelte
 tecniche in `progetto/coordinamento/messaggi/w5-02-review2.md`).
-Branch `fondamenta/web`, proprietà `web/`.
+Branch `fondamenta/web`, proprietà `web/`. Seconda PR (client oRPC reale e agganci di
+sessione per la coda della spesa) sul branch `fondamenta/web-client`, dalla richiesta del
+coordinatore `progetto/coordinamento/messaggi/w5-05-seconda-pr.md`: sezione «Seconda PR».
 
 Estende e rispetta la specifica principale
 (`progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezioni 1, 12 e 14),
@@ -430,6 +432,8 @@ da ogni cambio d'utente:
 riesce per mancanza di rete, la sessione salvata vale come «non verificata»: la copia sul
 dispositivo si mostra in sola consultazione (banner offline). Alla riconnessione si
 rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopra.
+Unica eccezione, dalla seconda PR: la lista della spesa resta modificabile (sezione «Spesa
+offline con sessione non verificata»).
 
 ## PWA e service worker
 
@@ -505,13 +509,164 @@ rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopr
   registra il service worker: l'apertura offline si prova sul Mac con `localhost` e su
   iPhone dopo il deploy di W1 su `workers.dev` (HTTPS).
 
+## Seconda PR: client reale e agganci di sessione
+
+Dopo il merge della PR #6 e della piattaforma di W1 (PR #5). È la base delle parti web
+dell'ondata 2 (W1, W2, W4, W6), quindi resta piccola: trasporto, errori, composizione
+delle aree, agganci della sessione e deroga della Spesa. Nessuna schermata nuova.
+
+### Client oRPC
+
+- **Trasporto:** `createRpcClient({ getCredentials, fetch? })` in `web/src/api/rpc.ts`:
+  `createORPCClient` con `RPCLink` verso `/api/rpc` dell'origine corrente (la rotta di
+  `server/src/app.ts`), tipato con `ContractRouterClient<Contract>` dal contratto
+  importato solo come tipo. A ogni richiesta l'header `authorization: Bearer <token>`
+  legge `backend.getCredentials()` (token e utente dalla stessa sessione di Supabase; nel
+  backend prende il posto di `getAccessToken()`); senza token la richiesta parte senza
+  header e il server risponde `unauthorized`, che segue il protocollo della sessione
+  (rinnovo, poi ingresso). Le credenziali di una persona diversa da quella della sessione
+  che ha fatto la chiamata non partono mai: `SessionClosedError` (review della PR #17).
+- **Errori** (interceptor del link): `ORPCError` con un codice del contratto →
+  `ApiError(code, data)`; fallimento del trasporto (`TypeError` di `fetch`) →
+  `network`; ogni altro errore, comprese risposte che non sono del protocollo (pagina
+  del proxy, 502) → `unknown`; l'annullamento di una lettura (`AbortError`) passa
+  invariato, perché TanStack Query lo riconosca. `ApiErrorCode` diventa l'unione dei
+  codici del contratto (`ErrorCode`, importato come tipo) con `network` e `unknown`,
+  e il dizionario `errors` ha un testo per ognuno (i nuovi: `internal`, `last_admin`,
+  `last_app_admin`, `sole_member`, `web_only`).
+- **Aree dal server e aree ancora finte.** Il contratto su `main` ha solo
+  `session.whoami`; Menu, Ricettario, voto e profilo arrivano con i produttori
+  dell'ondata 2. Perciò:
+  - `SERVER_AREAS` in `web/src/api/types.ts`: elenco scritto a mano delle aree del
+    contratto lette dal server (oggi `['session']`), controllato con
+    `satisfies readonly (keyof Contract)[]`;
+  - `Api = ContractRouterClient<Pick<Contract, ServerArea>> & ProvisionalApi`, dove
+    `ProvisionalApi` sono le aree provvisorie di oggi (`me`, `menu`, `recipes`,
+    `ratings`);
+  - in **modalità vera** il client della sessione si compone per area: le aree di
+    `SERVER_AREAS` dal client oRPC, le altre dal client finto con l'utente del login
+    (come oggi). In **modalità finta** tutto dal client finto, che implementa anche le
+    aree del server con la loro forma (oggi `session.whoami` dell'utente demo);
+  - ogni produttore che aggiunge la sua area al contratto la mette in `SERVER_AREAS`,
+    la toglie da `ProvisionalApi` e adegua alla forma del contratto le sue `queryOptions`
+    e il client finto (che resta per la modalità finta e i test). Il passaggio da
+    `me.get` a `profile.get` lo fa W2 (piano generale).
+- **Avvolgimento della sessione:** il client oRPC è un `Proxy` senza chiavi enumerabili,
+  quindi `wrapApi` avvolge con un `Proxy` ricorsivo: ogni metodo chiamato passa da
+  `session.call` (con `familyId` dall'input, come oggi) e dallo scarto delle risposte in
+  una lingua superata (C12). Il client finto, con oggetti normali, segue lo stesso
+  percorso.
+- **Lingua:** il server risponde nella lingua del profilo, riletta a ogni richiesta
+  (`loadSession`); il web non la invia. Il client per lingua di C12 resta: conserva la
+  lingua della chiave e scarta le risposte superate. Le letture di famiglia partono
+  solo dopo il profilo (`FamilyGate`) e `ProfileLocale` applica la lingua del profilo,
+  quindi coincide con quella della risposta; fa eccezione la scelta temporanea fatta
+  online prima che W2 la salvi con `profile.update`, che resta sulle aree finte fino ad
+  allora (limitazione dichiarata, chiusa da W2).
+- **Sviluppo:** proxy di Vite per `/api` in `dev` e `preview` verso `VITE_API_TARGET`
+  (predefinito `http://localhost:8787`, `wrangler dev` di W1). In produzione la build
+  è servita dallo stesso Worker, stessa origine.
+- **Modalità:** senza `VITE_SUPABASE_*` tutto come oggi (utente demo, client finto). Con
+  le variabili: accesso Supabase e client composto.
+
+### Agganci di sessione per la coda della spesa
+
+Interfaccia definitiva di W4 (sezione «Interfaccia richiesta a W5» di
+`progetto/superpowers/specs/2026-10-11-spesa.md`, commit `7d1ebce` del branch
+`traguardo/spesa`), con le firme di W4:
+
+- `RenewResult = {kind:'ok'; userId} | {kind:'rejected'} | {kind:'network'}` e
+  `SessionClosedError` in `web/src/session/session.ts`.
+- **`AuthBackend.refresh(): Promise<RenewResult>`** al posto del booleano: con Supabase
+  `refreshSession()` riuscito → `ok` con l'utente del token rinnovato; errore
+  `isAuthRetryableFetchError` → `network`; ogni altro errore o sessione assente →
+  `rejected`. Il backend finto risponde `ok` con l'utente demo.
+- **`session.renew()`**: un solo tentativo per sessione, condiviso con il rinnovo dentro
+  `call` (la stessa promessa). Su sessione chiusa risponde `rejected` senza chiamare
+  Supabase. `rejected` esegue la procedura unica di chiusura (annuncio alle altre
+  schede, `close()` con i suoi agganci, uscita da Supabase) e risponde solo dopo;
+  `network` non cambia nulla; `ok` fa crescere l'epoca dei token, così le chiamate
+  rifiutate prima ripetono senza un secondo rinnovo.
+- **`session.call(run, familyId?)`**: su sessione chiusa rifiuta con
+  `SessionClosedError` senza eseguire `run`, anche prima della ripetizione dopo un
+  rinnovo. Esiti del rinnovo dentro `call`: `ok` → una ripetizione; `rejected` → la
+  sessione si chiude e la chiamata rifiuta con `SessionClosedError`; `network` → la
+  chiamata rifiuta con `network` e la sessione resta (offline). Oggi ogni rinnovo
+  fallito chiude: con gli esiti distinti la mancanza di rete non fa più uscire.
+- **`session.onClose(hook)`**: `close()` attende gli agganci dopo la chiusura del
+  persister e prima di risolversi, tutti anche se uno fallisce
+  (`Promise.allSettled`). Un aggancio non deve attendere `renew()` né `call` della
+  stessa sessione.
+- **`session.onRevoke(hook)`**: chiamato da `revoke(familyId)`, sia locale sia
+  annunciato da un'altra scheda, mai a sessione chiusa; la promessa non è attesa e un
+  errore non ferma gli altri.
+- **`session.store`** e **`session.channel`** (`SessionChannel | null`): archivio e canale
+  della sessione.
+- **`registerUserKeyPrefix(prefix)`** in `web/src/api/persister.ts`: elenco di modulo,
+  chiamabile prima del montaggio dei provider; `purgeOtherCopies(store, keep)` lo legge
+  al momento della chiamata e cancella le chiavi `<prefix><userId>` di ogni utente
+  diverso da `keep` (con `null`, tutte), oltre a `query-cache:` e `revoked:`. La Spesa
+  lo chiama in `main.tsx` prima del rendering (`registerShoppingStorage()` di W4).
+- **Messaggi fra schede:** `SessionMessage` acquista
+  `{type:'extension'; userId; topic; payload}`; `subscribeExtension(channel, topic,
+  listener)` in `web/src/session/channel.ts` consegna solo gli `extension` di
+  quell'argomento. Il ricevitore di `SessionScope` tratta come uscita solo
+  `signedOut`, gestisce `revoked` come oggi e ignora ogni altro tipo.
+
+### Spesa offline con sessione non verificata
+
+Deroga della sola Spesa alla «sola consultazione» (piano generale, «Spesa offline senza
+sessione verificabile»). Con la sessione «non verificata» il resto dell'app resta in
+sola consultazione; la rotta della Spesa accetta modifiche nella sua coda in IndexedDB,
+fuori dalla cache delle query, e le invia solo dopo un `renew()` riuscito con lo stesso
+utente. La base fornisce: la regola qui e nella sezione «Accesso e sessione»; lo stato
+`verified` già esposto da `useAuth()`; nel dizionario comune il testo del banner offline
+per la Spesa, `offline.bannerShopping` («Sei offline: le modifiche alla lista restano su
+questo telefono e si sincronizzano quando torni in linea»), che `AppLayout` mostra al posto
+di `offline.banner` sulle rotte che iniziano con `/shopping/`. L'avviso delle modifiche da
+sincronizzare resta di W4.
+
+### Dipendenze della seconda PR
+
+| Pacchetto | Tipo | Perché | Costo di farne a meno |
+|---|---|---|---|
+| `@orpc/client` 1.15.5 | esecuzione | Client del contratto con `RPCLink`, stessa versione del server (piano generale, «Client web») | Riscrivere a mano la codifica del protocollo RPC di oRPC (tipi speciali, errori), circa 150 righe da tenere allineate al server; oppure passare dalle rotte OpenAPI perdendo il client tipato |
+| `@app/contract` | workspace | Tipi del contratto e dei codici d'errore, solo `import type`: nessun codice del contratto (né `zod`) entra nel bundle | Ricopiare a mano i tipi delle operazioni |
+| `@orpc/server` 1.15.5 | sviluppo | Un server del contratto nello stesso processo dei test del client (token, errori, rete) | Risposte del protocollo RPC scritte a mano nei test, fragili a ogni aggiornamento di oRPC |
+
+### Test della seconda PR
+
+- `rpc.test.ts`, con `RPCHandler` di `@orpc/server` dietro un `fetch` di test:
+  header con il token letto a ogni richiesta e assente senza token; `ORPCError`
+  `forbidden` con dati → `ApiError` con codice e dati; codice fuori contratto e risposta
+  non oRPC → `unknown`; `fetch` che fallisce → `network`; lettura annullata → annullata.
+- Composizione: in modalità vera `session.whoami` va al server e `menu.getWeek` al client
+  finto; in modalità finta entrambe dal finto; `wrapApi` sul client oRPC passa da
+  `session.call` (un `unauthorized` del server di test rinnova e ripete).
+- `session.test.ts`: `renew()` concorrenti e rinnovo dentro `call` → un solo
+  `refresh`; `rejected` → chiusura completata (agganci compresi) prima della risposta;
+  `network` → nessuna chiusura; sessione chiusa → `rejected` senza `refresh`; `call` su
+  sessione chiusa e chiusura durante il rinnovo → `SessionClosedError` senza eseguire
+  `run`; `network` dentro `call` → errore `network`, sessione aperta; `onClose` attesi
+  dopo il persister, anche se uno fallisce; `onRevoke` per revoca locale e annunciata,
+  non a sessione chiusa; `store` e `channel`.
+- `persister.test.ts`: prefisso registrato prima del montaggio; avvio con B e coda di A
+  sul disco → cancellata; uscita confermata → cancellate tutte; chiave di B intatta.
+- `channel` e `SessionScope.test.tsx`: `extension` non chiude la sessione né tocca le
+  revoche; `subscribeExtension` riceve solo il suo argomento; tipo sconosciuto ignorato.
+- `supabaseBackend.test.ts`: esiti `ok` con l'utente, `network`, `rejected`.
+- `AppLayout`: offline sulla rotta `/shopping/…` il banner della Spesa, altrove quello
+  normale.
+
 ## Interfacce con altre attività
 
 | Con | Cosa | Stato |
 |---|---|---|
 | W1 | Forma di `Api`, `getAccessToken()`, build in `web/dist` servita come asset con ripiego su `index.html` | Accettata dal coordinatore, girata a W1 |
 | W1 | «Invariato» nel contratto con `knownVersion`; versione stringa opaca | Deciso da W1 |
-| W1 | Client oRPC reale, errori, token, proxy di Vite, `unauthorized` | Seconda PR di W5 dopo il merge di W1, pianificata allora |
+| W1 | Client oRPC reale, errori, token, proxy di Vite, `unauthorized` | Seconda PR di W5 (sezione «Seconda PR») |
+| W1, W2, W4, W6 | Aree del contratto lette dal server (`SERVER_AREAS`), aggiunte da ogni produttore | Seconda PR di W5 |
+| W4 | Agganci di sessione per la coda della spesa, deroga della Spesa offline | Seconda PR di W5, firme di W4 (`7d1ebce`) |
 | W1 | Configurazione degli ambienti e variabili `VITE_SUPABASE_*` per lo stack locale | Da concordare tramite il coordinatore |
 | W1 | `web/` come workspace `@app/web`, script `test` e `typecheck` eseguiti dalla CI | Scheletro unito su `main` (PR #3) |
 | W4 | Scalatura e conversione vere delle quantità (il client finto le simula) | Ondata 2 |
@@ -579,3 +734,17 @@ rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopr
   iPhone, senza Playwright (sezione 9).
 - Modalità finta del web senza variabili di Supabase, con client finto che implementa
   la stessa interfaccia del client vero e simula l'assenza di rete (sezione 1).
+- Seconda PR: client oRPC con `RPCLink` verso `/api/rpc`, token di Supabase a ogni
+  richiesta, errori convertiti in codici; aree lette dal server elencate a mano e aree
+  non ancora nel contratto servite dal client finto anche in modalità vera, finché il
+  loro produttore non le aggiunge (sezione 1).
+- Seconda PR: rinnovo esplicito della sessione con esiti `ok`, `rejected` e `network`;
+  la mancanza di rete durante un rinnovo non chiude più la sessione; agganci di chiusura
+  e revoca, prefissi per utente registrabili per la pulizia, messaggi fra schede per
+  argomento (sezione 1, letture dalla copia sul dispositivo; sezione 6 per la coda).
+
+**Prodotto (seconda PR):**
+
+- Offline con sessione non verificata la sola lista della spesa resta modificabile, con
+  il proprio testo nel banner offline; il resto dell'app resta in sola consultazione
+  (sezioni 1 e 6).

@@ -15,6 +15,8 @@
     "fake-data": "node scripts/build-fake-data.mjs"
   },
   "dependencies": {
+    "@app/contract": "*",
+    "@orpc/client": "1.15.5",
     "@supabase/supabase-js": "^2.117.3",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-query-persist-client": "^5.104.1",
@@ -23,6 +25,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
+    "@orpc/server": "1.15.5",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",

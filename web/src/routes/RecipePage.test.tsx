@@ -50,7 +50,7 @@ describe('recipe page', () => {
     const get = vi.spyOn(api.recipes, 'get');
     renderApp(`/recipes/${WOK}?from=menu&day=2026-10-05&slot=2026-10-05-dinner`, { api });
     await screen.findByRole('link', { name: /Wok di pollo/ });
-    expect(get).toHaveBeenCalledWith(expect.objectContaining({ recipeId: WOK, slotId: '2026-10-05-dinner' }));
+    expect(get).toHaveBeenCalledWith(expect.objectContaining({ recipeId: WOK, slotId: '2026-10-05-dinner' }), expect.anything());
   });
   it('says when a recipe does not exist', async () => {
     renderApp('/recipes/nope');

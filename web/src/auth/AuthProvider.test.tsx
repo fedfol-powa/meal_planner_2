@@ -21,15 +21,28 @@ describe('auth state', () => {
   it('keeps an unverifiable session for reading and checks it again when the network is back', async () => {
     const backend = createStubBackend(null);
     backend.setCheck({ status: 'unverified', user: anna });
+    act(() => setOnline(false));
     render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
     expect(await screen.findByText('in:anna:unverified')).toBeTruthy();
     backend.setCheck({ status: 'signedIn', user: anna });
     act(() => setOnline(true));
     expect(await screen.findByText('in:anna:verified')).toBeTruthy();
   });
+  it('checks again when the network came back before it was listening for it', async () => {
+    const backend = createStubBackend(null);
+    const answer = backend.holdCheck();
+    act(() => setOnline(false));
+    render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    // The network returns while the first check is still running: nobody listens yet.
+    backend.setCheck({ status: 'signedIn', user: anna });
+    act(() => setOnline(true));
+    await act(async () => answer({ status: 'unverified', user: anna }));
+    expect(await screen.findByText('in:anna:verified')).toBeTruthy();
+  });
   it('ends an unverifiable session when the renewal is refused after reconnecting', async () => {
     const backend = createStubBackend(null);
     backend.setCheck({ status: 'unverified', user: anna });
+    act(() => setOnline(false));
     render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
     await screen.findByText('in:anna:unverified');
     backend.setCheck({ status: 'signedOut' });
@@ -53,6 +66,8 @@ describe('identity events (second review, C2)', () => {
   it('stays loading until the identity is known', async () => {
     const backend = createStubBackend(anna);
     const answer = backend.holdCheck();
+    // Offline, as when a session cannot be verified.
+    act(() => setOnline(false));
     render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(screen.getByText('loading')).toBeTruthy();

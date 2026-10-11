@@ -29,7 +29,7 @@ Corretto l'11 ottobre 2026 dopo la review (`progetto/coordinamento/revisioni/w5-
 - Porta della prova su iPhone: 8767.
 - Commit piccoli con messaggio in italiano e la riga `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Ingredienti mai dedotti dal nome del piatto: il client finto usa solo quelli dei dati demo.
-- Il client oRPC vero non fa parte di questo piano (seconda PR dopo il merge di W1).
+- Il client oRPC vero non fa parte dei Task 1-19: è nella sezione «Seconda PR».
 
 ## Review Focus
 
@@ -6668,6 +6668,255 @@ SPA React (Vite, TanStack Router e Query), PWA mobile-first. Requisiti nella
 specifica (`../progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezioni 1,
 12 e 14) e nella spec di dettaglio `../progetto/superpowers/specs/2026-10-11-app-web-di-base.md`;
 linguaggio visivo in `../design/design.md`.
+
+## Seconda PR: client reale e agganci di sessione
+
+Branch `fondamenta/web-client` da `main` (PR #6 unita). Spec: sezione «Seconda PR» della
+spec di W5; richiesta del coordinatore `progetto/coordinamento/messaggi/w5-05-seconda-pr.md`;
+firme di W4 dalla sezione «Interfaccia richiesta a W5» di
+`progetto/superpowers/specs/2026-10-11-spesa.md` (commit `7d1ebce`), da non adattare:
+se una non si può implementare, `STATO: DOMANDA`. Ogni task con TDD: test di
+regressione prima, visto fallire, poi il codice; commit per task.
+
+Vincoli in più rispetto ai «Global Constraints»: nuove dipendenze solo `@orpc/client`
+1.15.5 (esecuzione), `@app/contract` (workspace, solo `import type` nel codice
+dell'app) e `@orpc/server` 1.15.5 (sviluppo, solo nei test). API di oRPC verificate con
+Context7 (`/dinwwwh/orpc`): `createORPCClient`, `RPCLink` con `url`, `headers` asincroni,
+`interceptors` e `fetch`; `ContractRouterClient` dal pacchetto `@orpc/contract` 1.15.5.
+
+### Task 20: dipendenze e codici d'errore del contratto
+
+**File:** `web/package.json`, `package-lock.json`, `web/src/api/errors.ts`,
+`web/src/i18n/messages/errors.ts`, `web/src/api/errors.test.ts`.
+
+- [ ] `npm install -w web @orpc/client@1.15.5 @app/contract` e
+  `npm install -w web -D @orpc/server@1.15.5`; il lockfile non cambia versioni esistenti.
+- [ ] Test: `toApiError` conserva un `ApiError('last_admin')`; ogni codice di
+  `ApiErrorCode` ha un testo in `it-IT` e `en-GB` (il controllo di tipo del dizionario
+  lo garantisce; il test verifica `errorKey`).
+- [ ] `ApiErrorCode = ErrorCode | 'network' | 'unknown'` con `import type { ErrorCode }
+  from '@app/contract'`; `CONTRACT_ERROR_CODES` scritto a mano
+  `as const satisfies readonly ErrorCode[]` con un controllo di completezza a livello di
+  tipo (`Exclude<ErrorCode, (typeof CONTRACT_ERROR_CODES)[number]>` deve essere
+  `never`), usato dalla conversione del Task 25 senza importare il contratto a runtime.
+- [ ] Testi nuovi: `internal`, `last_admin`, `last_app_admin`, `sole_member`, `web_only`.
+- [ ] Commit «Web: codici d'errore del contratto e dipendenze del client oRPC».
+
+### Task 21: esiti del rinnovo nel backend di accesso
+
+**File:** `web/src/auth/backend.ts`, `web/src/auth/supabaseBackend.ts`,
+`web/src/test/stubBackend.ts`, test relativi.
+
+- [ ] Test (`supabaseBackend.test.ts`): `refreshSession` con sessione → `{kind:'ok',
+  userId}` dell'utente della sessione; `AuthRetryableFetchError` → `{kind:'network'}`;
+  errore 400 o sessione assente → `{kind:'rejected'}`.
+- [ ] `RenewResult` in `auth/backend.ts`, riesportato da `session/session.ts` (firma di
+  W4); `AuthBackend.refresh(): Promise<RenewResult>`; backend finto → `ok` con
+  `DEMO_USER.id`.
+- [ ] Stub: `refreshResult: RenewResult` (predefinito `ok` con l'utente corrente) e
+  `holdRefresh()` che risponde con un `RenewResult`; aggiornare i test che usano
+  `true`/`false`.
+- [ ] Commit.
+
+### Task 22: `renew`, `call` protetta, agganci di chiusura e revoca
+
+**File:** `web/src/session/session.ts`, `web/src/session/session.test.ts`,
+`web/src/session/SessionScope.tsx`.
+
+- [ ] Test (`session.test.ts`), uno per comportamento della spec («Test della seconda
+  PR»): `renew()` concorrenti più un `unauthorized` dentro `call` → un solo `refresh`;
+  `rejected` → `end` atteso e `close()` (con gli agganci) completata prima che `renew`
+  risponda; `network` → nessuna `end`; sessione chiusa → `rejected` senza `refresh`;
+  `call` su sessione chiusa → `SessionClosedError` e `run` mai eseguita; chiusura
+  durante il rinnovo dentro `call` → `SessionClosedError` senza ripetizione; `network`
+  dentro `call` → `ApiError('network')` e sessione aperta; `onClose` attesi dopo
+  `persister.close()` nell'ordine di registrazione e tutti completati prima che
+  `close()` si risolva, anche se uno rifiuta in modo asincrono **o lancia in modo
+  sincrono** (gli agganci successivi vengono comunque eseguiti), e disiscrizione; `onRevoke` per `revoke` locale e con `announce: false`, mai a sessione
+  chiusa, errore di un aggancio che non ferma gli altri; `store` e `channel`.
+- [ ] Codice:
+  - `SessionDeps.refresh?: () => Promise<RenewResult>`; `end` restituisce la promessa
+    della procedura di chiusura e `renew` la attende;
+  - un solo `renewing: Promise<RenewResult> | null` per `renew()` e per `call`; `ok` →
+    `epoch += 1`; `rejected` → `await end()`; `network` → nulla; a sessione chiusa,
+    prima di chiamare `refresh` e alla risposta, `rejected`;
+  - `call`: `if (closed) throw new SessionClosedError()` all'inizio e prima della
+    ripetizione; esito `network` → `throw new ApiError('network')`; esito `rejected` →
+    `throw new SessionClosedError()`;
+  - `close()`: dopo `persister?.close()`,
+    `await Promise.allSettled([...closeHooks].map((hook) => Promise.resolve().then(hook)))`
+    (ogni invocazione dentro una promessa, così un'eccezione sincrona non interrompe il
+    `map`), poi `changed()`;
+  - `revoke()`: dopo le operazioni attuali, ogni aggancio in `try`, promessa con
+    `.catch(() => undefined)`, non attesa;
+  - `store` e `channel: deps.channel ?? null` come proprietà.
+- [ ] `SessionScope`: `end` restituisce `endRef.current(s)` (già una promessa).
+- [ ] Commit.
+
+### Task 23: messaggi fra schede per argomento
+
+**File:** `web/src/session/channel.ts`, `web/src/session/SessionScope.tsx`,
+`web/src/test/memoryChannel.ts`, test.
+
+- [ ] Test: in `SessionScope.test.tsx` un `extension` dello stesso utente non chiude la
+  sessione né revoca; un messaggio di tipo sconosciuto è ignorato; `signedOut` chiude
+  come oggi. In `channel.test.ts`: `subscribeExtension` riceve `(userId, payload)` solo per
+  il suo `topic`, e la disiscrizione funziona.
+- [ ] `SessionMessage` con il caso `extension`; `subscribeExtension(channel, topic,
+  listener)`; ricevitore di `SessionScope`: `if (message.type === 'revoked') …
+  else if (message.type === 'signedOut') markSignedOut(…)`, nient'altro.
+- [ ] Commit.
+
+### Task 24: prefissi per utente nella pulizia
+
+**File:** `web/src/api/persister.ts`, `web/src/api/persister.test.ts`.
+
+- [ ] Test: `registerUserKeyPrefix('shopping-queue:')` prima di qualsiasi sessione;
+  archivio con `shopping-queue:a` e `shopping-queue:b` → `purgeOtherCopies(store, 'b')`
+  tiene solo `shopping-queue:b`; con `null` le cancella tutte; registrazione due volte
+  dello stesso prefisso senza effetti; prefisso registrato dopo una prima pulizia
+  rispettato dalla successiva. Un aiuto `resetUserKeyPrefixes()` solo per i test.
+- [ ] Registro di modulo (`Set<string>`); `purgeOtherCopies` cancella anche
+  `k.startsWith(prefix) && k !== prefix + keep`.
+- [ ] Commit.
+
+### Task 25: client oRPC con token ed errori
+
+**File:** `web/src/api/rpc.ts`, `web/src/api/rpc.test.ts`.
+
+- [ ] Test con un server del contratto nello stesso processo: `implement(contract)` di
+  `@orpc/server` con `session.whoami` che registra in uno spy gli header ricevuti
+  (`authorization`) e restituisce un oggetto conforme al contratto
+  (`{ userId: <uuid>, channel: 'web', clientId: null, locale: 'it-IT' }`), oppure lancia
+  l'errore scelto dal test, `RPCHandler` di `@orpc/server/fetch` con prefisso
+  `/api/rpc`, passato a `RPCLink` come `fetch`. Casi: token letto a ogni richiesta
+  (cambia fra due chiamate); nessun header senza token; `ORPCError('forbidden')` →
+  `ApiError('forbidden')`; `ORPCError('invalid', {data})` → codice e dati; codice fuori
+  contratto e risposta 502 in testo → `unknown`; `fetch` che rifiuta con `TypeError` →
+  `network`; chiamata diretta con `{ signal }` annullato → il `fetch` del link riceve il
+  segnale annullato e l'errore d'annullamento passa invariato.
+- [ ] `createRpcClient({ getAccessToken, fetch? }): ContractRouterClient<Contract>`:
+
+  ```ts
+  const link = new RPCLink({
+    url: new URL('/api/rpc', location.origin).toString(),
+    headers: async () => {
+      const token = await getAccessToken();
+      return token ? { authorization: `Bearer ${token}` } : {};
+    },
+    interceptors: [toApiErrors],
+    ...(fetch ? { fetch } : {})
+  });
+  return createORPCClient(link);
+  ```
+
+  `toApiErrors` converte come nella spec (`CONTRACT_ERROR_CODES` del Task 20).
+  Firma esatta di `fetch` e `interceptors` di `RPCLink` 1.15.5 verificata con Context7
+  prima di scrivere il codice.
+- [ ] Commit.
+
+### Task 26: composizione per area e avvolgimento con `Proxy`
+
+**File:** `web/src/api/types.ts`, `web/src/api/fake/fakeApi.ts`,
+`web/src/api/clients.ts` (nuovo), `web/src/session/session.ts`, `web/src/main.tsx`,
+test.
+
+- [ ] Test: `wrapApi` su un client che è un `Proxy` senza chiavi (come quello di oRPC)
+  passa da `session.call` con `familyId` dall'input e scarta le risposte nella lingua
+  superata; inoltra **tutti gli argomenti** (`input` e le opzioni del client, compreso
+  `signal`), anche nella ripetizione dopo un rinnovo; annullamento attraverso `wrapApi`
+  sul client oRPC del Task 25: il `fetch` del link riceve il segnale annullato; un `unauthorized` del server di test del Task 25 rinnova una volta e ripete.
+  `realClients({ backend, rpc })` (in `clients.ts`): `session.whoami` va al client oRPC,
+  `menu.getWeek` al client finto con l'utente del login; `fakeClients` risponde anche a
+  `session.whoami` con l'utente demo.
+- [ ] `SERVER_AREAS = ['session'] as const satisfies readonly (keyof Contract)[]`;
+  `ProvisionalApi` (le aree di oggi); `Api = ContractRouterClient<Pick<Contract,
+  ServerArea>> & ProvisionalApi`. `session.whoami` nel client finto.
+- [ ] `wrapApi` con `Proxy` ricorsivo: `get` restituisce l'avvolgimento del figlio,
+  `apply` riceve `...args` e chiama `session.call(() => target(...args),
+  familyIdOf(args[0]))` (la stessa funzione serve la ripetizione dopo il rinnovo, quindi
+  con gli stessi argomenti, `signal` compreso) e lo scarto di C12; le chiavi non stringa (`Symbol`, `then`) restituite come sono, perché un `Proxy`
+  non sembri una promessa.
+- [ ] `realClients`: `(user) => { const fake = fakeClients()(user); return (locale) =>
+  compose(SERVER_AREAS, rpc, fake(locale)); }`; `main.tsx` usa `realClients` con
+  `env.supabase`, `fakeClients` senza.
+- [ ] Commit.
+
+### Task 27: proxy di sviluppo, banner della Spesa, README
+
+**File:** `web/vite.config.ts`, `web/src/vite-env.d.ts`, `web/src/routes/AppLayout.tsx`,
+`web/src/components/OfflineBanner.tsx`, `web/src/i18n/messages/common.ts`,
+`web/README.md`, test.
+
+- [ ] Test: offline sulla rotta `/shopping/2026-10-05` (rotta di prova nel test)
+  `AppLayout` mostra `offline.bannerShopping`, su `/menu` `offline.banner`.
+- [ ] `server.proxy` e `preview.proxy`: `'/api': process.env.VITE_API_TARGET ??
+  'http://localhost:8787'` (letto con `loadEnv`).
+- [ ] `OfflineBanner` con `variant`; testi `offline.bannerShopping` in due lingue.
+- [ ] README: modalità vera con lo stack locale e `wrangler dev`, aree dal server e
+  finte, agganci per la coda (puntatore alla spec).
+- [ ] Commit.
+
+### Task 27b: test instabile della sessione non verificata (richiesta del coordinatore)
+
+- Causa: `AuthProvider` ascolta l'evento `online` da un effetto montato solo con la sessione
+  «non verificata»; se la rete torna prima (durante la prima verifica, o prima che
+  l'effetto giri in una CI lenta) l'evento si perde e la sessione non si ricontrolla più.
+- Test: prima verifica sospesa offline → rete di nuovo presente → risposta «non
+  verificata» ⇒ sessione verificata. I test della sessione non verificata partono offline,
+  come nella realtà. Nessun timeout allungato.
+- Codice: all'iscrizione, se `navigator.onLine`, il controllo parte subito.
+- Verifica: il file ripetuto 20 volte, poi 24 volte con tre processi in parallelo.
+
+### Correzioni della review della PR #17
+
+Review: `progetto/coordinamento/revisioni/w5-pr17.md`; scelte del coordinatore:
+`progetto/coordinamento/messaggi/w5-07-review-pr17.md`.
+
+- **Nessun invio dopo la chiusura (rilievo 1).** `session.signal`, annullato da `close()`
+  con motivo `SessionClosedError`; `wrapApi` passa alle opzioni del client un segnale che
+  unisce quello del chiamante e quello della sessione (`AbortSignal.any`); il `fetch` del
+  link oRPC, chiamato dopo `getAccessToken()`, rifiuta con il motivo se il segnale è
+  annullato; la conversione degli errori propaga `SessionClosedError` e lascia
+  l'annullamento del chiamante com'è. `SessionClosedError` sta in `api/errors.ts` ed è
+  riesportata da `session/session.ts` (firma di W4 invariata). Test: lettura del token
+  sospesa, `close()`, token di B rilasciato ⇒ nessuna chiamata a `fetch`, esito
+  `SessionClosedError`; richiesta in volo annullata alla chiusura; annullamento del
+  chiamante ancora `AbortError`.
+- **Rinnovo per un altro utente (rilievo 2).** Se il rinnovo risponde `ok` con un
+  `userId` diverso da quello della sessione, l'epoca non cresce, la sessione chiude se
+  stessa (`close()`, senza `end`, quindi senza uscita da Supabase) e `call` rifiuta con
+  `SessionClosedError` senza ripetere; `renew()` restituisce l'esito com'è, così la coda
+  della Spesa vede l'altro utente. Test unitario e test integrato con `AuthProvider` e
+  `SessionScope` reali: B annunciato durante il rinnovo di A ⇒ una sola esecuzione della
+  lettura di A, B resta dentro, nessuna uscita.
+
+- **Seconda verifica, rilievo 1 (`w5-pr17-2.md`).** Restava la finestra prima dell'effetto
+  React che chiude A: il token letto dopo l'ingresso di B era quello di B.
+  - `AuthBackend.getCredentials()` (token e `userId` dalla stessa sessione di Supabase)
+    al posto di `getAccessToken()`; `wrapApi` mette `sessionUserId` nel contesto della
+    chiamata; il link, appena lette le credenziali, rifiuta con `SessionClosedError` se
+    sono di un'altra persona.
+  - `SessionScope` ascolta gli eventi del backend: un evento con un'altra identità (o
+    l'uscita) chiude subito la sessione mostrata, senza aspettare l'effetto React.
+  - Test: nel link, credenziali di B per una chiamata di A ⇒ nessun invio; integrato con
+    `AuthProvider`, `SessionScope`, wrapper e client oRPC reali: lettura del token di A
+    sospesa, ingresso di B, token di B restituito ⇒ A chiusa subito, zero invii,
+    `SessionClosedError`, B dentro senza uscite. Senza le correzioni la richiesta partiva.
+
+### Task 28: verifiche e PR
+
+- [ ] `npm test` e `npm run typecheck` dalla radice e da `web/`; `npm run build` (il
+  bundle non deve contenere `zod` né il contratto: `grep -c zod web/dist/assets/*.js`
+  uguale a prima).
+- [ ] Prova con lo stack locale (decisione del coordinatore: stack di W1 `w1-piattaforma`,
+  Auth sulla 55321, password di `app_server` impostata solo su quel database locale in un
+  `server/.env` non versionato, Worker con `wrangler dev` sulla 8788): test d'integrazione
+  facoltativo `src/api/live.test.ts` (accesso, `session.whoami` dal Worker, `renew()` con
+  token nuovo accettato, uscita, token vecchio rifiutato, chiusura unica al rifiuto) e
+  prova nel browser (accesso, Menu, «Esci» con copia e sessione cancellate).
+- [ ] Anteprima sulla porta 8767 riavviata; push e PR verso `main` con descrizione in
+  italiano, `STATO: PR_APERTA <url>`.
 
 ## Comandi
 
