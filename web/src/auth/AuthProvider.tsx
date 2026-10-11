@@ -70,6 +70,8 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
   const unverified = state.status === 'signedIn' && !state.verified;
   useEffect(() => {
     if (!unverified) return;
+    // The network may have come back before this listener existed (e.g. during the first check).
+    if (navigator.onLine) runCheck();
     return subscribeConnectivity(() => {
       if (navigator.onLine) runCheck();
     });
