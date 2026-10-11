@@ -4,12 +4,13 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat"],
+	"vars": { "SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co" },
 	"observability": { "enabled": true },
 	"hyperdrive": [
 		{
 			"binding": "HYPERDRIVE",
-			// Filled in by `wrangler hyperdrive create` (Task 1, step 2).
-			"id": "00000000000000000000000000000000"
+			// Spike Hyperdrive config, caching disabled (reads depend on the user via RLS).
+			"id": "80c841af586f49a2b9e3d9b633058ee7"
 		}
 	]
 }
