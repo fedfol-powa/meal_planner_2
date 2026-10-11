@@ -31,11 +31,13 @@ describe('meal card actions', () => {
     expect(within(lunch).queryByText('Ceci', { exact: false })).toBeNull();
   });
 
-  it('a free meal has no servings in the panel but can change recipe and note', async () => {
-    realMealsApp();
+  it('a free meal also has servings in the panel (spec section 5), change recipe and note', async () => {
+    const { server } = realMealsApp();
     const dinner = await card(/Pizza/);
     fireEvent.click(pencil(dinner));
-    expect(within(dinner).queryByRole('button', { name: 'Una porzione in più' })).toBeNull();
+    fireEvent.click(more(dinner));
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    await waitFor(() => expect(servingsCalls(server).map((c) => c.input.servings)).toEqual([5]));
     expect(within(dinner).getByRole('button', { name: 'Cambia ricetta' })).toBeTruthy();
     expect(within(dinner).getByRole('button', { name: 'Nota' })).toBeTruthy();
   });

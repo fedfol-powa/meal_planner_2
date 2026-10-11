@@ -27,16 +27,15 @@ export function useMealActions({ familyId, weekStartsOn, meal, week, online }: {
   });
   const panel = (
     <ul className={styles.actions}>
-      {meal.kind === 'recipe' && (
-        <li className={styles.stepperRow}>
-          {/* ServingsStepper has no disabled prop: the fieldset disables its buttons. */}
-          <fieldset disabled={servings.busy || !online} className={styles.plain}>
-            <ServingsStepper value={servings.value} min={1} max={MAX_SERVINGS} onChange={servings.step} />
-          </fieldset>
-          {servings.busy && <p className="meta-line" role="status">{t('meals.sending')}</p>}
-          {servings.error != null && <p className="meta-line" role="alert">{message(servings.error)}</p>}
-        </li>
-      )}
+      {/* Every kind of meal (spec section 5): the servings stay with the slot, also free or empty. */}
+      <li className={styles.stepperRow}>
+        {/* ServingsStepper has no disabled prop: the fieldset disables its buttons. */}
+        <fieldset disabled={servings.busy || !online} className={styles.plain}>
+          <ServingsStepper value={servings.value} min={1} max={MAX_SERVINGS} onChange={servings.step} />
+        </fieldset>
+        {servings.busy && <p className="meta-line" role="status">{t('meals.sending')}</p>}
+        {servings.error != null && <p className="meta-line" role="alert">{message(servings.error)}</p>}
+      </li>
       <li>
         <button type="button" aria-haspopup="dialog" disabled={!online} onClick={() => setStage('picker')}>
           <Icon name="search" />{meal.kind === 'empty' ? t('meals.chooseRecipe') : t('meals.changeRecipe')}
