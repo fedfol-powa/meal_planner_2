@@ -87,26 +87,27 @@ Prese con il coordinatore l'11 ottobre 2026 (la 5 dall'utente):
 
 ### Prodotto per altre attività
 
-- **Per W6:** due componenti montati in `RecipesPage` **fuori da `FamilyGate`**, perché il
-  ruolo di curatore non dipende dalla famiglia: un curatore senza famiglia vede bozze e
+- **Per W6:** due componenti montati nel ricettario **indipendentemente dalla famiglia**,
+  perché il ruolo di curatore non dipende da essa: un curatore senza famiglia vede bozze e
   archiviate accanto all'avviso «nessuna famiglia». Ciascuno si nasconde da sé se l'utente
-  non è curatore o se il server rifiuta la lettura:
+  non è curatore o se il server rifiuta la lettura. Ogni schermata del web è un contenitore
+  che scorre da solo (`secondary-view app-view`), quindi le sezioni stanno **dentro** la
+  schermata e non accanto: `RecipesView` (W6) e `FamilyGate` (condiviso) ricevono due
+  proprietà facoltative `before` e `after` (`ReactNode`), nessun cambiamento per chi non le
+  passa (decisione del coordinatore dopo il riallineamento a main):
 
   ```tsx
   export function RecipesPage() {
-    return (
-      <>
-        <CatalogueDraftsSection />   {/* in testa, prima della consultazione */}
-        <FamilyGate>{(family) => <RecipesView family={family} />}</FamilyGate>
-        <ArchivedRecipesSection />   {/* in fondo */}
-      </>
-    );
+    const before = <CatalogueDraftsSection />;  // dopo titolo e filtri, come nel prototipo
+    const after = <ArchivedRecipesSection />;   // in fondo alla colonna
+    return <FamilyGate before={before} after={after}>{(family) => <RecipesView family={family} before={before} after={after} />}</FamilyGate>;
   }
   ```
 
-  Modifica di W3 in `web/src/routes/RecipesPage.tsx` limitata agli import e al corpo di
-  `RecipesPage` qui sopra; `RecipesView` resta di W6 e non cambia. Le PR si uniscono in
-  sequenza (punto di contatto con W6, dopo la #19).
+  In `RecipesView` `before` va dopo `RecipeFilters` e `after` in fondo a `page-column`; in
+  `FamilyGate` entrambe stanno nella sua sezione, attorno agli stati (caricamento, errore,
+  nessuna famiglia, famiglia revocata). Le modifiche ai file di W6 e al componente
+  condiviso sono segnalate nella PR web.
 - **Per la «Messa in produzione»:** modulo di scrittura riusabile senza la pipeline,
   `server/src/catalogue/write.ts`, con il canale esplicito (l'import usa `'import'`):
 
@@ -648,7 +649,7 @@ permessi. Una sola funzione dell'area (`useCatalogueRevocation`) lo fa per entra
 Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
 
 - **`CatalogueDraftsSection`:** solo con `globalRoles` contenente `recipe_curator`;
-  sezione «Bozze» collassabile in testa al ricettario, schede del prototipo (`DraftList`):
+  sezione «Bozze» collassabile dopo titolo e filtri del ricettario, schede del prototipo (`DraftList`):
   etichetta Nuova o Modifica, nome nel font delle schede, «Lucia · 6 ott», dati mancanti
   come etichette brevi (`missing`); tocco → pagina della bozza. Legge `overview`.
 - **`ArchivedRecipesSection`:** sezione «Archiviate» chiusa in fondo; per riga nome,
@@ -660,6 +661,8 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
   righe con nome dell'ingrediente (o «da collegare» per le irrisolte), varietà, testo
   della fonte; elenco dei problemi con i testi localizzati dei codici; autore e ultima
   modifica. Niente pulsanti di modifica né di pubblicazione (ondata 3).
+- **Modalità finta:** nel profilo finto Federico (utente dimostrativo) ha il ruolo
+  `recipe_curator`, così la demo mostra le sezioni; gli altri utenti finti no.
 - Dizionario `catalogue` in italiano e inglese britannico con `useT()`. Il testo di
   `errors.not_allowed` arriva già con la PR del server (sezione 1).
 

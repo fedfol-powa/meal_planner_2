@@ -2679,6 +2679,22 @@ Rilievi in `progetto/coordinamento/revisioni/w3-pr23.md`, decisioni del coordina
 
 ### Task 11: web delle bozze (dopo il cancello)
 
+**Riallineamento a main (11 ottobre 2026, approvato dal coordinatore).** Branch
+`traguardo/ricettario-mcp-web` da `origin/main`. Rispetto ai passi sotto:
+- profilo con `useProfile()` di `web/src/session/useFamily.ts`; chiave della query
+  `queryKeys.profile(locale)` = `['profile', 'get', { locale }]`: la revoca invalida il
+  prefisso `['profile', 'get']`;
+- nessuna `shortDate` nella base: `formatInstantShort(locale, iso)` in `web/src/i18n/dates.ts`
+  («6 ott», giorno e mese brevi nel fuso del dispositivo);
+- montaggio: le sezioni stanno dentro la schermata che scorre, con le proprietà
+  facoltative `before`/`after` aggiunte a `RecipesView` (W6) e `FamilyGate` (condiviso),
+  non in un frammento accanto (Step 7 qui sotto superato: vedi la spec, sezione 1);
+- `renderApp` accetta già un'`api`: il test del curatore senza famiglia passa un'`Api`
+  finta col profilo voluto, senza opzioni nuove nel finto del profilo;
+- nel finto Federico ha `globalRoles: ['recipe_curator']`; area `catalogue` finta con due
+  bozze e una archiviata, in `web/src/api/fake/fakeCatalogue.ts`;
+- `test-support.tsx` usa `renderWithProviders` (restituisce `queryClient()` come funzione).
+
 **Cancello:** merge della #17 (W5, già unita), della #18 (W2, `profile.get` con
 `globalRoles` al posto di `me.get`), della #19 (W6, ricettario sui dati veri, che cambia
 `RecipesPage`) e della #21 (pagine di Profilo e famiglia), poi il via del coordinatore. Prima di iniziare: `git fetch && git rebase origin/main`, poi leggere:
