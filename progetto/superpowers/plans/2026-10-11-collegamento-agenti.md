@@ -577,7 +577,7 @@ describe.skipIf(!hasDatabase)('agents', () => {
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx vitest run contract/src/agents/agents-contract.test.ts` e `TEST_DATABASE_URL=$TEST_DATABASE_URL npm test -w server -- test/agents.test.ts`
+Run: `npm test -w contract -- src/agents/agents-contract.test.ts` e `TEST_DATABASE_URL=$TEST_DATABASE_URL npm test -w server -- test/agents.test.ts`
 Expected: FAIL, `Cannot find module './operations.ts'` nel contratto; nel server i test di `agents` falliscono (non `skipped`: con `TEST_DATABASE_URL` assente l'esecuzione non vale).
 
 - [ ] **Step 3: Write minimal implementation**
@@ -701,7 +701,7 @@ Se Postgres.js restituisce i `timestamptz` come stringhe invece che `Date` (cont
 Run:
 
 ```bash
-npx vitest run contract/src/agents/agents-contract.test.ts && npm test -w contract && npm run typecheck -w contract
+npm test -w contract -- src/agents/agents-contract.test.ts && npm test -w contract && npm run typecheck -w contract
 TEST_DATABASE_URL=$TEST_DATABASE_URL npm test -w server && npm run typecheck -w server
 npm run typecheck -w web
 ```
@@ -719,7 +719,7 @@ git commit -m "Agenti: area agents del contratto e gestori del server, con strum
 
 ### Task 4: Server OAuth locale, prova end-to-end e CI
 
-Il percorso reale in CI (rilievo 6): token veri del server OAuth locale, Worker vero, scollegamento solo con `agents.disconnect`, confini PKCE e redirect provati come integrazione (la validazione resta a Supabase, il Worker non la duplica).
+Il percorso reale in CI (rilievo 6): token veri del server OAuth locale, Worker vero, scollegamento solo con `agents.disconnect`, confini PKCE e redirect provati come integrazione (la validazione resta a Supabase, il Worker non la duplica). Il controllo `webOnly` si prova con i token reali, anche rinnovati, su MCP, RPC e REST (seconda review, rilievo 3): il contratto di produzione non ha operazioni `webOnly`, quindi la prova gira su un Worker di test che monta l'app di produzione (`createApp` con `contract` e `router` veri) più le operazioni di `server/test/support/test-contract.ts`, fra cui `test.removeFamily` (`webOnly`). Nessuna operazione nuova nel contratto pubblicato.
 
 **Files:**
 - Modify: `supabase/config.toml`
@@ -728,12 +728,32 @@ Il percorso reale in CI (rilievo 6): token veri del server OAuth locale, Worker 
 - Modify: `server/README.md`
 - Create: `scripts/oauth/agents-e2e.mjs`
 - Create: `scripts/oauth/agents-e2e.sh`
+- Create: `server/test/e2e/worker.ts` (Worker della sola prova: l'app di produzione più le operazioni di test)
 
 **Interfaces:**
 - Consumes: stack Supabase locale con Auth, le migrazioni e il seed (`anna@example.test`, `bruno@example.test`, password `password123`), Worker locale (`wrangler dev`), operazioni `session.whoami`, `agents.list`, `agents.disconnect` (Task 3) su MCP, RPC e REST.
-- Produces: `scripts/oauth/agents-e2e.sh` (prepara ed esegue, esce con il codice dello script) e `node scripts/oauth/agents-e2e.mjs` (0 se tutto come nella spec, 1 altrimenti); passo della CI che li esegue a ogni PR.
+- Produces: `server/test/e2e/worker.ts`, entry di `wrangler dev` per la prova; `scripts/oauth/agents-e2e.sh` (prepara ed esegue, esce con il codice dello script) e `node scripts/oauth/agents-e2e.mjs` (0 se tutto come nella spec, 1 altrimenti); passo della CI che li esegue a ogni PR.
 
-- [ ] **Step 1: Write the end-to-end script**
+- [ ] **Step 1: Write the test Worker and the end-to-end script**
+
+```ts
+// server/test/e2e/worker.ts
+// Worker for the agents end-to-end check only (scripts/oauth/agents-e2e.sh): the production app,
+// same createApp, contract, router and pipeline, plus the test operations, among them a webOnly
+// one, so real OAuth tokens meet the web_only check on MCP, RPC and REST. Never deployed.
+import { contract } from '@app/contract';
+import { createApp } from '../../src/app.ts';
+import type { Env } from '../../src/env.ts';
+import { router } from '../../src/router.ts';
+import { testContract, testRouter } from '../support/test-contract.ts';
+
+const app = createApp({ contract: { ...contract, ...testContract }, router: { ...router, ...testRouter }, resourceName: 'Cosa si mangia (e2e)' });
+
+export default { fetch: (request, env) => app.fetch(request, env) } satisfies ExportedHandler<Env>;
+```
+
+Se il typecheck del server non include `test/e2e/` o se l'unione dei router non tipizza, seguire come i test della piattaforma costruiscono l'app con `testContract` (`server/test/channels.test.ts`) e allineare; il file resta sotto `server/test/`.
+
 
 ```js
 // scripts/oauth/agents-e2e.mjs
@@ -886,6 +906,30 @@ async function refusedEverywhere(label, token) {
 	is(`${label}: RPC status`, (await rpc(token, 'session/whoami')).status, 401);
 	is(`${label}: REST status`, (await rest(token)).status, 401);
 }
+/** test.removeFamily is webOnly: an agent is sent to the page, the web goes through (positive control). */
+async function webOnlyEverywhere(label, token, familyId, expected) {
+	const url = `${APP}/family/${familyId}/delete`;
+	const viaMcp = await mcp(token, 'test_removeFamily', { familyId });
+	const viaRpc = await rpc(token, 'test/removeFamily', { familyId });
+	const viaRest = await read(await fetch(`${APP}/api/test/remove-family`, {
+		method: 'POST',
+		headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+		body: JSON.stringify({ familyId }),
+	}));
+	if (expected === 'web_only') {
+		const tool = viaMcp.status === 200 && viaMcp.body.result?.isError ? JSON.parse(viaMcp.body.result.content[0].text) : null;
+		is(`${label}: MCP web_only`, tool?.code, 'web_only');
+		is(`${label}: MCP url`, tool?.data?.url, url);
+		is(`${label}: RPC web_only`, viaRpc.body?.json?.code, 'web_only');
+		is(`${label}: RPC url`, viaRpc.body?.json?.data?.url, url);
+		is(`${label}: REST status`, viaRest.status, 403);
+		is(`${label}: REST web_only`, viaRest.body?.code, 'web_only');
+		is(`${label}: REST url`, viaRest.body?.data?.url, url);
+	} else {
+		is(`${label}: RPC goes through`, viaRpc.body?.json?.ok, true);
+		is(`${label}: REST goes through`, viaRest.body?.ok, true);
+	}
+}
 const refusedGrant = (label, r) => check(label, r.status >= 400 && r.status < 500 && !r.body?.access_token, `${r.status} ${JSON.stringify(r.body)}`);
 
 // 0. Asymmetric signing keys: the Worker accepts ES256 and RS256 only.
@@ -950,6 +994,15 @@ const renewed = await refresh(clientA, a1.refresh_token);
 is('renewal of agent A', renewed.status, 200);
 is('renewed token keeps client_id', claims(renewed.body.access_token).client_id, clientA);
 await channelEverywhere('agent A of Anna after renewal', renewed.body.access_token, 'mcp');
+// web_only with real tokens, before and after the renewal; the web session is the positive control.
+const sqlFamily = postgres(DB, { max: 1, onnotice: () => {} });
+const [{ family_id: annaFamily }] = await sqlFamily`
+	select m.family_id from app.family_members m join auth.users u on u.id = m.user_id
+	where u.email = 'anna@example.test' and m.role = 'family_admin' limit 1`;
+await sqlFamily.end();
+await webOnlyEverywhere('agent A of Anna', a1.access_token, annaFamily, 'web_only');
+await webOnlyEverywhere('agent A of Anna after renewal', renewed.body.access_token, annaFamily, 'web_only');
+await webOnlyEverywhere('web of Anna', anna.access_token, annaFamily, 'allowed');
 const a1Now = { access_token: renewed.body.access_token, refresh_token: renewed.body.refresh_token };
 
 // 3. The list: one row per client, with the last renewal.
@@ -1004,7 +1057,8 @@ env_file=server/.env
 printf 'CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=%s\nSUPABASE_URL=%s\nSUPABASE_PUBLISHABLE_KEY=%s\n' "$app_url" "$API_URL" "$KEY" > "$env_file"
 
 log=$(mktemp)
-(cd server && npx wrangler dev --port 8787 --ip 127.0.0.1 > "$log" 2>&1) &
+# The test Worker (production app plus the test operations): same wrangler.jsonc, other entry.
+(cd server && npx wrangler dev test/e2e/worker.ts --port 8787 --ip 127.0.0.1 > "$log" 2>&1) &
 worker=$!
 cleanup() { kill "$worker" 2>/dev/null || true; rm -f "$env_file"; }
 trap cleanup EXIT
@@ -1114,7 +1168,7 @@ end-to-end della CI (token reali, scollegamento dall'app e dall'agente). Se
 - [ ] **Step 7: Commit**
 
 ```bash
-git add supabase/config.toml .github/workflows/ci.yml supabase/README.md server/README.md scripts/oauth
+git add supabase/config.toml .github/workflows/ci.yml supabase/README.md server/README.md scripts/oauth server/test/e2e
 git commit -m "Agenti: server OAuth locale e prova end-to-end in CI"
 ```
 
@@ -1398,13 +1452,13 @@ git commit -m "Agenti: richiesta di consenso nel backend di autenticazione del w
 - Modify: `web/src/test/renderApp.tsx` (opzione `channel`, per vedere i messaggi alle altre schede)
 
 **Interfaces:**
-- Consumes: `AuthBackend.getAuthorization`, `decideAuthorization` (Task 5), `useAuth()`, `useSignOut()` (`web/src/session/SessionScope`), `useProfile()` (`web/src/session/useFamily`), `isBlocking`, `useOnline()`, `useT()`.
+- Consumes: `AuthBackend.getAuthorization`, `decideAuthorization` (Task 5), `useAuth()`, `useSession()` e `useSignOut()` (`web/src/session/SessionScope`), `useProfile()` (`web/src/session/useFamily`), `useOnline()`, `useT()`.
 - Produces: `leavePage.to(url: string): void` (navigazione fuori dalla SPA, sostituibile nei test), `validateAuthorizeSearch(raw: Record<string, unknown>): { authorization_id?: string }`, `scopeKey(scope: string): MessageKey | null`, rotta `/authorize`, dizionario `agents.ts` con le chiavi `authorize.*` e (Task 7) `agents.*`, `client.*`, `copy.*`; `renderApp(path, { channel })`.
 
 Regole della pagina (spec, «Pagina di consenso»), che i test fissano:
 
-- **Generazioni** (rilievo 2): ogni lettura della richiesta apre una generazione nuova; uscita dalla pagina, cambio account, cambio di `authorization_id` e «Riprova» chiudono quella in corso. Lettura e decisione, al ritorno, aggiornano lo stato o navigano solo se la loro generazione è ancora quella corrente.
-- **Profilo prima di «Consenti»** (rilievo 3): «Consenti» è attivo solo con il profilo dell'identità corrente letto; in caricamento o in errore resta disabilitato, «Annulla» no.
+- **Generazioni** (rilievo 2, seconda review rilievo 1): ogni lettura della richiesta apre una generazione nuova, legata alla sessione corrente di `SessionScope`; uscita dalla pagina, cambio di `authorization_id` e «Riprova» chiudono quella in corso. Il cambio account e l'uscita la chiudono **in modo sincrono**: `SessionScope` chiude la sessione nell'ascoltatore dell'evento di Supabase, prima di qualunque aggiornamento di React, e la generazione controlla `session.isClosed()`. Lettura e decisione, al ritorno, aggiornano lo stato o navigano solo se la loro generazione è ancora quella corrente e la loro sessione è aperta.
+- **Profilo prima di «Consenti»** (rilievo 3, seconda review rilievo 2): «Consenti» è attivo solo con il profilo dell'identità corrente letto con successo (`status === 'success'`); in caricamento o in errore, anche con un profilo precedente in cache, resta disabilitato e il gestore lo ricontrolla; «Annulla» no.
 - **Cambia account** (rilievo 4): `useSignOut()`, la chiusura comune di «Esci»; la guardia della rotta porta al login con il ritorno alla richiesta.
 - **Testi veritieri** (rilievo 1): poteri su password e sessioni, effetto limitato di «Scollega».
 
@@ -1414,7 +1468,8 @@ In `web/src/test/renderApp.tsx` aggiungere l'opzione `channel?: SessionChannel` 
 
 ```tsx
 // web/src/features/agents/AuthorizePage.test.tsx
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { createFakeApi } from '../../api/fake/fakeApi';
@@ -1505,6 +1560,29 @@ describe('agent consent page', () => {
     read.mockRestore();
     fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
     await waitFor(() => expect((screen.getByRole('button', { name: 'Consenti' }) as HTMLButtonElement).disabled).toBe(false));
+  });
+
+  it('a cached profile whose re-read fails does not allow; a successful retry does', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const read = vi.spyOn(api.profile, 'get');
+    let queries!: QueryClient;
+    function GrabClient() {
+      queries = useQueryClient();
+      return null;
+    }
+    const backend = createStubBackend(DEMO_USER);
+    renderApp('/authorize?authorization_id=auth-1', { backend, api, extra: <GrabClient /> });
+    const allow = await screen.findByRole('button', { name: 'Consenti' });
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+    read.mockRejectedValue(new ApiError('internal'));
+    await act(() => queries.refetchQueries({ queryKey: ['profile', 'get'] }));
+    expect(await screen.findByText(/Non è stato possibile leggere il tuo profilo/)).toBeTruthy();
+    expect((allow as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(allow);
+    expect(backend.decisions).toEqual([]);
+    read.mockRestore();
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
   });
 
   it('shows a hostile or very long client name as plain text', async () => {
@@ -1599,12 +1677,25 @@ describe('agent consent page', () => {
       expect(leave).not.toHaveBeenCalled();
     });
 
+    it('the person signs out elsewhere while the request is read: the answer is dropped at once', async () => {
+      const backend = createStubBackend(DEMO_USER);
+      const answer = backend.holdAuthorization();
+      const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
+      renderApp('/authorize?authorization_id=auth-1', { backend });
+      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      backend.setUser(null);
+      answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=late' } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(leave).not.toHaveBeenCalled();
+    });
+
     it('another account signs in while the request is read', async () => {
       const backend = createStubBackend(DEMO_USER);
       const answer = backend.holdAuthorization();
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       renderApp('/authorize?authorization_id=auth-1', { backend });
       await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      // Same tick, no React update in between: the session closed by the event is enough.
       backend.setUser(OTHER);
       answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=of-the-first' } });
       expect(await screen.findByText(OTHER.email)).toBeTruthy();
@@ -1619,6 +1710,7 @@ describe('agent consent page', () => {
       const allow = await screen.findByRole('button', { name: 'Consenti' });
       await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
       fireEvent.click(allow);
+      // Same tick, no React update in between.
       backend.setUser(OTHER);
       answer({ ok: true, value: 'http://127.0.0.1:9/callback?code=of-the-first' });
       expect(await screen.findByText(OTHER.email)).toBeTruthy();
@@ -1788,12 +1880,11 @@ In `web/src/i18n/messages/index.ts`: `import * as agents from './agents';` e agg
 // web/src/features/agents/AuthorizePage.tsx
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getRouteApi } from '@tanstack/react-router';
-import { isBlocking } from '../../api/errors';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AgentAuthorization, AuthorizationFailure } from '../../auth/backend';
 import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
-import { useSignOut } from '../../session/SessionScope';
+import { useSession, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import { leavePage } from './leave';
 import { scopeKey } from './scopes';
@@ -1813,6 +1904,7 @@ type Phase =
 export function AuthorizePage() {
   const t = useT();
   const { state, backend } = useAuth();
+  const session = useSession();
   const signOut = useSignOut();
   const online = useOnline();
   const { authorization_id: id } = route.useSearch();
@@ -1821,46 +1913,52 @@ export function AuthorizePage() {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
   const [deciding, setDeciding] = useState(false);
   const [decisionFailure, setDecisionFailure] = useState<AuthorizationFailure | null>(null);
-  // Generation of (person, request): an answer of an older one changes nothing and never
-  // navigates (review, finding 2). A second click arrives before the re-render: the ref, not
-  // the state, keeps the decision to one call.
+  // Generation of (session, request): an answer of an older one changes nothing and never
+  // navigates (review, finding 2). The session is closed synchronously by SessionScope when
+  // Supabase reports another person or a sign-out, before React re-renders: an answer arriving
+  // right after the event is already stale (second review, finding 1). A second click arrives
+  // before the re-render: the ref, not the state, keeps the decision to one call.
   const generation = useRef(0);
   const sending = useRef(false);
 
   const load = useCallback(async () => {
     const mine = ++generation.current;
+    const of = session;
     sending.current = false;
     setDeciding(false);
     setDecisionFailure(null);
     if (!id) return setPhase({ kind: 'invalid' });
     setPhase({ kind: 'loading' });
     const result = await backend.getAuthorization(id);
-    if (generation.current !== mine) return;
+    if (generation.current !== mine || of.isClosed()) return;
     if (!result.ok) return setPhase({ kind: result.reason === 'not_found' ? 'invalid' : 'failed' });
     if (result.value.kind === 'redirect') {
       setPhase({ kind: 'leaving' });
       return leavePage.to(result.value.url);
     }
     setPhase({ kind: 'consent', request: result.value });
-  }, [backend, id]);
+  }, [backend, id, session]);
 
   useEffect(() => {
     if (!usable || !userId) return;
     void load();
-    // Leaving the page, another person or another request: this generation ends.
+    // Leaving the page, another session or another request: this generation ends.
     return () => {
       generation.current += 1;
     };
   }, [usable, userId, load]);
 
-  async function decide(decision: 'approve' | 'deny') {
+  async function decide(decision: 'approve' | 'deny', canAllow: boolean) {
     if (phase.kind !== 'consent' || sending.current) return;
+    // The button may be stale for one render: the handler checks the profile state too (second review, finding 2).
+    if (decision === 'approve' && !canAllow) return;
     const mine = generation.current;
+    const of = session;
     sending.current = true;
     setDeciding(true);
     setDecisionFailure(null);
     const result = await backend.decideAuthorization(phase.request.id, decision);
-    if (generation.current !== mine) return;
+    if (generation.current !== mine || of.isClosed()) return;
     if (!result.ok) {
       sending.current = false;
       setDeciding(false);
@@ -1902,15 +2000,17 @@ function Consent(props: {
   userId: string;
   deciding: boolean;
   failure: AuthorizationFailure | null;
-  onDecide: (decision: 'approve' | 'deny') => void;
+  onDecide: (decision: 'approve' | 'deny', canAllow: boolean) => void;
   onSwitch: () => void;
 }) {
   const t = useT();
   const { state } = useAuth();
   const read = useProfile();
-  // The roles shown must be those of this person: «Consenti» waits for them (review, finding 3).
+  // The roles shown must be those of this person, from a successful read: a cached profile
+  // whose re-read failed may be out of date, so «Consenti» waits (review finding 3, second review finding 2).
   const profile = read.data?.user.id === props.userId ? read.data : undefined;
-  const blocked = read.isError && isBlocking(read.error, !!profile);
+  const failed = read.isError;
+  const canAllow = !!profile && read.status === 'success';
   const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
   const roles = profile?.user.globalRoles ?? [];
   const { request } = props;
@@ -1926,8 +2026,8 @@ function Consent(props: {
       </div>
       <h2 className={styles.heading}>{t('authorize.can')}</h2>
       <p>{t('authorize.acts')}</p>
-      {!profile && !blocked && <p className="meta-line" aria-busy="true">{t('authorize.profileLoading')}</p>}
-      {blocked && (
+      {!canAllow && !failed && <p className="meta-line" aria-busy="true">{t('authorize.profileLoading')}</p>}
+      {failed && (
         <>
           <p className="form-error" role="alert">{t('authorize.profileFailed')}</p>
           <button type="button" className="text-button" onClick={() => void read.refetch()}>{t('authorize.retry')}</button>
@@ -1957,8 +2057,8 @@ function Consent(props: {
       <p>{t('authorize.disconnect')}</p>
       {props.failure && <p className="form-error" role="alert">{t(props.failure === 'network' ? 'error.network' : 'error.unknown')}</p>}
       <div className={styles.actions}>
-        <button type="button" className="text-button primary wide" disabled={props.deciding || !profile} onClick={() => props.onDecide('approve')}>{t('authorize.allow')}</button>
-        <button type="button" className="text-button wide" disabled={props.deciding} onClick={() => props.onDecide('deny')}>{t('authorize.deny')}</button>
+        <button type="button" className="text-button primary wide" disabled={props.deciding || !canAllow} onClick={() => props.onDecide('approve', canAllow)}>{t('authorize.allow')}</button>
+        <button type="button" className="text-button wide" disabled={props.deciding} onClick={() => props.onDecide('deny', canAllow)}>{t('authorize.deny')}</button>
       </div>
     </>
   );

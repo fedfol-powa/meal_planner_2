@@ -296,17 +296,21 @@ Rotta figlia della radice, senza navbar. L'URL arriva da Supabase:
     autorizzazione e le sessioni dell'agente. Non chiude accessi ottenuti in altro modo:
     se l'agente ha cambiato la password, cambiala.»;
   - «Consenti» (primario) e «Annulla».
-- «Consenti» è attivo solo quando il profilo dell'identità corrente è letto (ruoli noti).
-  Profilo in caricamento: la sezione «Cosa potrà fare» mostra il caricamento e «Consenti»
-  resta disabilitato; profilo in errore: errore comune con «Riprova» (rilettura del
-  profilo), «Consenti» disabilitato, «Annulla» disponibile.
+- «Consenti» è attivo solo quando il profilo dell'identità corrente è letto con successo
+  (ruoli noti e attuali). Profilo in caricamento: la sezione «Cosa potrà fare» mostra il
+  caricamento e «Consenti» resta disabilitato; profilo in errore, anche con un profilo
+  precedente in cache: errore con «Riprova» (rilettura del profilo), «Consenti»
+  disabilitato e ricontrollato nel gestore, «Annulla» disponibile.
 - Consenti → `approveAuthorization(id, { skipBrowserRedirect: true })` e navigazione a
   `redirect_url` (pagina di ritorno del client). Annulla → `denyAuthorization` allo stesso
   modo. Durante l'attesa i pulsanti sono disabilitati; un errore mostra il testo comune e
   lascia riprovare.
-- **Generazioni.** Ogni coppia (utente, `authorization_id`) è una generazione: lettura
+- **Generazioni.** Ogni coppia (sessione, `authorization_id`) è una generazione: lettura
   della richiesta e decisione appartengono a quella in cui sono partite. Uscita dalla
-  pagina, cambio account, cambio della richiesta e un nuovo caricamento la chiudono.
+  pagina, cambio della richiesta e un nuovo caricamento la chiudono; cambio account e
+  uscita la chiudono in modo sincrono, perché `SessionScope` chiude la sessione
+  nell'ascoltatore dell'evento di Supabase, prima di ogni aggiornamento di React, e la
+  risposta controlla anche che la sua sessione sia aperta.
   Prima di aggiornare lo stato o di navigare, ogni risposta controlla che la sua
   generazione sia ancora quella corrente; altrimenti viene ignorata. Così una risposta
   arrivata tardi non manda il browser al callback di una richiesta abbandonata e due
@@ -424,7 +428,8 @@ sul Vite 5174), la prova end-to-end e il rimando a
 di produzione): il job `check` avvia lo stack locale con Auth (`supabase start` con i
 servizi non necessari esclusi, al posto di `supabase db start`), e dopo i test esegue
 `scripts/oauth/agents-e2e.sh`: build del web, `server/.env` per lo stack locale (utente
-`app_server`, URL e chiave pubblica da `supabase status`), `wrangler dev` sulla 8787,
+`app_server`, URL e chiave pubblica da `supabase status`), `wrangler dev` sulla 8787 con
+l'entry di test `server/test/e2e/worker.ts`,
 attesa che risponda, poi `node scripts/oauth/agents-e2e.mjs`. Se il tempo del job cresce
 di oltre qualche minuto, la prova passa in un job separato ma obbligatorio.
 
@@ -438,11 +443,14 @@ non locali, e verifica:
   registrato rifiutato senza redirect verso di esso; codice di un client scambiato con un
   altro `client_id` rifiutato; richiesta scaduta (scadenza forzata nel database locale)
   rifiutata da `getAuthorizationDetails`.
-- **Canale**: i token reali portano `client_id` anche dopo il rinnovo; con il token
-  d'agente `session.whoami` risponde `channel: 'mcp'` su MCP, RPC e REST (prima e dopo il
-  rinnovo), con il token web `channel: 'web'`. Il controllo `webOnly` della pipeline
-  dipende solo dal canale ed è già provato dai test della piattaforma: nel contratto
-  attuale non c'è un'operazione `webOnly` da chiamare.
+- **Canale e `webOnly`**: i token reali portano `client_id` anche dopo il rinnovo; con il
+  token d'agente `session.whoami` risponde `channel: 'mcp'` su MCP, RPC e REST (prima e
+  dopo il rinnovo), con il token web `channel: 'web'`. Il contratto di produzione non ha
+  operazioni `webOnly`: la prova gira su un Worker di test (`server/test/e2e/worker.ts`,
+  mai pubblicato) che monta l'app di produzione più le operazioni di test della
+  piattaforma, fra cui `test.removeFamily` (`webOnly`). Con il token d'agente, prima e
+  dopo il rinnovo, quell'operazione risponde `web_only` con l'URL della pagina su MCP, RPC
+  e REST; con il token web passa (controllo positivo).
 - **Scollegamento tramite `agents.disconnect`**, mai con il DELETE diretto: Anna collega
   gli agenti A e B; Bruno collega A. A è autorizzato due volte da Anna (seconda volta
   senza consenso, seconda sessione). `agents.list` di Anna mostra A una volta, con
@@ -552,9 +560,10 @@ da parte degli agenti. Prima i prerequisiti verificabili, poi l'attivazione, poi
 - Web (Vitest e Testing Library): consenso nei suoi stati (senza sessione, richiesta non
   valida, redirect immediato, consenso con i ruoli, testi sui poteri e su «Scollega»,
   scope, dettagli dell'agente, nome ostile e lunghissimo come testo, profilo lento o in
-  errore con «Consenti» disabilitato, consenti, annulla, errore di rete, offline);
-  generazioni (risposte invertite di due caricamenti, smontaggio e cambio account durante
-  la lettura e durante la decisione: nessuna navigazione); cambia account (chiusura
+  errore con «Consenti» disabilitato, profilo in cache con rilettura fallita e poi
+  riuscita, consenti, annulla, errore di rete, offline); generazioni (risposte invertite
+  di due caricamenti, smontaggio, uscita e cambio account seguiti subito dalla risposta,
+  durante la lettura e durante la decisione: nessuna navigazione); cambia account (chiusura
   comune con Supabase in errore, coda della spesa cancellata, altra scheda avvisata,
   accesso di un'altra persona che torna alla richiesta); pagina agenti (indirizzo dal
   `serviceOrigin`, copia, fisarmonica, elenco con ultimo rinnovo e spiegazione, conferma
@@ -646,7 +655,8 @@ lascia typecheck e test verdi.
   migrazione applicata e leggibile dalla funzione, schema `app` non esposto, chiave
   pubblica reale, SPA con `/authorize` pubblicata sulla Site URL.
 - **Prova end-to-end degli agenti in CI** (sezioni 15 e 17): stack locale con server OAuth
-  e Worker, token reali, confini PKCE e redirect, canale dopo il rinnovo, scollegamento
-  con `agents.disconnect` anche dall'agente stesso.
+  e Worker, token reali, confini PKCE e redirect, canale e `webOnly` dopo il rinnovo su
+  MCP, RPC e REST (Worker di test con le operazioni di test della piattaforma),
+  scollegamento con `agents.disconnect` anche dall'agente stesso.
 - **Indirizzo MCP in sviluppo** (sezione 1, sviluppo locale): sul Vite di sviluppo la
   pagina mostra l'origine del Worker; in produzione SPA e MCP condividono l'origine.
