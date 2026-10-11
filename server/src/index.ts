@@ -1,5 +1,10 @@
+import { contract } from '@app/contract';
+import { createApp } from './app.ts';
+import type { Env } from './env.ts';
+import { router } from './router.ts';
+
+const app = createApp({ contract, router, resourceName: 'Cosa si mangia' });
+
 export default {
-	async fetch(): Promise<Response> {
-		return new Response('Not found', { status: 404 });
-	},
-} satisfies ExportedHandler;
+	fetch: (request, env) => app.fetch(request, env),
+} satisfies ExportedHandler<Env>;
