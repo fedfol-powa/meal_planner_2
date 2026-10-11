@@ -1112,6 +1112,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   voto (sotto), ingredienti scalati. Se la ricetta è `web` o `youtube` c'è il collegamento
   al `source_url` della fonte, che si apre fuori dall'app senza passare il referrer
   (come fa oggi il sito del progetto di origine con `Referrer-Policy: no-referrer`).
+- **Scheda ricetta aperta da un pasto** (decisa dall'utente l'11 ottobre 2026): parte dalle
+  porzioni del pasto. Precedenza: porzioni esplicite nell'indirizzo, poi porzioni positive
+  del pasto, poi porzioni della fonte; il selettore resta e la versione è quella del pasto
+  (R1).
   Per `book` si mostrano titolo e pagine; per `home` nessun collegamento. Per gli slot
   liberi, il testo. Un pasto con zero porzioni mostra gli ingredienti alle porzioni di
   riferimento della ricetta.
@@ -2174,7 +2178,8 @@ per invertire l'ordine scelto, che lascia in fondo le ricette senza voto o mai m
 (correzione dell'11 ottobre 2026 rispetto al prototipo); nessun filtro per stagione.
 Nella scheda
 ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
-ingredienti (dettagli in `design/design.md`).
+ingredienti (dettagli in `design/design.md`); aperta da un pasto, parte dalle porzioni del
+pasto (sezione 5).
 La navbar mostra solo icone, con nomi accessibili,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative
