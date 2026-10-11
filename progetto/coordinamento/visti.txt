@@ -84,3 +84,6 @@ w1:pZ	STATO: IN_ATTESA #16ac2684
 w1:pX	STATO: PR_CORRETTA #bc6595c6
 w1:pC	STATO: PR_CORRETTA #32cd182d
 w1:pA	STATO: DOMANDA Parte web nel traguardo A: A (consigliata: Bozze, Archiviate e pagina della bozza in sola lettura scritte da me, montate in RecipesPage; archiviazione e versioni sul #fd9772e6
+w1:pA	STATO: DOMANDA Ingredienti: A (consigliata: crea e modifica con versione e conflitto, equivalenze di ambito ricetta, storico in ingredient_versions, niente archiviazione), B (solo #a346955c
+w1:pA	STATO: DOMANDA Equivalenze nelle ricette: A (consigliata: conversione del server al controllo e alla pubblicazione, bozza invariata, conversioni mostrate nell'esito del controllo), B #3fed232f
+w1:pA	STATO: DOMANDA Conflitti: A (consigliata: errore conflict con discriminante draft/version/ingredient e theirs, sovrascrittura che cita la revisione, ripetizioni idempotenti) o B #f1260fe9
