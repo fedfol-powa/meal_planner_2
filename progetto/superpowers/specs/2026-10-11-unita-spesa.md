@@ -52,8 +52,17 @@ riceve dati già caricati e restituisce dati.
    (sezione 5) con schema zod esportato dal dominio, usato da W2 e dal server (W1). Dopo
    la review di spec e piano conserva anche i testi bilingui del momento della spunta.
 6. **Equivalenze univoche** (review di spec e piano): al massimo una equivalenza per
-   ingrediente, ambito e dimensione dell'unità di partenza (sezione 4); W2 lo garantisce
-   con un vincolo, il dominio rifiuta con un errore le configurazioni ambigue.
+   ingrediente, ambito, dimensione dell'unità di partenza e preparazione (o nessuna)
+   (sezione 4); W2 lo garantisce con un vincolo, il dominio rifiuta con un errore le
+   configurazioni ambigue.
+7. **Equivalenze legate alla preparazione** (review di W3, deciso dal coordinatore):
+   un'equivalenza `recipe` o `shopping` può avere una `preparation` facoltativa, il testo
+   italiano normalizzato come la varietà; vale per le righe con la stessa preparazione,
+   oppure per tutte se non ne ha; fra una specifica e una generica vince la specifica.
+   Senza equivalenza applicabile la tazza resta tale e la ricetta resta in bozza (W3).
+8. **Proprietà dei tipi** (coordinatore): W4 possiede `Localized` (testo nelle due lingue)
+   con il suo schema, `Quantity` completa, codici e schemi delle unità; W3 costruisce sopra
+   le varianti di bozza senza ridefinirli.
 
 ## 3. Codici delle unità
 
@@ -84,21 +93,32 @@ che le usa si converte in gestione, come una confezione.
   senza arrotondare; `to_taste` e `text` restano invariati (un «1 mazzetto» scritto come
   testo non si scala; `1 bunch` sì). Porzioni non positive: errore.
 - `UnitEquivalence`: `ingredientId`, `fromUnit`, `toUnit`, `factor` (quantità di `toUnit`
-  per una `fromUnit`), `scope` (`recipe` | `shopping`), `source` (testo della fonte
-  verificata). Stessa forma di `ingredient_unit_equivalences`.
-- `applyRecipeEquivalence(q, eq)`: per W3 e l'import; converte una quantità `amount`
-  nell'unità di destinazione se `unit === fromUnit` e lo scope è `recipe`, altrimenti
-  errore.
-- `toPurchaseUnit`: nella spesa, per un ingrediente con equivalenza `shopping`, converte
-  la parte della quantità nella dimensione di `fromUnit` (massa e volume in unità base,
-  conteggi per codice): 50 g di succo con «1 limone = 47 g» diventano 50/47 `piece`.
-  Il resto della quantità resta com'è.
+  per una `fromUnit`), `scope` (`recipe` | `shopping`), `preparation` (chiave della
+  preparazione o null), `source` (testo della fonte verificata). Stessa forma di
+  `ingredient_unit_equivalences`.
+- `preparationKey(testo)`: la chiave della preparazione dal testo italiano, normalizzato
+  come la varietà (maiuscole, accenti, punteggiatura e spazi ignorati) ma senza togliere
+  parole; null senza preparazione. Lo schema rifiuta una `preparation` non già in questa
+  forma, così il vincolo di unicità nel database confronta chiavi.
+- `findEquivalence(equivalenze, ambito, unità, preparazione della riga)`: fra le
+  equivalenze dell'ingrediente con quell'ambito e la dimensione dell'unità, quella con la
+  stessa preparazione della riga; altrimenti quella senza preparazione; altrimenti
+  nessuna. Un'equivalenza di un'altra preparazione non si applica mai: «succo di limone in
+  limoni» vale per il succo, non per la scorza.
+- `applyRecipeEquivalence(q, eq)`: per W3 e l'import, dopo `findEquivalence` con ambito
+  `recipe`; converte una quantità `amount` della dimensione di `fromUnit` nell'unità di
+  destinazione, altrimenti errore (anche per un'equivalenza `shopping`).
+- `toPurchaseUnit(q, equivalenze, preparazione)`: nella spesa converte la quantità con
+  l'equivalenza `shopping` scelta da `findEquivalence` (massa e volume in unità base,
+  conteggi per codice): 50 g di succo con «succo: 1 limone = 47 g» diventano 50/47
+  `piece`. Senza equivalenza la quantità resta com'è.
 - **Invariante:** al massimo una equivalenza per (ingrediente, ambito, dimensione
-  dell'unità di partenza). Massa e volume sono una dimensione ciascuno (`g` e `kg` sono la
-  stessa); spoon, conteggi e tazza contano per codice (`bunch` e `slice` sono distinte).
-  Altrimenti il risultato dipenderebbe dall'ordine delle equivalenze (`g → piece` e
-  `kg → piece` con fattori incoerenti). `assertUnambiguousEquivalences` lancia un errore;
-  `toPurchaseUnit` e il consolidamento la applicano sempre.
+  dell'unità di partenza, preparazione o nessuna). Massa e volume sono una dimensione
+  ciascuno (`g` e `kg` sono la stessa); spoon, conteggi e tazza contano per codice
+  (`bunch` e `slice` sono distinte). Altrimenti il risultato dipenderebbe dall'ordine
+  delle equivalenze (`g → piece` e `kg → piece` con fattori incoerenti).
+  `assertUnambiguousEquivalences` lancia un errore; `toPurchaseUnit` e il consolidamento
+  la applicano sempre.
 
 ## 5. Somma: `CombinedQuantity`
 
@@ -185,9 +205,10 @@ numerici nella lingua di chi guarda.
   `mealType`, `servings` e `recipe` (null per pasto libero o vuoto): `id`, `name`
   (bilingue), `baseServings` (null se mancante), `lines`. La ricetta è quella della
   versione giusta per il pasto (R1), scelta dal chiamante.
-- Riga: `ingredientId`, `variety` (bilingue o null), `quantity`, `isOptional`. Tipo
-  strutturale minimo definito qui, compatibile con la riga di W3 (la preparazione non
-  serve: non cambia la voce).
+- Riga: `ingredientId`, `variety` (bilingue o null), `preparation` (bilingue o null),
+  `quantity`, `isOptional`. Tipo strutturale minimo definito qui, compatibile con la riga
+  di W3. La preparazione non cambia la voce (scorza e succo sono lo stesso limone) ma
+  sceglie l'equivalenza `shopping` (sezione 4).
 - `ingredients`: per id, `name` bilingue, `department`, `isPantry`.
 - `equivalences`: equivalenze `shopping`.
 - `avoided`: ingredienti con restrizione `avoid` della famiglia.
@@ -201,7 +222,8 @@ numerici nella lingua di chi guarda.
    ignora maiuscole, accenti, punteggiatura, spazi e le parole `tipo`, `varieta`, `var`,
    `qualita`, `type`, `variety`; vuota senza varietà. È la `variety_key` di
    `shopping_list_checks` e di `shopping_list_added_back`.
-4. Conversione in unità di acquisto e somma in `CombinedQuantity`.
+4. Conversione in unità di acquisto con l'equivalenza della preparazione della riga e somma
+   in `CombinedQuantity`.
 5. Esclusione: `avoid` (vale per tutte le varietà dell'ingrediente) prima di `pantry`.
 6. Opzionale se lo sono tutte le righe della voce.
 7. Varietà mostrata: la grafia bilingue più usata fra le righe della lista; a parità, la
@@ -250,9 +272,11 @@ sia il server (MCP, Bring!) sia il web.
 ```
 domain/src/units/
   codes.ts         codici, dimensioni, fattori
+  locale.ts        LOCALES, Localized e schema, plainWords (normalizzazione delle chiavi)
   quantity.ts      Quantity e schema zod
   scale.ts
-  equivalence.ts   UnitEquivalence, applyRecipeEquivalence, toPurchaseUnit
+  equivalence.ts   UnitEquivalence, preparationKey, findEquivalence,
+                   applyRecipeEquivalence, toPurchaseUnit
   combined.ts      CombinedQuantity, addQuantity, exceeds, schema zod
   present.ts       sistemi e arrotondamenti
   format.ts        testo localizzato
@@ -268,7 +292,8 @@ domain/src/shopping/
 ```
 
 Ogni file ha il suo `*.test.ts` (vitest), con i casi del prototipo e quelli nuovi:
-soglie imperiali e quantità piccole, equivalenze `recipe` e `shopping`, varietà ed
+soglie imperiali e quantità piccole, equivalenze `recipe` e `shopping`, equivalenza
+specifica della preparazione contro generica e preparazione diversa non applicata, varietà ed
 evitati, dispensa, voci rimesse, spunte con crescita e diminuzione, opzionali, limoni,
 ricette saltate, ingrediente mancante.
 
@@ -283,8 +308,12 @@ Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contr
 
 ## 12. Limiti noti
 
-- Scorza e succo dello stesso limone si sommano; un'equivalenza `shopping` in grammi
-  (succo) vale anche per la scorza misurata in grammi (già accettato nel prototipo).
+- Scorza e succo dello stesso limone restano nella stessa voce: i grammi di succo diventano
+  limoni, la scorza resta nelle sue unità. Il limite del prototipo
+  (l'equivalenza del succo applicata anche alla scorza) è risolto dalla preparazione.
+- La preparazione si confronta per chiave: «succo» e «succo spremuto» sono diverse; il
+  curatore usa la stessa grafia nelle righe e nell'equivalenza (lo schema rifiuta solo le
+  chiavi non normalizzate).
 - Errori dei decimali (sotto 10⁻⁹) assorbiti dalle tolleranze; niente frazioni esatte.
 - Una grafia di varietà cambiata in modo che la chiave cambi fa perdere la spunta
   (già nella specifica, sezione 2).
@@ -321,7 +350,13 @@ Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contr
 - `quantity_at_check` nella forma canonica `CombinedQuantity`, con i testi non numerici
   bilingui del momento della spunta (sezione 2); la vista della lista espone la quantità
   canonica di ogni voce, che il client invia con la spunta.
-- Al massimo una equivalenza per ingrediente, ambito e dimensione dell'unità di partenza,
-  con vincolo nel database e controllo nel dominio (sezioni 2 e 6).
+- Al massimo una equivalenza per ingrediente, ambito, dimensione dell'unità di partenza e
+  preparazione (o nessuna), con vincolo nel database e controllo nel dominio (sezioni 2
+  e 6).
+- Equivalenze con `preparation` facoltativa (chiave normalizzata del testo italiano):
+  vale la specifica della preparazione della riga, poi la generica, mai quella di
+  un'altra preparazione (sezioni 2 e 6).
+- `Localized`, `Quantity`, codici e schemi delle unità definiti in `domain/src/units/`;
+  le varianti di bozza della ricetta si costruiscono sopra (sezione 2).
 - Etichette di unità e reparti in `domain/`, condivise da server e web (sezione 12).
 - Sezione 15, «Misure»: chiusa da questo documento.
