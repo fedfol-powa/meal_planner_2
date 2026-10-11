@@ -277,12 +277,14 @@ dizionari comuni toccati solo per registrarli.
   1. alla partenza la mutazione registra un gettone per la vista che cambia
      (`session.track('settings:<familyId>')`, `'family:<familyId>'`,
      `'exclusions:<familyId>'`, `'profile'`) e annota la lingua corrente;
-  2. alla risposta: se la sessione è chiusa o la lingua è cambiata, la risposta si
-     scarta e la vista si marca scaduta; se nel frattempo è partita un'altra mutazione
-     sulla stessa vista (gettone non più l'ultimo), la risposta non si applica e la
-     vista si marca scaduta, così due risposte complete arrivate in ordine inverso non
-     riportano indietro la vista: l'ultima applicata è sempre quella dell'ultima
-     mutazione o una rilettura successiva;
+  2. alla risposta: se la sessione è chiusa, la risposta si scarta senza toccare la
+     cache (la chiusura la cancella comunque). Se la sessione è valida ma la risposta è
+     superata (lingua cambiata, oppure è partita un'altra mutazione sulla stessa vista
+     e il gettone non è più l'ultimo), la vista non si scrive ma la scrittura sul server
+     è riuscita: si marcano scadute la vista **e tutte le letture dipendenti
+     dell'operazione** secondo la tabella sotto (seconda review, rilievo 1). Così due
+     risposte complete arrivate in ordine inverso non riportano indietro la vista, e una
+     restrizione `avoid` superata da un `setMeal` fa comunque rileggere la spesa;
   3. altrimenti si cancellano le letture interessate ancora in corso (la vista e quelle
      della tabella sotto), poi si scrive la vista nella cache con la versione vecchia
      (la lettura successiva riceve dati nuovi, mai un «invariato» sbagliato), poi si

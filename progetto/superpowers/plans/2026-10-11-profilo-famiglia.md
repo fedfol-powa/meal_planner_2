@@ -2181,13 +2181,15 @@ git commit -m "Web: profilo al posto di me nel wrapper, nella sessione e nel cli
     `familyQuery`, `settingsQuery`, `exclusionsQuery` (letture versionate con `readThrough`);
   - `web/src/api/mutations.ts`: `type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions'`,
     `INVALIDATIONS: Record<MutationName, Invalidation>`,
-    `applyMutation(queryClient, { name, familyId, locale, view, isCurrent }): Promise<void>`,
+    `applyMutation(queryClient, { name, familyId, locale, view, sessionOpen, isLatest }): Promise<void>`,
     `useAreaMutation(name, familyId?)` (hook con `useMutation`, modello di `useRateRecipe`).
 
 Modello (review, rilievo 2; `web/src/api/ratings.ts`): alla partenza `session.track(<vista>)`
-e lingua annotata; alla risposta, se la sessione è chiusa, la lingua è cambiata o il
-gettone non è più l'ultimo per quella vista, la risposta non si applica e la vista si
-marca scaduta; altrimenti si cancellano le letture interessate in corso, si scrive la
+e lingua annotata; alla risposta, se la sessione è chiusa la risposta si scarta senza
+toccare la cache; se la sessione è valida ma la risposta è superata (lingua cambiata o
+gettone non più l'ultimo) la vista non si scrive, ma la scrittura è riuscita, quindi si
+marcano scadute la vista e tutte le letture dipendenti dell'operazione (seconda review,
+rilievo 1); altrimenti si cancellano le letture interessate in corso, si scrive la
 vista, si invalidano le altre letture della tabella e ripartono le letture cancellate
 senza dati.
 
@@ -2266,7 +2268,7 @@ it('a read started before the mutation never overwrites its answer', async () =>
   const client = new QueryClient();
   const late = deferred<{ version: string; data: unknown }>();
   void client.fetchQuery({ queryKey: settingsKey(FAMILY), queryFn: () => late.promise });
-  await applyMutation(client, { name: 'family.setMeal', familyId: FAMILY, locale: 'it-IT', view: view(3), isCurrent: () => true });
+  await applyMutation(client, { name: 'family.setMeal', familyId: FAMILY, locale: 'it-IT', view: view(3), sessionOpen: () => true, isLatest: () => true });
   late.resolve({ version: 'old', data: view(2) });
   await flush();
   expect(client.getQueryData(settingsKey(FAMILY))).toMatchObject({ data: view(3) });
@@ -2285,6 +2287,23 @@ it('two mutations on different keys: only the latest answer is applied, the earl
   expect(client.getQueryData(settingsKey(FAMILY))).toMatchObject({ data: view(4) });
   expect(client.getQueryState(settingsKey(FAMILY))?.isInvalidated).toBe(true);
   void session;
+});
+
+it('a superseded write still invalidates its dependencies', async () => {
+  const { client, run } = harness();
+  const shopping = ['shopping', 'getWeekList', { familyId: FAMILY, weekStartsOn: '2026-10-12', locale: 'it-IT' }];
+  client.setQueryData(shopping, { version: 's1', data: {} });
+  client.setQueryData(settingsKey(FAMILY), { version: 'v1', data: view(2) });
+  const avoid = deferred<unknown>();
+  const meal = deferred<unknown>();
+  const first = run('family.setIngredientRestriction', FAMILY, () => avoid.promise);
+  const second = run('family.setMeal', FAMILY, () => meal.promise);
+  meal.resolve(view(3));
+  await second;
+  avoid.resolve(view(2)); // older answer, arrives last: not written…
+  await first;
+  expect(client.getQueryData(settingsKey(FAMILY))).toMatchObject({ data: view(3) });
+  expect(client.getQueryState(shopping)?.isInvalidated).toBe(true); // …but the avoided ingredient leaves the list
 });
 
 it('drops an answer after sign-out or a change of language', async () => {
@@ -2313,7 +2332,7 @@ it('marks exactly the reads of the table, of the same family only', async () => 
   };
   const stale = async (name: MutationName) => {
     for (const key of Object.values(keys)) client.setQueryData(key, { version: 'v', data: {} });
-    await applyMutation(client, { name, familyId: FAMILY, locale: 'it-IT', view: {}, isCurrent: () => true });
+    await applyMutation(client, { name, familyId: FAMILY, locale: 'it-IT', view: {}, sessionOpen: () => true, isLatest: () => true });
     return Object.entries(keys).filter(([, key]) => client.getQueryState(key)?.isInvalidated).map(([name]) => name).sort();
   };
   expect(await stale('family.setMeal')).toEqual([]);
@@ -2347,8 +2366,10 @@ export interface ApplyOptions {
   familyId?: string;
   locale: string;
   view: unknown;
-  /** Session open, same language, latest mutation of this view. */
-  isCurrent: () => boolean;
+  /** The session that sent the mutation is still open. */
+  sessionOpen: () => boolean;
+  /** Same language and latest mutation of this view: the answer may be written. */
+  isLatest: () => boolean;
 }
 
 const targetKey = (target: MutationTarget, familyId: string | undefined, locale: string) =>
@@ -2363,8 +2384,10 @@ export async function applyMutation(queryClient: QueryClient, options: ApplyOpti
   const affected = (query: Query) => isTarget(query) || isStale(query);
   const running = queryClient.getQueryCache().findAll({ predicate: affected, fetchStatus: 'fetching' });
   await queryClient.cancelQueries({ predicate: affected });
-  if (!options.isCurrent()) {
-    void queryClient.invalidateQueries({ predicate: isTarget });
+  if (!options.sessionOpen()) return; // closing clears the cache anyway
+  if (!options.isLatest()) {
+    // Superseded answer of a successful write: not written, but everything it changed goes stale.
+    void queryClient.invalidateQueries({ predicate: affected });
     return;
   }
   queryClient.setQueryData(key, (old: { version: string } | undefined) =>
@@ -2386,8 +2409,14 @@ export async function runAreaMutation<T>(
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
   const view = await call();
-  const isCurrent = () => !deps.session.isClosed() && deps.currentLocale() === locale && deps.session.isLatest(trackKey, token);
-  await applyMutation(deps.queryClient, { name, familyId, locale, view, isCurrent });
+  await applyMutation(deps.queryClient, {
+    name,
+    familyId,
+    locale,
+    view,
+    sessionOpen: () => !deps.session.isClosed(),
+    isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token),
+  });
   return view;
 }
 ```
