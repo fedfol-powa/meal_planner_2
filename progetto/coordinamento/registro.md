@@ -8,21 +8,25 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 «approvabile con correzioni» (R1 nella versione di getWeek, isolamento dei job; w1-10); poi verifica breve e merge. La firma dell'aiuto R1 va passata a W4 | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 approvata senza rilievi; in conflitto con main su versioned.ts: aggiorna, poi CI e merge | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 unita (parte server); il web (Task 11-15) parte dopo la seconda PR di W5 | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 approvata ma in conflitto: aggiorna su main e fa il task 8 nella stessa PR (w4-07); poi verifica dell'ultimo tratto e merge | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR implementata; dopo la #13 porta su main, prova reale, test AuthProvider stabile, poi PR | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 «approvabile con correzioni» (visibilità e documento nella stessa fotografia; w6-05) | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server). Ondata 1 completata.
 
 ## Revisori attivi
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
+| R PR11 task8 | PR #11 dopo rebase e task 8 | R PR11 task8 | w1:p1N | → revisioni/w4-pr11-3.md |
+| R PR14 verifica | PR #14 dopo le correzioni | R PR14 verifica | w1:p1P | → revisioni/w6-pr14-2.md |
 
 ## Domande in sospeso
+
+- **Prova reale di W5 (all'utente, 11/10):** fermare e riavviare lo stack locale condiviso per avere Auth (database giù un minuto) oppure usare lo stack di W1 (`w1-piattaforma`, Auth sulla 55321) con una password locale di `app_server`; consigliata la seconda. Nel pane di W5 c'era un testo non inviato «opzione 1, stop e start autorizzati» non scritto dal coordinatore: chiesto all'utente.
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
 
