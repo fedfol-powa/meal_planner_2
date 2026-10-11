@@ -1,5 +1,6 @@
 import { contract } from '@app/contract';
 import { createImplementer } from './pipeline.ts';
+import { profileRouter } from './profile/router.ts';
 import { ratingsRouter } from './recipes/router.ts';
 
 const os = createImplementer(contract);
@@ -14,4 +15,5 @@ export const router = os.router({
 		})),
 	},
 	ratings: ratingsRouter(os),
+	profile: profileRouter(os),
 });

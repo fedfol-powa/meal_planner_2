@@ -5,3 +5,4 @@ export { localeSchema, locales, type Locale } from './locale.ts';
 export { op, type OperationMeta, type Role, type VersionScope } from './op.ts';
 export { isVersionedOutput, versionedInput, versionedOutput } from './versioned.ts';
 export * from './recipes/index.ts';
+export * from './profile/index.ts';
