@@ -33,7 +33,8 @@ const cache = new WeakMap<PlannerInput, Prepared>();
 export function prepared(input: PlannerInput): Prepared {
 	const cached = cache.get(input);
 	if (cached) return cached;
-	const byId = new Map(input.recipes.map((r) => [r.id, r]));
+	// Fixed recipes first: the catalogue wins on the same id.
+	const byId = new Map([...(input.fixedRecipes ?? []), ...input.recipes].map((r) => [r.id, r]));
 	const before = input.history.filter((m) => m.date < input.weekStart);
 	const since = (days: number) => addDays(input.weekStart, -days);
 	const recentFrom = since(RECENT_DAYS);

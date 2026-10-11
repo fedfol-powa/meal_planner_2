@@ -55,13 +55,14 @@ export function withinLimits(candidate: PlannerRecipe, weekRecipes: PlannerRecip
 	);
 }
 
-/** Recipes that can go in the slot given the rest of the week; low-rated ones only if nothing else fits. */
-export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: PlannerRecipe[]): PlannerRecipe[] {
+/** Recipes that can go in the slot given the rest of the week; low-rated ones only if nothing else fits. `excludeIds` leave before that choice. */
+export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: PlannerRecipe[], excludeIds?: ReadonlySet<string>): PlannerRecipe[] {
 	const used = new Set(weekRecipes.map((r) => r.id));
 	const recent = prepared(input).recentIds;
 	const valid = input.recipes.filter(
 		(r) =>
 			!used.has(r.id) &&
+			!excludeIds?.has(r.id) &&
 			isAvailable(r, input) &&
 			fitsSlot(r, slot, input.settings.rules) &&
 			!recent.has(r.id) &&

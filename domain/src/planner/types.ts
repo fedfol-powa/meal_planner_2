@@ -128,6 +128,8 @@ export interface PlannerInput {
 	from?: PlannerSlotRef;
 	/** Meals already planned after the week (weeks generated earlier), oldest first: neighbours, never changed. */
 	upcoming?: PastMeal[];
+	/** Recipes cited by meals but not proposable (archived): neighbours, history and weekly limits, never candidates. */
+	fixedRecipes?: PlannerRecipe[];
 }
 
 export type SlotContent = { kind: 'recipe'; recipeId: string } | { kind: 'free'; text: string } | { kind: 'no_match' };
