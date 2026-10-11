@@ -35,6 +35,8 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 - **Da riportare nella specifica principale (consolidamento a lotti):** decisioni della spec revisione-pasti (#29), poi esportazione (#30), collegamento agenti (#31), messa in produzione.
 
+- **main rosso dall'11/10 ~20:28:** #30 unita con CI fallita (versione di migrazione 20261012100000 duplicata con la #29). Correzione nella PR #32 (backup → 20261012110000, test sulle versioni uniche); a CI verde: merge e avviso a W1 e W2.
+
 ## Prossima azione del coordinatore
 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».

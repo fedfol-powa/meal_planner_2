@@ -46,6 +46,12 @@ si riconoscono dall'etichetta della tab (`W1 piattaforma`…) e dal `cwd` del wo
 - Aggiornare `registro.md` a ogni cambio di fase di un worker, così un `/clear` non
   perde nulla.
 
+**Merge:** prima di `gh pr merge` controlla che lo stato del check sia proprio `pass`
+(per esempio `gh pr checks <n> --json bucket -q '.[].bucket' | grep -qx pass` e niente
+`fail`), non solo che il comando risponda. L'11/10 la #30 è stata unita con la CI rossa
+così (migrazione con versione duplicata). Prima di unire una PR con migrazioni, controlla
+anche che la versione non collida con altre PR aperte o appena unite.
+
 ## Attesa degli eventi
 
 **Ascoltatore continuo:** `progetto/coordinamento/eventi.py`, avviato con lo strumento
