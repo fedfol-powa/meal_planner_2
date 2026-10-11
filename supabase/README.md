@@ -44,14 +44,16 @@ raggiunge il database direttamente.
 
 | Ruolo | Tipo | Poteri |
 |---|---|---|
-| `app_server` | LOGIN, NOINHERIT | membro di `authenticated`, `anon`, `app_job`; nessun permesso diretto: senza `set local role` non legge nulla |
+| `app_server` | LOGIN, NOINHERIT | membro di `authenticated`, `anon`, `app_job`, `app_backup`; nessun permesso diretto: senza `set local role` non legge nulla |
 | `authenticated` | di Supabase | permessi espliciti su `app`, sempre filtrati da RLS |
 | `anon` | di Supabase | solo `usage` su `app` ed `execute` su `app.temporary_list_by_token(text)` |
 | `app_job` | NOLOGIN | legge famiglie, preferenze, voti, settimane, pasti e catalogo pubblicato di tutte le famiglie; scrive `weeks`, i contenuti di `meal_slots` e `weekly_jobs` |
+| `app_backup` | NOLOGIN, BYPASSRLS | legge tutte le tabelle di `app` (anche le future) e le migrazioni applicate; esegue solo `app.backup_auth_rows()`; non scrive nulla. Usato dall'esportazione notturna |
 
 Il server sceglie il ruolo per transazione: richieste degli utenti con
 `set local role authenticated` e `request.jwt.claims`; `/internal/jobs/*` con
-`set local role app_job`; `/shopping-lists/<token>` con `set local role anon`. La
+`set local role app_job`; `/shopping-lists/<token>` con `set local role anon`;
+l'esportazione notturna con `set local role app_backup`. La
 password di `app_server` non sta nelle migrazioni.
 
 Funzioni eseguibili per ruolo:
@@ -61,6 +63,7 @@ Funzioni eseguibili per ruolo:
 | `anon` | `temporary_list_by_token` |
 | `authenticated` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `has_role`, `session_is_active`, `is_member`, `is_family_admin`, `shares_family`, `can_access_week`, `can_access_slot`, `can_access_list`, `catalogue_author_names`, `meal_passed_at`, `recipe_version_at` |
 | `app_job` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `meal_passed_at`, `recipe_version_at` |
+| `app_backup` | `backup_auth_rows` |
 | PUBLIC, `app_server` | nessuna |
 
 **Regola per ogni funzione nuova:** Postgres concede `EXECUTE` a PUBLIC su ogni funzione

@@ -48,6 +48,10 @@ select is(
 	'app_job executes only pure functions');
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
+		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_backup', p.oid, 'EXECUTE') order by 1),
+	array['backup_auth_rows'], 'app_backup executes only the export of the users');
+select is(
+	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_server', p.oid, 'EXECUTE') order by 1),
 	array[]::text[], 'app_server executes nothing without switching role');
 select is(
