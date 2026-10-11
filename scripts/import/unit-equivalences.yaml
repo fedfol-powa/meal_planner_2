@@ -1,3 +1,4 @@
+# Revisione: 2026-10-11, rivisto dall'utente, sha256:e81dae79aed2dab6bc75089d5cdafeb64e79071a64a68fe49b28bf3d93db2816
 # Equivalenze di ambito recipe per ingrediente (tazze USA), con fonte verificata e preparazione facoltativa.
 # Dal prototipo (prototype/scripts/demo-unit-equivalences.json), senza quelle di ambito shopping.
 equivalences:

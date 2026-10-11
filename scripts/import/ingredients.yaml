@@ -1,3 +1,4 @@
+# Revisione: 2026-10-11, rivisto dall'utente, sha256:3ec9a6bbf86720425ca04790b9d9067e94f0be7f66b936d71a164162c8f87190
 # Catalogo degli ingredienti dell'import: un prodotto generico per voce (spec di dettaglio, sezione 5).
 # Preparato dall'agente dalle righe d'origine; l'approvazione si scrive con approve.ts su indicazione dell'utente.
 ingredients:
