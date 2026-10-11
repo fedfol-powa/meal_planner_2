@@ -776,6 +776,10 @@ select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, f
 select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'slice', 'g', 20, 'shopping')$$, 'slice next to piece');
 select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'tbsp', 'g', 15, 'shopping')$$, 'tbsp on its own');
 select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'tsp', 'g', 5, 'shopping')$$, 'tsp apart from tbsp');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation) values (tests.ingredient('tomatoes'), 'g', 'piece', 0.02, 'shopping', 'succo')$$, 'a specific equivalence next to the generic one');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation) values (tests.ingredient('tomatoes'), 'g', 'piece', 0.05, 'shopping', 'scorza')$$, 'another preparation');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation) values (tests.ingredient('tomatoes'), 'kg', 'piece', 20, 'shopping', 'succo')$$, '23505', null, 'one per preparation');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation) values (tests.ingredient('pasta'), 'g', 'piece', 1, 'shopping', '  ')$$, '23514', null, 'no blank preparation');
 select throws_ok($$insert into app.recipe_drafts (recipe_id, kind, content, revision) values (tests.recipe('new-draft'), 'revision', '{}', 1)$$, '23505', null, 'one draft per recipe');
 
 -- Deleting an author keeps the catalogue
@@ -857,9 +861,13 @@ create table app.ingredient_unit_equivalences (
 	from_dimension text not null generated always as (app.unit_dimension(from_unit)) stored,
 	factor numeric not null check (factor > 0),
 	scope text not null check (scope in ('recipe', 'shopping')),
+	-- Normalised Italian preparation (as for varieties, computed by the domain): the
+	-- equivalence applies only to lines with that preparation; null = any line. The
+	-- domain prefers the specific one over the generic one.
+	preparation text check (btrim(preparation) <> ''),
 	source text,
-	-- At most one equivalence per ingredient, scope and dimension (W4 review).
-	unique (ingredient_id, scope, from_dimension)
+	-- At most one equivalence per ingredient, scope, dimension and preparation or none.
+	unique nulls not distinct (ingredient_id, scope, from_dimension, preparation)
 );
 
 create table app.recipes (

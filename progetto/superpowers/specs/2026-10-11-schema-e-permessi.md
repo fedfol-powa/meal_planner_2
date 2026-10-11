@@ -158,7 +158,7 @@ non portano `session_id`, si segnala al coordinatore.
 | `recipe_ingredients` | proiezione: `recipe_id` → `recipes` on delete cascade; `position`; PK (`recipe_id`, `position`); `ingredient_id` → `ingredients`; `variety` jsonb; `variety_key` text (`varietyKey(variety['it-IT'])` di W4, `domain/src/shopping/variety.ts`; vuota senza varietà); `quantity_kind` check `amount`/`to_taste`/`text`; `quantity` numeric > 0 e `unit` text (codici di W4), presenti se e solo se `amount`; `quantity_text` jsonb, solo con `text`; `source_text` text non vuoto, al massimo 200 caratteri; `preparation` jsonb; `is_optional`, `is_primary`; univoche (`recipe_id`, `position`) e (`recipe_id`, `ingredient_id`, `variety_key`) |
 | `ingredients` | `id`; `slug` univoco; `name` jsonb; `synonyms` jsonb `{"it-IT": [], "en-GB": []}`; `department` check sui reparti di W4; `is_pantry`; `version` int ≥ 1; autori e date |
 | `ingredient_versions` | PK (`ingredient_id`, `version`); `content` jsonb (reparto, dispensa, nomi, sinonimi ed equivalenze); `changed_by`, `changed_at`, `channel`; solo aggiunte |
-| `ingredient_unit_equivalences` | `id`; `ingredient_id` → `ingredients` on delete cascade; `from_unit`, `to_unit`; `from_dimension` generata da `from_unit` con `app.unit_dimension(text)`: `mass` per tutte le unità di massa, `volume` per tutte quelle di volume, il codice stesso per `tbsp`, `tsp`, ogni unità contata e `us_cup`, che contano ciascuna come dimensione a sé (precisazione di W4); un codice sconosciuto è rifiutato; `factor` > 0; `scope` check `recipe`/`shopping`; `source`; univoca su (`ingredient_id`, `scope`, `from_dimension`): al massimo un'equivalenza per ingrediente, ambito e dimensione (review di W4) |
+| `ingredient_unit_equivalences` | `id`; `ingredient_id` → `ingredients` on delete cascade; `from_unit`, `to_unit`; `from_dimension` generata da `from_unit` con `app.unit_dimension(text)`: `mass` per tutte le unità di massa, `volume` per tutte quelle di volume, il codice stesso per `tbsp`, `tsp`, ogni unità contata e `us_cup`, che contano ciascuna come dimensione a sé (precisazione di W4); un codice sconosciuto è rifiutato; `factor` > 0; `scope` check `recipe`/`shopping`; `source`; `preparation` text facoltativo (preparazione in italiano normalizzata come la varietà, dal dominio: l'equivalenza vale solo per le righe con quella preparazione; senza, vale per tutte, e la specifica vince sulla generica nel dominio); univoca su (`ingredient_id`, `scope`, `from_dimension`, `preparation`) con `nulls not distinct`: al massimo un'equivalenza per ingrediente, ambito, dimensione e preparazione o nessuna (review di W3 e W4) |
 | `books` | `id`; `slug` univoco (l'import riconosce i libri per slug, W3); `title`; `created_by`, `created_at` |
 | `recipe_drafts` | `id`; `recipe_id` univoco → `recipes` (una bozza per ricetta); `kind` check `new`/`revision`; `base_version`; `content` jsonb; `revision` int ≥ 1; `created_by`, `created_at`, `updated_by`, `updated_at` |
 | `recipe_draft_saves` | PK (`draft_id`, `revision`); `draft_id` → `recipe_drafts` on delete cascade; `content`; `saved_by`, `saved_at`, `channel`; `overwritten` boolean, unica colonna aggiornabile |
@@ -428,8 +428,10 @@ Copertura:
 - `families.measurement_system` in colonna; impostazioni salvate solo se cambiate,
   default dal dominio (sezione 2).
 - `ingredient_versions.content` comprende le equivalenze (sezioni 2 e 8).
-- Al massimo un'equivalenza per ingrediente, ambito e dimensione dell'unità di partenza,
-  con la dimensione ricavata in SQL dai codici di W4 (sezioni 2 e 6).
+- Al massimo un'equivalenza per ingrediente, ambito, dimensione dell'unità di partenza e
+  preparazione (o nessuna), con la dimensione ricavata in SQL dai codici di W4; le
+  equivalenze possono valere per una sola preparazione (succo di limone, non scorza)
+  (sezioni 2 e 6).
 - `channel` (`web`/`mcp`/`import`) su registro dei pasti, versioni, stati e salvataggi
   delle bozze (sezione 2, tracciamento).
 - Chiavi esterne: autori `on delete set null` («ex membro»), dati personali e
