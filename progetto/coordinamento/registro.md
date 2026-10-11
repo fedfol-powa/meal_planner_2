@@ -9,7 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 |---|---|---|---|---|---|---|
 | W1 revisione-pasti | W1 menu (da rinominare) | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | PR #20 unita. Sessione chiusa, pane già nel worktree (branch avanzato a main); avvio di `claude --permission-mode auto` bloccato dal classificatore: serve l'utente | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 unita; libero | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Implementa la parte server della gestione del ricettario (area `catalogue`) dopo due review di spec; a `PR_APERTA` review avversariale. #21 unita: al prossimo stop avvisarlo che può fare il web | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | PR #23 (server di `catalogue`) aperta, review Codex in corso (revisioni/w3-pr23.md, tab «R PR23», worktree .worktrees/review-pr23); contesto azzerato. Ai rilievi: messaggio di ripresa con brief, spec, piano e file dei rilievi. Il web dopo il merge della #23 | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 approvata; sta portando la PR su main (dopo #20 e #21); a PR_CORRETTA: CI verde e diff dei conflitti → merge | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Libero (PR #17 unita). Candidato per collegamento agenti o esportazione R2, che richiedono passi esterni dell'utente | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 unita; libero | 11/10 |
@@ -21,6 +21,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
+| Codex | PR #23 di W3 | R PR23 | w1:p29 | in corso → revisioni/w3-pr23.md |
 
 ## Domande in sospeso
 
