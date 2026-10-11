@@ -11,7 +11,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Review di spec e piano «da rifare» (14 rilievi); correzioni da messaggi/w1-11-review-revisione-pasti.md (azione con actionId, tabella delle richieste, migrazione per le bozze); poi seconda review breve | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Spec e piano pronti; review Codex in corso (revisioni/w2-agenti-spec-piano.md). Ai rilievi: /clear e messaggio di ripresa | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26 (web delle bozze) aperta, review Codex in corso; contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26: review con 5 rilievi (bozze legacy, errori silenziosi, profilo in caricamento, attributi, finto fra lingue); correzioni e prova visiva in corso | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | correzioni/unita-contate | .worktrees/spesa | PR #27: review con correzioni (tolleranza nella spesa, quantità della fonte alterate, unità mancanti nel finto); correzioni in corso. Dopo il merge: aggiornare la sezione 6 della specifica (righe 1221 e 1266) | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Review di spec e piano «da rifare» (10 rilievi); correzioni da messaggi/w5-08-review-esportazione.md; poi seconda review breve. Prova di produzione dell'utente: voce separata dopo il bucket | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/porzioni-dal-pasto | .worktrees/ricettario | PR #28 (porzioni del pasto) aperta, review Codex in corso; contesto azzerato | 11/10 |
@@ -23,7 +23,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| Codex | PR #26 di W3 | R PR26 | — | in corso → revisioni/w3-pr26.md (worktree .worktrees/review-pr26) |
 
 ## Domande in sospeso
 
