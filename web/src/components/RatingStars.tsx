@@ -7,10 +7,17 @@ import { useLocale, useT } from '../i18n/LocaleProvider';
 import { Icon } from './Icon';
 import styles from './RatingStars.module.css';
 
-interface Props { summary: RatingSummary; recipeId: string; recipeName: string; familyId: string }
+interface Props {
+  summary: RatingSummary;
+  recipeId: string;
+  recipeName: string;
+  familyId: string;
+  /** Shown, not set (suggestions of «Cambia ricetta», spec section 5). */
+  readOnly?: boolean;
+}
 
 /** Family average and own stars on one row, no labels (round 1 review). Tapping the chosen star removes it. */
-export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) {
+export function RatingStars({ summary, recipeId, recipeName, familyId, readOnly }: Props) {
   const t = useT();
   const { locale } = useLocale();
   const name = useId();
@@ -34,21 +41,25 @@ export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) 
             </>
           )}
         </p>
-        <fieldset className={styles.stars} disabled={rate.isPending} aria-busy={rate.isPending}>
-          <legend className="visually-hidden">{t('rating.mine')}</legend>
-          {[1, 2, 3, 4, 5].map((value) => (
-            <label key={value} className={styles.star} data-filled={summary.myStars !== null && value <= summary.myStars}>
-              <input className="visually-hidden" type="radio" name={name} value={value} checked={summary.myStars === value} onChange={() => undefined} onClick={() => choose(value)} />
-              <Icon name="star" />
-              <span className="visually-hidden">
-                {summary.myStars === value ? t('rating.removeStars', { count: value }) : t('rating.give', { count: value, recipe: recipeName })}
-              </span>
-            </label>
-          ))}
-        </fieldset>
+        {readOnly ? (
+          <p className="meta-line">{summary.myStars === null ? t('meals.notRated') : t('meals.myStars', { count: summary.myStars })}</p>
+        ) : (
+          <fieldset className={styles.stars} disabled={rate.isPending} aria-busy={rate.isPending}>
+            <legend className="visually-hidden">{t('rating.mine')}</legend>
+            {[1, 2, 3, 4, 5].map((value) => (
+              <label key={value} className={styles.star} data-filled={summary.myStars !== null && value <= summary.myStars}>
+                <input className="visually-hidden" type="radio" name={name} value={value} checked={summary.myStars === value} onChange={() => undefined} onClick={() => choose(value)} />
+                <Icon name="star" />
+                <span className="visually-hidden">
+                  {summary.myStars === value ? t('rating.removeStars', { count: value }) : t('rating.give', { count: value, recipe: recipeName })}
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
       </div>
-      {rate.isPending && <p className="meta-line" role="status">{t('rating.sending')}</p>}
-      {rate.isError && <p className="meta-line" role="alert">{t(errorKey(rate.error))}</p>}
+      {!readOnly && rate.isPending && <p className="meta-line" role="status">{t('rating.sending')}</p>}
+      {!readOnly && rate.isError && <p className="meta-line" role="alert">{t(errorKey(rate.error))}</p>}
     </div>
   );
 }

@@ -147,3 +147,16 @@ describe('RatingStars on the real RPC path (PR #19 review, finding 2)', () => {
     expect(server.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('RatingStars read-only (suggestions)', () => {
+  it('shows the average and the own stars, without radios', async () => {
+    const { unmount } = renderWithProviders(<RatingStars summary={{ familyAverage: 4, familyCount: 2, myStars: 4 }} recipeId="wok" recipeName="Wok" familyId="family-main" readOnly />);
+    expect(await screen.findByText('Il tuo voto: 4')).toBeTruthy();
+    expect(screen.getByLabelText('Media della famiglia: 4,0, 2 voti')).toBeTruthy();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    unmount();
+    renderWithProviders(<RatingStars summary={start} recipeId="wok" recipeName="Wok" familyId="family-main" readOnly />);
+    expect(await screen.findByText('Non hai votato')).toBeTruthy();
+    expect(screen.queryAllByRole('radio')).toHaveLength(0);
+  });
+});
