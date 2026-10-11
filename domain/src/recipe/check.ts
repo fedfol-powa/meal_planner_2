@@ -18,7 +18,7 @@ export type Add = (code: IssueCode, ...path: IssuePath) => void;
 /** Host of an http(s) address, lower case; null otherwise. No URL global: domain/ has no DOM or Node types. */
 export function httpUrlHost(value: string): string | null {
 	const match = /^https?:\/\/([a-z0-9.-]+)(?::\d+)?(?:[/?#][^\s]*)?$/i.exec(value.trim());
-	return match ? match[1].toLowerCase() : null;
+	return match ? match[1]!.toLowerCase() : null;
 }
 
 const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be']);

@@ -39,9 +39,9 @@ export function varietyHints(input: { ingredientName: string; known: Localized[]
 	// "Pomodoro tipo Roma" on Pomodori: drop the ingredient name (singular or plural stem) and filler words.
 	const stem = plain(input.ingredientName).split(' ')[0]?.replace(/[aeio]$/, '') ?? '';
 	const words = cleaned.split(' ');
-	let start = stem.length >= 3 && words.length > 1 && plain(words[0]).startsWith(stem) ? 1 : 0;
+	let start = stem.length >= 3 && words.length > 1 && plain(words[0]!).startsWith(stem) ? 1 : 0;
 	const repeats = start === 1;
-	while (start < words.length - 1 && VARIETY_FILLER_WORDS.has(plain(words[start]))) start++;
+	while (start < words.length - 1 && VARIETY_FILLER_WORDS.has(plain(words[start]!))) start++;
 	const core = words.slice(start).join(' ');
 	const known = input.known.find((k) => varietyKey(k[input.locale]) === varietyKey(core));
 	if (repeats) hints.push({ kind: 'repeats_ingredient', suggestion: known ? known[input.locale] : core });

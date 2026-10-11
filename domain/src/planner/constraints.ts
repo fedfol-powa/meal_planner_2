@@ -11,7 +11,7 @@ export interface SlotRef {
 }
 
 export function slotSettingOf(settings: PlannerSettings, date: IsoDate, mealType: MealType): SlotSetting {
-	return settings.slots[mealType][weekdayOf(date)];
+	return settings.slots[mealType][weekdayOf(date)]!;
 }
 
 export function slotRefOf(slot: Pick<PlannedSlot, 'date' | 'mealType'>, settings: PlannerSettings): SlotRef {

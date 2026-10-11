@@ -36,7 +36,7 @@ export function fillWeek(rawInput: PlannerInput): PlannedWeek {
 	while (open.length > 0) {
 		const options = open.map((slot, order) => ({ slot, order, candidates: candidatesFor(slotRefOf(slot, input.settings), input, placed.map((p) => p.recipe)) }));
 		options.sort((a, b) => a.candidates.length - b.candidates.length || a.order - b.order);
-		const { slot, candidates } = options[0];
+		const { slot, candidates } = options[0]!;
 		open.splice(open.indexOf(slot), 1);
 		if (candidates.length === 0) continue;
 		const ctx = buildContext(input, placed);
@@ -44,7 +44,7 @@ export function fillWeek(rawInput: PlannerInput): PlannedWeek {
 			.map((recipe) => ({ recipe, score: scoreCandidate(recipe, slot, ctx) }))
 			.sort((a, b) => b.score - a.score || compareIds(a.recipe.id, b.recipe.id))
 			.slice(0, TOP_K);
-		const floor = ranked[ranked.length - 1].score;
+		const floor = ranked[ranked.length - 1]!.score;
 		const choice = weightedPick(ranked.map((r) => ({ item: r.recipe, weight: r.score - floor + 1 })), random);
 		slot.content = { kind: 'recipe', recipeId: choice.id };
 		placed.push({ date: slot.date, mealType: slot.mealType, recipe: choice });
