@@ -1,0 +1,82 @@
+import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, SessionCheck, SignInResult } from '../auth/backend';
+
+export interface StubBackend extends AuthBackend {
+  nextSignIn: SignInResult;
+  signOutCalls: number;
+  signOutError: Error | null;
+  refreshResult: boolean;
+  refreshCalls: number;
+  /** A sign-in (user) or a sign-out (null), as Supabase reports them. */
+  setUser(user: AuthUser | null): void;
+  /** Any event without changing the session, e.g. a token refresh of the current user. */
+  emit(type: Exclude<AuthEventType, 'SIGNED_OUT'>, user: AuthUser): void;
+  emit(type: 'SIGNED_OUT', user: null): void;
+  setCheck(next: SessionCheck): void;
+  /** The next check() waits until the returned function answers it (identity not known yet). */
+  holdCheck(): (check: SessionCheck) => void;
+  /** The next refresh() waits until the returned function answers it. */
+  holdRefresh(): (ok: boolean) => void;
+}
+
+/** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
+export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supabase' = 'supabase'): StubBackend {
+  let current: SessionCheck = initial ? { status: 'signedIn', user: initial } : { status: 'signedOut' };
+  const listeners = new Set<(event: AuthEvent) => void>();
+  const send = (event: AuthEvent) => listeners.forEach((listener) => listener(event));
+  let heldCheck: Promise<SessionCheck> | null = null;
+  let heldRefresh: Promise<boolean> | null = null;
+  const backend: StubBackend = {
+    mode,
+    nextSignIn: { ok: true },
+    signOutCalls: 0,
+    signOutError: null,
+    refreshResult: true,
+    refreshCalls: 0,
+    setUser(user) {
+      current = user ? { status: 'signedIn', user } : { status: 'signedOut' };
+      send(user ? { type: 'SIGNED_IN', user } : { type: 'SIGNED_OUT', user: null });
+    },
+    emit(type: AuthEventType, user: AuthUser | null) {
+      send({ type, user } as AuthEvent);
+    },
+    setCheck(next) {
+      current = next;
+    },
+    holdCheck() {
+      let answer: (check: SessionCheck) => void = () => {};
+      heldCheck = new Promise<SessionCheck>((resolve) => (answer = resolve));
+      return answer;
+    },
+    holdRefresh() {
+      let answer: (ok: boolean) => void = () => {};
+      heldRefresh = new Promise<boolean>((resolve) => (answer = resolve));
+      return answer;
+    },
+    check() {
+      const pending = heldCheck;
+      heldCheck = null;
+      return pending ?? Promise.resolve(current);
+    },
+    onChange(listener) {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+    async signIn(email) {
+      if (backend.nextSignIn.ok) backend.setUser({ id: `user-${email}`, email });
+      return backend.nextSignIn;
+    },
+    async signOut() {
+      backend.signOutCalls += 1;
+      if (backend.signOutError) throw backend.signOutError;
+      backend.setUser(null);
+    },
+    refresh() {
+      backend.refreshCalls += 1;
+      const pending = heldRefresh;
+      heldRefresh = null;
+      return pending ?? Promise.resolve(backend.refreshResult);
+    },
+    getAccessToken: async () => (current.status === 'signedOut' ? null : 'token')
+  };
+  return backend;
+}

@@ -1,0 +1,56 @@
+import { fireEvent, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import type { RecipeSummary } from '../api/types';
+import { renderWithProviders } from '../test/renderWithProviders';
+import { RecipeCard, type RecipeCardProps } from './RecipeCard';
+
+const recipe: RecipeSummary = {
+  id: 'r1', name: 'Spaghetti al pomodoro', description: 'Semplici.', photo: '/assets/recipe-images/x.jpg', durationMinutes: 20,
+  sourceType: 'web', sourceUrl: 'https://ricette.giallozafferano.it/spaghetti', bookTitle: null, bookPages: null, mealType: 'both', proteinGroup: 'vegetarian'
+};
+const base: RecipeCardProps = {
+  cardKey: 's1', label: 'Pranzo', kind: 'recipe', recipe, freeText: null, servings: 4,
+  ingredients: [{ ingredientId: 'pasta', name: 'Spaghetti', amount: '320 g', optional: false }, { ingredientId: 'pasta', name: 'Spaghetti', amount: '10 g', optional: false }],
+  note: null, rating: { familyAverage: 4, familyCount: 2, myStars: null }, lastChange: null,
+  detailSearch: { from: 'menu', day: '2026-10-08', slot: '2026-10-08-lunch' }, familyId: 'family-main'
+};
+
+describe('RecipeCard', () => {
+  it('links the title to the source and truncates the source line', async () => {
+    renderWithProviders(<RecipeCard {...base} />);
+    const title = await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    expect(title.getAttribute('href')).toBe('https://ricette.giallozafferano.it/spaghetti');
+    expect(title.getAttribute('target')).toBe('_blank');
+    expect(screen.getByTitle('ricette.giallozafferano.it')).toBeTruthy();
+    expect(screen.getByText('ricette.giallozaffera…')).toBeTruthy();
+    expect(screen.getByText(/4 porzioni/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Scheda ricetta' }).getAttribute('href')).toBe('/recipes/r1?from=menu&day=2026-10-08&slot=2026-10-08-lunch');
+  });
+  it('opens rating and ingredients one at a time', async () => {
+    renderWithProviders(<RecipeCard {...base} />);
+    const ratingButton = await screen.findByRole('button', { name: 'Voto della famiglia 4,0: apri per votare' });
+    const ingredientsButton = screen.getByRole('button', { name: '2 ingredienti: mostra o nascondi' });
+    fireEvent.click(ratingButton);
+    expect(ratingButton.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByLabelText('Dai 5 stelle a Spaghetti al pomodoro')).toBeTruthy();
+    fireEvent.click(ingredientsButton);
+    expect(ratingButton.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByText('320 g')).toBeTruthy();
+    expect(screen.queryByLabelText('Dai 5 stelle a Spaghetti al pomodoro')).toBeNull();
+  });
+  it('shows free meals, empty slots, changes by former members and missing ingredients', async () => {
+    const { unmount } = renderWithProviders(<RecipeCard {...base} kind="free" recipe={null} freeText="Pizza" rating={null} ingredients={null} />);
+    expect(await screen.findByText('Pasto libero')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Pizza' })).toBeTruthy();
+    unmount();
+    const empty = renderWithProviders(<RecipeCard {...base} kind="empty" recipe={null} rating={null} ingredients={null} />);
+    expect(await screen.findByRole('heading', { name: 'Nessuna ricetta adatta' })).toBeTruthy();
+    empty.unmount();
+    renderWithProviders(<RecipeCard {...base} rating={null} ingredients={null} detailSearch={null} lastChange={{ userName: null, at: '2026-10-01T20:40' }} />);
+    expect(await screen.findByText('Cambiato da ex membro, giovedì 20:40')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Voto della famiglia/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Scheda ricetta' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /ingredienti: mostra o nascondi/ }));
+    expect(screen.getByText('Ingredienti non ancora disponibili per questa ricetta.')).toBeTruthy();
+  });
+});

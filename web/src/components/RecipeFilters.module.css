@@ -1,0 +1,18 @@
+.filters { display: grid; gap: 12px; margin-bottom: 16px; }
+.searchRow { display: flex; align-items: center; gap: 4px; }
+.search { flex: 1; min-width: 0; }
+.toggle { display: grid; place-items: center; width: 48px; height: 48px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
+.toggle :global(.icon) { width: 26px; height: 26px; }
+.toggle[aria-expanded='true'], .toggle[data-active='true'] { color: var(--green); }
+.toggle[data-active='true'] { background: var(--soft-green); }
+.filters input[type='search'] { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); }
+.fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; border: 0; }
+.filters label { display: grid; gap: 4px; font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+.filters select { min-height: 44px; padding: 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 0.875rem; }
+.fields[hidden] { display: none; }
+.sort { display: flex; align-items: end; gap: 4px; }
+.sort label { flex: 1; min-width: 0; }
+.reverse { display: grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
+.reverse :global(.icon) { width: 24px; height: 24px; }
+.reverse[aria-pressed='true'] { color: var(--green); background: var(--soft-green); }
+@media (max-width: 767px) { .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fields > .sort { grid-column: 1 / -1; } }

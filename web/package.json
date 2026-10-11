@@ -1,8 +1,35 @@
 {
-	"name": "@app/web",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"build": "node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/index.html','<!doctype html><title>Cosa si mangia</title>')\""
-	}
+  "name": "@app/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync-assets": "node scripts/sync-assets.mjs",
+    "predev": "npm run sync-assets",
+    "dev": "vite",
+    "prebuild": "npm run sync-assets",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview",
+    "preview:lan": "npm run build && vite preview --host --port 8767 --strictPort",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "fake-data": "node scripts/build-fake-data.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "@tanstack/react-query": "^5.104.1",
+    "@tanstack/react-query-persist-client": "^5.104.1",
+    "@tanstack/react-router": "^1.170.42",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.1.2",
+    "vite": "^8.3.4"
+  }
 }
