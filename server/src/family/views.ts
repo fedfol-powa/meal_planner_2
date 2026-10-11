@@ -1,4 +1,4 @@
-import { familyViewSchema, settingsViewSchema, type FamilyView, type Locale, type SettingsView } from '@app/contract';
+import { exclusionsViewSchema, familyViewSchema, settingsViewSchema, type ExclusionsView, type FamilyView, type Locale, type SettingsView } from '@app/contract';
 import { resolveFamilySettings } from '@app/domain/family';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
@@ -90,4 +90,25 @@ export async function searchIngredients(tx: Tx, familyId: string, text: string, 
 		.sort((a, b) => Number(b.starts) - Number(a.starts) || collator.compare(a.name, b.name) || (a.id < b.id ? -1 : 1))
 		.slice(0, SEARCH_LIMIT)
 		.map(({ id, name }) => ({ id, name }));
+}
+
+/** "Non proporre più", newest first; the author only while still a member. */
+export async function exclusionsView(tx: Tx, familyId: string, locale: Locale): Promise<ExclusionsView> {
+	const rows = await tx<{ id: string; name: string | null; reason: string | null; createdByName: string | null; createdAt: Date }[]>`
+		select r.id, r.name ->> ${locale}::text as name, e.reason,
+			case when m.user_id is not null then p.display_name end as "createdByName", e.created_at as "createdAt"
+		from app.recipe_exclusions e
+		join app.recipes r on r.id = e.recipe_id
+		left join app.family_members m on m.family_id = e.family_id and m.user_id = e.created_by
+		left join app.profiles p on p.user_id = m.user_id
+		where e.family_id = ${familyId}
+		order by e.created_at desc, r.id`;
+	return exclusionsViewSchema.parse(
+		rows.map((row) => ({
+			recipe: { id: row.id, name: row.name ?? '' },
+			reason: row.reason,
+			createdByName: row.createdByName,
+			createdAt: row.createdAt.toISOString(),
+		})),
+	);
 }

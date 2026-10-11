@@ -6,7 +6,7 @@ import { fresh } from '../pipeline.ts';
 import { groupRangeSchema, normalizeRules, resolveFamilySettings, sameRule } from '@app/domain/family';
 import type { MealRule } from '@app/domain/planner';
 import { writeSettingsKey } from './settings-writes.ts';
-import { familyView, searchIngredients, settingsView } from './views.ts';
+import { exclusionsView, familyView, searchIngredients, settingsView } from './views.ts';
 
 /** No row: the family is gone or the caller is no longer one of its administrators. */
 async function updated(rows: PromiseLike<readonly unknown[]>): Promise<void> {
@@ -107,11 +107,35 @@ function catalogueHandlers(os: Implementer) {
 	};
 }
 
+function exclusionHandlers(os: Implementer) {
+	return {
+		listExclusions: os.family.listExclusions.handler(async ({ context, input }) =>
+			fresh(context, await exclusionsView(context.tx, input.familyId, context.locale)),
+		),
+		/** Published or archived recipes; the first author, reason and date stay when repeated. */
+		addExclusion: os.family.addExclusion.handler(async ({ context, input }) => {
+			const { tx } = context;
+			const [recipe] = await tx`select 1 from app.recipes where id = ${input.recipeId} and status <> 'draft'`;
+			if (!recipe) throw appError('not_found');
+			await tx`
+				insert into app.recipe_exclusions (family_id, recipe_id, reason, created_by)
+				values (${input.familyId}, ${input.recipeId}, ${input.reason ?? null}, auth.uid())
+				on conflict (family_id, recipe_id) do nothing`;
+			return exclusionsView(tx, input.familyId, context.locale);
+		}),
+		removeExclusion: os.family.removeExclusion.handler(async ({ context, input }) => {
+			await context.tx`delete from app.recipe_exclusions where family_id = ${input.familyId} and recipe_id = ${input.recipeId}`;
+			return exclusionsView(context.tx, input.familyId, context.locale);
+		}),
+	};
+}
+
 export function familyRouter(os: Implementer) {
 	return {
 		...identityHandlers(os),
 		...settingsHandlers(os),
 		...catalogueHandlers(os),
+		...exclusionHandlers(os),
 		get: os.family.get.handler(async ({ context, input }) => fresh(context, await familyView(context.tx, input.familyId, context.locale))),
 		getSettings: os.family.getSettings.handler(async ({ context, input }) =>
 			fresh(context, await settingsView(context.tx, input.familyId, context.locale)),

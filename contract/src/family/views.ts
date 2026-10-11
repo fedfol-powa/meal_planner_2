@@ -49,3 +49,14 @@ export const settingsViewSchema = z.object({
 export type SettingsView = z.infer<typeof settingsViewSchema>;
 
 export const ingredientMatchSchema = z.object({ id: z.uuid(), name: z.string() });
+
+export const exclusionsViewSchema = z.array(
+	z.object({
+		recipe: z.object({ id: z.uuid(), name: z.string() }),
+		reason: z.string().nullable(),
+		/** null: the person who added it is no longer a member ("ex membro"). */
+		createdByName: z.string().nullable(),
+		createdAt: z.iso.datetime({ offset: true }),
+	}),
+);
+export type ExclusionsView = z.infer<typeof exclusionsViewSchema>;

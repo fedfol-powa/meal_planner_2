@@ -5,7 +5,7 @@ import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
 import { measurementSystemSchema } from '../profile/index.ts';
-import { familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './views.ts';
+import { exclusionsViewSchema, familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './views.ts';
 
 export * from './views.ts';
 
@@ -16,6 +16,8 @@ const notFound = { not_found: errorDefinitions.not_found };
 const groupBound = z.number().int().min(0).max(GROUP_MAX);
 /** Family administrators only; the answer is the updated view, not versioned. */
 const adminWrite = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyAdmin' });
+/** Any member of the family. */
+const memberWrite = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyMember' });
 const memberRead = (reads?: ('family' | 'catalogue')[]) =>
 	op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', ...(reads ? { reads } : {}) });
 
@@ -130,4 +132,22 @@ export const familyContract = {
 			}),
 		)
 		.output(settingsViewSchema),
+
+	listExclusions: memberRead(['family', 'catalogue'])
+		.route({ method: 'GET', path: '/families/{familyId}/exclusions', summary: 'Recipes this family asked never to be proposed again, newest first' })
+		.input(versionedInput(family))
+		.output(versionedOutput(exclusionsViewSchema)),
+	addExclusion: memberWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/exclusions/{recipeId}',
+			summary: 'Stop proposing a recipe to this family, with an optional reason; repeating it changes nothing',
+		})
+		.errors(notFound)
+		.input(family.extend({ recipeId: z.uuid(), reason: z.string().trim().min(1).max(200).optional() }))
+		.output(exclusionsViewSchema),
+	removeExclusion: memberWrite()
+		.route({ method: 'DELETE', path: '/families/{familyId}/exclusions/{recipeId}', summary: 'Let a recipe be proposed again to this family' })
+		.input(family.extend({ recipeId: z.uuid() }))
+		.output(exclusionsViewSchema),
 };
