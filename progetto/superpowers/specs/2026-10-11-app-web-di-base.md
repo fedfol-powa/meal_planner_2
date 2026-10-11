@@ -517,13 +517,15 @@ delle aree, agganci della sessione e deroga della Spesa. Nessuna schermata nuova
 
 ### Client oRPC
 
-- **Trasporto:** `createRpcClient({ getAccessToken, fetch? })` in `web/src/api/rpc.ts`:
+- **Trasporto:** `createRpcClient({ getCredentials, fetch? })` in `web/src/api/rpc.ts`:
   `createORPCClient` con `RPCLink` verso `/api/rpc` dell'origine corrente (la rotta di
   `server/src/app.ts`), tipato con `ContractRouterClient<Contract>` dal contratto
   importato solo come tipo. A ogni richiesta l'header `authorization: Bearer <token>`
-  legge `backend.getAccessToken()`; senza token la richiesta parte senza header e il
-  server risponde `unauthorized`, che segue il protocollo della sessione (rinnovo, poi
-  ingresso).
+  legge `backend.getCredentials()` (token e utente dalla stessa sessione di Supabase; nel
+  backend prende il posto di `getAccessToken()`); senza token la richiesta parte senza
+  header e il server risponde `unauthorized`, che segue il protocollo della sessione
+  (rinnovo, poi ingresso). Le credenziali di una persona diversa da quella della sessione
+  che ha fatto la chiamata non partono mai: `SessionClosedError` (review della PR #17).
 - **Errori** (interceptor del link): `ORPCError` con un codice del contratto →
   `ApiError(code, data)`; fallimento del trasporto (`TypeError` di `fetch`) →
   `network`; ogni altro errore, comprese risposte che non sono del protocollo (pagina

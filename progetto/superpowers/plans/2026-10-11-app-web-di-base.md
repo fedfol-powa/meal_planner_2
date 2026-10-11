@@ -6891,6 +6891,19 @@ Review: `progetto/coordinamento/revisioni/w5-pr17.md`; scelte del coordinatore:
   `SessionScope` reali: B annunciato durante il rinnovo di A ⇒ una sola esecuzione della
   lettura di A, B resta dentro, nessuna uscita.
 
+- **Seconda verifica, rilievo 1 (`w5-pr17-2.md`).** Restava la finestra prima dell'effetto
+  React che chiude A: il token letto dopo l'ingresso di B era quello di B.
+  - `AuthBackend.getCredentials()` (token e `userId` dalla stessa sessione di Supabase)
+    al posto di `getAccessToken()`; `wrapApi` mette `sessionUserId` nel contesto della
+    chiamata; il link, appena lette le credenziali, rifiuta con `SessionClosedError` se
+    sono di un'altra persona.
+  - `SessionScope` ascolta gli eventi del backend: un evento con un'altra identità (o
+    l'uscita) chiude subito la sessione mostrata, senza aspettare l'effetto React.
+  - Test: nel link, credenziali di B per una chiamata di A ⇒ nessun invio; integrato con
+    `AuthProvider`, `SessionScope`, wrapper e client oRPC reali: lettura del token di A
+    sospesa, ingresso di B, token di B restituito ⇒ A chiusa subito, zero invii,
+    `SessionClosedError`, B dentro senza uscite. Senza le correzioni la richiesta partiva.
+
 ### Task 28: verifiche e PR
 
 - [ ] `npm test` e `npm run typecheck` dalla radice e da `web/`; `npm run build` (il

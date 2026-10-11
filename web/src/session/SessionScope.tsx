@@ -93,6 +93,16 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     void purgeOtherCopies(store, session.userId);
   }, [session, store]);
 
+  // A sign-in of someone else or a sign-out ends this generation at once, before React replaces
+  // the session in the effect above: no call of this session may leave with the new
+  // credentials (PR #17 review). Same-user events (renewals) change nothing.
+  useEffect(() => {
+    if (!session) return;
+    return backend.onChange((event) => {
+      if ((event.user?.id ?? null) !== session.userId) void session.close();
+    });
+  }, [session, backend]);
+
   // Forbidden: the family leaves memory and disk, and the profile is read again.
   useEffect(() => {
     session?.setErrorHandler((error, scope) => {

@@ -1,4 +1,4 @@
-import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
+import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
 
 export interface StubBackend extends AuthBackend {
   nextSignIn: SignInResult;
@@ -15,6 +15,8 @@ export interface StubBackend extends AuthBackend {
   setCheck(next: SessionCheck): void;
   /** The next check() waits until the returned function answers it (identity not known yet). */
   holdCheck(): (check: SessionCheck) => void;
+  /** The next getCredentials() waits until the returned function answers it. */
+  holdCredentials(): (credentials: Credentials | null) => void;
   /** The next refresh() waits until the returned function answers it. */
   holdRefresh(): (result: RenewResult) => void;
 }
@@ -26,6 +28,7 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
   const send = (event: AuthEvent) => listeners.forEach((listener) => listener(event));
   let heldCheck: Promise<SessionCheck> | null = null;
   let heldRefresh: Promise<RenewResult> | null = null;
+  let heldCredentials: Promise<Credentials | null> | null = null;
   const backend: StubBackend = {
     mode,
     nextSignIn: { ok: true },
@@ -46,6 +49,11 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
     holdCheck() {
       let answer: (check: SessionCheck) => void = () => {};
       heldCheck = new Promise<SessionCheck>((resolve) => (answer = resolve));
+      return answer;
+    },
+    holdCredentials() {
+      let answer: (credentials: Credentials | null) => void = () => {};
+      heldCredentials = new Promise<Credentials | null>((resolve) => (answer = resolve));
       return answer;
     },
     holdRefresh() {
@@ -78,7 +86,12 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
       const fallback: RenewResult = current.status === 'signedOut' ? { kind: 'rejected' } : { kind: 'ok', userId: current.user.id };
       return pending ?? Promise.resolve(backend.refreshResult ?? fallback);
     },
-    getAccessToken: async () => (current.status === 'signedOut' ? null : 'token')
+    getCredentials() {
+      const pending = heldCredentials;
+      heldCredentials = null;
+      const now: Credentials | null = current.status === 'signedOut' ? null : { accessToken: `token-of-${current.user.id}`, userId: current.user.id };
+      return pending ?? Promise.resolve(now);
+    }
   };
   return backend;
 }

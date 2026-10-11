@@ -2,13 +2,14 @@ import type { Contract } from '@app/contract';
 import { createORPCClient, ORPCError } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { ContractRouterClient } from '@orpc/contract';
+import type { Credentials } from '../auth/backend';
 import { ApiError, isContractErrorCode, SessionClosedError } from './errors';
 
-export type RpcClient = ContractRouterClient<Contract>;
+export type RpcClient = ContractRouterClient<Contract, RpcContext>;
 
 interface RpcClientOptions {
   /** Read at every request (spec, «Client web»): Supabase renews the token in the background. */
-  getAccessToken: () => Promise<string | null>;
+  getCredentials: () => Promise<Credentials | null>;
   /** Tests only: the transport. */
   fetch?: (request: Request) => Promise<Response>;
 }
@@ -25,12 +26,17 @@ function toApiErrors(error: unknown, signal: AbortSignal | undefined): unknown {
 }
 
 /** The real client of the contract, towards the RPC route of the Worker on the same origin. */
-export function createRpcClient({ getAccessToken, fetch }: RpcClientOptions): RpcClient {
-  const link = new RPCLink({
+/** Set by the session wrapper: the person whose session made the call (PR #17 review). */
+export interface RpcContext { sessionUserId?: string | null }
+
+export function createRpcClient({ getCredentials, fetch }: RpcClientOptions): RpcClient {
+  const link = new RPCLink<RpcContext>({
     url: new URL('/api/rpc', location.origin).toString(),
-    headers: async () => {
-      const token = await getAccessToken();
-      return token ? { authorization: `Bearer ${token}` } : {};
+    headers: async ({ context }) => {
+      const credentials = await getCredentials();
+      // The token may belong to someone who signed in meanwhile: never send it for another session's call.
+      if (context.sessionUserId !== undefined && credentials && credentials.userId !== context.sessionUserId) throw new SessionClosedError();
+      return credentials ? { authorization: `Bearer ${credentials.accessToken}` } : {};
     },
     interceptors: [
       async ({ next, signal }) => {

@@ -12,7 +12,7 @@ const user = { id: 'user-federico', email: 'federico@example.com' };
 
 function setup() {
   const server = createRpcTestServer();
-  const rpc = createRpcClient({ getAccessToken: async () => 'token', fetch: server.fetch });
+  const rpc = createRpcClient({ getCredentials: async () => ({ accessToken: 'token', userId: 'a' }), fetch: server.fetch });
   const api = realClients({ rpc, latencyMs: 0 })(user)('it-IT');
   return { server, api };
 }
@@ -92,7 +92,8 @@ describe('wrapApi on clients without keys (second PR)', () => {
     let releaseToken: (token: string) => void = () => {};
     const tokens: string[] = [];
     const rpc = createRpcClient({
-      getAccessToken: () => new Promise<string>((resolve) => (releaseToken = (token) => (tokens.push(token), resolve(token)))),
+      getCredentials: () =>
+        new Promise((resolve) => (releaseToken = (token) => (tokens.push(token), resolve({ accessToken: token, userId: token === 'token-of-b' ? 'b' : 'a' })))),
       fetch: server.fetch
     });
     const session = createSession('a', createMemoryStore());

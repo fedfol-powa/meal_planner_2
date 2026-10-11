@@ -253,9 +253,11 @@ export function wrapApi(api: Api, session: Session, language?: ClientLanguage): 
   // The client options get a signal aborted by the caller or by the closing of the session, so a
   // request still being prepared (token read) never leaves once the session is closed (PR #17 review).
   const withSessionSignal = (args: unknown[]): unknown[] => {
-    const options = (typeof args[1] === 'object' && args[1] !== null ? args[1] : {}) as { signal?: AbortSignal };
+    const options = (typeof args[1] === 'object' && args[1] !== null ? args[1] : {}) as { signal?: AbortSignal; context?: object };
     const signal = options.signal ? AbortSignal.any([options.signal, session.signal]) : session.signal;
-    return [args[0], { ...options, signal }, ...args.slice(2)];
+    // The link checks that the credentials it reads belong to this session's person.
+    const context = { ...options.context, sessionUserId: session.userId };
+    return [args[0], { ...options, signal, context }, ...args.slice(2)];
   };
   // A Proxy at every level: the oRPC client has no keys to enumerate (second PR). Every
   // argument is passed on, the client options with `signal` too, also in the retry.

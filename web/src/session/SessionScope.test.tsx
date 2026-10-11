@@ -1,12 +1,17 @@
 import { persistQueryClientRestore } from '@tanstack/react-query-persist-client';
 import { useIsFetching, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
 import { meQuery, openingQuery, queryKeys, recipeQuery, searchQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
 import { useRateRecipe } from '../api/ratings';
+import { useApi } from '../api/ApiProvider';
+import { realClients } from '../api/clients';
+import { createRpcClient } from '../api/rpc';
+import { createRpcTestServer } from '../test/rpcServer';
+import { SessionClosedError, type Session } from './session';
 import type { Api, MeView, Read, RecipeDetailView, WeekView } from '../api/types';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import type { CreateApi } from './SessionScope';
@@ -498,5 +503,51 @@ describe('fake data shared by the languages (PR review, C13)', () => {
         expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, rated!, locale))?.data.rating.myStars).toBe(5);
       }
     }, { timeout: 3000 });
+  });
+});
+
+describe('credentials of the session that makes the call (PR #17 review, second pass)', () => {
+  it('sends nothing when the identity changes while the token of A is being read', async () => {
+    const server = createRpcTestServer();
+    const backend = createStubBackend(A);
+    const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+    let outcome = 'pending';
+    let sessionOfA: Session | null = null;
+    function CallProbe() {
+      const apiOfSession = useApi();
+      const session = useSession();
+      if (session.userId === 'a') sessionOfA = session;
+      const { state } = useAuth();
+      return (
+        <>
+          <p>auth: {state.status === 'signedIn' ? state.user.id : state.status}</p>
+          <button
+            onClick={() =>
+              void apiOfSession.session.whoami({}).then(
+                () => (outcome = 'sent'),
+                (error: unknown) => (outcome = error instanceof SessionClosedError ? 'closed' : String(error))
+              )
+            }
+          >
+            whoami
+          </button>
+        </>
+      );
+    }
+    renderSession(<CallProbe />, { backend, createApi: realClients({ rpc, latencyMs: 0 }) });
+    await screen.findByText('auth: a');
+    const release = backend.holdCredentials();
+    fireEvent.click(screen.getByText('whoami'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // B signs in (another tab) and the token read of A's call returns B's credentials,
+    // before React has run the effect that replaces the session.
+    backend.setUser(B);
+    expect(sessionOfA!.isClosed()).toBe(true);
+    release({ accessToken: 'token-of-b', userId: 'b' });
+    await vi.waitFor(() => expect(outcome).not.toBe('pending'));
+    expect(outcome).toBe('closed');
+    expect(server.fetch).not.toHaveBeenCalled();
+    await screen.findByText('auth: b');
+    expect(backend.signOutCalls).toBe(0);
   });
 });

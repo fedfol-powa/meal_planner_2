@@ -75,9 +75,9 @@ export function createSupabaseBackend(
       if (error) return isAuthRetryableFetchError(error) ? { kind: 'network' } : { kind: 'rejected' };
       return data.session ? { kind: 'ok', userId: data.session.user.id } : { kind: 'rejected' };
     },
-    async getAccessToken() {
+    async getCredentials() {
       const { data } = await auth.getSession();
-      return data.session?.access_token ?? null;
+      return data.session ? { accessToken: data.session.access_token, userId: data.session.user.id } : null;
     }
   };
 }

@@ -28,7 +28,7 @@ describe.skipIf(!configured)('real stack: sign-in, read, renewal, sign-out', () 
       const body = request.method === 'GET' ? undefined : await request.arrayBuffer();
       return fetch(new URL(pathname + search, live.apiOrigin), { method: request.method, headers: request.headers, body, signal: request.signal });
     };
-    const rpc = createRpcClient({ getAccessToken: () => backend.getAccessToken(), fetch: toWorker });
+    const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: toWorker });
 
     expect(await backend.signIn(live.email!, live.password!)).toEqual({ ok: true });
     const check = await backend.check();
@@ -52,16 +52,16 @@ describe.skipIf(!configured)('real stack: sign-in, read, renewal, sign-out', () 
     expect((await api.menu.getOpening({ familyId: 'family-main' })).unchanged).toBe(false);
 
     // Renewal: a new token from Supabase, accepted by the Worker.
-    const before = await backend.getAccessToken();
+    const before = (await backend.getCredentials())?.accessToken;
     expect(await session.renew()).toEqual({ kind: 'ok', userId });
-    const after = await backend.getAccessToken();
+    const after = (await backend.getCredentials())?.accessToken;
     expect(after).not.toBe(before);
     expect(await api.session.whoami({})).toMatchObject({ userId });
 
     // Sign-out of this device: the old token is refused by the Worker, and the closed session runs nothing.
     await backend.signOut();
-    expect(await backend.getAccessToken()).toBeNull();
-    const stale = createRpcClient({ getAccessToken: async () => after, fetch: toWorker });
+    expect(await backend.getCredentials()).toBeNull();
+    const stale = createRpcClient({ getCredentials: async () => ({ accessToken: after!, userId }), fetch: toWorker });
     await expect(stale.session.whoami({})).rejects.toMatchObject({ code: 'unauthorized' });
     // Unauthorized on the open session: the renewal is rejected and the single closing runs.
     await expect(api.session.whoami({})).rejects.toBeInstanceOf(SessionClosedError);

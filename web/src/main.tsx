@@ -18,7 +18,7 @@ import type { CreateApi } from './session/SessionScope';
 const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supabase.publishableKey) : createFakeBackend();
 // Real mode: the areas served by the Worker through oRPC, the others still fake (spec, «Seconda PR»).
 const createApi: CreateApi = env.supabase
-  ? realClients({ rpc: createRpcClient({ getAccessToken: () => backend.getAccessToken() }), latencyMs: 150 })
+  ? realClients({ rpc: createRpcClient({ getCredentials: () => backend.getCredentials() }), latencyMs: 150 })
   : fakeClients({ latencyMs: 150 });
 
 createRoot(document.getElementById('root')!).render(
