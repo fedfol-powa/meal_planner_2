@@ -77,6 +77,11 @@ describe('buildRecipe', () => {
 		expect(built.document.ingredients?.[0].quantity).toEqual({ kind: 'text', text: { 'it-IT': '145 g crudo (330 g cotto)', 'en-GB': '' } });
 		expect(built.findings).toContainEqual({ kind: 'quantity_note', detail: 'Pasta corta: 145 g crudo (330 g cotto)' });
 	});
+	it('reports an ambiguous number and keeps it as text', () => {
+		const built = buildRecipe(originRecipe({ ingredienti: [{ nome: 'Pasta corta', quantita: '1.000 g' }] }), noPrimary, inputs);
+		expect(built.document.ingredients?.[0].quantity).toEqual({ kind: 'text', text: { 'it-IT': '1.000 g', 'en-GB': '' } });
+		expect(built.findings).toContainEqual({ kind: 'quantity_note', detail: 'Pasta corta: 1.000 g' });
+	});
 	it('reports alternatives in names, mapping notes and pantry items excluded in the origin', () => {
 		const pantry = buildRecipe(originRecipe({ ingredienti: [{ nome: 'Pasta corta', quantita: '320 g' }], note: 'Olio, sale e pepe esclusi.' }), noPrimary, inputs);
 		expect(kinds(pantry)).toContain('pantry_excluded');

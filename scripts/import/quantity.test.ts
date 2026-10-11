@@ -27,6 +27,12 @@ describe('origin quantities', () => {
 		// Real case of the origin: raw and cooked weights differ, so it stays text and is reported.
 		expect(q('145 g crudo (330 g cotto)')).toEqual({ quantity: { kind: 'text' }, note: 'bracket_note' });
 	});
+	it('never chooses between 1 and 1000: thousands separators and mixed forms stay text and are reported', () => {
+		for (const raw of ['1.000 g', '1.500 ml', '2.000', '1.000,5 g', '1,000.5 g'])
+			expect(q(raw)).toEqual({ quantity: { kind: 'text' }, note: 'ambiguous_number' });
+		expect(q('1,5 kg')).toEqual({ quantity: { kind: 'amount', value: 1.5, unit: 'kg' }, note: null });
+		expect(q('62,5 g')).toEqual({ quantity: { kind: 'amount', value: 62.5, unit: 'g' }, note: null });
+	});
 	it('reads to taste and leaves everything else as text', () => {
 		expect(q('q.b.').quantity).toEqual({ kind: 'to_taste' });
 		expect(q('a piacere').quantity).toEqual({ kind: 'to_taste' });

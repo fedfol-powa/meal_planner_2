@@ -4,7 +4,8 @@ import type { UnitCode } from '../../domain/src/units/index.ts';
 // (ranges and packages are text), so nothing is guessed; notes are reported either way.
 
 export type OriginQuantity = { kind: 'amount'; value: number; unit: UnitCode } | { kind: 'to_taste' } | { kind: 'text' };
-export type QuantityNote = 'approximate' | 'bracket_note' | null;
+/** `ambiguous_number`: "1.000" may be 1 or 1000, "1.000,5" mixes separators; never guessed, kept as text. */
+export type QuantityNote = 'approximate' | 'bracket_note' | 'ambiguous_number' | null;
 
 const UNIT_WORDS: Record<string, UnitCode> = {
 	g: 'g', kg: 'kg', ml: 'ml', l: 'l', oz: 'oz', cup: 'us_cup', cups: 'us_cup',
@@ -22,6 +23,9 @@ function parseNumber(token: string): number | null {
 	return /^\d+(?:[.,]\d+)?$/.test(token) ? Number(token.replace(',', '.')) : null;
 }
 
+/** A dot followed by exactly three digits (thousands or decimals?) or both separators in one number. */
+const AMBIGUOUS_NUMBER = /^\d+\.\d{3}$|^\d+(?:[.,]\d+){2,}$/;
+
 export function parseOriginQuantity(raw: string | number): { quantity: OriginQuantity; note: QuantityNote } {
 	const lower = String(raw).trim().toLowerCase();
 	const withoutBracket = lower.replace(/\s*\([^)]*\)$/, '');
@@ -29,6 +33,7 @@ export function parseOriginQuantity(raw: string | number): { quantity: OriginQua
 	const text = { quantity: { kind: 'text' } as OriginQuantity, note: bracket };
 	if (TO_TASTE.has(withoutBracket)) return { quantity: { kind: 'to_taste' }, note: bracket };
 	const parts = withoutBracket.split(/\s+/);
+	if (AMBIGUOUS_NUMBER.test(parts[0])) return { quantity: { kind: 'text' }, note: 'ambiguous_number' };
 	const value = parseNumber(parts[0]);
 	if (value === null || value <= 0) return text;
 	let unit: UnitCode = 'piece';

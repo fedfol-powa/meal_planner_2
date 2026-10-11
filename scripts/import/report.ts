@@ -39,7 +39,7 @@ export function renderReport(result: BundleResult, extras: { archivedCount: numb
 		`## Ingredienti di dispensa esclusi nell'origine`, "L'import non aggiunge righe senza la fonte: un curatore può aggiungerle verificandole.", list(findings('pantry_excluded')),
 		`## Alternative nei nomi e note della mappatura`, list([...findings('alternative_in_name'), ...findings('mapping_note')]),
 		`## Preparazioni in altre pagine del libro`, list(findings('book_dependency')),
-		`## Quantità con note`, 'Approssimazioni e note tra parentesi, anche quando la quantità è rimasta testo.', list(findings('quantity_note')),
+		`## Quantità con note`, 'Approssimazioni, note tra parentesi e numeri ambigui («1.000»: uno o mille?), anche quando la quantità è rimasta testo.', list(findings('quantity_note')),
 		`## Tag d'origine`, 'Non importati: li sostituiscono gli attributi del pianificatore.',
 		`## Schede già presenti`, list(skipped.map((s) => `\`${s}\` saltata: già nel database`)),
 		`## Archivio`, `${extras.archivedCount} schede di \`archivio.yaml\` non importate.`
