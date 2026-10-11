@@ -62,11 +62,13 @@ export function assertUnambiguousEquivalences(equivalences: readonly UnitEquival
 /**
  * The equivalence for a line of the ingredient: the one of the line's preparation (Italian text)
  * if any, otherwise the one without a preparation; an equivalence of another preparation never
- * applies (lemon juice in lemons is not lemon zest). `equivalences` are those of the ingredient.
+ * applies (lemon juice in lemons is not lemon zest). `equivalences` are those of the ingredient;
+ * ambiguous ones are refused, as an import has not persisted them yet.
  */
 export function findEquivalence(
 	equivalences: readonly UnitEquivalence[], scope: EquivalenceScope, unit: UnitCode, preparation: string | null | undefined
 ): UnitEquivalence | null {
+	assertUnambiguousEquivalences(equivalences);
 	const key = preparationKey(preparation);
 	const candidates = equivalences.filter((eq) => eq.scope === scope && ratio(unit, eq.fromUnit) !== null);
 	return candidates.find((eq) => key !== null && eq.preparation === key) ?? candidates.find((eq) => eq.preparation === null) ?? null;

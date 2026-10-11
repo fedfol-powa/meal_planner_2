@@ -41,6 +41,16 @@ describe('findEquivalence', () => {
 		expect(findEquivalence([lemonJuice], 'recipe', 'g', 'succo')).toBeNull();
 		expect(findEquivalence([lemonJuice], 'shopping', 'ml', 'succo')).toBeNull();
 	});
+	it('refuses ambiguous recipe equivalences in either order, generic or of the same preparation', () => {
+		// Synthetic factors: two cups of the same ingredient, scope and preparation.
+		const a: UnitEquivalence = { ...cheddar, factor: 100, source: 'synthetic' };
+		const b: UnitEquivalence = { ...cheddar, factor: 200, source: 'synthetic' };
+		for (const preparation of [null, 'grattugiato']) {
+			const [pa, pb] = [{ ...a, preparation }, { ...b, preparation }];
+			expect(() => findEquivalence([pa, pb], 'recipe', 'us_cup', preparation)).toThrow(/Ambiguous/);
+			expect(() => findEquivalence([pb, pa], 'recipe', 'us_cup', preparation)).toThrow(/Ambiguous/);
+		}
+	});
 });
 
 describe('applyRecipeEquivalence', () => {
