@@ -7,12 +7,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Spec e piano pronti; review Codex in corso | 11/10 13:40 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Spec e piano pronti; review Codex in corso | 11/10 13:40 |
-| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9: YAML approvati e segnati; review Codex in corso (sul commit precedente alle approvazioni) | 11/10 13:40 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Spec e piano pronti; review Codex in corso | 11/10 13:30 |
-| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6: regressione dei voti corretta (C13); terza review breve in corso, poi merge | 11/10 13:40 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Spec e piano pronti; review Codex in corso | 11/10 13:40 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Review «da rifare» (revisioni/w1-menu-spec-piano.md); correzioni in corso (messaggi/w1-07-review-menu.md); aspetta la sezione «Interfaccia per W1» di W6 | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Review «da rifare» (revisioni/w2-profilo-spec-piano.md); correzioni in corso (messaggi/w2-06-review-profilo.md) | 11/10 |
+| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9: review «approvabile con correzioni» (revisioni/w3-pr9.md); correzioni in corso (messaggi/w3-03-review-pr9.md); poi verifica breve e merge | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Review «da rifare» (revisioni/w4-spesa-spec-piano.md); correzioni in corso (messaggi/w4-04-review-spesa.md); poi seconda review breve sui rilievi 1–4 e interfaccia di sessione da passare a W5 | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6: terza review APPROVABILE (revisioni/w5-pr6-3.md), CI verde su 3d0a4cd; merge negato dal classificatore della modalità auto, in attesa dell'utente | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Review «da rifare» (revisioni/w6-ricettario-spec-piano.md); correzioni in corso (messaggi/w6-01-review-spec.md); poi la sezione «Interfaccia per W1» va passata a W1 | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e spesa), #8
 (fonte delle equivalenze).
@@ -21,12 +21,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R spesa spec | spec e piano della spesa (W4), nel worktree .worktrees/spesa | R spesa spec | w1:p12 | in corso → revisioni/w4-spesa-spec-piano.md |
-| R PR9 ricetta | PR #9 (W3), worktree .worktrees/review-pr9 | R PR9 ricetta | w1:p11 | in corso → revisioni/w3-pr9.md |
-| R ricettario spec | spec e piano del ricettario (W6), nel worktree .worktrees/ricettario | R ricettario spec | w1:p13 | in corso → revisioni/w6-ricettario-spec-piano.md |
-| R profilo spec | spec e piano del profilo (W2), nel worktree .worktrees/profilo | R profilo spec | w1:p14 | in corso → revisioni/w2-profilo-spec-piano.md |
-| R menu spec | spec e piano del menu (W1), nel worktree .worktrees/menu | R menu spec | w1:p15 | in corso → revisioni/w1-menu-spec-piano.md |
-| R PR6 voti | correzione C13 della PR #6, worktree .worktrees/review-pr6 | R PR6 voti | w1:p16 | in corso → revisioni/w5-pr6-3.md |
 
 ## Domande in sospeso
 
@@ -34,7 +28,16 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 
 ## Prossima azione del coordinatore
 
-Aggiornato l'11 ottobre 2026, 13:20.
+Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo.
+
+0. **In corso:** correzioni di spec e piano di W1, W2, W4, W6 (messaggi w1-07, w2-06,
+   w4-04, w6-01) e della PR #9 di W3 (w3-03). Ai `SPEC_E_PIANO_CORRETTI`: seconda review
+   Codex breve sui rilievi bloccanti (W4 rilievi 1–4; W1 e W6 l'interfaccia delle viste).
+   La sezione «Interfaccia per W1» di W6 va passata a W1; la sezione «Interfaccia
+   richiesta a W5» di W4 va passata a W5 per la sua seconda PR. Al `PR_CORRETTA` di W3:
+   verifica breve, CI, merge.
+   **PR #6:** approvata e con CI verde, ma il merge (`gh pr merge 6 --merge`) è stato
+   negato dal classificatore della modalità auto: l'ha chiesto all'utente.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli
