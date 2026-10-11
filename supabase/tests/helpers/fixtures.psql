@@ -19,3 +19,62 @@ begin
 		(tests.uid('gina'), 'recipe_curator');
 end;
 $$;
+
+-- Catalogue: one published recipe with two versions, one archived, one new draft.
+do $$
+declare
+	v_book uuid;
+	v_pasta uuid;
+	v_tomatoes uuid;
+	v_salt uuid;
+	v_recipe uuid;
+	v_draft_recipe uuid;
+	v_draft uuid;
+begin
+	insert into app.books (slug, title) values ('test-cucchiaio', 'Il cucchiaio d''argento') returning id into v_book;
+	insert into app.ingredients (slug, name, department) values
+		('test-pasta', '{"it-IT": "Pasta", "en-GB": "Pasta"}', 'pasta_grains') returning id into v_pasta;
+	insert into app.ingredients (slug, name, synonyms, department) values
+		('test-tomatoes', '{"it-IT": "Pomodori", "en-GB": "Tomatoes"}', '{"it-IT": ["pomodoro"], "en-GB": ["tomato"]}', 'produce')
+		returning id into v_tomatoes;
+	insert into app.ingredients (slug, name, department, is_pantry) values
+		('test-salt', '{"it-IT": "Sale", "en-GB": "Salt"}', 'condiments', true) returning id into v_salt;
+	insert into app.ingredient_versions (ingredient_id, version, content, changed_by, channel)
+		values (v_pasta, 1, '{}', tests.uid('dario'), 'import');
+
+	insert into app.recipes (
+		slug, status, version, name, description, source_type, duration_minutes, base_servings,
+		protein_group, is_fresh_fish, carbohydrate_group, has_vegetables, category, meal_type, is_heavy
+	) values (
+		'test-pasta-al-pomodoro', 'published', 2,
+		'{"it-IT": "Pasta al pomodoro", "en-GB": "Tomato pasta"}',
+		'{"it-IT": "Classica", "en-GB": "A classic"}',
+		'home', 20, 2, 'vegetarian', false, 'pasta', true, 'pan', 'both', false
+	) returning id into v_recipe;
+	insert into app.recipe_ingredients (recipe_id, position, ingredient_id, quantity_kind, quantity, unit, source_text, is_primary) values
+		(v_recipe, 0, v_pasta, 'amount', 200, 'g', 'Pasta: 200 g', true),
+		(v_recipe, 1, v_tomatoes, 'amount', 400, 'g', 'Pomodori: 400 g', false),
+		(v_recipe, 2, v_salt, 'to_taste', null, null, 'Sale: q.b.', false);
+	insert into app.recipe_versions (recipe_id, version, content, published_by, published_at, channel) values
+		(v_recipe, 1, '{}', tests.uid('dario'), '2026-10-01 10:00+02', 'import'),
+		(v_recipe, 2, '{}', tests.uid('dario'), '2026-10-10 10:00+02', 'mcp');
+	insert into app.recipe_status_changes (recipe_id, status, changed_by, channel)
+		values (v_recipe, 'published', tests.uid('dario'), 'import');
+
+	insert into app.recipes (
+		slug, status, version, name, description, source_type, book_id, book_pages, duration_minutes, base_servings,
+		protein_group, is_fresh_fish, carbohydrate_group, has_vegetables, category, meal_type, is_heavy, archived_at
+	) values (
+		'test-old-minestrone', 'archived', 1,
+		'{"it-IT": "Minestrone", "en-GB": "Minestrone"}', '{"it-IT": "Di verdure", "en-GB": "Vegetable soup"}',
+		'book', v_book, '120', 60, 4, 'legumes', false, 'none', true, 'soup', 'dinner', false, now()
+	);
+
+	insert into app.recipes (slug, name) values
+		('test-new-draft', '{"it-IT": "Bozza nuova", "en-GB": null}') returning id into v_draft_recipe;
+	insert into app.recipe_drafts (recipe_id, kind, content, revision, created_by, updated_by)
+		values (v_draft_recipe, 'new', '{}', 1, tests.uid('dario'), tests.uid('dario')) returning id into v_draft;
+	insert into app.recipe_draft_saves (draft_id, revision, content, saved_by, channel)
+		values (v_draft, 1, '{}', tests.uid('dario'), 'mcp');
+end;
+$$;

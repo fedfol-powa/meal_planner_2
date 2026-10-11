@@ -17,6 +17,9 @@ end;
 $$;
 
 grant authenticated, anon, app_job to app_server;
+-- The creator of a role cannot switch to it (Postgres 16+): postgres, which runs the
+-- tests and the administration, may become app_job without inheriting its rights.
+grant app_job to postgres with inherit false, set true;
 grant usage on schema app to authenticated, anon, app_job;
 
 -- {"it-IT": text, "en-GB": text}; completeness is checked by the domain on publish.

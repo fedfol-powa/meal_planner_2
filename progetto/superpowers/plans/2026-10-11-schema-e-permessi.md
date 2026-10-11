@@ -154,6 +154,8 @@ set check_function_bodies = off;
 drop schema if exists tests cascade;
 create schema tests;
 grant usage on schema tests to authenticated, anon, app_job;
+-- pgTAP lives in extensions: the job role needs it only in the tests.
+grant usage on schema extensions to app_job;
 
 create function tests.create_user(p_name text, p_locale text default 'it-IT')
 returns uuid language sql security definer set search_path = '' as $$
@@ -389,6 +391,9 @@ end;
 $$;
 
 grant authenticated, anon, app_job to app_server;
+-- The creator of a role cannot switch to it (Postgres 16+): postgres, which runs the
+-- tests and the administration, may become app_job without inheriting its rights.
+grant app_job to postgres with inherit false, set true;
 grant usage on schema app to authenticated, anon, app_job;
 
 -- {"it-IT": text, "en-GB": text}; completeness is checked by the domain on publish.
@@ -939,8 +944,8 @@ begin
 	perform tests.create_user('ivo');
 	perform tests.create_user('luca');
 	insert into app.recipes (slug, name) values ('test-discarded-draft', '{"it-IT": "Scartata"}') returning id into v_recipe;
-	insert into app.recipe_drafts (id, recipe_id, kind, content, revision, created_by, updated_by, closed_at, closed_by, outcome) values
-		('d0d0d0d0-0000-4000-8000-000000000001', v_recipe, 'new', '{"v": 1}', 2,
+	insert into app.recipe_drafts (id, recipe_id, kind, base_version, content, revision, created_by, updated_by, closed_at, closed_by, outcome) values
+		('d0d0d0d0-0000-4000-8000-000000000001', v_recipe, 'new', null, '{"v": 1}', 2,
 			tests.uid('hugo'), tests.uid('ivo'), now(), tests.uid('luca'), 'discarded'),
 		('d0d0d0d0-0000-4000-8000-000000000002', tests.recipe('pasta-al-pomodoro'), 'revision', 1, '{"v": 2}', 2,
 			tests.uid('hugo'), tests.uid('ivo'), now(), tests.uid('luca'), 'published');
@@ -2612,6 +2617,7 @@ select * from finish();
 
 \ir helpers/cleanup.psql
 drop schema tests cascade;
+revoke usage on schema extensions from app_job;
 ```
 
 - [ ] **Step 2: Esegui e verifica che fallisca**
