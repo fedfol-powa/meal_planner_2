@@ -1,7 +1,7 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 11 ottobre 2026 («gestione del ricettario» al posto di «curatela»)
+Ultimo aggiornamento: 11 ottobre 2026 (prove tecniche: oRPC senza Hono e accesso OAuth per MCP)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -84,10 +84,9 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 - interfaccia in React invece di Svelte: SPA con Vite, TanStack Router e TanStack Query;
   il prototipo Svelte resta il riferimento eseguibile dei percorsi approvati;
 - backend scritto come un unico strato di operazioni applicative con un contratto
-  esplicito, servito da un server su Cloudflare Workers (con Hono, da confermare
-  insieme alla libreria del contratto), da cui derivano l'API dell'app
-  web, l'API documentata OpenAPI e gli strumenti MCP; la libreria del contratto è
-  ancora da scegliere (sezione 15);
+  esplicito, servito da un server su Cloudflare Workers, da cui derivano l'API dell'app
+  web, l'API documentata OpenAPI e gli strumenti MCP; il contratto è scritto con oRPC,
+  senza Hono (deciso l'11 ottobre 2026 dopo la prova tecnica, vedi sotto);
 - MCP nella stessa applicazione, autenticato con il server OAuth 2.1 di Supabase Auth;
 - niente Edge Function né Deno: un solo runtime server (Workers) per app, MCP e job;
 - ricetta come documento con un unico schema per bozze, versioni, YAML e MCP;
@@ -99,7 +98,7 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 
 **Decisioni confermate l'8 ottobre 2026, hosting e costi:**
 
-- server in un Worker di Cloudflare (Hono da confermare, sezione 15), che serve anche la SPA come file statici, al
+- server in un Worker di Cloudflare (oRPC senza Hono), che serve anche la SPA come file statici, al
   posto della funzione su Netlify; collegamento a Supabase tramite Hyperdrive; piano a
   pagamento di Workers da 5 $ al mese, accettato dall'utente l'8 ottobre 2026 dopo la
   misura del pianificatore (circa 20-25 ms di CPU per settimana, oltre i 10 ms del piano
@@ -416,9 +415,13 @@ meal_planner_2/
   riusano.
 - **Server in un Worker di Cloudflare** (runtime Workers con l'opzione
   `nodejs_compat`), che serve anche la SPA come file statici dallo stesso dominio
-  (deciso l'8 ottobre 2026 al posto di Netlify). Rotte e passaggi comuni sono previsti
-  con Hono, da confermare insieme alla libreria del contratto (sezione 15). Espone
-  tutte le rotte server:
+  (deciso l'8 ottobre 2026 al posto di Netlify). **Contratto con oRPC, senza Hono**
+  (deciso l'11 ottobre 2026: poche dipendenze e architettura semplice per pochi
+  utenti): oRPC serve da solo RPC e OpenAPI, lo smistamento delle poche rotte è una
+  funzione `fetch` del Worker e gli strumenti MCP si generano percorrendo il contratto
+  con l'SDK ufficiale di MCP. Dipendenze del server: oRPC, zod, Postgres.js, `jose` e
+  l'SDK di MCP; niente ORM. Esito della prova in `spike/REPORT.md` (branch
+  `prove-tecniche`). Espone tutte le rotte server:
 
   | Rotta | Consumatore | Contenuto |
   |---|---|---|
@@ -434,10 +437,15 @@ meal_planner_2/
   all'organizzazione Supabase tramite l'integrazione GitHub: nel M1 si verifica come
   applica le migrazioni (branch di produzione, cartella) e ci si allinea.
 - **Collegamento al database con Hyperdrive**, il pool di connessioni di Cloudflare,
-  con un driver Postgres (`pg` o `postgres.js`). La cache delle query di Hyperdrive
-  resta disattivata: le letture dipendono dall'utente tramite RLS e devono arrivare al
-  database. La stringa di connessione sta nella configurazione di Hyperdrive, non nel
-  codice.
+  con Postgres.js e query SQL scritte a mano, validate con zod. La cache delle query di
+  Hyperdrive resta disattivata: le letture dipendono dall'utente tramite RLS e devono
+  arrivare al database. La stringa di connessione sta nella configurazione di
+  Hyperdrive, non nel codice. Origine: il Session pooler di Supabase (porta 5432,
+  raggiungibile in IPv4 sul piano gratuito), con il limite di connessioni di Hyperdrive
+  esplicito e sotto la dimensione del pool di Supabase: con il valore di default (20)
+  la prova dell'11 ottobre ha avuto richieste appese sotto carico, con 10 nessun errore.
+  Nel codice del Worker le cache di modulo conservano solo dati già risolti, mai
+  promesse di I/O condivise fra richieste, che Workers annulla.
 - **Email con Resend** (sezione 7): SMTP di Supabase Auth e API per le email del server.
 - **Un solo runtime.** Il modulo `domain/` gira solo nel Worker: il job settimanale non
   usa un'Edge Function e non serve la compatibilità con Deno. `domain/` resta
@@ -476,8 +484,8 @@ Worker → verifica del JWT di Supabase → contesto (utente, canale, lingua)
   dell'isolamento fra famiglie e del confine dei ruoli globali anche per le query del
   server, che girano con l'identità dell'utente. Le regole dei flussi (ultimo
   amministratore, conflitti, completezza, eccezioni solo web) stanno nelle operazioni.
-  Il meccanismo del ruolo dell'utente, descritto sopra, va provato con Hyperdrive e con
-  l'accesso tipizzato al database, per esempio Drizzle (sezione 15).
+  Il meccanismo del ruolo dell'utente, descritto sopra, è stato provato l'11 ottobre 2026
+  tramite Hyperdrive con due utenti e 120 richieste concorrenti, senza dati scambiati.
 - **Transazioni.** Le operazioni che toccano molte righe (pubblicazione, ripristini,
   eliminazione di una famiglia o di un account) sono atomiche, in una transazione o in
   una funzione Postgres.
@@ -558,7 +566,7 @@ identificatore tecnico. I nomi inglesi proposti qui saranno confermati nei piani
   statici sono gratuiti e senza limiti, il piano gratuito comprende 100.000 richieste al
   giorno e quello a pagamento costa 5 $ al mese, senza costi legati al numero di
   pubblicazioni (il piano gratuito di Netlify, a crediti, ne spende circa 15 per ogni
-  pubblicazione in produzione). Hono gira in modo nativo. Si conta il tempo di CPU, non
+  pubblicazione in produzione). Si conta il tempo di CPU, non
   la durata: l'attesa di Postgres o del giudice non pesa. Il piano gratuito concede 10
   ms di CPU per richiesta: il pianificatore ne usa circa 20-25 per settimana (misurato l'8
   ottobre 2026, sezione 3), quindi si usa il piano a pagamento da 5 $ al mese, fino a 5
@@ -1597,7 +1605,14 @@ non accesso generico alle tabelle.
   client, flusso con PKCE e pagina di consenso ospitata dall'app (`/authorize`, sesto
   giro). Il server MCP verifica i token come risorsa protetta. Scollegare un agente
   dall'app revoca la sua autorizzazione, con i token di aggiornamento e le sessioni di
-  quel client.
+  quel client. **Verificato l'11 ottobre 2026**: il server OAuth è disponibile sul
+  piano gratuito; Claude Code e Codex CLI si registrano da soli, passano dalla pagina di
+  consenso dell'app e leggono solo i dati dell'utente, con il claim `client_id` che
+  distingue il canale. Ogni client ha il proprio `client_id` e chiede un consenso
+  separato. Supabase non pubblica endpoint di revoca né di introspezione dei token:
+  lo scollegamento passerà dalla gestione dei grant di Supabase, da provare in M1. I
+  token hanno `aud: authenticated` e valgono su tutte le rotte: la separazione fra web
+  e MCP si regge sul claim `client_id`.
 - **Strumenti generati dal contratto delle operazioni**, con i metadati di esposizione
   di ciascuna operazione: nessuno strumento scritto a mano che possa divergere dal web.
   Raggruppamento degli strumenti (uno per operazione o uno per area con l'azione come
@@ -1860,11 +1875,11 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Backup e ripristino | Esportazione notturna in R2 al posto dei backup della piattaforma (piano gratuito di Supabase, deciso l'8 ottobre): strumento, conservazione, cifratura, tempi e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 2, 8, 9 e 13 |
 | Lingue | Revisione delle traduzioni suggerite, testi liberi, impostazione iniziale della lingua e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione. Proposta dell'8 ottobre da valutare: campi bilingui (`{it-IT, en-GB}` validati dallo schema) al posto delle tabelle `*_translations`, dato che le lingue sono due, fisse ed entrambe obbligatorie | Sezioni 2 e 12 |
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
-| MCP | Verifica dei quattro client scelti con il server OAuth 2.1 di Supabase (comandi d'esempio nel sesto giro, ChatGPT da verificare), raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
+| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), revoca dei grant di un client, raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
-| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimento del pianificatore con i dati reali svolto l'8 ottobre (esito nella sezione 3), da fare quello sull'accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla gestione tramite MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
-| Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Hono è da confermare insieme a questa scelta: con zod e `zod-openapi` definisce rotte e OpenAPI ed è necessario; con oRPC, che serve da solo RPC e OpenAPI, resterebbe solo lo smistamento delle rotte, i passaggi comuni (token, contesto, errori) e il supporto ai test, ed è da valutare se toglierlo. Da verificare: libreria del contratto e SDK MCP sul runtime Workers, query del server nel ruolo dell'utente con RLS tramite Hyperdrive e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query, cosa fa crescere i contatori di versione delle letture | Sezione 1 |
-| Hosting e costi | Disponibilità del server OAuth 2.1 di Supabase sul piano gratuito; pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare | Sezioni 1, 4, 7 e 8 |
+| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimento del pianificatore con i dati reali svolto l'8 ottobre (esito nella sezione 3), prove del contratto e dell'accesso OAuth MCP svolte l'11 ottobre (sezioni 1 e 13), import bilingue preparato nel repository per non far dipendere il ricettario dalla gestione tramite MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
+| Architettura | Decisi l'11 ottobre 2026 oRPC senza Hono, Postgres.js senza ORM e l'SDK ufficiale di MCP, provati su Workers con RLS tramite Hyperdrive (sezione 1). Da verificare: integrazione di oRPC con TanStack Query nell'app, coda offline con le mutazioni persistite di TanStack Query, cosa fa crescere i contatori di versione delle letture | Sezione 1 |
+| Hosting e costi | Pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3; una richiesta all'API ne usa circa 7, una chiamata MCP circa 13, misurati l'11 ottobre), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare | Sezioni 1, 4, 7 e 8 |
 | Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
 | Importazione | Familiarità iniziale distinta dallo storico datato e mappatura delle ricette di casa con URL, senza perdita di provenienza (review R4); voci dello storico con giorno o pasto non riconosciuti scartate e segnalate nel report delle ambiguità invece di essere datate a caso (rimandato all'import l'8 ottobre 2026 dalla revisione dell'esperimento del pianificatore) | Sezioni 3, 8 e 11 |
 | Pianificatore e giudice | Classificazione dei vincoli in parte decisa nell'esperimento dell'8 ottobre: vincoli rigidi (compreso il massimo settimanale degli ingredienti limitati) filtrano, voto ≤ 2 ammesso solo senza alternative, slot senza candidati segnati «nessuna ricetta adatta», regole di settimana (venerdì pesce, intervalli, quota) riparate quando possibile e altrimenti mostrate nel report. Restano: come mostrare alla famiglia una regola non soddisfatta, un modello di regola per «niente skottle il lunedì sera», crescita del ricettario per la quota note/nuove; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
@@ -1900,6 +1915,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 8 ottobre 2026, revisione dell'esperimento del pianificatore | Applicate le osservazioni della revisione indipendente: confronto degli identificativi indipendente dalla lingua del sistema, catalogo ordinato all'ingresso, spinta nella prima scelta verso le regole «almeno un gruppo in un giorno» (la riparazione cambia 31 piatti in 20 settimane invece di 41), storico e catalogo preparati una volta per settimana (costo che non cresce più con lo storico: dopo tre anni circa 16 ms invece di 121), lettura delle durate più prudente («e mezza» e trattino lungo), tempi in ore letti correttamente, controllo dei tipi di `domain/` senza Node. Peso della stagione confermato a 1. Workers sul piano a pagamento da 5 $ al mese. Validazione dei giorni dello storico rimandata all'import |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
 | 11 ottobre 2026, gestione del ricettario | «Gestione del ricettario» (o «gestione») sostituisce «curatela» nei documenti vivi e nell'interfaccia italiana del prototipo («Gestione del ricettario» nel Profilo). Il ruolo resta «curatore», il codice in inglese resta `curation`; piani chiusi e righe precedenti di questo registro invariati |
+| 11 ottobre 2026, prove tecniche | Scelti oRPC senza Hono, Postgres.js senza ORM, `jose` e l'SDK ufficiale di MCP, per tenere al minimo le dipendenze con pochi utenti. Provati su un Worker: RPC, OpenAPI e strumenti MCP dal contratto, RLS nel ruolo dell'utente tramite Hyperdrive senza scambi di dati sotto carico, limite di connessioni di Hyperdrive sotto il pool di Supabase, cache senza promesse condivise. Server OAuth 2.1 di Supabase disponibile sul piano gratuito; Claude Code e Codex CLI collegati con consenso e canale `client_id`; revoca da provare in M1; Claude Desktop e ChatGPT da verificare. Esito in `spike/REPORT.md` |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

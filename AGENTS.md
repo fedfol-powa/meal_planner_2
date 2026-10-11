@@ -85,17 +85,17 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 ## Stack di riferimento
 
 Deciso l'8 ottobre 2026 dopo la verifica dell'architettura: interfaccia React (SPA con
-Vite, TanStack Router e TanStack Query); server in un Worker di Cloudflare (con Hono, da
-confermare insieme alla libreria del contratto), che serve anche la SPA e implementa un contratto unico delle operazioni, da cui derivano
-API web, OpenAPI e strumenti MCP; Supabase sul piano gratuito (Postgres, Auth con
+Vite, TanStack Router e TanStack Query); server in un Worker di Cloudflare con oRPC, senza Hono (deciso l'11 ottobre
+2026), che serve anche la SPA e implementa un contratto unico delle operazioni, da cui
+derivano API web, OpenAPI e strumenti MCP (SDK ufficiale di MCP); dipendenze del server
+al minimo: oRPC, zod, Postgres.js senza ORM, `jose`; Supabase sul piano gratuito (Postgres, Auth con
 server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
 un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
 app ed email sul dominio `cosasimangia.qunidi.it`, con il DNS di `qunidi.it` su Cloudflare;
 modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
 l'8 ottobre 2026 per il costo. Workers sul piano a pagamento da 5 $ al mese (CPU
-del pianificatore circa 20-25 ms per settimana). Motivazioni, contratto e punti ancora
-aperti (libreria del contratto) sono nella
-specifica, sezioni 1 e 15. Il prototipo in `prototype/` resta in Svelte come
+del pianificatore circa 20-25 ms per settimana). Motivazioni, contratto, esito delle prove
+tecniche dell'11 ottobre e punti ancora aperti sono nella specifica, sezioni 1, 13 e 15. Il prototipo in `prototype/` resta in Svelte come
 riferimento dei percorsi.
 
 L'utente ha creato l'organizzazione Supabase e collegato questo repository tramite
@@ -114,7 +114,7 @@ default, non regole di questa app.
 ## Regole di lavoro
 
 - Pianifica prima di eseguire e fatti approvare il piano dall'utente.
-- Documentazione di librerie e servizi (React, Hono, Supabase, Cloudflare...): consultala con
+- Documentazione di librerie e servizi (React, oRPC, Supabase, Cloudflare...): consultala con
   Context7 invece di andare a memoria.
 - Ingredienti delle ricette: solo se verificati sulla fonte o forniti dall'utente, mai
   dedotti dal nome del piatto (stessa regola del progetto di origine).

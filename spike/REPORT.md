@@ -72,4 +72,34 @@ completo con le traduzioni; si può ridurre in M1 se l'avvio diventa un problema
 
 ## Prova 2: OAuth per MCP
 
-Da fare: richiede l'attivazione del server OAuth 2.1 nella dashboard di Supabase.
+**Server OAuth 2.1 di Supabase disponibile sul piano gratuito** (attivato l'11 ottobre
+dalla dashboard: server, registrazione dinamica, percorso di autorizzazione
+`/authorize`, Site URL sul Worker di prova). I metadati espongono registrazione
+dinamica, PKCE con `S256`, `authorization_code` e `refresh_token`, client pubblici
+(`none`). **Non c'è un endpoint di revoca né di introspezione** (RFC 7009/7662): lo
+scollegamento di un agente dall'app dovrà passare dalle API di Supabase sui grant.
+
+Metadati della risorsa protetta serviti dal Worker con l'SDK MCP
+(`/.well-known/oauth-protected-resource/mcp`), più la copia dei metadati del server di
+autorizzazione su `/.well-known/oauth-authorization-server` per i client che li
+cercano sull'origine.
+
+| Client | Registrazione dinamica | Consenso | Lettura | Canale `mcp` con `client_id` | Note |
+|---|---|---|---|---|---|
+| Claude Code | sì | sì, pagina `/authorize` | sì, solo le ricette dell'utente | sì | `claude mcp add --transport http`, poi `/mcp` > Authenticate |
+| Codex CLI | sì | sì, consenso separato | sì, solo le ricette dell'utente | sì, `client_id` diverso | `codex mcp add --url` avvia da solo il login; chiede `openid profile email phone offline_access` e passa `resource` (RFC 8707) |
+| Claude Desktop | non provato | | | | L'utente ha ritenuto sufficienti i due client provati; da verificare prima del rilascio |
+| ChatGPT | non provato | | | | Come sopra (modalità sviluppatore dei connettori) |
+
+**Revoca non provata**: senza endpoint di revoca, lo scollegamento dall'app passerà
+dalla gestione dei grant di Supabase; da provare in M1 insieme alla pagina degli
+agenti collegati.
+
+## Decisioni per M1
+
+- Contratto con oRPC senza Hono; Postgres.js senza ORM; `jose`; SDK ufficiale di MCP.
+- Hyperdrive con limite di connessioni esplicito sotto il pool del Session pooler.
+- Cache di modulo solo con dati risolti.
+- Strumenti MCP generati dal contratto con `traverseContractProcedures`.
+- Canale MCP dal claim `client_id`, unico elemento che distingue i token degli agenti.
+
