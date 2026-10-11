@@ -41,7 +41,7 @@ export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) 
               <input className="visually-hidden" type="radio" name={name} value={value} checked={summary.myStars === value} onChange={() => undefined} onClick={() => choose(value)} />
               <Icon name="star" />
               <span className="visually-hidden">
-                {summary.myStars === value ? t('rating.removeStars', { stars: value }) : t('rating.give', { stars: value, recipe: recipeName })}
+                {summary.myStars === value ? t('rating.removeStars', { count: value }) : t('rating.give', { count: value, recipe: recipeName })}
               </span>
             </label>
           ))}

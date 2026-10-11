@@ -35,8 +35,10 @@ export const it = {
   'rating.none': 'Nessun voto',
   'rating.mine': 'Il tuo voto',
   'rating.sending': 'Invio del voto…',
-  'rating.give': 'Dai {stars} stelle a {recipe}',
-  'rating.removeStars': 'Il tuo voto: {stars} stelle. Tocca di nuovo per toglierlo',
+  'rating.give.one': 'Dai 1 stella a {recipe}',
+  'rating.give.other': 'Dai {count} stelle a {recipe}',
+  'rating.removeStars.one': 'Il tuo voto: 1 stella. Tocca di nuovo per toglierlo',
+  'rating.removeStars.other': 'Il tuo voto: {count} stelle. Tocca di nuovo per toglierlo',
   'rating.averageLabel': 'Media della famiglia: {value}, {votes}'
 };
 
@@ -77,7 +79,9 @@ export const en = {
   'rating.none': 'No ratings',
   'rating.mine': 'Your rating',
   'rating.sending': 'Sending your rating…',
-  'rating.give': 'Give {recipe} {stars} stars',
-  'rating.removeStars': 'Your rating: {stars} stars. Tap again to remove it',
+  'rating.give.one': 'Give {recipe} 1 star',
+  'rating.give.other': 'Give {recipe} {count} stars',
+  'rating.removeStars.one': 'Your rating: 1 star. Tap again to remove it',
+  'rating.removeStars.other': 'Your rating: {count} stars. Tap again to remove it',
   'rating.averageLabel': 'Family average: {value}, {votes}'
 } satisfies Record<keyof typeof it, string>;

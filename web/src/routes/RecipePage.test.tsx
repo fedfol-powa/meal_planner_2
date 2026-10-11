@@ -134,7 +134,7 @@ describe('recipe page from the Worker (W6)', () => {
     const data = createFakeData();
     const before = structuredClone(data.ratings);
     renderApp(`/recipes/${WOK}`, { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, data }) });
-    const star = await screen.findByLabelText(/Dai 1 stelle a Wok/);
+    const star = await screen.findByLabelText(/Dai 1 stella a Wok/);
     act(() => setOnline(false));
     fireEvent.click(star);
     expect((await screen.findByRole('alert')).textContent).toBe('Sei offline o il servizio non risponde: riprova quando torni in linea.');
@@ -147,9 +147,9 @@ describe('recipe page from the Worker (W6)', () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
     const set = vi.spyOn(api.ratings, 'set');
     renderApp(`/recipes/${WOK}`, { api });
-    fireEvent.click(await screen.findByLabelText(/Dai 1 stelle a Wok/));
+    fireEvent.click(await screen.findByLabelText(/Dai 1 stella a Wok/));
     await waitFor(() => expect(set).toHaveBeenCalledWith({ familyId: DEMO_FAMILY_ID, recipeId: WOK, stars: 1 }, expect.anything()));
-    expect(await screen.findByLabelText(/Il tuo voto: 1 stelle/)).toBeTruthy();
+    expect(await screen.findByLabelText(/Il tuo voto: 1 stella\./)).toBeTruthy();
   });
 });
 

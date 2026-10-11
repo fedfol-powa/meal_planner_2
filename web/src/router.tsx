@@ -15,7 +15,8 @@ import { RouteError } from './routes/RouteError';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
-export interface RouterContext { auth: AuthState }
+/** `exit.pending`: a session just closed here; its redirect to sign-in drops the page, and the next person starts from the menu. */
+export interface RouterContext { auth: AuthState; exit: { pending: boolean } }
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: () => <Outlet />,
@@ -37,7 +38,7 @@ const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_app',
   beforeLoad: ({ context, location }) => {
-    if (context.auth.status !== 'signedIn') throw redirect({ to: '/login', search: { redirect: location.href }, replace: true });
+    if (context.auth.status !== 'signedIn') throw redirect({ to: '/login', search: context.exit.pending ? {} : { redirect: location.href }, replace: true });
   },
   component: AppLayout,
   errorComponent: RouteError
@@ -67,7 +68,7 @@ const routeTree = rootRoute.addChildren([
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history, context: { auth: { status: 'loading' } } });
+  return createRouter({ routeTree, history, context: { auth: { status: 'loading' }, exit: { pending: false } } });
 }
 
 declare module '@tanstack/react-router' {

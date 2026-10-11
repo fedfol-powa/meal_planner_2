@@ -31,6 +31,13 @@ describe('translate', () => {
     expect(translate('en-GB', 'meal.servings', { count: 1 })).toBe('1 serving');
     expect(translate('en-GB', 'meal.servings', { count: 0 })).toBe('0 servings');
   });
+  it('says one star in the singular (real-stack test)', () => {
+    expect(translate('it-IT', 'rating.give', { count: 1, recipe: 'Wok' })).toBe('Dai 1 stella a Wok');
+    expect(translate('it-IT', 'rating.give', { count: 3, recipe: 'Wok' })).toBe('Dai 3 stelle a Wok');
+    expect(translate('en-GB', 'rating.give', { count: 1, recipe: 'Wok' })).toBe('Give Wok 1 star');
+    expect(translate('en-GB', 'rating.removeStars', { count: 1 })).toBe('Your rating: 1 star. Tap again to remove it');
+    expect(translate('it-IT', 'rating.removeStars', { count: 4 })).toBe('Il tuo voto: 4 stelle. Tocca di nuovo per toglierlo');
+  });
   it('leaves unknown placeholders visible', () => {
     expect(translate('en-GB', 'meal.changedBy', { name: 'Tom' })).toBe('Changed by Tom, {time}');
   });

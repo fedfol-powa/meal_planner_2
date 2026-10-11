@@ -78,7 +78,7 @@ export const en = {
   'recipe.moreServings': 'One serving more',
   'recipe.baseServings.one': 'Source quantities for 1 serving',
   'recipe.baseServings.other': 'Source quantities for {count} servings',
-  'recipe.history': 'Last times',
+  'recipe.history': 'Last eaten',
   'recipe.historyEmpty': 'You have not had it yet.',
   'recipe.historyItem': '{day}, {meal}',
   'recipe.optional': 'optional',

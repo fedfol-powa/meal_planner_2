@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { createFakeBackend } from './auth/backend';
 import { createStubBackend } from './test/stubBackend';
@@ -10,6 +10,28 @@ describe('routes', () => {
     await waitFor(() => expect(history.location.pathname).toBe('/login'));
     expect(history.location.search).toContain('redirect');
     expect(screen.queryByRole('navigation', { name: 'Navigazione principale' })).toBeNull();
+  });
+  it('after signing out, whoever signs in next starts from the menu, not from the last page (real-stack test)', async () => {
+    const backend = createStubBackend({ id: 'anna', email: 'anna@example.test' });
+    const { history } = renderApp('/profile/preferences', { backend });
+    await screen.findByRole('navigation', { name: 'Navigazione principale' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/login'));
+    expect(history.location.search).not.toContain('redirect');
+    act(() => backend.setUser({ id: 'bruno', email: 'bruno@example.test' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/menu'));
+  });
+  it('after signing out, keeps a destination asked for later while still signed out (PR #25 review)', async () => {
+    const backend = createStubBackend({ id: 'anna', email: 'anna@example.test' });
+    const { history } = renderApp('/profile/preferences', { backend });
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/login'));
+    act(() => history.push('/recipes?q=riso'));
+    await waitFor(() => expect(history.location.search).toContain('redirect'));
+    expect(history.location.pathname).toBe('/login');
+    act(() => backend.setUser({ id: 'bruno', email: 'bruno@example.test' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/recipes'));
+    expect(history.location.search).toContain('q=riso');
   });
   it('opens the menu from the root', async () => {
     const { history } = renderApp('/');

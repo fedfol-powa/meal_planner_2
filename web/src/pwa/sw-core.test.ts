@@ -5,6 +5,13 @@ import { activate, install, respond, type CacheLike, type CachesLike, type Worke
 const origin = 'https://app.example';
 const url = (path: string) => `${origin}${path}`;
 
+/** Like Cache Storage, a copy keeps the response's redirected flag (Node's clone() drops it). */
+function copy(response: Response): Response {
+  const result = response.clone();
+  if (response.redirected) Object.defineProperty(result, 'redirected', { value: true });
+  return result;
+}
+
 /** In-memory Cache Storage keyed by URL, enough for the worker's needs. */
 function memoryCaches(): CachesLike & { names(): string[] } {
   const stores = new Map<string, Map<string, Response>>();
@@ -13,7 +20,10 @@ function memoryCaches(): CachesLike & { names(): string[] } {
     const store = stores.get(name) ?? new Map<string, Response>();
     stores.set(name, store);
     return {
-      match: async (request) => store.get(keyOf(request))?.clone(),
+      match: async (request) => {
+        const found = store.get(keyOf(request));
+        return found && copy(found);
+      },
       put: async (request, response) => void store.set(keyOf(request), response)
     };
   };
@@ -24,7 +34,7 @@ function memoryCaches(): CachesLike & { names(): string[] } {
     match: async (request) => {
       for (const store of stores.values()) {
         const found = store.get(keyOf(request));
-        if (found) return found.clone();
+        if (found) return copy(found);
       }
       return undefined;
     },
@@ -121,6 +131,25 @@ describe('service worker lifecycle', () => {
     netB.state.offline = true;
     expect(await text(await respond(navigate('/menu'), url('/menu'), underA))).toBe('index A');
     expect(await text(await respond(asset('/assets/a.js'), url('/assets/a.js'), underA))).toBe('script A');
+  });
+  it('serves the shell as a plain response when the host redirects /index.html to / (real-stack test)', async () => {
+    // Cloudflare's assets answer /index.html with 307 to /; fetch follows it and marks the response
+    // as redirected, which the browser refuses for a navigation (net::ERR_FAILED on every reopening).
+    const caches = memoryCaches();
+    const net = network(buildA);
+    const fetch = async (input: RequestInfo) => {
+      const response = await net.fetch(input);
+      if (new URL(typeof input === 'string' ? input : input.url, origin).pathname !== '/index.html') return response;
+      Object.defineProperty(response, 'redirected', { value: true });
+      return response;
+    };
+    const deps: WorkerDeps = { caches, fetch, version: 'A', origin };
+    await install(deps);
+    await activate(deps);
+    net.state.offline = true;
+    const shell = await respond(navigate('/menu'), url('/menu'), deps);
+    expect(shell.redirected).toBe(false);
+    expect(await text(shell)).toBe('index A');
   });
   it('falls back to the network when the shell is missing from the cache', async () => {
     const caches = memoryCaches();
