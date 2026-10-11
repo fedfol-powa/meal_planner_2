@@ -21,6 +21,18 @@ describe('routes', () => {
     act(() => backend.setUser({ id: 'bruno', email: 'bruno@example.test' }));
     await waitFor(() => expect(history.location.pathname).toBe('/menu'));
   });
+  it('after signing out, keeps a destination asked for later while still signed out (PR #25 review)', async () => {
+    const backend = createStubBackend({ id: 'anna', email: 'anna@example.test' });
+    const { history } = renderApp('/profile/preferences', { backend });
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/login'));
+    act(() => history.push('/recipes?q=riso'));
+    await waitFor(() => expect(history.location.search).toContain('redirect'));
+    expect(history.location.pathname).toBe('/login');
+    act(() => backend.setUser({ id: 'bruno', email: 'bruno@example.test' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/recipes'));
+    expect(history.location.search).toContain('q=riso');
+  });
   it('opens the menu from the root', async () => {
     const { history } = renderApp('/');
     await waitFor(() => expect(history.location.pathname).toBe('/menu'));
