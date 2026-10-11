@@ -1,17 +1,22 @@
 # Revisione dei pasti: spec di dettaglio
 
-Creata: 11 ottobre 2026 · Attività W1 dell'ondata 2 · Branch `traguardo/revisione-pasti`
+Creata: 11 ottobre 2026 · Aggiornata: 12 ottobre 2026, dopo la review di spec e piano
+(`progetto/coordinamento/revisioni/w1-revisione-pasti-spec-piano.md`, 14 rilievi) e le
+decisioni del coordinatore (`messaggi/w1-11-review-revisione-pasti.md`) · Attività W1
+dell'ondata 2 · Branch `traguardo/revisione-pasti`
 
 Subordinata alla specifica principale
 (`progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`): parte 1 («Una settimana
-tipo», «Le stelline»), sezioni 1, 2, 3 («Riuso durante la revisione»), 5, 13, 14, 15 e 16
-(secondo giro del prototipo, 6 ottobre 2026); `design/percorsi.md`, giro 2; prototipo in
+tipo», «Le stelline»), sezioni 1, 2, 3 («Riuso durante la revisione»), 5, 12, 13, 14, 15 e
+16 (secondo giro del prototipo, 6 ottobre 2026); `design/percorsi.md`, giro 2; prototipo in
 `prototype/src/lib/operations/revision.ts`, `suggestions.ts` e nei componenti
-`MealActionList`, `MealEditor`, `RecipePicker`, `SwapPicker`, `UndoToast`.
+`RecipeCard`, `MealActionList`, `MealEditor`, `RecipePicker`, `SwapPicker`, `UndoToast`.
 
 Brainstorming chiuso con il coordinatore l'11 ottobre 2026: area `meals`, due PR (server,
 poi web), annullamento senza limiti di tempo lato server, scritture che rispondono con la
-vista aggiornata, sezioni 1-3 del design approvate.
+vista aggiornata. Dopo la review: azioni con identità persistente, lettura
+dell'annullamento nella vista del pasto, richieste senza effetti ricordate, bozze
+importate spostabili e ripristinabili, testi liberi come scritti.
 
 ## 1. Obiettivo e perimetro
 
@@ -20,30 +25,34 @@ Ogni membro della famiglia può modificare qualunque pasto di qualunque settiman
 
 - cambiare le porzioni;
 - cambiare la ricetta scegliendo fra cinque suggerimenti, chiedendone altri cinque
-  («Proponimene altri») o cercando nel ricettario;
+  («Proponimene altri») o cercando nel ricettario, anche con i soli filtri;
 - segnare il pasto come libero, con un testo;
 - scambiarlo con un altro pasto della stessa settimana;
 - scrivere o togliere una nota;
 - dire «Non proporre più» per la ricetta del pasto e scegliere subito il sostituto;
-- annullare una propria modifica subito dopo averla fatta.
+- annullare la propria ultima modifica, anche da una conversazione MCP nuova.
 
-Ogni modifica aggiorna `updated_by` e `updated_at` dello slot e aggiunge una riga a
-`meal_changes` con il canale (`web` o `mcp`). Vince l'ultimo salvataggio, senza avvisi
-di conflitto né di settimana (sezione 5, decisioni del 6 ottobre 2026).
+Ogni modifica è un'**azione** con un id scelto dal client. L'azione aggiorna `updated_by`,
+`updated_at` e `last_action_id` degli slot che cambia e aggiunge una riga a `meal_changes`
+per ciascuno, con il canale (`web` o `mcp`). Vince l'ultimo salvataggio, senza avvisi di
+conflitto né di settimana (sezione 5, decisioni del 6 ottobre 2026).
 
 **Fuori dal perimetro:** generazione su richiesta («rigenera», ondata 3); storico completo
-delle modifiche nell'interfaccia (si mostra solo l'ultima, già in `menu.getWeek`); elenco
-delle esclusioni (W2, già unito); modifiche offline (il menu offline è in sola lettura,
-sezione 5).
+delle modifiche nell'interfaccia (si mostra solo l'ultima); elenco delle esclusioni (W2,
+già unito); modifiche offline (il menu offline è in sola lettura, sezione 5).
 
-### Verifiche della sezione 5 fatte nel brainstorming
+### Verifiche della sezione 5
 
 - L'annullamento non è limitato ai pasti futuri: «Valgono per pasti passati, in corso e
   futuri», «Nessuna azione dipende dalla settimana», l'istante del pasto passato «non
-  blocca modifiche». Restano due regole: solo le proprie modifiche, solo se lo slot non è
-  cambiato di nuovo.
+  blocca modifiche». Restano due regole: solo le proprie modifiche, solo se gli slot non
+  sono cambiati di nuovo.
 - Il server non impone un tempo massimo all'annullamento; i «sei secondi» sono
-  dell'interfaccia web (default del secondo giro).
+  dell'interfaccia web (default del secondo giro). Da MCP si annulla l'ultima azione
+  indicata dalla vista del pasto finché resta annullabile.
+- **Testi liberi** (decisione del coordinatore, 12 ottobre 2026): note e testi dei pasti
+  liberi restano come li scrive l'utente, senza traduzione, come le voci libere della
+  spesa; tutti i testi dell'interfaccia restano bilingui.
 
 ## 2. Interfacce: cosa usa e cosa produce
 
@@ -51,387 +60,515 @@ sezione 5).
 
 | Interfaccia | Produttore | Firma usata |
 |---|---|---|
-| Implementatore e pipeline | piattaforma | `Implementer`, `OperationContext` (`tx`, `now`, `userId`, `channel`, `locale`), `fresh(context, view)` da `server/src/pipeline.ts` |
-| Vista della settimana | W1 menu | `weekViewOf(context, familyId, weekStartsOn): Promise<WeekView>` da `server/src/menu/week-view.ts`; `weekView`, `mealView` da `contract/src/menu/views.ts` |
-| Dati del pianificatore | W1 menu | `loadPlannerInput(tx, familyId, target: GenerationTarget): Promise<PlannerInput>` da `server/src/menu/generation.ts` |
-| Pianificatore | W1 menu | `candidatesFor`, `slotRefOf`, `buildContext`, `scoreCandidate`, `compareIds`, `type Placed`, `type PlannerInput`, `type PastMeal` da `domain/src/planner/` |
-| Viste della ricetta | W6 | `recipeSummaries(tx, refs: RecipeRef[], locale)`, `ratingSummaries(tx, familyId, userId, recipeIds)`, `recipeSummaryView`, `ratingSummaryView` |
+| Implementatore e pipeline | piattaforma | `Implementer`, `OperationContext` (`tx`, `now`, `userId`, `channel`, `locale`), `fresh` da `server/src/pipeline.ts` |
+| Vista della settimana | W1 menu | `weekViewOf(context, familyId, weekStartsOn): Promise<WeekView>` (`server/src/menu/week-view.ts`), estesa qui; `weekView`, `mealView` (`contract/src/menu/views.ts`), estesi qui |
+| Dati del pianificatore | W1 menu | `loadPlannerInput(tx, familyId, target)` (`server/src/menu/generation.ts`), esteso qui con le ricette fissate |
+| Pianificatore | W1 menu | `candidatesFor`, `slotRefOf`, `buildContext`, `scoreCandidate`, `compareIds`, `withSortedCatalogue`, `prepared`, tipi `Placed`, `PlannerInput`, `PastMeal`, `PlannerSlotRef` (`domain/src/planner/`) |
+| Viste della ricetta | W6 | `recipeSummaries(tx, refs, locale)` (mappa per `recipeViewKey(ref)`), `ratingSummaries(tx, familyId, userId, ids)` (mappa per id), `recipeSummaryView`, `ratingSummaryView` |
 | Esclusioni | W2 | `family.addExclusion({familyId, recipeId})` (idempotente), `family.removeExclusion`, `family.listExclusions` |
-| Ricerca nel ricettario | W6 | `recipes.search({familyId, query})` e `RecipeFilters` nel web |
-| Client web, sessione e mutazioni | W5, W2 | `SERVER_AREAS`, `Api`, `runAreaMutation`/`applyMutation` e `INVALIDATIONS` in `web/src/api/mutations.ts`, `useSession().track/isLatest`, `isOnline()` |
-| Componenti web | W5, W6 | `RecipeCard`, `BottomSheet`, `ServingsStepper`, `RatingStars`, `RecipeFilters`, `Icon`, `StateNotice` |
-| Schema | W2 | `app.meal_slots` (grant di `update` sulle colonne di contenuto), `app.meal_changes` (`id` dal client, `undoes` sullo stesso slot, `channel`), trigger dei contatori di famiglia |
+| Ricerca nel ricettario | W6 | `recipes.search({familyId, query})`; nel web `searchQuery`, `RecipeFilters({ query, onChange })`, `RatingStars({ summary, recipeId, recipeName, familyId })` |
+| Client web, sessione e mutazioni | W5, W2 | `SERVER_AREAS`, `Api`, `applyMutation`, `INVALIDATIONS`, `applyRating`, `useSession().track/isLatest`, `isOnline()` |
+| Componenti web | W5, W6 | `RecipeCard`, `BottomSheet`, `ServingsStepper({ value, min, max, onChange })`, `Icon`, `StateNotice` |
+| Schema | W2 | `app.meal_slots`, `app.meal_changes`, `app.check_meal_slot_recipe`, trigger dei contatori, `app.recipe_drafts` (`closed_at`) |
 
 ### Produce
 
-Nessun'altra attività dipende da queste interfacce. Le firme definitive sono:
+Nessun'altra attività dipende da queste interfacce. Firme definitive:
 
-**Dominio** (`domain/src/planner/suggest.ts`, esportato dall'indice):
+**Dominio** (`domain/src/planner/`):
 
 ```ts
-/**
- * Recipe ids for one slot, best first (spec section 3, «Riuso durante la revisione»): the
- * generation's candidates and score with the other meals of the week fixed, without the
- * slot's current recipe. Deterministic: score, then id.
- */
-export function rankSuggestions(
-	input: PlannerInput,
-	slot: PlannerSlotRef,
-	otherMeals: PastMeal[],
-	currentRecipeId: string | null,
-): string[];
+// constraints.ts: un parametro in più, la generazione non lo passa
+export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: PlannerRecipe[], excludeIds?: ReadonlySet<string>): PlannerRecipe[];
+
+// types.ts: PlannerInput riceve le ricette dei pasti già nel calendario che non si propongono più
+export interface PlannerInput {
+	// ...campi esistenti
+	/** Recipes cited by meals but not proposable (archived): they count as neighbours, history and weekly limits, never as candidates. */
+	fixedRecipes?: PlannerRecipe[];
+}
+
+// suggest.ts
+export function rankSuggestions(input: PlannerInput, slot: PlannerSlotRef, otherMeals: PastMeal[], currentRecipeId: string | null): string[];
 ```
 
-**Contratto** (`contract/src/meals/`, area `meals` registrata in `contract/src/contract.ts`):
+**Contratto** (`contract/src/meals/`, area `meals`):
 
 ```ts
 const slot = z.object({ familyId: z.uuid(), slotId: z.uuid() });
-/** Every write creates a meal_changes row whose id comes from the client. */
+/** Every write is an action whose id comes from the client (check.ts: `creates` needs an `id`). */
 const write = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyMember', creates: true });
 
-export const mealChangeResult = z.object({
+export const mealActionResult = z.object({
 	week: weekView,
-	/** Rows written to meal_changes, for meals.undo; empty when nothing changed. */
-	changeIds: z.array(z.uuid()).max(2),
+	/** The action of this request (the `id` sent). */
+	actionId: z.uuid(),
+	/** False when the request changed nothing (also when it repeats one that changed nothing). */
+	changed: z.boolean(),
 });
+
 export const suggestionsView = z.object({
 	recipes: z.array(z.object({ recipe: recipeSummaryView, rating: ratingSummaryView })).max(5),
-	/** Offset of the next five; 0 when the ranking starts again. */
 	nextOffset: z.number().int().min(0),
-	/** Free-meal texts the family already used, most frequent first. */
 	freeTexts: z.array(z.string()).max(4),
 });
 
 export const mealsContract = {
-	getSuggestions: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] })
+	/** Not versioned: the ranking depends on the global ratings, which no counter follows. */
+	getSuggestions: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember' })
 		// GET /families/{familyId}/meals/{slotId}/suggestions
-		.errors({ not_found })
-		// coerce: REST passes the offset in the query string.
-		.input(versionedInput(slot.extend({ offset: z.coerce.number().int().min(0).max(1000).default(0) })))
-		.output(versionedOutput(suggestionsView)),
-	setServings: write() // PUT /families/{familyId}/meals/{slotId}/servings
-		.errors({ not_found })
-		.input(slot.extend({ id: z.uuid(), servings: z.number().int().min(1).max(20) }))
-		.output(mealChangeResult),
-	setRecipe: write() // PUT /families/{familyId}/meals/{slotId}/recipe
-		.errors({ not_found })
-		.input(slot.extend({ id: z.uuid(), recipeId: z.uuid() }))
-		.output(mealChangeResult),
-	setFree: write() // PUT /families/{familyId}/meals/{slotId}/free-text
-		.errors({ not_found })
-		.input(slot.extend({ id: z.uuid(), text: z.string().trim().min(1).max(60) }))
-		.output(mealChangeResult),
-	setNote: write() // PUT /families/{familyId}/meals/{slotId}/note
-		.errors({ not_found })
-		.input(slot.extend({ id: z.uuid(), note: z.string().trim().max(200).nullable() }))
-		.output(mealChangeResult),
-	swap: write() // POST /families/{familyId}/meals/{slotId}/swap
-		.errors({ not_found })
-		.input(slot.extend({ id: z.uuid(), otherSlotId: z.uuid(), otherId: z.uuid() }))
-		.output(mealChangeResult),
-	undo: write() // POST /families/{familyId}/meals/undo
-		.errors({ not_found, not_allowed })
-		.input(z.object({
-			familyId: z.uuid(),
-			/** The change ids a write answered with: one, or the two of a swap. */
-			changeIds: z.array(z.uuid()).min(1).max(2),
-			/** Id of the undo of changeIds[0]; otherId undoes changeIds[1]. */
-			id: z.uuid(),
-			otherId: z.uuid().optional(),
-		}))
-		.output(mealChangeResult),
+		.input(slot.extend({ offset: z.coerce.number().int().min(0).max(1000).default(0) }))
+		.output(suggestionsView),
+	setServings: write() // PUT .../meals/{slotId}/servings
+		.input(slot.extend({ id: z.uuid(), servings: z.number().int().min(1).max(20) })).output(mealActionResult),
+	setRecipe: write()   // PUT .../meals/{slotId}/recipe
+		.input(slot.extend({ id: z.uuid(), recipeId: z.uuid() })).output(mealActionResult),
+	setFree: write()     // PUT .../meals/{slotId}/free-text
+		.input(slot.extend({ id: z.uuid(), text: z.string().trim().min(1).max(60) })).output(mealActionResult),
+	setNote: write()     // PUT .../meals/{slotId}/note
+		.input(slot.extend({ id: z.uuid(), note: z.string().trim().max(200).nullable() })).output(mealActionResult),
+	swap: write()        // POST .../meals/{slotId}/swap
+		.input(slot.extend({ id: z.uuid(), otherSlotId: z.uuid() })).output(mealActionResult),
+	undo: write()        // POST /families/{familyId}/meals/undo
+		.input(z.object({ familyId: z.uuid(), actionId: z.uuid(), id: z.uuid() })).output(mealActionResult),
 };
 ```
 
-Il controllo del contratto (`contract/src/check.ts`) chiede un `id` uuid alle operazioni
-`creates`: per questo l'id della modifica si chiama `id`, e lo scambio e l'annullamento
-hanno `otherId` per la seconda riga del registro.
+Errori dichiarati: `not_found` su tutte; `not_allowed` su `undo`. `undo` riceve l'azione da
+annullare (`actionId`) e l'id della nuova azione di annullamento (`id`).
 
-Descrizioni per l'agente (inglese, campo `summary`), da rifinire nei test MCP:
+**Vista del pasto** (`contract/src/menu/views.ts`, area mia; campi nuovi obbligatori in
+uscita):
+
+```ts
+lastChange: z.object({
+	userName: z.string().nullable(),
+	at: localDateTimeSchema,
+	/** The action that made the change; null for changes logged before actions existed. */
+	actionId: z.uuid().nullable(),
+	/** For the reader: their own action, still the last one of every slot it changed. */
+	undoable: z.boolean(),
+	/** Slots the action changed (two for a swap), so an agent knows what an undo touches. */
+	slotIds: z.array(z.uuid()),
+}).nullable(),
+```
+
+**Errori** (`contract/src/errors.ts`, additivo): `notAllowedData.reason` riceve
+`not_own_change`, `changed_since`, `draft_closed`. Testo generico di `not_allowed` neutro
+in MCP (`server/src/messages.ts`) e nel web (`web/src/i18n/messages/errors.ts`).
+
+**Descrizioni per l'agente** (inglese, `summary`):
 
 | Operazione | Descrizione |
 |---|---|
-| `getSuggestions` | Five recipes that fit a meal, best first, from the same rules as the weekly menu; call again with `nextOffset` for five more; also the free-meal texts the family uses most |
-| `setServings` | Set the servings of a meal (1-20); `id` is a new UUID you generate for this change |
-| `setRecipe` | Put a published recipe in a meal (from suggestions or search); `id` is a new UUID for this change |
-| `setFree` | Mark a meal as free (eating out, pizza...) with a short text; keeps the note |
-| `setNote` | Write the meal's note (up to 200 characters) or remove it with null |
-| `swap` | Swap two meals of the same week: dish or free text and note move, servings stay; `id` and `otherId` are new UUIDs, one per meal |
-| `undo` | Undo your own change, given the `changeIds` a write answered with, if nobody changed the meal since; `id` (and `otherId` for a swap) are new UUIDs |
+| `getSuggestions` | Five recipes that fit a meal, best first, by the same rules as the weekly menu (ratings shown, not set here); call again with nextOffset for five more; also the free-meal texts the family uses most |
+| `setServings` | Set the servings of a meal (1-20). `id` is a new UUID for this action; repeating the same request changes nothing |
+| `setRecipe` | Put a published recipe in a meal, from the suggestions or a recipe search. `id` as above |
+| `setFree` | Mark a meal as free (eating out, pizza...) with a short text, kept as written; the note stays. `id` as above |
+| `setNote` | Write the note of a meal (up to 200 characters, kept as written, seen by the whole family) or remove it with null. `id` as above |
+| `swap` | Swap two meals of the same week: dish or free text and note move, servings stay. `id` as above |
+| `undo` | Undo your own last change of a meal: pass `lastChange.actionId` from menu_getWeek when `lastChange.undoable` is true (a swap comes back whole). `id` is a new UUID for the undo |
 
-**Errori** (`contract/src/errors.ts`, modifica additiva): `notAllowedData.reason` riceve
-`not_own_change` e `changed_since`. Il testo generico di `not_allowed` per MCP
-(`server/src/messages.ts`) e per il web (`web/src/i18n/messages/errors.ts`) smette di
-citare la ricetta: «Operazione non consentita nello stato attuale» / «This operation is
-not allowed in the current state».
+## 3. Schema: migrazione `20261012100000_meal_actions.sql`
 
-## 3. Server (prima PR)
+Una sola migrazione nuova, con pgTAP in `supabase/tests/meal_actions_test.sql`. Le
+migrazioni unite non si toccano.
+
+### Tabella `app.meal_actions`
+
+| Colonna | Tipo e vincoli |
+|---|---|
+| `id` | `uuid primary key`, dal client |
+| `week_id` | `uuid not null` → `weeks(id)` on delete cascade |
+| `actor_id` | `uuid` → `auth.users(id)` on delete set null |
+| `channel` | `text not null`, `web` o `mcp` |
+| `kind` | `text not null`: `set_servings`, `set_recipe`, `set_free`, `set_note`, `swap`, `undo` |
+| `slot_ids` | `uuid[] not null`, 1 o 2 elementi: gli slot della richiesta (per `undo`, quelli cambiati dall'azione annullata) |
+| `undoes` | `uuid`, valorizzato solo per `undo`; chiave esterna (`undoes`, `week_id`) → (`id`, `week_id`) |
+| `created_at` | `timestamptz not null default clock_timestamp()` |
+
+Vincoli: `unique (id, week_id)`; `check ((kind = 'undo') = (undoes is not null))`. Una riga
+per richiesta, scritta una volta e mai modificata (modello di `app.recipe_draft_requests`
+di W3): è insieme l'identità dell'azione e la memoria delle richieste, anche di quelle
+senza effetti. **Perché una tabella sola e non due** (azioni e richieste): ogni richiesta
+dell'area è un'azione, e una seconda tabella ripeterebbe le stesse colonne; resta
+dell'area, non una tabella generica delle ricevute.
+
+RLS: lettura ai membri (`app.can_access_week(week_id)`); inserimento con
+`actor_id = auth.uid()`, settimana accessibile e ogni elemento di `slot_ids` slot di
+quella settimana; nessun `update` né `delete`. Grant: `select, insert` ad `authenticated`.
+
+### Colonne nuove
+
+- `app.meal_changes.action_id uuid` → `meal_actions(id)` on delete cascade, con indice.
+  Nullo solo per righe precedenti (import, test): le operazioni lo valorizzano sempre.
+- `app.meal_slots.last_action_id uuid`, chiave esterna (`last_action_id`, `week_id`) →
+  `meal_actions(id, week_id)` on delete set null (`last_action_id`): l'ultima azione che ha
+  cambiato lo slot, sempre della stessa settimana. Grant `update (last_action_id)`.
+- `app.meal_changes.created_at` passa al default `clock_timestamp()`.
+
+### Regole nel database (trigger per `authenticated`)
+
+1. **Verità del registro:** `before insert on meal_changes`: per `authenticated`, `before`
+   deve coincidere con il contenuto attuale dello slot (`recipeId`, `freeText`,
+   `servings`, `note`), `action_id` deve essere un'azione dell'utente che comprende lo slot
+   in `slot_ids`, e `undoes`, se c'è, una riga dello stesso slot che appartiene all'azione
+   annullata (`meal_actions.undoes`). Così un registro non può inventare che uno slot
+   citava una bozza. La regola vale per le righe con `action_id`: quelle senza azione
+   (import, test uniti di W2 che inseriscono `'{}'`) restano ammesse come oggi, ma non
+   sono prove per la regola 3, che legge solo righe dell'azione in corso.
+2. **Ultima azione:** `before update of last_action_id on meal_slots`: un valore non nullo
+   deve essere un'azione dell'utente con lo slot in `slot_ids` e con una riga di
+   `meal_changes` su questo slot.
+3. **Bozze** (`create or replace function app.check_meal_slot_recipe`): collegare uno slot a
+   una ricetta mai pubblicata resta vietato, salvo quando la bozza è ancora aperta
+   (`recipe_drafts.closed_at is null`) e vale una di queste condizioni:
+   - **(a)** un altro slot della stessa famiglia la cita (regola attuale, scambio
+     nell'ordine favorevole);
+   - **(b)** spostamento nella stessa azione: esiste una riga di `meal_changes` con
+     `action_id = new.last_action_id`, su un altro slot della stessa settimana, con
+     `before.recipeId` uguale alla bozza (scambio nell'ordine sfavorevole, due bozze che si
+     scambiano);
+   - **(c)** ripristino di un annullamento: esiste una riga con
+     `action_id = new.last_action_id` su questo slot, `undoes` valorizzato, e la riga
+     annullata ha `before.recipeId` uguale alla bozza.
+
+   La regola (a) resta com'è anche per la bozza chiusa (non cambia il comportamento unito);
+   (b) e (c) richiedono la bozza aperta. Niente privilegi nuovi né `app_job`: le prove
+   vengono dal registro, reso veritiero dalla regola 1.
+
+Il server, per questo, scrive nell'ordine: azione, righe di `meal_changes` di tutti gli
+slot (con `before` ancora vero), poi gli `update` degli slot con `last_action_id`.
+
+### Test pgTAP
+
+Scambio bozza↔pubblicata in entrambi gli ordini; due bozze che si scambiano; ripristino
+della bozza dopo aver tolto l'ultima citazione (`setFree` poi annullamento); ripristino
+rifiutato se la bozza è stata chiusa; `before` falso rifiutato; `last_action_id` di
+un'azione altrui, di un'altra settimana o di un'altra famiglia rifiutato; azione con slot
+di un'altra famiglia rifiutata; registro e azioni non modificabili né cancellabili;
+lettura delle azioni solo ai membri; regola (a) invariata.
+
+## 4. Server (prima PR)
 
 ### File
 
-- `server/src/meals/router.ts`: `mealsRouter(os: Implementer)`, registrato in
-  `server/src/router.ts` come `meals: mealsRouter(os)` (unica riga nel file condiviso).
-- `server/src/meals/slots.ts`: lettura e blocco degli slot.
-- `server/src/meals/changes.ts`: scrittura, registro, idempotenza, annullamento.
-- `server/src/meals/suggestions.ts`: classifica, pagina e viste.
+- `server/src/meals/slots.ts`: lettura e blocco degli slot, contenuto.
+- `server/src/meals/actions.ts`: azione, idempotenza, scrittura nell'ordine sopra,
+  annullamento.
+- `server/src/meals/suggestions.ts`: suggerimenti.
+- `server/src/meals/router.ts`: `mealsRouter(os)`, registrato in `server/src/router.ts`.
+- `server/src/menu/week-view.ts`: `lastChange` esteso (mia area).
+- `server/src/menu/generation.ts`: `loadPlannerInput` carica anche le ricette fissate.
 
-### Lettura e blocco dello slot
+### Percorso di una scrittura
 
-```sql
-select s.id, s.week_id, w.starts_on::text, s.date::text, s.meal_type,
-	s.recipe_id, s.free_text, s.servings, s.note
-from app.meal_slots s join app.weeks w on w.id = s.week_id
-where s.id = any($slots) and w.family_id = $familyId
-order by s.id
-for update of s
-```
+Nella transazione dell'utente (`read committed`, quella del pipeline), dopo autenticazione,
+sessione, ruolo e appartenenza:
 
-Gira nel ruolo dell'utente, sotto RLS: uno slot di un'altra famiglia o inesistente non
-c'è, e diventa `not_found`. Lo scambio blocca i due slot nello stesso ordine (per id), così
-due scambi incrociati non vanno in stallo.
-
-### Contenuto e registro
-
-Il contenuto di uno slot nel registro è
-`{recipeId: string | null, freeText: string | null, servings: number, note: string | null}`
-(chiavi in quest'ordine, confronto per valore).
-
-Ogni scrittura, nella transazione della richiesta:
-
-1. **Blocco** degli slot (sopra). Viene prima dell'idempotenza: due richieste uguali e
-   concorrenti si mettono in fila sullo slot e la seconda vede la riga della prima.
-2. **Idempotenza.** `select meal_slot_id, actor_id, undoes from app.meal_changes where id = any($ids)`.
-   - Se le righe ci sono, sono dell'utente e sugli slot della richiesta (e, per
-     l'annullamento, `undoes` è la modifica indicata): nessuna nuova scrittura, risposta
-     con la vista attuale e gli id della richiesta.
-   - Se ci sono ma sono di un altro utente o di un altro slot: `invalid` con percorso
-     `['id']` (o `['otherId']`).
-   - Un id già usato in un'altra famiglia non è visibile: l'inserimento fallisce sulla
-     chiave primaria (`23505`) e diventa `invalid` con percorso `['id']`.
-3. **Nuovo contenuto.** Se coincide con quello attuale: nessuna scrittura, `updated_by`
-   invariato, `changeIds: []`.
-4. **Aggiornamento** delle sole colonne previste: `recipe_id`, `free_text`, `servings`,
-   `note`, `updated_by = auth.uid()`, `updated_at = now()`.
-5. **Registro:** `insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after, undoes)`
-   con `actor_id = auth.uid()` e `channel = context.channel`.
-6. **Risposta:** `{ week: await weekViewOf(context, familyId, startsOn), changeIds }`. La
-   vista usa le versioni R1 all'istante della richiesta.
+1. **Blocco** degli slot della richiesta, in ordine di id, sotto RLS:
+   `select … from app.meal_slots s join app.weeks w … where s.id = any($ids) and w.family_id = $familyId order by s.id for update of s`.
+   Manca uno slot: `not_found`. Due richieste uguali e concorrenti si mettono in fila qui.
+2. **Ripetizione:** `select actor_id, kind, slot_ids, undoes from app.meal_actions where id = $id`.
+   Se esiste ed è dell'utente con stesso tipo, stessi `slot_ids` (stesso ordine) e, per
+   `undo`, stesso `undoes`: risposta con la vista attuale, `changed` = esistono righe di
+   `meal_changes` dell'azione; **prima** di qualunque controllo sul contenuto (ricetta
+   archiviata dopo la prima richiesta). Altrimenti, se esiste: `invalid` su `['id']`.
+3. **Controlli del contenuto:** ricetta pubblicata per `setRecipe` (`not_found`), stessa
+   settimana per `swap` (`invalid` su `['otherSlotId']`), regole dell'annullamento sotto.
+4. **Azione:** `insert into app.meal_actions`. Un id già usato in un'altra famiglia non è
+   visibile: l'inserimento fallisce sulla chiave primaria (`23505`) → `invalid` su `['id']`.
+5. **Righe del registro:** per ogni slot il cui contenuto cambia,
+   `insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after, undoes, action_id)`.
+   Uno slot senza cambiamenti non ha riga. Una richiesta senza effetti lascia solo
+   l'azione: è ricordata, e un suo ritentativo dopo la modifica di un altro membro non
+   sovrascrive nulla.
+6. **Slot:** `update` delle colonne di contenuto con `updated_by = auth.uid()`,
+   `updated_at = clock_timestamp()` (momento effettivo, dopo il lucchetto),
+   `last_action_id = $id`.
+7. **Risposta:** `{ week: await weekViewOf(context, familyId, startsOn), actionId: $id, changed }`.
 
 I contatori della famiglia crescono con i trigger esistenti su `meal_slots` e
-`meal_changes`: `menu.getWeek`, `menu.getOpening`, `shopping.getWeekList`,
-`recipes.get`, `recipes.search` e `meals.getSuggestions` non rispondono più «invariato».
+`meal_changes`. Una richiesta senza effetti non li fa crescere (inserisce solo in
+`meal_actions`, che non ha trigger dei contatori) e non cambia la vista.
+
+**Ordine del registro (rilievo 6):** l'ultima modifica di uno slot è `last_action_id`,
+scritto sotto il lucchetto della riga: è l'ordine reale delle scritture serializzate,
+indipendente dagli orologi. Gli istanti (`created_at`, `updated_at`) usano
+`clock_timestamp()` dopo il lucchetto e servono solo a mostrare il momento.
 
 ### Regole per operazione
 
-| Operazione | Nuovo contenuto | Rifiuti |
-|---|---|---|
-| `setServings` | `servings` | — |
-| `setRecipe` | `recipeId`, `freeText: null` | ricetta non `published` (bozza, archiviata, inesistente): `not_found` |
-| `setFree` | `recipeId: null`, `freeText: text` | — |
-| `setNote` | `note` (stringa vuota dopo il trim → `null`) | — |
-| `swap` | slot: piatto, testo e nota dell'altro; altro slot: quelli dello slot; porzioni ferme | `otherSlotId = slotId` o `otherId = id`: `invalid`; altro slot di un'altra settimana: `invalid` (`['otherSlotId']`); altro slot non visibile: `not_found` |
-
-Lo scambio scrive due righe del registro (`id` per lo slot, `otherId` per l'altro) e
-risponde con quelle che ha scritto (un lato senza effetti non si registra). Può spostare
-una ricetta archiviata o una bozza dell'import: il trigger esistente lo permette perché la
-famiglia la cita già.
+| Operazione | Tipo | `slot_ids` | Nuovo contenuto |
+|---|---|---|---|
+| `setServings` | `set_servings` | `[slotId]` | `servings` |
+| `setRecipe` | `set_recipe` | `[slotId]` | `recipeId`, `freeText: null` (solo ricette `published`, altrimenti `not_found`) |
+| `setFree` | `set_free` | `[slotId]` | `recipeId: null`, `freeText: text` |
+| `setNote` | `set_note` | `[slotId]` | `note` (vuota dopo il trim → `null`) |
+| `swap` | `swap` | `[slotId, otherSlotId]` | piatto, testo e nota dell'altro; porzioni ferme. `otherSlotId = slotId` → `invalid` |
 
 ### Annullamento
 
-Per ogni modifica indicata, in ordine, con un solo blocco iniziale di tutti gli slot
-coinvolti:
+1. Lettura dell'azione `actionId` sotto RLS, con le sue righe di `meal_changes`: non
+   visibile o di un'altra famiglia → `not_found`.
+2. Blocco degli slot cambiati dall'azione (in ordine di id).
+3. Ripetizione di `id` (tipo `undo`, `slot_ids` = slot cambiati, `undoes = actionId`).
+4. Azione altrui → `not_allowed` / `not_own_change`.
+5. Uno degli slot ha `last_action_id` diverso da `actionId` → `not_allowed` /
+   `changed_since`.
+6. Una riga ripristina una ricetta mai pubblicata la cui bozza è chiusa →
+   `not_allowed` / `draft_closed`. Se nel frattempo la bozza è stata **pubblicata**, il
+   ripristino riguarda ormai una ricetta pubblicata e procede (vedi «Decisioni»).
+7. Azione `undo` con una riga per slot: `after` = `before` della riga annullata,
+   `undoes` = quella riga. Tutti gli slot dell'azione tornano insieme.
 
-1. la modifica non è visibile o non è della famiglia: `not_found`;
-2. `actor_id` non è l'utente: `not_allowed` con `reason: 'not_own_change'`;
-3. l'ultima riga del registro dello slot (per `created_at`, poi `id`) non è questa
-   modifica, oppure il contenuto attuale è diverso da `after`: `not_allowed` con
-   `reason: 'changed_since'` (copre anche una modifica già annullata);
-4. con due modifiche, devono essere su slot diversi della stessa settimana; `otherId`
-   è obbligatorio con due modifiche e vietato con una (`invalid`).
+Un'azione senza effetti non ha nulla da annullare: l'annullamento si registra senza
+righe e risponde `changed: false`. Annullare un annullamento è permesso: è un'azione propria
+con le sue righe, e riporta di nuovo tutti i suoi slot.
 
-Se tutti i controlli passano, ogni slot torna a `before` con una nuova riga
-(`id`/`otherId`, `undoes` = la modifica annullata): tutto o niente. Ripetere la stessa
-richiesta restituisce la vista (idempotenza sopra). Annullare un annullamento è permesso:
-è una modifica propria come le altre. Nessun limite di tempo e nessun limite sui pasti
-passati.
+### Lettura dell'annullamento (`menu.getWeek`)
+
+`weekViewOf` unisce `meal_slots.last_action_id` a `meal_actions`:
+
+- `actionId` = `last_action_id` (null per slot mai cambiati da un'azione);
+- `slotIds` = slot con righe di `meal_changes` di quell'azione;
+- `undoable` = `actor_id = utente che legge` e ogni slot in `slotIds` ha ancora
+  `last_action_id = actionId`.
+
+La versione di `getWeek` cambia con il contatore della famiglia, che cresce a ogni
+scrittura che cambia uno slot: `undoable` non resta mai vecchio. Il caso raro della bozza
+chiusa nel frattempo non è in `undoable` (le bozze non sono leggibili ai membri) e risponde
+`draft_closed` all'annullamento.
 
 ### Suggerimenti
 
-1. Lettura dello slot senza blocco (stessa query, senza `for update`): `not_found` se manca.
-2. `input = await loadPlannerInput(tx, familyId, { weekStart: startsOn })`.
-3. `otherMeals`: gli altri slot della settimana con ricetta (`{date, mealType, recipeId}`).
-4. `ranked = rankSuggestions(input, {date, mealType}, otherMeals, slot.recipeId)`.
-5. Pagina: `start = offset < ranked.length ? offset : 0`, cinque elementi,
+1. `readSlot` (senza blocco); `not_found` se manca.
+2. `input = await loadPlannerInput(tx, familyId, { weekStart: startsOn })`, che ora carica
+   anche `fixedRecipes`: le ricette **archiviate** citate dai pasti della famiglia, dal
+   documento della loro versione corrente (le bozze mai pubblicate non hanno documento e
+   restano fuori, come nella generazione).
+3. `otherMeals`: gli altri slot della settimana con ricetta.
+4. `rankSuggestions(input, {date, mealType}, otherMeals, slot.recipeId)`.
+5. Pagina da 5: `start = offset < ranked.length ? offset : 0`,
    `nextOffset = start + 5 < ranked.length ? start + 5 : 0`.
-6. Viste: `recipeSummaries` con `{recipeId, version: null, servings: slot.servings}` (la
-   versione corrente) e `ratingSummaries(tx, familyId, userId, ids)`.
-7. `freeTexts`: i quattro `free_text` più usati negli slot della famiglia, a parità in
-   ordine alfabetico (`order by count(*) desc, free_text`).
+6. Viste: `recipeSummaries` con `{recipeId, version: null, servings: slot.servings}` e
+   `ratingSummaries`.
+7. `freeTexts`: i quattro testi liberi più usati dalla famiglia, a parità in ordine
+   alfabetico.
 
-`rankSuggestions` nel dominio:
+**Lettura non versionata:** la classifica usa anche `globalScores` (voti di tutte le
+famiglie), che nessun contatore segue; una versione con i soli contatori `family` e
+`catalogue` risponderebbe «invariato» a torto. I suggerimenti si leggono all'apertura del
+foglio, quindi la versione non serve.
 
-- `slotRef = slotRefOf(slot, input.settings)` (tempo massimo dalle impostazioni);
-- `weekRecipes`: le ricette di `otherMeals` presenti nel catalogo del pianificatore;
-- `candidatesFor(slotRef, input, weekRecipes)`: stesse regole della generazione
-  (esclusioni, libri, ingredienti evitati, tipo di pasto, regole di pasto, tempi, ricette
-  delle due settimane prima e dopo, massimi settimanali, voti bassi solo senza
-  alternative);
-- tolta `currentRecipeId`;
-- `scoreCandidate(recipe, slot, buildContext(input, placed))` con `placed` = `otherMeals`
-  presenti nel catalogo;
-- ordinamento per punteggio decrescente, poi `compareIds`.
+`rankSuggestions` nel dominio, un'unica logica con la generazione:
 
-La ricerca nel ricettario resta libera (sezione 3): il web usa `recipes.search`.
+- `candidatesFor(slotRefOf(slot, settings), input, weekRecipes, new Set([currentRecipeId]))`:
+  il piatto attuale si toglie **prima** della scelta fra ricette gradite e ripiego sui voti
+  bassi, così se era l'unico gradito restano le alternative;
+- `weekRecipes` e `placed`: gli altri pasti della settimana, cercati fra `recipes` e
+  `fixedRecipes` (`prepared(input).byId` le comprende), quindi una ricetta archiviata già
+  nella settimana conta per i massimi degli ingredienti, per la somiglianza e per gli
+  intervalli;
+- punteggio `scoreCandidate` con `buildContext(input, placed)`, ordine per punteggio e poi
+  `compareIds`.
+
+`prepared(input).byId` con `fixedRecipes` vale anche per la generazione: le ricette
+archiviate dello storico pesano ora nella somiglianza e nella recentezza, come quelle
+pubblicate. È la stessa logica, non un caso dei suggerimenti.
 
 ### Strumenti MCP
 
 Generati dal contratto: `meals_getSuggestions` (sola lettura), `meals_setServings`,
-`meals_setRecipe`, `meals_setFree`, `meals_setNote`, `meals_swap`, `meals_undo`. Gli
-errori arrivano all'agente con il codice, il testo nella lingua dell'utente e i dati
-(`reason`, percorsi di `invalid`).
+`meals_setRecipe`, `meals_setFree`, `meals_setNote`, `meals_swap`, `meals_undo`. Un agente
+in una conversazione nuova annulla con `menu_getWeek` → `lastChange.actionId` (se
+`undoable`) → `meals_undo`.
 
-### Migrazioni
-
-Nessuna. Lo schema di W2 ha già tutto: `meal_changes.id` dal client, `undoes` sullo
-stesso slot con chiave esterna composta, `channel`, grant di `update` sulle colonne di
-contenuto, policy di inserimento con `actor_id = auth.uid()`, contatori con trigger.
-
-## 4. Web (seconda PR)
+## 5. Web (seconda PR)
 
 ### Collegamento
 
-- `meals` in `SERVER_AREAS` (`web/src/api/types.ts`).
-- Client finto: `web/src/api/fake/fakeMeals.ts`, sul modello di `fakeShopping`, con la
-  regola simulata del secondo giro (`design/percorsi.md`, «Suggerimenti simulati») e un
-  registro in memoria per l'annullamento; aggiunto in `createFakeApi` e `withTransport`.
-- Query: `suggestionsQuery(deps, familyId, slotId, offset)` con chiave
-  `['meals', 'getSuggestions', { familyId, slotId, offset, locale }]`, letta con
-  `readThrough`.
+- `meals` in `SERVER_AREAS`; client finto `web/src/api/fake/fakeMeals.ts` (regola simulata
+  del secondo giro, azioni in memoria con le stesse regole del server); `withTransport`.
+- `suggestionsQuery(deps, familyId, slotId, offset)` con chiave
+  `['meals', 'getSuggestions', { familyId, slotId, offset, locale }]`, lettura semplice
+  (non versionata), `staleTime: 0`.
 
-### Invalidazioni (`web/src/api/mutations.ts`)
+### Invalidazioni (`web/src/api/mutations.ts`, `web/src/api/ratings.ts`)
 
-- Nuovo bersaglio `week`: la chiave `['menu', 'getWeek', { familyId, weekStartsOn, locale }]`.
-  `ApplyOptions` riceve `weekStartsOn`; `targetKey` e `sameView` lo usano per il bersaglio
-  `week`. La chiave di tracciamento è `week:<familyId>:<weekStartsOn>`.
-- Righe nuove di `INVALIDATIONS`:
+Bersaglio nuovo `week`: chiave `['menu', 'getWeek', { familyId, weekStartsOn, locale }]`,
+tracciamento `week:<familyId>:<weekStartsOn>`. `applyMutation` cancella le letture in corso
+del bersaglio e delle viste scadute prima di scrivere e invalidare (modello esistente):
+una risposta di suggerimenti in volo non sovrascrive mai dopo la conferma.
 
-| Operazione | Bersaglio | Viste scadute (stessa famiglia) |
+| Operazione | Bersaglio | Viste scadute aggiunte (stessa famiglia) |
 |---|---|---|
 | `meals.setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo` | `week` | `menu.getOpening`, `shopping.getWeekList`, `recipes.get`, `recipes.search`, `meals.getSuggestions` |
-| `family.addExclusion`, `family.removeExclusion` (righe di W2) | `exclusions` (invariato) | in più `meals.getSuggestions` |
+| `family.addExclusion`, `removeExclusion` | `exclusions` | `meals.getSuggestions` |
+| `family.setMeal`, `addRule`, `removeRule`, `setKnownNew`, `setGroupRange` | `settings` | `meals.getSuggestions` |
+| `family.setBookOwned`, `setIngredientRestriction` | `settings` | `meals.getSuggestions` (in più alle attuali) |
+| `ratings.set` (`applyRating`) | viste del voto | `meals.getSuggestions` cancellata e invalidata come la ricerca |
 
-- La risposta scrive `week.data` mantenendo la versione vecchia (modello esistente), così
-  la lettura successiva riceve dati nuovi; una risposta superata non si scrive e marca
-  scadute le viste.
-- Nessun aggiornamento ottimistico: il controllo mostra lo stato «in corso» fino alla
-  risposta.
-- Hook `useMealMutation(name, familyId, weekStartsOn)` in `web/src/features/meals/`:
-  rifiuta subito offline con `network` (come i voti), genera gli `id` con
-  `crypto.randomUUID()`, restituisce `changeIds` per l'annullamento.
+Nessun aggiornamento ottimistico. La risposta scrive `week.data` con la versione vecchia;
+una risposta superata non si scrive e marca scadute le viste.
+
+### Scheda del pasto (`RecipeCard`, ristrutturata come nel prototipo)
+
+- Prop nuova `actions?: { label: string; disabled: boolean; panel: ReactNode; onChooseRecipe?: () => void }`.
+- Il footer si mostra per le ricette **e** per ogni pasto con `actions` (libero e vuoto
+  compresi): dettagli, voto e ingredienti solo con una ricetta; la matita sempre con
+  `actions`.
+- Un solo pannello aperto alla volta: lo stato `open` diventa
+  `'rating' | 'ingredients' | 'actions' | null`; il pannello delle azioni è sotto il
+  footer, come gli altri.
+- Lo slot vuoto con `actions` mostra «Scegli una ricetta» nel contenuto, che apre il foglio
+  sui suggerimenti.
+- Passando da un tipo all'altro (ricetta → libero) il pannello aperto resta coerente:
+  `rating` e `ingredients` si chiudono se il pasto non ha più una ricetta.
 
 ### Componenti (`web/src/features/meals/`)
 
-Dal secondo giro del prototipo, con la guida di `design/design.md`:
-
-- **`RecipeCard`** (W6): prop facoltativa `actions?: ReactNode` resa nel footer (matita e
-  pannello), per ogni tipo di pasto; lo slot vuoto mostra anche «Scegli una ricetta», che
-  apre il foglio sui suggerimenti. `MenuPage` passa `<MealActions>`.
-- **`MealActions`**: matita (`aria-expanded`) e pannello sotto la scheda con Porzioni (solo
-  ricette; `ServingsStepper` da 1 a 20, salvataggio 800 ms dopo l'ultimo tocco e alla
-  chiusura del pannello), «Cambia ricetta», «Nota».
+- **`MealActions`** (il pannello): porzioni (solo ricette), «Cambia ricetta», «Nota».
+- **Porzioni** (`useServingsDraft`):
+  - valore locale per la vista e riferimento al valore da salvare, separati;
+  - invio 800 ms dopo l'ultimo tocco, sempre fuori dagli aggiornamenti di stato;
+  - durante l'invio il selettore è disattivato e mostra il valore inviato fino alla
+    risposta;
+  - alla chiusura del pannello il valore in attesa parte subito;
+  - smontando la scheda (navigazione) parte con `runMealMutation`, senza avviso
+    «Annulla»;
+  - offline: il selettore è disattivato, un valore in attesa non parte e torna al valore
+    del server, con il messaggio offline;
+  - in Strict Mode una sola richiesta.
 - **`MealEditor`**: `BottomSheet` con le fasi `picker`, `swap`, `free`, `note`.
-- **`RecipePicker`**: in cima «Segna come pasto libero», «Non proporre più» (solo con una
-  ricetta), «Scambia con un altro pasto»; poi i suggerimenti in schede scorrevoli con
-  `RatingStars` in sola lettura (media, numero di voti, proprio voto); «Proponimene altri»
-  passa a `nextOffset` senza cambiare il piatto; poi la ricerca con `RecipeFilters` e
-  `recipes.search`. Scegliere una ricetta chiama `meals.setRecipe` e chiude il foglio.
-- **«Non proporre più»**: `family.addExclusion` per la ricetta del pasto, poi il foglio
-  mostra i suggerimenti riletti con «Annulla esclusione» in cima (`removeExclusion`).
-  Chiudere senza scegliere lascia l'esclusione e il pasto com'è.
-- **`SwapPicker`**: gli altri slot della settimana dalla vista `getWeek` (giorno, pasto,
-  contenuto); la scelta chiama `meals.swap`.
-- **`FreeMealForm`**: proposte rapide (`freeTexts`) e campo di testo fino a 60 caratteri.
-- **`NoteForm`**: campo fino a 200 caratteri con contatore, «Salva» e «Togli nota».
-- **`UndoToast`**: dopo una modifica con `changeIds` non vuoti, per 6 secondi, «Annulla»
-  manda `meals.undo` con id nuovi; con `not_allowed` mostra «Non si può più annullare: il
-  pasto è stato cambiato» e la settimana si rilegge. Un nuovo avviso sostituisce il
-  precedente.
-- **Icona matita** in `web/src/components/Icon.tsx` dalla guida, se manca.
+- **`RecipePicker`**:
+  - in cima «Segna come pasto libero», «Non proporre più» (solo con una ricetta) e
+    «Scambia con un altro pasto»;
+  - poi i suggerimenti in schede scorrevoli, con `RatingStars` in sola lettura;
+  - «Proponimene altri» passa a `nextOffset` senza cambiare il pasto;
+  - poi la ricerca: `RecipeFilters({ query, onChange })`, che parte con il tipo di pasto
+    dello slot. La ricerca si attiva con il testo **o** con un filtro diverso da quello
+    iniziale (prototipo). I risultati mostrano nome, durata, gruppo e voto in sola lettura
+    (media, numero di voti, proprio voto) e tolgono il piatto attuale.
+- **`RatingStars`**: prop `readOnly` che mostra lo stesso riepilogo senza i pulsanti
+  (modifica minima al componente di W6).
+- **«Non proporre più»**: `family.addExclusion`, poi suggerimenti riletti con «Annulla
+  esclusione» in cima (`removeExclusion`). Chiudere senza scegliere lascia l'esclusione e il
+  pasto com'è.
+- **`SwapPicker`**, **`FreeMealForm`** (proposte rapide, fino a 60 caratteri),
+  **`NoteForm`** (fino a 200 caratteri con contatore, «Togli nota»).
+- **`UndoToast`**:
+  - per 6 secondi dopo un'azione con `changed: true`;
+  - «Annulla» manda `meals.undo({ actionId, id: nuovo })`;
+  - la risposta si applica alla settimana del pasto, anche se nel frattempo è cambiata la
+    settimana mostrata o la lingua;
+  - con `not_allowed` mostra «Non si può più annullare: il pasto è stato cambiato» e
+    rilegge la settimana.
+- **Icona** `edit` in `Icon.tsx`, dal prototipo (`#icon-edit`).
 
-### Stati ed errori
+### Stati, errori, testi
 
-- Offline: matita e azioni disattivate, menu in sola lettura (sezione 5), banner esistente.
+- Offline: matita, selettore e azioni disattivati; menu in sola lettura.
 - `not_found`: «Questo pasto o questa ricetta non è più disponibile», settimana riletta,
   foglio chiuso.
 - `invalid`: messaggio nel modulo; `forbidden` e `unauthorized`: gestione globale.
+- Testi in `web/src/i18n/messages/meals.ts`, italiano e inglese britannico.
+  - «Cambia ricetta» / «Change recipe» e «Non proporre più» / «Don’t suggest again» sono
+    identici a `exclusions.emptyBody`, verificato da un test.
+  - Note e testi liberi si mostrano come scritti.
 
-### Testi
+## 6. Test e verifiche
 
-`web/src/i18n/messages/meals.ts` in italiano e inglese britannico, registrato nell'indice
-dei dizionari. «Cambia ricetta» / «Change recipe» e «Non proporre più» / «Don’t suggest
-again» sono identici alle etichette citate da `exclusions.emptyBody` (W2): un test lo
-verifica, così il rimando dallo stato vuoto delle esclusioni resta vero (rilievo 3 della
-prova sullo stack reale di W6).
+Ogni garanzia ha un test scritto nella fase rossa del task che la realizza, con tempo,
+versioni e dati deterministici, effetti letti dal database e assenza di scritture nei
+rifiuti. In sintesi:
 
-## 5. Test e verifiche
+- **pgTAP:** i casi della sezione 3.
+- **Dominio:** piatto attuale unico gradito → restano le alternative con voto basso;
+  ricetta archiviata fissata conta nel massimo settimanale; stesse regole della
+  generazione; ordine stabile; generazione con storico archiviato invariata nei vincoli
+  rigidi (test esistenti verdi).
+- **Server:**
+  - **scritture e registro:** ogni scrittura con azione, righe, canale `web` e `mcp`,
+    `updated_by`, `last_action_id`; isolamento fra famiglie, anche per `undo` con l'azione
+    di un'altra famiglia (`not_found`, nessuna scrittura);
+  - **ripetizioni:** due richieste uguali concorrenti; ripetizione dopo l'archiviazione
+    della ricetta (stessa risposta); id riusato con un altro tipo, slot o utente
+    (`invalid`); id di un'altra famiglia (`invalid`); richiesta senza effetti ricordata,
+    il cui ritentativo dopo la modifica di Bruno non sovrascrive;
+  - **scambio e annullamento:** scambio con bozza e con archiviata in entrambi gli ordini;
+    annullamento dello scambio sempre per intero, anche dell'annullamento;
+    `changed_since` dopo la modifica di un altro su uno solo dei due slot, senza effetti;
+    `not_own_change`; `draft_closed`; annullamento ripartendo solo da `menu.getWeek`;
+  - **ordine e istanti:** transazione iniziata prima e bloccata sul lucchetto che salva
+    dopo un'altra: `last_action_id`, `undoable` e `updated_at` seguono l'ordine reale;
+  - **R1:** settimana passata (gennaio 2026) con due versioni della ricetta: il pasto
+    cambiato mostra la versione in vigore quando è passato, non la corrente;
+  - **suggerimenti:** pagine, ripartenza, `offset` oltre la fine; esclusione;
+    `freeTexts`; voto di un'altra famiglia che cambia la classifica della lettura
+    successiva; non versionata;
+  - **MCP:** elenco e annotazioni; scrittura; `meals_undo` con l'azione di un altro
+    membro → errore `not_allowed` con `reason`.
+- **Web:**
+  - scheda per ricetta, libero e vuoto, e passaggio da un tipo all'altro;
+  - porzioni: numero e contenuto delle richieste, un solo annullamento, chiusura
+    anticipata, smontaggio, offline, Strict Mode;
+  - suggerimenti, «Proponimene altri» senza chiamate di scrittura e con il pasto
+    invariato;
+  - ricerca con soli filtri e voti nei risultati, in italiano e in inglese;
+  - esclusione e suo annullamento; scambio, libero, nota;
+  - «Annulla» riuscito, rifiutato, dopo il cambio di settimana e dopo il cambio di
+    lingua, assente senza effetti;
+  - matrice delle invalidazioni con letture in volo; etichette allineate allo stato vuoto
+    delle esclusioni.
+- **Prova visiva:** modalità finta (porta 8767) a confronto con il prototipo, poi stack
+  reale in locale come nella prova di W6. Percorsi a due membri: ultima modifica vista
+  dall'altro, annullamento rifiutato dopo la modifica dell'altro, esclusione nel Profilo,
+  spesa che segue il cambio. Poi Carla in inglese con misure imperiali.
 
-**Prima PR (server):**
+**Ogni PR passa da sola i controlli di `main`** (`supabase test db`, `npm run typecheck`,
+`npm test`).
 
-- dominio, `rankSuggestions`: stesse esclusioni della generazione, piatto attuale escluso,
-  altri pasti della settimana esclusi, tempo massimo dello slot, massimi settimanali
-  contati con gli altri pasti, ordine stabile;
-- server (Vitest con Postgres, come `server/test/menu/`), file `server/test/meals/`:
-  ogni scrittura con registro, canale `web` e `mcp`, `updated_by`; scrittura senza
-  effetti; idempotenza e id riusati (stesso utente, altro utente, altra famiglia);
-  isolamento fra famiglie; ricetta in bozza, archiviata e inesistente; scambio e i suoi
-  rifiuti; annullamento semplice e di uno scambio, `changed_since`, `not_own_change`,
-  annullamento ripetuto, annullamento di un annullamento; pasto passato modificabile con
-  R1 coerente; contatore cresciuto (`getWeek` e `shopping.getWeekList` non «invariati»);
-  suggerimenti (pagine, ritorno all'inizio, esclusione appena aggiunta, voti, testi
-  liberi, `not_found`);
-- MCP: elenco degli strumenti `meals_*` con `readOnlyHint` corretto, una scrittura e un
-  errore `not_allowed` come li vede un agente;
-- contratto: metadati e nuovi motivi di `not_allowed`.
+- **Prima PR:** migrazione, dominio, contratto, server e MCP, più i ritocchi minimi al web
+  che il typecheck richiede:
+  - i campi nuovi di `lastChange` nel client finto e nelle fixture di test;
+  - il testo generico di `not_allowed`.
 
-**Seconda PR (web):** Vitest e Testing Library con il server di test (`rpcServer`):
-ogni flusso del pannello e del foglio; porzioni con attesa e un solo annullamento;
-«Proponimene altri»; esclusione e il suo annullamento; «Annulla» riuscito e rifiutato;
-invalidazioni (bersaglio, viste scadute, risposta superata, cambio di lingua); azioni
-disattivate offline; voto in sola lettura nei suggerimenti; etichette allineate allo stato
-vuoto delle esclusioni.
+  `meals` non entra in `SERVER_AREAS`.
+- **Seconda PR:** parte da `main` con la prima unita.
 
-**Prova visiva:** agent-browser in modalità finta (porta 8767, iPhone) a confronto con il
-prototipo; poi **sullo stack reale in locale** come nella prova di W6
-(`progetto/coordinamento/messaggi/w6-prova-stack-reale.md`): Supabase locale, Worker con
-`wrangler dev`, catalogo caricato con le operazioni dei curatori, menu dal job settimanale;
-percorsi da provare con due membri della stessa famiglia (modifica e ultima modifica
-vista dall'altro, annullamento rifiutato dopo la modifica dell'altro, esclusione che
-compare nel Profilo e nei suggerimenti, lista della spesa che segue il cambio di piatto) e
-in inglese con misure imperiali.
-
-**Ogni PR passa da sola i controlli di `main`** (CI: `supabase test db`, `npm run
-typecheck`, `npm test`): la prima non tocca il web salvo i testi generici di `not_allowed`,
-perché `meals` non è in `SERVER_AREAS`; la seconda parte da `main` con la prima già unita e
-porta insieme client finto, `SERVER_AREAS` e schermate.
-
-## 6. Decisioni da riportare nella specifica
+## 7. Decisioni da riportare nella specifica
 
 ### Prodotto
 
 | Decisione | Sezioni |
 |---|---|
-| L'annullamento vale anche sui pasti passati e non ha limiti di tempo lato server: solo le proprie modifiche, solo se lo slot non è cambiato dopo; i 6 secondi sono dell'interfaccia; un annullamento si può a sua volta annullare | 5 |
-| Una modifica che non cambia nulla non si registra e non cambia l'ultima modifica mostrata | 5 |
-| Porzioni di un pasto da 1 a 20 nella revisione (limiti del prototipo); testo del pasto libero fino a 60 caratteri; proposte rapide: i quattro testi liberi più usati dalla famiglia | 5 |
-| Nella revisione si sceglie solo una ricetta pubblicata (da suggerimenti o ricerca), anche di un libro non posseduto; una archiviata resta solo nei pasti che già la citano e si sposta con lo scambio | 5 |
-| «Non proporre più» dal pasto: l'esclusione resta anche se si chiude il foglio senza scegliere il sostituto; si annulla dal foglio («Annulla esclusione») o dal Profilo | 5 |
+| L'annullamento vale anche sui pasti passati e non ha limiti di tempo lato server: solo la propria ultima azione, solo se nessuno ha cambiato dopo i suoi pasti; i 6 secondi sono dell'interfaccia; uno scambio si annulla sempre per intero; un annullamento si può annullare | 5 |
+| Da un agente si annulla la propria ultima modifica di un pasto anche in una conversazione nuova: la vista del pasto dice se è annullabile e quali pasti coinvolge | 5, 13 |
+| Una richiesta che non cambia nulla non cambia l'ultima modifica mostrata, ma è ricordata: ripeterla non sovrascrive modifiche successive | 1, 5 |
+| Porzioni da 1 a 20 nella revisione; testo del pasto libero fino a 60 caratteri; proposte rapide: i quattro testi liberi più usati | 5 |
+| Si sceglie solo una ricetta pubblicata (da suggerimenti o ricerca, anche di un libro non posseduto); una archiviata o una bozza importata resta nei pasti che la citano, si sposta con lo scambio e torna con l'annullamento, se la bozza è ancora aperta; se nel frattempo è stata pubblicata torna la ricetta pubblicata | 5 |
+| Note e testi dei pasti liberi restano come li scrive l'utente, senza traduzione (come le voci libere della spesa); i testi dell'interfaccia restano bilingui | 12, 15 |
+| «Non proporre più» dal pasto: l'esclusione resta anche se si chiude il foglio senza scegliere; si annulla dal foglio o dal Profilo | 5 |
+| La ricerca del sostituto parte con il tipo di pasto dello slot e si attiva anche con i soli filtri; risultati con il voto in sola lettura, come i suggerimenti | 5 |
 
 ### Tecniche
 
 | Decisione | Sezioni |
 |---|---|
-| Area `meals` del contratto: `getSuggestions`, `setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo`; ogni scrittura con `id` della modifica dal client (`otherId` per la seconda riga di scambio e annullamento) e risposta `{week, changeIds}` con la vista della settimana | 1, 5, 13 |
-| `not_allowed` con i motivi `not_own_change` e `changed_since`; testo generico non più legato alla ricetta | 1 |
-| Suggerimenti: `rankSuggestions` nel dominio sulle funzioni della generazione (`candidatesFor`, `scoreCandidate`) con i dati di `loadPlannerInput`; pagine da 5 con `offset`, ordine per punteggio e id | 3 |
-| Nessuna migrazione: lo schema di W2 basta (`meal_changes.id` dal client, `undoes`, grant delle colonne di contenuto) | 2 |
-| Web: bersaglio `week` nelle mutazioni; le scritture dei pasti fanno scadere apertura, spesa, ricetta, ricerca e suggerimenti; le esclusioni fanno scadere anche i suggerimenti | 1 |
+| Area `meals`: `getSuggestions` (non versionata, per i voti globali), `setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo({actionId, id})`; ogni scrittura è un'azione con `id` dal client e risposta `{week, actionId, changed}` | 1, 5, 13 |
+| `app.meal_actions` (una riga per richiesta, mai modificata), `meal_changes.action_id`, `meal_slots.last_action_id` come ordine reale dell'ultima modifica, istanti con `clock_timestamp()` dopo il lucchetto | 2, 5 |
+| Registro veritiero (`before` uguale allo slot) e regola delle bozze estesa allo spostamento nella stessa azione e al ripristino di un annullamento, con bozza aperta | 2 |
+| `lastChange` della vista del pasto con `actionId`, `undoable`, `slotIds` | 1, 5 |
+| `not_allowed` con `not_own_change`, `changed_since`, `draft_closed`; testo generico neutro | 1 |
+| Suggerimenti con `rankSuggestions` sulle funzioni della generazione; piatto attuale escluso prima del ripiego sui voti bassi; `fixedRecipes` (archiviate citate dai pasti) nella stessa logica anche per la generazione | 3 |
+| Web: bersaglio `week`; matrice delle invalidazioni dei suggerimenti (pasti, esclusioni, impostazioni, libri, ingredienti, voti) | 1 |
+
+### Scostamento da segnalare al coordinatore
+
+La decisione 4 del coordinatore chiede `not_allowed` anche quando la bozza è stata
+**pubblicata** nel frattempo. Propongo di rifiutare solo la bozza **chiusa** (scartata):
+una bozza pubblicata è ormai una ricetta del ricettario, ripristinarla non apre accessi, e
+l'utente non capirebbe perché non può annullare. Se il coordinatore preferisce il rifiuto,
+basta trattare `status <> 'draft'` della ricetta ripristinata, se era bozza all'origine,
+come `draft_closed`.
