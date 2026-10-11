@@ -1,6 +1,7 @@
 import type { shoppingContract } from '@app/contract';
 import { createImplementer, fresh } from '../pipeline.ts';
 import type { ShoppingDeps } from './deps.ts';
+import { createBringLink, exportList } from './exports.ts';
 import { addFreeItem, removeFreeItem, setAddedBack, setFreeItemChecked, setItemChecked } from './mutations.ts';
 import { readListView } from './read.ts';
 
@@ -17,5 +18,7 @@ export function createShoppingRouter(os: ShoppingImplementer, deps: ShoppingDeps
 		addFreeItem: os.shopping.addFreeItem.handler(({ context, input }) => addFreeItem(context, deps, input)),
 		setFreeItemChecked: os.shopping.setFreeItemChecked.handler(({ context, input }) => setFreeItemChecked(context, deps, input)),
 		removeFreeItem: os.shopping.removeFreeItem.handler(({ context, input }) => removeFreeItem(context, deps, input)),
+		exportList: os.shopping.exportList.handler(({ context, input }) => exportList(context, deps, input)),
+		createBringLink: os.shopping.createBringLink.handler(({ context, input }) => createBringLink(context, deps, input)),
 	};
 }
