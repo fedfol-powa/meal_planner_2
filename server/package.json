@@ -1,0 +1,18 @@
+{
+	"name": "@app/server",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"test": "vitest run",
+		"typecheck": "tsc -p tsconfig.json"
+	},
+	"dependencies": {
+		"@app/contract": "*"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "5.20261011.1",
+		"wrangler": "4.149.0"
+	}
+}
