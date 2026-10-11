@@ -235,7 +235,10 @@ ricetta è stata pubblicata almeno una volta (`version > 0`), altrimenti null. D
 `recipe_version_at` non trova una versione al momento del pasto prende la prima
 pubblicata, e null se non ce ne sono (decisione del coordinatore dell'11 ottobre). Una
 settimana di un'altra famiglia o inesistente dà un elenco vuoto (RLS e filtro su
-`familyId`).
+`familyId`). L'istante di confronto è `now()` della transazione; una variante interna
+`mealRecipeVersionsAt(tx, familyId, weekId, at)` lo riceve come parametro
+(`coalesce(at, now())`), così i test verificano le soglie delle 15:30 e delle 23:00 con
+istanti fissi, senza dipendere dall'ora reale.
 
 Il comportamento per l'utente è quello del ruolo `authenticated`: un membro vede anche
 le ricette mai pubblicate citate dai pasti della sua famiglia (policy

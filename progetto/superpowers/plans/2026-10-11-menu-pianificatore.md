@@ -74,7 +74,7 @@ schemi di W6. Il Task 1 si consegna per primo in una PR piccola a parte (produtt
 | `server/src/menu/job.ts` (+ test) | `runWeeklyJob`, `runWeeklyJobOn` |
 | `server/src/menu/week-view.ts` | composizione di `WeekView` con `recipeViews` di W6 |
 | `server/src/router.ts`, `server/src/index.ts`, `server/wrangler.jsonc`, `contract/src/contract.ts` | registrazione, handler `scheduled`, cron |
-| `server/test/support/menu.ts` | dati di prova: ricette pubblicate con documento, libri, settimane, slot, utenti membri |
+| `server/test/support/menu.ts` (Task 8) | dati di prova, sopra `catalogueFixture` di W6: ricette pubblicate con documento, libri, settimane, slot, utenti membri |
 | `web/src/...` (struttura di W5) | `Api.menu` dal contratto, `today` in `getOpening`, voto dal Menu |
 
 ---
@@ -83,307 +83,51 @@ schemi di W6. Il Task 1 si consegna per primo in una PR piccola a parte (produtt
 
 Sei il **produttore** di `mealRecipeVersions` per la spesa (W4): il task si consegna da
 solo, per primo, in una PR piccola da unire subito. Dipende solo da quanto è già su
-`main` (schema di W2, `server/src/db.ts`, supporto dei test della piattaforma); nessun
-cancello.
+`main` (schema di W2, `server/src/db.ts`, `catalogueFixture` di W6 in
+`server/test/recipes/fixtures.ts`); nessun cancello. Nella stessa PR, su richiesta del
+coordinatore: la correzione di `versionedInput` (segnalata da W4) e
+`noUncheckedIndexedAccess` in `domain/` (il web ha l'opzione e, importando il contratto,
+controlla anche `@app/domain/planner`).
 
-**Branch:** `traguardo/menu-versioni`, creato da `origin/main` in un worktree a parte
-(`git worktree add .worktrees/menu-versioni -b traguardo/menu-versioni origin/main`, dal
-repository principale), così la PR contiene solo questi tre file e non spec e piano del
-menu. Dopo il merge: `git fetch origin && git rebase origin/main` su `traguardo/menu` e
-rimozione del worktree.
+**Branch:** `traguardo/menu-versioni`, da `origin/main` in un worktree a parte
+(`.worktrees/menu-versioni`), così la PR non contiene spec e piano del menu. Dopo il
+merge: `git fetch origin && git rebase origin/main` su `traguardo/menu`.
 
 **Files:**
-- Create: `server/test/support/menu.ts`
-- Create: `server/src/menu/versions.ts`
-- Test: `server/test/menu-versions.test.ts`
+- Create: `server/src/menu/versions.ts`, `server/test/menu/versions.test.ts`
+- Modify: `contract/src/versioned.ts` (+ `contract/src/versioned.test.ts`)
+- Modify: `domain/tsconfig.json`, `domain/src/planner/{constraints,generate,random}.ts`, `domain/src/recipe/{check,variety}.ts` (solo asserzioni non nulle dove l'invariante è già nel codice)
 
 **Interfaces:**
-- Produces (server, importata da W4):
+- Produces (server, importata da W4), firma pubblica invariata:
 
 ```ts
 export interface MealRecipeVersion { slotId: string; recipeId: string; version: number | null; isPast: boolean }
 export function mealRecipeVersions(tx: Tx, familyId: string, weekId: string): Promise<MealRecipeVersion[]>
+/** Same at a given instant instead of the transaction's now(): for tests. */
+export function mealRecipeVersionsAt(tx: Tx, familyId: string, weekId: string, at: Date | null): Promise<MealRecipeVersion[]>
 ```
 
-- Produces (test): `menuFixtures(db: TestDatabase)` con questi metodi:
-  - `ingredient()`;
-  - `book(title?)`;
-  - `publishRecipe(over?)`;
-  - `publishVersion(recipeId, publishedAt)`;
-  - `draftRecipe(name)`;
-  - `insertWeek(familyId, startsOn)`;
-  - `insertSlot(weekId, slot)`;
-  - `setTimeZone(familyId, timeZone)`;
-  - `member(options?)`, che restituisce `{ userId, sessionId, familyId, claims }` di un nuovo utente, membro di una nuova famiglia; `claims` è utilizzabile con `withDbOn(sql, { kind: 'user', claims }, …)`.
+- Produces (contratto): `versionedInput<Shape extends z.ZodRawShape>(schema: z.ZodObject<Shape>)`.
 
-- [ ] **Step 1: Write the fixtures** `server/test/support/menu.ts`
+**Istante controllato (rilievo della seconda review):** la query non usa `now()`
+direttamente ma `coalesce(${at}::timestamptz, now())` in una sottoquery; `mealRecipeVersions`
+passa `null` (istante della transazione), i test passano istanti fissi. Nessuna funzione
+SQL nuova, nessuna migrazione.
 
-```ts
-import type { Claims } from '../../src/auth.ts';
-import type { TestDatabase } from './db.ts';
-import { TEST_ISSUER } from './keys.ts';
+- [ ] **Step 1: Write the failing tests** `server/test/menu/versions.test.ts`, nel **ruolo del membro**, con `catalogueFixture` di W6 (`recipe` con `createdAt`, `publishVersion` con l'istante di pubblicazione, `draft`, `meal`):
+  1. all'istante fisso del 25 gennaio 2026: pasto precedente alla prima pubblicazione → v1; pasto passato → versione in vigore (v1); bozza → `null` con `isPast: true`; slot libero e vuoto esclusi; pasto futuro → corrente (v2) con `isPast: false`; famiglia estranea → `[]`;
+  2. Roma, 14 ottobre 2026 (pranzo alle 13:30Z, cena alle 21:00Z), versioni nuove pubblicate dopo i pasti: letture a 13:29:59, 13:30:00, 13:30:01, 20:59:59, 21:00:00, 21:00:01 con `version` e `isPast` di entrambi i pasti; una versione pubblicata esattamente quando il pasto passa è quella in vigore; poi `America/New_York` (pranzo alle 19:30Z, cena alle 03:00Z del 15) prima e alla soglia di entrambi i pasti;
+  3. `mealRecipeVersions` senza istante, su pasti del 2020 e del 2099 (indipendente dal calendario di esecuzione).
+- [ ] **Step 2: Run to verify it fails** (`npm test -w server -- menu/versions`: modulo inesistente).
+- [ ] **Step 3: Implement** `server/src/menu/versions.ts` (query come nella sezione 3 della spec, con l'istante controllato; `order by s.date, s.meal_type desc` mette il pranzo prima della cena). Prova di mutazione: con `<` al posto di `<=` il test delle soglie deve fallire.
+- [ ] **Step 4: `versionedInput`** — test di tipo con `expectTypeOf` (`z.infer` conserva `familyId`, `today?` e `knownVersion?`), che fallisce con `T extends z.ZodObject`; poi la firma generica sulla forma.
+- [ ] **Step 5: `noUncheckedIndexedAccess` in `domain/tsconfig.json`**; correggere gli errori senza cambiare comportamento. Prova: un file temporaneo nel web che importa `recipeSummaryView` da `@app/contract` dà errori senza la correzione e nessuno con la correzione.
+- [ ] **Step 6: Verifica, commit, push e PR piccola**
 
-export interface RecipeFixture {
-	name: string;
-	mealType: 'lunch' | 'dinner' | 'both';
-	proteinGroup: string;
-	durationMinutes: number;
-	publishedAt: string;
-	ingredientIds: string[];
-	bookId: string | null;
-}
+Run: `npm test && npm run typecheck && npm run typecheck -w web && npm run build -w web` (skill `superpowers:verification-before-completion`).
 
-/** A complete RecipeDocument (W3, schemaVersion 1) with the planner attributes of the fixture. */
-export function recipeDocument(f: RecipeFixture) {
-	return {
-		schemaVersion: 1,
-		name: { 'it-IT': f.name, 'en-GB': `${f.name} (en)` },
-		description: { 'it-IT': `Descrizione di ${f.name}`, 'en-GB': `Description of ${f.name}` },
-		sourceType: f.bookId ? 'book' : 'home',
-		sourceUrl: null,
-		bookId: f.bookId,
-		bookPages: f.bookId ? '12' : null,
-		durationMinutes: f.durationMinutes,
-		baseServings: 2,
-		mealType: f.mealType,
-		proteinGroup: f.proteinGroup,
-		isFreshFish: false,
-		carbohydrateGroup: 'none',
-		category: 'other',
-		hasVegetables: true,
-		isHeavy: false,
-		seasons: [],
-		ingredients: f.ingredientIds.map((ingredientId, i) => ({
-			ingredientId,
-			variety: null,
-			preparation: null,
-			quantity: { kind: 'amount', value: 100, unit: 'g' },
-			sourceText: `riga ${i}`,
-			isOptional: false,
-			isPrimary: i === 0,
-		})),
-	};
-}
-
-let counter = 0;
-const slug = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
-
-export function menuFixtures(db: TestDatabase) {
-	const { admin } = db;
-	async function ingredient(): Promise<string> {
-		const [{ id }] = await admin<{ id: string }[]>`
-			insert into app.ingredients (slug, name, department)
-			values (${slug('ing')}, ${admin.json({ 'it-IT': 'Ingrediente', 'en-GB': 'Ingredient' })}, 'produce') returning id`;
-		return id;
-	}
-	return {
-		ingredient,
-		async book(title = 'Libro di prova'): Promise<string> {
-			const [{ id }] = await admin<{ id: string }[]>`insert into app.books (slug, title) values (${slug('b')}, ${title}) returning id`;
-			return id;
-		},
-		async publishRecipe(over: Partial<RecipeFixture> = {}): Promise<string> {
-			const f: RecipeFixture = {
-				name: `Ricetta ${counter}`,
-				mealType: 'both',
-				proteinGroup: 'vegetarian',
-				durationMinutes: 20,
-				publishedAt: '2026-01-01T00:00:00Z',
-				bookId: null,
-				...over,
-				ingredientIds: over.ingredientIds ?? [await ingredient()],
-			};
-			const doc = recipeDocument(f);
-			const [{ id }] = await admin<{ id: string }[]>`
-				insert into app.recipes (slug, status, version, name, description, source_type, book_id, book_pages, duration_minutes, base_servings,
-					protein_group, is_fresh_fish, carbohydrate_group, has_vegetables, category, meal_type, is_heavy)
-				values (${slug('r')}, 'published', 1, ${admin.json(doc.name)}, ${admin.json(doc.description)}, ${doc.sourceType}, ${f.bookId}, ${doc.bookPages},
-					${f.durationMinutes}, 2, ${f.proteinGroup}, false, 'none', true, 'other', ${f.mealType}, false)
-				returning id`;
-			await admin`insert into app.recipe_versions (recipe_id, version, content, published_at, channel)
-				values (${id}, 1, ${admin.json(doc)}, ${f.publishedAt}, 'import')`;
-			return id;
-		},
-		/** A new version with a different Italian name (" vN"), made current. */
-		async publishVersion(recipeId: string, publishedAt: string): Promise<number> {
-			const [{ version, content }] = await admin<{ version: number; content: any }[]>`
-				select r.version + 1 as version, v.content from app.recipes r
-				join app.recipe_versions v on v.recipe_id = r.id and v.version = r.version where r.id = ${recipeId}`;
-			content.name['it-IT'] = `${content.name['it-IT']} v${version}`;
-			await admin`insert into app.recipe_versions (recipe_id, version, content, published_at, channel) values (${recipeId}, ${version}, ${admin.json(content)}, ${publishedAt}, 'import')`;
-			await admin`update app.recipes set version = ${version}, name = ${admin.json(content.name)} where id = ${recipeId}`;
-			return version;
-		},
-		async draftRecipe(name: string): Promise<string> {
-			const [{ id }] = await admin<{ id: string }[]>`
-				insert into app.recipes (slug, name, description) values (${slug('d')}, ${admin.json({ 'it-IT': name, 'en-GB': '' })}, ${admin.json({ 'it-IT': '', 'en-GB': '' })}) returning id`;
-			return id;
-		},
-		async insertWeek(familyId: string, startsOn: string): Promise<string> {
-			const [{ id }] = await admin<{ id: string }[]>`insert into app.weeks (family_id, starts_on, generated_at) values (${familyId}, ${startsOn}, now()) returning id`;
-			return id;
-		},
-		async insertSlot(weekId: string, s: { date: string; mealType: 'lunch' | 'dinner'; recipeId?: string; freeText?: string; servings?: number; updatedBy?: string }): Promise<string> {
-			const [{ id }] = await admin<{ id: string }[]>`
-				insert into app.meal_slots (week_id, date, meal_type, recipe_id, free_text, servings, updated_by)
-				values (${weekId}, ${s.date}, ${s.mealType}, ${s.recipeId ?? null}, ${s.freeText ?? null}, ${s.servings ?? 2}, ${s.updatedBy ?? null}) returning id`;
-			return id;
-		},
-		async setTimeZone(familyId: string, timeZone: string) {
-			await admin`update app.families set time_zone = ${timeZone} where id = ${familyId}`;
-		},
-		/** A new user, member of a new family, with the claims of a verified web token. */
-		async member(options: { locale?: 'it-IT' | 'en-GB' } = {}) {
-			const { userId, sessionId } = await db.createUser(options);
-			const familyId = await db.createFamily([{ userId, role: 'member' }]);
-			const claims = { sub: userId, session_id: sessionId, role: 'authenticated', aud: 'authenticated', iss: TEST_ISSUER, exp: Math.floor(Date.now() / 1000) + 3600 } as unknown as Claims;
-			return { userId, sessionId, familyId, claims };
-		},
-	};
-}
-```
-
-Se un vincolo di W2 rifiuta una di queste righe (per esempio i campi di `ingredients` o `books`, o `is_localized_text` con stringhe vuote nelle bozze), si adegua la fixture al vincolo letto nella migrazione, senza toccare le migrazioni. Se `Claims` richiede campi diversi, si costruiscono come nei test della piattaforma (`server/test/db.test.ts`).
-
-- [ ] **Step 2: Write the failing tests** `server/test/menu-versions.test.ts`
-
-Tutti nel **ruolo del membro**: è il comportamento destinato all'utente (rilievo 7).
-
-```ts
-import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { withDbOn } from '../src/db.ts';
-import { mealRecipeVersions } from '../src/menu/versions.ts';
-import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
-import { menuFixtures } from './support/menu.ts';
-
-describe.skipIf(!hasDatabase)('mealRecipeVersions', () => {
-	let db: TestDatabase;
-	let sql: postgres.Sql;
-	beforeAll(async () => {
-		db = await setupDatabase();
-		sql = postgres(db.appServerUrl, { max: 1, fetch_types: false });
-	});
-	afterAll(async () => {
-		await sql.end();
-		await db.close();
-	});
-
-	it('uses the version in force when the meal passed, the current one for future meals, the first for older meals, null for drafts', async () => {
-		const fx = menuFixtures(db);
-		const { familyId, claims } = await fx.member();
-		const recipe = await fx.publishRecipe({ publishedAt: '2026-01-10T00:00:00Z' });
-		await fx.publishVersion(recipe, '2026-01-20T12:00:00Z');
-		const draft = await fx.draftRecipe('Bozza');
-		const old = await fx.insertWeek(familyId, '2026-01-05');
-		const past = await fx.insertWeek(familyId, '2026-01-12');
-		const future = await fx.insertWeek(familyId, '2099-01-05');
-		const before = await fx.insertSlot(old, { date: '2026-01-05', mealType: 'dinner', recipeId: recipe });
-		const atV1 = await fx.insertSlot(past, { date: '2026-01-12', mealType: 'dinner', recipeId: recipe });
-		const draftSlot = await fx.insertSlot(past, { date: '2026-01-13', mealType: 'lunch', recipeId: draft });
-		await fx.insertSlot(past, { date: '2026-01-14', mealType: 'lunch', freeText: 'Pizza' });
-		const coming = await fx.insertSlot(future, { date: '2099-01-05', mealType: 'lunch', recipeId: recipe });
-
-		const run = (weekId: string, family = familyId) => withDbOn(sql, { kind: 'user', claims }, (tx) => mealRecipeVersions(tx, family, weekId));
-		expect(await run(old)).toEqual([{ slotId: before, recipeId: recipe, version: 1, isPast: true }]);
-		expect(await run(past)).toEqual([
-			{ slotId: atV1, recipeId: recipe, version: 1, isPast: true },
-			{ slotId: draftSlot, recipeId: draft, version: null, isPast: true },
-		]);
-		expect(await run(future)).toEqual([{ slotId: coming, recipeId: recipe, version: 2, isPast: false }]);
-		const stranger = await db.createFamily([]);
-		expect(await run(past, stranger)).toEqual([]);
-	});
-
-	it('switches version exactly at 15:30 and 23:00, in the family time zone, like the SQL functions', async () => {
-		const fx = menuFixtures(db);
-		const { familyId, claims } = await fx.member();
-		// Rome, Wednesday 14 October 2026: lunch passes at 13:30Z, dinner at 21:00Z.
-		const lunchRecipe = await fx.publishRecipe({ publishedAt: '2026-01-01T00:00:00Z' });
-		await fx.publishVersion(lunchRecipe, '2026-10-14T13:31:00Z'); // one minute after lunch passed
-		const dinnerRecipe = await fx.publishRecipe({ publishedAt: '2026-01-01T00:00:00Z' });
-		await fx.publishVersion(dinnerRecipe, '2026-10-14T20:59:00Z'); // one minute before dinner passed
-		const week = await fx.insertWeek(familyId, '2026-10-12');
-		await fx.insertSlot(week, { date: '2026-10-14', mealType: 'lunch', recipeId: lunchRecipe });
-		await fx.insertSlot(week, { date: '2026-10-14', mealType: 'dinner', recipeId: dinnerRecipe });
-		const versions = async () => (await withDbOn(sql, { kind: 'user', claims }, (tx) => mealRecipeVersions(tx, familyId, week))).map((v) => v.version);
-		expect(await versions()).toEqual([1, 2]);
-		const [{ lunch, dinner }] = await db.admin<{ lunch: number; dinner: number }[]>`
-			select app.recipe_version_at(${lunchRecipe}, app.meal_passed_at('2026-10-14', 'lunch', 'Europe/Rome')) as lunch,
-				app.recipe_version_at(${dinnerRecipe}, app.meal_passed_at('2026-10-14', 'dinner', 'Europe/Rome')) as dinner`;
-		expect([lunch, dinner]).toEqual([1, 2]);
-		// New York: lunch passes at 19:30Z, after the second version of 13:31Z.
-		await fx.setTimeZone(familyId, 'America/New_York');
-		expect(await versions()).toEqual([2, 2]);
-	});
-});
-```
-
-- [ ] **Step 3: Run to verify it fails**
-
-Run: `npm test -w server -- menu-versions`
-Expected: FAIL (modulo inesistente). Il database locale deve essere avviato (`supabase db start`, vedi `server/README.md`).
-
-- [ ] **Step 4: Implement `server/src/menu/versions.ts`**
-
-```ts
-import type { Tx } from '../db.ts';
-
-export interface MealRecipeVersion {
-	slotId: string;
-	recipeId: string;
-	/** Version shown by the meal; null when the recipe was never published. */
-	version: number | null;
-	/** True when the meal is past at the time of the call. */
-	isPast: boolean;
-}
-
-/**
- * Slots with a recipe of one week and the version each meal uses (spec section 5, R1): a past
- * meal the version in force when it passed (the first one if older than the first
- * publication), today and future meals the current one, never-published recipes null.
- * Runs in the caller's role: members see the drafts their family's meals cite, app_job does
- * not. Also used by the shopping list (W4).
- */
-export async function mealRecipeVersions(tx: Tx, familyId: string, weekId: string): Promise<MealRecipeVersion[]> {
-	return tx<MealRecipeVersion[]>`
-		select s.id as "slotId", s.recipe_id as "recipeId",
-			case when p.passed_at <= now() then app.recipe_version_at(s.recipe_id, p.passed_at)
-				when r.version > 0 then r.version end as version,
-			p.passed_at <= now() as "isPast"
-		from app.meal_slots s
-		join app.weeks w on w.id = s.week_id
-		join app.families f on f.id = w.family_id
-		join app.recipes r on r.id = s.recipe_id
-		cross join lateral (select app.meal_passed_at(s.date, s.meal_type, f.time_zone) as passed_at) p
-		where s.week_id = ${weekId} and w.family_id = ${familyId}
-		order by s.date, s.meal_type desc`;
-}
-```
-
-`order by s.meal_type desc` mette `lunch` prima di `dinner`.
-
-- [ ] **Step 5: Run tests and commit**
-
-Run: `npm test -w server -- menu-versions && npm run typecheck -w server`
-Expected: PASS.
-
-```bash
-git add server/src/menu/versions.ts server/test/support/menu.ts server/test/menu-versions.test.ts
-git commit -m "Menu: versione della ricetta per pasto (R1), riusabile dalla spesa"
-```
-
-- [ ] **Step 6: Verifica, push e PR piccola**
-
-Run: `npm test && npm run typecheck && npm run build` (skill `superpowers:verification-before-completion`).
-Expected: PASS.
-
-```bash
-git push -u origin traguardo/menu-versioni
-gh pr create --base main --head traguardo/menu-versioni --title "Menu: versione della ricetta per pasto (R1) per la spesa" --body "..."
-```
-
-Descrizione in italiano: cosa fa (`mealRecipeVersions` e dati di prova `menuFixtures`, riusabili da W4), come è stato verificato (test nel ruolo del membro, confini 15:30/23:00, cambio di fuso), sezione 5 della specifica (R1) e sezione 3 della spec del menu. Scrivere `STATO: PR_APERTA <url>` e aspettare: dopo la review e il merge del coordinatore si riprende dal Task 2 su `traguardo/menu`, ribasato su `origin/main`.
+Tre commit (versioni, contratto, dominio), `git push -u origin traguardo/menu-versioni`, `gh pr create --base main`. Descrizione in italiano: cosa fa, come è stato verificato, sezione 5 della specifica (R1), sezione 3 della spec del menu. Scrivere `STATO: PR_APERTA <url>` e continuare dal Task 2 su `traguardo/menu`.
 
 ---
 
@@ -1216,7 +960,7 @@ git commit -m "Schema: stato abandoned per i job settimanali la cui settimana è
 
 **Files:**
 - Modify: `server/package.json` (dipendenza di workspace `"@app/domain": "*"`, se W6 non l'ha già aggiunta; poi `npm install`)
-- Create: `server/src/log.ts`, `server/src/menu/plan.ts`, `server/src/menu/generation.ts`
+- Create: `server/test/support/menu.ts` (`menuFixtures`), `server/src/log.ts`, `server/src/menu/plan.ts`, `server/src/menu/generation.ts`
 - Test: `server/test/menu-generation.test.ts`
 
 **Interfaces:**
@@ -1231,6 +975,135 @@ git commit -m "Schema: stato abandoned per i job settimanali la cui settimana è
   - `loadPlannerInput(tx, familyId, target): Promise<PlannerInput>`;
   - `generateWeek(tx, familyId, target): Promise<boolean>`;
   - `errorCode(error: unknown): string`.
+
+- [ ] **Step 0: Write the fixtures** `server/test/support/menu.ts` (spostate dal Task 1, che usa `catalogueFixture` di W6). Dove possibile `ingredient`, `book`, `publishRecipe`, `publishVersion` e `draftRecipe` delegano a `catalogueFixture` (`server/test/recipes/fixtures.ts`, pubblicazione atomica e documento validato con `publishedRecipeSchema`), mantenendo questi metodi:
+
+```ts
+import type { Claims } from '../../src/auth.ts';
+import type { TestDatabase } from './db.ts';
+import { TEST_ISSUER } from './keys.ts';
+
+export interface RecipeFixture {
+	name: string;
+	mealType: 'lunch' | 'dinner' | 'both';
+	proteinGroup: string;
+	durationMinutes: number;
+	publishedAt: string;
+	ingredientIds: string[];
+	bookId: string | null;
+}
+
+/** A complete RecipeDocument (W3, schemaVersion 1) with the planner attributes of the fixture. */
+export function recipeDocument(f: RecipeFixture) {
+	return {
+		schemaVersion: 1,
+		name: { 'it-IT': f.name, 'en-GB': `${f.name} (en)` },
+		description: { 'it-IT': `Descrizione di ${f.name}`, 'en-GB': `Description of ${f.name}` },
+		sourceType: f.bookId ? 'book' : 'home',
+		sourceUrl: null,
+		bookId: f.bookId,
+		bookPages: f.bookId ? '12' : null,
+		durationMinutes: f.durationMinutes,
+		baseServings: 2,
+		mealType: f.mealType,
+		proteinGroup: f.proteinGroup,
+		isFreshFish: false,
+		carbohydrateGroup: 'none',
+		category: 'other',
+		hasVegetables: true,
+		isHeavy: false,
+		seasons: [],
+		ingredients: f.ingredientIds.map((ingredientId, i) => ({
+			ingredientId,
+			variety: null,
+			preparation: null,
+			quantity: { kind: 'amount', value: 100, unit: 'g' },
+			sourceText: `riga ${i}`,
+			isOptional: false,
+			isPrimary: i === 0,
+		})),
+	};
+}
+
+let counter = 0;
+const slug = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(counter++).toString(36)}`;
+
+export function menuFixtures(db: TestDatabase) {
+	const { admin } = db;
+	async function ingredient(): Promise<string> {
+		const [{ id }] = await admin<{ id: string }[]>`
+			insert into app.ingredients (slug, name, department)
+			values (${slug('ing')}, ${admin.json({ 'it-IT': 'Ingrediente', 'en-GB': 'Ingredient' })}, 'produce') returning id`;
+		return id;
+	}
+	return {
+		ingredient,
+		async book(title = 'Libro di prova'): Promise<string> {
+			const [{ id }] = await admin<{ id: string }[]>`insert into app.books (slug, title) values (${slug('b')}, ${title}) returning id`;
+			return id;
+		},
+		async publishRecipe(over: Partial<RecipeFixture> = {}): Promise<string> {
+			const f: RecipeFixture = {
+				name: `Ricetta ${counter}`,
+				mealType: 'both',
+				proteinGroup: 'vegetarian',
+				durationMinutes: 20,
+				publishedAt: '2026-01-01T00:00:00Z',
+				bookId: null,
+				...over,
+				ingredientIds: over.ingredientIds ?? [await ingredient()],
+			};
+			const doc = recipeDocument(f);
+			const [{ id }] = await admin<{ id: string }[]>`
+				insert into app.recipes (slug, status, version, name, description, source_type, book_id, book_pages, duration_minutes, base_servings,
+					protein_group, is_fresh_fish, carbohydrate_group, has_vegetables, category, meal_type, is_heavy)
+				values (${slug('r')}, 'published', 1, ${admin.json(doc.name)}, ${admin.json(doc.description)}, ${doc.sourceType}, ${f.bookId}, ${doc.bookPages},
+					${f.durationMinutes}, 2, ${f.proteinGroup}, false, 'none', true, 'other', ${f.mealType}, false)
+				returning id`;
+			await admin`insert into app.recipe_versions (recipe_id, version, content, published_at, channel)
+				values (${id}, 1, ${admin.json(doc)}, ${f.publishedAt}, 'import')`;
+			return id;
+		},
+		/** A new version with a different Italian name (" vN"), made current. */
+		async publishVersion(recipeId: string, publishedAt: string): Promise<number> {
+			const [{ version, content }] = await admin<{ version: number; content: any }[]>`
+				select r.version + 1 as version, v.content from app.recipes r
+				join app.recipe_versions v on v.recipe_id = r.id and v.version = r.version where r.id = ${recipeId}`;
+			content.name['it-IT'] = `${content.name['it-IT']} v${version}`;
+			await admin`insert into app.recipe_versions (recipe_id, version, content, published_at, channel) values (${recipeId}, ${version}, ${admin.json(content)}, ${publishedAt}, 'import')`;
+			await admin`update app.recipes set version = ${version}, name = ${admin.json(content.name)} where id = ${recipeId}`;
+			return version;
+		},
+		async draftRecipe(name: string): Promise<string> {
+			const [{ id }] = await admin<{ id: string }[]>`
+				insert into app.recipes (slug, name, description) values (${slug('d')}, ${admin.json({ 'it-IT': name, 'en-GB': '' })}, ${admin.json({ 'it-IT': '', 'en-GB': '' })}) returning id`;
+			return id;
+		},
+		async insertWeek(familyId: string, startsOn: string): Promise<string> {
+			const [{ id }] = await admin<{ id: string }[]>`insert into app.weeks (family_id, starts_on, generated_at) values (${familyId}, ${startsOn}, now()) returning id`;
+			return id;
+		},
+		async insertSlot(weekId: string, s: { date: string; mealType: 'lunch' | 'dinner'; recipeId?: string; freeText?: string; servings?: number; updatedBy?: string }): Promise<string> {
+			const [{ id }] = await admin<{ id: string }[]>`
+				insert into app.meal_slots (week_id, date, meal_type, recipe_id, free_text, servings, updated_by)
+				values (${weekId}, ${s.date}, ${s.mealType}, ${s.recipeId ?? null}, ${s.freeText ?? null}, ${s.servings ?? 2}, ${s.updatedBy ?? null}) returning id`;
+			return id;
+		},
+		async setTimeZone(familyId: string, timeZone: string) {
+			await admin`update app.families set time_zone = ${timeZone} where id = ${familyId}`;
+		},
+		/** A new user, member of a new family, with the claims of a verified web token. */
+		async member(options: { locale?: 'it-IT' | 'en-GB' } = {}) {
+			const { userId, sessionId } = await db.createUser(options);
+			const familyId = await db.createFamily([{ userId, role: 'member' }]);
+			const claims = { sub: userId, session_id: sessionId, role: 'authenticated', aud: 'authenticated', iss: TEST_ISSUER, exp: Math.floor(Date.now() / 1000) + 3600 } as unknown as Claims;
+			return { userId, sessionId, familyId, claims };
+		},
+	};
+}
+```
+
+Se un vincolo di W2 rifiuta una di queste righe (per esempio i campi di `ingredients` o `books`, o `is_localized_text` con stringhe vuote nelle bozze), si adegua la fixture al vincolo letto nella migrazione, senza toccare le migrazioni. Se `Claims` richiede campi diversi, si costruiscono come nei test della piattaforma (`server/test/db.test.ts`).
 
 - [ ] **Step 1: Write the failing tests** `server/test/menu-generation.test.ts`
 
