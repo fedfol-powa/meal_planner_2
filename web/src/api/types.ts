@@ -50,8 +50,10 @@ export type ServerArea = (typeof SERVER_AREAS)[number];
 /** What the screens use: the contract's client for the server areas, the provisional areas otherwise. */
 export type Api = ContractRouterClient<Pick<Contract, ServerArea>> & ProvisionalApi;
 
-/** Areas not served yet: same shape as the oRPC client (nested by area), answered by the fake client. */
-/** Every area of wave 2 is served: new areas start here, answered by the fake client. */
+/**
+ * Areas not served yet: same shape as the oRPC client (nested by area), answered by the fake
+ * client. Every area of wave 2 is served; new areas start here.
+ */
 export interface ProvisionalApi {}
 
 export const PROTEIN_GROUPS = ['fish', 'white_meat', 'red_meat', 'cured_meat', 'legumes', 'eggs', 'cheese', 'vegetarian'] as const satisfies readonly ProteinGroup[];

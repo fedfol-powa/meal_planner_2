@@ -8,7 +8,7 @@ import { realClients } from '../api/clients';
 import { createRpcClient } from '../api/rpc';
 import { DEMO_USER } from '../auth/backend';
 import { setOnline } from '../test/connectivity';
-import { createRpcTestServer, SERVER_PROFILE } from '../test/rpcServer';
+import { createRpcTestServer, SERVER_PROFILE, SERVER_RECIPE } from '../test/rpcServer';
 import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
 
@@ -225,6 +225,69 @@ describe('menu', () => {
     // The test server answers no_weeks: the menu says so, from the server's answer.
     expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
     expect(server.openingSeen).toEqual([{ familyId: SERVER_PROFILE.currentFamilyId, today: '2026-10-09' }]);
+  });
+
+  describe('real client: vote, recipe card and recipe book with the menu', () => {
+    const FAMILY = SERVER_PROFILE.currentFamilyId!;
+    const SLOT = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
+    function realApp(path: string) {
+      const server = createRpcTestServer();
+      // On Thursday 8 October the menu opens on today; Wednesday's lunch, with the server's recipe, is past.
+      server.answerMenu({
+        opening: { kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' },
+        week: {
+          startsOn: '2026-10-05',
+          days: Array.from({ length: 7 }, (_, i) => {
+            const date = addDays('2026-10-05', i);
+            return {
+              date,
+              meals:
+                date === '2026-10-07'
+                  ? [{
+                      slotId: SLOT, date, mealType: 'lunch' as const, kind: 'recipe' as const, recipe: SERVER_RECIPE.recipe, freeText: null, servings: 4,
+                      ingredients: SERVER_RECIPE.ingredients, note: null, rating: SERVER_RECIPE.rating, canOpenRecipe: true, lastChange: null
+                    }]
+                  : []
+            };
+          })
+        }
+      });
+      const backend = createStubBackend(DEMO_USER);
+      const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+      return { server, ...renderApp(path, { backend, createApi: realClients({ rpc, latencyMs: 0 }) }) };
+    }
+    const noRevocation = () => expect(screen.queryByText(/Non hai accesso a questa famiglia/)).toBeNull();
+
+    it('rates a past meal through ratings.set on the Worker and shows the confirmed summary', async () => {
+      const { server } = realApp('/menu?day=2026-10-07');
+      await screen.findByRole('heading', { name: /Ricetta dal server/ });
+      fireEvent.click(screen.getByRole('button', { name: /Voto della famiglia/ }));
+      fireEvent.click(screen.getByLabelText('Dai 4 stelle a Ricetta dal server'));
+      await waitFor(() => expect(server.recipeCalls).toContainEqual({ op: 'ratings.set', input: { familyId: FAMILY, recipeId: SERVER_RECIPE.recipe.id, stars: 4 } }));
+      expect((await screen.findAllByText('4,0')).length).toBeGreaterThan(0);
+      noRevocation();
+    });
+
+    it('opens the recipe card of a past meal from the Worker, with the meal it was eaten at', async () => {
+      const { server, history } = realApp('/menu?day=2026-10-07');
+      await screen.findByRole('heading', { name: /Ricetta dal server/ });
+      fireEvent.click(screen.getByRole('link', { name: 'Scheda ricetta' }));
+      await waitFor(() => expect(history.location.pathname).toBe(`/recipes/${SERVER_RECIPE.recipe.id}`));
+      await waitFor(() => expect(server.recipeCalls.find((c) => c.op === 'recipes.get')?.input).toMatchObject({ familyId: FAMILY, recipeId: SERVER_RECIPE.recipe.id, slotId: SLOT }));
+      noRevocation();
+    });
+
+    it('goes from the recipe book to the menu and back with no false forbidden', async () => {
+      const { server, history } = realApp('/recipes');
+      expect(await screen.findByText('Ricetta dal server')).toBeTruthy();
+      fireEvent.click(screen.getByRole('link', { name: 'Menu' }));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
+      expect(server.openingSeen.map((o) => o.familyId)).toEqual([FAMILY]);
+      fireEvent.click(screen.getByRole('link', { name: 'Ricettario' }));
+      await waitFor(() => expect(history.location.pathname).toBe('/recipes'));
+      expect(await screen.findByText('Ricetta dal server')).toBeTruthy();
+      noRevocation();
+    });
   });
 
 });

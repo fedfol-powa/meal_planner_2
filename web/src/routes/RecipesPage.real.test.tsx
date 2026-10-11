@@ -25,9 +25,9 @@ describe('recipe book on the real client', () => {
     await screen.findByText('400 g');
     fireEvent.click(screen.getByLabelText('Dai 4 stelle a Ricetta dal server'));
     await screen.findByLabelText(/Il tuo voto: 4 stelle/);
-    // A visit to the menu, still answered by the fake client, sends nothing to the Worker.
+    // A visit to the menu, served by the Worker too (W1), reads with the same family.
     history.push('/menu');
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await waitFor(() => expect(server.openingSeen.map((opening) => opening.familyId)).toEqual([SERVER_PROFILE.currentFamilyId]));
 
     expect(server.recipeCalls.map((call) => call.op)).toEqual(['recipes.search', 'recipes.get', 'ratings.set']);
     for (const { input } of server.recipeCalls) expect(input.familyId).toBe(SERVER_PROFILE.currentFamilyId);
@@ -35,7 +35,7 @@ describe('recipe book on the real client', () => {
     const sentIds = server.recipeCalls.flatMap(({ input }) => ['familyId', 'recipeId', 'slotId'].map((key) => input[key]).filter((value) => value !== undefined));
     expect(sentIds.every((id) => typeof id === 'string' && UUID.test(id))).toBe(true);
     const paths = server.fetch.mock.calls.map(([request]) => new URL(request.url).pathname);
-    expect(paths.every((path) => /^\/api\/rpc\/(session|profile|recipes|ratings)\//.test(path))).toBe(true);
+    expect(paths.every((path) => /^\/api\/rpc\/(session|profile|recipes|ratings|menu)\//.test(path))).toBe(true);
     await waitFor(() => expect(paths).toContain('/api/rpc/profile/get'));
   });
 });
