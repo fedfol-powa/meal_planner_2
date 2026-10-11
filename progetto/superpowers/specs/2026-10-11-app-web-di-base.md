@@ -3,7 +3,9 @@
 Creato: 11 ottobre 2026
 Stato: spec di dettaglio, brainstorming concluso con il coordinatore l'11 ottobre 2026;
 corretta l'11 ottobre dopo la review (`progetto/coordinamento/revisioni/w5-spec-piano.md`)
-con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`).
+con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`) e
+dopo la seconda review (`progetto/coordinamento/revisioni/w5-spec-piano-2.md`, scelte
+tecniche in `progetto/coordinamento/messaggi/w5-02-review2.md`).
 Branch `fondamenta/web`, proprietà `web/`.
 
 Estende e rispetta la specifica principale
@@ -212,7 +214,8 @@ Nome in Agrandir Tight 28 px ed email; `settings-card` con righe da 52 px:
   (vedi «Lingua»); «Esci», solo in modalità vera.
 - La scheda Account resta sempre disponibile (rilievo 9): anche se la lettura del
   profilo fallisce o la persona non ha famiglie, lingua ed «Esci» funzionano; al posto
-  del nome compare l'email della sessione.
+  del nome compare l'email della sessione. Con un errore diverso da `network` nome ed
+  email del profilo in cache non si mostrano (seconda review, rilievo 8).
 - Le righe dei ruoli (gestione del ricettario, collegamento degli agenti,
   amministrazione) non compaiono: arrivano con le loro funzioni.
 
@@ -241,6 +244,10 @@ Nessuna libreria (deciso con il coordinatore l'11 ottobre 2026).
 - I testi delle ricette arrivano già localizzati nelle viste (sezione 1): il web non li
   traduce. Le chiavi delle query comprendono la lingua, così una risposta nella lingua
   precedente (anche se arriva dopo il cambio) non si mostra mai nella nuova.
+- **Dati precedenti durante una nuova lettura** (seconda review, rilievo 7): mai quando
+  cambiano lingua, famiglia, ricetta o pasto. Sono ammessi solo fra letture della stessa
+  vista che differiscono per filtri e ordinamento (Ricettario) o per porzioni (scheda
+  ricetta, con gli ingredienti segnati «in aggiornamento» finché arriva la risposta).
 
 **Quale lingua vale** (rilievo 10, decisione del coordinatore):
 
@@ -296,7 +303,9 @@ direttamente:
 
 `web/src/api/queries.ts` contiene le `queryOptions` scritte a mano, con chiavi
 `[area, operazione, input]` in cui l'input comprende `familyId` e la lingua, e la
-funzione che avvolge le letture con `knownVersion`. Niente `@orpc/tanstack-query` per
+funzione che avvolge le letture con `knownVersion`. Con `unchanged` la funzione rilegge la
+cache **dopo** la risposta e la restituisce solo se ha ancora la versione inviata;
+altrimenti chiede la vista completa (seconda review, rilievo 5). Niente `@orpc/tanstack-query` per
 ora: l'integrazione ufficiale si valuta nell'ondata 2 (specifica, sezione 15).
 
 ### Client finto
@@ -330,7 +339,11 @@ nella copia sul dispositivo.
    dipendere dal voto, si marcano scadute e si rileggono quando sono mostrate.
 4. Per la stessa ricetta vale solo la risposta dell'ultima richiesta; le risposte
    arrivate dopo la chiusura della sessione o un cambio d'utente si scartano.
-5. Errore: le stelle restano al valore confermato e compare l'errore tradotto. Offline il
+5. Prima di applicare il risultato si annullano le letture in corso delle settimane e
+   delle schede ricetta della famiglia (seconda review, rilievo 5): la loro risposta,
+   partita prima della conferma, non sovrascrive il voto né finisce sul dispositivo. Le
+   letture annullate che non avevano ancora dati ripartono dopo il voto.
+6. Errore: le stelle restano al valore confermato e compare l'errore tradotto. Offline il
    voto fallisce subito con `network`, senza coda e senza invio alla riconnessione.
 
 È il modello per le mutazioni dell'ondata 2.
@@ -343,7 +356,17 @@ nella copia sul dispositivo.
 - Una chiave per utente (`query-cache:<userId>`). Le scritture di un persister passano
   in coda: dopo la chiusura il persister non scrive più e la cancellazione avviene dopo
   le scritture già partite, così nulla ripopola la copia cancellata.
-- All'avvio e a ogni cambio d'identità si cancellano le copie di ogni altro utente.
+- **Pulizia solo a identità nota** (seconda review, rilievo 1): finché Supabase non ha
+  risposto l'identità è «non ancora nota», non esiste alcuna sessione e non si cancella
+  nulla. Nota l'identità, si cancellano le copie degli **altri** utenti; con un'uscita
+  confermata (nessuna sessione) si cancellano tutte. La copia dell'utente che rientra
+  resta e si ripristina, anche offline.
+- **Famiglie revocate sul dispositivo** (seconda review, rilievo 4): accanto alla copia c'è
+  un segno per utente (`revoked:<userId>`, famiglia e momento della revoca). Il persister
+  toglie le viste delle famiglie segnate a ogni scrittura e a ogni ripristino, così
+  nessuna scheda, nemmeno una che non sa ancora della revoca, le riporta in vita. Il segno
+  di una famiglia si toglie quando una lettura di quella famiglia **partita dopo la revoca**
+  riesce: il server l'ha resa di nuovo.
 - `buster` uguale alla versione della build; `maxAge` 7 giorni, `gcTime` uguale.
 - Si salvano solo le query riuscite; nessuna mutazione.
 - Rilettura al ritorno in primo piano e alla riconnessione (`refetchOnWindowFocus`,
@@ -361,6 +384,15 @@ nella copia sul dispositivo.
 - **Modalità finta:** senza le variabili, utente demo Federico nella Famiglia Folloni,
   nessun login.
 
+**Identità e generazioni** (seconda review, rilievi 1-3). Lo stato dell'accesso distingue
+«identità non ancora nota» (`loading`, all'avvio finché Supabase non ha risposto) da
+«uscita confermata» (`signedOut`): solo la seconda chiude e cancella. Ogni evento
+d'identità (risposta della verifica, evento di Supabase, uscita) porta un numero
+progressivo: una verifica partita prima di un evento più recente si scarta. Ogni identità
+mostrata ha la sua sessione, che fa da generazione: rinnovi, risposte e uscite di una
+sessione già chiusa non hanno effetti su quella nuova, e un'uscita non chiude mai
+un'identità arrivata nel frattempo.
+
 **Chiusura della sessione** (rilievo 1, decisione del coordinatore). Una sola procedura,
 usata da «Esci», dall'evento `SIGNED_OUT` arrivato da un'altra scheda o dalla libreria e
 da ogni cambio d'utente:
@@ -377,14 +409,21 @@ da ogni cambio d'utente:
 
 **Accesso rifiutato dal server** (rilievo 2):
 
-- `unauthorized`: un tentativo di rinnovo della sessione e una nuova lettura; se il
-  rinnovo fallisce o il rifiuto si ripete, chiusura della sessione e pagina di ingresso.
-  Il client finto non lo produce mai; il meccanismo si prova con un client di test e
-  riceverà il caso reale con il client oRPC.
+- `unauthorized`: gestito dalla sessione attorno a ogni chiamata dell'`Api`. Un solo
+  rinnovo alla volta per sessione: le chiamate rifiutate mentre è in corso aspettano lo
+  stesso rinnovo, quelle partite prima di un rinnovo già riuscito ripetono subito la
+  chiamata. Riuscito il rinnovo, ogni chiamata rifiutata si ripete una volta; se il
+  rinnovo fallisce o la ripetizione è di nuovo rifiutata, la sessione si chiude (una
+  volta sola) e compare la pagina di ingresso. Il client finto non lo produce mai; il
+  meccanismo si prova con un client di test e riceverà il caso reale con il client oRPC.
 - `forbidden` su una lettura di famiglia: le viste di quella famiglia si tolgono dalla
-  memoria e dalla copia persistita, la famiglia è segnata come revocata per la sessione
-  e le schermate mostrano «Non hai accesso a questa famiglia», senza dati; il profilo si
-  rilegge.
+  memoria e dalla copia persistita (con il segno descritto sopra), la famiglia è segnata
+  come revocata per la sessione e le schermate mostrano «Non hai accesso a questa
+  famiglia», senza dati; il profilo si rilegge.
+- **Fra schede** (seconda review, rilievo 4): la scheda che riceve `forbidden` o chiude la
+  sessione lo annuncia con `BroadcastChannel` del browser, senza librerie. Le altre
+  schede dello stesso utente tolgono quella famiglia o chiudono la sessione e non
+  riscrivono la copia.
 - Nessuna schermata mostra dati in cache accanto a un errore diverso da `network`.
 
 **Offline senza poter verificare la sessione.** Se all'avvio il rinnovo del token non
@@ -405,8 +444,10 @@ rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopr
     la cache parziale si cancella e resta in servizio la versione precedente;
   - **attivazione:** solo quando la nuova cache è completa si cancellano le vecchie; il
     nuovo service worker prende il controllo alla riapertura dell'app, senza avvisi;
-  - **navigazioni:** prima la rete (aggiornando `index.html` in cache), poi la shell in
-    cache;
+  - **navigazioni** (seconda review, rilievo 6): dalla shell installata e completa della
+    versione in servizio, mai scritta durante l'uso; la rete solo se quella cache non ha
+    la shell. Così non si serve mai HTML nuovo con bundle mancanti: la nuova shell entra
+    in servizio intera, alla riapertura dopo la sua installazione completa;
   - **`/assets/*`:** dalla cache, poi dalla rete (le foto entrano in cache al primo uso);
   - **rotte del server** (`/api`, `/mcp`, `/internal`, `/shopping-lists`,
     `/.well-known`, `/openapi.json`) e ogni altra origine o metodo: mai intercettate.
@@ -440,6 +481,17 @@ rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopr
   fallisce, nessuna famiglia, famiglia scomparsa, «Riprova»; riferimento allo slot; fonte
   da libro; focus del calendario; service worker: prima visita → riapertura offline,
   aggiornamento A→B → riapertura offline, installazione interrotta.
+- **Seconda review:** avvio con copia valida e verifica sospesa, completata come utente
+  verificato e come non verificabile offline (la copia resta e si mostra); due o più
+  `unauthorized` concorrenti con un solo rinnovo; rifiuto dopo il rinnovo con una sola
+  chiusura; rinnovo di A pendente → ingresso di B → rinnovo concluso (riuscito e fallito),
+  B resta; verifica iniziale pendente seguita da uscita o cambio d'identità; due schede
+  dello stesso utente sullo stesso archivio, `forbidden` in una e scrittura tardiva
+  nell'altra, riapertura offline senza la famiglia; lettura pendente → voto confermato →
+  risposta vecchia, completa e `unchanged`, con cache, copia e riapertura; worker A →
+  deploy B → navigazione online → installazione di B interrotta → riapertura offline con
+  la shell A intera; cambio di lingua, di ricetta e di pasto sulle schermate vere con
+  risposta ritardata; Profilo con errore non di rete dopo dati caricati.
 - Dizionari, formattatori, calendario, client finto, componenti con Testing Library.
 - `tsc` e `vite build` senza errori, anche dalla radice (`npm test`, `npm run typecheck`).
 - **Prova nel browser** con agent-browser a 320, 390 e 1440 px, in italiano e inglese,
@@ -509,6 +561,16 @@ rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopr
   di sessioni chiuse scartate, nessuna coda offline fuori dalla Spesa (sezione 1).
 - Una sola procedura di chiusura della sessione; `unauthorized` con un rinnovo e poi
   login; `forbidden` con rimozione delle viste dell'ambito (sezione 1).
+- Stato dell'accesso con identità «non ancora nota» distinta dall'uscita confermata,
+  eventi d'identità numerati e una sessione per identità come generazione; rinnovo unico
+  per sessione condiviso dalle chiamate rifiutate (sezione 1).
+- Revoche e uscite annunciate alle altre schede con `BroadcastChannel`; segno delle
+  famiglie revocate nella persistenza, rispettato da ogni scrittura e ripristino (sezione
+  1, letture dalla copia sul dispositivo).
+- Service worker: navigazioni servite dalla shell installata della versione in servizio,
+  mai riscritta durante l'uso (sezione 1).
+- Mutazioni: le letture in corso delle viste toccate si annullano prima di applicare il
+  risultato confermato; nessun dato precedente fra lingue o contesti diversi (sezione 1).
 - Query del web con `queryOptions` scritte a mano; `@orpc/tanstack-query` da valutare
   nell'ondata 2 (sezioni 1 e 15).
 - Riferimento allo slot nella scheda aperta da un pasto, per le versioni storiche

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-Corretto l'11 ottobre 2026 dopo la review (`progetto/coordinamento/revisioni/w5-spec-piano.md`) con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`): voto senza aggiornamento ottimistico, chiusura della sessione unica, accessi rifiutati, versioni stringa, PWA con shell completa, lingua per identità, riferimento allo slot.
+Corretto l'11 ottobre 2026 dopo la review (`progetto/coordinamento/revisioni/w5-spec-piano.md`) con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`): voto senza aggiornamento ottimistico, chiusura della sessione unica, accessi rifiutati, versioni stringa, PWA con shell completa, lingua per identità, riferimento allo slot. Corretto di nuovo dopo la seconda review: vedi «Correzioni della seconda review», che prevale sul codice dei task indicati.
 
 **Goal:** Costruire in `web/` la base React dell'app (SPA, PWA, design, lingue, login, Menu, Ricettario e Profilo con dati finti) su cui l'ondata 2 aggiunge le funzioni vere.
 
@@ -41,6 +41,59 @@ Rilievi della review e loro test (i più probabili a colpire chi usa l'app):
 - Lingua: A inglese → uscita → B con profilo italiano; preferenza preesistente sul dispositivo; risposta nella lingua precedente arrivata dopo il cambio (Task 9 e 17).
 - PWA: prima visita → riapertura offline; aggiornamento A→B → riapertura offline; installazione interrotta (Task 18). Profilo che fallisce, nessuna famiglia, «Riprova» (Task 10). Altezze dei contenitori a 320 e 390 px (Task 19, nel browser).
 - Altri rilievi coperti: versione composta attraverso query, client e risposta (Task 6), riferimento allo slot (Task 13, 14 e 16), fonte da libro (Task 16), focus del calendario (Task 14).
+
+## Correzioni della seconda review
+
+Seconda review: `progetto/coordinamento/revisioni/w5-spec-piano-2.md`; scelte tecniche del coordinatore: `progetto/coordinamento/messaggi/w5-02-review2.md`. Niente terza review del piano: queste correzioni **sostituiscono** il codice dei task indicati, che resta come traccia per le parti non toccate. L'implementazione segue questa sezione con TDD; i test elencati si aggiungono a quelli dei task.
+
+**C1. Identità non ancora nota e pulizia (rilievo 1; Task 8 e 9).**
+- `AuthState` resta `loading | signedOut | signedIn`, ma `loading` vuol dire «identità non ancora nota»: `SessionScope` non crea alcuna sessione, non monta i figli e non cancella nulla finché lo stato è `loading`.
+- Nota l'identità, `purgeOtherCopies(store, userId)` cancella le copie (e i segni di revoca, C4) degli altri utenti; con `signedOut` confermato `purgeOtherCopies(store, null)` cancella tutto. La copia dell'utente che rientra non è mai toccata, così ripristino e pulizia non concorrono.
+- Test (`SessionScope.test.tsx`): copia valida di A, `backend.check()` sospeso → la copia resta; completato come A verificato e come A `unverified` offline → la copia resta e il dato si mostra senza rete.
+
+**C2. Eventi d'identità numerati (rilievo 3; Task 8).**
+- `AuthProvider` tiene un contatore degli eventi d'identità (risposta di `check`, `onChange`, uscite) e lo stato corrente in un ref. Una `check()` (iniziale o alla riconnessione) si applica solo se nessun evento è arrivato dopo la sua partenza.
+- Nuova API: `useAuth(): { state, backend, signOut(userId, cleanup), markSignedOut(userId) }`.
+  - `signOut(userId, cleanup)`: se l'identità corrente non è `userId` non fa nulla (uscita di una generazione superata); altrimenti passa subito a `signedOut`, esegue `cleanup` (chiusura della sessione), poi chiama `backend.signOut()` solo se lo stato è ancora `signedOut` (un'identità arrivata nel frattempo non si chiude mai); gli errori di Supabase si ignorano.
+  - `markSignedOut(userId)`: uscita solo locale, quando un'altra scheda lo annuncia (C4).
+- Test (`AuthProvider.test.tsx`): verifica iniziale pendente seguita da `SIGNED_OUT` o dall'ingresso di B → il risultato tardivo si scarta; `signOut('a', …)` con B corrente non fa nulla.
+
+**C3. Rinnovo unico per sessione (rilievi 2 e 3; Task 9).**
+- La sessione è la generazione: `createSession(userId, store, deps?: { refresh?: () => Promise<boolean>; end?: (session) => void | Promise<void>; channel?: SessionChannel; now?: () => number })`.
+- `session.call(run, familyId?)` avvolge ogni chiamata dell'`Api` (`wrapApi(api, session)` in `SessionScope` sostituisce il ramo `unauthorized` di `setErrorHandler`):
+  - registra l'epoca dei token alla partenza; su `unauthorized` chiede `renew(epoca)`: se un rinnovo è già riuscito dopo la partenza risponde subito sì, se ce n'è uno in corso lo condivide, altrimenti chiama `deps.refresh()` una volta;
+  - rinnovo riuscito → epoca + 1 e la chiamata si ripete una volta; rinnovo fallito → `end()`; ripetizione di nuovo `unauthorized` → `end()`. `end()` agisce una sola volta e mai a sessione chiusa;
+  - dopo ogni attesa, una sessione chiusa scarta il risultato senza effetti: nessun `end()`, nessuna epoca.
+- `end` in `SessionScope`: annuncia l'uscita alle altre schede e chiama `auth.signOut(session.userId, () => session.close())`. «Esci» usa lo stesso percorso.
+- `close()` restituisce sempre la stessa promessa (chiamate ripetute aspettano la stessa chiusura).
+- Test (`session.test.ts`): due e tre `unauthorized` concorrenti → un solo `refresh`, nessuna uscita, chiamate ripetute riuscite; ripetizione rifiutata in due chiamate → una sola `end`; chiamata partita prima di un rinnovo riuscito → nessun secondo rinnovo; rinnovo pendente di A, sessione chiusa (arriva B), rinnovo concluso riuscito e fallito → nessuna `end`. In `SessionScope.test.tsx`: A con rinnovo pendente → ingresso di B → rinnovo concluso → B resta e `signOutCalls` è 0.
+
+**C4. Revoca fra schede e segno nella persistenza (rilievo 4; Task 7 e 9).**
+- `web/src/session/channel.ts`: `type SessionMessage = { type: 'signedOut'; userId } | { type: 'revoked'; userId; familyId }`; `interface SessionChannel { post(message): void; subscribe(listener): () => void }`; `createBroadcastChannel(name = 'cosasimangia-session')` sopra `BroadcastChannel` del browser (assente → canale muto). Nei test `createMemoryHub()` (`web/src/test/memoryChannel.ts`): canali collegati in memoria, ciascuno riceve i messaggi degli altri.
+- `persister.ts`: `revokedKey(userId) = 'revoked:<userId>'` con `Record<familyId, revocatoAlMs>`; `markRevoked(store, userId, familyId, at)`, `clearRevoked(store, userId, familyId, startedAt)` (toglie il segno solo se la revoca è precedente alla partenza della lettura riuscita). Il persister legge i segni **dentro** l'operazione in coda e toglie le query di quelle famiglie da ogni scrittura e da ogni ripristino; `close()` cancella copia e segni; `purgeOtherCopies` tratta anche i segni.
+- `session.revoke(familyId, { announce = true })`: toglie le viste dalla memoria, segna la famiglia, scrive il segno e, se `announce`, lo annuncia. `session.call` su una lettura riuscita di una famiglia segnata, partita dopo la revoca, toglie il segno.
+- `SessionScope` ascolta il canale: `revoked` dello stesso utente → `session.revoke(familyId, { announce: false })`; `signedOut` dello stesso utente → `auth.markSignedOut(userId)` (la sessione si chiude con la procedura unica, senza chiamare Supabase).
+- Test: due sessioni dello stesso utente sullo stesso archivio (`persister.test.ts` e `SessionScope.test.tsx` con due app collegate dallo stesso hub): `forbidden` in una, scrittura tardiva nell'altra con la famiglia ancora in memoria, riapertura → la famiglia non c'è; l'altra scheda tolta la famiglia dalla memoria la mostra come revocata; uscita in una scheda → l'altra chiude la sessione e non riscrive la copia; lettura riuscita partita dopo la revoca → il segno sparisce.
+
+**C5. Voto e letture pendenti (rilievo 5; Task 6 e 12).**
+- `readThrough`: con `unchanged` rilegge la cache **dopo** la risposta e la usa solo se ha ancora la versione della risposta; altrimenti chiede la vista completa.
+- `applyRating(queryClient, familyId, recipeId, summary, isCurrent = () => true): Promise<void>`: annulla (`cancelQueries`) le letture in corso di settimane e schede ricetta della famiglia, ricontrolla `isCurrent()` (ultima richiesta e sessione aperta), applica il risultato, invalida le liste e fa ripartire le letture annullate che non avevano dati.
+- Test (`ratings.test.ts`): lettura della settimana pendente → voto confermato → risposta vecchia completa e risposta `unchanged` → in cache resta il voto confermato; con `persistQueryClientSave` e ripristino il voto confermato sopravvive.
+
+**C6. Shell del service worker (rilievo 6; Task 18).**
+- `respond` per le navigazioni: `cache.match(SHELL_URL)` della cache della propria versione, rete solo se manca; nessun `cache.put` della shell durante l'uso. Gli asset restano «cache, poi rete» con salvataggio nella cache della versione.
+- Il test «refreshes the cached shell from the network while online» è sostituito da «serves the installed shell online even after a new deploy» e dalla sequenza della review: A attivo → rete aggiornata a B → navigazione online (risponde `index A`) → installazione B interrotta → offline la navigazione e `/assets/a.js` rispondono con A.
+
+**C7. Dati precedenti solo nella stessa vista (rilievo 7; Task 6, 15 e 16).**
+- `keepPreviousWithin(queryKey, fields)` in `queries.ts`: funzione per `placeholderData` che restituisce i dati precedenti solo se area, operazione e i campi indicati dell'input coincidono.
+- Ricettario: `fields = ['familyId', 'locale']` (cambiano solo filtri e ordinamento). Scheda ricetta: `['familyId', 'locale', 'recipeId', 'slotId']` (cambiano solo le porzioni), con gli ingredienti `aria-busy` e attenuati finché `isPlaceholderData`.
+- Test: cambio di lingua su Ricettario e scheda con risposta ritardata → si vede il caricamento, non il testo nella lingua precedente; passaggio fra due ricette e fra due slot con risposta ritardata → nessun dato della ricetta o dello slot precedente.
+
+**C8. Profilo con errore (rilievo 8; Task 17).** `const profile = meBlocked ? undefined : me.data`; nome ed email si leggono da `profile`, altrimenti l'email della sessione. Test: profilo caricato → rilettura con errore non di rete → il nome del profilo sparisce, lingua ed «Esci» restano.
+
+**C9. Versione stringa nelle fixture (rilievo 9; Task 14).** `version: 'opening-1'` nel test «says when the family has no menu yet»; `grep -n "version: [0-9]"` sul piano e su `web/src` non trova nulla.
+
+---
 
 ## Mappa dei file
 
@@ -1811,6 +1864,9 @@ git commit -m "Web: client finto con i dati demo del prototipo, spostati sulla s
 
 ### Task 6: Query con «invariato» trasparente e lingua nelle chiavi
 
+> Seconda review: `readThrough` e `keepPreviousWithin` come in C5 e C7.
+
+
 **Files:**
 - Create: `web/src/api/queries.ts`
 - Test: `web/src/api/queries.test.ts`
@@ -2002,6 +2058,9 @@ git commit -m "Web: query con versione opaca, risposta «invariato» trasparente
 ---
 
 ### Task 7: Cache persistita con scritture in coda
+
+> Seconda review: segni delle famiglie revocate e pulizia come in C1 e C4.
+
 
 **Files:**
 - Create: `web/src/api/persister.ts`
@@ -2302,6 +2361,9 @@ git commit -m "Web: cache persistita per utente con scritture in coda, chiusura 
 ---
 
 ### Task 8: Backend di accesso e stato dell'accesso
+
+> Seconda review: `AuthProvider` con eventi numerati, `signOut(userId, cleanup)` e `markSignedOut(userId)` come in C2.
+
 
 **Files:**
 - Create: `web/src/auth/backend.ts`, `web/src/auth/supabaseBackend.ts`, `web/src/auth/AuthProvider.tsx`, `web/src/test/stubBackend.ts`
@@ -2696,6 +2758,9 @@ git commit -m "Web: accesso con Supabase o utente demo, uscita locale sicura e s
 ---
 
 ### Task 9: Sessione per utente: chiusura, rifiuti del server e lingua
+
+> Seconda review: nessuna sessione a identità non nota (C1), rinnovo unico con `session.call` e `wrapApi` (C3), canale fra schede e revoca persistita (C4).
+
 
 **Files:**
 - Create: `web/src/session/session.ts`, `web/src/session/localePreference.ts`, `web/src/session/SessionScope.tsx`, `web/src/test/sessionHarness.tsx`
@@ -4229,6 +4294,9 @@ git commit -m "Web: pagina di ingresso con email e password ed errori tradotti"
 
 ### Task 12: Stelline e voto senza aggiornamento ottimistico
 
+> Seconda review: `applyRating` asincrona che annulla le letture pendenti (C5).
+
+
 **Files:**
 - Create: `web/src/api/ratings.ts`, `web/src/components/RatingStars.tsx`, `web/src/components/RatingStars.module.css`
 - Test: `web/src/api/ratings.test.ts`, `web/src/components/RatingStars.test.tsx`
@@ -5060,7 +5128,7 @@ describe('menu', () => {
   });
   it('says when the family has no menu yet', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
-    api.menu.getOpening = async () => ({ unchanged: false, version: 1, data: { kind: 'no_weeks' } });
+    api.menu.getOpening = async () => ({ unchanged: false, version: 'opening-1', data: { kind: 'no_weeks' } });
     renderApp('/menu', { api });
     expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
   });
@@ -5593,10 +5661,10 @@ export function RecipeFilters({ query, onChange }: { query: RecipeQuery; onChang
 
 `web/src/routes/RecipesPage.tsx`:
 ```tsx
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import { isBlocking } from '../api/errors';
-import { searchQuery, useQueryDeps } from '../api/queries';
+import { keepPreviousWithin, searchQuery, useQueryDeps } from '../api/queries';
 import type { FamilyView, RecipeQuery } from '../api/types';
 import { FamilyGate } from '../components/FamilyGate';
 import { Loading } from '../components/Loading';
@@ -5618,7 +5686,10 @@ function RecipesView({ family }: { family: FamilyView }) {
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const query = toRecipeQuery(search);
-  const results = useQuery({ ...searchQuery(useQueryDeps(), family.id, query), placeholderData: keepPreviousData });
+  const deps = useQueryDeps();
+  const options = searchQuery(deps, family.id, query);
+  // Previous results only while filters or sorting change (second review, C7).
+  const results = useQuery({ ...options, placeholderData: keepPreviousWithin(options.queryKey, ['familyId', 'locale']) });
   const update = (next: RecipeQuery) => void navigate({ search: toRecipesSearch(next), replace: true });
   // Cached recipes stay visible only when the device is offline (review, finding 2).
   const blocked = results.isError && isBlocking(results.error, !!results.data);
@@ -5791,11 +5862,11 @@ export function ServingsStepper({ value, min = 1, max = 50, onChange }: { value:
 
 `web/src/routes/RecipePage.tsx`:
 ```tsx
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { isBlocking } from '../api/errors';
-import { recipeQuery, useQueryDeps } from '../api/queries';
+import { keepPreviousWithin, recipeQuery, useQueryDeps } from '../api/queries';
 import type { FamilyView } from '../api/types';
 import { FamilyGate } from '../components/FamilyGate';
 import { Icon } from '../components/Icon';
@@ -5824,7 +5895,9 @@ function RecipeView({ family }: { family: FamilyView }) {
   const search = route.useSearch();
   const navigate = route.useNavigate();
   // The meal reference travels with the read: wave 2 shows the version that meal was eaten with.
-  const detail = useQuery({ ...recipeQuery(useQueryDeps(), family.id, recipeId, search.servings, search.slot), placeholderData: keepPreviousData });
+  const options = recipeQuery(useQueryDeps(), family.id, recipeId, search.servings, search.slot);
+  // Previous data only while the servings change (second review, C7).
+  const detail = useQuery({ ...options, placeholderData: keepPreviousWithin(options.queryKey, ['familyId', 'locale', 'recipeId', 'slotId']) });
 
   // Back to the menu day, or to the catalogue with its filters (history) when we came from there.
   const back =
@@ -6041,15 +6114,17 @@ export function ProfilePage() {
   const signOut = useSignOut();
   const me = useMe();
   const family = useFamily();
-  const email = me.data?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
   const meBlocked = me.isError && isBlocking(me.error, !!me.data);
+  // No cached profile next to a blocking error (second review, C8).
+  const profile = meBlocked ? undefined : me.data;
+  const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
 
   return (
     <section className="secondary-view app-view">
       <div className="page-column">
         <header className={styles.header}>
-          <h1 className={styles.name}>{me.data?.user.displayName ?? email}</h1>
-          {me.data && <p className={styles.email}>{email}</p>}
+          <h1 className={styles.name}>{profile?.user.displayName ?? email}</h1>
+          {profile && <p className={styles.email}>{email}</p>}
         </header>
         {meBlocked && <QueryError error={me.error} onRetry={() => void me.refetch()} />}
         {!meBlocked && !me.data && <Loading />}
@@ -6123,6 +6198,9 @@ git commit -m "Web: Profilo con famiglia, destinazioni future, lingua per identi
 ---
 
 ### Task 18: PWA e service worker
+
+> Seconda review: navigazioni dalla shell installata, mai riscritta durante l'uso (C6).
+
 
 **Files:**
 - Create: `web/src/pwa/sw-rules.ts`, `web/src/pwa/precache.ts`, `web/src/pwa/sw-core.ts`, `web/src/pwa/register.ts`, `web/public/manifest.webmanifest`, `web/public/icons/icon.svg`, `web/scripts/make-icons.sh`, `web/public/icons/icon-192.png`, `web/public/icons/icon-512.png`, `web/public/icons/apple-touch-icon.png`
