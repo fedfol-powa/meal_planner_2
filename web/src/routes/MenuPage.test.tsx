@@ -4,7 +4,12 @@ import { ApiError } from '../api/errors';
 import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
 import type { Api, RatingSummary } from '../api/types';
 import { addDays } from '../lib/calendar';
+import { realClients } from '../api/clients';
+import { createRpcClient } from '../api/rpc';
+import { DEMO_USER } from '../auth/backend';
 import { setOnline } from '../test/connectivity';
+import { createRpcTestServer, SERVER_PROFILE } from '../test/rpcServer';
+import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
 
 beforeEach(() => {
@@ -209,6 +214,17 @@ describe('menu', () => {
       act(() => history.push('/menu?day=2026-10-06'));
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('martedì 6 ottobre'));
     });
+  });
+
+  it('in real mode opens the family of the profile read from the Worker, with its local date', async () => {
+    vi.setSystemTime(new Date('2026-10-08T22:30:00Z')); // 00:30 on the 9th in Rome, the family's zone
+    const server = createRpcTestServer();
+    const backend = createStubBackend(DEMO_USER);
+    const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+    renderApp('/menu', { backend, createApi: realClients({ rpc, latencyMs: 0 }) });
+    // The test server answers no_weeks: the menu says so, from the server's answer.
+    expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
+    expect(server.openingSeen).toEqual([{ familyId: SERVER_PROFILE.currentFamilyId, today: '2026-10-09' }]);
   });
 
 });

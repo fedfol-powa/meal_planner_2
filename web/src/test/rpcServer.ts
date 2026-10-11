@@ -32,8 +32,8 @@ const serverDetail: RecipeDetailView = {
  * A server of the contract in this process: the RPC handler of the Worker, without the Worker.
  * `answer` sets how `session.whoami` answers (a value, a thrown ORPCError, a pending promise),
  * `answerProfile` how `profile.get` answers, given the authorization header; `menu.getOpening`
- * answers `no_weeks` with the contract's validation of its input and records the family it was
- * asked for. The transport honours the request signal like the browser's fetch.
+ * answers `no_weeks` with the contract's validation of its input and records the family and the
+ * date it was asked for. The transport honours the request signal like the browser's fetch.
  */
 export function createRpcTestServer() {
   const seen: (string | null)[] = [];
@@ -43,7 +43,7 @@ export function createRpcTestServer() {
   let profile: (authorization: string | null) => unknown = () => SERVER_PROFILE;
   /** Calls of the recipe book, with their input as the Worker received it. */
   const recipeCalls: { op: string; input: Record<string, unknown> }[] = [];
-  const openingSeen: string[] = [];
+  const openingSeen: { familyId: string; today?: string }[] = [];
   const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings, menu: { getOpening: contract.menu.getOpening } });
   const router = os.router({
     session: {
@@ -79,7 +79,7 @@ export function createRpcTestServer() {
     },
     menu: {
       getOpening: os.menu.getOpening.handler(({ input }) => {
-        openingSeen.push(input.familyId);
+        openingSeen.push({ familyId: input.familyId, today: input.today });
         return { unchanged: false as const, version: 'opening-1', data: { kind: 'no_weeks' as const } };
       })
     }
@@ -103,7 +103,7 @@ export function createRpcTestServer() {
     /** Authorization headers of the profile reads, in order. */
     profileSeen,
     recipeCalls,
-    /** Families of the menu openings, in order. */
+    /** Family and date of the menu openings, in order. */
     openingSeen,
     answerProfile: (next: (authorization: string | null) => unknown) => (profile = next)
   };
