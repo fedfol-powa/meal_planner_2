@@ -7,9 +7,10 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
+| Codex | spec e piano di W2 collegamento agenti | R W2 spec | w1:p2J | in corso → revisioni/w2-agenti-spec-piano.md |
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Review di spec e piano «da rifare» (14 rilievi); correzioni da messaggi/w1-11-review-revisione-pasti.md (azione con actionId, tabella delle richieste, migrazione per le bozze); poi seconda review breve | 11/10 |
-| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Revoca provata (funziona con session_is_active). Decisioni: riautorizzazione come Supabase (una riga per client); poteri dei token su Supabase Auth solo documentati per ora (utente), consenso veritiero. Scrive la spec | 11/10 |
+| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Spec e piano pronti; review Codex in corso (revisioni/w2-agenti-spec-piano.md). Ai rilievi: /clear e messaggio di ripresa | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26 (web delle bozze) aperta, review Codex in corso; contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | correzioni/unita-contate | .worktrees/spesa | PR #27: review con correzioni (tolleranza nella spesa, quantità della fonte alterate, unità mancanti nel finto); correzioni in corso. Dopo il merge: aggiornare la sezione 6 della specifica (righe 1221 e 1266) | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Review di spec e piano «da rifare» (10 rilievi); correzioni da messaggi/w5-08-review-esportazione.md; poi seconda review breve. Prova di produzione dell'utente: voce separata dopo il bucket | 11/10 |
