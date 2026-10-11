@@ -13,10 +13,10 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | — | .worktrees/ricettario-mcp | PR #26 unita: gestione del ricettario completa (server e web). Contesto azzerato; libero | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | — | .worktrees/esportazione | PR #30 unita (esportazione in R2 nel codice; bucket, chiave e prova di produzione nella fase 2 della messa in produzione). Contesto azzerato; libero | 11/10 |
-| W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Spec e piano pronti; review Codex in corso (revisioni/w6-produzione-spec-piano.md) | 11/10 |
+| W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Review di spec e piano «da rifare» (16 rilievi); contesto azzerato, correzioni da messaggi/w6-produzione-01-review-spec.md; poi seconda review | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server), #30 (esportazione notturna in R2). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server), #30 (esportazione notturna in R2), #32 (versione di migrazione duplicata). Ondata 1 completata.
 
 ## Revisori attivi
 
@@ -35,7 +35,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 - **Da riportare nella specifica principale (consolidamento a lotti):** decisioni della spec revisione-pasti (#29), poi esportazione (#30), collegamento agenti (#31), messa in produzione.
 
-- **main rosso dall'11/10 ~20:28:** #30 unita con CI fallita (versione di migrazione 20261012100000 duplicata con la #29). Correzione nella PR #32 (backup → 20261012110000, test sulle versioni uniche); a CI verde: merge e avviso a W1 e W2.
+- **main rosso dall'11/10 ~20:28:** #30 unita con CI fallita (versione di migrazione 20261012100000 duplicata con la #29). Corretto con la PR #32 (unita, CI verificata «pass»; backup → 20261012110000, test sulle versioni uniche); W1 e W2 avvisati.
 
 ## Prossima azione del coordinatore
 
