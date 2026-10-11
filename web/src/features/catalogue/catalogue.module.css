@@ -1,0 +1,34 @@
+/* Curator sections of the recipe book, from the fifth prototype round (DraftList, recipes page). */
+.section { margin: 0 0 20px; }
+.archived { margin: 24px 0 0; }
+.heading { margin: 0 0 8px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }
+.toggle :global(.icon) { width: 18px; height: 18px; transition: transform 0.15s; }
+.toggle[aria-expanded='true'] :global(.icon) { transform: rotate(90deg); }
+.count { color: var(--muted); font-size: 1rem; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+.card { display: flex; flex-direction: column; gap: 8px; height: 100%; padding: 16px; background: var(--paper); box-shadow: var(--card-shadow); color: var(--ink); text-decoration: none; }
+.card:hover .title { color: var(--green); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.who { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
+.title { font: 400 1.0625rem/1.3 var(--meal-title-font); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.state { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.missing { padding: 2px 8px; border: 1px solid var(--rule); border-radius: 4px; color: var(--body-text); font-size: 0.75rem; line-height: 1.5; }
+.rows { padding-block: 4px; }
+.rows > li { flex-wrap: wrap; }
+/* Draft page */
+.kind { margin: 8px 0 12px; }
+.block { margin: 24px 0 0; padding: 16px 18px; background: var(--paper); box-shadow: var(--card-shadow); }
+.blockHeading { margin: 0 0 12px; font: 400 1.25rem/1.3 var(--heading-font); }
+.lines { margin: 0; padding: 0; list-style: none; }
+.lines > li { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.lines > li:last-child { border-bottom: 0; }
+.lineName { font-weight: 700; }
+.lineSource { display: block; margin-top: 2px; color: var(--muted); font-size: 0.875rem; }
+.updated { margin-top: 24px; }
+.unresolved { color: var(--muted); font-style: italic; font-weight: 400; }
+.problems { margin: 0; padding: 0; list-style: none; }
+.problems > li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.problems > li:last-child { border-bottom: 0; }
+.where { color: var(--muted); font-size: 0.875rem; text-align: right; }
+@media (max-width: 767px) { .cards { grid-template-columns: minmax(0, 1fr); gap: 12px; } }

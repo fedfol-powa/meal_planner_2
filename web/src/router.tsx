@@ -12,6 +12,7 @@ import { SettingsPage } from './routes/profile/SettingsPage';
 import { RecipePage } from './routes/RecipePage';
 import { RecipesPage } from './routes/RecipesPage';
 import { RouteError } from './routes/RouteError';
+import { DraftPage } from './features/catalogue/DraftPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
@@ -52,6 +53,8 @@ const indexRoute = createRoute({
 });
 const menuRoute = createRoute({ getParentRoute: () => appRoute, path: '/menu', validateSearch: validateMenuSearch, component: MenuPage });
 const recipesRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes', validateSearch: validateRecipesSearch, component: RecipesPage });
+// Before the parameter: «drafts» is never a recipe id (curators only, spec of W3, section 5).
+const draftRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes/drafts/$draftId', component: DraftPage });
 const recipeRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes/$recipeId', validateSearch: validateRecipeSearch, component: RecipePage });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
 const preferencesRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/preferences', component: PreferencesPage });
@@ -63,7 +66,7 @@ const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shop
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
