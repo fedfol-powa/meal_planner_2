@@ -3,7 +3,7 @@ import { call } from '@orpc/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
-import { asUserFor, callOptions, errorOf, shopping } from './support/shopping.ts';
+import { asUserFor, callOptions, errorOf, readList, shopping } from './support/shopping.ts';
 import {
 	avoidIngredient,
 	grams,
@@ -37,7 +37,7 @@ describe.skipIf(!hasDatabase)('shopping.getWeekList', () => {
 	}
 
 	async function read(user: { userId: string; sessionId: string }, familyId: string, weekStartsOn = MONDAY, knownVersion?: string) {
-		return call(shopping.getWeekList, { familyId, weekStartsOn, knownVersion }, callOptions(await asUser(user)));
+		return readList({ familyId, weekStartsOn, knownVersion }, callOptions(await asUser(user)));
 	}
 
 	async function view(user: { userId: string; sessionId: string }, familyId: string, weekStartsOn = MONDAY) {
@@ -165,6 +165,22 @@ describe.skipIf(!hasDatabase)('shopping.getWeekList', () => {
 		const current = await read(user, familyId);
 		const error = await errorOf(read(user, familyId, '2026-11-02', current.version));
 		expect(error.code).toBe('not_found');
+	});
+
+	it('is no longer unchanged once a meal of the week passes (decision «R1 e risposta invariato»)', async () => {
+		const { user, familyId } = await family();
+		const flour = await seedIngredient(db, { name: 'Farina' });
+		const { recipeId } = await seedPublishedRecipe(db, { name: 'Pane', baseServings: 2, lines: [{ ingredientId: flour, quantity: grams(100) }] });
+		await seedWeek(db, familyId, MONDAY, [{ date: '2026-10-13', mealType: 'lunch', recipeId, servings: 2 }]);
+		// Tuesday lunch passes at 15:30 in Rome, 13:30 UTC.
+		const at = (iso: string) => async () => callOptions(await asUser(user, {}, () => new Date(iso)));
+		const input = { familyId, weekStartsOn: MONDAY };
+		const before = await readList(input, await (await at('2026-10-13T13:00:00Z'))());
+		const still = await readList({ ...input, knownVersion: before.version }, await (await at('2026-10-13T13:20:00Z'))());
+		expect(still).toEqual({ unchanged: true, version: before.version });
+		const after = await readList({ ...input, knownVersion: before.version }, await (await at('2026-10-13T13:40:00Z'))());
+		expect(after.unchanged).toBe(false);
+		expect(after.version).not.toBe(before.version);
 	});
 
 	it('answers unchanged with the same version, a new view after a change', async () => {

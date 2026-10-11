@@ -2,37 +2,27 @@ import { combinedQuantitySchema } from '@app/domain/units';
 import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
-import { versionedOutput } from '../versioned.ts';
+import { versionedInput, versionedOutput } from '../versioned.ts';
 import { MAX_FREE_ITEM_TEXT, mondaySchema, shoppingListViewSchema } from './view.ts';
 
+/** Counters the list view depends on (spec section 1, versioned reads). */
+export const SHOPPING_LIST_READS = ['family', 'catalogue'] as const;
 const week = z.object({ familyId: z.uuid(), weekStartsOn: mondaySchema });
-/**
- * Same schema as `versionedInput(week)`, written out: the generic `versionedInput` loses the
- * input type of the handlers (Record<string, unknown>), reported to the coordinator.
- */
-const versionedWeek = week.extend({ knownVersion: z.string().min(1).max(200).optional() });
 /** Every queued change carries a client id (absolute state; for addFreeItem also the item id). */
 const edit = week.extend({ id: z.uuid() });
 const item = { ingredientId: z.uuid(), varietyKey: z.string().max(200) };
 /** Mutations answer with the updated view and its version (the web mutation model). */
 const updated = z.object({ version: z.string(), data: shoppingListViewSchema });
 const found = { not_found: errorDefinitions.not_found };
-/** Counters the list view depends on (spec section 1, versioned reads). */
-export const SHOPPING_LIST_READS = ['family', 'catalogue'] as const;
 const write = { mcp: { readOnly: false }, offline: true, role: 'familyMember' } as const;
 
 export const shoppingContract = {
 	shopping: {
-		/**
-		 * Versioned read handled in the operation, without `reads`: the week must exist before an
-		 * «unchanged» answer, and the request path compares versions before any handler. It reads
-		 * the family and catalogue counters (SHOPPING_LIST_READS); it moves back to `reads` with
-		 * W1's `prepare` hook.
-		 */
-		getWeekList: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember' })
+		/** Its `prepare` hook checks the week and adds the meals already past to the version (R1). */
+		getWeekList: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: [...SHOPPING_LIST_READS] })
 			.route({ method: 'GET', path: '/shopping/week-list', summary: 'Shopping list of a week, ready to show' })
 			.errors(found)
-			.input(versionedWeek)
+			.input(versionedInput(week))
 			.output(versionedOutput(shoppingListViewSchema)),
 		setItemChecked: op(write)
 			.route({

@@ -12,7 +12,7 @@ describe('shopping contract', () => {
 		expect(checkContract(shoppingContract)).toEqual([]);
 	});
 
-	it('keeps getWeekList a versioned read, handled in the operation', () => {
+	it('keeps getWeekList a versioned read', () => {
 		const def = contract.shopping.getWeekList['~orpc'];
 		expect(isVersionedOutput(def.outputSchema)).toBe(true);
 		const input = def.inputSchema!;

@@ -19,7 +19,7 @@ export const bringDeeplink = (origin: string, token: string) =>
 	`https://api.getbring.com/rest/bringrecipes/deeplink?url=${encodeURIComponent(`${origin}/shopping-lists/${token}`)}&source=web`;
 
 export async function exportList(context: OperationContext, deps: ShoppingDeps, input: WeekInput) {
-	return exportLines(await readListView(context.tx, deps, { ...input, locale: context.locale }));
+	return exportLines(await readListView(context.tx, deps, { ...input, locale: context.locale, at: context.now }));
 }
 
 /**

@@ -4,7 +4,7 @@ import { call } from '@orpc/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
-import { asUserFor, callOptions, errorOf, shopping } from './support/shopping.ts';
+import { asUserFor, callOptions, errorOf, readList, shopping } from './support/shopping.ts';
 import { grams, seedIngredient, seedPublishedRecipe, seedWeek } from './support/shopping-fixtures.ts';
 
 const MONDAY = '2026-10-12';
@@ -39,7 +39,7 @@ describe.skipIf(!hasDatabase)('shopping mutations', () => {
 	const as = async (user: User) => callOptions(await asUser(user));
 	/** The view of a read that cannot be unchanged (no knownVersion). */
 	async function readView(user: User, familyId: string, weekStartsOn = MONDAY): Promise<ShoppingListView> {
-		const result = await call(shopping.getWeekList, { familyId, weekStartsOn }, await as(user));
+		const result = await readList({ familyId, weekStartsOn }, await as(user));
 		if (result.unchanged) throw new Error('expected a view');
 		return result.data;
 	}
@@ -180,12 +180,12 @@ describe.skipIf(!hasDatabase)('shopping mutations', () => {
 
 	it('records the last change and moves the version', async () => {
 		const { user, familyId, flour } = await setup();
-		const before = await call(shopping.getWeekList, { familyId, weekStartsOn: MONDAY }, await as(user));
+		const before = await readList({ familyId, weekStartsOn: MONDAY }, await as(user));
 		const after = await tick(user, familyId, flour, g(200));
 		expect(after.version).not.toBe(before.version);
 		const [{ display_name: name }] = await db.admin<{ display_name: string }[]>`select display_name from app.profiles where user_id = ${user.userId}`;
 		expect(after.data.lastChange).toEqual({ name, at: expect.any(String) });
-		const read = await call(shopping.getWeekList, { familyId, weekStartsOn: MONDAY, knownVersion: after.version }, callOptions(await asUser(user)));
+		const read = await readList({ familyId, weekStartsOn: MONDAY, knownVersion: after.version }, callOptions(await asUser(user)));
 		expect(read).toEqual({ unchanged: true, version: after.version });
 	});
 

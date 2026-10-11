@@ -17,6 +17,8 @@ import type { ShoppingDeps } from './deps.ts';
 import { loadRecipes, versionKey } from './recipes.ts';
 
 export interface ListInput {
+	/** The request's instant: R1 versions and the meals already past in the version use the same one. */
+	at: Date;
 	familyId: string;
 	weekStartsOn: string;
 	locale: Locale;
@@ -36,11 +38,11 @@ interface Consolidated {
 }
 
 /** Steps 1-6 of spec section 6 for one week: meals, versions (R1), catalogue, family exclusions. */
-async function consolidate(tx: Tx, deps: ShoppingDeps, familyId: string, weekId: string): Promise<Consolidated> {
+async function consolidate(tx: Tx, deps: ShoppingDeps, familyId: string, weekId: string, at: Date): Promise<Consolidated> {
 	const slots = await tx<{ id: string; date: string; mealType: MealType; servings: number }[]>`
 		select id, to_char(date, 'YYYY-MM-DD') as date, meal_type as "mealType", servings
 		from app.meal_slots where week_id = ${weekId}`;
-	const versions = new Map((await deps.mealRecipeVersions(tx, familyId, weekId)).map((v) => [v.slotId, v]));
+	const versions = new Map((await deps.mealRecipeVersions(tx, familyId, weekId, at)).map((v) => [v.slotId, v]));
 	const published = [...versions.values()].filter((v) => v.version !== null).map((v) => ({ recipeId: v.recipeId, version: v.version! }));
 	const recipes = await loadRecipes(tx, published);
 
@@ -115,7 +117,7 @@ async function recipeNames(tx: Tx, recipeIds: string[], locale: Locale): Promise
 /** The ready view of spec section 6, in the viewer's language and the family's system. */
 export async function readListView(tx: Tx, deps: ShoppingDeps, input: ListInput): Promise<ShoppingListView> {
 	const { weekId } = await findWeek(tx, input.familyId, input.weekStartsOn);
-	const { list: consolidated, unpublished } = await consolidate(tx, deps, input.familyId, weekId);
+	const { list: consolidated, unpublished } = await consolidate(tx, deps, input.familyId, weekId, input.at);
 	const list = await listRow(tx, input.familyId, weekId);
 	const state = list ? await listState(tx, list.id) : { checks: [], addedBack: [], freeItems: [] };
 	const [family] = await tx<{ system: MeasurementSystem }[]>`select measurement_system as system from app.families where id = ${input.familyId}`;

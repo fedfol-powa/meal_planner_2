@@ -3,7 +3,7 @@ import { call } from '@orpc/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
-import { asUserFor, callOptions, errorOf, shopping } from './support/shopping.ts';
+import { asUserFor, callOptions, errorOf, readList, shopping } from './support/shopping.ts';
 import { grams, seedIngredient, seedPublishedRecipe, seedWeek } from './support/shopping-fixtures.ts';
 
 const MONDAY = '2026-10-12';
@@ -87,7 +87,7 @@ describe.skipIf(!hasDatabase)('shopping exports', () => {
 		const { user, familyId, sugar } = await setup();
 		const week = { familyId, weekStartsOn: MONDAY };
 		await call(shopping.setItemChecked, { ...week, id: crypto.randomUUID(), ingredientId: sugar, varietyKey: '', checked: true, quantityAtCheck: g(100) }, await as(user));
-		const view = await call(shopping.getWeekList, week, await as(user));
+		const view = await readList(week, await as(user));
 		if (view.unchanged) throw new Error('expected a view');
 		for (const item of view.data.freeItems.filter((i) => !i.checked)) {
 			await call(shopping.removeFreeItem, { ...week, id: crypto.randomUUID(), itemId: item.id }, await as(user));
