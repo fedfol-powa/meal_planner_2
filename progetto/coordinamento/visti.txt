@@ -48,3 +48,6 @@ w1:p1E	REVISORE_FINITO
 w1:p1F	REVISORE_FINITO
 w1:pY	STATO: PR_CORRETTA #2e85886f
 w1:pC	STATO: DOMANDA #eea5d76b
+w1:pZ	STATO: PR_CORRETTA #751567ef
+w1:pX	STATO: DOMANDA — continuo dai task 10-12 appena la seconda PR di W5 è su main? Oppure apro subito una PR con la parte server già pronta, così il Menu e gli agenti MCP possono usare #984d51a7
+w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/14 #b896ca72
