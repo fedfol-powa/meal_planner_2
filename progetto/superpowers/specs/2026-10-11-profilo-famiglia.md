@@ -2,7 +2,8 @@
 
 Creato: 11 ottobre 2026
 Attività: W2 dell'ondata 2, branch `traguardo/profilo`
-Stato: brainstorming concluso con il coordinatore; in attesa della review di spec e piano.
+Stato: corretta dopo la review di spec e piano (`progetto/coordinamento/revisioni/w2-profilo-spec-piano.md`,
+messaggio `w2-06`); in attesa del via.
 
 Spec di dettaglio subordinata alla specifica principale
 (`progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`): parte 1 («Chi la usa»,
@@ -46,9 +47,13 @@ modificabili da web o MCP), «Collega un agente», gestione del ricettario, ammi
 |---|---|---|
 | Impostazioni nel traguardo A | Tutta la pagina del prototipo, pesi esclusi: unità, fuso, matrice (porzioni, pasti fissi, limiti di tempo), regole, ingredienti evitati e limitati, libri, Avanzate | Coordinatore |
 | Schema di `families.settings` | Schema dei valori salvati e `resolveFamilySettings` in `domain/src/family/settings.ts`, di questa attività; tipi `PlannerSettings` e default restano in `domain/src/planner/` (W1), che importa la funzione | Coordinatore, d'accordo con W1 |
-| Famiglia mostrata | Sul server: `profiles.current_family_id` | Coordinatore |
+| Famiglia mostrata | Sul server, privata: tabella `app.profile_preferences` leggibile solo dal proprietario (review, rilievo 1) | Coordinatore |
 | «Non proporre più» | Elenco, aggiunta e rimozione in quest'area; revisione dei pasti e W6 richiamano `family.addExclusion` | Coordinatore |
 | Mutazioni delle impostazioni | Operazioni puntuali a stato assoluto, una per gesto; il server scrive solo la chiave toccata del jsonb | Coordinatore |
+| Impostazioni malformate | Lettura tollerante (default al posto dei pezzi non validi); la scrittura rende oggetto ogni genitore del percorso nella stessa scrittura atomica (review, rilievo 8) | Coordinatore |
+| Implementatore del server | Costruito solo in `server/src/router.ts` (dove W1 aggiunge `{ prepare }`); ogni area esporta un factory che riceve `os: Implementer` (review, rilievo 5) | Coordinatore |
+| Da `me.get` a `profile.get` nel web | Lo fa questa attività sopra la seconda PR di W5 (client oRPC reale): wrapper, tipi, client finto, chiavi della sessione, revoca (review, rilievo 4) | Coordinatore |
+| Mutazioni nel web | Modello di W5 (`web/src/api/ratings.ts`): letture interessate cancellate prima di applicare la risposta, sessione e lingua verificate, ordine delle risposte (review, rilievo 2) | Coordinatore |
 
 ## Dominio: `domain/src/family/settings.ts`
 
@@ -93,6 +98,19 @@ Aree nuove `profile` e `family` in `contract/src/profile/` e `contract/src/famil
 gestori in `server/src/profile/` e `server/src/family/`; indice del contratto e router
 toccati solo per registrarle. Tutte con `offline: false` (nessuna è nella coda offline
 della spesa) e senza `webOnly`.
+
+**Implementatore unico.** `server/src/router.ts` costruisce l'implementatore una sola
+volta (`createImplementer(contract, …)`, con il `prepare` di W1 quando arriva); ogni area
+esporta un factory `profileRouter(os: Implementer)` e `familyRouter(os: Implementer)` che
+restituisce i gestori. Il tipo `Implementer` si esporta da `server/src/pipeline.ts`
+(`ReturnType<typeof createImplementer<Contract>>`); lo aggiunge chi arriva prima fra W2,
+W1 e W6. Nessuna area costruisce un implementatore proprio.
+
+**Errori dichiarati.** Oltre agli errori comuni (`unauthorized`, `forbidden`, `invalid`,
+`web_only`, `internal`), le operazioni che possono rispondere `not_found` lo dichiarano
+con `.errors({ not_found: errorDefinitions.not_found })`: `family.setBookOwned`,
+`family.setIngredientRestriction`, `family.addExclusion`. I test lo verificano nel
+contratto e attraverso RPC e REST.
 
 ### Letture
 
@@ -140,22 +158,26 @@ nella cache senza rileggere.
 | `family.addRule` / `family.removeRule` | familyAdmin | `rule` (`MealRule`) | elenco normalizzato |
 | `family.setKnownNew` | familyAdmin | `known`, `new`, `tolerance` | |
 | `family.setGroupRange` | familyAdmin | `group`, `min`, `max` | |
-| `family.setBookOwned` | familyAdmin | `bookId`, `owned` | `not_found` se il libro non esiste o, per `owned: true`, è archiviato |
+| `family.setBookOwned` | familyAdmin | `bookId`, `owned` | `not_found` se il libro non esiste (anche con `owned: false`) o, per `owned: true`, è archiviato; togliere un libro esistente non posseduto non cambia nulla |
 | `family.setIngredientRestriction` | familyAdmin | `ingredientId`, `restriction` `avoid`/`limit`/`null`, `weeklyMax` 1-7 solo con `limit` | `null` toglie; `not_found` se l'ingrediente non esiste o è archiviato (per toglierla basta che esista) |
 | `family.addExclusion` | familyMember | `recipeId`, `reason?` (≤ 200) | esistente: invariata (primo autore e data restano); `not_found` per ricette non visibili o in bozza |
 | `family.removeExclusion` | familyMember | `recipeId` | assente: nessun effetto |
 
-- **Scritture sul jsonb:** `update app.families set settings = jsonb_set(settings, path,
-  value, true)` sulla sola chiave toccata (per la matrice crea `slots` e `slots.<meal>`
-  se mancano), nella transazione dell'utente; la policy `families_update` resta la
-  garanzia. Così due amministratori che cambiano chiavi diverse non perdono nulla; sulla
-  stessa chiave vince l'ultimo, come per i pasti.
+- **Scritture sul jsonb:** un solo `update app.families set settings = jsonb_set(…)`
+  sulla sola chiave toccata, nella transazione dell'utente; la policy `families_update`
+  resta la garanzia. Ogni genitore del percorso (`slots`, `slots.<meal>`, `groupRanges`)
+  che non è un oggetto (assente, `null`, stringa, array) diventa `{}` nella stessa
+  scrittura, mentre un genitore oggetto si conserva con le sue altre chiavi: così un
+  jsonb malformato, che la lettura mostra con i default, non impedisce il salvataggio
+  successivo. Due amministratori che cambiano chiavi diverse non perdono nulla; sulla
+  stessa chiave vince l'ultimo, come per i pasti. Dopo la scrittura il gestore rilegge
+  la vista, quindi la risposta mostra il valore davvero salvato.
 - **Errori Postgres mappati:** violazione di un check (`23514`) o fuso non valido
   (`22023`) → `invalid` con il percorso del campo; nessuna riga aggiornata dove ci si
   aspettava una famiglia → `forbidden`. Gli altri restano `internal`.
 - **Contatori:** già coperti dai trigger di W2 (`families`, `family_books`,
   `family_ingredients`, `recipe_exclusions`; `profiles.display_name` per le famiglie
-  dell'utente). Il cambio di `profiles.locale` e di `current_family_id` non fa crescere
+  dell'utente). Il cambio di `profiles.locale` e della famiglia mostrata non fa crescere
   nulla: la lingua è già nella versione composta delle letture.
 - **Nessuna operazione nuova di sessione:** la lingua salvata sul profilo vale dalla
   richiesta successiva, perché `loadSession` la rilegge a ogni richiesta.
@@ -171,38 +193,67 @@ esplicita»); `profile.get` indica all'agente quale famiglia è mostrata nell'ap
 
 ## Database
 
-Una migrazione nuova, `supabase/migrations/<timestamp>_current_family.sql`:
+Una migrazione nuova, `supabase/migrations/20261011120000_profile_preferences.sql`. La
+famiglia mostrata non va in `profiles`: quella tabella è leggibile dai co-membri (policy
+`profiles_read`) e l'RLS filtra righe, non colonne, quindi Bruno leggerebbe quale altra
+famiglia ha scelto Anna (review, rilievo 1). Sta in una tabella privata:
 
 ```sql
-alter table app.profiles add column current_family_id uuid;
-alter table app.profiles add constraint profiles_current_family_member
-  foreign key (current_family_id, user_id)
-  references app.family_members (family_id, user_id)
-  on delete set null (current_family_id);
-grant update (current_family_id) on app.profiles to authenticated;
+create table app.profile_preferences (
+  user_id uuid primary key references app.profiles (user_id) on delete cascade,
+  current_family_id uuid,
+  updated_at timestamptz not null default now(),
+  constraint profile_preferences_current_family_member
+    foreign key (current_family_id, user_id)
+    references app.family_members (family_id, user_id)
+    on delete set null (current_family_id)
+);
+alter table app.profile_preferences enable row level security;
+grant select, insert on app.profile_preferences to authenticated;
+grant update (current_family_id, updated_at) on app.profile_preferences to authenticated;
+create policy profile_preferences_own on app.profile_preferences for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 ```
 
+- Una riga per persona, creata alla prima scelta (`insert … on conflict (user_id) do
+  update`); senza riga vale la prima famiglia.
 - La chiave esterna composta garantisce che la famiglia mostrata sia una di cui si è
   membri; uscita, rimozione o eliminazione della famiglia la azzerano da sole (Postgres
-  15 o successivo, come il progetto Supabase).
-- Le policy di `profiles` restano: si aggiorna solo il proprio profilo.
-- Test pgTAP: colonna, vincolo verso un'appartenenza altrui rifiutato, azzeramento alla
-  cancellazione dell'appartenenza, `update` concesso solo sulla propria riga, nessun
-  incremento dei contatori al cambio della famiglia mostrata; `coverage_test.sql`
-  aggiornato se cambia l'elenco delle colonne aggiornabili.
+  15 o successivo, come il progetto Supabase). La cancellazione dell'utente toglie la
+  riga con il profilo.
+- Nessun trigger dei contatori: la scelta non cambia i dati di nessuna famiglia.
+- Test pgTAP con le fixture (Anna in Rossi e Bianchi, Bruno solo in Rossi, Verdi
+  estranea ad Anna): Anna sceglie Bianchi; Bruno non legge né scrive la riga di Anna;
+  la scelta di Verdi da parte di Anna è rifiutata (`23503`); uscita da Bianchi →
+  `current_family_id` nullo; il contatore di Rossi e di Bianchi non cresce;
+  `coverage_test.sql` resta verde (RLS attiva, nessun permesso ad `anon` e PUBLIC).
 
 **Tabelle e colonne toccate** (per il controllo dei conflitti del coordinatore): nuova
-colonna `app.profiles.current_family_id`; scritture applicative (nessun cambio di
-schema) su `app.profiles` (`display_name`, `locale`), `app.families` (`name`,
+tabella `app.profile_preferences`; scritture applicative (nessun cambio di schema) su
+`app.profiles` (`display_name`, `locale`), `app.families` (`name`,
 `measurement_system`, `time_zone`, `settings`), `app.family_books`,
 `app.family_ingredients`, `app.recipe_exclusions`.
 
 ## Web
 
-Parte quando la base di W5 e il suo client oRPC reale sono su `main`; segue la
-struttura che quella base impone (oggi `web/src/routes/`, `web/src/api/`, dizionari in
+Parte quando la seconda PR di W5 (client oRPC reale) è su `main`; se non lo è quando si
+arriva ai task del web, il worker si ferma e lo dice al coordinatore. Segue la struttura
+di quella base (oggi `web/src/routes/`, `web/src/api/`, `web/src/session/`, dizionari in
 `web/src/i18n/messages/`), con i file di quest'area separati e le rotte, la navbar e i
 dizionari comuni toccati solo per registrarli.
+
+**Da `me` a `profile`** (review, rilievo 4), in questa attività:
+
+- `wrapApi` (`web/src/session/session.ts`) avvolge esplicitamente ogni area: si sostituisce
+  `me` con `profile` e si aggiunge `family`, così rinnovo della sessione, segni di revoca
+  per famiglia e risposte nella lingua superata valgono anche per le aree nuove;
+- tipi `Api`, `MeView` → `ProfileView`, client finto (`web/src/api/fake/`) con
+  `profile.*` e `family.*`;
+- chiavi: `['me']` diventa `['profile', 'get']` ovunque, compresa l'invalidazione dopo
+  `forbidden` in `SessionScope` e la lettura della lingua del profilo;
+- test attraverso `SessionScope`: chiamata a `profile.get` e a un'operazione `family`
+  con un token scaduto (un rinnovo, poi riuscita), con `forbidden` (famiglia revocata e
+  `['profile', 'get']` riletta).
 
 | Rotta | Contenuto |
 |---|---|
@@ -221,16 +272,46 @@ dizionari comuni toccati solo per registrarli.
   sul valore inviato in attesa della risposta, che sostituisce la vista in cache; un
   errore riporta il valore del server e mostra il messaggio tradotto. Campi di sola
   lettura per i membri e offline («Le impostazioni si cambiano online»).
-- **Cache dopo una mutazione:** la vista restituita aggiorna la lettura corrispondente;
-  si marcano scadute le letture che dipendono dal valore cambiato: unità e fuso → tutte
-  le letture della famiglia (menu, ricette); impostazioni, libri, ingredienti ed
-  esclusioni → solo le letture della famiglia che li mostrano (la generazione usa il
-  server); nome della famiglia o della persona → `profile.get` e `family.get`.
+- **Applicazione delle risposte** (modello di W5, `applyRating` e `useRateRecipe`;
+  review, rilievo 2), in una funzione unica `applyMutation` dell'area:
+  1. alla partenza la mutazione registra un gettone per la vista che cambia
+     (`session.track('settings:<familyId>')`, `'family:<familyId>'`,
+     `'exclusions:<familyId>'`, `'profile'`) e annota la lingua corrente;
+  2. alla risposta: se la sessione è chiusa o la lingua è cambiata, la risposta si
+     scarta e la vista si marca scaduta; se nel frattempo è partita un'altra mutazione
+     sulla stessa vista (gettone non più l'ultimo), la risposta non si applica e la
+     vista si marca scaduta, così due risposte complete arrivate in ordine inverso non
+     riportano indietro la vista: l'ultima applicata è sempre quella dell'ultima
+     mutazione o una rilettura successiva;
+  3. altrimenti si cancellano le letture interessate ancora in corso (la vista e quelle
+     della tabella sotto), poi si scrive la vista nella cache con la versione vecchia
+     (la lettura successiva riceve dati nuovi, mai un «invariato» sbagliato), poi si
+     invalidano le altre letture della tabella; le letture cancellate che non avevano
+     dati ripartono.
+- **Viste aggiornate e invalidate per operazione** (review, rilievo 3). Chiavi
+  `[area, operazione, input]` delle altre aree come nelle loro spec (W1 menu, W6
+  ricettario, W4 spesa); «della famiglia» = con lo stesso `familyId` nell'input.
+
+  | Operazione | Vista scritta con la risposta | Letture invalidate |
+  |---|---|---|
+  | `profile.update` con `displayName` | `['profile','get']` | tutte le query (gesto raro: il nome compare nelle attribuzioni di menu, spesa ed esclusioni di ogni famiglia della persona) |
+  | `profile.update` con `locale` | `['profile','get']` | nessuna: la lingua cambia con il meccanismo di W5, che non mostra dati della lingua precedente |
+  | `profile.setCurrentFamily` | `['profile','get']` | nessuna: il cambio di famiglia segue `useFamily()` di W5 |
+  | `family.rename` | `['family','get']` | `['profile','get']` |
+  | `family.setMeasurementSystem` | `['family','get']` | `['profile','get']`; della famiglia: `['menu',*]`, `['recipes',*]`, `['shopping',*]` |
+  | `family.setTimeZone` | `['family','get']` | `['profile','get']` (il Menu legge `timeZone` da lì); della famiglia: `['menu',*]`, `['recipes','get']`, `['shopping',*]` |
+  | `family.setMeal`, `addRule`, `removeRule`, `setKnownNew`, `setGroupRange` | `['family','getSettings']` | nessuna: i menu già fatti non cambiano, i suggerimenti si leggono dal server |
+  | `family.setBookOwned` | `['family','getSettings']` | della famiglia: `['recipes','search']`, `['recipes','get']` |
+  | `family.setIngredientRestriction` | `['family','getSettings']` | della famiglia: `['shopping',*]` (gli `avoid` escono dalla lista) |
+  | `family.addExclusion`, `removeExclusion` | `['family','listExclusions']` | nessuna (W6 non mostra le esclusioni; la revisione dei pasti legge dal server) |
+
+  I test popolano prima tutte le cache della tabella (anche di un'altra famiglia, che
+  non deve cambiare) e verificano scrittura e invalidazioni.
 - **Lingua:** la scelta passa da `profile.update`; alla risposta il web applica la
   lingua del profilo con il meccanismo di W5 (cambio d'identità: niente dati della
   lingua precedente) e la chiave temporanea `locale:user:<id>` non serve più. Offline la
   scelta resta temporanea come oggi e non si salva.
-- **Famiglia mostrata:** `useFamily()` di W5 legge `currentFamilyId` da `profile.get`;
+- **Famiglia mostrata:** `useFamily()` di W5 legge `currentFamilyId` da `['profile','get']`;
   il tocco salva sul server e alla risposta cambia la famiglia mostrata senza dati della
   precedente.
 - Dizionari `profile` e `family` in italiano e inglese britannico, con i testi del
@@ -251,20 +332,30 @@ quindi questo passo viene dopo l'import (attività «Messa in produzione»).
 - **Dominio** (Vitest): `resolveFamilySettings` con jsonb vuoto, parziale, con valori
   non validi scartati pezzo per pezzo, con chiavi sconosciute; `normalizeRules`;
   schema dei valori salvati sui limiti.
-- **Contratto:** `checkContract` passa con le aree nuove; ruoli e metadati attesi per
-  ogni operazione.
+- **Contratto:** `checkContract` passa con le aree nuove; ruoli, metadati ed errori
+  dichiarati (`not_found` dove serve) attesi per ogni operazione.
 - **Server** (Vitest con il Postgres locale, come i test di W1): per ogni operazione
   permessi (membro, amministratore, estraneo → `forbidden`), validazione (`invalid` con
   percorso), idempotenza, vista restituita; due transazioni concorrenti su giorni
   diversi della matrice senza perdite; contatore della famiglia che cresce dopo una
   mutazione e lettura «invariata» prima; lingua salvata che cambia la lingua della
   richiesta successiva; famiglia mostrata azzerata dopo la cancellazione
-  dell'appartenenza; MCP: un'operazione di lettura e una di scrittura come strumenti,
-  errore localizzato.
-- **Database** (pgTAP): la migrazione, come sopra.
+  dell'appartenenza; jsonb malformato (`slots: null`, `slots.lunch` stringa,
+  `groupRanges` array) letto con i default e poi salvato davvero, conservando le altre
+  chiavi valide; `not_found` attraverso RPC e REST; MCP: una lettura, una scrittura
+  riuscita con rilettura e una scrittura rifiutata con errore localizzato.
+- **Esecuzione delle suite del server:** `TEST_DATABASE_URL` impostato esplicitamente
+  (stesso valore della CI) e `CI=1`, così una suite senza database fallisce invece di
+  essere saltata; il passo rosso deve fallire per il comportamento mancante.
+- **Database** (pgTAP): la migrazione, come sopra, con i nomi delle fixture senza
+  prefisso (`tests.family('Rossi')`).
 - **Web** (Vitest con Testing Library): sola lettura per i membri, salvataggio con la
   vista del server, errore che riporta il valore, cambio di lingua e di famiglia,
-  dizionari completi nelle due lingue. Prova visiva con agent-browser sulle cinque
+  dizionari completi nelle due lingue; con promesse controllate: lettura vecchia
+  completata dopo una mutazione, due mutazioni su chiavi diverse con risposte invertite,
+  risposta dopo l'uscita o dopo il cambio di lingua; tabella delle invalidazioni con
+  le cache popolate prima; `me` → `profile` attraverso `SessionScope` (rinnovo e
+  revoca). Prova visiva con agent-browser sulle cinque
   rotte, su telefono, in italiano e in inglese.
 
 ## Decisioni da riportare nella specifica
@@ -288,8 +379,17 @@ quindi questo passo viene dopo l'import (attività «Messa in produzione»).
   lettura (sezione 2, «Impostazioni della famiglia»).
 - Impostazioni modificate con operazioni puntuali a stato assoluto che scrivono solo la
   chiave toccata del jsonb; regole identificate dal loro valore (sezioni 1 e 2).
-- Nuova colonna `profiles.current_family_id` con chiave esterna composta verso
-  `family_members` (sezione 2, tabella degli utenti).
+- Nuova tabella privata `profile_preferences(user_id, current_family_id)` con chiave
+  esterna composta verso `family_members` e RLS del solo proprietario (sezione 2,
+  tabella degli utenti).
+- Impostazioni malformate lette con i default; la scrittura rende oggetto ogni genitore
+  del percorso (sezione 2).
+- Implementatore del server costruito in un solo punto (`router.ts`), aree come factory
+  (sezione 1).
+- Mutazioni del web: risposta applicata solo se ultima per la vista, con sessione e
+  lingua correnti, dopo aver cancellato le letture in corso; tabella delle viste
+  invalidate per operazione (sezione 1, «Letture dalla copia sul dispositivo»).
+- `profile.get` al posto di `me.get` (sezione 1).
 - `profile.get` non versionata; le altre letture dell'area usano i contatori della
   famiglia e del catalogo (sezione 1, «Letture dalla copia sul dispositivo»).
 - Elenco delle operazioni MCP dell'ambito «Famiglia e account» per il traguardo A

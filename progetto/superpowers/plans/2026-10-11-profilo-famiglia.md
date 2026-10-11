@@ -10,8 +10,10 @@ Worker a web e MCP, con le schermate del Profilo collegate ai dati veri.
 server che girano nella transazione dell'utente (RLS). Le impostazioni restano nel jsonb
 `families.settings`, con i soli valori scelti: lo schema e la risoluzione stanno in
 `domain/src/family/settings.ts`, e ogni mutazione scrive una sola chiave con `jsonb_set`.
-Una migrazione aggiunge `profiles.current_family_id`. Il web (base di W5) usa il client
-oRPC reale.
+Una migrazione aggiunge la tabella privata `app.profile_preferences` per la famiglia
+mostrata. L'implementatore del server si costruisce solo in `server/src/router.ts` e le
+aree sono factory che lo ricevono. Il web (seconda PR di W5, client oRPC reale) passa da
+`me` a `profile` e applica le mutazioni con il modello di `web/src/api/ratings.ts`.
 
 **Tech Stack:** TypeScript, zod 4, oRPC 1.15, Postgres.js, Supabase Postgres e pgTAP,
 React con TanStack Router e Query, Vitest e Testing Library.
@@ -23,8 +25,18 @@ specifica principale, sezioni 1, 2, 7, 12, 13).
 
 - Codice, identificatori, commenti e test in inglese; documenti e commit in italiano.
 - Testi per l'utente localizzati in `it-IT` e `en-GB`; nessun testo fisso nelle schermate.
-- Nessuna dipendenza nuova: solo quelle già nel repository (`zod 4.6.5` si aggiunge a
-  `domain/package.json`, perché è già nel lockfile).
+- Nessuna dipendenza nuova: solo quelle già nel repository.
+- File condivisi (`domain/package.json`, indice del contratto, router, wrapper e rotte del
+  web, dizionari comuni): prima `git fetch origin && git rebase origin/main`, poi solo
+  modifiche additive, mai blocchi che sostituiscono il file intero.
+- **Test del server con il database:** ogni comando li esegue con
+  `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+  (stesso valore della CI): senza database la suite fallisce invece di essere saltata.
+  Controllare nell'output che i file eseguiti non risultino `skipped`. Prima:
+  `export PATH=/opt/podman/bin:$HOME/.local/bin:$PATH`, `podman machine start`,
+  `supabase db start`.
+- Il passo rosso di ogni ciclo deve fallire per il comportamento mancante, non per
+  fixture sbagliate, test non raccolti o database assente.
 - Ogni operazione: `op({ mcp, offline: false, role, reads? })`, route con metodo,
   percorso e `summary` in inglese; `checkContract(contract)` resta vuoto.
 - Operazioni di famiglia con `familyId: z.uuid()`; utente e canale solo dal token.
@@ -32,8 +44,6 @@ specifica principale, sezioni 1, 2, 7, 12, 13).
 - Mutazioni a stato assoluto e idempotenti; nessun aggiornamento ottimistico nel web.
 - Migrazioni solo nuove, con timestamp, `revoke execute … from public` su ogni funzione
   nuova, e test pgTAP.
-- File condivisi (indice del contratto, router, rotte web, dizionari comuni) toccati
-  solo per registrare le aree.
 - Limiti: nome della persona e della famiglia 1-60 caratteri dopo il trim; porzioni intere
   0-12; `fixedText` 1-60 o `null`; `maxMinutes` in `[15, 20, 30, 45, 60]` o `null`;
   quota intera 0-14; intervalli interi `0 ≤ min ≤ max ≤ 14`; `weeklyMax` 1-7 solo con
@@ -48,13 +58,14 @@ specifica principale, sezioni 1, 2, 7, 12, 13).
 2. **Due amministratori che cambiano insieme giorni diversi della matrice**: nessuno
    perde la modifica. Test concorrente in Task 6.
 3. **La persona esce dalla famiglia mostrata** (oggi solo da database, nell'ondata 3
-   dall'app): `profile.get` non deve restituire una famiglia di cui non si è più membri.
-   Test in Task 2 (pgTAP) e in Task 3 (server).
+   dall'app): `profile.get` non deve restituire una famiglia di cui non si è più membri,
+   e nessun co-membro deve poter leggere quale famiglia ha scelto un altro. Test in
+   Task 2 (pgTAP) e in Task 3 (server).
 4. **Agente MCP che passa un `familyId` altrui o inesistente**: `forbidden`, mai dati né
    differenze fra «non esiste» e «non sei membro». Test in Task 4.
-5. **Cambio della lingua mentre una lettura è in volo**: la risposta nella lingua vecchia
-   non si mostra. Coperto dal meccanismo di W5 (chiavi con la lingua); test in Task 11
-   sul flusso `profile.update` → lingua applicata dal profilo.
+5. **Risposte fuori ordine nel web** (lettura vecchia dopo una mutazione, due mutazioni
+   con risposte invertite, risposta dopo l'uscita o il cambio di lingua): la vista non
+   torna indietro. Test con promesse controllate in Task 12.
 
 ---
 
@@ -64,23 +75,25 @@ specifica principale, sezioni 1, 2, 7, 12, 13).
 |---|---|
 | `domain/src/family/settings.ts` | Schema dei valori salvati, limiti, `resolveFamilySettings`, `normalizeRules`, schemi zod dei pezzi (slot, regola, quota, intervallo) |
 | `domain/src/family/index.ts` | Esportazioni dell'area |
-| `domain/package.json` | `exports["./family"]`, dipendenza `zod` |
-| `supabase/migrations/20261011120000_current_family.sql` | Colonna `profiles.current_family_id` |
-| `supabase/tests/current_family_test.sql` | pgTAP della migrazione |
+| `domain/package.json` | Aggiunta dell'export `./family` (additiva) |
+| `supabase/migrations/20261011120000_profile_preferences.sql` | Tabella privata `app.profile_preferences` |
+| `supabase/tests/profile_preferences_test.sql` | pgTAP della migrazione |
 | `contract/src/profile/index.ts` | Operazioni dell'area `profile` |
 | `contract/src/family/views.ts` | Schemi delle viste della famiglia |
 | `contract/src/family/index.ts` | Operazioni dell'area `family` |
 | `contract/src/contract.ts` | Registrazione delle due aree (modifica minima) |
 | `contract/package.json` | Dipendenza `@app/domain` |
-| `server/src/os.ts` | Implementatore condiviso (spostato da `router.ts`) |
-| `server/src/router.ts` | Registrazione delle aree (modifica minima) |
+| `server/src/pipeline.ts` | `export type Implementer` (se non l'ha già aggiunto W1 o W6) |
+| `server/src/router.ts` | Unico punto di costruzione dell'implementatore; registrazione delle aree (modifica minima) |
 | `server/src/db-errors.ts` | Errori Postgres → `invalid` con percorso |
 | `server/src/profile/views.ts`, `server/src/profile/handlers.ts` | Viste e gestori di `profile` |
 | `server/src/family/views.ts`, `server/src/family/handlers.ts`, `server/src/family/settings-writes.ts` | Viste, gestori e scritture sul jsonb di `family` |
 | `server/test/support/actors.ts` | Utenti, famiglie e chiamate firmate per i test di area |
 | `server/test/profile.test.ts`, `server/test/family-*.test.ts` | Test di integrazione |
 | `supabase/README.md` | Procedura per completare la famiglia di Federico |
-| `web/src/…` (struttura della base di W5) | Query, mutazioni, pagine e componenti dell'area |
+| `web/src/session/session.ts`, `web/src/session/SessionScope.tsx`, `web/src/api/types.ts`, `web/src/api/fake/` | Da `me` a `profile`, area `family` nel wrapper e nel client finto |
+| `web/src/api/profile.ts`, `web/src/api/family.ts`, `web/src/api/mutations.ts` | Query, mutazioni, applicazione delle risposte e tabella delle invalidazioni |
+| `web/src/routes/profile/…`, `web/src/components/…` | Pagine e componenti dell'area |
 
 ---
 
@@ -101,30 +114,12 @@ specifica principale, sezioni 1, 2, 7, 12, 13).
   `normalizeRules(rules: MealRule[]): MealRule[]`, `sameRule(a, b): boolean`,
   `type VisibleSettings = Omit<PlannerSettings, 'weights'>`.
 
-- [ ] **Step 1: Dipendenza ed export**
+- [ ] **Step 1: Export dell'area**
 
-In `domain/package.json`:
-
-```json
-{
-	"name": "@app/domain",
-	"private": true,
-	"type": "module",
-	"exports": {
-		"./planner": "./src/planner/index.ts",
-		"./family": "./src/family/index.ts"
-	},
-	"scripts": {
-		"test": "vitest run",
-		"typecheck": "tsc -p tsconfig.json"
-	},
-	"dependencies": {
-		"zod": "4.6.5"
-	}
-}
-```
-
-Run: `npm install` (dalla radice; aggiorna solo il collegamento del workspace nel lockfile).
+`git fetch origin && git rebase origin/main`, poi in `domain/package.json` aggiungere la
+sola riga `"./family": "./src/family/index.ts"` in fondo a `exports`, lasciando com'è
+tutto il resto (export di W4 e W3, dipendenza `zod` già presente). Nessun `npm install`:
+le dipendenze non cambiano.
 
 - [ ] **Step 2: Test che falliscono**
 
@@ -194,7 +189,7 @@ describe('storedSettingsSchema', () => {
 
 - [ ] **Step 3: Verifica che falliscano**
 
-Run: `npx vitest run -c domain/vitest.config.ts domain/src/family`
+Run: `npm test -w domain -- src/family`
 Expected: FAIL, «Cannot find module './settings.ts'».
 
 - [ ] **Step 4: Implementazione**
@@ -327,13 +322,13 @@ stabile e indipendente dall'ordine dei campi in ingresso.
 
 - [ ] **Step 5: Verifica**
 
-Run: `npx vitest run -c domain/vitest.config.ts domain/src/family && npm run typecheck -w domain`
+Run: `npm test -w domain -- src/family && npm run typecheck -w domain`
 Expected: PASS, nessun errore di tipo.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add domain/package.json package-lock.json domain/src/family
+git add domain/package.json domain/src/family
 git commit -m "Dominio: impostazioni salvate della famiglia e loro risoluzione"
 ```
 
@@ -342,20 +337,24 @@ git commit -m "Dominio: impostazioni salvate della famiglia e loro risoluzione"
 ### Task 2: Migrazione della famiglia mostrata
 
 **Files:**
-- Create: `supabase/migrations/20261011120000_current_family.sql`, `supabase/tests/current_family_test.sql`
-- Modify: `supabase/tests/coverage_test.sql` (solo se elenca le colonne aggiornabili di `profiles`), `supabase/README.md` (riga sulla colonna nuova, se il README elenca le colonne)
+- Create: `supabase/migrations/20261011120000_profile_preferences.sql`, `supabase/tests/profile_preferences_test.sql`
 
 **Interfaces:**
-- Produces: `app.profiles.current_family_id uuid null`, aggiornabile dall'utente sulla
-  propria riga; chiave esterna `(current_family_id, user_id) → app.family_members
+- Produces: tabella `app.profile_preferences(user_id uuid pk → app.profiles, current_family_id uuid null, updated_at)`,
+  con RLS del solo proprietario (`select`, `insert`, `update (current_family_id, updated_at)`
+  per `authenticated`); chiave esterna `(current_family_id, user_id) → app.family_members
   (family_id, user_id) on delete set null (current_family_id)`.
 
-Prerequisiti: `export PATH=/opt/podman/bin:$HOME/.local/bin:$PATH`, `podman machine start`,
-`supabase db start`.
+Perché una tabella e non una colonna di `profiles`: `profiles` è leggibile dai co-membri
+(policy `profiles_read`) e l'RLS filtra righe, non colonne (review, rilievo 1).
+
+Fixture usate (`supabase/tests/helpers/fixtures.psql`; gli helper aggiungono da soli il
+prefisso `test-`): Anna è amministratrice di Rossi e membro di Bianchi, Bruno è membro di
+Rossi, Verdi ha solo Franco ed è estranea ad Anna.
 
 - [ ] **Step 1: Test pgTAP che fallisce**
 
-`supabase/tests/current_family_test.sql`:
+`supabase/tests/profile_preferences_test.sql`:
 
 ```sql
 begin;
@@ -363,77 +362,94 @@ begin;
 \ir helpers/fixtures.psql
 select no_plan();
 
-select has_column('app', 'profiles', 'current_family_id', 'profiles have the shown family');
+select has_table('app', 'profile_preferences', 'the shown family has its own table');
 
--- Anna (admin of test-Rossi) shows her family
-reset role;
+-- Anna, in Rossi and Bianchi, shows Bianchi
 select tests.login('anna');
-select is(tests.affected(format($$update app.profiles set current_family_id = %L where user_id = tests.uid('anna')$$, tests.family('test-Rossi'))),
-	1::bigint, 'Anna shows test-Rossi');
-select throws_ok(format($$update app.profiles set current_family_id = %L where user_id = tests.uid('anna')$$, tests.family('test-Bianchi')),
+insert into app.profile_preferences (user_id, current_family_id) values (tests.uid('anna'), tests.family('Bianchi'));
+select is((select current_family_id from app.profile_preferences where user_id = tests.uid('anna')),
+	tests.family('Bianchi'), 'Anna reads her choice');
+select throws_ok(format($$update app.profile_preferences set current_family_id = %L where user_id = tests.uid('anna')$$, tests.family('Verdi')),
 	'23503', null, 'a family Anna is not in is refused');
-select is(tests.affected(format($$update app.profiles set current_family_id = %L where user_id = tests.uid('bruno')$$, tests.family('test-Rossi'))),
-	0::bigint, 'Anna cannot change Bruno''s shown family');
 
--- No counter moves
+-- Bruno, only in Rossi, never sees nor changes Anna's choice
 reset role;
-select tests.family_version('test-Rossi') as before_version \gset
-select tests.login('anna');
-update app.profiles set current_family_id = null where user_id = tests.uid('anna');
-update app.profiles set current_family_id = tests.family('test-Rossi') where user_id = tests.uid('anna');
-reset role;
-select is(tests.family_version('test-Rossi'), :before_version, 'the shown family does not bump the family');
+select tests.login('bruno');
+select is((select count(*) from app.profile_preferences), 0::bigint, 'Bruno does not read Anna''s choice');
+select is(tests.affected(format($$update app.profile_preferences set current_family_id = %L where user_id = tests.uid('anna')$$, tests.family('Rossi'))),
+	0::bigint, 'Bruno cannot change Anna''s choice');
+select throws_ok(format($$insert into app.profile_preferences (user_id, current_family_id) values (tests.uid('anna'), %L)$$, tests.family('Rossi')),
+	'42501', null, 'Bruno cannot write a row for Anna');
+select throws_ok($$delete from app.profile_preferences$$, '42501', null, 'nobody deletes rows directly');
+select is(tests.affected(format($$insert into app.profile_preferences (user_id, current_family_id) values (tests.uid('bruno'), %L)$$, tests.family('Rossi'))),
+	1::bigint, 'Bruno writes his own choice');
 
--- Leaving the family clears it
-delete from app.family_members where family_id = tests.family('test-Rossi') and user_id = tests.uid('anna');
-select is((select current_family_id from app.profiles where user_id = tests.uid('anna')), null, 'cleared when the membership goes');
-select is((select display_name from app.profiles where user_id = tests.uid('anna')), 'Anna', 'the rest of the profile stays');
+-- Leaving the shown family clears it, the row stays
+reset role;
+delete from app.family_members where family_id = tests.family('Bianchi') and user_id = tests.uid('anna');
+select is((select current_family_id from app.profile_preferences where user_id = tests.uid('anna')), null::uuid,
+	'cleared when the membership goes');
+
+-- Deleting the user removes the row with the profile
+delete from auth.users where id = tests.uid('bruno');
+select is((select count(*) from app.profile_preferences where user_id = tests.uid('bruno')), 0::bigint, 'gone with the user');
 
 select * from finish();
 rollback;
 ```
 
-(Se `tests.family_version` restituisce un tipo per cui `\gset` + `is` non compila,
-confrontare con `select is(tests.family_version('test-Rossi') = :before_version, true, …)`.)
+Il contatore delle famiglie non si prova qui: dentro una sola transazione cresce al più
+una volta (le fixture l'hanno già fatto crescere), quindi il test sarebbe vero comunque.
+Lo prova il server con transazioni reali (Task 3).
 
 - [ ] **Step 2: Verifica che fallisca**
 
 Run: `supabase test db`
-Expected: FAIL su `current_family_test.sql` («column current_family_id does not exist»).
+Expected: FAIL su `profile_preferences_test.sql` al primo test («relation
+app.profile_preferences does not exist»); gli altri file restano verdi.
 
 - [ ] **Step 3: Migrazione**
 
-`supabase/migrations/20261011120000_current_family.sql`:
+`supabase/migrations/20261011120000_profile_preferences.sql`:
 
 ```sql
 -- Family shown in the app, remembered on the server (spec of profile and family, wave 2).
--- The composite key keeps it among the user's own families; leaving, being removed or
--- deleting the family clears it.
+-- Private: profiles are readable by co-members, and row level security filters rows, not
+-- columns. The composite key keeps the choice among the user's own families; leaving,
+-- being removed or deleting the family clears it.
 
-alter table app.profiles add column current_family_id uuid;
+create table app.profile_preferences (
+	user_id uuid primary key references app.profiles (user_id) on delete cascade,
+	current_family_id uuid,
+	updated_at timestamptz not null default now(),
+	constraint profile_preferences_current_family_member
+		foreign key (current_family_id, user_id)
+		references app.family_members (family_id, user_id)
+		on delete set null (current_family_id)
+);
 
-alter table app.profiles add constraint profiles_current_family_member
-	foreign key (current_family_id, user_id)
-	references app.family_members (family_id, user_id)
-	on delete set null (current_family_id);
+alter table app.profile_preferences enable row level security;
 
-create index profiles_current_family on app.profiles (current_family_id, user_id)
-	where current_family_id is not null;
+grant select, insert on app.profile_preferences to authenticated;
+grant update (current_family_id, updated_at) on app.profile_preferences to authenticated;
 
-grant update (current_family_id) on app.profiles to authenticated;
+create policy profile_preferences_own on app.profile_preferences for all to authenticated
+	using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 ```
+
+Nessuna funzione nuova (niente `revoke execute`) e nessun trigger dei contatori.
 
 - [ ] **Step 4: Verifica**
 
 Run: `supabase db reset && supabase test db`
-Expected: tutti i test PASS, compreso `coverage_test.sql`; se questo segnala la nuova
-colonna aggiornabile, aggiungerla all'elenco atteso in quel file e rilanciare.
+Expected: tutti PASS, compreso `coverage_test.sql` (RLS attiva sulla tabella nuova,
+nessun permesso ad `anon`, PUBLIC e `app_server`).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20261011120000_current_family.sql supabase/tests
-git commit -m "Schema: famiglia mostrata nel profilo"
+git add supabase/migrations/20261011120000_profile_preferences.sql supabase/tests/profile_preferences_test.sql
+git commit -m "Schema: famiglia mostrata in una tabella privata del profilo"
 ```
 
 ---
@@ -441,19 +457,22 @@ git commit -m "Schema: famiglia mostrata nel profilo"
 ### Task 3: Area `profile` (contratto, server, test)
 
 **Files:**
-- Create: `contract/src/profile/index.ts`, `server/src/os.ts`, `server/src/db-errors.ts`, `server/src/profile/views.ts`, `server/src/profile/handlers.ts`, `server/test/support/actors.ts`, `server/test/profile.test.ts`
-- Modify: `contract/src/contract.ts`, `contract/src/index.ts`, `server/src/router.ts`
+- Create: `contract/src/profile/index.ts`, `server/src/db-errors.ts`, `server/src/profile/views.ts`, `server/src/profile/handlers.ts`, `server/test/support/actors.ts`, `server/test/profile.test.ts`
+- Modify: `contract/src/contract.ts`, `contract/src/index.ts`, `server/src/pipeline.ts` (solo il tipo `Implementer`, se manca), `server/src/router.ts`
 
 **Interfaces:**
 - Consumes: `op`, `localeSchema` da `@app/contract`; `createImplementer` da `server/src/pipeline.ts`.
 - Produces:
   - contratto `profile.get`, `profile.update`, `profile.setCurrentFamily`;
     `profileViewSchema`, `type ProfileView` esportati da `@app/contract`;
-  - `server/src/os.ts`: `export const os = createImplementer(contract)`;
+  - `server/src/pipeline.ts`: `export type Implementer` (implementatore del contratto
+    completo), usato da ogni factory d'area;
+  - `server/src/profile/handlers.ts`: `profileRouter(os: Implementer)` → gestori di `profile`;
   - `server/src/db-errors.ts`: `withInvalidOn<T>(path: (string|number)[], run: () => Promise<T>): Promise<T>`;
   - `server/src/profile/views.ts`: `profileView(tx: Tx, locale: Locale): Promise<ProfileView>`;
-  - `server/test/support/actors.ts`: `setupActors()` → `{ db, keys, as(userId, sessionId, options?), close() }`
-    dove `as(...)` restituisce `call(procedure, input)` e `errorOf(procedure, input)`.
+  - `server/test/support/actors.ts`: `setupActors()` → `{ db, keys, user(options?), close() }`
+    dove `user(...)` restituisce un `Actor` con `userId`, `sessionId`, `call(procedure, input)`
+    ed `errorOf(procedure, input)`.
 
 - [ ] **Step 1: Contratto**
 
@@ -516,20 +535,36 @@ Nota: se `.refine` impedisce a oRPC o a `checkContract` di riconoscere `z.ZodObj
 (`appError('invalid', { issues: [{ path: ['displayName'], code: 'empty' }] })`) e un input
 `z.object` semplice.
 
-- [ ] **Step 2: Implementatore condiviso ed errori del database**
+- [ ] **Step 2: Implementatore unico ed errori del database**
 
-`server/src/os.ts`:
+L'implementatore si costruisce in un solo punto, `server/src/router.ts` (dove W1
+aggiunge `{ prepare }`); le aree esportano factory che lo ricevono (review, rilievo 5).
+Prima `git fetch origin && git rebase origin/main`: se W1 o W6 hanno già aggiunto
+`Implementer` a `server/src/pipeline.ts`, lo si usa così com'è. Altrimenti, in fondo a
+`server/src/pipeline.ts`:
 
 ```ts
-import { contract } from '@app/contract';
-import { createImplementer } from './pipeline.ts';
+import type { Contract } from '@app/contract';
 
-/** Shared by every area's handlers. */
-export const os = createImplementer(contract);
+/** The implementer of the whole contract, built once in router.ts and passed to each area. */
+export type Implementer = ReturnType<typeof createImplementer<Contract>>;
 ```
 
-In `server/src/router.ts` sostituire `const os = createImplementer(contract);` con
-`import { os } from './os.ts';` (e togliere gli import non più usati).
+Se il tipo generico non si risolve (implementatore come tipo condizionale differito),
+ripiegare come prevede il piano di W6: in `router.ts` `const os = createImplementer(contract, …)`
+e `export type Implementer = typeof os`, importato dalle aree con `import type`.
+
+`server/src/router.ts` resta il solo punto con `createImplementer(contract…)`; si
+aggiunge solo la registrazione dell'area:
+
+```ts
+import { profileRouter } from './profile/handlers.ts';
+// …
+export const router = os.router({
+	session: { /* invariato */ },
+	profile: profileRouter(os),
+});
+```
 
 `server/src/db-errors.ts`:
 
@@ -674,6 +709,19 @@ describe.skipIf(!hasDatabase)('profile', () => {
 		expect(view.families.map((f) => f.id)).toEqual([mine]);
 	});
 
+	it('changes no family counter and stays private to the user', async () => {
+		const elena = await actors.user();
+		const fabio = await actors.user();
+		const shared = await actors.db.createFamily([{ userId: elena.userId, role: 'member' }, { userId: fabio.userId, role: 'member' }]);
+		const own = await actors.db.createFamily([{ userId: elena.userId, role: 'member' }]);
+		const version = async (id: string) => (await actors.db.admin<{ v: string }[]>`select data_version::text as v from app.families where id = ${id}`)[0]!.v;
+		const before = [await version(shared), await version(own)];
+		await elena.call(router.profile.setCurrentFamily, { familyId: own });
+		expect([await version(shared), await version(own)]).toEqual(before);
+		// Fabio shares a family with Elena: his profile says nothing about her choice.
+		expect((await fabio.call<ProfileView>(router.profile.get, {})).currentFamilyId).toBe(shared);
+	});
+
 	it('is the same for an agent', async () => {
 		const agent = await actors.user({ agent: true });
 		await expect(agent.call(router.profile.update, { locale: 'en-GB' })).resolves.toBeTruthy();
@@ -683,7 +731,7 @@ describe.skipIf(!hasDatabase)('profile', () => {
 
 - [ ] **Step 5: Verifica che falliscano**
 
-Run: `npm test -w server -- profile`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- profile`
 Expected: FAIL («router.profile is undefined»).
 
 - [ ] **Step 6: Viste e gestori**
@@ -698,7 +746,7 @@ import type { Tx } from '../db.ts';
 export async function profileView(tx: Tx, locale: Locale): Promise<ProfileView> {
 	const [me] = await tx<{ id: string; displayName: string; email: string | null; locale: Locale; currentFamilyId: string | null; roles: string[] }[]>`
 		select p.user_id as id, p.display_name as "displayName", auth.jwt() ->> 'email' as email, p.locale,
-			p.current_family_id as "currentFamilyId",
+			(select pp.current_family_id from app.profile_preferences pp where pp.user_id = p.user_id) as "currentFamilyId",
 			coalesce((select array_agg(r.role order by r.role) from app.user_roles r where r.user_id = p.user_id), '{}') as roles
 		from app.profiles p where p.user_id = auth.uid()`;
 	const families = await tx<ProfileView['families']>`
@@ -720,36 +768,39 @@ export async function profileView(tx: Tx, locale: Locale): Promise<ProfileView> 
 
 ```ts
 import { appError } from '../errors.ts';
-import { os } from '../os.ts';
+import type { Implementer } from '../pipeline.ts';
 import { profileView } from './views.ts';
 
-export const profileHandlers = {
-	get: os.profile.get.handler(({ context }) => profileView(context.tx, context.locale)),
-	update: os.profile.update.handler(async ({ context, input }) => {
-		const rows = await context.tx`
-			update app.profiles set
-				display_name = coalesce(${input.displayName ?? null}, display_name),
-				locale = coalesce(${input.locale ?? null}, locale),
-				updated_at = now()
-			where user_id = auth.uid() returning locale`;
-		if (!rows[0]) throw appError('unauthorized');
-		return profileView(context.tx, (rows[0] as { locale: typeof context.locale }).locale);
-	}),
-	setCurrentFamily: os.profile.setCurrentFamily.handler(async ({ context, input }) => {
-		const [member] = await context.tx<{ ok: boolean }[]>`select app.is_member(${input.familyId}::uuid) as ok`;
-		if (!member?.ok) throw appError('forbidden');
-		await context.tx`update app.profiles set current_family_id = ${input.familyId} where user_id = auth.uid()`;
-		return profileView(context.tx, context.locale);
-	}),
-};
+export function profileRouter(os: Implementer) {
+	return {
+		get: os.profile.get.handler(({ context }) => profileView(context.tx, context.locale)),
+		update: os.profile.update.handler(async ({ context, input }) => {
+			const rows = await context.tx`
+				update app.profiles set
+					display_name = coalesce(${input.displayName ?? null}, display_name),
+					locale = coalesce(${input.locale ?? null}, locale),
+					updated_at = now()
+				where user_id = auth.uid() returning locale`;
+			if (!rows[0]) throw appError('unauthorized');
+			return profileView(context.tx, (rows[0] as { locale: typeof context.locale }).locale);
+		}),
+		setCurrentFamily: os.profile.setCurrentFamily.handler(async ({ context, input }) => {
+			const [member] = await context.tx<{ ok: boolean }[]>`select app.is_member(${input.familyId}::uuid) as ok`;
+			if (!member?.ok) throw appError('forbidden');
+			await context.tx`
+				insert into app.profile_preferences (user_id, current_family_id) values (auth.uid(), ${input.familyId})
+				on conflict (user_id) do update set current_family_id = excluded.current_family_id, updated_at = now()`;
+			return profileView(context.tx, context.locale);
+		}),
+	};
+}
 ```
 
-In `server/src/router.ts`: `import { profileHandlers } from './profile/handlers.ts';` e
-`profile: profileHandlers,` dentro `os.router({ … })`.
+Registrazione in `server/src/router.ts` come nello Step 2 (`profile: profileRouter(os)`).
 
 - [ ] **Step 7: Verifica**
 
-Run: `npm test -w server && npm test -w contract && npm run typecheck`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server && npm test -w contract && npm run typecheck`
 Expected: PASS (anche `contract.test.ts`, che applica `checkContract`).
 
 - [ ] **Step 8: Commit**
@@ -948,7 +999,7 @@ fra esecuzioni.
 
 - [ ] **Step 4: Verifica che falliscano**
 
-Run: `npm test -w server -- family-read`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- family-read`
 Expected: FAIL («router.family is undefined»).
 
 - [ ] **Step 5: Viste del server**
@@ -1016,45 +1067,58 @@ export async function settingsView(tx: Tx, familyId: string, locale: Locale): Pr
 
 ```ts
 import { fresh } from '../pipeline.ts';
-import { os } from '../os.ts';
+import type { Implementer } from '../pipeline.ts';
 import { familyView, settingsView } from './views.ts';
 
 const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase();
 
-export const familyReadHandlers = {
-	get: os.family.get.handler(async ({ context, input }) => fresh(context, await familyView(context.tx, input.familyId, context.locale))),
-	getSettings: os.family.getSettings.handler(async ({ context, input }) => fresh(context, await settingsView(context.tx, input.familyId, context.locale))),
-	searchIngredients: os.family.searchIngredients.handler(async ({ context, input }) => {
-		const needle = fold(input.text);
-		if (needle.length < 2) return [];
-		const rows = await context.tx<{ id: string; name: string; synonyms: string[] }[]>`
-			select i.id, i.name ->> ${context.locale} as name,
-				coalesce(array(select jsonb_array_elements_text(i.synonyms -> ${context.locale})), '{}') as synonyms
-			from app.ingredients i
-			where i.archived_at is null
-				and not exists (select 1 from app.family_ingredients fi where fi.family_id = ${input.familyId} and fi.ingredient_id = i.id)`;
-		const collator = new Intl.Collator(context.locale);
-		return rows
-			.map((row) => {
-				const names = [row.name, ...row.synonyms].map(fold);
-				return { id: row.id, name: row.name, starts: names.some((n) => n.startsWith(needle)), hit: names.some((n) => n.includes(needle)) };
-			})
-			.filter((row) => row.hit)
-			.sort((a, b) => Number(b.starts) - Number(a.starts) || collator.compare(a.name, b.name))
-			.slice(0, 8)
-			.map(({ id, name }) => ({ id, name }));
-	}),
-};
+export function familyReadHandlers(os: Implementer) {
+	return {
+		get: os.family.get.handler(async ({ context, input }) => fresh(context, await familyView(context.tx, input.familyId, context.locale))),
+		getSettings: os.family.getSettings.handler(async ({ context, input }) => fresh(context, await settingsView(context.tx, input.familyId, context.locale))),
+		searchIngredients: os.family.searchIngredients.handler(async ({ context, input }) => {
+			const needle = fold(input.text);
+			if (needle.length < 2) return [];
+			const rows = await context.tx<{ id: string; name: string; synonyms: string[] }[]>`
+				select i.id, i.name ->> ${context.locale} as name,
+					coalesce(array(select jsonb_array_elements_text(i.synonyms -> ${context.locale})), '{}') as synonyms
+				from app.ingredients i
+				where i.archived_at is null
+					and not exists (select 1 from app.family_ingredients fi where fi.family_id = ${input.familyId} and fi.ingredient_id = i.id)`;
+			const collator = new Intl.Collator(context.locale);
+			return rows
+				.map((row) => {
+					const names = [row.name, ...row.synonyms].map(fold);
+					return { id: row.id, name: row.name, starts: names.some((n) => n.startsWith(needle)), hit: names.some((n) => n.includes(needle)) };
+				})
+				.filter((row) => row.hit)
+				.sort((a, b) => Number(b.starts) - Number(a.starts) || collator.compare(a.name, b.name))
+				.slice(0, 8)
+				.map(({ id, name }) => ({ id, name }));
+		}),
+	};
+}
 ```
 
 La ricerca filtra in memoria: il catalogo degli ingredienti è di qualche centinaio di
 righe, e il confronto senza accenti in JavaScript evita estensioni come `unaccent`.
 
-In `server/src/router.ts`: `family: { ...familyReadHandlers },`.
+In fondo a `server/src/family/handlers.ts` il factory dell'area, che i task successivi
+estendono con i propri gestori:
+
+```ts
+/** All family handlers, built on the single implementer of router.ts. */
+export function familyRouter(os: Implementer) {
+	return { ...familyReadHandlers(os) };
+}
+```
+
+In `server/src/router.ts` solo la registrazione: `import { familyRouter } from
+'./family/handlers.ts';` e `family: familyRouter(os),` accanto a `profile`.
 
 - [ ] **Step 7: Verifica**
 
-Run: `npm test -w server && npm test -w contract && npm run typecheck`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server && npm test -w contract && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 8: Commit**
@@ -1069,7 +1133,7 @@ git commit -m "Famiglia: letture di famiglia, impostazioni e ricerca degli ingre
 ### Task 5: Nome, unità e fuso della famiglia
 
 **Files:**
-- Modify: `contract/src/family/index.ts`, `server/src/family/handlers.ts`, `server/src/router.ts`
+- Modify: `contract/src/family/index.ts`, `server/src/family/handlers.ts`
 - Create: `server/test/family-identity.test.ts`
 
 **Interfaces:**
@@ -1158,7 +1222,7 @@ describe.skipIf(!hasDatabase)('family identity', () => {
 
 - [ ] **Step 3: Verifica che falliscano**
 
-Run: `npm test -w server -- family-identity`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- family-identity`
 Expected: FAIL.
 
 - [ ] **Step 4: Gestori**
@@ -1175,37 +1239,39 @@ async function updated(rows: Promise<unknown[]>): Promise<void> {
 	if ((await rows).length === 0) throw appError('forbidden');
 }
 
-export const familyIdentityHandlers = {
-	rename: os.family.rename.handler(async ({ context, input }) => {
-		await updated(context.tx`update app.families set name = ${input.name} where id = ${input.familyId} returning id`);
-		return familyView(context.tx, input.familyId, context.locale);
-	}),
-	setMeasurementSystem: os.family.setMeasurementSystem.handler(async ({ context, input }) => {
-		await updated(context.tx`update app.families set measurement_system = ${input.measurementSystem} where id = ${input.familyId} returning id`);
-		return familyView(context.tx, input.familyId, context.locale);
-	}),
-	setTimeZone: os.family.setTimeZone.handler(async ({ context, input }) => {
-		await withInvalidOn(['timeZone'], () =>
-			updated(context.tx`update app.families set time_zone = ${input.timeZone} where id = ${input.familyId} returning id`),
-		);
-		return familyView(context.tx, input.familyId, context.locale);
-	}),
-};
+export function familyIdentityHandlers(os: Implementer) {
+	return {
+		rename: os.family.rename.handler(async ({ context, input }) => {
+			await updated(context.tx`update app.families set name = ${input.name} where id = ${input.familyId} returning id`);
+			return familyView(context.tx, input.familyId, context.locale);
+		}),
+		setMeasurementSystem: os.family.setMeasurementSystem.handler(async ({ context, input }) => {
+			await updated(context.tx`update app.families set measurement_system = ${input.measurementSystem} where id = ${input.familyId} returning id`);
+			return familyView(context.tx, input.familyId, context.locale);
+		}),
+		setTimeZone: os.family.setTimeZone.handler(async ({ context, input }) => {
+			await withInvalidOn(['timeZone'], () =>
+				updated(context.tx`update app.families set time_zone = ${input.timeZone} where id = ${input.familyId} returning id`),
+			);
+			return familyView(context.tx, input.familyId, context.locale);
+		}),
+	};
+}
 ```
 
 Nota: un errore Postgres dentro la transazione la rende inutilizzabile; `withInvalidOn`
 rilancia subito `invalid`, quindi la transazione viene annullata e nessuna query segue.
-In `router.ts`: `family: { ...familyReadHandlers, ...familyIdentityHandlers },`.
+In `familyRouter`: aggiungere `...familyIdentityHandlers(os)`; `router.ts` non cambia.
 
 - [ ] **Step 5: Verifica**
 
-Run: `npm test -w server && npm run typecheck`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add contract/src/family server/src/family server/src/router.ts server/test/family-identity.test.ts
+git add contract/src/family server/src/family server/test/family-identity.test.ts
 git commit -m "Famiglia: nome, unità e fuso"
 ```
 
@@ -1215,7 +1281,7 @@ git commit -m "Famiglia: nome, unità e fuso"
 
 **Files:**
 - Create: `server/src/family/settings-writes.ts`, `server/test/family-settings.test.ts`
-- Modify: `contract/src/family/index.ts`, `server/src/family/handlers.ts`, `server/src/router.ts`
+- Modify: `contract/src/family/index.ts`, `server/src/family/handlers.ts`
 
 **Interfaces:**
 - Consumes: `slotSettingSchema`, `mealRuleSchema`, `knownNewSchema`, `groupRangeSchema`,
@@ -1328,6 +1394,28 @@ describe.skipIf(!hasDatabase)('family settings', () => {
 		expect((await member.errorOf(router.family.setMeal, { familyId, mealType: 'lunch', weekday: 1, servings: 2, fixedText: null, maxMinutes: null })).code).toBe('forbidden');
 	});
 
+	it('saves over malformed parents, keeping the valid keys', async () => {
+		const cases: [unknown, () => Promise<unknown>, (stored: any) => void][] = [
+			[{ slots: null }, () => admin.call(router.family.setMeal, { familyId, mealType: 'lunch', weekday: 1, servings: 3, fixedText: null, maxMinutes: null }),
+				(st) => expect(st.slots).toEqual({ lunch: { '1': { servings: 3, fixedText: null, maxMinutes: null } } })],
+			[{ slots: { lunch: 'broken', dinner: { '0': { servings: 2, fixedText: null, maxMinutes: 20 } } } },
+				() => admin.call(router.family.setMeal, { familyId, mealType: 'lunch', weekday: 2, servings: 1, fixedText: null, maxMinutes: null }),
+				(st) => expect(st.slots).toEqual({ lunch: { '2': { servings: 1, fixedText: null, maxMinutes: null } }, dinner: { '0': { servings: 2, fixedText: null, maxMinutes: 20 } } })],
+			[{ groupRanges: [1, 2], knownNew: { known: 6, new: 4, tolerance: 1 } },
+				() => admin.call(router.family.setGroupRange, { familyId, group: 'eggs', min: 1, max: 2 }),
+				(st) => { expect(st.groupRanges).toEqual({ eggs: { min: 1, max: 2 } }); expect(st.knownNew).toEqual({ known: 6, new: 4, tolerance: 1 }); }],
+		];
+		for (const [broken, save, check] of cases) {
+			await actors.db.admin`update app.families set settings = ${actors.db.admin.json(broken as object)} where id = ${familyId}`;
+			// The page shows defaults for the malformed parts…
+			expect((await admin.call<any>(router.family.getSettings, { familyId })).data.settings.slots.lunch).toHaveLength(7);
+			// …and the next save really lands.
+			await save();
+			check(await stored());
+		}
+		await actors.db.admin`update app.families set settings = '{}' where id = ${familyId}`;
+	});
+
 	it('never exposes or changes the weights', async () => {
 		await actors.db.admin`update app.families set settings = jsonb_set(settings, '{weights}', '{"liking": 5}') where id = ${familyId}`;
 		const view = await admin.call<any>(router.family.setKnownNew, { familyId, known: 7, new: 5, tolerance: 1 });
@@ -1339,7 +1427,7 @@ describe.skipIf(!hasDatabase)('family settings', () => {
 
 - [ ] **Step 3: Verifica che falliscano**
 
-Run: `npm test -w server -- family-settings`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- family-settings`
 Expected: FAIL.
 
 - [ ] **Step 4: Scritture sul jsonb**
@@ -1356,11 +1444,15 @@ import { appError } from '../errors.ts';
  */
 export async function writeSettingsKey(tx: Tx, familyId: string, path: string[], value: unknown): Promise<void> {
 	if (path.length < 1 || path.length > 3) throw new Error('settings paths have one to three keys');
-	// Parents first (slots, slots.lunch), each kept when present: jsonb_set needs them to exist.
+	// Each parent (slots, slots.lunch, groupRanges) becomes an object when it is missing or
+	// malformed (null, a string, an array); an object parent keeps its other keys. The
+	// reader shows defaults for malformed data, so the next save must work (review, 8).
 	let expression = tx`settings`;
 	for (let depth = 1; depth < path.length; depth++) {
 		const parent = path.slice(0, depth);
-		expression = tx`jsonb_set(${expression}, ${parent}::text[], coalesce(settings #> ${parent}::text[], '{}'::jsonb), true)`;
+		expression = tx`jsonb_set(${expression}, ${parent}::text[],
+			case when jsonb_typeof(settings #> ${parent}::text[]) = 'object' then settings #> ${parent}::text[] else '{}'::jsonb end,
+			true)`;
 	}
 	const rows = await tx`
 		update app.families
@@ -1371,7 +1463,10 @@ export async function writeSettingsKey(tx: Tx, familyId: string, path: string[],
 }
 ```
 
-Postgres.js compone i frammenti `tx\`…\`` annidati come parti della stessa query con i
+Lettura dei genitori: `settings #> parent` legge la colonna originale. Se un genitore
+più esterno non era un oggetto è appena diventato `{}`, e il suo figlio letto dalla
+colonna originale risulta `null` o non oggetto, quindi diventa anch'esso `{}`: il
+risultato è coerente. Postgres.js compone i frammenti `tx\`…\`` annidati come parti della stessa query con i
 parametri al loro posto. Il requisito è un solo `update` per scrittura: il blocco di riga
 dell'`update` rende atomico il «leggi e scrivi» del jsonb.
 
@@ -1393,50 +1488,52 @@ async function currentRules(tx: Tx, familyId: string): Promise<MealRule[]> {
 
 const settingsOut = (tx: Tx, familyId: string, locale: Locale) => settingsView(tx, familyId, locale);
 
-export const familySettingsHandlers = {
-	setMeal: os.family.setMeal.handler(async ({ context, input }) => {
-		const { familyId, mealType, weekday, servings, fixedText, maxMinutes } = input;
-		await writeSettingsKey(context.tx, familyId, ['slots', mealType, String(weekday)], { servings, fixedText, maxMinutes });
-		return settingsOut(context.tx, familyId, context.locale);
-	}),
-	addRule: os.family.addRule.handler(async ({ context, input }) => {
-		const rules = await currentRules(context.tx, input.familyId);
-		await writeSettingsKey(context.tx, input.familyId, ['rules'], normalizeRules([...rules, input.rule]));
-		return settingsOut(context.tx, input.familyId, context.locale);
-	}),
-	removeRule: os.family.removeRule.handler(async ({ context, input }) => {
-		const rules = await currentRules(context.tx, input.familyId);
-		await writeSettingsKey(context.tx, input.familyId, ['rules'], normalizeRules(rules.filter((r) => !sameRule(r, input.rule))));
-		return settingsOut(context.tx, input.familyId, context.locale);
-	}),
-	setKnownNew: os.family.setKnownNew.handler(async ({ context, input }) => {
-		const { familyId, ...knownNew } = input;
-		await writeSettingsKey(context.tx, familyId, ['knownNew'], knownNew);
-		return settingsOut(context.tx, familyId, context.locale);
-	}),
-	setGroupRange: os.family.setGroupRange.handler(async ({ context, input }) => {
-		const range = groupRangeSchema.safeParse({ min: input.min, max: input.max });
-		if (!range.success) throw appError('invalid', { issues: [{ path: ['min'], code: 'min_above_max' }] });
-		await writeSettingsKey(context.tx, input.familyId, ['groupRanges', input.group], range.data);
-		return settingsOut(context.tx, input.familyId, context.locale);
-	}),
-};
+export function familySettingsHandlers(os: Implementer) {
+	return {
+		setMeal: os.family.setMeal.handler(async ({ context, input }) => {
+			const { familyId, mealType, weekday, servings, fixedText, maxMinutes } = input;
+			await writeSettingsKey(context.tx, familyId, ['slots', mealType, String(weekday)], { servings, fixedText, maxMinutes });
+			return settingsOut(context.tx, familyId, context.locale);
+		}),
+		addRule: os.family.addRule.handler(async ({ context, input }) => {
+			const rules = await currentRules(context.tx, input.familyId);
+			await writeSettingsKey(context.tx, input.familyId, ['rules'], normalizeRules([...rules, input.rule]));
+			return settingsOut(context.tx, input.familyId, context.locale);
+		}),
+		removeRule: os.family.removeRule.handler(async ({ context, input }) => {
+			const rules = await currentRules(context.tx, input.familyId);
+			await writeSettingsKey(context.tx, input.familyId, ['rules'], normalizeRules(rules.filter((r) => !sameRule(r, input.rule))));
+			return settingsOut(context.tx, input.familyId, context.locale);
+		}),
+		setKnownNew: os.family.setKnownNew.handler(async ({ context, input }) => {
+			const { familyId, ...knownNew } = input;
+			await writeSettingsKey(context.tx, familyId, ['knownNew'], knownNew);
+			return settingsOut(context.tx, familyId, context.locale);
+		}),
+		setGroupRange: os.family.setGroupRange.handler(async ({ context, input }) => {
+			const range = groupRangeSchema.safeParse({ min: input.min, max: input.max });
+			if (!range.success) throw appError('invalid', { issues: [{ path: ['min'], code: 'min_above_max' }] });
+			await writeSettingsKey(context.tx, input.familyId, ['groupRanges', input.group], range.data);
+			return settingsOut(context.tx, input.familyId, context.locale);
+		}),
+	};
+}
 ```
 
 `select … for update` in `currentRules` serializza due aggiunte di regole concorrenti
 sulla stessa famiglia, così nessuna regola si perde. `for update` richiede il permesso di
 `update` sulla riga: lo hanno solo gli amministratori, che sono gli unici a chiamare
-queste operazioni. Registrare `...familySettingsHandlers` nel router.
+queste operazioni. In `familyRouter`: aggiungere `...familySettingsHandlers(os)`.
 
 - [ ] **Step 6: Verifica**
 
-Run: `npm test -w server && npm run typecheck`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server && npm run typecheck`
 Expected: PASS, compreso il test concorrente.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add contract/src/family server/src/family server/src/router.ts server/test/family-settings.test.ts
+git add contract/src/family server/src/family server/test/family-settings.test.ts
 git commit -m "Famiglia: impostazioni del pianificatore con scritture puntuali"
 ```
 
@@ -1445,7 +1542,7 @@ git commit -m "Famiglia: impostazioni del pianificatore con scritture puntuali"
 ### Task 7: Libri e ingredienti della famiglia
 
 **Files:**
-- Modify: `contract/src/family/index.ts`, `server/src/family/handlers.ts`, `server/src/router.ts`
+- Modify: `contract/src/family/index.ts`, `server/src/family/handlers.ts`
 - Create: `server/test/family-catalogue.test.ts`
 
 **Interfaces:**
@@ -1455,12 +1552,19 @@ git commit -m "Famiglia: impostazioni del pianificatore con scritture puntuali"
 - [ ] **Step 1: Contratto**
 
 ```ts
+import { errorDefinitions } from '../errors.ts';
+
+/** Declared where an operation can answer not_found: clients and OpenAPI see it (review, 7). */
+const notFound = { not_found: errorDefinitions.not_found };
+
 export const familyCatalogue = {
 	setBookOwned: adminWrite()
+		.errors(notFound)
 		.route({ method: 'POST', path: '/family/books', summary: 'Mark a cookbook as owned or not: recipes from books the family does not own are never planned' })
 		.input(family.extend({ bookId: z.uuid(), owned: z.boolean() }))
 		.output(settingsViewSchema),
 	setIngredientRestriction: adminWrite()
+		.errors(notFound)
 		.route({ method: 'POST', path: '/family/ingredients', summary: 'Avoid an ingredient, limit it to a weekly maximum (1-7), or clear the restriction with null' })
 		.input(family.extend({ ingredientId: z.uuid(), restriction: z.enum(['avoid', 'limit']).nullable(), weeklyMax: z.number().int().min(1).max(7).nullable() }))
 		.output(settingsViewSchema),
@@ -1508,6 +1612,9 @@ describe.skipIf(!hasDatabase)('family books and ingredients', () => {
 		expect((await admin.call<any>(router.family.getSettings, { familyId })).data.books.map((b: any) => b.id)).not.toContain(archivedBookId);
 		expect((await admin.errorOf(router.family.setBookOwned, { familyId, bookId: archivedBookId, owned: true })).code).toBe('not_found');
 		expect((await admin.errorOf(router.family.setBookOwned, { familyId, bookId: crypto.randomUUID(), owned: true })).code).toBe('not_found');
+		expect((await admin.errorOf(router.family.setBookOwned, { familyId, bookId: crypto.randomUUID(), owned: false })).code).toBe('not_found');
+		// Dropping an archived or never-owned book is fine and changes nothing.
+		expect((await admin.call<any>(router.family.setBookOwned, { familyId, bookId: archivedBookId, owned: false })).books.map((b: any) => b.id)).not.toContain(archivedBookId);
 	});
 
 	it('limits, avoids and clears an ingredient', async () => {
@@ -1529,57 +1636,60 @@ describe.skipIf(!hasDatabase)('family books and ingredients', () => {
 
 - [ ] **Step 3: Verifica che falliscano**
 
-Run: `npm test -w server -- family-catalogue`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- family-catalogue`
 Expected: FAIL.
 
 - [ ] **Step 4: Gestori**
 
 ```ts
-export const familyCatalogueHandlers = {
-	setBookOwned: os.family.setBookOwned.handler(async ({ context, input }) => {
-		const { tx } = context;
-		if (input.owned) {
-			const [book] = await tx`select 1 from app.books where id = ${input.bookId} and archived_at is null`;
-			if (!book) throw appError('not_found');
-			await tx`insert into app.family_books (family_id, book_id) values (${input.familyId}, ${input.bookId}) on conflict do nothing`;
-		} else {
-			await tx`delete from app.family_books where family_id = ${input.familyId} and book_id = ${input.bookId}`;
-		}
-		return settingsView(tx, input.familyId, context.locale);
-	}),
-	setIngredientRestriction: os.family.setIngredientRestriction.handler(async ({ context, input }) => {
-		const { tx } = context;
-		if ((input.restriction === 'limit') !== (input.weeklyMax !== null)) {
-			throw appError('invalid', { issues: [{ path: ['weeklyMax'], code: 'limit_needs_weekly_max' }] });
-		}
-		const [ingredient] = await tx<{ archived: boolean }[]>`select archived_at is not null as archived from app.ingredients where id = ${input.ingredientId}`;
-		if (!ingredient || (input.restriction !== null && ingredient.archived)) throw appError('not_found');
-		if (input.restriction === null) {
-			await tx`delete from app.family_ingredients where family_id = ${input.familyId} and ingredient_id = ${input.ingredientId}`;
-		} else {
-			await tx`
-				insert into app.family_ingredients (family_id, ingredient_id, restriction, weekly_max)
-				values (${input.familyId}, ${input.ingredientId}, ${input.restriction}, ${input.weeklyMax})
-				on conflict (family_id, ingredient_id) do update set restriction = excluded.restriction, weekly_max = excluded.weekly_max`;
-		}
-		return settingsView(tx, input.familyId, context.locale);
-	}),
-};
+export function familyCatalogueHandlers(os: Implementer) {
+	return {
+		setBookOwned: os.family.setBookOwned.handler(async ({ context, input }) => {
+			const { tx } = context;
+			const [book] = await tx<{ archived: boolean }[]>`select archived_at is not null as archived from app.books where id = ${input.bookId}`;
+			// Unknown book: not_found either way; an archived one can still be dropped, not added.
+			if (!book || (input.owned && book.archived)) throw appError('not_found');
+			if (input.owned) {
+				await tx`insert into app.family_books (family_id, book_id) values (${input.familyId}, ${input.bookId}) on conflict do nothing`;
+			} else {
+				await tx`delete from app.family_books where family_id = ${input.familyId} and book_id = ${input.bookId}`;
+			}
+			return settingsView(tx, input.familyId, context.locale);
+		}),
+		setIngredientRestriction: os.family.setIngredientRestriction.handler(async ({ context, input }) => {
+			const { tx } = context;
+			if ((input.restriction === 'limit') !== (input.weeklyMax !== null)) {
+				throw appError('invalid', { issues: [{ path: ['weeklyMax'], code: 'limit_needs_weekly_max' }] });
+			}
+			const [ingredient] = await tx<{ archived: boolean }[]>`select archived_at is not null as archived from app.ingredients where id = ${input.ingredientId}`;
+			if (!ingredient || (input.restriction !== null && ingredient.archived)) throw appError('not_found');
+			if (input.restriction === null) {
+				await tx`delete from app.family_ingredients where family_id = ${input.familyId} and ingredient_id = ${input.ingredientId}`;
+			} else {
+				await tx`
+					insert into app.family_ingredients (family_id, ingredient_id, restriction, weekly_max)
+					values (${input.familyId}, ${input.ingredientId}, ${input.restriction}, ${input.weeklyMax})
+					on conflict (family_id, ingredient_id) do update set restriction = excluded.restriction, weekly_max = excluded.weekly_max`;
+			}
+			return settingsView(tx, input.familyId, context.locale);
+		}),
+	};
+}
 ```
 
 La policy `family_*_admin` garantisce che solo un amministratore scriva; un `insert` di un
 non amministratore fallisce con `42501`, ma il ruolo è già verificato prima del gestore.
-Registrare `...familyCatalogueHandlers` nel router.
+In `familyRouter`: aggiungere `...familyCatalogueHandlers(os)`.
 
 - [ ] **Step 5: Verifica**
 
-Run: `npm test -w server && npm run typecheck`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add contract/src/family server/src/family server/src/router.ts server/test/family-catalogue.test.ts
+git add contract/src/family server/src/family server/test/family-catalogue.test.ts
 git commit -m "Famiglia: libri posseduti e ingredienti evitati o limitati"
 ```
 
@@ -1588,7 +1698,7 @@ git commit -m "Famiglia: libri posseduti e ingredienti evitati o limitati"
 ### Task 8: «Non proporre più»
 
 **Files:**
-- Modify: `contract/src/family/index.ts`, `server/src/family/views.ts`, `server/src/family/handlers.ts`, `server/src/router.ts`
+- Modify: `contract/src/family/index.ts`, `server/src/family/views.ts`, `server/src/family/handlers.ts`
 - Create: `server/test/family-exclusions.test.ts`
 
 **Interfaces:**
@@ -1611,6 +1721,7 @@ export const familyExclusions = {
 		.input(versionedInput(family))
 		.output(versionedOutput(exclusionsViewSchema)),
 	addExclusion: memberWrite()
+		.errors(notFound)
 		.route({ method: 'POST', path: '/family/exclusions/add', summary: 'Stop proposing a recipe to this family; repeating it changes nothing' })
 		.input(family.extend({ recipeId: z.uuid(), reason: z.string().trim().min(1).max(200).optional() }))
 		.output(exclusionsViewSchema),
@@ -1697,7 +1808,7 @@ Prima di scrivere `insertRecipe`, controllare in
 
 - [ ] **Step 3: Verifica che falliscano**
 
-Run: `npm test -w server -- family-exclusions`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- family-exclusions`
 Expected: FAIL.
 
 - [ ] **Step 4: Vista e gestori**
@@ -1727,38 +1838,40 @@ export async function exclusionsView(tx: Tx, familyId: string, locale: Locale): 
 In `server/src/family/handlers.ts`:
 
 ```ts
-export const familyExclusionHandlers = {
-	listExclusions: os.family.listExclusions.handler(async ({ context, input }) => fresh(context, await exclusionsView(context.tx, input.familyId, context.locale))),
-	addExclusion: os.family.addExclusion.handler(async ({ context, input }) => {
-		const { tx } = context;
-		const [recipe] = await tx`select 1 from app.recipes where id = ${input.recipeId} and status <> 'draft'`;
-		if (!recipe) throw appError('not_found');
-		await tx`
-			insert into app.recipe_exclusions (family_id, recipe_id, reason, created_by)
-			values (${input.familyId}, ${input.recipeId}, ${input.reason ?? null}, auth.uid())
-			on conflict (family_id, recipe_id) do nothing`;
-		return exclusionsView(tx, input.familyId, context.locale);
-	}),
-	removeExclusion: os.family.removeExclusion.handler(async ({ context, input }) => {
-		await context.tx`delete from app.recipe_exclusions where family_id = ${input.familyId} and recipe_id = ${input.recipeId}`;
-		return exclusionsView(context.tx, input.familyId, context.locale);
-	}),
-};
+export function familyExclusionHandlers(os: Implementer) {
+	return {
+		listExclusions: os.family.listExclusions.handler(async ({ context, input }) => fresh(context, await exclusionsView(context.tx, input.familyId, context.locale))),
+		addExclusion: os.family.addExclusion.handler(async ({ context, input }) => {
+			const { tx } = context;
+			const [recipe] = await tx`select 1 from app.recipes where id = ${input.recipeId} and status <> 'draft'`;
+			if (!recipe) throw appError('not_found');
+			await tx`
+				insert into app.recipe_exclusions (family_id, recipe_id, reason, created_by)
+				values (${input.familyId}, ${input.recipeId}, ${input.reason ?? null}, auth.uid())
+				on conflict (family_id, recipe_id) do nothing`;
+			return exclusionsView(tx, input.familyId, context.locale);
+		}),
+		removeExclusion: os.family.removeExclusion.handler(async ({ context, input }) => {
+			await context.tx`delete from app.recipe_exclusions where family_id = ${input.familyId} and recipe_id = ${input.recipeId}`;
+			return exclusionsView(context.tx, input.familyId, context.locale);
+		}),
+	};
+}
 ```
 
 Il nome della ricetta viene dalla proiezione `recipes.name` (campo bilingue jsonb,
 decisione dell'11 ottobre); se lo schema di W3 lo chiama diversamente, usare il nome
-delle colonne della migrazione del catalogo. Registrare `...familyExclusionHandlers` nel router.
+delle colonne della migrazione del catalogo. In `familyRouter`: aggiungere `...familyExclusionHandlers(os)`.
 
 - [ ] **Step 5: Verifica**
 
-Run: `npm test -w server && npm run typecheck`
+Run: `CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server && npm run typecheck`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add contract/src/family server/src/family server/src/router.ts server/test/family-exclusions.test.ts
+git add contract/src/family server/src/family server/test/family-exclusions.test.ts
 git commit -m "Famiglia: elenco, aggiunta e rimozione di «Non proporre più»"
 ```
 
@@ -1798,6 +1911,13 @@ it('exposes every profile and family operation to MCP with the expected role', (
 		expect(meta.webOnly, name).toBeUndefined();
 	}
 });
+
+it('declares not_found where the handler can answer it', () => {
+	const errorsOf = (name: 'setBookOwned' | 'setIngredientRestriction' | 'addExclusion' | 'rename') =>
+		Object.keys((contract.family[name] as unknown as { '~orpc': { errorMap: Record<string, unknown> } })['~orpc'].errorMap);
+	for (const name of ['setBookOwned', 'setIngredientRestriction', 'addExclusion'] as const) expect(errorsOf(name), name).toContain('not_found');
+	expect(errorsOf('rename')).not.toContain('not_found');
+});
 ```
 
 (importare `OperationMeta` da `./op.ts` se il file non lo fa già).
@@ -1815,7 +1935,9 @@ import { messages } from '../src/messages.ts';
 import { router } from '../src/router.ts';
 import { setupActors, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
-import { mcp, testEnv, toolBody } from './support/requests.ts';
+import type { Contract } from '@app/contract';
+import type { ContractRouterClient } from '@orpc/contract';
+import { mcp, rest, rpcClient, testEnv, toolBody } from './support/requests.ts';
 
 describe('profile and family tools', () => {
 	it('lists one tool per operation', () => {
@@ -1832,6 +1954,32 @@ describe.skipIf(!hasDatabase)('profile and family over MCP', () => {
 		app = createApp({ contract, router, keys: () => actors.keys.keys, resourceName: 'test' });
 	});
 	afterAll(() => actors?.close());
+
+	it('lets an admin agent write and read back', async () => {
+		const { userId, sessionId } = await actors.db.createUser({ locale: 'it-IT' });
+		const familyId = await actors.db.createFamily([{ userId, role: 'family_admin' }]);
+		const token = await actors.keys.sign({ sub: userId, session_id: sessionId, client_id: 'codex' });
+		const env = testEnv(actors.db.appServerUrl);
+		const write = await mcp(app, env, token, 'tools/call', {
+			name: 'family_setMeal',
+			arguments: { familyId, mealType: 'dinner', weekday: 5, servings: 4, fixedText: 'Cena libera', maxMinutes: null },
+		});
+		expect(write.body.result.isError).toBeFalsy();
+		const read = await mcp(app, env, token, 'tools/call', { name: 'family_getSettings', arguments: { familyId } });
+		expect(toolBody(read).data.settings.slots.dinner[5]).toEqual({ servings: 4, fixedText: 'Cena libera', maxMinutes: null });
+	});
+
+	it('answers not_found on RPC and REST as declared', async () => {
+		const { userId, sessionId } = await actors.db.createUser();
+		const familyId = await actors.db.createFamily([{ userId, role: 'family_admin' }]);
+		const token = await actors.keys.sign({ sub: userId, session_id: sessionId });
+		const env = testEnv(actors.db.appServerUrl);
+		const client = rpcClient<ContractRouterClient<Contract>>(app, env, token);
+		await expect(client.family.setBookOwned({ familyId, bookId: crypto.randomUUID(), owned: true })).rejects.toMatchObject({ code: 'not_found', status: 404 });
+		const response = await rest(app, env, 'POST', '/api/family/books', token, { familyId, bookId: crypto.randomUUID(), owned: true });
+		expect(response.status).toBe(404);
+		expect(await response.json()).toMatchObject({ code: 'not_found' });
+	});
 
 	it('reads settings and refuses a member write with a localised forbidden', async () => {
 		const { userId, sessionId } = await actors.db.createUser({ locale: 'en-GB' });
@@ -1855,7 +2003,7 @@ Helper `mcp`, `toolBody` e `createApp` come in `server/test/channels.test.ts`.
 
 - [ ] **Step 3: Verifica**
 
-Run: `npm test -w contract && npm test -w server`
+Run: `npm test -w contract && CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server`
 Expected: PASS.
 
 - [ ] **Step 4: Commit**
@@ -1907,138 +2055,391 @@ git commit -m "Database: impostazioni della famiglia di Federico dopo lo script 
 
 ---
 
-### Task 11: Web, dati e mutazioni dell'area
+### Task 11: Da `me` a `profile` nel web
 
-Parte solo quando la base di W5 con il client oRPC reale è su `main`: prima
-`git fetch origin && git rebase origin/main`. Leggere la struttura effettiva della base
-(`web/src/api/`, `web/src/session/`, `web/src/i18n/messages/`) e la sua spec
-(`progetto/superpowers/specs/2026-10-11-app-web-di-base.md`, «Dati e client» e
-«Localizzazione»); i nomi sotto seguono la base al momento della scrittura del piano
-e si adeguano a quelli uniti.
+**Prerequisito:** la seconda PR di W5 (client oRPC reale) è su `main`. Prima
+`git fetch origin && git rebase origin/main`; se quella PR non è unita, **fermarsi** e
+scrivere `STATO: DOMANDA` al coordinatore (review, rilievo 4). Leggere la base unita:
+`web/src/session/session.ts` (`wrapApi`, `Session.track`/`isLatest`/`isClosed`),
+`web/src/session/SessionScope.tsx` (gestore degli errori, lingua del profilo),
+`web/src/api/queries.ts` (`queryKeys`, `readThrough`, `familyOfKey`, `localeOfKey`),
+`web/src/api/types.ts`, `web/src/api/fake/`, `web/src/session/useFamily.ts`. I nomi
+sotto sono quelli della base all'11 ottobre; se la PR unita li ha cambiati, valgono
+quelli uniti e il piano si segue nella sostanza.
 
 **Files:**
-- Create: `web/src/api/profile.ts`, `web/src/api/family.ts`, test accanto
-- Modify: `web/src/session/useFamily.ts`, `web/src/session/SessionScope.tsx` (`useChooseLocale`), dove la base legge `me.get`
+- Modify: `web/src/session/session.ts`, `web/src/session/SessionScope.tsx`, `web/src/session/useFamily.ts`, `web/src/api/queries.ts`, `web/src/api/types.ts`, `web/src/api/fake/fakeApi.ts`, i test che usano `me` (per esempio `web/src/components/FamilyGate.test.tsx`)
+- Create: `web/src/api/profile.ts`, `web/src/session/SessionScope.profile.test.tsx`
 
 **Interfaces:**
-- Consumes: client del contratto (`api.profile.*`, `api.family.*`), `readThrough`,
-  `useQueryDeps`, chiavi `[area, operazione, input]` con la lingua.
-- Produces: `profileQuery(deps)`, `familyQuery(deps, familyId)`, `settingsQuery(deps, familyId)`,
-  `exclusionsQuery(deps, familyId)`; hook `useProfileMutation(op)` e
-  `useFamilyMutation(op, { invalidates })` che scrivono la vista restituita nella cache
-  e marcano scadute le letture dipendenti; `useChooseLocale` che chiama
-  `profile.update` (offline: scelta temporanea come oggi).
+- Consumes: client del contratto con le aree `profile` e `family` (Task 3-8).
+- Produces: `queryKeys.profile(locale) = ['profile', 'get', { locale }]`;
+  `profileQuery(deps)` (lettura non versionata: la cache contiene `ProfileView`);
+  `Api` con `profile` e `family` al posto di `me`; `wrapApi` che avvolge anche
+  `profile` e `family`; client finto con le stesse aree.
 
 - [ ] **Step 1: Test che falliscono**
 
-`web/src/api/family.test.ts`, con il `QueryClient` di prova della base e un client finto
-con le stesse firme del contratto:
+`web/src/session/SessionScope.profile.test.tsx`, con gli helper dei test di
+`SessionScope.test.tsx` (backend d'accesso finto con rinnovo, `createApi` finto):
 
-```ts
-import { QueryClient } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
-import { applyFamilyMutation, familyKeys } from './family';
+```tsx
+it('reads the profile and a family view through the session, renewing once', async () => {
+  const calls: string[] = [];
+  const api = scriptedApi({
+    'profile.get': [unauthorized(), profileView({ currentFamilyId: FAMILY })],
+    'family.get': [familyRead()],
+  }, calls);
+  const { result } = renderSession({ api, renew: async () => true });
+  await waitFor(() => expect(result.current.profile.data?.currentFamilyId).toBe(FAMILY));
+  await act(() => result.current.api.family.get({ familyId: FAMILY }));
+  expect(calls).toEqual(['profile.get', 'profile.get', 'family.get']); // one renewal, then success
+});
 
-describe('family mutations', () => {
-	it('writes the returned settings into the cache and marks family reads stale', async () => {
-		const client = new QueryClient();
-		const familyId = '00000000-0000-4000-8000-000000000001';
-		client.setQueryData(familyKeys.settings(familyId, 'it-IT'), { version: 'v1', data: { canEdit: true } });
-		client.setQueryData(['menu', 'getWeek', { familyId, weekStartsOn: '2026-10-12', locale: 'it-IT' }], { version: 'w1', data: {} });
-		const view = { canEdit: true, settings: {}, books: [], restrictions: [] };
-		await applyFamilyMutation(client, { familyId, locale: 'it-IT', kind: 'settings', view, invalidates: 'family' });
-		expect(client.getQueryData(familyKeys.settings(familyId, 'it-IT'))).toMatchObject({ data: view });
-		expect(client.getQueryState(['menu', 'getWeek', { familyId, weekStartsOn: '2026-10-12', locale: 'it-IT' }])?.isInvalidated).toBe(true);
-	});
-
-	it('does not touch another family', async () => {
-		const client = new QueryClient();
-		const other = ['menu', 'getWeek', { familyId: 'other', weekStartsOn: '2026-10-12', locale: 'it-IT' }];
-		client.setQueryData(other, { version: 'x', data: {} });
-		await applyFamilyMutation(client, { familyId: 'mine', locale: 'it-IT', kind: 'settings', view: {} as never, invalidates: 'family' });
-		expect(client.getQueryState(other)?.isInvalidated).toBe(false);
-	});
+it('revokes the family and reads the profile again after forbidden on a family call', async () => {
+  const calls: string[] = [];
+  const api = scriptedApi({
+    'profile.get': [profileView({ currentFamilyId: FAMILY }), profileView({ families: [], currentFamilyId: null })],
+    'family.getSettings': [forbidden()],
+  }, calls);
+  const { result } = renderSession({ api });
+  await waitFor(() => expect(result.current.profile.data).toBeDefined());
+  await expect(result.current.api.family.getSettings({ familyId: FAMILY })).rejects.toMatchObject({ code: 'forbidden' });
+  expect(result.current.session.isRevoked(FAMILY)).toBe(true);
+  await waitFor(() => expect(calls.filter((c) => c === 'profile.get')).toHaveLength(2));
+  expect(result.current.queryClient.getQueryCache().findAll({ queryKey: ['me'] })).toHaveLength(0);
 });
 ```
 
-- [ ] **Step 2: Implementazione**
+`scriptedApi` restituisce per ogni metodo, in ordine, le risposte o gli errori della
+lista e annota le chiamate; `renderSession` monta `SessionScope` con `ApiProvider` e
+restituisce `api` (quello del contesto, quindi avvolto), `session`, `queryClient` e
+`useQuery(profileQuery(...))`. Se gli helper della base hanno altri nomi, si usano quelli.
 
-`web/src/api/family.ts` (adattare `readThrough`, `QueryDeps` e la forma della cache alla
-base unita):
+- [ ] **Step 2: Verifica che falliscano**
 
-```ts
-import { queryOptions, type QueryClient } from '@tanstack/react-query';
-import type { Locale } from '../i18n/translate';
-import { familyOfKey, readThrough, type QueryDeps } from './queries';
+Run: `npm test -w web -- SessionScope.profile`
+Expected: FAIL (`api.profile` e `api.family` non esistono dopo `wrapApi`).
 
-export const familyKeys = {
-	family: (familyId: string, locale: Locale) => ['family', 'get', { familyId, locale }] as const,
-	settings: (familyId: string, locale: Locale) => ['family', 'getSettings', { familyId, locale }] as const,
-	exclusions: (familyId: string, locale: Locale) => ['family', 'listExclusions', { familyId, locale }] as const,
-};
+- [ ] **Step 3: Implementazione**
 
-export function settingsQuery({ api, queryClient, locale }: QueryDeps, familyId: string) {
-	const queryKey = familyKeys.settings(familyId, locale);
-	return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.family.getSettings({ familyId, knownVersion })) });
-}
-// familyQuery ed exclusionsQuery: stessa forma con api.family.get e api.family.listExclusions.
+- `web/src/api/types.ts`: `Api` con `profile: { get, update, setCurrentFamily }` e
+  `family: { … }` (tipi dal contratto, `ContractRouterClient<Contract>['profile']`, se la
+  base usa già il client del contratto); `MeView` → `ProfileView` da `@app/contract`.
+- `web/src/session/session.ts`, `wrapApi`: l'oggetto restituito elenca `profile:
+  wrapArea(api.profile)` e `family: wrapArea(api.family)` al posto di `me`, accanto a
+  `menu`, `recipes`, `ratings` e alle aree aggiunte da W1, W4 e W6. Per `profile` il
+  secondo argomento di `session.call` è `undefined` (nessuna famiglia), per `family` è
+  `input.familyId` come per le altre aree: i segni di revoca valgono anche qui.
+- `web/src/api/queries.ts`: `queryKeys.profile = (locale) => ['profile', 'get', { locale }]`
+  al posto di `me`; `profileQuery` in `web/src/api/profile.ts`:
 
-type Kind = 'family' | 'settings' | 'exclusions';
+  ```ts
+  export function profileQuery({ api, locale }: QueryDeps) {
+    // Not versioned on the server (spec): the cache holds the view itself.
+    return queryOptions({ queryKey: queryKeys.profile(locale), queryFn: () => api.profile.get({}) });
+  }
+  ```
 
-/**
- * The server's view replaces the cached one (no optimistic update); reads that depend on
- * the changed value are marked stale: 'family' = every read of that family (units, time
- * zone), 'self' = only this view.
- */
-export async function applyFamilyMutation(
-	client: QueryClient,
-	options: { familyId: string; locale: Locale; kind: Kind; view: unknown; invalidates: 'family' | 'self' },
-): Promise<void> {
-	const key = familyKeys[options.kind](options.familyId, options.locale);
-	client.setQueryData(key, (old: { version: string } | undefined) => ({ version: old?.version ?? '', data: options.view }));
-	if (options.invalidates === 'family') {
-		await client.invalidateQueries({ predicate: (query) => familyOfKey(query.queryKey) === options.familyId && query.queryKey[1] !== key[1] }, { cancelRefetch: false });
-	}
-}
-```
+- `web/src/session/SessionScope.tsx`: dopo `forbidden` con famiglia,
+  `invalidateQueries({ queryKey: ['profile', 'get'] })` al posto di `['me']`; la lingua del
+  profilo si legge da `ProfileView.user.locale`.
+- `web/src/session/useFamily.ts`: `useMe()` → `useProfile()` su `profileQuery`;
+  `FamilyState.me` → `profile`; la famiglia mostrata è `profile.currentFamilyId`.
+- Client finto (`web/src/api/fake/fakeApi.ts`): `profile.get` (vista non versionata con
+  `globalRoles: []` e `measurementSystem`), `profile.update`, `profile.setCurrentFamily`
+  e le operazioni `family.*` sui dati dimostrativi, con le stesse forme del contratto.
+- Ogni uso residuo: `grep -rn "\bme\b\|meQuery\|MeView" web/src` deve restare vuoto,
+  test compresi.
 
-Nota: la versione conservata resta quella vecchia, quindi la lettura successiva riceve
-dati nuovi (il contatore è cresciuto) e non un «invariato» sbagliato.
-
-`web/src/api/profile.ts`: `profileQuery` (lettura non versionata: `queryFn: () =>
-api.profile.get({})`), `useUpdateProfile()` e `useSetCurrentFamily()` che, alla risposta,
-scrivono la `ProfileView` nella cache di `profileQuery` e invalidano `family.get` della
-famiglia mostrata (nome della persona). Sostituire nella base ogni uso di `me.get` con
-`profileQuery`, con `MeView` → `ProfileView` (stessi campi più `globalRoles` e
-`measurementSystem`; `currentFamilyId` invariato).
-
-`useChooseLocale` (base di W5): online chiama `profile.update({ locale })` e alla risposta
-applica `view.user.locale` con il cambio d'identità già previsto (niente dati della lingua
-precedente); offline conserva la scelta temporanea esistente. La chiave temporanea
-`locale:user:<id>` si cancella dopo un salvataggio riuscito.
-
-- [ ] **Step 3: Verifica**
+- [ ] **Step 4: Verifica**
 
 Run: `npm test -w web && npm run typecheck -w web`
-Expected: PASS.
+Expected: PASS, compresi i test esistenti di `SessionScope`, `FamilyGate` e del client finto.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add web/src
-git commit -m "Web: letture e mutazioni di profilo e famiglia"
+git commit -m "Web: profilo al posto di me nel wrapper, nella sessione e nel client finto"
 ```
 
 ---
 
-### Task 12: Profilo, Preferenze e Membri
+### Task 12: Applicazione delle mutazioni e invalidazioni
+
+**Files:**
+- Create: `web/src/api/mutations.ts`, `web/src/api/mutations.test.ts`, `web/src/api/family.ts`
+- Modify: `web/src/api/profile.ts`, `web/src/session/SessionScope.tsx` (`useChooseLocale` passa da `profile.update`)
+
+**Interfaces:**
+- Consumes: `Session` (`track`, `isLatest`, `isClosed`), `QueryDeps`, `familyOfKey`,
+  `queryKeys` (Task 11); chiavi delle altre aree: `['menu', …]` (W1), `['recipes',
+  'search' | 'get']` (W6), `['shopping', …]` (W4, per esempio `getWeekList`).
+- Produces:
+  - `web/src/api/family.ts`: `familyKeys.family|settings|exclusions(familyId, locale)`,
+    `familyQuery`, `settingsQuery`, `exclusionsQuery` (letture versionate con `readThrough`);
+  - `web/src/api/mutations.ts`: `type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions'`,
+    `INVALIDATIONS: Record<MutationName, Invalidation>`,
+    `applyMutation(queryClient, { name, familyId, locale, view, isCurrent }): Promise<void>`,
+    `useAreaMutation(name, familyId?)` (hook con `useMutation`, modello di `useRateRecipe`).
+
+Modello (review, rilievo 2; `web/src/api/ratings.ts`): alla partenza `session.track(<vista>)`
+e lingua annotata; alla risposta, se la sessione è chiusa, la lingua è cambiata o il
+gettone non è più l'ultimo per quella vista, la risposta non si applica e la vista si
+marca scaduta; altrimenti si cancellano le letture interessate in corso, si scrive la
+vista, si invalidano le altre letture della tabella e ripartono le letture cancellate
+senza dati.
+
+- [ ] **Step 1: Tabella delle invalidazioni**
+
+`web/src/api/mutations.ts` (prima parte), tradotta dalla spec («Viste aggiornate e
+invalidate per operazione»):
+
+```ts
+import type { Query, QueryClient } from '@tanstack/react-query';
+import { familyOfKey } from './queries';
+
+export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions';
+type Scope = 'all' | 'profile' | { area: string; operation?: string };
+
+export interface Invalidation {
+  target: MutationTarget;
+  /** Other reads that depend on the changed value: 'all' = every query; area reads are of the same family. */
+  stale: Scope[];
+}
+
+const familyReads = (...scopes: { area: string; operation?: string }[]) => scopes;
+
+export const INVALIDATIONS = {
+  'profile.updateName': { target: 'profile', stale: ['all'] },
+  'profile.updateLocale': { target: 'profile', stale: [] },
+  'profile.setCurrentFamily': { target: 'profile', stale: [] },
+  'family.rename': { target: 'family', stale: ['profile'] },
+  'family.setMeasurementSystem': { target: 'family', stale: ['profile', ...familyReads({ area: 'menu' }, { area: 'recipes' }, { area: 'shopping' })] },
+  'family.setTimeZone': { target: 'family', stale: ['profile', ...familyReads({ area: 'menu' }, { area: 'recipes', operation: 'get' }, { area: 'shopping' })] },
+  'family.setMeal': { target: 'settings', stale: [] },
+  'family.addRule': { target: 'settings', stale: [] },
+  'family.removeRule': { target: 'settings', stale: [] },
+  'family.setKnownNew': { target: 'settings', stale: [] },
+  'family.setGroupRange': { target: 'settings', stale: [] },
+  'family.setBookOwned': { target: 'settings', stale: familyReads({ area: 'recipes', operation: 'search' }, { area: 'recipes', operation: 'get' }) },
+  'family.setIngredientRestriction': { target: 'settings', stale: familyReads({ area: 'shopping' }) },
+  'family.addExclusion': { target: 'exclusions', stale: [] },
+  'family.removeExclusion': { target: 'exclusions', stale: [] },
+} as const satisfies Record<string, Invalidation>;
+export type MutationName = keyof typeof INVALIDATIONS;
+
+const TARGET_KEY: Record<MutationTarget, [string, string]> = {
+  profile: ['profile', 'get'],
+  family: ['family', 'get'],
+  settings: ['family', 'getSettings'],
+  exclusions: ['family', 'listExclusions'],
+};
+
+function matches(scope: Scope, familyId: string | undefined) {
+  return (query: Query) => {
+    const [area, operation] = query.queryKey as [string, string];
+    if (scope === 'all') return true;
+    if (scope === 'profile') return area === 'profile' && operation === 'get';
+    return area === scope.area && (!scope.operation || operation === scope.operation) && familyOfKey(query.queryKey) === familyId;
+  };
+}
+```
+
+`profile.update` sceglie il nome nella tabella dall'input: con `displayName` →
+`profile.updateName` (anche se cambia insieme la lingua), solo `locale` →
+`profile.updateLocale`.
+
+- [ ] **Step 2: Test che falliscono**
+
+`web/src/api/mutations.test.ts`, con un `QueryClient` vero e promesse controllate
+(`deferred()` restituisce `{ promise, resolve }`):
+
+```ts
+const FAMILY = '00000000-0000-4000-8000-000000000001';
+const OTHER = '00000000-0000-4000-8000-000000000002';
+const settingsKey = (familyId: string) => ['family', 'getSettings', { familyId, locale: 'it-IT' }];
+const view = (servings: number) => ({ canEdit: true, settings: { slots: { lunch: [{ servings }] } }, books: [], restrictions: [] });
+
+it('a read started before the mutation never overwrites its answer', async () => {
+  const client = new QueryClient();
+  const late = deferred<{ version: string; data: unknown }>();
+  void client.fetchQuery({ queryKey: settingsKey(FAMILY), queryFn: () => late.promise });
+  await applyMutation(client, { name: 'family.setMeal', familyId: FAMILY, locale: 'it-IT', view: view(3), isCurrent: () => true });
+  late.resolve({ version: 'old', data: view(2) });
+  await flush();
+  expect(client.getQueryData(settingsKey(FAMILY))).toMatchObject({ data: view(3) });
+});
+
+it('two mutations on different keys: only the latest answer is applied, the earlier one marks the view stale', async () => {
+  const { client, session, run } = harness(); // QueryClient + Session of the base + useAreaMutation outside React
+  const first = deferred<unknown>();
+  const second = deferred<unknown>();
+  const a = run('family.setMeal', FAMILY, () => first.promise);
+  const b = run('family.setKnownNew', FAMILY, () => second.promise);
+  second.resolve(view(4));
+  await b;
+  first.resolve(view(3)); // answered later, but started earlier
+  await a;
+  expect(client.getQueryData(settingsKey(FAMILY))).toMatchObject({ data: view(4) });
+  expect(client.getQueryState(settingsKey(FAMILY))?.isInvalidated).toBe(true);
+  void session;
+});
+
+it('drops an answer after sign-out or a change of language', async () => {
+  for (const close of ['signOut', 'language'] as const) {
+    const { client, session, setLocale, run } = harness();
+    client.setQueryData(settingsKey(FAMILY), { version: 'v1', data: view(2) });
+    const answer = deferred<unknown>();
+    const done = run('family.setMeal', FAMILY, () => answer.promise);
+    if (close === 'signOut') await session.close();
+    else setLocale('en-GB');
+    answer.resolve(view(3));
+    await done;
+    expect(client.getQueryData(settingsKey(FAMILY))).not.toMatchObject({ data: view(3) });
+  }
+});
+
+it('marks exactly the reads of the table, of the same family only', async () => {
+  const client = new QueryClient();
+  const keys = {
+    profile: ['profile', 'get', { locale: 'it-IT' }],
+    week: ['menu', 'getWeek', { familyId: FAMILY, weekStartsOn: '2026-10-12', locale: 'it-IT' }],
+    search: ['recipes', 'search', { familyId: FAMILY, query: {}, locale: 'it-IT' }],
+    recipe: ['recipes', 'get', { familyId: FAMILY, recipeId: 'r', locale: 'it-IT' }],
+    shopping: ['shopping', 'getWeekList', { familyId: FAMILY, weekStartsOn: '2026-10-12', locale: 'it-IT' }],
+    otherWeek: ['menu', 'getWeek', { familyId: OTHER, weekStartsOn: '2026-10-12', locale: 'it-IT' }],
+  };
+  const stale = async (name: MutationName) => {
+    for (const key of Object.values(keys)) client.setQueryData(key, { version: 'v', data: {} });
+    await applyMutation(client, { name, familyId: FAMILY, locale: 'it-IT', view: {}, isCurrent: () => true });
+    return Object.entries(keys).filter(([, key]) => client.getQueryState(key)?.isInvalidated).map(([name]) => name).sort();
+  };
+  expect(await stale('family.setMeal')).toEqual([]);
+  expect(await stale('family.setBookOwned')).toEqual(['recipe', 'search']);
+  expect(await stale('family.setIngredientRestriction')).toEqual(['shopping']);
+  expect(await stale('family.setTimeZone')).toEqual(['profile', 'recipe', 'shopping', 'week']);
+  expect(await stale('family.setMeasurementSystem')).toEqual(['profile', 'recipe', 'search', 'shopping', 'week']);
+  expect(await stale('family.rename')).toEqual(['profile']);
+  expect(await stale('profile.updateName')).toEqual(['otherWeek', 'recipe', 'search', 'shopping', 'week']);
+});
+```
+
+`harness()` crea `QueryClient` e `Session` con i costruttori della base (come in
+`web/src/api/ratings.test.ts`), una lingua modificabile e
+`run(name, familyId, call)`, che esegue la stessa logica di `useAreaMutation` senza React
+(funzione `runAreaMutation` esportata da `mutations.ts` e usata dall'hook). Nell'ultimo
+caso il `profile.get` è la vista scritta, quindi non risulta fra le invalidate.
+
+- [ ] **Step 3: Verifica che falliscano**
+
+Run: `npm test -w web -- mutations`
+Expected: FAIL («applyMutation is not exported»).
+
+- [ ] **Step 4: Implementazione**
+
+Seconda parte di `web/src/api/mutations.ts`:
+
+```ts
+export interface ApplyOptions {
+  name: MutationName;
+  familyId?: string;
+  locale: string;
+  view: unknown;
+  /** Session open, same language, latest mutation of this view. */
+  isCurrent: () => boolean;
+}
+
+const targetKey = (target: MutationTarget, familyId: string | undefined, locale: string) =>
+  target === 'profile' ? ['profile', 'get', { locale }] : [...TARGET_KEY[target], { familyId, locale }];
+
+/** Model of applyRating (W5): cancel affected reads, check, write, invalidate, restart the empty ones. */
+export async function applyMutation(queryClient: QueryClient, options: ApplyOptions): Promise<void> {
+  const { target, stale } = INVALIDATIONS[options.name] as Invalidation;
+  const key = targetKey(target, options.familyId, options.locale);
+  const isTarget = (query: Query) => JSON.stringify(query.queryKey) === JSON.stringify(key);
+  const isStale = (query: Query) => !isTarget(query) && stale.some((scope) => matches(scope, options.familyId)(query));
+  const affected = (query: Query) => isTarget(query) || isStale(query);
+  const running = queryClient.getQueryCache().findAll({ predicate: affected, fetchStatus: 'fetching' });
+  await queryClient.cancelQueries({ predicate: affected });
+  if (!options.isCurrent()) {
+    void queryClient.invalidateQueries({ predicate: isTarget });
+    return;
+  }
+  queryClient.setQueryData(key, (old: { version: string } | undefined) =>
+    target === 'profile' ? options.view : { version: old?.version ?? '', data: options.view },
+  );
+  void queryClient.invalidateQueries({ predicate: isStale });
+  const empty = running.filter((query) => query.state.data === undefined && !isStale(query));
+  if (empty.length) void queryClient.invalidateQueries({ predicate: (query) => empty.includes(query) });
+}
+
+export async function runAreaMutation<T>(
+  deps: { queryClient: QueryClient; session: Session; currentLocale: () => string },
+  name: MutationName,
+  familyId: string | undefined,
+  call: () => Promise<T>,
+): Promise<T> {
+  const { target } = INVALIDATIONS[name] as Invalidation;
+  const trackKey = `${target}:${familyId ?? 'me'}`;
+  const locale = deps.currentLocale();
+  const token = deps.session.track(trackKey);
+  const view = await call();
+  const isCurrent = () => !deps.session.isClosed() && deps.currentLocale() === locale && deps.session.isLatest(trackKey, token);
+  await applyMutation(deps.queryClient, { name, familyId, locale, view, isCurrent });
+  return view;
+}
+```
+
+La versione conservata resta quella vecchia: la lettura successiva riceve dati nuovi
+(il contatore è cresciuto) e mai un «invariato» sbagliato. `useAreaMutation(name,
+familyId)` avvolge `runAreaMutation` in `useMutation` con `meta: { familyId }`, come
+`useRateRecipe`, e lo usano tutte le schermate dei Task 13-15. `useChooseLocale` (in
+`SessionScope`): online `runAreaMutation('profile.updateLocale', undefined, () =>
+api.profile.update({ locale }))`, poi la lingua del profilo si applica con il meccanismo
+esistente; offline la scelta resta temporanea come oggi.
+
+`web/src/api/family.ts`: chiavi e letture versionate.
+
+```ts
+export const familyKeys = {
+  family: (familyId: string, locale: Locale) => ['family', 'get', { familyId, locale }] as const,
+  settings: (familyId: string, locale: Locale) => ['family', 'getSettings', { familyId, locale }] as const,
+  exclusions: (familyId: string, locale: Locale) => ['family', 'listExclusions', { familyId, locale }] as const,
+};
+
+export function settingsQuery({ api, queryClient, locale }: QueryDeps, familyId: string) {
+  const queryKey = familyKeys.settings(familyId, locale);
+  return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.family.getSettings({ familyId, knownVersion })), select });
+}
+```
+
+`familyQuery` ed `exclusionsQuery` con la stessa forma su `api.family.get` e
+`api.family.listExclusions`; `select` è quello di `queries.ts` (`value.data`).
+
+- [ ] **Step 5: Verifica**
+
+Run: `npm test -w web && npm run typecheck -w web`
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add web/src
+git commit -m "Web: mutazioni di profilo e famiglia con il modello del voto e le invalidazioni per operazione"
+```
+
+---
+
+### Task 13: Profilo, Preferenze e Membri
 
 **Files:**
 - Modify: `web/src/routes/ProfilePage.tsx` (e il suo CSS), `web/src/router.tsx` (registrazione delle rotte)
 - Create: `web/src/routes/profile/PreferencesPage.tsx`, `web/src/routes/profile/MembersPage.tsx`, test accanto, `web/src/i18n/messages/family.ts`; chiavi nuove in `web/src/i18n/messages/profile.ts`
 
 **Interfaces:**
-- Consumes: `profileQuery`, `useUpdateProfile`, `useSetCurrentFamily`, `familyQuery` (Task 11);
+- Consumes: `profileQuery` (Task 11), `useAreaMutation`, `familyQuery` (Task 12);
   `PageHeader`, `StateNotice`, `QueryError`, `Loading`, `Icon` della base.
 - Produces: rotte `/profile`, `/profile/preferences`, `/profile/family`.
 
@@ -2112,14 +2513,14 @@ git commit -m "Web: Profilo, preferenze e membri collegati ai dati veri"
 
 ---
 
-### Task 13: Pagina delle impostazioni
+### Task 14: Pagina delle impostazioni
 
 **Files:**
 - Create: `web/src/routes/profile/SettingsPage.tsx`, `web/src/components/DinersGrid.tsx`, `web/src/components/MealRules.tsx`, `web/src/components/IngredientRestrictions.tsx`, `web/src/components/Stepper.tsx` (se la base non ha già uno stepper riusabile: `ServingsStepper` va esteso invece di duplicarlo), CSS e test accanto
 - Modify: `web/src/router.tsx`, `web/src/i18n/messages/family.ts`
 
 **Interfaces:**
-- Consumes: `settingsQuery`, `familyQuery`, `applyFamilyMutation` (Task 11); le
+- Consumes: `settingsQuery`, `familyQuery`, `useAreaMutation` (Task 12); le
   operazioni `family.*` dei Task 5-7; costanti `MAX_SERVINGS`, `TIME_LIMITS`,
   `KNOWN_NEW_MAX`, `GROUP_MAX`, `DISH_KINDS` da `@app/domain/family` e i vocabolari da
   `@app/domain/planner` (aggiungere `@app/domain` alle dipendenze di `web/`).
@@ -2179,8 +2580,8 @@ prototipo:
   `setGroupRange`, `setBookOwned`, `setIngredientRestriction`, `rename`,
   `setMeasurementSystem`, `setTimeZone`); le regole si tolgono passando il valore, non un id;
 - un controllo in attesa resta sul valore inviato ed è disattivato fino alla risposta;
-- unità e fuso → `invalidates: 'family'`; il resto → `invalidates: 'self'`; nome →
-  anche `profileQuery` scaduta;
+- ogni gesto passa da `useAreaMutation('family.<operazione>', familyId)`: cosa si
+  scrive e cosa scade lo decide `INVALIDATIONS` (Task 12), non la pagina;
 - fuso: `select` con `Intl.supportedValuesOf('timeZone')` nella scheda delle unità;
 - «Avanzate» in un `<details>` chiuso;
 - nessun «Elimina la famiglia» (ondata 3);
@@ -2200,14 +2601,14 @@ git commit -m "Web: impostazioni della famiglia"
 
 ---
 
-### Task 14: «Non proporre più» nel web e prova visiva
+### Task 15: «Non proporre più» nel web e prova visiva
 
 **Files:**
 - Create: `web/src/routes/profile/ExclusionsPage.tsx`, test accanto
 - Modify: `web/src/router.tsx`, `web/src/i18n/messages/family.ts`
 
 **Interfaces:**
-- Consumes: `exclusionsQuery`, `applyFamilyMutation` (Task 11), `family.removeExclusion`.
+- Consumes: `exclusionsQuery`, `useAreaMutation` (Task 12), `family.removeExclusion`.
 - Produces: rotta `/profile/family/exclusions`.
 
 - [ ] **Step 1: Test che falliscono**
@@ -2231,7 +2632,8 @@ it('lists exclusions with author or former member, and brings one back', async (
 
 Riscrivere `prototype/src/routes/profile/family/exclusions/+page.svelte` in React, con
 «Riproponi» che chiama `family.removeExclusion` e scrive la lista restituita
-(`invalidates: 'family'`: menu e suggerimenti tornano a considerare la ricetta).
+tramite `useAreaMutation('family.removeExclusion', familyId)` (nessun'altra lettura
+scade: la revisione dei pasti legge le esclusioni dal server).
 
 - [ ] **Step 3: Prova visiva**
 
@@ -2261,6 +2663,6 @@ git commit -m "Web: «Non proporre più» e prova visiva del Profilo"
 ## Ordine ed esecuzione
 
 I Task 1-10 non dipendono dal web e si eseguono subito, in ordine (il contratto cresce
-area per area). I Task 11-14 partono quando il coordinatore conferma che la base di W5
-(con il client oRPC reale) è su `main`, dopo un rebase. Poi PR verso `main` secondo il
-protocollo dei worker.
+area per area). I Task 11-15 partono quando la seconda PR di W5 (client oRPC reale) è su
+`main`, dopo un rebase; se non lo è, il worker si ferma con `STATO: DOMANDA`. Poi PR
+verso `main` secondo il protocollo dei worker.
