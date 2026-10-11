@@ -66,8 +66,9 @@ Corretto l'11 ottobre 2026 dopo la review di spec e piano
 1. **Versione di un'altra famiglia o lingua**: una `knownVersion` posseduta per la
    famiglia A non vale come «invariato» per la famiglia B con gli stessi contatori (test
    nel task 6).
-2. **Header `Authorization` malformato e claim non validi** (`bearer x`, `Bearer `
-   vuoto, token non JWT, senza `exp`, `session_id` non UUID, `client_id` vuoto o non
+2. **Header `Authorization` malformato e claim non validi** (`bearer x`, che
+   fallisce perché `x` non è un JWT: lo schema si confronta senza distinzione fra maiuscole
+   e minuscole come vuole RFC 9110, `Bearer ` vuoto, token non JWT, senza `exp`, `session_id` non UUID, `client_id` vuoto o non
    stringa): sempre `unauthorized`, mai `internal` né canale web, senza arrivare al
    database (test nei task 3, 6 e 7).
 3. **Database irraggiungibile**: `internal` con stato 500 e `requestId`, senza la
@@ -742,7 +743,7 @@ describe('remoteKeySource', () => {
 describe('bearer header', () => {
 	it('reads only well-formed bearer headers', () => {
 		expect(bearerToken('Bearer abc')).toBe('abc');
-		expect(bearerToken('bearer abc')).toBeUndefined();
+		expect(bearerToken('bearer abc')).toBe('abc'); // scheme is case-insensitive (RFC 9110)
 		expect(bearerToken('Bearer ')).toBeUndefined();
 		expect(bearerToken(null)).toBeUndefined();
 	});

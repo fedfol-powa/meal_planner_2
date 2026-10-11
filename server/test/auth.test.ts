@@ -155,8 +155,14 @@ describe('remoteKeySource', () => {
 describe('bearer header', () => {
 	it('reads only well-formed bearer headers', () => {
 		expect(bearerToken('Bearer abc')).toBe('abc');
-		expect(bearerToken('bearer abc')).toBeUndefined();
 		expect(bearerToken('Bearer ')).toBeUndefined();
+		expect(bearerToken('Basic abc')).toBeUndefined();
+		expect(bearerToken('Bearerabc')).toBeUndefined();
 		expect(bearerToken(null)).toBeUndefined();
+	});
+
+	it('matches the scheme name case-insensitively (RFC 9110, 11.1)', () => {
+		expect(bearerToken('bearer abc')).toBe('abc');
+		expect(bearerToken('BEARER abc')).toBe('abc');
 	});
 });

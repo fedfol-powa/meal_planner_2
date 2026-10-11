@@ -88,8 +88,8 @@ export async function verifyAccessToken(token: string, options: { issuer: string
 	return claims.data;
 }
 
+/** Token of an `Authorization: Bearer` header; the scheme name is case-insensitive (RFC 9110). */
 export function bearerToken(header: string | null): string | undefined {
-	if (!header?.startsWith('Bearer ')) return undefined;
-	const token = header.slice('Bearer '.length).trim();
-	return token || undefined;
+	const match = header?.match(/^Bearer (.*)$/i);
+	return match?.[1].trim() || undefined;
 }
