@@ -1,2 +1,21 @@
 -- Shared test data, extended task by task. Runs as postgres, before any login.
 \ir cleanup.psql
+
+-- People: Anna (Rossi admin, Bianchi member), Bruno (Rossi), Carla (Bianchi admin),
+-- Dario (curator, no family), Elena (app admin, no family), Franco (Verdi admin),
+-- Gina (curator, no family: shares nothing with Dario).
+do $$
+begin
+	perform tests.create_user('anna');
+	perform tests.create_user('bruno');
+	perform tests.create_user('carla');
+	perform tests.create_user('dario');
+	perform tests.create_user('elena');
+	perform tests.create_user('franco', 'en-GB');
+	perform tests.create_user('gina');
+	insert into app.user_roles (user_id, role) values
+		(tests.uid('dario'), 'recipe_curator'),
+		(tests.uid('elena'), 'app_admin'),
+		(tests.uid('gina'), 'recipe_curator');
+end;
+$$;

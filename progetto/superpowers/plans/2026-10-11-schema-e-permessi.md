@@ -633,17 +633,23 @@ $$;
 
 -- The token's session still exists and has not expired: a JWT of a closed session
 -- (sign out, deleted account, revoked agent) is refused by the server.
+-- plpgsql: a malformed session_id must be refused before the cast, which a SQL
+-- function may evaluate early.
 create function app.session_is_active()
-returns boolean language sql stable security definer set search_path = '' as $$
-	select case
-		when coalesce(auth.jwt() ->> 'session_id', '') !~ '^[0-9a-fA-F-]{36}$' then false
-		else exists (
-			select 1 from auth.sessions s
-			where s.id = (auth.jwt() ->> 'session_id')::uuid
-				and s.user_id = auth.uid()
-				and (s.not_after is null or s.not_after > now())
-		)
-	end;
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare
+	v_session_id text := auth.jwt() ->> 'session_id';
+begin
+	if coalesce(v_session_id, '') !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then
+		return false;
+	end if;
+	return exists (
+		select 1 from auth.sessions s
+		where s.id = v_session_id::uuid
+			and s.user_id = auth.uid()
+			and (s.not_after is null or s.not_after > now())
+	);
+end;
 $$;
 
 revoke execute on function app.create_profile_for_new_user(), app.has_role(text), app.session_is_active() from public;
