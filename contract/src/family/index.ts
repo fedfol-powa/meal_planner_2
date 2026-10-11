@@ -1,3 +1,5 @@
+import { GROUP_MAX, knownNewSchema, mealRuleSchema, slotSettingSchema } from '@app/domain/family';
+import { FOOD_GROUPS, MEAL_TYPES } from '@app/domain/planner';
 import { z } from 'zod';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
@@ -7,6 +9,8 @@ import { familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './v
 export * from './views.ts';
 
 const family = z.object({ familyId: z.uuid() });
+/** min ≤ max is checked by the handler: inputs stay plain objects for OpenAPI and MCP. */
+const groupBound = z.number().int().min(0).max(GROUP_MAX);
 /** Family administrators only; the answer is the updated view, not versioned. */
 const adminWrite = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyAdmin' });
 const memberRead = (reads?: ('family' | 'catalogue')[]) =>
@@ -59,4 +63,43 @@ export const familyContract = {
 		})
 		.input(family.extend({ timeZone: z.string().min(1).max(64) }))
 		.output(familyViewSchema),
+
+	setMeal: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/settings/meals/{mealType}/{weekday}',
+			summary:
+				'Plan one meal of the weekly pattern (weekday 0 = Monday): servings (0 = not planned), a fixed free-meal text or null, a time limit of 15, 20, 30, 45 or 60 minutes or null',
+		})
+		.input(family.extend({ mealType: z.enum(MEAL_TYPES), weekday: z.number().int().min(0).max(6), ...slotSettingSchema.shape }))
+		.output(settingsViewSchema),
+	addRule: adminWrite()
+		.route({
+			method: 'POST',
+			path: '/families/{familyId}/settings/rules',
+			summary:
+				'Add a meal rule from the four templates (only_lunch for a dish, at_least_one or never_on for a protein group on a weekday, never_fresh_fish on a weekday); adding an existing rule changes nothing',
+		})
+		.input(family.extend({ rule: mealRuleSchema }))
+		.output(settingsViewSchema),
+	removeRule: adminWrite()
+		.route({ method: 'POST', path: '/families/{familyId}/settings/rules/remove', summary: 'Remove a meal rule, given by its value; a missing rule changes nothing' })
+		.input(family.extend({ rule: mealRuleSchema }))
+		.output(settingsViewSchema),
+	setKnownNew: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/settings/known-new',
+			summary: 'Weekly quota of known and new recipes, with its tolerance (0-14 each)',
+		})
+		.input(family.extend(knownNewSchema.shape))
+		.output(settingsViewSchema),
+	setGroupRange: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/settings/group-ranges/{group}',
+			summary: 'Weekly minimum and maximum of a food group (0-14, min not above max)',
+		})
+		.input(family.extend({ group: z.enum(FOOD_GROUPS), min: groupBound, max: groupBound }))
+		.output(settingsViewSchema),
 };

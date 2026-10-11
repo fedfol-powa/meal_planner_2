@@ -3,6 +3,9 @@ import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
 import type { Implementer } from '../pipeline.ts';
 import { fresh } from '../pipeline.ts';
+import { groupRangeSchema, normalizeRules, resolveFamilySettings, sameRule } from '@app/domain/family';
+import type { MealRule } from '@app/domain/planner';
+import { writeSettingsKey } from './settings-writes.ts';
 import { familyView, searchIngredients, settingsView } from './views.ts';
 
 /** No row: the family is gone or the caller is no longer one of its administrators. */
@@ -30,9 +33,48 @@ function identityHandlers(os: Implementer) {
 	};
 }
 
+/** Current rules, locking the row: two concurrent rule changes never lose one another. */
+async function lockedRules(tx: Tx, familyId: string): Promise<MealRule[]> {
+	const [row] = await tx<{ settings: unknown }[]>`select settings from app.families where id = ${familyId} for update`;
+	if (!row) throw appError('forbidden');
+	return resolveFamilySettings(row.settings).rules;
+}
+
+function settingsHandlers(os: Implementer) {
+	return {
+		setMeal: os.family.setMeal.handler(async ({ context, input }) => {
+			const { familyId, mealType, weekday, servings, fixedText, maxMinutes } = input;
+			await writeSettingsKey(context.tx, familyId, ['slots', mealType, String(weekday)], { servings, fixedText, maxMinutes });
+			return settingsView(context.tx, familyId, context.locale);
+		}),
+		addRule: os.family.addRule.handler(async ({ context, input }) => {
+			const rules = await lockedRules(context.tx, input.familyId);
+			await writeSettingsKey(context.tx, input.familyId, ['rules'], normalizeRules([...rules, input.rule]));
+			return settingsView(context.tx, input.familyId, context.locale);
+		}),
+		removeRule: os.family.removeRule.handler(async ({ context, input }) => {
+			const rules = await lockedRules(context.tx, input.familyId);
+			await writeSettingsKey(context.tx, input.familyId, ['rules'], normalizeRules(rules.filter((rule) => !sameRule(rule, input.rule))));
+			return settingsView(context.tx, input.familyId, context.locale);
+		}),
+		setKnownNew: os.family.setKnownNew.handler(async ({ context, input }) => {
+			const { familyId, ...knownNew } = input;
+			await writeSettingsKey(context.tx, familyId, ['knownNew'], knownNew);
+			return settingsView(context.tx, familyId, context.locale);
+		}),
+		setGroupRange: os.family.setGroupRange.handler(async ({ context, input }) => {
+			const range = groupRangeSchema.safeParse({ min: input.min, max: input.max });
+			if (!range.success) throw appError('invalid', { issues: [{ path: ['min'], code: 'min_above_max' }] });
+			await writeSettingsKey(context.tx, input.familyId, ['groupRanges', input.group], range.data);
+			return settingsView(context.tx, input.familyId, context.locale);
+		}),
+	};
+}
+
 export function familyRouter(os: Implementer) {
 	return {
 		...identityHandlers(os),
+		...settingsHandlers(os),
 		get: os.family.get.handler(async ({ context, input }) => fresh(context, await familyView(context.tx, input.familyId, context.locale))),
 		getSettings: os.family.getSettings.handler(async ({ context, input }) =>
 			fresh(context, await settingsView(context.tx, input.familyId, context.locale)),
