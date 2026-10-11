@@ -27,15 +27,14 @@ cambiare altro.
 
 ## Review Focus
 
-1. **Etichetta inglese:** `profile.dest.curation` in inglese resta «Recipe curation».
-   «Curation» in inglese non ha il significato giuridico dell'italiano «curatela» ed è
-   coerente con «curator», che resta. Alternativa se il coordinatore preferisce il
-   parallelo stretto: «Recipe book management».
+1. **Etichetta inglese:** `profile.dest.curation` in inglese resta «Recipe curation»
+   (deciso nella review del piano); anche `authorize.can.curation` resta com'è.
+   «Curation» in inglese non ha il significato giuridico dell'italiano «curatela».
 2. **Righe storiche del registro** (specifica, righe 1878 e 1893): restano con
    «curatela» (vedi vincoli). Dopo il lavoro il grep troverà solo queste due righe e i
    piani chiusi.
-3. **Intestazione della specifica:** «Ultimo aggiornamento» passa all'11 ottobre
-   (proposta sotto); se si preferisce lasciarla, si toglie la sostituzione S0.
+3. **Intestazione della specifica:** «Ultimo aggiornamento» passa all'11 ottobre e si
+   sostituisce per intero (convenzione nella storia Git).
 4. **Titoli usati come riferimento:** nessun link punta all'ancora `#curatela`
    (verificato con grep), quindi rinominare il titolo di `design/design.md` non rompe
    collegamenti.
@@ -70,18 +69,18 @@ Expected: nessun errore, test verdi.
 
 | ID | Riga | Prima | Dopo |
 |---|---|---|---|
-| S0 | 4 | `Ultimo aggiornamento: 8 ottobre 2026 (nome dell'app «Cosa si mangia» e dominio` | `Ultimo aggiornamento: 11 ottobre 2026 («gestione del ricettario» al posto di «curatela»); 8 ottobre 2026 (nome dell'app «Cosa si mangia» e dominio` (riallineando le righe 4-6) |
+| S0 | 4-6 | `Ultimo aggiornamento: 8 ottobre 2026 (nome dell'app … sul dispositivo)` (intera riga, tre righe di testo) | `Ultimo aggiornamento: 11 ottobre 2026 («gestione del ricettario» al posto di «curatela»)` (sostituita per intero, come da convenzione) |
 | S1 | 292 | `una sezione dell'app dedicata alla curatela` | `una sezione dell'app dedicata alla gestione del ricettario` |
 | S2 | 308-309 | `nel percorso iniziale di curatela MCP.` | `nel percorso iniziale di gestione del ricettario tramite MCP.` |
 | S3 | 821 | `lavoro della curatela.` | `lavoro di gestione del ricettario.` |
-| S4 | 1219 | `nella sezione di curatela dell'app` | `nella sezione di gestione del ricettario dell'app` |
-| S5 | 1220 | `la sezione di curatela per la consultazione` | `la sezione di gestione per la consultazione` |
-| S6 | 1279 | `restano parte della curatela iniziale.` | `restano parte della gestione iniziale del ricettario.` |
+| S4 | 1219 | `È consultabile nella sezione di curatela dell'app` | `È consultabile nella sezione dell'app per la gestione del ricettario` |
+| S5 | 1220-1221 | `Dal 6 ottobre 2026 la sezione di curatela per la consultazione è in testa al ricettario` | `Dal 6 ottobre 2026 la sezione per consultare le bozze è in testa al ricettario` |
+| S6 | 1279 | `restano parte della curatela iniziale.` | `restano parte del percorso iniziale di gestione del ricettario.` |
 | S7 | 1285 | `parte del percorso di curatela.` | `parte del percorso di gestione del ricettario.` |
-| S8 | 1446 | `**Curatela manuale (M6)**` | `**Gestione manuale del ricettario (M6)**` |
+| S8 | 1446-1449 | `**Curatela manuale (M6)**` … `e gestione dei conflitti fra curatori.` | `**Gestione manuale del ricettario (M6)**` … `e risoluzione dei conflitti fra curatori.` |
 | S9 | 1490 | `operazioni di curatela e amministrazione.` | `operazioni di gestione del ricettario e amministrazione.` |
-| S10 | 1505-1506 | `dipendenza fra curatela e pubblicazione del ricettario importato` | `dipendenza fra gestione e pubblicazione del ricettario importato` |
-| S11 | 1512 | `Ripartizione di curatela e amministrazione` | `Ripartizione di gestione del ricettario e amministrazione` |
+| S10 | 1505-1506 | `dipendenza fra curatela e pubblicazione del ricettario importato` | `dipendenza fra gestione del ricettario e pubblicazione delle ricette importate` |
+| S11 | 1512 | `Ripartizione di curatela e amministrazione da precisare nel nuovo piano` | `Ripartizione della gestione del ricettario e dell'amministrazione da precisare nel nuovo piano` |
 | S12 | 1517 | `**M6 Curatela manuale — ultima priorità**` | `**M6 Gestione manuale del ricettario — ultima priorità**` |
 | S13 | 1524 | `richiesta insieme alla curatela tramite MCP.` | `richiesta insieme alla gestione del ricettario tramite MCP.` |
 | S14 | 1561 | `durante la curatela,` | `durante la gestione del ricettario,` |
@@ -94,9 +93,8 @@ Expected: nessun errore, test verdi.
 | S21 | 1864 | `dalla curatela MCP o dal modulo manuale` | `dalla gestione tramite MCP o dal modulo manuale` |
 | — | 1878, 1893 | righe storiche del registro | invariate (Review Focus 2) |
 
-- [ ] **Step 2: Nuova riga del registro (sezione 16)**, inserita dopo la riga 1899
-(«8 ottobre 2026, revisione dell'esperimento del pianificatore»), l'ultima in ordine
-cronologico:
+- [ ] **Step 2: Nuova riga del registro (sezione 16)**, accodata come ultima riga della
+tabella, dopo quella del «6 ottobre 2026, primo giro del prototipo approvato» (riga 1900):
 
 ```markdown
 | 11 ottobre 2026, gestione del ricettario | «Gestione del ricettario» (o «gestione») sostituisce «curatela» nei documenti vivi e nell'interfaccia italiana del prototipo («Gestione del ricettario» nel Profilo). Il ruolo resta «curatore», il codice in inglese resta `curation`; piani chiusi e righe precedenti di questo registro invariati |
@@ -128,8 +126,8 @@ cronologico:
 - [ ] **Step 1: grep finale**
 
 Run: `grep -rIin curatel --exclude-dir=node_modules .`
-Expected: solo `progetto/superpowers/plans/` (piani chiusi) e le righe 1878 e 1893 della
-specifica (registro storico).
+Expected: solo `progetto/superpowers/plans/` (piani chiusi e questo piano) e le righe 1878
+e 1893 della specifica (registro storico).
 
 - [ ] **Step 2: prototipo e controlli della radice**
 
@@ -140,6 +138,7 @@ Expected: tutto verde.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add -A
-git commit -m "Specifica: «gestione del ricettario» al posto di «curatela»"
+git add progetto/superpowers/specs/2026-09-29-app-famiglia-design.md AGENTS.md \
+  design/design.md design/percorsi.md prototype/README.md prototype/src/lib/i18n/messages.ts
+git commit -m "Documenti e prototipo: «gestione del ricettario» al posto di «curatela»"
 ```
