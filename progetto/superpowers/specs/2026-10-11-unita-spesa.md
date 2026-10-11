@@ -156,10 +156,24 @@ nell'ordine dei codici, testi, «q.b.»; separatore « + ».
 | Unità | Arrotondamento |
 |---|---|
 | g, ml | sotto 5 all'intero (minimo 1), sotto 50 a 5, poi a 10; da 1000 in su in kg o l a 0,1 |
-| tbsp, tsp | al mezzo (minimo ½) |
-| piece, clove, sprig, bunch, leaf, pinch | al mezzo per eccesso |
-| slice | all'intero per eccesso |
+| tbsp, tsp | al mezzo (minimo ½), alle porzioni della fonte, scalati e nella spesa |
+| piece | com'è scritto alle porzioni della fonte; al mezzo per eccesso se scalati; nella spesa all'intero per eccesso con tolleranza 0,1 |
+| clove, sprig, bunch, leaf, pinch, slice | com'è scritto alle porzioni della fonte; all'intero per eccesso se scalati e nella spesa |
 | us_cup | al quarto (solo bozze) |
+
+**Unità contate scalate** (decisione dell'utente dell'11 ottobre 2026, opzione 1, dalla
+prova di W6 sull'aglio «4½ spicchi»): una riga a porzioni diverse da quelle della fonte
+(scheda ricetta, scheda del pasto nel menu, provenienza di una voce della spesa) mostra
+`clove`, `pinch`, `sprig`, `leaf`, `bunch`, `slice` all'intero per eccesso («5 spicchi»,
+minimo 1); `piece` resta al mezzo per eccesso, perché copre sia le uova sia le mezze cipolle
+e i mezzi peperoni delle fonti («½ cipolla» scalata per 3 porzioni resta «½»); cucchiai e
+cucchiaini restano al mezzo. Alle porzioni della fonte le unità contate (`piece`, `clove`,
+`slice`, `pinch`, `sprig`, `bunch`, `leaf`) restano esattamente come sono scritte, senza
+arrotondamento («¼ spicchio», «½ fetta», «1,2 spicchi»): arrotondamento `recipe`. Cucchiai,
+cucchiaini e tazze si arrotondano come sopra in ogni caso. Arrotondamento `scaled` o
+`recipe` di `presentCount`, scelto da chi formatta la riga (`ingredientLinesView` nel
+server, provenienze della lista con `ShoppingSource.scaled`); `formatCombined`, che
+presenta somme da comprare, usa `shopping` se non indicato altro.
 
 **Sistema imperiale britannico** (deciso l'11 ottobre 2026, coordinatore; da vedere
 nella review dell'utente):
@@ -182,12 +196,14 @@ cucchiai o cucchiaini di misura e la stessa voce ha cucchiai domestici dello ste
 si mostrano sommati («3 tbsp», non «2 tbsp + 1 tbsp»), arrotondando la somma al mezzo. Il
 calcolo resta separato: `volume_ml` e `counts.tbsp` non si fondono in `CombinedQuantity`.
 
-**Lista della spesa** (pezzi interi, tolleranza 0,1 per gli avanzi delle conversioni):
-`piece`, `bunch`, `slice` per eccesso all'intero, ignorando un avanzo fino a 0,1 compreso
-(½ peperone → 1, 2,06 limoni → 2, 1,1 → 1, 1,11 → 2,
-2,2 → 3, minimo 1); `clove`, `sprig`, `leaf`, `pinch` al mezzo come nella ricetta.
-Ricetta, scheda del pasto e provenienza delle voci restano nelle unità della ricetta
-(con la conversione di sistema, senza unità di acquisto né pezzi interi).
+**Lista della spesa** (unità contate intere): `piece` per eccesso all'intero ignorando un
+avanzo delle conversioni fino a 0,1 compreso (½ peperone → 1, 2,06 limoni → 2, 1,1 → 1,
+1,11 → 2, 2,2 → 3, minimo 1); `bunch`, `slice`, `clove`, `sprig`, `leaf`, `pinch` per
+eccesso all'intero senza tolleranza, come nelle righe scalate (4½ spicchi → 5, 1,1 → 2,
+minimo 1), così la spesa non indica mai meno unità di quelle mostrate nel pasto; cucchiai,
+cucchiaini e tazze come nella ricetta. Ricetta, scheda del pasto e provenienza delle voci restano nelle unità della
+ricetta (con la conversione di sistema, senza unità di acquisto), con l'arrotondamento
+delle unità contate scalate visto sopra.
 
 **Testo** (`it-IT`, `en-GB`): etichette singolare e plurale per ogni codice («spicchio»/
 «spicchi», «clove»/«cloves»; nessuna etichetta per `piece`), frazioni ¼ ½ ¾ per conteggi,
@@ -326,8 +342,18 @@ Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contr
   intere; libbre al ¼ da 1 lb; volumi fino a 45 ml in cucchiaini o cucchiai di misura
   (5 e 15 ml) al ½; fl oz al ½ fino a 4, poi intere; pinte al ¼ da 1 pinta
   (sezioni 6 e 15).
-- Spesa: `piece`, `bunch`, `slice` per eccesso all'intero con tolleranza 0,1; `clove`,
-  `sprig`, `leaf`, `pinch` al mezzo (sezione 6).
+- Spesa: tutte le unità contate tranne cucchiai, cucchiaini e tazze per eccesso
+  all'intero («5 spicchi», non «4½ spicchi»); solo i pezzi ignorano un avanzo delle
+  conversioni fino a 0,1 (2,06 limoni → 2), le altre unità no (1,1 spicchi → 2, come nel
+  pasto) (sezione 6; decisione dell'utente dell'11 ottobre 2026, opzione 1). Sostituisce
+  il mezzo per eccesso di spicchi, rametti, foglie e pizzichi nella spesa.
+- Righe scalate in scheda ricetta, menu e provenienze della spesa: spicchi, pizzichi,
+  rametti, foglie, mazzi e fette all'intero per eccesso; pezzi al mezzo; cucchiai al
+  mezzo (sezione 6, stessa decisione). Sostituisce il mezzo superiore di pezzi e spicchi
+  nella presentazione.
+- Alle porzioni della fonte le unità contate restano esattamente come sono scritte
+  («¼ spicchio», «½ fetta»), senza arrotondamento; cucchiai, cucchiaini e tazze si
+  arrotondano come sempre (sezione 6, stessa decisione).
 - Cucchiai e cucchiaini sono unità domestiche: mai convertiti in ml né sommati ai
   volumi. Bicchieri, gocci, confezioni, vasetti, bustine, panetti e intervalli sono
   quantità testuali tradotte, convertibili dal curatore in g o ml con una fonte

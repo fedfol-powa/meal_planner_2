@@ -11,7 +11,24 @@ describe('fake quantities', () => {
     expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'clove' }, '1/2', null, 'it-IT')).toBe('½ spicchio');
     expect(formatAmount({ kind: 'amount', value: 1.5, unit: 'clove' }, '', null, 'it-IT')).toBe('1½ spicchi');
     expect(formatAmount({ kind: 'amount', value: 2, unit: 'piece' }, '2', null, 'en-GB')).toBe('2');
-    expect(formatAmount({ kind: 'amount', value: 0.1, unit: 'piece' }, '', null, 'en-GB')).toBe('¼');
+    expect(formatAmount({ kind: 'amount', value: 0.25, unit: 'clove' }, '', null, 'it-IT')).toBe('¼ spicchio');
+    expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'slice' }, '', null, 'en-GB')).toBe('½ slice');
+    expect(formatAmount({ kind: 'amount', value: 0.1, unit: 'piece' }, '', null, 'en-GB')).toBe('0.1');
+    expect(formatAmount({ kind: 'amount', value: 1.2, unit: 'clove' }, '', null, 'it-IT')).toBe('1,2 spicchi');
+  });
+  it('writes scaled cloves, pinches, sprigs, leaves, bunches and slices whole and pieces in halves, like the domain (option 1)', () => {
+    const scaled = [
+      ['clove', '5 spicchi', '5 cloves'], ['pinch', '5 pizzichi', '5 pinches'], ['sprig', '5 rametti', '5 sprigs'],
+      ['leaf', '5 foglie', '5 leaves'], ['bunch', '5 mazzetti', '5 bunches'], ['slice', '5 fette', '5 slices']
+    ] as const;
+    for (const [unit, italian, english] of scaled) {
+      expect(formatAmount({ kind: 'amount', value: 4.5, unit }, '', null, 'it-IT', true)).toBe(italian);
+      expect(formatAmount({ kind: 'amount', value: 4.5, unit }, '', null, 'en-GB', true)).toBe(english);
+    }
+    expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'pinch' }, '', null, 'it-IT', true)).toBe('1 pizzico');
+    expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'leaf' }, '', null, 'en-GB', true)).toBe('1 leaf');
+    expect(formatAmount({ kind: 'amount', value: 1 / 3, unit: 'piece' }, '', null, 'it-IT', true)).toBe('½');
+    expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'tsp' }, '', null, 'it-IT', true)).toBe('½ cucchiaino');
   });
   it('shows to-taste and text quantities in the user language', () => {
     expect(formatAmount({ kind: 'to_taste' }, 'q.b.', null, 'en-GB')).toBe('to taste');

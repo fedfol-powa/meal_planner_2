@@ -26,6 +26,26 @@ describe('ingredientLinesView', () => {
 		]);
 	});
 
+	it('writes scaled cloves whole and keeps halves of pieces; the source servings as written (option 1)', () => {
+		const garlic = '00000000-0000-4000-8000-000000000003';
+		const onion = '00000000-0000-4000-8000-000000000004';
+		const withCounts = new Map([...names, [garlic, { 'it-IT': 'Aglio', 'en-GB': 'Garlic' }], [onion, { 'it-IT': 'Cipolla', 'en-GB': 'Onion' }]]);
+		const counted: LineInput[] = [
+			{ ingredientId: garlic, variety: null, preparation: null, quantity: { kind: 'amount', value: 3, unit: 'clove' }, isOptional: false },
+			{ ingredientId: onion, variety: null, preparation: null, quantity: { kind: 'amount', value: 0.5, unit: 'piece' }, isOptional: false },
+		];
+		const amounts = (servings: number) => ingredientLinesView(counted, withCounts, { servings, baseServings: 4, system: 'metric', locale: 'it-IT' }).map((l) => l.amount);
+		expect(amounts(6)).toEqual(['5 spicchi', '1']);
+		expect(amounts(3)).toEqual(['3 spicchi', '½']);
+		expect(amounts(4)).toEqual(['3 spicchi', '½']);
+		const asWritten = (value: number, locale: 'it-IT' | 'en-GB') =>
+			ingredientLinesView([{ ...counted[0]!, quantity: { kind: 'amount', value, unit: 'clove' } }], withCounts, { servings: 4, baseServings: 4, system: 'uk_imperial', locale })[0]!.amount;
+		expect(asWritten(0.5, 'it-IT')).toBe('½ spicchio');
+		expect(asWritten(0.25, 'it-IT')).toBe('¼ spicchio');
+		expect(asWritten(0.25, 'en-GB')).toBe('¼ clove');
+		expect(asWritten(1.2, 'en-GB')).toBe('1.2 cloves');
+	});
+
 	it('converts to the family system', () => {
 		const [line] = ingredientLinesView(lines, names, { servings: 2, baseServings: 2, system: 'uk_imperial', locale: 'en-GB' });
 		expect(line).toMatchObject({ name: 'Tomatoes Roma', preparation: 'diced' });

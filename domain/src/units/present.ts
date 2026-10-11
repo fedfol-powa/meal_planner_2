@@ -1,12 +1,17 @@
 import {
 	BASE_FACTOR, G_PER_OZ, ML_PER_UK_FL_OZ, ML_PER_UK_TBSP, ML_PER_UK_TSP, OZ_PER_LB, UK_FL_OZ_PER_PINT,
-	isMassUnit, isVolumeUnit, type CountedUnit, type UnitCode
+	COUNT_UNITS, isMassUnit, isVolumeUnit, type CountedUnit, type UnitCode
 } from './codes.ts';
 
 export const MEASUREMENT_SYSTEMS = ['metric', 'uk_imperial'] as const;
 export type MeasurementSystem = (typeof MEASUREMENT_SYSTEMS)[number];
-/** Recipes, meal cards and item sources keep halves; shopping lists buy whole pieces. */
-export type CountRounding = 'recipe' | 'shopping';
+/**
+ * `recipe`: a line at the servings of its source, counts exactly as written (¼ spicchio, ½ fetta).
+ * `scaled`: a line at other servings (recipe card, meal card, item source): cloves, pinches, sprigs,
+ * leaves, bunches and slices whole, pieces in halves. `shopping`: a sum to buy, every count whole.
+ * Spoons and US cups round the same way in all three (user decision, option 1, 11 October 2026).
+ */
+export type CountRounding = 'recipe' | 'scaled' | 'shopping';
 
 export interface PresentedAmount {
 	value: number;
@@ -17,7 +22,9 @@ export interface PresentedAmount {
 const PIECE_TOLERANCE = 0.1;
 const HALF_OZ_IN_G = G_PER_OZ / 2;
 const MAX_SPOON_ML = 3 * ML_PER_UK_TBSP;
-const BOUGHT_WHOLE: ReadonlySet<CountedUnit> = new Set<CountedUnit>(['piece', 'bunch', 'slice']);
+/** Never useful as a fraction once scaled: «4½ spicchi» reads «5 spicchi». Pieces (eggs, but also half onions) keep halves. */
+const WHOLE_WHEN_SCALED: ReadonlySet<CountedUnit> = new Set<CountedUnit>(['clove', 'pinch', 'sprig', 'leaf', 'bunch', 'slice']);
+const COUNTS: ReadonlySet<CountedUnit> = new Set<CountedUnit>(COUNT_UNITS);
 
 /**
  * Halfway points round up even when a conversion left them a hair below: 14.5 oz becomes
@@ -65,14 +72,15 @@ export function presentVolume(millilitres: number, system: MeasurementSystem): P
 }
 
 export function presentCount(value: number, unit: CountedUnit, rounding: CountRounding): PresentedAmount {
-	// Up to 0.1 left over is ignored, 0.1 included (1.1 → 1): the epsilon absorbs 1.1 - 0.1 = 1.0000000000000002.
-	if (rounding === 'shopping' && BOUGHT_WHOLE.has(unit)) return { value: Math.max(1, Math.ceil(value - PIECE_TOLERANCE - 1e-9)), unit };
+	if (rounding === 'recipe' && COUNTS.has(unit)) return { value, unit };
+	// Pieces only: up to 0.1 left over is ignored, 0.1 included (1.1 → 1); the epsilon absorbs 1.1 - 0.1 = 1.0000000000000002.
+	if (rounding === 'shopping' && unit === 'piece') return { value: Math.max(1, Math.ceil(value - PIECE_TOLERANCE - 1e-9)), unit };
+	// Up to the next whole, as in the meal they come from (1.1 cloves → 2 in both).
+	if (rounding !== 'recipe' && WHOLE_WHEN_SCALED.has(unit)) return { value: Math.max(1, Math.ceil(value - 1e-9)), unit };
 	switch (unit) {
 		case 'tbsp':
 		case 'tsp':
 			return { value: Math.max(0.5, roundTo(value, 0.5)), unit };
-		case 'slice':
-			return { value: Math.max(1, Math.ceil(value - 1e-9)), unit };
 		case 'us_cup':
 			return { value: Math.max(0.25, roundTo(value, 0.25)), unit };
 		default:
