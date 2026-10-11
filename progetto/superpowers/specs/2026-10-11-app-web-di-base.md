@@ -56,8 +56,11 @@ web/
     └── routes/        rotte definite in codice, una cartella per vista
 ```
 
-`web/` ha il suo `package.json` e si installa, prova e costruisce da solo. Quando W1
-crea lo spazio di lavoro npm della radice, `web/` vi si collega senza cambiare comandi.
+`web/` è il workspace npm `@app/web` dello scheletro di W1 (PR #3): dipendenze installate
+dalla radice con un solo `package-lock.json`, Vitest e TypeScript della radice,
+`tsconfig.json` che estende `tsconfig.base.json`. Gli script `test` e `typecheck` di
+`web/package.json` sono veri, perché la radice e la CI li lanciano con `--if-present`;
+`build` produce `web/dist`, usata da `npm run deploy`.
 
 ## Dipendenze
 
@@ -68,8 +71,8 @@ crea lo spazio di lavoro npm della radice, `web/` vi si collega senza cambiare c
 | `@tanstack/react-query` | esecuzione | Stack deciso | — |
 | `@tanstack/react-query-persist-client` | esecuzione | Ripristino della cache prima che le query partano (`PersistQueryClientProvider`) | Riscrivere ripristino e salvataggio con i loro tempi, circa 80 righe con casi limite |
 | `@supabase/supabase-js` | esecuzione | Login e sessione con rinnovo del token (consentito dal brief) | — |
-| `vite`, `@vitejs/plugin-react`, `typescript` | sviluppo | Build e tipi | — |
-| `vitest` | sviluppo | Test, già usato nel prototipo | — |
+| `vite`, `@vitejs/plugin-react`, `typescript` (dalla radice) | sviluppo | Build e tipi | — |
+| `vitest` | sviluppo (dalla radice) | Test, già usato nel prototipo e nello scheletro | — |
 | `@testing-library/react` | sviluppo | Montaggio e interrogazioni per ruolo e nome accessibile | Montaggio a mano con `act`, test più lunghi e fragili, nessuna verifica dei nomi accessibili |
 | `jsdom` | sviluppo | DOM dei test dei componenti | Nessun test dei componenti |
 
@@ -175,7 +178,8 @@ Nome in Agrandir Tight 28 px ed email; `settings-card` con righe da 52 px:
   inviti, Impostazioni, Non proporre più).
 - **Account:** lingua con due scelte (Italiano, English) che cambia subito l'interfaccia
   (in modalità finta la scelta vive sul dispositivo; il salvataggio sul profilo arriva
-  con l'operazione dell'ondata 2); «Esci».
+  con l'operazione dell'ondata 2); «Esci», solo in modalità vera (in modalità finta
+  non c'è login).
 - Le righe dei ruoli (gestione del ricettario, collegamento degli agenti,
   amministrazione) non compaiono: arrivano con le loro funzioni.
 
@@ -342,8 +346,10 @@ locale senza rileggere» (sezione 1).
 - `tsc --noEmit` e `vite build` senza errori.
 - **Prova nel browser** con agent-browser a 320, 390 e 1440 px, in italiano e inglese,
   confrontata con `design/index.html` e gli screenshot `design/references/hellofresh/preview-*`.
-- **iPhone:** `npm run preview:lan` su porta 8767, installazione come PWA e apertura
-  offline dopo il primo caricamento.
+- **iPhone:** `npm run preview:lan` su porta 8767 per resa e installazione come PWA.
+  Sulla rete locale l'indirizzo è `http`, e senza contesto sicuro il browser non
+  registra il service worker: l'apertura offline si prova sul Mac con `localhost` e su
+  iPhone dopo il deploy di W1 su `workers.dev` (HTTPS).
 
 ## Interfacce con altre attività
 
@@ -352,7 +358,7 @@ locale senza rileggere» (sezione 1).
 | W1 | Forma di `Api` e client oRPC, `getAccessToken()`, build in `web/dist` servita come asset con ripiego su `index.html` | Accettata dal coordinatore, girata a W1 |
 | W1 | «Invariato» nel contratto con `knownVersion` | Deciso da W1 |
 | W1 | Configurazione degli ambienti e variabili `VITE_SUPABASE_*` per lo stack locale | Da concordare tramite il coordinatore |
-| W1 | Collegamento di `web/` allo spazio di lavoro npm della radice | Quando W1 lo crea |
+| W1 | `web/` come workspace `@app/web`, script `test` e `typecheck` eseguiti dalla CI | Scheletro unito su `main` (PR #3) |
 | W4 | Scalatura e conversione vere delle quantità (il client finto le simula) | Ondata 2 |
 
 ## Decisioni da riportare nella specifica
