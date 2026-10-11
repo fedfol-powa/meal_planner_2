@@ -8,7 +8,8 @@ import { useT } from '../../i18n/LocaleProvider';
 import { listExport } from './exportText';
 import styles from './ShoppingPage.module.css';
 
-type Bring = { kind: 'idle' } | { kind: 'creating' } | { kind: 'ready'; url: string } | { kind: 'failed'; empty: boolean };
+/** A ready link belongs to the confirmed view and the list it was made from. */
+type Bring = { kind: 'idle' } | { kind: 'creating' } | { kind: 'ready'; url: string; base: ShoppingListView; list: string } | { kind: 'failed'; empty: boolean };
 
 interface Props {
   /** The list as shown, pending changes included. */
@@ -45,6 +46,9 @@ export function ShareMenu({ view, base, familyId, weekStartsOn, unsynced, flush 
   latest.current = { base, unsynced };
   const exported = listExport(view);
   const nothingLeft = exported.lines.length === 0;
+  const listId = `${familyId}/${weekStartsOn}`;
+  // A newer confirmed view (also from another phone) or another list: the link shows an old list (PR #22 review, finding 4).
+  const link = bring.kind === 'ready' && bring.base === base && bring.list === listId ? bring.url : null;
   const bringBlocked = !online ? 'offline' : unsynced > 0 ? 'pending' : null;
 
   // A change after the link was made: the link shows the old list, so it goes.
@@ -101,7 +105,7 @@ export function ShareMenu({ view, base, familyId, weekStartsOn, unsynced, flush 
       const { url } = await api.shopping.createBringLink({ familyId, weekStartsOn });
       // Changed meanwhile, here or confirmed from another phone: the link would show the old list.
       if (latest.current.unsynced > 0 || latest.current.base !== startedWith) return setBring({ kind: 'idle' });
-      setBring({ kind: 'ready', url });
+      setBring({ kind: 'ready', url, base: startedWith, list: listId });
     } catch (error) {
       setBring({ kind: 'failed', empty: isEmptyList(error) });
     }
@@ -136,8 +140,8 @@ export function ShareMenu({ view, base, familyId, weekStartsOn, unsynced, flush 
         {copied === 'copied' && <p>{t('shopping.copied')}</p>}
         {copied === 'failed' && <p>{t('shopping.copyFailed')}</p>}
         {bring.kind === 'creating' && <p>{t('shopping.bringPreparing')}</p>}
-        {bring.kind === 'ready' && (
-          <a className="text-button primary" href={bring.url} target="_blank" rel="noopener" onClick={() => setBring({ kind: 'idle' })}>
+        {link && (
+          <a className="text-button primary" href={link} target="_blank" rel="noopener" onClick={() => setBring({ kind: 'idle' })}>
             {t('shopping.bringOpen')}
           </a>
         )}

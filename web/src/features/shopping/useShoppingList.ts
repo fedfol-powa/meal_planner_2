@@ -12,7 +12,7 @@ const EMPTY: QueueRecord = { ops: [], notices: [], seq: 0 };
 const noQueue = { subscribe: () => () => {}, record: () => EMPTY };
 
 export interface ShoppingListState {
-  /** The list as shown: confirmed view with the queued changes on top. */
+  /** The list as shown: confirmed view with the queued changes on top; null until both are known. */
   view: PendingView | null;
   query: UseQueryResult<ShoppingListView>;
   pendingCount: number;
@@ -31,7 +31,8 @@ export function useShoppingList(familyId: string, weekStartsOn: string): Shoppin
   const record = useSyncExternalStore(source.subscribe, source.record, source.record);
   const ops = useMemo(() => opsOfList(record, familyId, weekStartsOn), [record, familyId, weekStartsOn]);
   const notices = useMemo(() => noticesOfList(record, familyId, weekStartsOn), [record, familyId, weekStartsOn]);
-  const view = useMemo(() => (query.data ? applyPending(query.data, familyId, ops) : null), [query.data, familyId, ops]);
+  // No list without the local layer: until the queue is read, its changes are unknown (PR #22 review, finding 3).
+  const view = useMemo(() => (query.data && queue ? applyPending(query.data, familyId, ops) : null), [query.data, queue, familyId, ops]);
   const act = useCallback(async (op: ShoppingOperation, label: string) => {
     if (!queue) return;
     await queue.add(op, label);

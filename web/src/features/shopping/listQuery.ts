@@ -27,9 +27,17 @@ const isList = (familyId: string, weekStartsOn: string) => (query: Query) => {
  * the confirmation, so they are cancelled first and never overwrite it (W5's mutation model). The
  * answer is in one language; the others are read again.
  */
-export async function applyConfirmedList(queryClient: QueryClient, familyId: string, weekStartsOn: string, result: SendResult): Promise<void> {
+export async function applyConfirmedList(
+  queryClient: QueryClient,
+  familyId: string,
+  weekStartsOn: string,
+  result: SendResult,
+  isCurrent: () => boolean = () => true
+): Promise<void> {
   const matches = isList(familyId, weekStartsOn);
   await queryClient.cancelQueries({ predicate: matches });
+  // Checked again after the wait: the session may have closed or the family been revoked meanwhile.
+  if (!isCurrent()) return;
   const key = shoppingListKey(familyId, weekStartsOn, result.data.locale);
   queryClient.setQueryData<Versioned<ShoppingListView>>(key, { version: result.version, data: result.data });
   void queryClient.invalidateQueries({ predicate: (query) => matches(query) && query.queryKey[2] !== undefined && (query.queryKey[2] as { locale?: unknown }).locale !== result.data.locale });

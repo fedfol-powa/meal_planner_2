@@ -1,3 +1,4 @@
+import { focusManager } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
@@ -6,7 +7,7 @@ import { DEMO_USER } from '../../auth/backend';
 import { setOnline } from '../../test/connectivity';
 import { renderApp } from '../../test/renderApp';
 import { createStubBackend } from '../../test/stubBackend';
-import { MONDAY } from './fixtures';
+import { listView, MONDAY } from './fixtures';
 import { createShoppingServer } from './testServer';
 
 const URL = 'https://api.getbring.com/rest/bringrecipes/deeplink?url=x&source=web';
@@ -112,6 +113,23 @@ describe('list actions', () => {
     menu();
     expect(item(/^Bring!/).getAttribute('aria-disabled')).toBe('true');
     act(() => server.releaseWrite());
+  });
+
+  it('drops a ready link once a newer list is confirmed, also from another phone (PR #22 review, finding 4)', async () => {
+    const server = await open();
+    menu();
+    fireEvent.click(item(/^Bring!/));
+    await screen.findByRole('link', { name: 'Apri in Bring!' });
+    // Another member removes the free item: the next read brings the new list, nothing queued here.
+    server.setBase(() => listView({ freeItems: [] }));
+    // Back to the app: TanStack reads the list again.
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    focusManager.setFocused(undefined);
+    await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'Preso o già in casa: Detersivo' })).toBeNull());
+    expect(screen.queryByRole('link', { name: 'Apri in Bring!' })).toBeNull();
   });
 
   it('explains an empty list and offers «Riprova» for other errors', async () => {

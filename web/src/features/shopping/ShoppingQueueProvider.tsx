@@ -41,10 +41,14 @@ export function ShoppingQueueProvider({ children, locks }: { children: ReactNode
       session,
       locks,
       send: (op) => sendWith(apiRef.current, op),
-      applyConfirmed: (familyId, weekStartsOn, result) => applyConfirmedList(session.queryClient, familyId, weekStartsOn, result)
+      applyConfirmed: (familyId, weekStartsOn, result, isCurrent) => applyConfirmedList(session.queryClient, familyId, weekStartsOn, result, isCurrent)
     });
-    setQueue(created);
+    let live = true;
+    // Shown only once the record on the device is read: before that an empty queue would look like
+    // a synced list, and exports would leave without the changes saved here (PR #22 review, finding 3).
+    void created.ready().then(() => live && setQueue(created));
     return () => {
+      live = false;
       created.dispose();
       setQueue((current) => (current === created ? null : current));
     };
@@ -52,7 +56,7 @@ export function ShoppingQueueProvider({ children, locks }: { children: ReactNode
   return <QueueContext.Provider value={queue}>{children}</QueueContext.Provider>;
 }
 
-/** null while the queue starts (one render) or without a signed-in person. */
+/** null until the queue on the device has been read, or without a signed-in person. */
 export function useShoppingQueue(): ShoppingQueue | null {
   return useContext(QueueContext);
 }

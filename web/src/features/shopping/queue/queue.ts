@@ -32,8 +32,11 @@ export interface ShoppingQueue {
 export interface ShoppingQueueDeps {
   session: Session;
   send: (op: ShoppingOperation) => Promise<SendResult>;
-  /** Applies a confirmed view to this tab's cache: cancels the list's running reads first. */
-  applyConfirmed: (familyId: string, weekStartsOn: string, result: SendResult) => Promise<void>;
+  /**
+   * Applies a confirmed view to this tab's cache: cancels the list's running reads first, then
+   * writes only if `isCurrent()` still holds (session open, family not revoked).
+   */
+  applyConfirmed: (familyId: string, weekStartsOn: string, result: SendResult, isCurrent: () => boolean) => Promise<void>;
   /** navigator.locks by default; null = declared limitation, no exclusion. */
   locks?: LockManagerLike | null;
   now?: () => number;
@@ -112,9 +115,11 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
 
   async function applyView(familyId: string, weekStartsOn: string, seq: number, result: SendResult): Promise<void> {
     const list = `${familyId}/${weekStartsOn}`;
-    if (seq <= Math.max(baseline, applied.get(list) ?? 0) || gone()) return;
+    // A family revoked meanwhile (here or in another tab) never comes back into the cache (PR #22 review, finding 1).
+    const isCurrent = () => !gone() && !session.isRevoked(familyId);
+    if (seq <= Math.max(baseline, applied.get(list) ?? 0) || !isCurrent()) return;
     applied.set(list, seq);
-    await deps.applyConfirmed(familyId, weekStartsOn, result);
+    await deps.applyConfirmed(familyId, weekStartsOn, result, isCurrent);
   }
 
   const loading = (async () => {
@@ -162,7 +167,13 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     }
     if (code === 'invalid' || code === 'not_found' || code === 'conflict') {
       const notice: QueueNotice = { id: crypto.randomUUID(), familyId, weekStartsOn, kind: head.op.kind, code: code === 'not_found' ? 'not_found' : 'invalid', label: head.label };
-      await mutate((record) => ({ next: { ...record, ops: dropWithDependents(record.ops, head), notices: [...record.notices, notice] }, value: null }));
+      // Only for an operation still queued in a family still allowed: a late answer never brings back
+      // what a revocation or another tab already dropped (PR #22 review, finding 2).
+      await mutate((record) =>
+        record.ops.some((o) => o.op.input.id === head.op.input.id) && !session.isRevoked(familyId)
+          ? { next: { ...record, ops: dropWithDependents(record.ops, head), notices: [...record.notices, notice] }, value: null }
+          : { value: null }
+      );
       return 'continue';
     }
     // network, internal, unauthorized (handled by the session), unknown: the head stays sent, next event retries.

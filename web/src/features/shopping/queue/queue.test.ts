@@ -283,6 +283,19 @@ describe('shopping queue', () => {
     expect(queue.record().notices).toEqual([]);
   });
 
+  it('ignores a late refusal of an operation dropped by a revocation (PR #22 review, finding 2)', async () => {
+    const { store, server, queue, session } = await setup();
+    const release = server.holdNext();
+    await queue.add(ops.add(X, 'Pane'), 'Pane');
+    await vi.waitFor(() => expect(server.send).toHaveBeenCalledTimes(1));
+    session.revoke(FAMILY, { announce: false });
+    await vi.waitFor(() => expect(queue.record().ops).toEqual([]));
+    release(new ApiError('invalid'));
+    await queue.flush();
+    expect(queue.record().notices).toEqual([]);
+    expect(stored(store)?.notices).toEqual([]);
+  });
+
   it('drops the operations and notices of a family revoked in another tab', async () => {
     const { queue, session } = await setup();
     setOnline(false);

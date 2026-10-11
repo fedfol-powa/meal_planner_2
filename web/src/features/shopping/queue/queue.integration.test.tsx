@@ -9,7 +9,8 @@ import { createLockHub } from '../../../test/fakeLocks';
 import { createMemoryHub } from '../../../test/memoryChannel';
 import { renderSession } from '../../../test/sessionHarness';
 import { createStubBackend } from '../../../test/stubBackend';
-import { FAMILY, grams, listView, ops, queued, RICE, TOMATO, USER } from '../fixtures';
+import { FAMILY, grams, listView, MONDAY, ops, queued, RICE, TOMATO, USER } from '../fixtures';
+import { applyConfirmedList, shoppingListKey } from '../listQuery';
 import { registerShoppingStorage } from '../storage';
 import type { ShoppingOperation } from './ops';
 import { applyPending } from './pending';
@@ -161,6 +162,46 @@ describe('shopping queue with the session of W5', () => {
     expect(world.store.entries.has(queueKey(USER))).toBe(true);
     await tab.session.close();
     expect(world.store.entries.has(queueKey(USER))).toBe(false);
+  });
+});
+
+describe('a family revoked before a late confirmation (PR #22 review, finding 1)', () => {
+  function tabWithCache() {
+    const store = createMemoryStore();
+    const hub = createMemoryHub();
+    const other = hub.channel();
+    const session = createSession(USER, store, { refresh: async () => ({ kind: 'ok', userId: USER }), channel: hub.channel() });
+    const queue = createShoppingQueue({
+      session,
+      locks: null,
+      send: async () => ({ version: 'v', data: listView() }),
+      applyConfirmed: (familyId, weekStartsOn, result, isCurrent) => applyConfirmedList(session.queryClient, familyId, weekStartsOn, result, isCurrent)
+    });
+    const confirmed = (seq: number) =>
+      other.post({ type: 'extension', userId: USER, topic: 'shopping-queue', payload: { type: 'confirmed', familyId: FAMILY, weekStartsOn: MONDAY, seq, result: { version: `v${seq}`, data: listView() } } });
+    return { session, queue, confirmed, cached: () => session.queryClient.getQueryData(shoppingListKey(FAMILY, MONDAY, 'it-IT')) };
+  }
+
+  it('never puts the list of a revoked family back into the cache', async () => {
+    const tab = tabWithCache();
+    await tab.queue.ready();
+    tab.confirmed(1);
+    await waitFor(() => expect(tab.cached()).toBeDefined());
+    tab.session.revoke(FAMILY, { announce: false });
+    expect(tab.cached()).toBeUndefined();
+    tab.confirmed(2);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(tab.session.isRevoked(FAMILY)).toBe(true);
+    expect(tab.cached()).toBeUndefined();
+  });
+
+  it('checks the revocation again after cancelling the running reads', async () => {
+    const tab = tabWithCache();
+    let revoked = false;
+    const pending = applyConfirmedList(tab.session.queryClient, FAMILY, MONDAY, { version: 'v', data: listView() }, () => !revoked);
+    revoked = true;
+    await pending;
+    expect(tab.cached()).toBeUndefined();
   });
 });
 

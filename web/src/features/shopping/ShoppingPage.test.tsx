@@ -6,7 +6,9 @@ import { DEMO_USER } from '../../auth/backend';
 import { setOnline } from '../../test/connectivity';
 import { renderApp } from '../../test/renderApp';
 import { createStubBackend } from '../../test/stubBackend';
-import { grams, item, listView, MONDAY, RICE, TOMATO } from './fixtures';
+import { createMemoryStore } from '../../api/persister';
+import { grams, item, listView, MONDAY, ops, RICE, TOMATO } from './fixtures';
+import { queueKey } from './storage';
 import { createShoppingServer } from './testServer';
 
 const PATH = `/shopping/${MONDAY}?day=2026-10-14`;
@@ -126,6 +128,29 @@ describe('shopping page', () => {
     await waitFor(() => expect(tomatoBox().checked).toBe(true));
     expect(screen.getByText('Modifiche salvate su questo telefono, da sincronizzare')).toBeTruthy();
     expect(server.calls.length).toBe(calls);
+  });
+
+  it('waits for the queue saved on the phone before showing the list or exporting it (PR #22 review, finding 3)', async () => {
+    const server = createShoppingServer(undefined, DEMO_FAMILY_ID);
+    server.holdNextWrite();
+    const base = createMemoryStore();
+    const tick = ops.tick(TOMATO);
+    const saved = { ...tick, input: { ...tick.input, familyId: DEMO_FAMILY_ID } };
+    base.entries.set(queueKey(DEMO_USER.id), { ops: [{ userId: DEMO_USER.id, queuedAt: 0, state: 'pending', label: 'Pomodori', op: saved }], notices: [], seq: 0 });
+    // The first read of the queue from the device is slow.
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const store = { ...base, get: async (key: string) => (key.startsWith('shopping-queue:') ? gate.then(() => base.get(key)) : base.get(key)) };
+    renderApp(PATH, { createApi: () => (locale) => server.api(locale), backend: createStubBackend(DEMO_USER), store });
+    await waitFor(() => expect(server.reads).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Azioni della lista' })).toBeNull();
+    act(() => release());
+    await waitFor(() => expect(tomatoBox().checked).toBe(true));
+    fireEvent.click(screen.getByRole('button', { name: 'Azioni della lista' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Bring!/ }));
+    expect(server.createLink).not.toHaveBeenCalled();
   });
 
   it('shows an empty state for a week without a menu, with the way back', async () => {
