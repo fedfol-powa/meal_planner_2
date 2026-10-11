@@ -2,9 +2,12 @@ import { z } from 'zod';
 
 const versionedOutputs = new WeakSet<z.ZodType>();
 
-/** Input of a versioned read: the version already held by the client, if any. */
-export function versionedInput<S extends z.ZodRawShape>(schema: z.ZodObject<S>) {
-	// Typed on the shape: on a generic ZodObject, extend() would lose the field types.
+/**
+ * Input of a versioned read: the version already held by the client, if any. Generic on the
+ * object's shape, not on `z.ZodObject`: extending the default ZodObject would type the
+ * fields as an index signature and handlers would lose the type of their input.
+ */
+export function versionedInput<Shape extends z.ZodRawShape>(schema: z.ZodObject<Shape>) {
 	return schema.extend({ knownVersion: z.string().min(1).max(200).optional() });
 }
 

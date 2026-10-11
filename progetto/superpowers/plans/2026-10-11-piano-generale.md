@@ -204,3 +204,4 @@ solo il coordinatore.
 | 11 ottobre 2026 | Unite la PR #6 (app web di base, dopo tre review) e la PR #9 (documento ricetta e import, dopo due review, YAML approvati dall'utente): ondata 1 completata |
 | 11 ottobre 2026 | Unita la PR #12 (viste condivise della ricetta di W6, `ratings.set`, adeguamenti web della ricetta) dopo una review senza rilievi |
 | 11 ottobre 2026 | Unita la PR #10 (`resolveFamilySettings` e schema delle impostazioni salvate, W2) dopo una review con un rilievo minore corretto |
+| 11 ottobre 2026 | Unita la PR #13 (`mealRecipeVersions`, `versionedInput` tipizzato, pianificatore con `noUncheckedIndexedAccess`, W1) dopo una review senza rilievi |

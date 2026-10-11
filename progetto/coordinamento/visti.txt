@@ -54,3 +54,8 @@ w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/14 #b8
 w1:pW	STATO: DOMANDA — I Task 8, 9 e 10 (generazione, generazione pigra, job) hanno bisogno di resolveFamilySettings di W2, che è nella PR #10, ancora aperta. Le viste di W6 invece sono su #cd9f0e7f
 w1:pW	STATO: DOMANDA — Il Task 12 aspetta la seconda PR di W5. Come procedo? #bdeeae41
 w1:pW	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/15 #532aa5cf
+w1:pY	STATO: DOMANDA La parte server di profilo e famiglia (Task 1-10) è pronta e verificata su traguardo/profilo, non ancora pushata; il web (Task 11-15) aspetta la seconda PR di W5 con il #1439a657
+w1:pY	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/16 #2f1dd595
+w1:p1G	REVISORE_FINITO
+w1:p1H	REVISORE_FINITO
+w1:p1J	REVISORE_FINITO
