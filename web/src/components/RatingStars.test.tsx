@@ -101,6 +101,6 @@ describe('RatingStars', () => {
     const set = vi.fn(async () => ({ familyAverage: 4, familyCount: 1, myStars: null }));
     await setup(set, { familyAverage: 4, familyCount: 2, myStars: 4 });
     fireEvent.click(await screen.findByLabelText('Il tuo voto: 4 stelle. Tocca di nuovo per toglierlo'));
-    await waitFor(() => expect(set).toHaveBeenCalledWith({ familyId: 'family-main', recipeId: 'wok', stars: null }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith({ familyId: 'family-main', recipeId: 'wok', stars: null }, expect.anything()));
   });
 });

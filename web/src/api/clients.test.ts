@@ -5,7 +5,7 @@ import { createRpcClient } from './rpc';
 import { realClients } from './clients';
 import { fakeClients, DEMO_FAMILY_ID } from './fake/fakeApi';
 import type { Api } from './types';
-import { createSession, wrapApi, type RenewResult } from '../session/session';
+import { createSession, SessionClosedError, wrapApi, type RenewResult } from '../session/session';
 import { createRpcTestServer, WHOAMI } from '../test/rpcServer';
 
 const user = { id: 'user-federico', email: 'federico@example.com' };
@@ -44,10 +44,16 @@ describe('wrapApi on clients without keys (second PR)', () => {
     const api = wrapApi(keyless, session);
     const options = { signal: new AbortController().signal };
     expect(await (api.menu.getWeek as (...args: unknown[]) => Promise<unknown>)({ familyId: 'f1', weekStartsOn: '2026-10-05' }, options)).toBe('done');
-    expect(seen).toEqual([['menu', 'getWeek', { familyId: 'f1', weekStartsOn: '2026-10-05' }, options]]);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.slice(0, 3)).toEqual(['menu', 'getWeek', { familyId: 'f1', weekStartsOn: '2026-10-05' }]);
+    // The options go on with a signal that follows the caller's and the session's.
+    const forwarded = (seen[0]![3] as { signal: AbortSignal }).signal;
+    expect(forwarded.aborted).toBe(false);
     expect(call).toHaveBeenCalledWith(expect.any(Function), 'f1');
     expect(await api.session.whoami({})).toBe('done');
     expect(call).toHaveBeenLastCalledWith(expect.any(Function), undefined);
+    void session.close();
+    expect(forwarded.aborted).toBe(true);
   });
   it('renews once on unauthorized from the Worker and repeats the call with the same signal', async () => {
     const { server, api } = setup();
@@ -79,6 +85,48 @@ describe('wrapApi on clients without keys (second PR)', () => {
     await vi.waitFor(() => expect(server.signals).toHaveLength(1));
     controller.abort();
     await call.catch(() => undefined);
+    expect(server.signals[0]!.aborted).toBe(true);
+  });
+  it('never sends a request of a session closed while its token was being read (PR #17 review, finding 1)', async () => {
+    const server = createRpcTestServer();
+    let releaseToken: (token: string) => void = () => {};
+    const tokens: string[] = [];
+    const rpc = createRpcClient({
+      getAccessToken: () => new Promise<string>((resolve) => (releaseToken = (token) => (tokens.push(token), resolve(token)))),
+      fetch: server.fetch
+    });
+    const session = createSession('a', createMemoryStore());
+    const api = wrapApi(realClients({ rpc, latencyMs: 0 })(user)('it-IT'), session);
+    const call = api.session.whoami({});
+    await vi.waitFor(() => expect(releaseToken).not.toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await session.close();
+    // The token read ends after the closing, with the token of the next person.
+    releaseToken('token-of-b');
+    await expect(call).rejects.toBeInstanceOf(SessionClosedError);
+    expect(server.fetch).not.toHaveBeenCalled();
+    expect(server.seen).toEqual([]);
+  });
+  it('keeps the caller signal: an abort by the caller is still an abort', async () => {
+    const { server, api } = setup();
+    server.answer(() => new Promise(() => {}));
+    const wrapped = wrapApi(api, createSession('a', createMemoryStore()));
+    const controller = new AbortController();
+    const call = wrapped.session.whoami({}, { signal: controller.signal });
+    await vi.waitFor(() => expect(server.signals).toHaveLength(1));
+    controller.abort();
+    const error = await call.catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(SessionClosedError);
+    expect((error as Error).name).toBe('AbortError');
+  });
+  it('cancels a request in flight when its session closes, with the closed-session outcome', async () => {
+    const { server, api } = setup();
+    server.answer(() => new Promise(() => {}));
+    const session = createSession('a', createMemoryStore());
+    const call = wrapApi(api, session).session.whoami({});
+    await vi.waitFor(() => expect(server.signals).toHaveLength(1));
+    await session.close();
+    await expect(call).rejects.toBeInstanceOf(SessionClosedError);
     expect(server.signals[0]!.aborted).toBe(true);
   });
 });

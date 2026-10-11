@@ -6868,6 +6868,29 @@ test.
 - Codice: all'iscrizione, se `navigator.onLine`, il controllo parte subito.
 - Verifica: il file ripetuto 20 volte, poi 24 volte con tre processi in parallelo.
 
+### Correzioni della review della PR #17
+
+Review: `progetto/coordinamento/revisioni/w5-pr17.md`; scelte del coordinatore:
+`progetto/coordinamento/messaggi/w5-07-review-pr17.md`.
+
+- **Nessun invio dopo la chiusura (rilievo 1).** `session.signal`, annullato da `close()`
+  con motivo `SessionClosedError`; `wrapApi` passa alle opzioni del client un segnale che
+  unisce quello del chiamante e quello della sessione (`AbortSignal.any`); il `fetch` del
+  link oRPC, chiamato dopo `getAccessToken()`, rifiuta con il motivo se il segnale è
+  annullato; la conversione degli errori propaga `SessionClosedError` e lascia
+  l'annullamento del chiamante com'è. `SessionClosedError` sta in `api/errors.ts` ed è
+  riesportata da `session/session.ts` (firma di W4 invariata). Test: lettura del token
+  sospesa, `close()`, token di B rilasciato ⇒ nessuna chiamata a `fetch`, esito
+  `SessionClosedError`; richiesta in volo annullata alla chiusura; annullamento del
+  chiamante ancora `AbortError`.
+- **Rinnovo per un altro utente (rilievo 2).** Se il rinnovo risponde `ok` con un
+  `userId` diverso da quello della sessione, l'epoca non cresce, la sessione chiude se
+  stessa (`close()`, senza `end`, quindi senza uscita da Supabase) e `call` rifiuta con
+  `SessionClosedError` senza ripetere; `renew()` restituisce l'esito com'è, così la coda
+  della Spesa vede l'altro utente. Test unitario e test integrato con `AuthProvider` e
+  `SessionScope` reali: B annunciato durante il rinnovo di A ⇒ una sola esecuzione della
+  lettura di A, B resta dentro, nessuna uscita.
+
 ### Task 28: verifiche e PR
 
 - [ ] `npm test` e `npm run typecheck` dalla radice e da `web/`; `npm run build` (il

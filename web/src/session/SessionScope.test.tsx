@@ -266,6 +266,25 @@ describe('renewals of a previous identity (second review, C3)', () => {
     expect(screen.getByText('auth: signedIn')).toBeTruthy();
     expect(backend.signOutCalls).toBe(0);
   });
+  it('never repeats a call of A when the renewal answers for B, and leaves B signed in (PR #17 review, finding 2)', async () => {
+    const backend = createStubBackend(A);
+    // Another tab signs in as B while A's renewal runs: the renewal answers with B's token.
+    backend.refresh = async () => {
+      backend.setUser(B);
+      return { kind: 'ok', userId: 'b' };
+    };
+    let runsOfA = 0;
+    renderSession(<Probe />, {
+      backend,
+      api: (id) => api(id === 'a' ? () => (runsOfA++ === 0 ? unauthorized() : Promise.resolve(meOf('a'))) : async () => meOf(id))(id)
+    });
+    await screen.findByText('name: B');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(runsOfA).toBe(1);
+    expect(screen.queryByText('name: A')).toBeNull();
+    expect(screen.getByText('auth: signedIn')).toBeTruthy();
+    expect(backend.signOutCalls).toBe(0);
+  });
   it('signs out once when several reads are refused after the renewal', async () => {
     const backend = createStubBackend(A);
     function TwoReads() {

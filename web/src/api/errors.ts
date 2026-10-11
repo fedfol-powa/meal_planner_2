@@ -21,6 +21,14 @@ void complete;
 /** Contract codes, plus `network` (no answer) and `unknown` (an answer that is not the contract's). */
 export type ApiErrorCode = ErrorCode | 'network' | 'unknown';
 
+/** Thrown by `call` on a closed session (or one superseded by a new identity): `run` is not executed. */
+export class SessionClosedError extends Error {
+  constructor() {
+    super('session closed');
+    this.name = 'SessionClosedError';
+  }
+}
+
 export function isContractErrorCode(code: string): code is ErrorCode {
   return (CONTRACT_ERROR_CODES as readonly string[]).includes(code);
 }

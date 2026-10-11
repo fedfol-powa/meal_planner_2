@@ -248,4 +248,15 @@ describe('session hooks for the shopping queue (second PR, W4 interface)', () =>
     expect(createSession('a', store, { channel }).channel).toBe(channel);
     expect(createSession('a', store).channel).toBeNull();
   });
+  it('closes itself and repeats nothing when the renewal is for another user', async () => {
+    const end = vi.fn();
+    const session = createSession('a', createMemoryStore(), { refresh: async () => ({ kind: 'ok', userId: 'b' }), end });
+    const run = refusedOnce('x');
+    await expect(session.call(run)).rejects.toBeInstanceOf(SessionClosedError);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(session.isClosed()).toBe(true);
+    // B's session is not this one's to end: no sign-out.
+    expect(end).not.toHaveBeenCalled();
+    expect(await session.renew()).toEqual(REJECTED);
+  });
 });

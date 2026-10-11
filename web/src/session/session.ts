@@ -1,5 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
-import { ApiError, toApiError } from '../api/errors';
+import { ApiError, SessionClosedError, toApiError } from '../api/errors';
 import { clearRevoked, createPersister, createQueryClient, markRevoked, type KeyValueStore, type SessionPersister } from '../api/persister';
 import { familyOfKey, localeOfKey } from '../api/queries';
 import type { Api } from '../api/types';
@@ -9,13 +9,7 @@ export type { RenewResult } from '../auth/backend';
 import type { SessionChannel } from './channel';
 import { clearPreference, userScope } from './localePreference';
 
-/** Thrown by `call` on a closed session (or one superseded by a new identity): `run` is not executed. */
-export class SessionClosedError extends Error {
-  constructor() {
-    super('session closed');
-    this.name = 'SessionClosedError';
-  }
-}
+export { SessionClosedError } from '../api/errors';
 
 const REJECTED: RenewResult = { kind: 'rejected' };
 
@@ -67,6 +61,8 @@ export interface Session {
   /** The device store and the cross-tab channel of this session, for the queue. */
   readonly store: KeyValueStore;
   readonly channel: SessionChannel | null;
+  /** Aborted by `close()` with SessionClosedError as reason: requests of this session never leave afterwards (PR #17 review). */
+  readonly signal: AbortSignal;
 }
 
 const persisters = new WeakMap<Session, SessionPersister>();
@@ -90,6 +86,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
   const listeners = new Set<() => void>();
   const requests = new Map<string, number>();
   const closeHooks = new Set<() => Promise<void>>();
+  const lifetime = new AbortController();
   const revokeHooks = new Set<(familyId: string) => void | Promise<void>>();
   const queryClient = createQueryClient({ onError: (error, scope) => !closed && handler(error, scope) });
   const persister = userId ? createPersister(store, userId) : null;
@@ -122,6 +119,12 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       }
       renewing = null;
       if (closed) return REJECTED;
+      // Renewed for someone else (another tab signed in): this generation is over, nothing repeats
+      // under the new identity, and it is not ours to sign out (PR #17 review, finding 2).
+      if (result.kind === 'ok' && result.userId !== userId) {
+        await session.close();
+        return result;
+      }
       if (result.kind === 'ok') epoch += 1;
       else if (result.kind === 'rejected') await end();
       return result;
@@ -134,9 +137,11 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
     queryClient,
     store,
     channel: deps.channel ?? null,
+    signal: lifetime.signal,
     isClosed: () => closed,
     close() {
       closed = true;
+      if (!lifetime.signal.aborted) lifetime.abort(new SessionClosedError());
       closing ??= (async () => {
         await queryClient.cancelQueries();
         queryClient.clear();
@@ -245,6 +250,13 @@ export function wrapApi(api: Api, session: Session, language?: ClientLanguage): 
     const familyId = typeof input === 'object' && input !== null ? (input as { familyId?: unknown }).familyId : undefined;
     return typeof familyId === 'string' ? familyId : undefined;
   };
+  // The client options get a signal aborted by the caller or by the closing of the session, so a
+  // request still being prepared (token read) never leaves once the session is closed (PR #17 review).
+  const withSessionSignal = (args: unknown[]): unknown[] => {
+    const options = (typeof args[1] === 'object' && args[1] !== null ? args[1] : {}) as { signal?: AbortSignal };
+    const signal = options.signal ? AbortSignal.any([options.signal, session.signal]) : session.signal;
+    return [args[0], { ...options, signal }, ...args.slice(2)];
+  };
   // A Proxy at every level: the oRPC client has no keys to enumerate (second PR). Every
   // argument is passed on, the client options with `signal` too, also in the retry.
   const wrap = (target: object): unknown =>
@@ -259,7 +271,10 @@ export function wrapApi(api: Api, session: Session, language?: ClientLanguage): 
   const wrapMethod = (method: ((...args: unknown[]) => Promise<unknown>) & object, owner: object) =>
     new Proxy(method, {
       get: (target, key, receiver) => (typeof key === 'string' && key !== 'then' ? (wrap(target) as Record<string, unknown>)[key] : Reflect.get(target, key, receiver)),
-      apply: (target, _thisArg, args: unknown[]) => session.call(() => Reflect.apply(target, owner, args), familyOf(args[0])).then(dropIfStale)
+      apply: (target, _thisArg, args: unknown[]) => {
+        const forwarded = withSessionSignal(args);
+        return session.call(() => Reflect.apply(target, owner, forwarded), familyOf(args[0])).then(dropIfStale);
+      }
     });
   return wrap(api) as Api;
 }
