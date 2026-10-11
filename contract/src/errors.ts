@@ -40,7 +40,10 @@ export const conflictData = z.discriminatedUnion('kind', [
 ]);
 export type ConflictData = z.infer<typeof conflictData>;
 /** A rule of state, not wrong data: a cited draft, a never-published recipe, the current version. */
-export const notAllowedData = z.object({ reason: z.enum(['cited_by_meals', 'not_published', 'already_current']) });
+/** A rule of state, not wrong data: catalogue states and meal undos that are no longer possible. */
+export const notAllowedData = z.object({
+	reason: z.enum(['cited_by_meals', 'not_published', 'already_current', 'not_own_change', 'changed_since', 'draft_closed']),
+});
 export type NotAllowedReason = z.infer<typeof notAllowedData>['reason'];
 export const webOnlyData = z.object({ url: z.url() });
 /** Correlates the answer with the Worker log line of the unexpected error. */

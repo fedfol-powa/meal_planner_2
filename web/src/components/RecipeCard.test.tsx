@@ -46,7 +46,7 @@ describe('RecipeCard', () => {
     const empty = renderWithProviders(<RecipeCard {...base} kind="empty" recipe={null} rating={null} ingredients={null} />);
     expect(await screen.findByRole('heading', { name: 'Nessuna ricetta adatta' })).toBeTruthy();
     empty.unmount();
-    renderWithProviders(<RecipeCard {...base} rating={null} ingredients={null} detailSearch={null} lastChange={{ userName: null, at: '2026-10-01T20:40' }} />);
+    renderWithProviders(<RecipeCard {...base} rating={null} ingredients={null} detailSearch={null} lastChange={{ userName: null, at: '2026-10-01T20:40', actionId: null, undoable: false, slotIds: [] }} />);
     expect(await screen.findByText('Cambiato da ex membro, giovedì 20:40')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Voto della famiglia/ })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Scheda ricetta' })).toBeNull();
