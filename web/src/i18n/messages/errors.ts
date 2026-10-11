@@ -5,7 +5,12 @@ export const it = {
   'errors.conflict': 'Qualcun altro l’ha cambiato nel frattempo.',
   'errors.unauthorized': 'La sessione è scaduta: accedi di nuovo.',
   'errors.network': 'Sei offline o il servizio non risponde: riprova quando torni in linea.',
-  'errors.unknown': 'Qualcosa non ha funzionato: riprova.'
+  'errors.unknown': 'Qualcosa non ha funzionato: riprova.',
+  'errors.internal': 'Il servizio ha avuto un problema: riprova tra poco.',
+  'errors.last_admin': 'Serve almeno un altro amministratore della famiglia.',
+  'errors.last_app_admin': 'Serve almeno un altro amministratore dell’app.',
+  'errors.sole_member': 'Sei l’unico membro della famiglia.',
+  'errors.web_only': 'Questa operazione si fa dall’app.'
 };
 
 export const en = {
@@ -15,5 +20,10 @@ export const en = {
   'errors.conflict': 'Someone else changed it in the meantime.',
   'errors.unauthorized': 'Your session has expired: please sign in again.',
   'errors.network': 'You are offline or the service is not responding: try again when you are back online.',
-  'errors.unknown': 'Something went wrong: please try again.'
+  'errors.unknown': 'Something went wrong: please try again.',
+  'errors.internal': 'The service had a problem: please try again shortly.',
+  'errors.last_admin': 'The family needs at least one other administrator.',
+  'errors.last_app_admin': 'The app needs at least one other administrator.',
+  'errors.sole_member': 'You are the only member of the family.',
+  'errors.web_only': 'This can only be done in the app.'
 } satisfies Record<keyof typeof it, string>;
