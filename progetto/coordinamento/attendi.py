@@ -8,10 +8,12 @@ Panes are discovered from tab labels: "W..." are Claude workers, "R ..." are rev
                             (checked at start too, so a worker that stopped while nobody was
                             waiting is never lost);
                           - a worker goes from working to stopped (even without a STATO line);
+                          - a worker shows an open multiple-choice question ("MENU: ...");
                           - a reviewer printed REVISORE_FINITO and it was not acknowledged.
   attendi.py --visto P    acknowledge the current STATO line (or REVISORE_FINITO) of pane P.
   attendi.py --stato      print every worker and reviewer with status and last event, then exit.
 """
+import hashlib
 import json
 import os
 import subprocess
@@ -49,8 +51,19 @@ def last_event(pane, kind):
     lines = [l.strip() for l in text.splitlines()]
     if kind == "reviewer":
         return "REVISORE_FINITO" if "REVISORE_FINITO" in lines else None
-    stato = [l for l in lines if l.startswith("STATO:")]
-    return stato[-1] if stato else None
+    # an open multiple-choice question (AskUserQuestion) waits for an answer like a STATO line
+    if any("Enter to select" in l for l in lines[-6:]):
+        start = max((i for i, l in enumerate(lines) if l.startswith("☐")), default=-1)
+        question = next((l.lstrip("│ ").strip() for l in lines[start + 1:] if l.lstrip("│ ").strip()), "")
+        return f"MENU: {question[:150]}"
+    idx = [i for i, l in enumerate(lines) if l.startswith("STATO:")]
+    if not idx:
+        return None
+    i = idx[-1]
+    # the same STATO text (e.g. "STATO: DOMANDA") can close different messages:
+    # a digest of the lines before it tells them apart
+    digest = hashlib.sha1("\n".join(lines[max(0, i - 6):i]).encode()).hexdigest()[:8]
+    return f"{lines[i]} #{digest}"
 
 
 def seen():

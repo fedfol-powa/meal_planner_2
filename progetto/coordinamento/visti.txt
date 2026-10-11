@@ -6,3 +6,12 @@ w1:pS	REVISORE_FINITO
 w1:pR	REVISORE_FINITO
 w1:pT	REVISORE_FINITO
 w1:pB	STATO: PR_CORRETTA
+w1:p9	STATO: PR_CORRETTA
+w1:pV	REVISORE_FINITO
+w1:pX	STATO: DOMANDA
+w1:pZ	STATO: DOMANDA Con sessione non verificabile offline, la lista della spesa può restare modificabile tramite la coda locale per utente (vista in sovrapposizione «da sincronizzare»,
+w1:pC	STATO: PR_CORRETTA
+w1:pC	STATO: PR_CORRETTA #ce99edf1
+w1:pX	STATO: DOMANDA #f04a703f
+w1:pZ	STATO: DOMANDA La scelta della versione per pasto (R1) la scrive W1 come funzione pura in domain/ più una query del server per settimana, e la spesa la importa (con un sostituto #49bb1dbc
+w1:pX	STATO: DOMANDA #88114a10
