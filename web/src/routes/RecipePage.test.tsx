@@ -55,6 +55,21 @@ describe('recipe page', () => {
     await screen.findByRole('link', { name: /Wok di pollo/ });
     expect(get).toHaveBeenCalledWith(expect.objectContaining({ recipeId: WOK, slotId: '2026-10-05-dinner' }), expect.anything());
   });
+  it('opened from a meal, starts from its servings; the stepper and servings in the address still win', async () => {
+    // Sunday 4 dinner: the wok for 4, while the source is for 6 (user's decision, 11 October 2026).
+    const { history } = renderApp(`/recipes/${WOK}?from=menu&day=2026-10-04&slot=2026-10-04-dinner`);
+    expect(await screen.findByText('4 porzioni')).toBeTruthy();
+    expect(screen.getByText('Dosi della fonte per 6 porzioni')).toBeTruthy();
+    expect(row('Riso basmati').textContent).toContain('200 g');
+    fireEvent.click(screen.getByRole('button', { name: 'Una porzione in più' }));
+    await waitFor(() => expect(history.location.search).toContain('servings=5'));
+    await waitFor(() => expect(row('Riso basmati').textContent).toContain('250 g'));
+  });
+  it('opened from a meal with servings in the address, shows those', async () => {
+    renderApp(`/recipes/${WOK}?from=menu&day=2026-10-04&slot=2026-10-04-dinner&servings=3`);
+    expect(await screen.findByText('3 porzioni')).toBeTruthy();
+    expect(row('Riso basmati').textContent).toContain('150 g');
+  });
   it('says when a recipe does not exist', async () => {
     renderApp('/recipes/nope');
     expect(await screen.findByRole('heading', { name: 'Ricetta non disponibile' })).toBeTruthy();

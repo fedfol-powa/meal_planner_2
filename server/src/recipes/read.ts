@@ -82,11 +82,13 @@ export async function readRecipe(
 ): Promise<RecipeDetailView> {
 	const { familyId, userId, locale } = viewer;
 	const { recipeId } = input;
-	// Opened from a meal: a past one shows the version in force when it passed (R1).
+	// Opened from a meal: a past one shows the version in force when it passed (R1), and the meal's
+	// servings are the default (user's decision, 11 October 2026); a meal of zero servings keeps the base.
 	let version: number | null = null;
+	let mealServings: number | null = null;
 	if (input.slotId) {
-		const [slot] = await tx<{ version: number | null }[]>`
-			select case when p.at <= now() then app.recipe_version_at(s.recipe_id, p.at) end as version
+		const [slot] = await tx<{ version: number | null; servings: number }[]>`
+			select case when p.at <= now() then app.recipe_version_at(s.recipe_id, p.at) end as version, s.servings
 			from app.meal_slots s
 			join app.weeks w on w.id = s.week_id
 			join app.families f on f.id = w.family_id
@@ -94,13 +96,14 @@ export async function readRecipe(
 			where s.id = ${input.slotId} and w.family_id = ${familyId} and s.recipe_id = ${recipeId}`;
 		if (!slot) throw appError('not_found');
 		version = slot.version;
+		mealServings = slot.servings > 0 ? slot.servings : null;
 	}
 	// Who may see it and what it shows come from one statement: published or archived; from a
 	// book only if the family owns that version's book or one of its meals cites the recipe.
 	const content = (await loadContents(tx, [{ recipeId, version }], { familyId, viaMeals: true })).get(contentKey({ recipeId, version }));
 	if (!content || content.status === 'draft' || !content.lines || !content.baseServings) throw appError('not_found');
 	const base = content.baseServings;
-	const servings = input.servings ?? base;
+	const servings = input.servings ?? mealServings ?? base;
 	const [{ system }, ratings, titles, names, meals] = await Promise.all([
 		loadFamily(tx, familyId),
 		ratingSummaries(tx, familyId, userId, [recipeId]),

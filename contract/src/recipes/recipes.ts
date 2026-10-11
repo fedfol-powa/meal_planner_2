@@ -66,7 +66,7 @@ export const recipesContract = {
 			method: 'POST',
 			path: '/families/{familyId}/recipes/{recipeId}/view',
 			summary:
-				'Read a recipe with ingredients scaled to the servings asked, the family rating and its meals; slotId shows the version eaten in that past meal',
+				"Read a recipe with ingredients scaled to the servings asked (by default those of the meal given as slotId, else the recipe's own), the family rating and its meals; slotId also shows the version eaten in that past meal",
 		})
 		.errors({ not_found: errorDefinitions.not_found })
 		.input(
