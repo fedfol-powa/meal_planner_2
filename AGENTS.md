@@ -92,6 +92,7 @@ al minimo: oRPC, zod, Postgres.js senza ORM, `jose`; Supabase sul piano gratuito
 server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
 un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
 app ed email sul dominio `cosasimangia.qunidi.it`, con il DNS di `qunidi.it` su Cloudflare;
+account Cloudflare di POWA (deciso l'11 ottobre 2026);
 modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
 l'8 ottobre 2026 per il costo. Workers sul piano a pagamento da 5 $ al mese (CPU
 del pianificatore circa 20-25 ms per settimana). Motivazioni, contratto, esito delle prove
@@ -99,7 +100,7 @@ tecniche dell'11 ottobre e punti ancora aperti sono nella specifica, sezioni 1, 
 riferimento dei percorsi.
 
 L'utente ha creato l'organizzazione Supabase e collegato questo repository tramite
-l'integrazione GitHub: lo schema va creato da codice (`supabase/migrations/`). Verifica la
+l'integrazione GitHub (CLI di Supabase installata in `~/.local/bin` l'11 ottobre 2026): lo schema va creato da codice (`supabase/migrations/`). Verifica la
 configurazione dell'integrazione all'inizio di M1.
 
 ## Progetto di origine
