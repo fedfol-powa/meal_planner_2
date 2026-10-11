@@ -3,7 +3,7 @@ import { ApiError } from '../api/errors';
 import { cacheKey, createMemoryStore, markRevoked, revokedKey } from '../api/persister';
 import { queryKeys } from '../api/queries';
 import { createMemoryHub } from '../test/memoryChannel';
-import { createSession, persisterOf, type RenewResult } from './session';
+import { createSession, persisterOf, SessionClosedError, type RenewResult } from './session';
 import { readPreference, userScope, writePreference } from './localePreference';
 
 describe('session', () => {
@@ -106,7 +106,7 @@ describe('unauthorized: one renewal per session (second review, C3)', () => {
     // Another identity arrives: this session is over before its renewal ends.
     await session.close();
     renew(ok);
-    await expect(answer).rejects.toThrow('unauthorized');
+    await expect(answer).rejects.toBeInstanceOf(SessionClosedError);
     expect(run).toHaveBeenCalledTimes(1);
     expect(end).not.toHaveBeenCalled();
   });
@@ -137,5 +137,115 @@ describe('revoked families across tabs (second review, C4)', () => {
     await session.call(async () => 'week', 'f1');
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100);
+  });
+});
+
+describe('session hooks for the shopping queue (second PR, W4 interface)', () => {
+  it('shares one renewal among explicit renewals and the one inside call', async () => {
+    const { refresh, end, renew } = withRenewal();
+    const session = createSession('a', createMemoryStore(), { refresh, end });
+    const explicit = [session.renew(), session.renew()];
+    const call = session.call(refusedOnce('read'));
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+    renew(OK);
+    expect(await Promise.all(explicit)).toEqual([OK, OK]);
+    expect(await call).toBe('read');
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(end).not.toHaveBeenCalled();
+  });
+  it('closes the session completely, hooks included, before a rejected renewal answers', async () => {
+    const order: string[] = [];
+    const session = createSession('a', createMemoryStore(), {
+      refresh: async () => REJECTED,
+      end: async (s) => {
+        order.push('end');
+        await s.close();
+        order.push('closed');
+      }
+    });
+    session.onClose(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      order.push('hook');
+    });
+    expect(await session.renew()).toEqual(REJECTED);
+    order.push('answered');
+    expect(order).toEqual(['end', 'hook', 'closed', 'answered']);
+    expect(session.isClosed()).toBe(true);
+  });
+  it('changes nothing when the renewal finds no network', async () => {
+    const end = vi.fn();
+    const session = createSession('a', createMemoryStore(), { refresh: async () => ({ kind: 'network' }), end });
+    expect(await session.renew()).toEqual({ kind: 'network' });
+    await expect(session.call(refusedOnce('x'))).rejects.toMatchObject({ code: 'network' });
+    expect(end).not.toHaveBeenCalled();
+    expect(session.isClosed()).toBe(false);
+  });
+  it('answers rejected on a closed session without contacting Supabase', async () => {
+    const refresh = vi.fn(async () => OK);
+    const session = createSession('a', createMemoryStore(), { refresh });
+    await session.close();
+    expect(await session.renew()).toEqual(REJECTED);
+    expect(refresh).not.toHaveBeenCalled();
+  });
+  it('never runs a call on a closed session', async () => {
+    const session = createSession('a', createMemoryStore());
+    await session.close();
+    const run = vi.fn(async () => 'x');
+    await expect(session.call(run)).rejects.toBeInstanceOf(SessionClosedError);
+    expect(run).not.toHaveBeenCalled();
+  });
+  it('rejects with SessionClosedError when the renewal inside call is rejected', async () => {
+    const session = createSession('a', createMemoryStore(), { refresh: async () => REJECTED, end: (s) => s.close() });
+    const run = refusedOnce('x');
+    await expect(session.call(run)).rejects.toBeInstanceOf(SessionClosedError);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it('awaits every close hook after the stored copy is gone, even when one throws or rejects', async () => {
+    const store = createMemoryStore();
+    store.entries.set(cacheKey('a'), { timestamp: 1, buster: '', clientState: { queries: [], mutations: [] } });
+    const session = createSession('a', store);
+    const seen: string[] = [];
+    session.onClose(() => {
+      seen.push(`first:${store.entries.has(cacheKey('a'))}`);
+      throw new Error('sync');
+    });
+    session.onClose(async () => {
+      seen.push('second');
+      throw new Error('async');
+    });
+    session.onClose(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      seen.push('third');
+    });
+    const removed = vi.fn(async () => undefined);
+    session.onClose(removed)();
+    await session.close();
+    expect(seen).toEqual(['first:false', 'second', 'third']);
+    expect(removed).not.toHaveBeenCalled();
+  });
+  it('calls the revoke hooks for local and announced revocations, never once closed', async () => {
+    const session = createSession('a', createMemoryStore());
+    const seen: string[] = [];
+    session.onRevoke(() => {
+      throw new Error('broken hook');
+    });
+    session.onRevoke(async (familyId) => {
+      seen.push(familyId);
+    });
+    const off = session.onRevoke((familyId) => void seen.push(`removed:${familyId}`));
+    off();
+    session.revoke('f1');
+    session.revoke('f2', { announce: false });
+    await session.close();
+    session.revoke('f3');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(seen).toEqual(['f1', 'f2']);
+  });
+  it('exposes its store and channel', () => {
+    const store = createMemoryStore();
+    const channel = createMemoryHub().channel();
+    expect(createSession('a', store, { channel }).store).toBe(store);
+    expect(createSession('a', store, { channel }).channel).toBe(channel);
+    expect(createSession('a', store).channel).toBeNull();
   });
 });

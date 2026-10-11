@@ -1,5 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
-import { toApiError } from '../api/errors';
+import { ApiError, toApiError } from '../api/errors';
 import { clearRevoked, createPersister, createQueryClient, markRevoked, type KeyValueStore, type SessionPersister } from '../api/persister';
 import { familyOfKey, localeOfKey } from '../api/queries';
 import type { Api } from '../api/types';
@@ -9,12 +9,22 @@ export type { RenewResult } from '../auth/backend';
 import type { SessionChannel } from './channel';
 import { clearPreference, userScope } from './localePreference';
 
+/** Thrown by `call` on a closed session (or one superseded by a new identity): `run` is not executed. */
+export class SessionClosedError extends Error {
+  constructor() {
+    super('session closed');
+    this.name = 'SessionClosedError';
+  }
+}
+
+const REJECTED: RenewResult = { kind: 'rejected' };
+
 export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
 
 export interface SessionDeps {
   /** One renewal of the sign-in session. */
   refresh?: () => Promise<RenewResult>;
-  /** Ends this session (sign-in page); called at most once, never once the session is closed. */
+  /** Ends this session (sign-in page); called at most once, never once the session is closed. Its promise is awaited by `renew`. */
   end?: (session: Session) => void | Promise<void>;
   /** Tells the other tabs about revocations. */
   channel?: SessionChannel;
@@ -35,8 +45,28 @@ export interface Session {
   track(key: string): number;
   isLatest(key: string, token: number): boolean;
   setErrorHandler(handler: ErrorHandler): void;
-  /** Runs one Api call with the unauthorized protocol (second review, C3). */
+  /**
+   * Runs one Api call with the unauthorized protocol (second review, C3). On a closed session it
+   * rejects with SessionClosedError without running `run`, also before the retry after a renewal.
+   */
   call<T>(run: () => Promise<T>, familyId?: string): Promise<T>;
+  /**
+   * Explicit renewal, unique per session: concurrent callers (and the renewal inside `call`)
+   * share the same attempt. `rejected` runs the single closing procedure before resolving;
+   * `network` changes nothing. On a closed session it resolves `{ kind: 'rejected' }` without
+   * contacting Supabase. `userId` is the user of the renewed token.
+   */
+  renew(): Promise<RenewResult>;
+  /**
+   * Hook awaited by `close()` after the query persister has finished, before `close()` resolves;
+   * a failing hook does not stop the others. Returns the unsubscribe function.
+   */
+  onClose(hook: () => Promise<void>): () => void;
+  /** Hook called by `revoke(familyId)`, local or announced by another tab; it may return a promise, not awaited by `revoke`. */
+  onRevoke(hook: (familyId: string) => void | Promise<void>): () => void;
+  /** The device store and the cross-tab channel of this session, for the queue. */
+  readonly store: KeyValueStore;
+  readonly channel: SessionChannel | null;
 }
 
 const persisters = new WeakMap<Session, SessionPersister>();
@@ -59,6 +89,8 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
   const revoked = new Set<string>();
   const listeners = new Set<() => void>();
   const requests = new Map<string, number>();
+  const closeHooks = new Set<() => Promise<void>>();
+  const revokeHooks = new Set<(familyId: string) => void | Promise<void>>();
   const queryClient = createQueryClient({ onError: (error, scope) => !closed && handler(error, scope) });
   const persister = userId ? createPersister(store, userId) : null;
   const changed = () => {
@@ -68,33 +100,40 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
 
   // Token epochs: a renewal that succeeded after a call started answers that call at once.
   let epoch = 0;
-  let renewing: Promise<boolean> | null = null;
-  let ending = false;
-  const end = () => {
-    if (closed || ending) return;
-    ending = true;
-    void deps.end?.(session);
+  let renewing: Promise<RenewResult> | null = null;
+  let ending: Promise<void> | null = null;
+  const end = (): Promise<void> => {
+    if (closed) return Promise.resolve();
+    ending ??= Promise.resolve()
+      .then(() => deps.end?.(session))
+      .catch(() => undefined);
+    return ending;
   };
-  const renew = (startedAt: number): Promise<boolean> => {
-    if (epoch > startedAt) return Promise.resolve(true);
+  // One attempt at a time, shared by `renew()` and by the refused calls (W4 interface).
+  const renewOnce = (): Promise<RenewResult> => {
     // Nobody to renew, or already on the way out.
-    if (!userId || ending) return Promise.resolve(false);
-    renewing ??= (deps.refresh ?? (async (): Promise<RenewResult> => ({ kind: 'rejected' })))()
-      .catch((): RenewResult => ({ kind: 'rejected' }))
-      .then((result) => {
-        const ok = result.kind === 'ok';
-        renewing = null;
-        if (closed) return false;
-        if (ok) epoch += 1;
-        else end();
-        return ok;
-      });
+    if (closed || !userId || ending) return Promise.resolve(REJECTED);
+    renewing ??= (async () => {
+      let result: RenewResult;
+      try {
+        result = deps.refresh ? await deps.refresh() : REJECTED;
+      } catch {
+        result = REJECTED;
+      }
+      renewing = null;
+      if (closed) return REJECTED;
+      if (result.kind === 'ok') epoch += 1;
+      else if (result.kind === 'rejected') await end();
+      return result;
+    })();
     return renewing;
   };
 
   const session: Session = {
     userId,
     queryClient,
+    store,
+    channel: deps.channel ?? null,
     isClosed: () => closed,
     close() {
       closed = true;
@@ -104,6 +143,8 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
         queryClient.getMutationCache().clear();
         if (userId) clearPreference(userScope(userId));
         await persister?.close();
+        // Each hook inside its own promise: a synchronous throw does not skip the next ones.
+        await Promise.allSettled([...closeHooks].map((hook) => Promise.resolve().then(hook)));
         changed();
       })();
       return closing;
@@ -117,6 +158,22 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
         if (announce) deps.channel?.post({ type: 'revoked', userId, familyId });
       }
       changed();
+      for (const hook of revokeHooks) {
+        try {
+          void Promise.resolve(hook(familyId)).catch(() => undefined);
+        } catch {
+          // A broken hook does not stop the others.
+        }
+      }
+    },
+    renew: renewOnce,
+    onClose(hook) {
+      closeHooks.add(hook);
+      return () => void closeHooks.delete(hook);
+    },
+    onRevoke(hook) {
+      revokeHooks.add(hook);
+      return () => void revokeHooks.delete(hook);
     },
     isRevoked: (familyId) => revoked.has(familyId),
     subscribe(listener) {
@@ -134,6 +191,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       handler = next;
     },
     async call(run, familyId) {
+      if (closed) throw new SessionClosedError();
       const startedEpoch = epoch;
       const startedAt = now();
       const succeeded = <T,>(value: T): T => {
@@ -144,13 +202,18 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       try {
         return succeeded(await run());
       } catch (error) {
-        if (toApiError(error).code !== 'unauthorized' || closed) throw error;
-        if (!(await renew(startedEpoch)) || closed) throw error;
+        if (toApiError(error).code !== 'unauthorized') throw error;
+        if (closed) throw new SessionClosedError();
+        const result: RenewResult = epoch > startedEpoch ? { kind: 'ok', userId: userId ?? '' } : await renewOnce();
+        if (closed) throw new SessionClosedError();
+        // Offline the session stays: the call fails like any call without network.
+        if (result.kind === 'network') throw new ApiError('network');
+        if (result.kind === 'rejected') throw error;
         try {
           return succeeded(await run());
         } catch (again) {
           // Refused again after a renewal: the session is over.
-          if (toApiError(again).code === 'unauthorized') end();
+          if (toApiError(again).code === 'unauthorized') void end();
           throw again;
         }
       }
