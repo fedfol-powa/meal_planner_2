@@ -61,19 +61,19 @@ la settimana intera. `from` fuori dalla settimana è un errore di programmazione
 
 ### 1.2 Calendario nel fuso della famiglia
 
-In `domain/src/planner/calendar.ts`, solo con `Intl` (ECMAScript, nessuna API del
-runtime):
+In `domain/src/planner/local-time.ts` (accanto a `calendar.ts`, che lavora su date
+senza fuso), solo con `Intl` (ECMAScript, nessuna API del runtime):
 
 - `localDateTime(instant: Date, timeZone: string) → { date: IsoDate; time: 'HH:mm' }`:
   data e ora locali (con `Intl.DateTimeFormat` e `formatToParts`, calendario
   gregoriano, ore 00-23).
-- `mealPassesAt(mealType) → '15:30' | '23:00'` e
+- `MEAL_PASSES_AT` (`lunch: '15:30'`, `dinner: '23:00'`) e
   `isMealPast(date, mealType, local)`: confronto sull'ora locale, coerente con
   `app.meal_passed_at` (sezione 5 della specifica).
 - `firstOpenMeal(local) → { date, mealType }`: il primo pasto non ancora passato
   (pranzo di oggi prima delle 15:30, cena di oggi prima delle 23:00, altrimenti il
   pranzo di domani).
-- `mondayOf(date)`.
+- `mondayOf(date)` e `nextWeekStart(local)`.
 - `generationTargets(local, existingWeekStarts) → { weekStart, from? }[]`, la regola
   unica della sezione 4:
   - **settimana corrente** (il lunedì della data locale) se manca, con
