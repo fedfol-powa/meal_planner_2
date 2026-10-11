@@ -35,7 +35,9 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
    - W5: implementa la seconda PR (client oRPC reale + agganci di W4) → review → merge;
      poi le parti web di W1, W2, W4, W6 (ognuno si ferma lì con `STATO: DOMANDA`).
    - W2: PR #10 → correzione minore → merge senza nuova review se CI verde.
-   - W1: PR piccola di `mealRecipeVersions` + `versionedInput` → review → merge → W4
+   - W1: PR piccola di `mealRecipeVersions` + `versionedInput` + 11 errori del
+     pianificatore con `noUncheckedIndexedAccess` nel tsconfig di `domain/` (blocca il
+     typecheck web di W5) → review → merge → avvisare W5 (porta su main e prosegue) e W4
      task 8 (togliere lo schema scritto a mano e la query provvisoria).
    - W4: PR #11 → correzioni → verifica breve → merge.
    - W6: ricerca, dettaglio, MCP; poi parti web dopo W5.
