@@ -143,7 +143,7 @@ export function DinersGrid({ slots, editable, pending, onChange }: { slots: Slot
               </label>
             )}
             {busy && <p className="meta-line" role="status">{t('settings.saving')}</p>}
-            <button type="button" className="text-button primary wide" onClick={() => setEditing(null)}>{t('settings.done')}</button>
+            <button type="button" className={`text-button primary wide ${styles.done}`} onClick={() => setEditing(null)}>{t('settings.done')}</button>
           </>
         )}
       </BottomSheet>

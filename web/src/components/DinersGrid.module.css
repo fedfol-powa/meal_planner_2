@@ -14,3 +14,4 @@
 .fixedText { color: var(--green); font-weight: 400; overflow-wrap: anywhere; }
 .kinds { margin: 0 0 8px; padding: 0; border: 0; }
 .limitField { margin-top: 8px; }
+.done { margin-top: 12px; }

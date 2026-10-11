@@ -8,4 +8,5 @@
 .advanced h3 { margin: 20px 0 4px; font-size: 1rem; }
 .groups li { flex-wrap: wrap; padding: 8px 0; }
 .groups :global(.row-main) { flex-basis: 100%; }
-.range { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+.range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.range :global(.stepper) { gap: 6px; }
