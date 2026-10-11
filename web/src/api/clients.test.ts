@@ -26,8 +26,9 @@ describe('clients by area (second PR)', () => {
     const list = await api.recipes.search({ familyId: DEMO_FAMILY_ID, query: {} });
     expect(list.unchanged).toBe(false);
     expect(server.fetch).toHaveBeenCalledTimes(1);
-    // The menu is served (W1): its reads go to the Worker.
-    await api.menu.getOpening({ familyId: DEMO_FAMILY_ID }).catch(() => undefined);
+    // The menu is served (W1): its reads go to the Worker, which answers a valid family.
+    const opening = await api.menu.getOpening({ familyId: '5eed0000-0000-4000-8000-000000000001', today: '2026-10-08' });
+    expect(opening).toEqual({ unchanged: false, version: 'opening-1', data: { kind: 'no_weeks' } });
     expect(server.fetch).toHaveBeenCalledTimes(2);
   });
   it('in fake mode answers the server areas too, with the demo user', async () => {

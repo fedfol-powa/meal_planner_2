@@ -4,6 +4,7 @@ import { ApiError } from '../api/errors';
 import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
 import type { Api, RatingSummary } from '../api/types';
 import { addDays } from '../lib/calendar';
+import { setOnline } from '../test/connectivity';
 import { renderApp } from '../test/renderApp';
 
 beforeEach(() => {
@@ -184,6 +185,30 @@ describe('menu', () => {
     await act(async () => confirm({ familyAverage: 3, familyCount: 9, myStars: 5 }));
     await waitFor(() => expect(within(today).getAllByText('3,0').length).toBeGreaterThan(0));
     expect(screen.queryByText('Invio del voto…')).toBeNull();
+  });
+
+  describe('offline after the day changed', () => {
+    afterEach(() => setOnline(true));
+    async function openThenGoOffline() {
+      const view = renderApp('/menu');
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      fireEvent.click(screen.getByRole('link', { name: 'Profilo' }));
+      await waitFor(() => expect(view.history.location.pathname).toBe('/profile'));
+      act(() => setOnline(false));
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z')); // Friday: a new opening, never read
+      return view;
+    }
+    it('opens on the new day from the weeks already saved', async () => {
+      await openThenGoOffline();
+      fireEvent.click(screen.getByRole('link', { name: 'Menu' }));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+      expect(screen.getByRole('region', { name: 'Pasti della settimana' })).toBeTruthy();
+    });
+    it('shows a requested day of a saved week', async () => {
+      const { history } = await openThenGoOffline();
+      act(() => history.push('/menu?day=2026-10-06'));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('martedì 6 ottobre'));
+    });
   });
 
 });
