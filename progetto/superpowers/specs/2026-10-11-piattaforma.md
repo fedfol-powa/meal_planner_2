@@ -437,6 +437,34 @@ worker»):
 - Ogni creazione o modifica di risorse esterne (Worker, Hyperdrive, impostazioni di
   Supabase, segreti) passa da `STATO: DOMANDA` al coordinatore.
 
+**Passi di produzione** (task 10, rimandato dal coordinatore l'11 ottobre 2026 alla
+prima pubblicazione, dopo il merge di W2 e dell'app web). Già verificato: il JWKS del
+progetto `lronuqvtjdhfyychnscr` contiene una chiave asimmetrica attiva (`EC`, `ES256`).
+Restano quattro domande per l'utente:
+
+1. **Dimensione del pool** del Session pooler di Supabase (Database > Connection
+   pooling), per fissare `origin_connection_limit` almeno 5 sotto (nella prova 10 su
+   circa 15).
+2. **Password di `app_server`**: chi la imposta sul progetto (W2 prevede
+   `alter role app_server with password …` dall'editor SQL) e come arriva a Hyperdrive
+   senza passare dalla conversazione. Proposta: l'utente lancia lui il comando del punto 3.
+3. **Creazione di Hyperdrive**, lanciata dall'utente. Opzioni verificate con la
+   documentazione di Cloudflare (`--caching-disabled`, `--origin-connection-limit`, limite
+   «soft» di connessioni verso l'origine):
+
+   ```bash
+   npx wrangler hyperdrive create cosasimangia \
+     --connection-string="postgres://app_server.lronuqvtjdhfyychnscr:<password>@<host del Session pooler>:5432/postgres" \
+     --caching-disabled \
+     --origin-connection-limit=<pool del punto 1 meno almeno 5>
+   ```
+
+   L'id restituito va in `server/wrangler.jsonc` al posto del segnaposto.
+4. **Prima pubblicazione** (`npm run deploy` sull'account POWA): chi la lancia, dopo
+   l'applicazione delle migrazioni di W2 al progetto; poi le verifiche con `curl` del
+   piano (task 10, passo 4). Da confermare anche che la produzione usi lo stesso progetto
+   Supabase della prova.
+
 ## 7. Flusso Git, CI e integrazione di Supabase
 
 - **Flusso**: branch di attività → PR verso `main` → review → merge del coordinatore.
