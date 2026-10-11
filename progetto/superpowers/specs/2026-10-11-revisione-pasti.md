@@ -1,8 +1,9 @@
 # Revisione dei pasti: spec di dettaglio
 
-Creata: 11 ottobre 2026 · Aggiornata: 12 ottobre 2026, dopo la review di spec e piano
-(`progetto/coordinamento/revisioni/w1-revisione-pasti-spec-piano.md`, 14 rilievi) e le
-decisioni del coordinatore (`messaggi/w1-11-review-revisione-pasti.md`) · Attività W1
+Creata: 11 ottobre 2026 · Aggiornata: 12 ottobre 2026, dopo due review di spec e piano
+(`progetto/coordinamento/revisioni/w1-revisione-pasti-spec-piano.md`, 14 rilievi;
+`…-spec-piano-2.md`, 6 rilievi) e le decisioni del coordinatore
+(`messaggi/w1-11-review-revisione-pasti.md` e risposta alla seconda review) · Attività W1
 dell'ondata 2 · Branch `traguardo/revisione-pasti`
 
 Subordinata alla specifica principale
@@ -172,7 +173,10 @@ in MCP (`server/src/messages.ts`) e nel web (`web/src/i18n/messages/errors.ts`).
 ## 3. Schema: migrazione `20261012100000_meal_actions.sql`
 
 Una sola migrazione nuova, con pgTAP in `supabase/tests/meal_actions_test.sql`. Le
-migrazioni unite non si toccano.
+migrazioni unite non si toccano; il test esaustivo dei privilegi
+`supabase/tests/coverage_test.sql` si aggiorna con la funzione nuova eseguibile da
+`authenticated` (`meal_action_restores_closed_draft`), conservando il confronto con
+l'elenco completo.
 
 ### Tabella `app.meal_actions`
 
@@ -240,6 +244,18 @@ quella settimana; nessun `update` né `delete`. Grant: `select, insert` ad `auth
 Il server, per questo, scrive nell'ordine: azione, righe di `meal_changes` di tutti gli
 slot (con `before` ancora vero), poi gli `update` degli slot con `last_action_id`.
 
+### Funzione per l'annullamento
+
+`app.meal_action_restores_closed_draft(p_action_id uuid) returns boolean`, `security
+definer`, eseguibile da `authenticated`: vero se annullare l'azione riporterebbe in un
+pasto una ricetta mai pubblicata la cui bozza è chiusa (scartata). Legge **solo** le righe
+di `meal_changes` di quell'azione (`action_id = p_action_id`), quindi solo prove rese
+veritiere dalla regola 1, e solo se l'azione è di una settimana accessibile a chi chiama
+(altrimenti falso). Non dipende dalla visibilità attuale della ricetta: dopo che un
+`setFree` ha tolto l'ultima citazione, un membro non vede più la bozza in `app.recipes`, ma
+la funzione risponde lo stesso. Non rivela lo stato di bozze di altre famiglie: una riga
+senza azione con un `before` inventato non è mai letta.
+
 ### Test pgTAP
 
 Scambio bozza↔pubblicata in entrambi gli ordini; due bozze che si scambiano; ripristino
@@ -247,7 +263,10 @@ della bozza dopo aver tolto l'ultima citazione (`setFree` poi annullamento); rip
 rifiutato se la bozza è stata chiusa; `before` falso rifiutato; `last_action_id` di
 un'azione altrui, di un'altra settimana o di un'altra famiglia rifiutato; azione con slot
 di un'altra famiglia rifiutata; registro e azioni non modificabili né cancellabili;
-lettura delle azioni solo ai membri; regola (a) invariata.
+lettura delle azioni solo ai membri; regola (a) invariata;
+`meal_action_restores_closed_draft` vera solo per la bozza chiusa, falsa per un'azione di
+un'altra famiglia e non ingannata da una riga senza azione con una citazione falsa;
+`coverage_test.sql` con la funzione nell'elenco di `authenticated`.
 
 ## 4. Server (prima PR)
 
@@ -316,9 +335,10 @@ indipendente dagli orologi. Gli istanti (`created_at`, `updated_at`) usano
 4. Azione altrui → `not_allowed` / `not_own_change`.
 5. Uno degli slot ha `last_action_id` diverso da `actionId` → `not_allowed` /
    `changed_since`.
-6. Una riga ripristina una ricetta mai pubblicata la cui bozza è chiusa →
-   `not_allowed` / `draft_closed`. Se nel frattempo la bozza è stata **pubblicata**, il
-   ripristino riguarda ormai una ricetta pubblicata e procede (vedi «Decisioni»).
+6. `app.meal_action_restores_closed_draft(actionId)` vero → `not_allowed` /
+   `draft_closed`, senza scritture. Se nel frattempo la bozza è stata **pubblicata**, la
+   ricetta ha lo stesso id ed è ormai pubblicata: il ripristino procede (decisione del
+   coordinatore, sotto).
 7. Azione `undo` con una riga per slot: `after` = `before` della riga annullata,
    `undoes` = quella riga. Tutti gli slot dell'azione tornano insieme.
 
@@ -429,7 +449,10 @@ una risposta superata non si scrive e marca scadute le viste.
 ### Componenti (`web/src/features/meals/`)
 
 - **`MealActions`** (il pannello): porzioni (solo ricette), «Cambia ricetta», «Nota».
-- **Porzioni** (`useServingsDraft`):
+- **Porzioni** (`useServingsDraft`); un invio respinto non sparisce in silenzio: con la
+  scheda montata il pannello mostra l'errore (stesso testo degli altri errori dei pasti) e
+  il valore torna a quello del server; dopo la navigazione resta un avviso persistente nel
+  Menu («Le porzioni di … non sono state salvate»), chiuso solo dall'utente:
   - valore locale per la vista e riferimento al valore da salvare, separati;
   - invio 800 ms dopo l'ultimo tocco, sempre fuori dagli aggiornamenti di stato;
   - durante l'invio il selettore è disattivato e mostra il valore inviato fino alla
@@ -439,7 +462,11 @@ una risposta superata non si scrive e marca scadute le viste.
     «Annulla»;
   - offline: il selettore è disattivato, un valore in attesa non parte e torna al valore
     del server, con il messaggio offline;
-  - in Strict Mode una sola richiesta.
+  - in Strict Mode una sola richiesta;
+  - gli avvisi dei salvataggi falliti dopo lo smontaggio stanno in un piccolo archivio
+    legato alla sessione (`saveNotices.ts`, `WeakMap` per sessione, letto con
+    `useSyncExternalStore`), mostrato in cima al Menu finché l'utente non lo chiude e
+    cancellato alla chiusura della sessione.
 - **`MealEditor`**: `BottomSheet` con le fasi `picker`, `swap`, `free`, `note`.
 - **`RecipePicker`**:
   - in cima «Segna come pasto libero», «Non proporre più» (solo con una ricetta) e
@@ -499,7 +526,11 @@ rifiuti. In sintesi:
   - **scambio e annullamento:** scambio con bozza e con archiviata in entrambi gli ordini;
     annullamento dello scambio sempre per intero, anche dell'annullamento;
     `changed_since` dopo la modifica di un altro su uno solo dei due slot, senza effetti;
-    `not_own_change`; `draft_closed`; annullamento ripartendo solo da `menu.getWeek`;
+    `not_own_change`; `draft_closed` sul percorso RPC completo di un membro non curatore,
+    senza scritture dopo il rifiuto; bozza pubblicata nel frattempo ripristinata con lo
+    stesso id; annullamento ripartendo solo da `menu.getWeek`. Le bozze importate dei test
+    hanno la loro riga aperta in `recipe_drafts` (fixture dedicata) e la chiusura verifica
+    di aver chiuso proprio quella;
   - **ordine e istanti:** transazione iniziata prima e bloccata sul lucchetto che salva
     dopo un'altra: `last_action_id`, `undoable` e `updated_at` seguono l'ordine reale;
   - **R1:** settimana passata (gennaio 2026) con due versioni della ricetta: il pasto
@@ -512,7 +543,8 @@ rifiuti. In sintesi:
 - **Web:**
   - scheda per ricetta, libero e vuoto, e passaggio da un tipo all'altro;
   - porzioni: numero e contenuto delle richieste, un solo annullamento, chiusura
-    anticipata, smontaggio, offline, Strict Mode;
+    anticipata, smontaggio, offline, Strict Mode, richiesta respinta con la scheda
+    montata (errore nel pannello) e dopo lo smontaggio (avviso persistente nel Menu);
   - suggerimenti, «Proponimene altri» senza chiamate di scrittura e con il pasto
     invariato;
   - ricerca con soli filtri e voti nei risultati, in italiano e in inglese;
@@ -547,7 +579,8 @@ rifiuti. In sintesi:
 | Da un agente si annulla la propria ultima modifica di un pasto anche in una conversazione nuova: la vista del pasto dice se è annullabile e quali pasti coinvolge | 5, 13 |
 | Una richiesta che non cambia nulla non cambia l'ultima modifica mostrata, ma è ricordata: ripeterla non sovrascrive modifiche successive | 1, 5 |
 | Porzioni da 1 a 20 nella revisione; testo del pasto libero fino a 60 caratteri; proposte rapide: i quattro testi liberi più usati | 5 |
-| Si sceglie solo una ricetta pubblicata (da suggerimenti o ricerca, anche di un libro non posseduto); una archiviata o una bozza importata resta nei pasti che la citano, si sposta con lo scambio e torna con l'annullamento, se la bozza è ancora aperta; se nel frattempo è stata pubblicata torna la ricetta pubblicata | 5 |
+| Si sceglie solo una ricetta pubblicata (da suggerimenti o ricerca, anche di un libro non posseduto); una archiviata o una bozza importata resta nei pasti che la citano, si sposta con lo scambio e torna con l'annullamento, se la bozza è ancora aperta; se nel frattempo è stata pubblicata torna la ricetta pubblicata (stesso id); se è stata chiusa senza pubblicazione l'annullamento non è più possibile (decisione del coordinatore, 12 ottobre 2026) | 5 |
+| Un salvataggio delle porzioni respinto si spiega sempre: errore nel pannello, oppure avviso nel Menu se nel frattempo si è cambiata pagina | 5 |
 | Note e testi dei pasti liberi restano come li scrive l'utente, senza traduzione (come le voci libere della spesa); i testi dell'interfaccia restano bilingui | 12, 15 |
 | «Non proporre più» dal pasto: l'esclusione resta anche se si chiude il foglio senza scegliere; si annulla dal foglio o dal Profilo | 5 |
 | La ricerca del sostituto parte con il tipo di pasto dello slot e si attiva anche con i soli filtri; risultati con il voto in sola lettura, come i suggerimenti | 5 |
@@ -558,17 +591,17 @@ rifiuti. In sintesi:
 |---|---|
 | Area `meals`: `getSuggestions` (non versionata, per i voti globali), `setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo({actionId, id})`; ogni scrittura è un'azione con `id` dal client e risposta `{week, actionId, changed}` | 1, 5, 13 |
 | `app.meal_actions` (una riga per richiesta, mai modificata), `meal_changes.action_id`, `meal_slots.last_action_id` come ordine reale dell'ultima modifica, istanti con `clock_timestamp()` dopo il lucchetto | 2, 5 |
-| Registro veritiero (`before` uguale allo slot) e regola delle bozze estesa allo spostamento nella stessa azione e al ripristino di un annullamento, con bozza aperta | 2 |
+| Registro veritiero (`before` uguale allo slot) e regola delle bozze estesa allo spostamento nella stessa azione e al ripristino di un annullamento, con bozza aperta; `app.meal_action_restores_closed_draft` limitata alle righe dell'azione e alle settimane di chi chiama | 2 |
 | `lastChange` della vista del pasto con `actionId`, `undoable`, `slotIds` | 1, 5 |
 | `not_allowed` con `not_own_change`, `changed_since`, `draft_closed`; testo generico neutro | 1 |
 | Suggerimenti con `rankSuggestions` sulle funzioni della generazione; piatto attuale escluso prima del ripiego sui voti bassi; `fixedRecipes` (archiviate citate dai pasti) nella stessa logica anche per la generazione | 3 |
 | Web: bersaglio `week`; matrice delle invalidazioni dei suggerimenti (pasti, esclusioni, impostazioni, libri, ingredienti, voti) | 1 |
 
-### Scostamento da segnalare al coordinatore
+### Decisione del coordinatore (12 ottobre 2026)
 
-La decisione 4 del coordinatore chiede `not_allowed` anche quando la bozza è stata
-**pubblicata** nel frattempo. Propongo di rifiutare solo la bozza **chiusa** (scartata):
-una bozza pubblicata è ormai una ricetta del ricettario, ripristinarla non apre accessi, e
-l'utente non capirebbe perché non può annullare. Se il coordinatore preferisce il rifiuto,
-basta trattare `status <> 'draft'` della ricetta ripristinata, se era bozza all'origine,
-come `draft_closed`.
+**Sostituisce il punto 4 di `messaggi/w1-11-review-revisione-pasti.md`** nella parte sulla
+bozza pubblicata: se nel frattempo un curatore ha **pubblicato** la bozza, l'annullamento
+ripristina la ricetta pubblicata, che ha lo stesso id; `not_allowed` / `draft_closed` solo
+se la bozza è stata **chiusa senza pubblicazione** (scartata). Test: `setFree` sull'ultima
+citazione di una bozza importata, pubblicazione della bozza, annullamento riuscito con la
+ricetta pubblicata nel pasto (`server/test/meals/undo.test.ts`).

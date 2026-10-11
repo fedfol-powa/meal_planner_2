@@ -26,7 +26,10 @@ Vitest, React con TanStack Query e Router, Testing Library.
   dell'interfaccia in italiano e inglese britannico; note e testi liberi come scritti.
 - Nessuna dipendenza nuova. Una sola migrazione nuova:
   `supabase/migrations/20261012100000_meal_actions.sql`, con
-  `supabase/tests/meal_actions_test.sql`. Migrazioni e test pgTAP già uniti non si toccano.
+  `supabase/tests/meal_actions_test.sql`. Le migrazioni unite non si toccano;
+  `supabase/tests/coverage_test.sql` (elenco esaustivo dei privilegi) si aggiorna nel Task 1
+  con la sola funzione nuova eseguibile da `authenticated`; gli altri test pgTAP uniti
+  restano invariati.
 - Porzioni 1-20; testo libero 1-60 caratteri dopo il trim; nota fino a 200, vuota → `null`;
   5 suggerimenti per pagina; al massimo 4 proposte rapide.
 - Scritture: `role: 'familyMember'`, `mcp: { readOnly: false }`, `offline: false`,
@@ -49,7 +52,8 @@ Vitest, React con TanStack Query e Router, Testing Library.
   `web/src/i18n/messages/index.ts`, `web/src/i18n/messages/errors.ts`,
   `web/src/i18n/messages/menu.ts`, `web/src/components/RecipeCard.tsx`,
   `web/src/components/RatingStars.tsx`, `web/src/components/Icon.tsx`,
-  `web/src/routes/MenuPage.tsx`, `web/src/test/rpcServer.ts`, `web/src/test/renderApp.tsx`.
+  `web/src/routes/MenuPage.tsx`, `web/src/test/rpcServer.ts`, `web/src/test/renderApp.tsx`,
+  `web/src/test/sessionHarness.tsx`, `supabase/tests/coverage_test.sql`.
 - Ogni PR passa `supabase test db`, `npm run typecheck`, `npm test` da sola.
 
 ## Review Focus
@@ -63,9 +67,9 @@ Vitest, React con TanStack Query e Router, Testing Library.
    ricava tutto da `menu_getWeek`. Test nei Task 6 e 8.
 4. **Transazione iniziata prima e bloccata sul lucchetto che salva dopo un'altra**: l'ultima
    modifica e l'annullabilità seguono l'ordine reale. Test nel Task 6.
-5. **Porzioni regolate e poi pannello chiuso, scheda smontata o rete persa prima
-   dell'invio**: una sola richiesta o nessuna, mai valori persi in silenzio. Test nel
-   Task 11.
+5. **Porzioni regolate e poi pannello chiuso, scheda smontata, rete persa o invio
+   respinto**: una sola richiesta o nessuna, mai valori persi in silenzio (errore nel
+   pannello o avviso persistente nel Menu). Test nel Task 11.
 
 ## Struttura dei file
 
@@ -73,7 +77,7 @@ Vitest, React con TanStack Query e Router, Testing Library.
 
 | File | Responsabilità |
 |---|---|
-| `supabase/migrations/20261012100000_meal_actions.sql`, `supabase/tests/meal_actions_test.sql` | azioni, colonne, regole del registro e delle bozze, `recipe_draft_is_open` |
+| `supabase/migrations/20261012100000_meal_actions.sql`, `supabase/tests/meal_actions_test.sql`, `supabase/tests/coverage_test.sql` | azioni, colonne, regole del registro e delle bozze, `meal_action_restores_closed_draft`, privilegi |
 | `domain/src/planner/constraints.ts`, `prepared.ts`, `types.ts` | `excludeIds`, `fixedRecipes` |
 | `domain/src/planner/suggest.ts` (+ test) | `rankSuggestions` |
 | `contract/src/errors.ts` | motivi nuovi |
@@ -91,7 +95,7 @@ prima (nome da confermare con il coordinatore):**
 |---|---|
 | `web/src/api/fake/fakeMeals.ts` (+ test) | client finto dell'area |
 | `web/src/features/meals/queries.ts`, `useMealMutation.ts` | lettura e invio |
-| `web/src/features/meals/useServingsDraft.ts` | porzioni con salvataggio differito |
+| `web/src/features/meals/useServingsDraft.ts`, `saveNotices.ts`, `SaveNotices.tsx` | porzioni con salvataggio differito, avvisi dei salvataggi falliti |
 | `web/src/features/meals/MealActions.tsx`, `MealEditor.tsx`, `RecipePicker.tsx`, `SwapPicker.tsx`, `FreeMealForm.tsx`, `NoteForm.tsx` | pannello e foglio |
 | `web/src/features/meals/UndoProvider.tsx`, `UndoToast.tsx`, `useMealErrors.ts` | «Annulla» ed errori |
 | `web/src/features/meals/meals.module.css`, `web/src/i18n/messages/meals.ts` | stili e testi |
@@ -106,6 +110,7 @@ prima (nome da confermare con il coordinatore):**
 **Files:**
 - Create: `supabase/migrations/20261012100000_meal_actions.sql`
 - Create: `supabase/tests/meal_actions_test.sql`
+- Modify: `supabase/tests/coverage_test.sql` (elenco delle funzioni di `authenticated`)
 
 **Interfaces:**
 - Consumes: `app.weeks`, `app.meal_slots`, `app.meal_changes`, `app.recipes`,
@@ -117,7 +122,8 @@ prima (nome da confermare con il coordinatore):**
 - Produces: tabella `app.meal_actions(id, week_id, actor_id, channel, kind, slot_ids, undoes, created_at)`;
   colonne `meal_changes.action_id`, `meal_slots.last_action_id`; trigger
   `app.check_meal_change()`, `app.check_meal_slot_last_action()`; `app.check_meal_slot_recipe()`
-  sostituita; funzione `app.recipe_draft_is_open(uuid) returns boolean` per i membri.
+  sostituita; funzione `app.meal_action_restores_closed_draft(p_action_id uuid) returns boolean`
+  per i membri.
 
 - [ ] **Step 1: Write the failing pgTAP test**
 
@@ -135,12 +141,17 @@ create function tests.content(p_slot uuid) returns jsonb language sql as $$
 $$;
 grant execute on function tests.content(uuid) to authenticated;
 
--- Two more drafts (owner): B cited by a new Rossi slot, C cited by nobody.
+-- Two more drafts (owner): B cited by a new Rossi slot, C cited by nobody; V cited only by
+-- Verdi and discarded (another family's closed draft).
 insert into app.recipes (slug, name) values ('test-draft-b', '{"it-IT": "Bozza B", "en-GB": null}'), ('test-draft-c', '{"it-IT": "Bozza C", "en-GB": null}');
 insert into app.recipe_drafts (recipe_id, kind, content, revision, created_by, updated_by)
 	select id, 'new', '{}', 1, tests.uid('anna'), tests.uid('anna') from app.recipes where slug in ('test-draft-b', 'test-draft-c');
 insert into app.meal_slots (id, week_id, date, meal_type, recipe_id, servings)
 	values ('c0c0c0c0-0000-4000-8000-0000000000b0', tests.week('Rossi'), '2026-10-13', 'lunch', tests.recipe('draft-b'), 2);
+insert into app.recipes (slug, name) values ('test-draft-v', '{"it-IT": "Bozza V", "en-GB": null}');
+insert into app.recipe_drafts (recipe_id, kind, content, revision, closed_at, outcome)
+	values (tests.recipe('draft-v'), 'new', '{}', 1, now(), 'discarded');
+update app.meal_slots set recipe_id = tests.recipe('draft-v'), free_text = null where id = 'c0c0c0c0-0000-4000-8000-000000000003';
 
 \set lunch '''c0c0c0c0-0000-4000-8000-000000000001'''
 \set dinner '''c0c0c0c0-0000-4000-8000-000000000002'''
@@ -203,15 +214,22 @@ select lives_ok(format($$insert into app.meal_actions (id, week_id, actor_id, ch
 select lives_ok(format($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after, undoes, action_id)
 	select %s, tests.uid('anna'), 'web', tests.content(%s), c.before, c.id, 'e0000000-0000-4000-8000-000000000004'
 	from app.meal_changes c where c.action_id = 'e0000000-0000-4000-8000-000000000003'$$, :dinner, :dinner), 'undo row');
-select is(app.recipe_draft_is_open(tests.recipe('draft-b')), true, 'members learn that the draft their log cites is open');
+select is(app.meal_action_restores_closed_draft('e0000000-0000-4000-8000-000000000003'), false, 'undoing the free meal brings back an open draft');
 savepoint closed;
 reset role;
-update app.recipe_drafts set closed_at = now(), outcome = 'discarded' where recipe_id = tests.recipe('draft-b');
+select is((select count(*) from (update app.recipe_drafts set closed_at = now(), outcome = 'discarded'
+	where recipe_id = tests.recipe('draft-b') and closed_at is null returning 1) x), 1::bigint, 'draft B is discarded');
 select tests.login('anna');
-select is(app.recipe_draft_is_open(tests.recipe('draft-b')), false, 'and that it is closed');
+select is(app.meal_action_restores_closed_draft('e0000000-0000-4000-8000-000000000003'), true,
+	'Anna learns the draft is closed, although she no longer sees the recipe');
 select throws_ok(format($$update app.meal_slots set recipe_id = %L, free_text = null, last_action_id = 'e0000000-0000-4000-8000-000000000004'
 	where id = %s$$, tests.recipe('draft-b'), :dinner), '42501', null, 'a closed draft does not come back');
+reset role;
+select tests.login('franco');
+select is(app.meal_action_restores_closed_draft('e0000000-0000-4000-8000-000000000003'), false, 'Franco learns nothing about a Rossi action');
 rollback to savepoint closed;
+reset role;
+select tests.login('anna');
 select is(tests.affected(format($$update app.meal_slots set recipe_id = %L, free_text = null, last_action_id = 'e0000000-0000-4000-8000-000000000004'
 	where id = %s$$, tests.recipe('draft-b'), :dinner)), 1::bigint, 'an open draft comes back with the undo');
 
@@ -235,6 +253,14 @@ select throws_ok($$update app.meal_actions set kind = 'swap'$$, '42501', null, '
 select throws_ok($$delete from app.meal_actions$$, '42501', null, 'actions are never deleted');
 select lives_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after)
 	values ('c0c0c0c0-0000-4000-8000-000000000001', tests.uid('anna'), 'web', '{}', '{}')$$, 'rows without an action stay as before (no evidence)');
+-- A forged citation of another family's closed draft, in a row without an action, proves nothing.
+select lives_ok(format($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after)
+	values ('c0c0c0c0-0000-4000-8000-000000000001', tests.uid('anna'), 'web', jsonb_build_object('recipeId', %L), '{}')$$,
+	tests.recipe('draft-v')), 'a forged before without an action is accepted as before');
+select is(app.meal_action_restores_closed_draft('e0000000-0000-4000-8000-000000000001'), false,
+	'the function reads only the rows of the action: the forged row reveals nothing');
+select throws_ok(format($$update app.meal_slots set recipe_id = %L, last_action_id = 'e0000000-0000-4000-8000-000000000001' where id = %s$$,
+	tests.recipe('draft-v'), :lunch), '42501', null, 'and links nothing');
 
 -- Another member cannot use Anna's action; another family cannot see or use it.
 reset role;
@@ -245,7 +271,6 @@ select throws_ok(format($$update app.meal_slots set last_action_id = 'e0000000-0
 reset role;
 select tests.login('franco');
 select is((select count(*) from app.meal_actions), 0::bigint, 'Franco sees no Rossi actions');
-select is(app.recipe_draft_is_open(tests.recipe('new-draft')), false, 'Franco learns nothing about a Rossi draft');
 select throws_ok(format($$update app.meal_slots set last_action_id = 'e0000000-0000-4000-8000-000000000001' where id = %s$$, :verdi),
 	'23503', null, 'an action of another week is refused by the foreign key');
 
@@ -397,34 +422,53 @@ begin
 end;
 $$;
 
--- Whether a never-published recipe that the user's family log cites still has an open draft
--- (undo of a meal): a boolean only, false for recipes the family never cited. Members cannot
--- read recipe_drafts.
-create function app.recipe_draft_is_open(p_recipe_id uuid)
+-- Whether undoing an action would bring back a never-published recipe whose draft was closed
+-- without publication (meals.undo answers draft_closed). Reads only the rows of that action,
+-- truthful by rule 1, and only for actions of weeks the caller can access: it does not depend on
+-- the recipe being visible now (the last citation may be gone) and reveals nothing else.
+create function app.meal_action_restores_closed_draft(p_action_id uuid)
 returns boolean language sql stable security definer set search_path = '' as $$
-	select exists (select 1 from app.recipe_drafts d where d.recipe_id = p_recipe_id and d.closed_at is null)
-		and exists (
-			select 1 from app.meal_changes c join app.meal_slots s on s.id = c.meal_slot_id
-			where c.before ->> 'recipeId' = p_recipe_id::text and app.can_access_week(s.week_id)
-		);
+	select exists (
+		select 1
+		from app.meal_actions a
+		join app.meal_changes c on c.action_id = a.id
+		join app.recipes r on r.id = (c.before ->> 'recipeId')::uuid
+		where a.id = p_action_id and app.can_access_week(a.week_id)
+			and r.status = 'draft'
+			and not exists (select 1 from app.recipe_drafts d where d.recipe_id = r.id and d.closed_at is null)
+	);
 $$;
 
-revoke execute on function app.check_meal_change(), app.check_meal_slot_last_action(), app.recipe_draft_is_open(uuid) from public;
-grant execute on function app.recipe_draft_is_open(uuid) to authenticated;
+revoke execute on function app.check_meal_change(), app.check_meal_slot_last_action(), app.meal_action_restores_closed_draft(uuid) from public;
+grant execute on function app.meal_action_restores_closed_draft(uuid) to authenticated;
 ```
 
 (`app.check_meal_slot_recipe` keeps its grants with `create or replace`; the triggers
-`meal_slots_check_recipe_insert/update` already call it. `app.recipe_draft_is_open` checks
-`can_access_week` inside: the definer reads every family, the answer only covers the
-caller's.)
+`meal_slots_check_recipe_insert/update` already call it. A published recipe has
+`status = 'published'`, so `meal_action_restores_closed_draft` is false for a draft
+published in the meantime: the undo brings back the published recipe, same id —
+coordinator's decision of 12 October 2026.)
+
+`supabase/tests/coverage_test.sql`, list of the functions `authenticated` executes, with the
+new name in alphabetical order:
+
+```sql
+	array['can_access_list', 'can_access_slot', 'can_access_week', 'catalogue_author_names', 'has_role', 'is_family_admin',
+		'is_localized_list', 'is_localized_text', 'is_member', 'meal_action_restores_closed_draft', 'meal_passed_at',
+		'recipe_is_cited', 'recipe_version_at', 'session_is_active', 'shares_family', 'unit_dimension'],
+```
+
+(Trigger functions are revoked from `public` and granted to nobody: they stay out of the
+list. If `main` added names to the list in the meantime, keep them.)
 
 - [ ] **Step 4: Run** `supabase test db` — Expected: PASS, every existing file included
-  (`meals_test.sql` and `versions_test.sql` insert rows without `action_id`).
+  (`meals_test.sql` and `versions_test.sql` insert rows without `action_id`;
+  `coverage_test.sql` with the updated list).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add supabase/migrations/20261012100000_meal_actions.sql supabase/tests/meal_actions_test.sql
+git add supabase/migrations/20261012100000_meal_actions.sql supabase/tests/meal_actions_test.sql supabase/tests/coverage_test.sql
 git commit -m "Schema: azioni della revisione dei pasti, registro veritiero e bozze spostabili o ripristinabili"
 ```
 
@@ -739,7 +783,7 @@ git commit -m "Menu: ultima azione del pasto nella vista, annullabile da chi leg
   - `mealsContract.{setServings, setRecipe, setFree, setNote}`, `mealActionResult`, `type MealActionResult`;
   - `slots.ts`: `SlotRow`, `SlotContent`, `contentOf`, `sameContent`, `lockSlots(tx, familyId, ids): Promise<SlotRow[]>` (in the order asked), `readSlot(tx, familyId, id): Promise<SlotRow>`;
   - `actions.ts`: `type ActionKind`, `interface ActionRequest { id: string; kind: ActionKind; slots: SlotRow[]; undoes?: string }`, `interface Edit { slot: SlotRow; after: SlotContent; undoes?: string }`, `replay(context, familyId, request): Promise<MealActionResult | null>`, `perform(context, familyId, request, edits): Promise<MealActionResult>`;
-  - `support/meals.ts`: `mealsSetup(actors)`, `mealOf(week: WeekView, slotId): MealView`, `agentClient(actors, actor)`.
+  - `support/meals.ts`: `mealsSetup(actors)` (with `importedDraft(name)`, `discardDraft(recipeId)`, `publishDraft(recipeId, from)`), `mealOf(week: WeekView, slotId): MealView`, `agentClient(actors, actor)`.
 
 - [ ] **Step 1: Contract test (failing)**
 
@@ -897,7 +941,36 @@ export async function mealsSetup(actors: Actors) {
 		if (read.unchanged) throw new Error('expected data');
 		return read.data;
 	};
-	return { fx, anna, bruno, familyId, recipes, weekStartsOn, weekId, slots, changes, slotRow, action, week };
+	/** A never-published recipe with its open draft, as the import leaves it (draftRecipe alone has no draft row). */
+	const importedDraft = async (name: string) => {
+		const recipeId = await fx.draftRecipe(name);
+		await actors.db.admin`insert into app.recipe_drafts (recipe_id, kind, content, revision) values (${recipeId}, 'new', '{}', 1)`;
+		return recipeId;
+	};
+	/** A curator discards the open draft; fails when there was none to close. */
+	const discardDraft = async (recipeId: string) => {
+		const closed = await actors.db.admin`
+			update app.recipe_drafts set closed_at = now(), outcome = 'discarded' where recipe_id = ${recipeId} and closed_at is null returning id`;
+		if (closed.length !== 1) throw new Error(`no open draft for ${recipeId}`);
+	};
+	/** A curator publishes the draft as version 1 (same id), with the document and projections of a published recipe. */
+	const publishDraft = async (recipeId: string, from: string) => {
+		await actors.db.admin.begin(async (sql) => {
+			await sql`
+				insert into app.recipe_versions (recipe_id, version, content, published_at, channel)
+				select ${recipeId}, 1, content, now(), 'import' from app.recipe_versions where recipe_id = ${from} and version = 1`;
+			await sql`
+				update app.recipes r set status = 'published', version = 1, description = o.description, source_type = o.source_type,
+					duration_minutes = o.duration_minutes, base_servings = o.base_servings, protein_group = o.protein_group,
+					is_fresh_fish = o.is_fresh_fish, carbohydrate_group = o.carbohydrate_group, has_vegetables = o.has_vegetables,
+					category = o.category, meal_type = o.meal_type, is_heavy = o.is_heavy
+				from app.recipes o where r.id = ${recipeId} and o.id = ${from}`;
+			const closed = await sql`
+				update app.recipe_drafts set closed_at = now(), outcome = 'published' where recipe_id = ${recipeId} and closed_at is null returning id`;
+			if (closed.length !== 1) throw new Error(`no open draft for ${recipeId}`);
+		});
+	};
+	return { fx, anna, bruno, familyId, recipes, weekStartsOn, weekId, slots, changes, slotRow, action, week, importedDraft, discardDraft, publishDraft };
 }
 ```
 
@@ -1306,7 +1379,7 @@ describe.skipIf(!hasDatabase)('meal swap', () => {
 		it(`moves an imported draft and an archived recipe (${order} in id order)`, async () => {
 			const archived = await s.fx.publishRecipe();
 			await catalogueFixture(actors.db).archive(archived);
-			const draft = await s.fx.draftRecipe('Bozza importata');
+			const draft = await s.importedDraft('Bozza importata');
 			const [a, b] = [s.slots.monLunch, s.slots.tueLunch].sort();
 			const [draftSlot, otherSlot] = order === 'draft first' ? [a!, b!] : [b!, a!];
 			await actors.db.admin`update app.meal_slots set recipe_id = ${draft}, free_text = null where id = ${draftSlot}`;
@@ -1318,7 +1391,7 @@ describe.skipIf(!hasDatabase)('meal swap', () => {
 	}
 
 	it('swaps two imported drafts', async () => {
-		const [d1, d2] = [await s.fx.draftRecipe('Bozza uno'), await s.fx.draftRecipe('Bozza due')];
+		const [d1, d2] = [await s.importedDraft('Bozza uno'), await s.importedDraft('Bozza due')];
 		await actors.db.admin`update app.meal_slots set recipe_id = ${d1}, free_text = null where id = ${s.slots.monLunch}`;
 		await actors.db.admin`update app.meal_slots set recipe_id = ${d2}, free_text = null where id = ${s.slots.tueLunch}`;
 		const result = await s.anna.client.meals.swap({ familyId: s.familyId, slotId: s.slots.monLunch, otherSlotId: s.slots.tueLunch, id: id() });
@@ -1407,7 +1480,7 @@ git commit -m "Revisione dei pasti: scambio nella stessa settimana, anche delle 
 - Create: `server/test/meals/undo.test.ts`
 
 **Interfaces:**
-- Consumes: `lockSlots`, `replay`, `perform`, `SlotContent` (Task 4), `app.recipe_draft_is_open` (Task 1).
+- Consumes: `lockSlots`, `replay`, `perform`, `SlotContent` (Task 4), `importedDraft`, `discardDraft`, `publishDraft` (`support/meals.ts`), `app.meal_action_restores_closed_draft` (Task 1).
 - Produces: `mealsContract.undo` (input `{ familyId, actionId, id }`); `undoAction(context, familyId, input): Promise<MealActionResult>`.
 
 - [ ] **Step 1: Failing tests**
@@ -1477,15 +1550,37 @@ describe.skipIf(!hasDatabase)('meal undo', () => {
 		expect((await errorOf(s.anna.client.meals.undo({ familyId: s.familyId, actionId: changed.actionId, id: id() }))).data).toEqual({ reason: 'not_own_change' });
 	});
 
-	it('restores the last citation of an imported draft; draft_closed once it was discarded', async () => {
-		const draft = await s.fx.draftRecipe('Bozza importata');
+	it('restores the last citation of an imported draft (Anna is not a curator)', async () => {
+		const draft = await s.importedDraft('Bozza importata');
 		await actors.db.admin`update app.meal_slots set recipe_id = ${draft}, free_text = null where id = ${s.slots.monDinner}`;
 		const freed = await s.anna.client.meals.setFree({ familyId: s.familyId, slotId: s.slots.monDinner, id: id(), text: 'Fuori' });
 		const undone = await s.anna.client.meals.undo({ familyId: s.familyId, actionId: freed.actionId, id: id() });
 		expect(mealOf(undone.week, s.slots.monDinner).recipe?.id).toBe(draft);
-		const again = await s.anna.client.meals.setFree({ familyId: s.familyId, slotId: s.slots.monDinner, id: id(), text: 'Fuori' });
-		await actors.db.admin`update app.recipe_drafts set closed_at = now(), outcome = 'discarded' where recipe_id = ${draft}`;
-		expect((await errorOf(s.anna.client.meals.undo({ familyId: s.familyId, actionId: again.actionId, id: id() }))).data).toEqual({ reason: 'draft_closed' });
+	});
+
+	it('draft_closed over RPC once the draft was discarded, and nothing is written', async () => {
+		const draft = await s.importedDraft('Bozza importata');
+		await actors.db.admin`update app.meal_slots set recipe_id = ${draft}, free_text = null where id = ${s.slots.monDinner}`;
+		const freed = await s.anna.client.meals.setFree({ familyId: s.familyId, slotId: s.slots.monDinner, id: id(), text: 'Fuori' });
+		await s.discardDraft(draft);
+		const before = await s.week(s.anna);
+		const undoId = id();
+		const error = await errorOf(s.anna.client.meals.undo({ familyId: s.familyId, actionId: freed.actionId, id: undoId }));
+		expect(error.code).toBe('not_allowed');
+		expect(error.data).toEqual({ reason: 'draft_closed' });
+		expect(await s.week(s.anna)).toEqual(before);
+		expect(await s.action(undoId)).toBeUndefined();
+	});
+
+	it('a draft published in the meantime comes back as the published recipe, same id (coordinator, 12 October)', async () => {
+		const draft = await s.importedDraft('Bozza importata');
+		await actors.db.admin`update app.meal_slots set recipe_id = ${draft}, free_text = null where id = ${s.slots.monDinner}`;
+		const freed = await s.anna.client.meals.setFree({ familyId: s.familyId, slotId: s.slots.monDinner, id: id(), text: 'Fuori' });
+		await s.publishDraft(draft, s.recipes[1]!);
+		const undone = await s.anna.client.meals.undo({ familyId: s.familyId, actionId: freed.actionId, id: id() });
+		const meal = mealOf(undone.week, s.slots.monDinner);
+		expect(meal.recipe?.id).toBe(draft);
+		expect(meal.canOpenRecipe).toBe(true);
 	});
 
 	it('an action without effect undoes to nothing', async () => {
@@ -1579,11 +1674,8 @@ export async function undoAction(context: OperationContext, familyId: string, in
 	if (rows.length === 0) return perform(context, familyId, request, []);
 	if (action.actorId !== context.userId) throw notAllowed('not_own_change');
 	if (slots.some((s) => s.lastActionId !== input.actionId)) throw notAllowed('changed_since');
-	const drafts = rows.map((r) => r.before.recipeId).filter((id): id is string => id !== null);
-	const [closed] = await tx<{ id: string }[]>`
-		select r.id from app.recipes r
-		where r.id = any(${drafts}::uuid[]) and r.status = 'draft' and not app.recipe_draft_is_open(r.id)
-		limit 1`;
+	// Not from app.recipes: after the last citation went away the member no longer sees the draft.
+	const [{ closed }] = await tx<{ closed: boolean }[]>`select app.meal_action_restores_closed_draft(${input.actionId}) as closed`;
 	if (closed) throw notAllowed('draft_closed');
 	return perform(context, familyId, request, rows.map((row) => ({ slot: slots.find((s) => s.id === row.slotId)!, after: row.before, undoes: row.id })));
 }
@@ -1595,7 +1687,7 @@ export async function undoAction(context: OperationContext, familyId: string, in
 ```
 
 A draft published in the meantime has `status = 'published'`: it is not refused and the
-restore goes on (spec, «Scostamento da segnalare al coordinatore»).
+restore goes on (spec, «Decisione del coordinatore (12 ottobre 2026)»).
 
 - [ ] **Step 5: Run** `supabase test db && npm run typecheck && npx vitest run server/test/meals` — Expected: PASS.
 
@@ -2440,37 +2532,56 @@ export function useMealMutation<I>(name: MealMutationName, familyId: string, wee
 
 ```tsx
 // web/src/features/meals/useMealMutation.test.tsx
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import type { MealActionResult } from '../../api/types';
+import { DEMO_USER } from '../../auth/backend';
 import { setOnline } from '../../test/connectivity';
-import { sessionWrapper } from '../../test/sessionHarness';
+import { renderSession } from '../../test/sessionHarness';
+import { createStubBackend } from '../../test/stubBackend';
 import { useMealMutation } from './useMealMutation';
+
+type Mutation = ReturnType<typeof useMealMutation<Record<string, never>>>;
+
+/** Mounts the hook inside the real session scope and hands it out (renderHook has no SessionScope). */
+async function mountHook(call: (input: { id: string }) => Promise<MealActionResult>) {
+  const ref: { current: Mutation | null } = { current: null };
+  function Probe() {
+    ref.current = useMealMutation<Record<string, never>>('meals.setNote', 'f', '2026-10-05', call);
+    return <p>ready</p>;
+  }
+  renderSession(<Probe />, { backend: createStubBackend(DEMO_USER) });
+  await screen.findByText('ready');
+  return ref as { current: Mutation };
+}
+
+const answer = (actionId: string) => ({ week: { startsOn: '2026-10-05', days: [] }, actionId, changed: true }) as unknown as MealActionResult;
 
 describe('useMealMutation', () => {
   it('offline: network at once, no call', async () => {
-    const call = vi.fn();
-    const { result } = renderHook(() => useMealMutation('meals.setNote', 'f', '2026-10-05', call), { wrapper: sessionWrapper() });
+    const call = vi.fn(async ({ id }: { id: string }) => answer(id));
+    const hook = await mountHook(call);
     act(() => setOnline(false));
-    await act(() => result.current.mutateAsync({}).catch(() => undefined));
+    await act(() => hook.current.mutateAsync({}).catch(() => undefined));
     expect(call).not.toHaveBeenCalled();
-    expect(result.current.error).toMatchObject({ code: 'network' });
+    await waitFor(() => expect(hook.current.error).toMatchObject({ code: 'network' }));
     act(() => setOnline(true));
   });
+
   it('a new uuid per call', async () => {
     const ids: string[] = [];
-    const call = vi.fn(async ({ id }: { id: string }) => { ids.push(id); return { week: { startsOn: '2026-10-05', days: [] }, actionId: id, changed: true } as never; });
-    const { result } = renderHook(() => useMealMutation('meals.setNote', 'f', '2026-10-05', call), { wrapper: sessionWrapper() });
-    await act(() => result.current.mutateAsync({}));
-    await act(() => result.current.mutateAsync({}));
-    await waitFor(() => expect(ids).toHaveLength(2));
+    const hook = await mountHook(async ({ id }) => { ids.push(id); return answer(id); });
+    await act(() => hook.current.mutateAsync({}));
+    await act(() => hook.current.mutateAsync({}));
+    expect(ids).toHaveLength(2);
     expect(ids[0]).not.toBe(ids[1]);
     expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
 ```
 
-(Use the session wrapper `web/src/test/sessionHarness.tsx` provides; if it exports a
-differently named helper, use that.)
+(`renderSession` from `web/src/test/sessionHarness.tsx` renders `LocaleProvider`,
+`AuthProvider` and `SessionScope` with the fake client: the session the hook needs.)
 
 - [ ] **Step 4: Run** `npm run typecheck && npm test -w web` — Expected: PASS.
 
@@ -2486,14 +2597,15 @@ git commit -m "Web: mutazioni dei pasti sulla vista della settimana e matrice de
 **Files:**
 - Create: `web/src/i18n/messages/meals.ts`; modify `web/src/i18n/messages/index.ts`
 - Modify: `web/src/components/Icon.tsx` (`edit`), `web/src/components/RecipeCard.tsx`, `web/src/components/RecipeCard.test.tsx`
-- Create: `web/src/features/meals/useServingsDraft.ts`, `MealActions.tsx`, `MealEditor.tsx`, `UndoProvider.tsx`, `meals.module.css`, `MealActions.test.tsx`
+- Create: `web/src/features/meals/useServingsDraft.ts`, `saveNotices.ts`, `SaveNotices.tsx`, `MealActions.tsx`, `MealEditor.tsx`, `UndoProvider.tsx`, `useMealErrors.ts`, `meals.module.css`, `MealActions.test.tsx`
 - Modify: `web/src/routes/MenuPage.tsx`
 
 **Interfaces:**
-- Consumes: `useMealMutation`, `runMealMutation` (Task 10), `ServingsStepper({ value, min, max, onChange })`, `useOnline` (`web/src/components/OfflineBanner.tsx`), `BottomSheet`.
+- Consumes: `useMealMutation`, `runMealMutation` (Task 10), `ServingsStepper({ value, min, max, onChange })`, `useOnline` (`web/src/components/OfflineBanner.tsx`), `BottomSheet`, `useSession` (`session.isClosed()`), `errorKey`, `toApiError`.
 - Produces:
   - `CardActions = { label: string; disabled: boolean; panel: ReactNode; onToggle?: (open: boolean) => void; onChooseRecipe?: () => void }`, `RecipeCardProps.actions?: CardActions`;
-  - `useServingsDraft({ familyId, weekStartsOn, slotId, servings, online, onSaved })` → `{ value: number; busy: boolean; step(next: number): void; flush(): void }`;
+  - `useServingsDraft({ familyId, weekStartsOn, slotId, mealLabel, date, servings, online, onSaved })` → `{ value: number; busy: boolean; error: unknown; step(next: number): void; flush(): void }`;
+  - `saveNotices.ts`: `noticesOf(session): { list(): SaveNotice[]; add(notice: Omit<SaveNotice, 'id'>): void; dismiss(id: string): void; subscribe(listener: () => void): () => void }`, `type SaveNotice = { id: string; mealLabel: string; date: string }`; `SaveNotices()` shows them in the Menu;
   - `useMealActions({ familyId, weekStartsOn, meal, week, online })` → `{ actions: CardActions; sheet: ReactNode }`;
   - `UndoProvider({ familyId, children })`, `useUndo(): { current: UndoOffer | null; offer(actionId: string, weekStartsOn: string): void; clear(): void }`;
   - `EditorStage = 'picker' | 'swap' | 'free' | 'note'`, `MealEditor` (stages filled in Tasks 12-13).
@@ -2531,7 +2643,10 @@ export const it = {
   'meals.noSuggestions': 'Nessuna ricetta adatta: prova con la ricerca.',
   'meals.noResults': 'Nessuna ricetta trovata.',
   'meals.myStars': 'Il tuo voto: {count}',
-  'meals.notRated': 'Non hai votato'
+  'meals.notRated': 'Non hai votato',
+  'meals.results': 'Risultati',
+  'meals.servingsNotSaved': 'Le porzioni di {meal} ({date}) non sono state salvate: riprova.',
+  'meals.dismiss': 'Chiudi avviso'
 } as const;
 
 export const en: Record<keyof typeof it, string> = {
@@ -2563,7 +2678,10 @@ export const en: Record<keyof typeof it, string> = {
   'meals.noSuggestions': 'No suitable recipe: try the search.',
   'meals.noResults': 'No recipe found.',
   'meals.myStars': 'Your rating: {count}',
-  'meals.notRated': 'You haven’t rated it'
+  'meals.notRated': 'You haven’t rated it',
+  'meals.results': 'Results',
+  'meals.servingsNotSaved': 'The servings of {meal} ({date}) were not saved: try again.',
+  'meals.dismiss': 'Dismiss notice'
 };
 ```
 
@@ -2574,6 +2692,7 @@ export const en: Record<keyof typeof it, string> = {
 
 ```tsx
 // web/src/features/meals/MealActions.test.tsx
+import { ORPCError } from '@orpc/server';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setOnline } from '../../test/connectivity';
@@ -2675,6 +2794,33 @@ describe('meal card actions', () => {
   });
 });
 
+describe('servings refused by the server', () => {
+  it('with the card mounted: the error shows in the panel and the value goes back', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ setServings: () => { throw new ORPCError('forbidden', { status: 403 }); } });
+    const lunch = await card(/Ricetta dal server/);
+    fireEvent.click(pencil(lunch));
+    fireEvent.click(more(lunch));
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    expect(await within(lunch).findByRole('alert')).toBeTruthy();
+    expect(within(lunch).getByText(/4 porzioni/)).toBeTruthy();
+  });
+
+  it('after leaving the menu: a notice stays in the menu until dismissed', async () => {
+    const { server, history } = realMealsApp();
+    server.answerMeals({ setServings: () => { throw new ORPCError('internal', { status: 500, data: { requestId: 'r' } }); } });
+    const lunch = await card(/Ricetta dal server/);
+    fireEvent.click(pencil(lunch));
+    fireEvent.click(more(lunch));
+    await act(() => history.push('/recipes'));
+    await waitFor(() => expect(servingsCalls(server)).toHaveLength(1));
+    await act(() => history.push('/menu'));
+    const notice = await screen.findByText(/Le porzioni di Ricetta dal server .* non sono state salvate/);
+    fireEvent.click(within(notice.closest('[role="status"]')!).getByRole('button', { name: 'Chiudi avviso' }));
+    expect(screen.queryByText(/non sono state salvate/)).toBeNull();
+  });
+});
+
 describe('servings in Strict Mode', () => {
   it('one request for one adjustment', async () => {
     const { server } = realMealsApp('/menu', { strict: true });
@@ -2763,11 +2909,70 @@ The rating and ingredients panels keep their code with `hasRecipe &&` in the con
 - [ ] **Step 5: `useServingsDraft`**
 
 ```ts
+// web/src/features/meals/saveNotices.ts
+import type { Session } from '../../session/session';
+
+export interface SaveNotice { id: string; mealLabel: string; date: string }
+
+interface Notices { list(): SaveNotice[]; add(notice: Omit<SaveNotice, 'id'>): void; dismiss(id: string): void; subscribe(listener: () => void): () => void }
+
+/** Saves that failed after their card unmounted, kept per session until dismissed (spec of the revision, 5). */
+const bySession = new WeakMap<Session, Notices>();
+
+export function noticesOf(session: Session): Notices {
+  let notices = bySession.get(session);
+  if (!notices) {
+    let items: SaveNotice[] = [];
+    const listeners = new Set<() => void>();
+    const emit = () => listeners.forEach((l) => l());
+    notices = {
+      list: () => items,
+      add: (notice) => { items = [...items, { ...notice, id: crypto.randomUUID() }]; emit(); },
+      dismiss: (id) => { items = items.filter((n) => n.id !== id); emit(); },
+      subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }
+    };
+    bySession.set(session, notices);
+  }
+  return notices;
+}
+```
+
+(A new session object at each sign-in drops the old notices with it: nothing to clear by hand.)
+
+```tsx
+// web/src/features/meals/SaveNotices.tsx
+import { useSyncExternalStore } from 'react';
+import { formatDayLong } from '../../i18n/dates';
+import { useLocale, useT } from '../../i18n/LocaleProvider';
+import { useSession } from '../../session/SessionScope';
+import { noticesOf } from './saveNotices';
+
+/** Failed saves of servings that left after the card unmounted: shown in the Menu until dismissed. */
+export function SaveNotices() {
+  const t = useT();
+  const { locale } = useLocale();
+  const notices = noticesOf(useSession());
+  const items = useSyncExternalStore(notices.subscribe, notices.list, notices.list);
+  return (
+    <>
+      {items.map((n) => (
+        <div key={n.id} role="status" className="notice">
+          {t('meals.servingsNotSaved', { meal: n.mealLabel, date: formatDayLong(locale, n.date) })}{' '}
+          <button type="button" className="text-button" onClick={() => notices.dismiss(n.id)}>{t('meals.dismiss')}</button>
+        </div>
+      ))}
+    </>
+  );
+}
+```
+
+```ts
 // web/src/features/meals/useServingsDraft.ts
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { runMealMutation } from '../../api/mutations';
 import { useCurrentLocale, useSession } from '../../session/SessionScope';
+import { noticesOf } from './saveNotices';
 import { useMealMutation } from './useMealMutation';
 
 export const SAVE_DELAY_MS = 800;
@@ -2776,8 +2981,9 @@ export const SAVE_DELAY_MS = 800;
  * Servings with a delayed save (round 2): the value shown and the value to save are separate;
  * the save never runs inside a state update (Strict Mode replays those), leaves at once when the
  * panel closes, still leaves when the card unmounts (without the undo offer) and never offline.
+ * A refused save is never silent: `error` while mounted, a Menu notice after unmounting.
  */
-export function useServingsDraft(o: { familyId: string; weekStartsOn: string; slotId: string; servings: number; online: boolean; onSaved(actionId: string, changed: boolean): void }) {
+export function useServingsDraft(o: { familyId: string; weekStartsOn: string; slotId: string; mealLabel: string; date: string; servings: number; online: boolean; onSaved(actionId: string, changed: boolean): void }) {
   const api = useApi();
   const session = useSession();
   const currentLocale = useCurrentLocale();
@@ -2806,6 +3012,7 @@ export function useServingsDraft(o: { familyId: string; weekStartsOn: string; sl
   };
 
   const step = (next: number) => {
+    save.reset();
     pending.current = next;
     setDraft(next);
     clearTimeout(timer.current);
@@ -2821,24 +3028,27 @@ export function useServingsDraft(o: { familyId: string; weekStartsOn: string; sl
     }
   }, [o.online]);
 
-  // Unmount (navigation): the pending value still leaves, through the session, without the undo offer.
+  // Unmount (navigation): the pending value still leaves, through the session, without the undo
+  // offer; if it is refused, a notice stays in the Menu until dismissed.
   useEffect(
     () => () => {
       clearTimeout(timer.current);
       const value = pending.current;
       pending.current = null;
-      const { familyId, weekStartsOn, slotId, servings, online } = latest.current;
+      const { familyId, weekStartsOn, slotId, servings, online, mealLabel, date } = latest.current;
       if (value === null || value === servings || !online) return;
       void runMealMutation({ queryClient: session.queryClient, session, currentLocale }, 'meals.setServings', familyId, weekStartsOn, () =>
         api.meals.setServings({ familyId, slotId, servings: value, id: crypto.randomUUID() })
-      ).catch(() => undefined);
+      ).catch(() => {
+        if (!session.isClosed()) noticesOf(session).add({ mealLabel, date });
+      });
     },
     // Mount and unmount only: the latest values are read through `latest`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
-  return { value: draft ?? o.servings, busy: save.isPending, step, flush };
+  return { value: draft ?? o.servings, busy: save.isPending, error: save.error, step, flush };
 }
 ```
 
@@ -2892,6 +3102,33 @@ export function useUndo(): UndoState {
 }
 ```
 
+```ts
+// web/src/features/meals/useMealErrors.ts
+import { useQueryClient } from '@tanstack/react-query';
+import { errorKey, toApiError } from '../../api/errors';
+import { familyOfKey } from '../../api/queries';
+import { useT } from '../../i18n/LocaleProvider';
+
+/** Message for a failed meal action; not_found and not_allowed read the meal's week again. */
+export function useMealErrors(familyId: string, weekStartsOn: string) {
+  const t = useT();
+  const queryClient = useQueryClient();
+  return (error: unknown): string => {
+    const { code } = toApiError(error);
+    if (code === 'not_found' || code === 'not_allowed') {
+      void queryClient.invalidateQueries({
+        queryKey: ['menu', 'getWeek'],
+        predicate: (q) => familyOfKey(q.queryKey) === familyId && (q.queryKey[2] as { weekStartsOn?: string }).weekStartsOn === weekStartsOn
+      });
+    }
+    if (code === 'not_found') return t('meals.gone');
+    if (code === 'not_allowed') return t('meals.undoRefused');
+    if (code === 'network') return t('meals.offline');
+    return t(errorKey(error));
+  };
+}
+```
+
 ```tsx
 // web/src/features/meals/MealEditor.tsx (stages filled in Tasks 12-13)
 import type { ReactNode } from 'react';
@@ -2918,6 +3155,7 @@ import type { CardActions } from '../../components/RecipeCard';
 import { ServingsStepper } from '../../components/ServingsStepper';
 import { useT } from '../../i18n/LocaleProvider';
 import { MealEditor, type EditorStage } from './MealEditor';
+import { useMealErrors } from './useMealErrors';
 import { useUndo } from './UndoProvider';
 import { useServingsDraft } from './useServingsDraft';
 import styles from './meals.module.css';
@@ -2928,9 +3166,11 @@ const MAX_SERVINGS = 20;
 export function useMealActions({ familyId, weekStartsOn, meal, week, online }: { familyId: string; weekStartsOn: string; meal: MealView; week: WeekView; online: boolean }): { actions: CardActions; sheet: ReactNode } {
   const t = useT();
   const undo = useUndo();
+  const message = useMealErrors(familyId, weekStartsOn);
   const [stage, setStage] = useState<EditorStage | null>(null);
   const servings = useServingsDraft({
     familyId, weekStartsOn, slotId: meal.slotId, servings: meal.servings, online,
+    mealLabel: meal.recipe?.name ?? meal.freeText ?? t(`meal.${meal.mealType}`), date: meal.date,
     onSaved: (actionId, changed) => {
       if (changed) undo.offer(actionId, weekStartsOn);
     }
@@ -2944,6 +3184,7 @@ export function useMealActions({ familyId, weekStartsOn, meal, week, online }: {
             <ServingsStepper value={servings.value} min={1} max={MAX_SERVINGS} onChange={servings.step} />
           </fieldset>
           {servings.busy && <p className="meta-line" role="status">{t('meals.sending')}</p>}
+          {servings.error != null && <p className="meta-line" role="alert">{message(servings.error)}</p>}
         </li>
       )}
       <li><button type="button" className="text-button wide" disabled={!online} onClick={() => setStage('picker')}>{t('meals.changeRecipe')}</button></li>
@@ -2967,7 +3208,8 @@ export function useMealActions({ familyId, weekStartsOn, meal, week, online }: {
 
 `MenuPage.tsx`:
 
-- wrap the `<section className="calendar app-view">` in `<UndoProvider familyId={familyId}>`;
+- wrap the `<section className="calendar app-view">` in `<UndoProvider familyId={familyId}>`
+  and render `<SaveNotices />` at the top of the section (above the day navigation);
 - move the rendering of one meal into a component `MenuMeal({ meal, week, familyId, now })`
   in the same file;
 - `MenuMeal` calls `useMealActions({ familyId, weekStartsOn: week.startsOn, meal, week, online: useOnline() })`
@@ -2994,11 +3236,11 @@ git commit -m "Web: matita per ogni pasto, un pannello alla volta, porzioni con 
 
 **Files:**
 - Modify: `web/src/features/meals/MealEditor.tsx`, `web/src/components/RatingStars.tsx`, `web/src/components/RatingStars.test.tsx`
-- Create: `web/src/features/meals/RecipePicker.tsx`, `web/src/features/meals/useMealErrors.ts`, `web/src/features/meals/RecipePicker.test.tsx`
+- Create: `web/src/features/meals/RecipePicker.tsx`, `web/src/features/meals/RecipePicker.test.tsx`
 
 **Interfaces:**
 - Consumes: `suggestionsQuery` (Task 9), `searchQuery(deps, familyId, query)`, `RecipeFilters({ query, onChange })`, `useAreaMutation(name, familyId, call)`, `useMealMutation`, `useUndo`, `toApiError`, `errorKey`, `familyOfKey`.
-- Produces: `RatingStars` prop `readOnly?: boolean`; `RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone })`; `useMealErrors(familyId, weekStartsOn): (error: unknown) => string`.
+- Produces: `RatingStars` prop `readOnly?: boolean`; `RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone })`. Uses `useMealErrors` from Task 11.
 
 - [ ] **Step 1: Failing tests**
 
@@ -3073,9 +3315,9 @@ describe('change recipe', () => {
 ```
 
 (The English label of `recipes.filter.group` must be «Food group»: check
-`web/src/i18n/messages/recipes.ts` and use its value. The results list gets
-`aria-label={t('meals.results')}` — add `'meals.results': 'Risultati'` / `'Results'` to the
-dictionary. The sheet's close button label comes from `BottomSheet`: check it and use it.)
+`web/src/i18n/messages/recipes.ts` and use its value. The results list has
+`aria-label={t('meals.results')}`, already in the dictionary of Task 11. The sheet's close
+button label comes from `BottomSheet`: check it and use it.)
 
 `RatingStars.test.tsx` (added): with `readOnly` the component shows the average with its
 label, «Il tuo voto: 4» or «Non hai votato», and no radios.
@@ -3104,33 +3346,6 @@ export function RatingStars({ summary, recipeId, recipeName, familyId, readOnly 
       {!readOnly && rate.isError && <p className="meta-line" role="alert">{t(errorKey(rate.error))}</p>}
     </div>
   );
-}
-```
-
-```ts
-// web/src/features/meals/useMealErrors.ts
-import { useQueryClient } from '@tanstack/react-query';
-import { errorKey, toApiError } from '../../api/errors';
-import { familyOfKey } from '../../api/queries';
-import { useT } from '../../i18n/LocaleProvider';
-
-/** Message for a failed meal action; not_found and not_allowed read the meal's week again. */
-export function useMealErrors(familyId: string, weekStartsOn: string) {
-  const t = useT();
-  const queryClient = useQueryClient();
-  return (error: unknown): string => {
-    const { code } = toApiError(error);
-    if (code === 'not_found' || code === 'not_allowed') {
-      void queryClient.invalidateQueries({
-        queryKey: ['menu', 'getWeek'],
-        predicate: (q) => familyOfKey(q.queryKey) === familyId && (q.queryKey[2] as { weekStartsOn?: string }).weekStartsOn === weekStartsOn
-      });
-    }
-    if (code === 'not_found') return t('meals.gone');
-    if (code === 'not_allowed') return t('meals.undoRefused');
-    if (code === 'network') return t('meals.offline');
-    return t(errorKey(error));
-  };
 }
 ```
 
@@ -3612,8 +3827,10 @@ export function UndoToast({ offer, familyId, onDone }: { offer: UndoOffer; famil
 ```
 
 `UndoProvider`: replace `ProvisionalUndo` with
-`{current && <UndoToast key={current.key} offer={current} familyId={familyId} onDone={clear} />}`
-and remove `ProvisionalUndo`. The undo goes through `runMealMutation` with the offer's
+`{current && <UndoToast key={current.key} offer={current} familyId={familyId} onDone={clear} />}`,
+remove `ProvisionalUndo` and the imports only it used (`useApi`, `useT`,
+`useMealMutation`), add `import { UndoToast } from './UndoToast';` — `noUnusedLocals` is
+on in `web/tsconfig.json`. The file then imports only React and `UndoToast`. The undo goes through `runMealMutation` with the offer's
 `weekStartsOn`, so its answer lands on the meal's week whatever week is shown; after a
 language change the answer marks the week stale instead of writing it (rule of
 `applyMutation`), and the next read shows the restored value. Styles of `.toast`: from
