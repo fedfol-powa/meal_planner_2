@@ -20,8 +20,10 @@ In locale Hyperdrive non fa da pool: le prove di concorrenza si fanno sul Worker
 ## Test
 
 `npm test -w server`. I test con il database richiedono `TEST_DATABASE_URL`
-(superutente del database locale, `supabase status`); senza, in locale sono saltati, in
-CI falliscono.
+(superutente del database locale con le migrazioni di `supabase/`, per esempio
+`postgresql://postgres:postgres@127.0.0.1:54322/postgres`; verifica con `supabase status`);
+senza, in locale sono saltati, in CI falliscono. La CI avvia il database con
+`supabase db start` ed esegue anche `supabase test db`.
 
 ## Pubblicazione
 

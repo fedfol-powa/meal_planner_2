@@ -6,5 +6,9 @@ export default defineConfig({
 		include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
 		// Prepares the test database once, before the files run in parallel.
 		globalSetup: ['test/global-setup.ts'],
+		// One file at a time: the files share the database, and a write in one (deleting a
+		// user empties references in catalogue tables, which bumps the catalogue counter
+		// by contract) would invalidate a version another file is comparing.
+		fileParallelism: false,
 	},
 });

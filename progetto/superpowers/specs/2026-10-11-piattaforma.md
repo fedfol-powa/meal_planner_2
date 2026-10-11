@@ -389,7 +389,7 @@ worker»):
   `app.families.data_version` e `app.catalogue_state.version` con il contratto della
   sezione 4.4;
 - i nomi usati dal server stanno in tre file (`session.ts`, `permissions.ts`,
-  `versions.ts`) e nella fixture provvisoria dei test, che usa gli stessi nomi.
+  `versions.ts`) e negli aiuti dei test (`server/test/support/db.ts`).
 
 **Con W5 (web)**:
 
@@ -511,12 +511,14 @@ Restano quattro domande per l'utente:
 - **Database dei test.** Le suite con il database usano `TEST_DATABASE_URL`
   (superutente del Postgres locale di Supabase). Gli utenti di prova si creano in
   `auth.users`, con lingua in `raw_user_meta_data`: il profilo lo crea il trigger di W2.
-- **Schema reale e fixture.** Se lo schema `app` di W2 esiste (`app.profiles`), i test
-  lo usano e non toccano altro. Solo per sviluppare prima del merge di W2 esiste una
-  fixture provvisoria (`server/test/support/schema.sql`, stessi nomi di W2), applicata
-  **soltanto** se lo schema manca e la si chiede esplicitamente (`TEST_DB_FIXTURE=1`);
-  altrimenti i test falliscono con un messaggio che indica come avviare il database. In
-  CI la fixture è rifiutata. Si toglie prima della PR completa.
+- **Schema reale.** I test usano le migrazioni di W2 (`supabase db start`); se lo schema
+  `app` manca falliscono con un messaggio che indica come avviare il database. La
+  fixture provvisoria usata prima del merge di W2 è stata tolta (task 11). Il database
+  si prepara una volta per esecuzione (setup globale di Vitest: password di prova di
+  `app_server`) e i file di test girano uno alla volta, perché condividono il database e
+  una scrittura in un file (per esempio la cancellazione di un utente, che fa crescere il
+  contatore del ricettario per contratto) invaliderebbe una versione confrontata da un
+  altro.
 - Senza `TEST_DATABASE_URL`, in locale le suite con il database sono saltate con un
   avviso; in CI (`CI` impostata) falliscono.
 - Verifiche manuali prima della PR: `wrangler dev` con `session.whoami` da `curl`;

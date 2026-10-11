@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import type { Locale } from '@app/contract';
 import postgres from 'postgres';
 
@@ -29,14 +27,9 @@ export interface TestDatabase {
 
 async function ensureSchema(admin: postgres.Sql): Promise<void> {
 	const [{ present }] = await admin<{ present: boolean }[]>`select to_regclass('app.profiles') is not null as present`;
-	if (present) return;
-	if (inCi || env.TEST_DB_FIXTURE !== '1') {
-		throw new Error(
-			'Schema app is missing: start the local database with the migrations of supabase/ ' +
-				'(supabase db start), or set TEST_DB_FIXTURE=1 to use the provisional fixture before the schema is merged.',
-		);
+	if (!present) {
+		throw new Error('Schema app is missing: start the local database with the migrations of supabase/ (supabase db start).');
 	}
-	await admin.unsafe(await readFile(fileURLToPath(new URL('./schema.sql', import.meta.url).href), 'utf8'));
 }
 
 /**
