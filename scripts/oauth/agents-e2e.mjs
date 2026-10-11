@@ -216,6 +216,18 @@ const clientB = await register('E2E agent B');
 	is('cancel sends access_denied', deniedUrl.searchParams.get('error'), 'access_denied');
 	is('cancel keeps the state', deniedUrl.searchParams.get('state'), 'state-deny');
 
+	// «Cambia account»: Anna reads the request, then Bruno signs in. Supabase bound it to Anna, so
+	// the page asks to start again from the agent; a new request works for Bruno.
+	const taken = await authorize(clientB, { challenge: pkce().challenge });
+	const takenId = new URL(taken.location).searchParams.get('authorization_id');
+	is('request read by Anna', (await details(takenId, anna.access_token)).status, 200);
+	const asBruno = await details(takenId, bruno.access_token);
+	check('the same request refused to Bruno', asBruno.status >= 400 && !asBruno.body?.client, `${asBruno.status} ${JSON.stringify(asBruno.body)}`);
+	is('the same request refused to Bruno: not found', asBruno.body?.error_code, 'oauth_authorization_not_found');
+	check('Bruno cannot approve the request of Anna', !(await decide(takenId, bruno.access_token, 'approve')).body?.redirect_url);
+	const restarted = await connect(clientB, bruno.access_token);
+	is('Bruno, starting again from the agent, gets a token of his own', claims(restarted.access_token).sub, claims(bruno.access_token).sub);
+
 	const expired = await authorize(clientB, { challenge: pkce().challenge });
 	const expiredId = new URL(expired.location).searchParams.get('authorization_id');
 	const sql = postgres(DB, { max: 1, onnotice: () => {} });
@@ -266,7 +278,14 @@ await channelEverywhere('agent B of Anna still works', b.access_token, 'mcp');
 await channelEverywhere('web of Anna still works', anna.access_token, 'web');
 await channelEverywhere('agent A of Bruno still works', brunoA.access_token, 'mcp');
 is('disconnecting again still answers', (await rpc(anna.access_token, 'agents/disconnect', { clientId: clientA })).body?.json?.clientId, clientA);
-await connect(clientA, anna.access_token); // reconnecting asks the consent again (checked inside)
+// Reconnecting asks the consent again (checked inside); the new access works, the old ones stay refused.
+const reconnected = await connect(clientA, anna.access_token);
+await channelEverywhere('agent A of Anna reconnected', reconnected.access_token, 'mcp');
+await refusedEverywhere('first session of A after reconnecting', a1Now.access_token);
+await refusedEverywhere('second session of A after reconnecting', a2.access_token);
+refusedGrant('first refresh token of A refused after reconnecting', await refresh(clientA, a1Now.refresh_token));
+refusedGrant('second refresh token of A refused after reconnecting', await refresh(clientA, a2.refresh_token));
+is('renewal of the new access of A', (await refresh(clientA, reconnected.refresh_token)).status, 200);
 
 // 5. B disconnects itself over MCP: the answer arrives, the next request is refused.
 const own = await mcp(b.access_token, 'agents_disconnect', { clientId: clientB });
