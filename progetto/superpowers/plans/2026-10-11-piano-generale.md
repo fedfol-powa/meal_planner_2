@@ -137,3 +137,4 @@ solo il coordinatore.
 | 11 ottobre 2026 | W5: nell'ondata 1 Menu e Ricettario in sola lettura completi nella resa, Profilo con segnaposto, stelline su dati finti per provare le mutazioni con copia locale; i componenti senza funzione arrivano con l'ondata 2 |
 | 11 ottobre 2026 | Piano generale approvato: tre ondate, cinque worker nell'ondata 1, traguardo A con gestione MCP, utenze dirette prima di Google, passi esterni rimandati; push, PR e merge delegati al coordinatore |
 | 11 ottobre 2026 | L'utente delega al coordinatore l'approvazione delle dipendenze nuove, sempre con la regola delle dipendenze al minimo |
+| 11 ottobre 2026 | Unita la PR #3 (scheletro del monorepo) dopo review Codex senza rilievi; da verificare che W5 aggiunga test e typecheck effettivi a `web/` |
