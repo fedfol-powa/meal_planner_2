@@ -126,8 +126,9 @@ tabella, dopo quella del «6 ottobre 2026, primo giro del prototipo approvato» 
 - [ ] **Step 1: grep finale**
 
 Run: `grep -rIin curatel --exclude-dir=node_modules .`
-Expected: solo `progetto/superpowers/plans/` (piani chiusi e questo piano) e le righe 1878
-e 1893 della specifica (registro storico).
+Expected: solo `progetto/superpowers/plans/` (piani chiusi e questo piano), le righe 1878
+e 1893 della specifica (registro storico), l'intestazione della specifica (riga 4) e la
+nuova riga del registro.
 
 - [ ] **Step 2: prototipo e controlli della radice**
 

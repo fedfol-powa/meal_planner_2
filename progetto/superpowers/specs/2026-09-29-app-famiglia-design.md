@@ -1624,7 +1624,7 @@ implicite alla copertura delle operazioni.
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
 | Spesa | Leggere la lista di una settimana, spuntare voci, aggiungere voci libere, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
-| Gestione del ricettario | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa gestione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
+| Gestione del ricettario | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
 | Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo a una data; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
