@@ -17,7 +17,8 @@
 - Una sola migrazione, nuova: stato `abandoned` di `app.weekly_jobs` con test pgTAP (spec, sezione 4.3). Nessun'altra modifica allo schema.
 - File condivisi (`contract/src/contract.ts`, `contract/src/index.ts`, `server/src/router.ts`, `server/src/index.ts`, `server/src/pipeline.ts`, `server/wrangler.jsonc`, `web/src/api/types.ts`, `web/src/api/queries.ts`, dizionari e rotte web): solo modifiche minime per registrare l'area o per il menu.
 - **Mai scrivere** `contract/src/recipes/views.ts` né `server/src/recipes/views.ts` (W6), `domain/src/recipe/` (W3), `domain/src/family/` (W2): si importano.
-- Implementatore unico costruito in `server/src/router.ts` con `createImplementer(contract, { prepare })`; l'area menu esporta `menuRouter(os: Implementer)` e `menuPrepare`.
+- Implementatore unico costruito solo in `server/src/router.ts` con `createImplementer(contract, { prepare })`; ogni area è un factory che riceve `os` (tipo `Implementer` da `server/src/pipeline.ts`): l'area menu esporta `menuRouter(os: Implementer)` e `menuPrepare`, come `recipesRouter(os)` di W6.
+- Viste delle ricette solo con le firme definitive di W6 (spec di W6, sezione 1): `RecipeRef` costruiti da `mealRecipeVersions` e dalle porzioni dello slot, mappe lette con `recipeViewKey`.
 - Letture del menu: `mcp: { readOnly: true }`, `offline: false`, `role: 'familyMember'`, `reads: ['family', 'catalogue']`, `versionedInput` e `versionedOutput`.
 - Generazione pigra nel ruolo `authenticated` con le policy esistenti di W2; job nel ruolo `app_job`. Nessuna grant o policy nuova.
 - Ogni generazione prende prima `lockFamilyWeeks` (blocco consultivo per famiglia).
@@ -28,7 +29,7 @@
 
 ## Review Focus
 
-1. **Fuso e ora legale:** una famiglia in `Europe/London` o `America/New_York` ottiene la settimana successiva solo dopo mercoledì alle 20:00 della sua ora locale, anche la settimana di un cambio d'ora. Test in Task 3 (tre fusi, cambi dell'ora del 25 ottobre e del 1° novembre) e in Task 10 (job con famiglie in fusi diversi).
+1. **Fuso e ora legale:** una famiglia in `Europe/London` o `America/New_York` ottiene la settimana successiva solo dopo mercoledì alle 20:00 della sua ora locale, anche la settimana di un cambio d'ora. Test in Task 4 (tre fusi, cambi dell'ora del 25 ottobre e del 1° novembre) e in Task 10 (job con famiglie in fusi diversi).
 2. **Due generazioni insieme (due membri, oppure cron e apertura):** deve nascere ogni settimana una sola volta, senza deadlock né errori. Test in Task 8 (stessa settimana) e Task 10 (cron ↔ `ensureWeeks` con entrambe le settimane assenti).
 3. **Client o agente con la versione del giorno prima:** la lettura deve dare l'apertura del giorno nuovo, non «invariato». Test in Task 9 (RPC e `tools/call` MCP, senza scritture intermedie).
 4. **Settimana senza ricette adatte:** deve aprirsi con le schede «Nessuna ricetta adatta», non con «Ancora nessun menu». Test in Task 9 (server) e Task 12 (schermata, due lingue).
@@ -42,14 +43,15 @@
 |---|---|---|---|
 | 8, 9, 10 | `toPlannerRecipe(id, document)` e `RecipeDocument` da `@app/domain/recipe` | W3 (PR #9) | `STATO: DOMANDA` |
 | 8, 9, 10 | `resolveFamilySettings(stored)` da `@app/domain/family` | W2 profilo | `STATO: DOMANDA` |
-| 5, 11 | schemi `recipeSummaryView`, `ratingSummaryView`, `ingredientLineView` (`contract/src/recipes/views.ts`); `RecipeRef`, `recipeViewKey`, `Viewer`, `recipeViews` (`server/src/recipes/views.ts`), come nella spec di W6, sezione 1 «Interfaccia per W1» | W6, prima PR con le viste R1 complete | `STATO: DOMANDA`; mai scrivere quei file |
-| 12 | client oRPC reale nel web (seconda PR di W5); `ratings.set`, `IngredientList` con la preparazione e tipi web della ricetta (W6) | W5, W6 | `STATO: DOMANDA` |
+| 6, 11 | interfaccia **definitiva** di W6 (sua spec `2026-10-11-ricettario-e-voti.md`, sezione 1, commit `f5b1dd2`; piano generale, «Interfaccia per W1 definitiva»): schemi `recipeSummaryView`, `ratingSummaryView`, `ingredientLineView`, `isoDateSchema`, `mealTypeSchema` (`contract/src/recipes/views.ts`); `RecipeRef {recipeId, version: number \| null, servings}`, `recipeViewKey`, `Viewer`, `recipeViews(tx, viewer, refs)`, `RecipeView`, e in alternativa `recipeSummaries(tx, refs, locale)`, `ingredientLines(tx, refs, { familyId, locale })`, `ratingSummaries(tx, familyId, userId, recipeIds)` (`server/src/recipes/views.ts`) | W6, prima PR con le viste R1 complete | `STATO: DOMANDA`; mai scrivere quei file |
+| 11, 12 | **cancello unico** dei task che usano le viste: PR delle viste di W6 unita, con `ratings.set`, `RecipeCard`, `IngredientList` (con la preparazione) e tipi web della ricetta adeguati da W6; per il 12 anche il client oRPC reale nel web (seconda PR di W5) | W5, W6 | `STATO: DOMANDA` |
 
 All'inizio di ogni task con un cancello: `git fetch origin && git rebase origin/main`,
 poi si verificano nomi ed export reali. Se differiscono da quanto scritto qui, vale
 l'altro worker: si adatta il codice del task senza cambiarne il comportamento e si
-allinea la spec. I task 1-4, 6 e 7 non hanno cancelli; il Task 5 dipende solo dagli
-schemi di W6.
+allinea la spec. I task 1-5 e 7 non hanno cancelli; il Task 6 dipende solo dagli
+schemi di W6. Il Task 1 si consegna per primo in una PR piccola a parte (produttore di
+`mealRecipeVersions` per W4).
 
 ## File
 
@@ -63,7 +65,7 @@ schemi di W6.
 | `contract/src/menu/views.ts`, `operations.ts` (+ test) | schemi delle viste e operazioni del menu |
 | `supabase/migrations/20261011140000_weekly_jobs_abandoned.sql`, `supabase/tests/weekly_jobs_abandoned_test.sql` | stato `abandoned` |
 | `server/src/log.ts` | `logEvent(event, fields, level)` |
-| `server/src/menu/versions.ts` (+ test) | `mealRecipeVersions` (R1), usata anche da W4 |
+| `server/src/menu/versions.ts` (+ test) | `mealRecipeVersions` (R1), usata anche da W4; Task 1, PR piccola a parte |
 | `server/src/menu/plan.ts` | punto controllato: `planWeek(input)` |
 | `server/src/menu/generation.ts` (+ test) | `lockFamilyWeeks`, `loadPlannerInput`, `generateWeek`, `ensureWeeks`, `errorCode` |
 | `server/src/menu/time.ts` | `localIn`, `familyNow` con ripiego su `Europe/Rome` |
@@ -77,830 +79,18 @@ schemi di W6.
 
 ---
 
-### Task 1: Primo pasto da pianificare nel dominio
-
-**Files:**
-- Modify: `domain/src/planner/types.ts`, `domain/src/planner/constraints.ts`, `domain/src/planner/generate.ts:10-22`
-- Test: `domain/src/planner/generate.test.ts`
-
-**Interfaces:**
-- Produces: `interface PlannerSlotRef { date: IsoDate; mealType: MealType }`; `PlannerInput.from?: PlannerSlotRef`; `isPlannedSlot(input: PlannerInput, date: IsoDate, mealType: MealType): boolean` (da `constraints.ts`).
-
-- [ ] **Step 1: Write the failing tests** (in `generate.test.ts`, dentro `describe('generateWeek')`)
-
-```ts
-	it('plans only from the given meal on, and the whole week without it', () => {
-		const input = baseInput({ from: { date: '2026-10-14', mealType: 'dinner' } });
-		const week = generateWeek(input);
-		expect(week.slots[0]).toMatchObject({ date: '2026-10-14', mealType: 'dinner' });
-		expect(week.slots.every((s) => s.date > '2026-10-14' || (s.date === '2026-10-14' && s.mealType === 'dinner'))).toBe(true);
-		expect(week.slots).toHaveLength(9);
-		expect(hardViolations(week, input)).toEqual([]);
-		expect(generateWeek(baseInput()).slots).toHaveLength(14);
-	});
-
-	it('rejects a first meal outside the week', () => {
-		expect(() => generateWeek(baseInput({ from: { date: '2026-10-19', mealType: 'lunch' } }))).toThrow(RangeError);
-		expect(() => generateWeek(baseInput({ from: { date: '2026-10-11', mealType: 'dinner' } }))).toThrow(RangeError);
-	});
-```
-
-Conteggio: con `familySettings()`, dalla cena di mercoledì in poi restano 9 slot (mercoledì cena; giovedì e venerdì pranzo e cena; sabato pranzo e cena libera; domenica pizza e cena).
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `npm test -w domain -- generate`
-Expected: FAIL (14 slot invece di 9; nessun `RangeError`).
-
-- [ ] **Step 3: Implement**
-
-In `types.ts`, prima di `PlannerInput`:
-
-```ts
-/** A meal of the calendar: a day and lunch or dinner. */
-export interface PlannerSlotRef {
-	date: IsoDate;
-	mealType: MealType;
-}
-```
-
-e dentro `PlannerInput`, dopo `history`:
-
-```ts
-	/** First meal to plan: earlier meals of the week get no slot (current week generated halfway). */
-	from?: PlannerSlotRef;
-```
-
-In `constraints.ts` (aggiungere `mealIndex` all'import da `./calendar.ts`):
-
-```ts
-/** A meal of the week gets a slot: planned in the diners matrix and not before `input.from`. */
-export function isPlannedSlot(input: PlannerInput, date: IsoDate, mealType: MealType): boolean {
-	if (slotSettingOf(input.settings, date, mealType).servings === 0) return false;
-	return !input.from || mealIndex(date, mealType) >= mealIndex(input.from.date, input.from.mealType);
-}
-```
-
-In `hardViolations` sostituire `if (setting.servings === 0) continue;` con `if (!isPlannedSlot(input, date, mealType)) continue;`.
-
-In `generate.ts` (import di `isPlannedSlot`):
-
-```ts
-export function plannedSlots(input: PlannerInput): PlannedSlot[] {
-	if (input.from && (input.from.date < input.weekStart || input.from.date > addDays(input.weekStart, 6))) {
-		throw new RangeError(`first meal ${input.from.date} outside the week of ${input.weekStart}`);
-	}
-	const slots: PlannedSlot[] = [];
-	for (let day = 0; day < 7; day++) {
-		for (const mealType of MEAL_TYPES) {
-			const date = addDays(input.weekStart, day);
-			if (!isPlannedSlot(input, date, mealType)) continue;
-			const setting = slotSettingOf(input.settings, date, mealType);
-			const content: PlannedSlot['content'] = setting.fixedText !== null ? { kind: 'free', text: setting.fixedText } : { kind: 'no_match' };
-			slots.push({ date, mealType, servings: setting.servings, content });
-		}
-	}
-	return slots;
-}
-```
-
-- [ ] **Step 4: Run the domain tests and the report**
-
-Run: `npm test -w domain && npm run typecheck -w domain && npm run planner-report && git diff progetto/reports/planner-report.md`
-Expected: tutti PASS. Nel report possono cambiare solo le righe delle misure di tempo, che variano a ogni esecuzione; se cambia altro, il comportamento è cambiato e va corretto.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git checkout progetto/reports/planner-report.md
-git add domain/src/planner
-git commit -m "Pianificatore: primo pasto da pianificare per generare una settimana a metà"
-```
-
----
-
-### Task 2: Settimane successive già pianificate
-
-**Files:**
-- Modify: `domain/src/planner/types.ts`, `domain/src/planner/prepared.ts`, `domain/src/planner/score.ts`, `domain/src/planner/constraints.ts`
-- Test: `domain/src/planner/generate.test.ts`, `domain/src/planner/constraints.test.ts`
-
-**Interfaces:**
-- Consumes: `PlannerInput.from` (Task 1).
-- Produces: `PlannerInput.upcoming?: PastMeal[]`; `Prepared.upcoming` (pasti successivi entro 7 giorni dalla fine della settimana, ricette del catalogo); `recentIds` di `Prepared` comprende le ricette dei 14 giorni dopo la fine della settimana; `usedSoonAfter(recipeId: string, weekStart: IsoDate, upcoming: PastMeal[]): boolean` (da `constraints.ts`).
-
-- [ ] **Step 1: Write the failing tests**
-
-In `generate.test.ts`:
-
-```ts
-	it('does not repeat recipes already planned in the 14 days after the week (next week generated first)', () => {
-		const recipes = syntheticCatalogue(20);
-		const next = generateWeek(baseInput({ weekStart: '2026-10-19', recipes }));
-		const upcoming: PastMeal[] = next.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []));
-		const input = baseInput({ recipes, from: { date: '2026-10-14', mealType: 'dinner' }, upcoming });
-		const current = generateWeek(input);
-		const nextIds = new Set(upcoming.map((m) => m.recipeId));
-		expect(current.slots.filter((s) => s.content.kind === 'recipe' && nextIds.has(s.content.recipeId))).toEqual([]);
-		expect(hardViolations(current, input)).toEqual([]);
-	});
-
-	it("keeps today's weeks when nothing is planned after", () => {
-		expect(generateWeek(baseInput({ upcoming: [] }))).toEqual(generateWeek(baseInput()));
-	});
-```
-
-In `constraints.test.ts`:
-
-```ts
-	it('reports a recipe planned again within 14 days after the week', () => {
-		const input = baseInput({ upcoming: [{ date: '2026-11-01', mealType: 'lunch', recipeId: 'r00' }] });
-		const week = { weekStart: input.weekStart, slots: [{ date: '2026-10-12', mealType: 'lunch' as const, servings: 2, content: { kind: 'recipe' as const, recipeId: 'r00' } }] };
-		expect(hardViolations(week, input).some((p) => p.includes('planned again within two weeks'))).toBe(true);
-		expect(usedSoonAfter('r00', '2026-10-12', [{ date: '2026-11-02', mealType: 'lunch', recipeId: 'r00' }])).toBe(false);
-	});
-```
-
-(il 1° novembre è il 14° giorno dopo domenica 18 ottobre, il 2 novembre il 15°).
-
-- [ ] **Step 2: Run to verify they fail**
-
-Run: `npm test -w domain -- generate constraints`
-Expected: FAIL (ricette ripetute; `usedSoonAfter` inesistente).
-
-- [ ] **Step 3: Implement**
-
-`types.ts`, dentro `PlannerInput` dopo `history`:
-
-```ts
-	/** Meals already planned after the week (weeks generated earlier), oldest first: neighbours, never changed. */
-	upcoming?: PastMeal[];
-```
-
-`prepared.ts`: aggiungere a `Prepared`
-
-```ts
-	/** Planned meals after the week within the similarity reach (7 days), catalogue recipes only. */
-	upcoming: readonly { date: IsoDate; mealType: MealType; recipe: PlannerRecipe }[];
-```
-
-e nel calcolo:
-
-```ts
-	const weekEnd = addDays(input.weekStart, 6);
-	const after = (input.upcoming ?? []).filter((m) => m.date > weekEnd);
-	const soonUntil = addDays(weekEnd, RECENT_DAYS);
-	const nearUntil = addDays(weekEnd, 7);
-	// in result:
-		recentIds: new Set([
-			...before.filter((m) => m.date >= recentFrom).map((m) => m.recipeId),
-			...after.filter((m) => m.date <= soonUntil).map((m) => m.recipeId),
-		]),
-		upcoming: after.flatMap((m) => {
-			const recipe = byId.get(m.recipeId);
-			return recipe && m.date <= nearUntil ? [{ date: m.date, mealType: m.mealType, recipe }] : [];
-		}),
-```
-
-`score.ts`: `ScoreContext` riceve `upcoming: readonly Placed[]` da `prepared(input).upcoming` in `buildContext`; nella somiglianza:
-
-```ts
-	for (const near of [...ctx.past, ...ctx.upcoming, ...ctx.week]) {
-```
-
-(`recency` e `knownNew` restano su `past` e `knownIds`).
-
-`constraints.ts`:
-
-```ts
-/** A recipe already planned in the 14 days after the week (a later week generated first). */
-export function usedSoonAfter(recipeId: string, weekStart: IsoDate, upcoming: PastMeal[]): boolean {
-	const end = addDays(weekStart, 6);
-	const until = addDays(end, RECENT_DAYS);
-	return upcoming.some((meal) => meal.recipeId === recipeId && meal.date > end && meal.date <= until);
-}
-```
-
-e in `hardViolations`, dopo il controllo di `recentlyUsed`:
-
-```ts
-		if (usedSoonAfter(recipe.id, input.weekStart, input.upcoming ?? [])) problems.push(`${key}: planned again within two weeks`);
-```
-
-`candidatesFor` usa già `prepared(input).recentIds`, quindi esclude anche le ricette successive. Controllare in `repair.ts` che le alternative passino da `candidatesFor` o da `recentIds` (`grep -n recent domain/src/planner/repair.ts`); se una strada usa `recentlyUsed` direttamente, aggiungere lì `usedSoonAfter`.
-
-- [ ] **Step 4: Run tests and the report**
-
-Run: `npm test -w domain && npm run typecheck -w domain && npm run planner-report && git diff progetto/reports/planner-report.md`
-Expected: PASS; report invariato nelle settimane (il report non passa `upcoming`).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git checkout progetto/reports/planner-report.md
-git add domain/src/planner
-git commit -m "Pianificatore: settimane successive già pianificate come vicine (14 giorni e somiglianza)"
-```
-
----
-
-### Task 3: Calendario nel fuso della famiglia
-
-**Files:**
-- Create: `domain/src/planner/local-time.ts`
-- Modify: `domain/src/planner/index.ts` (una riga di export)
-- Test: `domain/src/planner/local-time.test.ts`
-
-**Interfaces:**
-- Consumes: `addDays`, `weekdayOf` da `calendar.ts`; `PlannerSlotRef` (Task 1).
-- Produces:
-  - `interface LocalDateTime { date: IsoDate; time: string }`, con `time` nel formato `HH:mm`;
-  - `localDateTime(instant: Date, timeZone: string): LocalDateTime` (lancia `RangeError` se il fuso è sconosciuto);
-  - `MEAL_PASSES_AT`;
-  - `isMealPast(date, mealType, now): boolean`;
-  - `firstOpenMeal(now): PlannerSlotRef`;
-  - `mondayOf(date): IsoDate`;
-  - `nextWeekStart(now): IsoDate`;
-  - `interface GenerationTarget { weekStart: IsoDate; from?: PlannerSlotRef }`;
-  - `catchUpTarget(now, weekStart): GenerationTarget | null`;
-  - `generationTargets(now, existingWeekStarts): GenerationTarget[]`;
-  - `isNextWeekDue(now): boolean`;
-  - `isJobOverdue(now, targetWeek): boolean`.
-
-- [ ] **Step 1: Write the failing tests**
-
-```ts
-import { describe, expect, it } from 'vitest';
-import { catchUpTarget, firstOpenMeal, generationTargets, isJobOverdue, isMealPast, isNextWeekDue, localDateTime, mondayOf, nextWeekStart } from './local-time.ts';
-
-const at = (date: string, time: string) => ({ date, time });
-
-describe('localDateTime', () => {
-	it('reads date and time in the family time zone', () => {
-		expect(localDateTime(new Date('2026-10-14T18:00:00Z'), 'Europe/Rome')).toEqual(at('2026-10-14', '20:00'));
-		expect(localDateTime(new Date('2026-10-14T18:00:00Z'), 'Europe/London')).toEqual(at('2026-10-14', '19:00'));
-		expect(localDateTime(new Date('2026-10-15T01:30:00Z'), 'America/New_York')).toEqual(at('2026-10-14', '21:30'));
-	});
-	it('follows the European change of 25 October 2026 in Rome and London', () => {
-		expect(localDateTime(new Date('2026-10-24T22:30:00Z'), 'Europe/Rome')).toEqual(at('2026-10-25', '00:30'));
-		expect(localDateTime(new Date('2026-10-25T23:30:00Z'), 'Europe/Rome')).toEqual(at('2026-10-26', '00:30'));
-		expect(localDateTime(new Date('2026-10-24T23:30:00Z'), 'Europe/London')).toEqual(at('2026-10-25', '00:30'));
-		expect(localDateTime(new Date('2026-10-25T23:30:00Z'), 'Europe/London')).toEqual(at('2026-10-25', '23:30'));
-	});
-	it('follows the American change of 1 November 2026 in New York', () => {
-		expect(localDateTime(new Date('2026-11-01T03:30:00Z'), 'America/New_York')).toEqual(at('2026-10-31', '23:30'));
-		expect(localDateTime(new Date('2026-11-02T04:30:00Z'), 'America/New_York')).toEqual(at('2026-11-01', '23:30'));
-	});
-	it('writes midnight as 00:00', () => {
-		expect(localDateTime(new Date('2026-10-13T22:00:00Z'), 'Europe/Rome')).toEqual(at('2026-10-14', '00:00'));
-	});
-	it('rejects an unknown time zone', () => {
-		expect(() => localDateTime(new Date(), 'Mars/Olympus')).toThrow(RangeError);
-	});
-});
-
-describe('meals and weeks', () => {
-	it('passes lunch at 15:30 and dinner at 23:00', () => {
-		expect(isMealPast('2026-10-14', 'lunch', at('2026-10-14', '15:29'))).toBe(false);
-		expect(isMealPast('2026-10-14', 'lunch', at('2026-10-14', '15:30'))).toBe(true);
-		expect(isMealPast('2026-10-14', 'dinner', at('2026-10-14', '22:59'))).toBe(false);
-		expect(isMealPast('2026-10-13', 'dinner', at('2026-10-14', '00:00'))).toBe(true);
-	});
-	it('finds the first open meal', () => {
-		expect(firstOpenMeal(at('2026-10-14', '09:00'))).toEqual({ date: '2026-10-14', mealType: 'lunch' });
-		expect(firstOpenMeal(at('2026-10-14', '15:30'))).toEqual({ date: '2026-10-14', mealType: 'dinner' });
-		expect(firstOpenMeal(at('2026-10-14', '20:00'))).toEqual({ date: '2026-10-14', mealType: 'dinner' });
-		expect(firstOpenMeal(at('2026-10-14', '23:00'))).toEqual({ date: '2026-10-15', mealType: 'lunch' });
-	});
-	it('finds the Monday of a date and the next one', () => {
-		expect(mondayOf('2026-10-12')).toBe('2026-10-12');
-		expect(mondayOf('2026-10-18')).toBe('2026-10-12');
-		expect(nextWeekStart(at('2026-10-18', '12:00'))).toBe('2026-10-19');
-	});
-	it('makes next week due from Wednesday 20:00', () => {
-		expect(isNextWeekDue(at('2026-10-14', '19:59'))).toBe(false);
-		expect(isNextWeekDue(at('2026-10-14', '20:00'))).toBe(true);
-		expect(isNextWeekDue(at('2026-10-18', '23:59'))).toBe(true);
-		expect(isNextWeekDue(at('2026-10-12', '08:00'))).toBe(false);
-	});
-	it('makes a job overdue from the Thursday 08:00 before its week, whatever the current week', () => {
-		expect(isJobOverdue(at('2026-10-15', '07:59'), '2026-10-19')).toBe(false);
-		expect(isJobOverdue(at('2026-10-15', '08:00'), '2026-10-19')).toBe(true);
-		expect(isJobOverdue(at('2026-10-19', '10:00'), '2026-10-19')).toBe(true);
-		expect(isJobOverdue(at('2026-10-15', '08:00'), '2026-10-26')).toBe(false);
-	});
-});
-
-describe('catchUpTarget', () => {
-	it('generates a week not started yet whole, a started one from its open meals, a finished one never', () => {
-		expect(catchUpTarget(at('2026-10-16', '10:00'), '2026-10-19')).toEqual({ weekStart: '2026-10-19' });
-		expect(catchUpTarget(at('2026-10-19', '10:00'), '2026-10-19')).toEqual({ weekStart: '2026-10-19', from: { date: '2026-10-19', mealType: 'lunch' } });
-		expect(catchUpTarget(at('2026-10-25', '23:30'), '2026-10-19')).toBeNull();
-		expect(catchUpTarget(at('2026-10-28', '21:00'), '2026-10-19')).toBeNull();
-	});
-});
-
-describe('generationTargets', () => {
-	it('generates the rest of the current week for a family without weeks', () => {
-		expect(generationTargets(at('2026-10-13', '16:00'), [])).toEqual([
-			{ weekStart: '2026-10-12', from: { date: '2026-10-13', mealType: 'dinner' } },
-		]);
-	});
-	it('adds next week after Wednesday 20:00, the current week from Wednesday dinner', () => {
-		expect(generationTargets(at('2026-10-14', '20:00'), [])).toEqual([
-			{ weekStart: '2026-10-12', from: { date: '2026-10-14', mealType: 'dinner' } },
-			{ weekStart: '2026-10-19' },
-		]);
-		expect(generationTargets(at('2026-10-14', '19:59'), ['2026-10-12'])).toEqual([]);
-		expect(generationTargets(at('2026-10-14', '20:00'), ['2026-10-12'])).toEqual([{ weekStart: '2026-10-19' }]);
-	});
-	it('creates the current week when only the next exists (cron first)', () => {
-		expect(generationTargets(at('2026-10-15', '09:00'), ['2026-10-19'])).toEqual([
-			{ weekStart: '2026-10-12', from: { date: '2026-10-15', mealType: 'lunch' } },
-		]);
-	});
-	it('does nothing when both weeks exist', () => {
-		expect(generationTargets(at('2026-10-16', '10:00'), ['2026-10-12', '2026-10-19'])).toEqual([]);
-	});
-	it('skips the current week when no meal is left on Sunday night', () => {
-		expect(generationTargets(at('2026-10-18', '23:30'), [])).toEqual([{ weekStart: '2026-10-19' }]);
-	});
-});
-```
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `npm test -w domain -- local-time`
-Expected: FAIL (modulo inesistente).
-
-- [ ] **Step 3: Implement `local-time.ts`**
-
-```ts
-import { addDays, weekdayOf } from './calendar.ts';
-import type { IsoDate, MealType, PlannerSlotRef } from './types.ts';
-
-/** Wall-clock date and time of a family, HH:mm in 24 hours. */
-export interface LocalDateTime {
-	date: IsoDate;
-	time: string;
-}
-
-/** When a meal becomes past, in the family's local time (spec section 5). */
-export const MEAL_PASSES_AT: Record<MealType, string> = { lunch: '15:30', dinner: '23:00' };
-/** The weekly job generates next week from this local time on Wednesday (spec section 4). */
-export const GENERATION_TIME = '20:00';
-/** Twelve hours after Wednesday 20:00: Thursday 08:00. */
-export const OVERDUE_TIME = '08:00';
-
-const formatters = new Map<string, Intl.DateTimeFormat>();
-
-function formatterFor(timeZone: string): Intl.DateTimeFormat {
-	let formatter = formatters.get(timeZone);
-	if (!formatter) {
-		// Throws RangeError for an unknown time zone.
-		formatter = new Intl.DateTimeFormat('en-GB', {
-			timeZone,
-			calendar: 'gregory',
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit',
-			hour: '2-digit',
-			minute: '2-digit',
-			hourCycle: 'h23',
-		});
-		formatters.set(timeZone, formatter);
-	}
-	return formatter;
-}
-
-export function localDateTime(instant: Date, timeZone: string): LocalDateTime {
-	const parts = Object.fromEntries(formatterFor(timeZone).formatToParts(instant).map((p) => [p.type, p.value]));
-	return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
-}
-
-const isAtOrAfter = (now: LocalDateTime, date: IsoDate, time: string) => now.date > date || (now.date === date && now.time >= time);
-
-export function isMealPast(date: IsoDate, mealType: MealType, now: LocalDateTime): boolean {
-	return isAtOrAfter(now, date, MEAL_PASSES_AT[mealType]);
-}
-
-export function firstOpenMeal(now: LocalDateTime): PlannerSlotRef {
-	if (!isMealPast(now.date, 'lunch', now)) return { date: now.date, mealType: 'lunch' };
-	if (!isMealPast(now.date, 'dinner', now)) return { date: now.date, mealType: 'dinner' };
-	return { date: addDays(now.date, 1), mealType: 'lunch' };
-}
-
-export function mondayOf(date: IsoDate): IsoDate {
-	return addDays(date, -weekdayOf(date));
-}
-
-export function nextWeekStart(now: LocalDateTime): IsoDate {
-	return addDays(mondayOf(now.date), 7);
-}
-
-export function isNextWeekDue(now: LocalDateTime): boolean {
-	return isAtOrAfter(now, addDays(mondayOf(now.date), 2), GENERATION_TIME);
-}
-
-/** Overdue from the Thursday 08:00 before the job's week: 12 hours after its Wednesday 20:00. */
-export function isJobOverdue(now: LocalDateTime, targetWeek: IsoDate): boolean {
-	return isAtOrAfter(now, addDays(targetWeek, -4), OVERDUE_TIME);
-}
-
-export interface GenerationTarget {
-	weekStart: IsoDate;
-	from?: PlannerSlotRef;
-}
-
-/** A week not started is generated whole, a started one from its open meals; a finished one gives null. */
-export function catchUpTarget(now: LocalDateTime, weekStart: IsoDate): GenerationTarget | null {
-	if (now.date < weekStart) return { weekStart };
-	const from = firstOpenMeal(now);
-	return from.date <= addDays(weekStart, 6) ? { weekStart, from } : null;
-}
-
-/**
- * The one generation rule (spec section 4): the current week from its first open meal if it
- * is missing, and next week whole if it is missing and Wednesday 20:00 has passed.
- */
-export function generationTargets(now: LocalDateTime, existingWeekStarts: readonly IsoDate[]): GenerationTarget[] {
-	const targets: GenerationTarget[] = [];
-	const current = mondayOf(now.date);
-	if (!existingWeekStarts.includes(current)) {
-		const target = catchUpTarget(now, current);
-		if (target) targets.push(target);
-	}
-	const next = nextWeekStart(now);
-	if (isNextWeekDue(now) && !existingWeekStarts.includes(next)) targets.push({ weekStart: next });
-	return targets;
-}
-```
-
-In `index.ts`: `export * from './local-time.ts';`.
-
-- [ ] **Step 4: Run tests**
-
-Run: `npm test -w domain && npm run typecheck -w domain`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add domain/src/planner
-git commit -m "Pianificatore: ora locale della famiglia, bersagli della generazione e scadenze del job"
-```
-
----
-
-### Task 4: Hook `prepare`, istante della richiesta e tipo `Implementer`
-
-**Files:**
-- Modify: `server/src/pipeline.ts`
-- Modify: `server/test/support/test-contract.ts`, `server/test/support/context.ts`
-- Test: `server/test/pipeline.test.ts`
-
-**Interfaces:**
-- Produces:
-  - `RequestContext.now?: () => Date`;
-  - `OperationContext.now: Date`, l'istante fissato una volta per richiesta;
-  - `interface PrepareResult { versionPart?: string }`;
-  - `type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>`;
-  - `createImplementer(contract, options?: { prepare?: Record<string, Prepare> })`, con chiave uguale al percorso dell'operazione unito da punti;
-  - `type Implementer = ReturnType<typeof createImplementer<Contract>>` (se W6 l'ha già esportato, si usa il suo);
-  - `contextFor(keys, token, connectionString?, now?: () => Date)` nei test.
-
-Ordine nel middleware: token → transazione → sessione → `web_only` → ruolo → **prepare** → `readVersion` + `versionPart` → confronto con `knownVersion` → gestore.
-
-- [ ] **Step 1: Write the failing tests**
-
-In `test/support/test-contract.ts` aggiungere a `testContract.test` l'operazione `preparedView` (come `familyView`, rotta `/test/prepared-view`, input `versionedInput(family.extend({ fail: z.boolean().optional() }))`). Poi l'implementatore con hook:
-
-```ts
-export const preparedCalls: string[] = [];
-let testMondays = 0;
-/** A different Monday at each call, far from the menu tests' weeks. */
-const nextTestMonday = () => new Date(Date.UTC(2030, 0, 7 + 7 * testMondays++)).toISOString().slice(0, 10);
-
-const prepared = createImplementer(testContract, {
-	prepare: {
-		'test.preparedView': async (context, input) => {
-			const { familyId, fail } = input as { familyId: string; fail?: boolean };
-			if (fail) throw appError('invalid', { issues: [{ path: ['fail'], code: 'refused' }] });
-			preparedCalls.push(context.userId);
-			// A write in the user's transaction, before the version: it bumps the family counter.
-			await context.tx`insert into app.weeks (family_id, starts_on) values (${familyId}, ${nextTestMonday()})`;
-			return { versionPart: `t${context.now.toISOString().slice(0, 10)}` };
-		},
-	},
-});
-```
-
-`testRouter.test.preparedView = prepared.test.preparedView.handler(({ context }) => fresh(context, { calls: ++testHandlerCalls.familyView }))`. In `context.ts`, `contextFor(keys, token, connectionString = UNREACHABLE_DB, now?: () => Date)` mette `now` nel `RequestContext` restituito.
-
-In `pipeline.test.ts`, nel blocco con il database:
-
-```ts
-	it('runs prepare in the user transaction before the version, with its version part', async () => {
-		const { userId: member, sessionId } = await db.createUser();
-		const familyId = await db.createFamily([{ userId: member, role: 'member' }]);
-		const token = await keys.sign({ sub: member, session_id: sessionId });
-		const now = () => new Date('2026-10-14T10:00:00Z');
-		const first = await call(testRouter.test.preparedView, { familyId }, { context: contextFor(keys, token, db.appServerUrl, now), path: ['test', 'preparedView'] });
-		const [{ v }] = await db.admin<{ v: string }[]>`select data_version::text as v from app.families where id = ${familyId}`;
-		expect(first.version).toContain(`f${familyId}:${v}`); // read after prepare's write
-		expect(first.version.endsWith('.t2026-10-14')).toBe(true);
-		expect(preparedCalls).toContain(member);
-	});
-
-	it('answers an error of prepare even with a known version, and skips prepare when the role fails', async () => {
-		const { userId: member, sessionId } = await db.createUser();
-		const familyId = await db.createFamily([{ userId: member, role: 'member' }]);
-		const token = await keys.sign({ sub: member, session_id: sessionId });
-		const ctx = () => ({ context: contextFor(keys, token, db.appServerUrl), path: ['test', 'preparedView'], interceptors: [mapErrors] });
-		const { version } = await call(testRouter.test.preparedView, { familyId }, ctx());
-		const refused = await errorOf(call(testRouter.test.preparedView, { familyId, fail: true, knownVersion: version }, ctx()));
-		expect(refused.code).toBe('invalid');
-
-		const { userId: stranger, sessionId: s2 } = await db.createUser();
-		const strangerToken = await keys.sign({ sub: stranger, session_id: s2 });
-		const error = await errorOf(call(testRouter.test.preparedView, { familyId }, { context: contextFor(keys, strangerToken, db.appServerUrl), path: ['test', 'preparedView'], interceptors: [mapErrors] }));
-		expect(error.code).toBe('forbidden');
-		expect(preparedCalls).not.toContain(stranger);
-	});
-```
-
-Prima di scrivere i test, controllare che `call` di `@orpc/server` accetti l'opzione `path` (`grep -n "path" node_modules/@orpc/server/dist/index.d.mts`, tipo delle opzioni di `call`). Se non la accetta, i due test passano dal `fetch` dell'app di test (`createApp({ contract: testContract, router: testRouter, … })` con `rpcClient`), come in `channels.test.ts`.
-
-- [ ] **Step 2: Run to verify they fail**
-
-Run: `npm test -w server -- pipeline`
-Expected: FAIL (`createImplementer` non accetta opzioni).
-
-- [ ] **Step 3: Implement in `pipeline.ts`**
-
-```ts
-export interface RequestContext {
-	// …existing fields…
-	/** Current time; tests replace it. The pipeline reads it once per request. */
-	now?: () => Date;
-}
-
-/** The request's context inside the transaction; `now` becomes the fixed instant of the request. */
-export interface OperationContext extends Omit<RequestContext, 'now'> {
-	// …existing fields…
-	now: Date;
-}
-
-export interface PrepareResult {
-	/** Appended to the version of the read (for example the effective date). */
-	versionPart?: string;
-}
-/** Runs inside the user's transaction before the version is read: validation against the server's state, lazy work. */
-export type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>;
-
-export interface ImplementerOptions {
-	/** By operation path joined with dots, for example `menu.getOpening`. */
-	prepare?: Record<string, Prepare>;
-}
-
-export function createImplementer<C extends AnyContractRouter>(contract: C, options: ImplementerOptions = {}) {
-	// …
-	return base.use<OperationContext>(async ({ context, procedure, path, next }, input) => {
-		// …existing code up to checkRole…
-			const { now: clock, ...rest } = context;
-			const operation: OperationContext = { ...rest, now: clock?.() ?? new Date(), userId: claims.sub, channel, clientId: claims.client_id ?? null, locale, tx };
-			const extra = await options.prepare?.[path.join('.')]?.(operation, input);
-			if (meta.reads) {
-				operation.version = await readVersion(tx, meta.reads, input, locale, context.deployId);
-				if (extra?.versionPart) operation.version += `.${extra.versionPart}`;
-				if ((input as { knownVersion?: string }).knownVersion === operation.version) {
-					return { output: { unchanged: true, version: operation.version }, context: operation };
-				}
-			}
-			return next({ context: operation });
-	});
-}
-
-/** The one implementer type: built in router.ts, passed to each area's factory. */
-export type Implementer = ReturnType<typeof createImplementer<Contract>>;
-```
-
-(`import type { Contract } from '@app/contract'`). Aggiornare il commento di `createImplementer`: «… role, prepare, version …».
-
-- [ ] **Step 4: Run the server tests**
-
-Run: `npm test -w server && npm run typecheck -w server`
-Expected: PASS, compresi i test esistenti della piattaforma.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add server/src/pipeline.ts server/test
-git commit -m "Piattaforma: hook prepare prima della versione, istante della richiesta e tipo Implementer"
-```
-
----
-
-### Task 5: Contratto del menu
-
-**Cancello:** schemi di W6 in `contract/src/recipes/views.ts` su `main` (spec di W6, sezione 1).
-
-**Files:**
-- Create: `contract/src/menu/views.ts`, `contract/src/menu/operations.ts`
-- Modify: `contract/src/index.ts` (export di `menuContract` e dei tipi)
-- Test: `contract/src/menu/operations.test.ts`
-
-L'area si registra in `contract/src/contract.ts` solo nel Task 9, insieme ai gestori: un'operazione del contratto senza gestore nel router non compila.
-
-**Interfaces:**
-- Consumes: `recipeSummaryView`, `ratingSummaryView`, `ingredientLineView`, `isoDateSchema`, `mealTypeSchema` da `contract/src/recipes/views.ts` (W6).
-- Produces: `menuContract` (`getOpening`, `getWeek`, `getDates`); schemi `openingView`, `weekView`, `dayView`, `mealView`, `monday`, `localDateTimeSchema`; tipi `OpeningView`, `WeekView`, `MealView`.
-
-- [ ] **Step 1: Write the failing test**
-
-```ts
-import { describe, expect, it } from 'vitest';
-import { checkContract } from '../index.ts';
-import { menuContract } from './operations.ts';
-import { weekView } from './views.ts';
-
-describe('menu contract', () => {
-	it('follows the conventions', () => {
-		expect(checkContract({ menu: menuContract })).toEqual([]);
-	});
-	it('declares versioned, read-only family reads', () => {
-		for (const operation of Object.values(menuContract)) {
-			expect(operation['~orpc'].meta).toMatchObject({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] });
-		}
-	});
-	it('accepts an empty week of seven days and rejects a non-Monday', async () => {
-		const days = Array.from({ length: 7 }, (_, i) => ({ date: `2026-10-${12 + i}`, meals: [] }));
-		expect(weekView.safeParse({ startsOn: '2026-10-12', days }).success).toBe(true);
-		const result = await menuContract.getWeek['~orpc'].inputSchema!['~standard'].validate({ familyId: crypto.randomUUID(), weekStartsOn: '2026-10-13' });
-		expect(result.issues?.length).toBeGreaterThan(0);
-	});
-});
-```
-
-- [ ] **Step 2: Run to verify it fails**
-
-Run: `npm test -w contract -- menu`
-Expected: FAIL (modulo inesistente).
-
-- [ ] **Step 3: Implement**
-
-`contract/src/menu/views.ts`:
-
-```ts
-import { z } from 'zod';
-import { ingredientLineView, isoDateSchema, mealTypeSchema, ratingSummaryView, recipeSummaryView } from '../recipes/views.ts';
-
-/** Family local time, YYYY-MM-DDTHH:mm. */
-export const localDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
-export const monday = isoDateSchema.refine((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === 1, { message: 'not_monday' });
-
-export const mealView = z.object({
-	slotId: z.uuid(),
-	date: isoDateSchema,
-	mealType: mealTypeSchema,
-	kind: z.enum(['recipe', 'free', 'empty']),
-	recipe: recipeSummaryView.nullable(),
-	freeText: z.string().nullable(),
-	servings: z.number().int().min(0),
-	/** null for a recipe never published (R1): name and description only. */
-	ingredients: z.array(ingredientLineView).nullable(),
-	note: z.string().nullable(),
-	rating: ratingSummaryView.nullable(),
-	canOpenRecipe: z.boolean(),
-	/** userName null: the author is no longer a member. */
-	lastChange: z.object({ userName: z.string().nullable(), at: localDateTimeSchema }).nullable(),
-});
-
-export const dayView = z.object({ date: isoDateSchema, meals: z.array(mealView) });
-export const weekView = z.object({ startsOn: monday, days: z.array(dayView).length(7) });
-export const openingView = z.discriminatedUnion('kind', [
-	z.object({ kind: z.literal('no_weeks') }),
-	z.object({ kind: z.literal('day'), date: isoDateSchema, weekStartsOn: monday }),
-]);
-
-export type MealView = z.infer<typeof mealView>;
-export type WeekView = z.infer<typeof weekView>;
-export type OpeningView = z.infer<typeof openingView>;
-```
-
-`contract/src/menu/operations.ts`:
-
-```ts
-import { z } from 'zod';
-import { errorDefinitions } from '../errors.ts';
-import { op } from '../op.ts';
-import { isoDateSchema } from '../recipes/views.ts';
-import { versionedInput, versionedOutput } from '../versioned.ts';
-import { monday, openingView, weekView } from './views.ts';
-
-const read = { mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] } as const;
-
-export const menuContract = {
-	getOpening: op(read)
-		.route({ method: 'GET', path: '/families/{familyId}/menu/opening', summary: 'Day the menu opens on: today, else the next day with meals' })
-		.input(versionedInput(z.object({ familyId: z.uuid(), today: isoDateSchema.optional() })))
-		.output(versionedOutput(openingView)),
-	getWeek: op(read)
-		.route({ method: 'GET', path: '/families/{familyId}/menu/weeks/{weekStartsOn}', summary: 'Meals of a week, ready to show' })
-		.errors({ not_found: errorDefinitions.not_found })
-		.input(versionedInput(z.object({ familyId: z.uuid(), weekStartsOn: monday })))
-		.output(versionedOutput(weekView)),
-	getDates: op(read)
-		.route({ method: 'GET', path: '/families/{familyId}/menu/dates/{month}', summary: 'Days with a menu in a month' })
-		.input(versionedInput(z.object({ familyId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) })))
-		.output(versionedOutput(z.array(isoDateSchema))),
-};
-```
-
-In `index.ts`: `export { menuContract } from './menu/operations.ts';` e `export { type MealView, type OpeningView, type WeekView } from './menu/views.ts';`.
-
-- [ ] **Step 4: Run**
-
-Run: `npm test -w contract && npm run typecheck -w contract`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add contract/src
-git commit -m "Contratto: letture del menu (apertura, settimana, giorni con menu)"
-```
-
----
-
-### Task 6: Stato `abandoned` dei job (migrazione)
-
-**Files:**
-- Create: `supabase/migrations/20261011140000_weekly_jobs_abandoned.sql`
-- Create: `supabase/tests/weekly_jobs_abandoned_test.sql`
-
-**Interfaces:**
-- Produces: `app.weekly_jobs.status` accetta `abandoned`.
-
-- [ ] **Step 1: Verify the constraint name and write the failing test**
-
-Run: `psql "$TEST_DATABASE_URL" -c "select conname from pg_constraint where conrelid = 'app.weekly_jobs'::regclass and contype = 'c'"`
-Expected: `weekly_jobs_status_check` (se il nome è diverso, usarlo nella migrazione).
-
-`supabase/tests/weekly_jobs_abandoned_test.sql`, stile di `jobs_test.sql`:
-
-```sql
-begin;
-\ir helpers/setup.psql
-\ir helpers/fixtures.psql
-select plan(3);
-
-reset role;
-select tests.become('app_job');
-insert into app.weekly_jobs (family_id, target_week, status) values (tests.family('Rossi'), '2026-11-02', 'failed');
-select is(
-	tests.affected($$update app.weekly_jobs set status = 'abandoned', updated_at = now() where family_id = tests.family('Rossi') and target_week = '2026-11-02'$$),
-	1::bigint, 'the job closes a job whose week is over'
-);
-select is((select status from app.weekly_jobs where family_id = tests.family('Rossi') and target_week = '2026-11-02'), 'abandoned', 'abandoned is a status');
-select throws_ok($$update app.weekly_jobs set status = 'lost' where family_id = tests.family('Rossi')$$, '23514', null, 'other values are still refused');
-
-select * from finish();
-rollback;
-```
-
-Se le fixture hanno già una riga per quella famiglia e quella settimana, usare un'altra settimana.
-
-- [ ] **Step 2: Run to verify it fails**
-
-Run: `supabase test db` (oppure il comando della CI per pgTAP, vedi `.github/workflows/ci.yml` e `supabase/README.md`)
-Expected: FAIL sul primo `is` (violazione del check `23514`).
-
-- [ ] **Step 3: Write the migration**
-
-```sql
--- Weekly job: a job whose week is over is closed as abandoned (menu activity, spec
--- section 4.3 of 2026-10-11-menu-pianificatore). Only the status vocabulary changes.
-alter table app.weekly_jobs drop constraint weekly_jobs_status_check;
-alter table app.weekly_jobs add constraint weekly_jobs_status_check
-	check (status in ('pending', 'running', 'done', 'failed', 'abandoned'));
-```
-
-- [ ] **Step 4: Apply and run all database tests**
-
-Run: `supabase db reset && supabase test db`
-Expected: PASS, compreso `jobs_test.sql` (il test sul vocabolario con `'lost'` resta valido).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add supabase/migrations/20261011140000_weekly_jobs_abandoned.sql supabase/tests/weekly_jobs_abandoned_test.sql
-git commit -m "Schema: stato abandoned per i job settimanali la cui settimana è finita"
-```
-
----
-
-### Task 7: Dati di prova del menu e `mealRecipeVersions` (R1)
+### Task 1: `mealRecipeVersions` (R1) in una PR piccola per W4
+
+Sei il **produttore** di `mealRecipeVersions` per la spesa (W4): il task si consegna da
+solo, per primo, in una PR piccola da unire subito. Dipende solo da quanto è già su
+`main` (schema di W2, `server/src/db.ts`, supporto dei test della piattaforma); nessun
+cancello.
+
+**Branch:** `traguardo/menu-versioni`, creato da `origin/main` in un worktree a parte
+(`git worktree add .worktrees/menu-versioni -b traguardo/menu-versioni origin/main`, dal
+repository principale), così la PR contiene solo questi tre file e non spec e piano del
+menu. Dopo il merge: `git fetch origin && git rebase origin/main` su `traguardo/menu` e
+rimozione del worktree.
 
 **Files:**
 - Create: `server/test/support/menu.ts`
@@ -1183,6 +373,841 @@ git add server/src/menu/versions.ts server/test/support/menu.ts server/test/menu
 git commit -m "Menu: versione della ricetta per pasto (R1), riusabile dalla spesa"
 ```
 
+- [ ] **Step 6: Verifica, push e PR piccola**
+
+Run: `npm test && npm run typecheck && npm run build` (skill `superpowers:verification-before-completion`).
+Expected: PASS.
+
+```bash
+git push -u origin traguardo/menu-versioni
+gh pr create --base main --head traguardo/menu-versioni --title "Menu: versione della ricetta per pasto (R1) per la spesa" --body "..."
+```
+
+Descrizione in italiano: cosa fa (`mealRecipeVersions` e dati di prova `menuFixtures`, riusabili da W4), come è stato verificato (test nel ruolo del membro, confini 15:30/23:00, cambio di fuso), sezione 5 della specifica (R1) e sezione 3 della spec del menu. Scrivere `STATO: PR_APERTA <url>` e aspettare: dopo la review e il merge del coordinatore si riprende dal Task 2 su `traguardo/menu`, ribasato su `origin/main`.
+
+---
+
+### Task 2: Primo pasto da pianificare nel dominio
+
+**Files:**
+- Modify: `domain/src/planner/types.ts`, `domain/src/planner/constraints.ts`, `domain/src/planner/generate.ts:10-22`
+- Test: `domain/src/planner/generate.test.ts`
+
+**Interfaces:**
+- Produces: `interface PlannerSlotRef { date: IsoDate; mealType: MealType }`; `PlannerInput.from?: PlannerSlotRef`; `isPlannedSlot(input: PlannerInput, date: IsoDate, mealType: MealType): boolean` (da `constraints.ts`).
+
+- [ ] **Step 1: Write the failing tests** (in `generate.test.ts`, dentro `describe('generateWeek')`)
+
+```ts
+	it('plans only from the given meal on, and the whole week without it', () => {
+		const input = baseInput({ from: { date: '2026-10-14', mealType: 'dinner' } });
+		const week = generateWeek(input);
+		expect(week.slots[0]).toMatchObject({ date: '2026-10-14', mealType: 'dinner' });
+		expect(week.slots.every((s) => s.date > '2026-10-14' || (s.date === '2026-10-14' && s.mealType === 'dinner'))).toBe(true);
+		expect(week.slots).toHaveLength(9);
+		expect(hardViolations(week, input)).toEqual([]);
+		expect(generateWeek(baseInput()).slots).toHaveLength(14);
+	});
+
+	it('rejects a first meal outside the week', () => {
+		expect(() => generateWeek(baseInput({ from: { date: '2026-10-19', mealType: 'lunch' } }))).toThrow(RangeError);
+		expect(() => generateWeek(baseInput({ from: { date: '2026-10-11', mealType: 'dinner' } }))).toThrow(RangeError);
+	});
+```
+
+Conteggio: con `familySettings()`, dalla cena di mercoledì in poi restano 9 slot (mercoledì cena; giovedì e venerdì pranzo e cena; sabato pranzo e cena libera; domenica pizza e cena).
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npm test -w domain -- generate`
+Expected: FAIL (14 slot invece di 9; nessun `RangeError`).
+
+- [ ] **Step 3: Implement**
+
+In `types.ts`, prima di `PlannerInput`:
+
+```ts
+/** A meal of the calendar: a day and lunch or dinner. */
+export interface PlannerSlotRef {
+	date: IsoDate;
+	mealType: MealType;
+}
+```
+
+e dentro `PlannerInput`, dopo `history`:
+
+```ts
+	/** First meal to plan: earlier meals of the week get no slot (current week generated halfway). */
+	from?: PlannerSlotRef;
+```
+
+In `constraints.ts` (aggiungere `mealIndex` all'import da `./calendar.ts`):
+
+```ts
+/** A meal of the week gets a slot: planned in the diners matrix and not before `input.from`. */
+export function isPlannedSlot(input: PlannerInput, date: IsoDate, mealType: MealType): boolean {
+	if (slotSettingOf(input.settings, date, mealType).servings === 0) return false;
+	return !input.from || mealIndex(date, mealType) >= mealIndex(input.from.date, input.from.mealType);
+}
+```
+
+In `hardViolations` sostituire `if (setting.servings === 0) continue;` con `if (!isPlannedSlot(input, date, mealType)) continue;`.
+
+In `generate.ts` (import di `isPlannedSlot`):
+
+```ts
+export function plannedSlots(input: PlannerInput): PlannedSlot[] {
+	if (input.from && (input.from.date < input.weekStart || input.from.date > addDays(input.weekStart, 6))) {
+		throw new RangeError(`first meal ${input.from.date} outside the week of ${input.weekStart}`);
+	}
+	const slots: PlannedSlot[] = [];
+	for (let day = 0; day < 7; day++) {
+		for (const mealType of MEAL_TYPES) {
+			const date = addDays(input.weekStart, day);
+			if (!isPlannedSlot(input, date, mealType)) continue;
+			const setting = slotSettingOf(input.settings, date, mealType);
+			const content: PlannedSlot['content'] = setting.fixedText !== null ? { kind: 'free', text: setting.fixedText } : { kind: 'no_match' };
+			slots.push({ date, mealType, servings: setting.servings, content });
+		}
+	}
+	return slots;
+}
+```
+
+- [ ] **Step 4: Run the domain tests and the report**
+
+Run: `npm test -w domain && npm run typecheck -w domain && npm run planner-report && git diff progetto/reports/planner-report.md`
+Expected: tutti PASS. Nel report possono cambiare solo le righe delle misure di tempo, che variano a ogni esecuzione; se cambia altro, il comportamento è cambiato e va corretto.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git checkout progetto/reports/planner-report.md
+git add domain/src/planner
+git commit -m "Pianificatore: primo pasto da pianificare per generare una settimana a metà"
+```
+
+---
+
+### Task 3: Settimane successive già pianificate
+
+**Files:**
+- Modify: `domain/src/planner/types.ts`, `domain/src/planner/prepared.ts`, `domain/src/planner/score.ts`, `domain/src/planner/constraints.ts`
+- Test: `domain/src/planner/generate.test.ts`, `domain/src/planner/constraints.test.ts`
+
+**Interfaces:**
+- Consumes: `PlannerInput.from` (Task 2).
+- Produces: `PlannerInput.upcoming?: PastMeal[]`; `Prepared.upcoming` (pasti successivi entro 7 giorni dalla fine della settimana, ricette del catalogo); `recentIds` di `Prepared` comprende le ricette dei 14 giorni dopo la fine della settimana; `usedSoonAfter(recipeId: string, weekStart: IsoDate, upcoming: PastMeal[]): boolean` (da `constraints.ts`).
+
+- [ ] **Step 1: Write the failing tests**
+
+In `generate.test.ts`:
+
+```ts
+	it('does not repeat recipes already planned in the 14 days after the week (next week generated first)', () => {
+		const recipes = syntheticCatalogue(20);
+		const next = generateWeek(baseInput({ weekStart: '2026-10-19', recipes }));
+		const upcoming: PastMeal[] = next.slots.flatMap((s) => (s.content.kind === 'recipe' ? [{ date: s.date, mealType: s.mealType, recipeId: s.content.recipeId }] : []));
+		const input = baseInput({ recipes, from: { date: '2026-10-14', mealType: 'dinner' }, upcoming });
+		const current = generateWeek(input);
+		const nextIds = new Set(upcoming.map((m) => m.recipeId));
+		expect(current.slots.filter((s) => s.content.kind === 'recipe' && nextIds.has(s.content.recipeId))).toEqual([]);
+		expect(hardViolations(current, input)).toEqual([]);
+	});
+
+	it("keeps today's weeks when nothing is planned after", () => {
+		expect(generateWeek(baseInput({ upcoming: [] }))).toEqual(generateWeek(baseInput()));
+	});
+```
+
+In `constraints.test.ts`:
+
+```ts
+	it('reports a recipe planned again within 14 days after the week', () => {
+		const input = baseInput({ upcoming: [{ date: '2026-11-01', mealType: 'lunch', recipeId: 'r00' }] });
+		const week = { weekStart: input.weekStart, slots: [{ date: '2026-10-12', mealType: 'lunch' as const, servings: 2, content: { kind: 'recipe' as const, recipeId: 'r00' } }] };
+		expect(hardViolations(week, input).some((p) => p.includes('planned again within two weeks'))).toBe(true);
+		expect(usedSoonAfter('r00', '2026-10-12', [{ date: '2026-11-02', mealType: 'lunch', recipeId: 'r00' }])).toBe(false);
+	});
+```
+
+(il 1° novembre è il 14° giorno dopo domenica 18 ottobre, il 2 novembre il 15°).
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `npm test -w domain -- generate constraints`
+Expected: FAIL (ricette ripetute; `usedSoonAfter` inesistente).
+
+- [ ] **Step 3: Implement**
+
+`types.ts`, dentro `PlannerInput` dopo `history`:
+
+```ts
+	/** Meals already planned after the week (weeks generated earlier), oldest first: neighbours, never changed. */
+	upcoming?: PastMeal[];
+```
+
+`prepared.ts`: aggiungere a `Prepared`
+
+```ts
+	/** Planned meals after the week within the similarity reach (7 days), catalogue recipes only. */
+	upcoming: readonly { date: IsoDate; mealType: MealType; recipe: PlannerRecipe }[];
+```
+
+e nel calcolo:
+
+```ts
+	const weekEnd = addDays(input.weekStart, 6);
+	const after = (input.upcoming ?? []).filter((m) => m.date > weekEnd);
+	const soonUntil = addDays(weekEnd, RECENT_DAYS);
+	const nearUntil = addDays(weekEnd, 7);
+	// in result:
+		recentIds: new Set([
+			...before.filter((m) => m.date >= recentFrom).map((m) => m.recipeId),
+			...after.filter((m) => m.date <= soonUntil).map((m) => m.recipeId),
+		]),
+		upcoming: after.flatMap((m) => {
+			const recipe = byId.get(m.recipeId);
+			return recipe && m.date <= nearUntil ? [{ date: m.date, mealType: m.mealType, recipe }] : [];
+		}),
+```
+
+`score.ts`: `ScoreContext` riceve `upcoming: readonly Placed[]` da `prepared(input).upcoming` in `buildContext`; nella somiglianza:
+
+```ts
+	for (const near of [...ctx.past, ...ctx.upcoming, ...ctx.week]) {
+```
+
+(`recency` e `knownNew` restano su `past` e `knownIds`).
+
+`constraints.ts`:
+
+```ts
+/** A recipe already planned in the 14 days after the week (a later week generated first). */
+export function usedSoonAfter(recipeId: string, weekStart: IsoDate, upcoming: PastMeal[]): boolean {
+	const end = addDays(weekStart, 6);
+	const until = addDays(end, RECENT_DAYS);
+	return upcoming.some((meal) => meal.recipeId === recipeId && meal.date > end && meal.date <= until);
+}
+```
+
+e in `hardViolations`, dopo il controllo di `recentlyUsed`:
+
+```ts
+		if (usedSoonAfter(recipe.id, input.weekStart, input.upcoming ?? [])) problems.push(`${key}: planned again within two weeks`);
+```
+
+`candidatesFor` usa già `prepared(input).recentIds`, quindi esclude anche le ricette successive. Controllare in `repair.ts` che le alternative passino da `candidatesFor` o da `recentIds` (`grep -n recent domain/src/planner/repair.ts`); se una strada usa `recentlyUsed` direttamente, aggiungere lì `usedSoonAfter`.
+
+- [ ] **Step 4: Run tests and the report**
+
+Run: `npm test -w domain && npm run typecheck -w domain && npm run planner-report && git diff progetto/reports/planner-report.md`
+Expected: PASS; report invariato nelle settimane (il report non passa `upcoming`).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git checkout progetto/reports/planner-report.md
+git add domain/src/planner
+git commit -m "Pianificatore: settimane successive già pianificate come vicine (14 giorni e somiglianza)"
+```
+
+---
+
+### Task 4: Calendario nel fuso della famiglia
+
+**Files:**
+- Create: `domain/src/planner/local-time.ts`
+- Modify: `domain/src/planner/index.ts` (una riga di export)
+- Test: `domain/src/planner/local-time.test.ts`
+
+**Interfaces:**
+- Consumes: `addDays`, `weekdayOf` da `calendar.ts`; `PlannerSlotRef` (Task 2).
+- Produces:
+  - `interface LocalDateTime { date: IsoDate; time: string }`, con `time` nel formato `HH:mm`;
+  - `localDateTime(instant: Date, timeZone: string): LocalDateTime` (lancia `RangeError` se il fuso è sconosciuto);
+  - `MEAL_PASSES_AT`;
+  - `isMealPast(date, mealType, now): boolean`;
+  - `firstOpenMeal(now): PlannerSlotRef`;
+  - `mondayOf(date): IsoDate`;
+  - `nextWeekStart(now): IsoDate`;
+  - `interface GenerationTarget { weekStart: IsoDate; from?: PlannerSlotRef }`;
+  - `catchUpTarget(now, weekStart): GenerationTarget | null`;
+  - `generationTargets(now, existingWeekStarts): GenerationTarget[]`;
+  - `isNextWeekDue(now): boolean`;
+  - `isJobOverdue(now, targetWeek): boolean`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { catchUpTarget, firstOpenMeal, generationTargets, isJobOverdue, isMealPast, isNextWeekDue, localDateTime, mondayOf, nextWeekStart } from './local-time.ts';
+
+const at = (date: string, time: string) => ({ date, time });
+
+describe('localDateTime', () => {
+	it('reads date and time in the family time zone', () => {
+		expect(localDateTime(new Date('2026-10-14T18:00:00Z'), 'Europe/Rome')).toEqual(at('2026-10-14', '20:00'));
+		expect(localDateTime(new Date('2026-10-14T18:00:00Z'), 'Europe/London')).toEqual(at('2026-10-14', '19:00'));
+		expect(localDateTime(new Date('2026-10-15T01:30:00Z'), 'America/New_York')).toEqual(at('2026-10-14', '21:30'));
+	});
+	it('follows the European change of 25 October 2026 in Rome and London', () => {
+		expect(localDateTime(new Date('2026-10-24T22:30:00Z'), 'Europe/Rome')).toEqual(at('2026-10-25', '00:30'));
+		expect(localDateTime(new Date('2026-10-25T23:30:00Z'), 'Europe/Rome')).toEqual(at('2026-10-26', '00:30'));
+		expect(localDateTime(new Date('2026-10-24T23:30:00Z'), 'Europe/London')).toEqual(at('2026-10-25', '00:30'));
+		expect(localDateTime(new Date('2026-10-25T23:30:00Z'), 'Europe/London')).toEqual(at('2026-10-25', '23:30'));
+	});
+	it('follows the American change of 1 November 2026 in New York', () => {
+		expect(localDateTime(new Date('2026-11-01T03:30:00Z'), 'America/New_York')).toEqual(at('2026-10-31', '23:30'));
+		expect(localDateTime(new Date('2026-11-02T04:30:00Z'), 'America/New_York')).toEqual(at('2026-11-01', '23:30'));
+	});
+	it('writes midnight as 00:00', () => {
+		expect(localDateTime(new Date('2026-10-13T22:00:00Z'), 'Europe/Rome')).toEqual(at('2026-10-14', '00:00'));
+	});
+	it('rejects an unknown time zone', () => {
+		expect(() => localDateTime(new Date(), 'Mars/Olympus')).toThrow(RangeError);
+	});
+});
+
+describe('meals and weeks', () => {
+	it('passes lunch at 15:30 and dinner at 23:00', () => {
+		expect(isMealPast('2026-10-14', 'lunch', at('2026-10-14', '15:29'))).toBe(false);
+		expect(isMealPast('2026-10-14', 'lunch', at('2026-10-14', '15:30'))).toBe(true);
+		expect(isMealPast('2026-10-14', 'dinner', at('2026-10-14', '22:59'))).toBe(false);
+		expect(isMealPast('2026-10-13', 'dinner', at('2026-10-14', '00:00'))).toBe(true);
+	});
+	it('finds the first open meal', () => {
+		expect(firstOpenMeal(at('2026-10-14', '09:00'))).toEqual({ date: '2026-10-14', mealType: 'lunch' });
+		expect(firstOpenMeal(at('2026-10-14', '15:30'))).toEqual({ date: '2026-10-14', mealType: 'dinner' });
+		expect(firstOpenMeal(at('2026-10-14', '20:00'))).toEqual({ date: '2026-10-14', mealType: 'dinner' });
+		expect(firstOpenMeal(at('2026-10-14', '23:00'))).toEqual({ date: '2026-10-15', mealType: 'lunch' });
+	});
+	it('finds the Monday of a date and the next one', () => {
+		expect(mondayOf('2026-10-12')).toBe('2026-10-12');
+		expect(mondayOf('2026-10-18')).toBe('2026-10-12');
+		expect(nextWeekStart(at('2026-10-18', '12:00'))).toBe('2026-10-19');
+	});
+	it('makes next week due from Wednesday 20:00', () => {
+		expect(isNextWeekDue(at('2026-10-14', '19:59'))).toBe(false);
+		expect(isNextWeekDue(at('2026-10-14', '20:00'))).toBe(true);
+		expect(isNextWeekDue(at('2026-10-18', '23:59'))).toBe(true);
+		expect(isNextWeekDue(at('2026-10-12', '08:00'))).toBe(false);
+	});
+	it('makes a job overdue from the Thursday 08:00 before its week, whatever the current week', () => {
+		expect(isJobOverdue(at('2026-10-15', '07:59'), '2026-10-19')).toBe(false);
+		expect(isJobOverdue(at('2026-10-15', '08:00'), '2026-10-19')).toBe(true);
+		expect(isJobOverdue(at('2026-10-19', '10:00'), '2026-10-19')).toBe(true);
+		expect(isJobOverdue(at('2026-10-15', '08:00'), '2026-10-26')).toBe(false);
+	});
+});
+
+describe('catchUpTarget', () => {
+	it('generates a week not started yet whole, a started one from its open meals, a finished one never', () => {
+		expect(catchUpTarget(at('2026-10-16', '10:00'), '2026-10-19')).toEqual({ weekStart: '2026-10-19' });
+		expect(catchUpTarget(at('2026-10-19', '10:00'), '2026-10-19')).toEqual({ weekStart: '2026-10-19', from: { date: '2026-10-19', mealType: 'lunch' } });
+		expect(catchUpTarget(at('2026-10-25', '23:30'), '2026-10-19')).toBeNull();
+		expect(catchUpTarget(at('2026-10-28', '21:00'), '2026-10-19')).toBeNull();
+	});
+});
+
+describe('generationTargets', () => {
+	it('generates the rest of the current week for a family without weeks', () => {
+		expect(generationTargets(at('2026-10-13', '16:00'), [])).toEqual([
+			{ weekStart: '2026-10-12', from: { date: '2026-10-13', mealType: 'dinner' } },
+		]);
+	});
+	it('adds next week after Wednesday 20:00, the current week from Wednesday dinner', () => {
+		expect(generationTargets(at('2026-10-14', '20:00'), [])).toEqual([
+			{ weekStart: '2026-10-12', from: { date: '2026-10-14', mealType: 'dinner' } },
+			{ weekStart: '2026-10-19' },
+		]);
+		expect(generationTargets(at('2026-10-14', '19:59'), ['2026-10-12'])).toEqual([]);
+		expect(generationTargets(at('2026-10-14', '20:00'), ['2026-10-12'])).toEqual([{ weekStart: '2026-10-19' }]);
+	});
+	it('creates the current week when only the next exists (cron first)', () => {
+		expect(generationTargets(at('2026-10-15', '09:00'), ['2026-10-19'])).toEqual([
+			{ weekStart: '2026-10-12', from: { date: '2026-10-15', mealType: 'lunch' } },
+		]);
+	});
+	it('does nothing when both weeks exist', () => {
+		expect(generationTargets(at('2026-10-16', '10:00'), ['2026-10-12', '2026-10-19'])).toEqual([]);
+	});
+	it('skips the current week when no meal is left on Sunday night', () => {
+		expect(generationTargets(at('2026-10-18', '23:30'), [])).toEqual([{ weekStart: '2026-10-19' }]);
+	});
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run: `npm test -w domain -- local-time`
+Expected: FAIL (modulo inesistente).
+
+- [ ] **Step 3: Implement `local-time.ts`**
+
+```ts
+import { addDays, weekdayOf } from './calendar.ts';
+import type { IsoDate, MealType, PlannerSlotRef } from './types.ts';
+
+/** Wall-clock date and time of a family, HH:mm in 24 hours. */
+export interface LocalDateTime {
+	date: IsoDate;
+	time: string;
+}
+
+/** When a meal becomes past, in the family's local time (spec section 5). */
+export const MEAL_PASSES_AT: Record<MealType, string> = { lunch: '15:30', dinner: '23:00' };
+/** The weekly job generates next week from this local time on Wednesday (spec section 4). */
+export const GENERATION_TIME = '20:00';
+/** Twelve hours after Wednesday 20:00: Thursday 08:00. */
+export const OVERDUE_TIME = '08:00';
+
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatterFor(timeZone: string): Intl.DateTimeFormat {
+	let formatter = formatters.get(timeZone);
+	if (!formatter) {
+		// Throws RangeError for an unknown time zone.
+		formatter = new Intl.DateTimeFormat('en-GB', {
+			timeZone,
+			calendar: 'gregory',
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			hourCycle: 'h23',
+		});
+		formatters.set(timeZone, formatter);
+	}
+	return formatter;
+}
+
+export function localDateTime(instant: Date, timeZone: string): LocalDateTime {
+	const parts = Object.fromEntries(formatterFor(timeZone).formatToParts(instant).map((p) => [p.type, p.value]));
+	return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+const isAtOrAfter = (now: LocalDateTime, date: IsoDate, time: string) => now.date > date || (now.date === date && now.time >= time);
+
+export function isMealPast(date: IsoDate, mealType: MealType, now: LocalDateTime): boolean {
+	return isAtOrAfter(now, date, MEAL_PASSES_AT[mealType]);
+}
+
+export function firstOpenMeal(now: LocalDateTime): PlannerSlotRef {
+	if (!isMealPast(now.date, 'lunch', now)) return { date: now.date, mealType: 'lunch' };
+	if (!isMealPast(now.date, 'dinner', now)) return { date: now.date, mealType: 'dinner' };
+	return { date: addDays(now.date, 1), mealType: 'lunch' };
+}
+
+export function mondayOf(date: IsoDate): IsoDate {
+	return addDays(date, -weekdayOf(date));
+}
+
+export function nextWeekStart(now: LocalDateTime): IsoDate {
+	return addDays(mondayOf(now.date), 7);
+}
+
+export function isNextWeekDue(now: LocalDateTime): boolean {
+	return isAtOrAfter(now, addDays(mondayOf(now.date), 2), GENERATION_TIME);
+}
+
+/** Overdue from the Thursday 08:00 before the job's week: 12 hours after its Wednesday 20:00. */
+export function isJobOverdue(now: LocalDateTime, targetWeek: IsoDate): boolean {
+	return isAtOrAfter(now, addDays(targetWeek, -4), OVERDUE_TIME);
+}
+
+export interface GenerationTarget {
+	weekStart: IsoDate;
+	from?: PlannerSlotRef;
+}
+
+/** A week not started is generated whole, a started one from its open meals; a finished one gives null. */
+export function catchUpTarget(now: LocalDateTime, weekStart: IsoDate): GenerationTarget | null {
+	if (now.date < weekStart) return { weekStart };
+	const from = firstOpenMeal(now);
+	return from.date <= addDays(weekStart, 6) ? { weekStart, from } : null;
+}
+
+/**
+ * The one generation rule (spec section 4): the current week from its first open meal if it
+ * is missing, and next week whole if it is missing and Wednesday 20:00 has passed.
+ */
+export function generationTargets(now: LocalDateTime, existingWeekStarts: readonly IsoDate[]): GenerationTarget[] {
+	const targets: GenerationTarget[] = [];
+	const current = mondayOf(now.date);
+	if (!existingWeekStarts.includes(current)) {
+		const target = catchUpTarget(now, current);
+		if (target) targets.push(target);
+	}
+	const next = nextWeekStart(now);
+	if (isNextWeekDue(now) && !existingWeekStarts.includes(next)) targets.push({ weekStart: next });
+	return targets;
+}
+```
+
+In `index.ts`: `export * from './local-time.ts';`.
+
+- [ ] **Step 4: Run tests**
+
+Run: `npm test -w domain && npm run typecheck -w domain`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add domain/src/planner
+git commit -m "Pianificatore: ora locale della famiglia, bersagli della generazione e scadenze del job"
+```
+
+---
+
+### Task 5: Hook `prepare`, istante della richiesta e tipo `Implementer`
+
+**Files:**
+- Modify: `server/src/pipeline.ts`
+- Modify: `server/test/support/test-contract.ts`, `server/test/support/context.ts`
+- Test: `server/test/pipeline.test.ts`
+
+**Interfaces:**
+- Produces:
+  - `RequestContext.now?: () => Date`;
+  - `OperationContext.now: Date`, l'istante fissato una volta per richiesta;
+  - `interface PrepareResult { versionPart?: string }`;
+  - `type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>`;
+  - `createImplementer(contract, options?: { prepare?: Record<string, Prepare> })`, con chiave uguale al percorso dell'operazione unito da punti;
+  - `type Implementer = ReturnType<typeof createImplementer<Contract>>` (se W6 l'ha già esportato, si usa il suo);
+  - `contextFor(keys, token, connectionString?, now?: () => Date)` nei test.
+
+Ordine nel middleware: token → transazione → sessione → `web_only` → ruolo → **prepare** → `readVersion` + `versionPart` → confronto con `knownVersion` → gestore.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `test/support/test-contract.ts` aggiungere a `testContract.test` l'operazione `preparedView` (come `familyView`, rotta `/test/prepared-view`, input `versionedInput(family.extend({ fail: z.boolean().optional() }))`). Poi l'implementatore con hook:
+
+```ts
+export const preparedCalls: string[] = [];
+let testMondays = 0;
+/** A different Monday at each call, far from the menu tests' weeks. */
+const nextTestMonday = () => new Date(Date.UTC(2030, 0, 7 + 7 * testMondays++)).toISOString().slice(0, 10);
+
+const prepared = createImplementer(testContract, {
+	prepare: {
+		'test.preparedView': async (context, input) => {
+			const { familyId, fail } = input as { familyId: string; fail?: boolean };
+			if (fail) throw appError('invalid', { issues: [{ path: ['fail'], code: 'refused' }] });
+			preparedCalls.push(context.userId);
+			// A write in the user's transaction, before the version: it bumps the family counter.
+			await context.tx`insert into app.weeks (family_id, starts_on) values (${familyId}, ${nextTestMonday()})`;
+			return { versionPart: `t${context.now.toISOString().slice(0, 10)}` };
+		},
+	},
+});
+```
+
+`testRouter.test.preparedView = prepared.test.preparedView.handler(({ context }) => fresh(context, { calls: ++testHandlerCalls.familyView }))`. In `context.ts`, `contextFor(keys, token, connectionString = UNREACHABLE_DB, now?: () => Date)` mette `now` nel `RequestContext` restituito.
+
+In `pipeline.test.ts`, nel blocco con il database:
+
+```ts
+	it('runs prepare in the user transaction before the version, with its version part', async () => {
+		const { userId: member, sessionId } = await db.createUser();
+		const familyId = await db.createFamily([{ userId: member, role: 'member' }]);
+		const token = await keys.sign({ sub: member, session_id: sessionId });
+		const now = () => new Date('2026-10-14T10:00:00Z');
+		const first = await call(testRouter.test.preparedView, { familyId }, { context: contextFor(keys, token, db.appServerUrl, now), path: ['test', 'preparedView'] });
+		const [{ v }] = await db.admin<{ v: string }[]>`select data_version::text as v from app.families where id = ${familyId}`;
+		expect(first.version).toContain(`f${familyId}:${v}`); // read after prepare's write
+		expect(first.version.endsWith('.t2026-10-14')).toBe(true);
+		expect(preparedCalls).toContain(member);
+	});
+
+	it('answers an error of prepare even with a known version, and skips prepare when the role fails', async () => {
+		const { userId: member, sessionId } = await db.createUser();
+		const familyId = await db.createFamily([{ userId: member, role: 'member' }]);
+		const token = await keys.sign({ sub: member, session_id: sessionId });
+		const ctx = () => ({ context: contextFor(keys, token, db.appServerUrl), path: ['test', 'preparedView'], interceptors: [mapErrors] });
+		const { version } = await call(testRouter.test.preparedView, { familyId }, ctx());
+		const refused = await errorOf(call(testRouter.test.preparedView, { familyId, fail: true, knownVersion: version }, ctx()));
+		expect(refused.code).toBe('invalid');
+
+		const { userId: stranger, sessionId: s2 } = await db.createUser();
+		const strangerToken = await keys.sign({ sub: stranger, session_id: s2 });
+		const error = await errorOf(call(testRouter.test.preparedView, { familyId }, { context: contextFor(keys, strangerToken, db.appServerUrl), path: ['test', 'preparedView'], interceptors: [mapErrors] }));
+		expect(error.code).toBe('forbidden');
+		expect(preparedCalls).not.toContain(stranger);
+	});
+```
+
+Prima di scrivere i test, controllare che `call` di `@orpc/server` accetti l'opzione `path` (`grep -n "path" node_modules/@orpc/server/dist/index.d.mts`, tipo delle opzioni di `call`). Se non la accetta, i due test passano dal `fetch` dell'app di test (`createApp({ contract: testContract, router: testRouter, … })` con `rpcClient`), come in `channels.test.ts`.
+
+- [ ] **Step 2: Run to verify they fail**
+
+Run: `npm test -w server -- pipeline`
+Expected: FAIL (`createImplementer` non accetta opzioni).
+
+- [ ] **Step 3: Implement in `pipeline.ts`**
+
+```ts
+export interface RequestContext {
+	// …existing fields…
+	/** Current time; tests replace it. The pipeline reads it once per request. */
+	now?: () => Date;
+}
+
+/** The request's context inside the transaction; `now` becomes the fixed instant of the request. */
+export interface OperationContext extends Omit<RequestContext, 'now'> {
+	// …existing fields…
+	now: Date;
+}
+
+export interface PrepareResult {
+	/** Appended to the version of the read (for example the effective date). */
+	versionPart?: string;
+}
+/** Runs inside the user's transaction before the version is read: validation against the server's state, lazy work. */
+export type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>;
+
+export interface ImplementerOptions {
+	/** By operation path joined with dots, for example `menu.getOpening`. */
+	prepare?: Record<string, Prepare>;
+}
+
+export function createImplementer<C extends AnyContractRouter>(contract: C, options: ImplementerOptions = {}) {
+	// …
+	return base.use<OperationContext>(async ({ context, procedure, path, next }, input) => {
+		// …existing code up to checkRole…
+			const { now: clock, ...rest } = context;
+			const operation: OperationContext = { ...rest, now: clock?.() ?? new Date(), userId: claims.sub, channel, clientId: claims.client_id ?? null, locale, tx };
+			const extra = await options.prepare?.[path.join('.')]?.(operation, input);
+			if (meta.reads) {
+				operation.version = await readVersion(tx, meta.reads, input, locale, context.deployId);
+				if (extra?.versionPart) operation.version += `.${extra.versionPart}`;
+				if ((input as { knownVersion?: string }).knownVersion === operation.version) {
+					return { output: { unchanged: true, version: operation.version }, context: operation };
+				}
+			}
+			return next({ context: operation });
+	});
+}
+
+/** The one implementer type: built in router.ts, passed to each area's factory. */
+export type Implementer = ReturnType<typeof createImplementer<Contract>>;
+```
+
+(`import type { Contract } from '@app/contract'`). Aggiornare il commento di `createImplementer`: «… role, prepare, version …».
+
+- [ ] **Step 4: Run the server tests**
+
+Run: `npm test -w server && npm run typecheck -w server`
+Expected: PASS, compresi i test esistenti della piattaforma.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add server/src/pipeline.ts server/test
+git commit -m "Piattaforma: hook prepare prima della versione, istante della richiesta e tipo Implementer"
+```
+
+---
+
+### Task 6: Contratto del menu
+
+**Cancello:** schemi di W6 in `contract/src/recipes/views.ts` su `main` (spec di W6, sezione 1).
+
+**Files:**
+- Create: `contract/src/menu/views.ts`, `contract/src/menu/operations.ts`
+- Modify: `contract/src/index.ts` (export di `menuContract` e dei tipi)
+- Test: `contract/src/menu/operations.test.ts`
+
+L'area si registra in `contract/src/contract.ts` solo nel Task 9, insieme ai gestori: un'operazione del contratto senza gestore nel router non compila.
+
+**Interfaces:**
+- Consumes: `recipeSummaryView`, `ratingSummaryView`, `ingredientLineView`, `isoDateSchema`, `mealTypeSchema` da `contract/src/recipes/views.ts` (W6).
+- Produces: `menuContract` (`getOpening`, `getWeek`, `getDates`); schemi `openingView`, `weekView`, `dayView`, `mealView`, `monday`, `localDateTimeSchema`; tipi `OpeningView`, `WeekView`, `MealView`.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { checkContract } from '../index.ts';
+import { menuContract } from './operations.ts';
+import { weekView } from './views.ts';
+
+describe('menu contract', () => {
+	it('follows the conventions', () => {
+		expect(checkContract({ menu: menuContract })).toEqual([]);
+	});
+	it('declares versioned, read-only family reads', () => {
+		for (const operation of Object.values(menuContract)) {
+			expect(operation['~orpc'].meta).toMatchObject({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] });
+		}
+	});
+	it('accepts an empty week of seven days and rejects a non-Monday', async () => {
+		const days = Array.from({ length: 7 }, (_, i) => ({ date: `2026-10-${12 + i}`, meals: [] }));
+		expect(weekView.safeParse({ startsOn: '2026-10-12', days }).success).toBe(true);
+		const result = await menuContract.getWeek['~orpc'].inputSchema!['~standard'].validate({ familyId: crypto.randomUUID(), weekStartsOn: '2026-10-13' });
+		expect(result.issues?.length).toBeGreaterThan(0);
+	});
+});
+```
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `npm test -w contract -- menu`
+Expected: FAIL (modulo inesistente).
+
+- [ ] **Step 3: Implement**
+
+`contract/src/menu/views.ts`:
+
+```ts
+import { z } from 'zod';
+import { ingredientLineView, isoDateSchema, mealTypeSchema, ratingSummaryView, recipeSummaryView } from '../recipes/views.ts';
+
+/** Family local time, YYYY-MM-DDTHH:mm. */
+export const localDateTimeSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+export const monday = isoDateSchema.refine((d) => new Date(`${d}T00:00:00Z`).getUTCDay() === 1, { message: 'not_monday' });
+
+export const mealView = z.object({
+	slotId: z.uuid(),
+	date: isoDateSchema,
+	mealType: mealTypeSchema,
+	kind: z.enum(['recipe', 'free', 'empty']),
+	recipe: recipeSummaryView.nullable(),
+	freeText: z.string().nullable(),
+	servings: z.number().int().min(0),
+	/** null for a recipe never published (R1): name and description only. */
+	ingredients: z.array(ingredientLineView).nullable(),
+	note: z.string().nullable(),
+	rating: ratingSummaryView.nullable(),
+	canOpenRecipe: z.boolean(),
+	/** userName null: the author is no longer a member. */
+	lastChange: z.object({ userName: z.string().nullable(), at: localDateTimeSchema }).nullable(),
+});
+
+export const dayView = z.object({ date: isoDateSchema, meals: z.array(mealView) });
+export const weekView = z.object({ startsOn: monday, days: z.array(dayView).length(7) });
+export const openingView = z.discriminatedUnion('kind', [
+	z.object({ kind: z.literal('no_weeks') }),
+	z.object({ kind: z.literal('day'), date: isoDateSchema, weekStartsOn: monday }),
+]);
+
+export type MealView = z.infer<typeof mealView>;
+export type WeekView = z.infer<typeof weekView>;
+export type OpeningView = z.infer<typeof openingView>;
+```
+
+`contract/src/menu/operations.ts`:
+
+```ts
+import { z } from 'zod';
+import { errorDefinitions } from '../errors.ts';
+import { op } from '../op.ts';
+import { isoDateSchema } from '../recipes/views.ts';
+import { versionedInput, versionedOutput } from '../versioned.ts';
+import { monday, openingView, weekView } from './views.ts';
+
+const read = { mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] } as const;
+
+export const menuContract = {
+	getOpening: op(read)
+		.route({ method: 'GET', path: '/families/{familyId}/menu/opening', summary: 'Day the menu opens on: today, else the next day with meals' })
+		.input(versionedInput(z.object({ familyId: z.uuid(), today: isoDateSchema.optional() })))
+		.output(versionedOutput(openingView)),
+	getWeek: op(read)
+		.route({ method: 'GET', path: '/families/{familyId}/menu/weeks/{weekStartsOn}', summary: 'Meals of a week, ready to show' })
+		.errors({ not_found: errorDefinitions.not_found })
+		.input(versionedInput(z.object({ familyId: z.uuid(), weekStartsOn: monday })))
+		.output(versionedOutput(weekView)),
+	getDates: op(read)
+		.route({ method: 'GET', path: '/families/{familyId}/menu/dates/{month}', summary: 'Days with a menu in a month' })
+		.input(versionedInput(z.object({ familyId: z.uuid(), month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) })))
+		.output(versionedOutput(z.array(isoDateSchema))),
+};
+```
+
+In `index.ts`: `export { menuContract } from './menu/operations.ts';` e `export { type MealView, type OpeningView, type WeekView } from './menu/views.ts';`.
+
+- [ ] **Step 4: Run**
+
+Run: `npm test -w contract && npm run typecheck -w contract`
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add contract/src
+git commit -m "Contratto: letture del menu (apertura, settimana, giorni con menu)"
+```
+
+---
+
+### Task 7: Stato `abandoned` dei job (migrazione)
+
+**Files:**
+- Create: `supabase/migrations/20261011140000_weekly_jobs_abandoned.sql`
+- Create: `supabase/tests/weekly_jobs_abandoned_test.sql`
+
+**Interfaces:**
+- Produces: `app.weekly_jobs.status` accetta `abandoned`.
+
+- [ ] **Step 1: Verify the constraint name and write the failing test**
+
+Run: `psql "$TEST_DATABASE_URL" -c "select conname from pg_constraint where conrelid = 'app.weekly_jobs'::regclass and contype = 'c'"`
+Expected: `weekly_jobs_status_check` (se il nome è diverso, usarlo nella migrazione).
+
+`supabase/tests/weekly_jobs_abandoned_test.sql`, stile di `jobs_test.sql`:
+
+```sql
+begin;
+\ir helpers/setup.psql
+\ir helpers/fixtures.psql
+select plan(3);
+
+reset role;
+select tests.become('app_job');
+insert into app.weekly_jobs (family_id, target_week, status) values (tests.family('Rossi'), '2026-11-02', 'failed');
+select is(
+	tests.affected($$update app.weekly_jobs set status = 'abandoned', updated_at = now() where family_id = tests.family('Rossi') and target_week = '2026-11-02'$$),
+	1::bigint, 'the job closes a job whose week is over'
+);
+select is((select status from app.weekly_jobs where family_id = tests.family('Rossi') and target_week = '2026-11-02'), 'abandoned', 'abandoned is a status');
+select throws_ok($$update app.weekly_jobs set status = 'lost' where family_id = tests.family('Rossi')$$, '23514', null, 'other values are still refused');
+
+select * from finish();
+rollback;
+```
+
+Se le fixture hanno già una riga per quella famiglia e quella settimana, usare un'altra settimana.
+
+- [ ] **Step 2: Run to verify it fails**
+
+Run: `supabase test db` (oppure il comando della CI per pgTAP, vedi `.github/workflows/ci.yml` e `supabase/README.md`)
+Expected: FAIL sul primo `is` (violazione del check `23514`).
+
+- [ ] **Step 3: Write the migration**
+
+```sql
+-- Weekly job: a job whose week is over is closed as abandoned (menu activity, spec
+-- section 4.3 of 2026-10-11-menu-pianificatore). Only the status vocabulary changes.
+alter table app.weekly_jobs drop constraint weekly_jobs_status_check;
+alter table app.weekly_jobs add constraint weekly_jobs_status_check
+	check (status in ('pending', 'running', 'done', 'failed', 'abandoned'));
+```
+
+- [ ] **Step 4: Apply and run all database tests**
+
+Run: `supabase db reset && supabase test db`
+Expected: PASS, compreso `jobs_test.sql` (il test sul vocabolario con `'lost'` resta valido).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add supabase/migrations/20261011140000_weekly_jobs_abandoned.sql supabase/tests/weekly_jobs_abandoned_test.sql
+git commit -m "Schema: stato abandoned per i job settimanali la cui settimana è finita"
+```
+
 ---
 
 ### Task 8: Generazione di una settimana dal database
@@ -1456,7 +1481,7 @@ git commit -m "Menu: generazione della settimana dal database, coerente con le s
 
 ### Task 9: Generazione pigra, apertura e giorni con menu
 
-**Cancello:** come il Task 8 (generazione); più il Task 5 (contratto).
+**Cancello:** come il Task 8 (generazione); più il Task 6 (contratto).
 
 **Files:**
 - Create: `server/src/menu/time.ts`, `server/src/menu/opening.ts`, `server/src/menu/router.ts`
@@ -1469,8 +1494,8 @@ git commit -m "Menu: generazione della settimana dal database, coerente con le s
 **Interfaces:**
 - Consumes:
   - `generateWeek`, `lockFamilyWeeks`, `errorCode`, `logEvent` (Task 8);
-  - `Prepare`, `Implementer`, `OperationContext.now` e `fresh` (Task 4);
-  - `menuContract` (Task 5);
+  - `Prepare`, `Implementer`, `OperationContext.now` e `fresh` (Task 5);
+  - `menuContract` (Task 6);
   - `localDateTime`, `generationTargets`, `mondayOf`, `addDays`, `daysBetween` (dominio).
 - Produces:
   - `localIn(familyId, timeZone, now): LocalDateTime`;
@@ -1817,7 +1842,7 @@ git commit -m "Menu: generazione pigra nel percorso della richiesta, apertura co
 - Test: `server/test/menu-job.test.ts`
 
 **Interfaces:**
-- Consumes: `generateWeek`, `ensureWeeks`, `lockFamilyWeeks`, `errorCode` (Tasks 8-9); `localIn` (Task 9); `isNextWeekDue`, `nextWeekStart`, `catchUpTarget`, `isJobOverdue` (Task 3); `withDbOn` di `server/src/db.ts`; `logEvent` (Task 8).
+- Consumes: `generateWeek`, `ensureWeeks`, `lockFamilyWeeks`, `errorCode` (Tasks 8-9); `localIn` (Task 9); `isNextWeekDue`, `nextWeekStart`, `catchUpTarget`, `isJobOverdue` (Task 4); `withDbOn` di `server/src/db.ts`; `logEvent` (Task 8).
 - Produces:
   - `runWeeklyJobOn(sql: postgres.Sql, now: Date): Promise<{ generated: number; failed: number; abandoned: number }>`;
   - `runWeeklyJob(connectionString: string, now: Date)`, la stessa funzione con una connessione propria.
@@ -2064,7 +2089,7 @@ git commit -m "Menu: job orario con Cron Trigger, ritentativi fino alla fine del
 
 ### Task 11: Vista della settimana (`menu.getWeek`)
 
-**Cancello:** PR di W6 con le viste R1 complete su `main` (spec di W6, sezione 1 «Interfaccia per W1»). Leggere quella sezione e `server/src/recipes/views.ts` su `main` prima di scrivere: **vale la firma reale di W6**. Il codice qui sotto segue la firma della spec di W6 all'11 ottobre 2026 (`recipeViews(tx, viewer, refs)`, `recipeViewKey(ref)`, `RecipeView { summary, status, version, baseServings, ingredients, rating }`).
+**Cancello:** cancello unico delle viste (sezione «Cancelli»): PR delle viste di W6 unita, con `ratings.set`, `RecipeCard`, `IngredientList` e tipi web della ricetta adeguati. Interfaccia **definitiva**: spec di W6, sezione 1 «Interfaccia per W1» (commit `f5b1dd2`), registrata nel piano generale. Il codice qui sotto usa quelle firme esatte: `RecipeRef { recipeId, version: number | null, servings }`, `recipeViewKey(ref)` (`${recipeId}@${version ?? 'now'}@${servings}`), `Viewer { familyId, userId, locale }`, `recipeViews(tx, viewer, refs)` con `RecipeView { summary, status, version, baseServings, ingredients, rating }`. Si usa `recipeViews` (una chiamata per settimana) perché dà già `status` e `rating: null` per le mai pubblicate; l'alternativa equivalente di W6 è `recipeSummaries(tx, refs, locale)` + `ingredientLines(tx, refs, { familyId, locale })` + `ratingSummaries(tx, familyId, userId, recipeIds)`, con lo stesso `recipeViewKey` (e chiave `recipeId` per i voti). Se su `main` qualcosa differisce, `STATO: DOMANDA`: l'interfaccia cambia solo tramite il coordinatore.
 
 **Files:**
 - Create: `server/src/menu/week-view.ts`
@@ -2072,7 +2097,7 @@ git commit -m "Menu: job orario con Cron Trigger, ritentativi fino alla fine del
 - Test: `server/test/menu-week.test.ts`
 
 **Interfaces:**
-- Consumes: `mealRecipeVersions` (Task 7); `RecipeRef`, `recipeViewKey`, `recipeViews` (W6).
+- Consumes: `mealRecipeVersions` (Task 1); `RecipeRef`, `recipeViewKey`, `Viewer`, `recipeViews`, `RecipeView` da `server/src/recipes/views.ts` (W6, firme definitive).
 - Produces: `weekViewOf(context: OperationContext, familyId: string, weekStartsOn: string): Promise<WeekView>`, che lancia `appError('not_found')` se la settimana manca.
 
 - [ ] **Step 1: Write the failing tests** `server/test/menu-week.test.ts`
@@ -2084,6 +2109,9 @@ Fixture: settimana passata del 12 gennaio 2026 per una famiglia del lettore, con
 - mercoledì cena: vuoto;
 - giovedì pranzo: cambiato (`updatedBy`) da un membro poi uscito dalla famiglia;
 - venerdì pranzo: cambiato dal lettore.
+
+- sabato pranzo: ricetta «Zuppa» con 4 porzioni; sabato cena: la stessa ricetta con 2 porzioni;
+- domenica pranzo: ricetta «Zuppa» con 0 porzioni.
 
 Settimana futura del 5 gennaio 2099 con la stessa ricetta il lunedì a pranzo.
 
@@ -2104,6 +2132,16 @@ Settimana futura del 5 gennaio 2099 con la stessa ricetta il lunedì a pranzo.
 		expect(on('2026-01-12', 'dinner').lastChange).toBeNull();
 	});
 
+	it('builds one RecipeRef per meal with its servings: different servings, different lines; zero servings at the reference servings', async () => {
+		const week = await read('getWeek', { familyId, weekStartsOn: '2026-01-12' });
+		const meals = week.data.days.flatMap((d: any) => d.meals);
+		const on = (date: string, mealType: string) => meals.find((m: any) => m.date === date && m.mealType === mealType);
+		// The fixture document has baseServings 2 and 100 g per line.
+		expect(on('2026-01-17', 'lunch').ingredients[0].amount).toBe('200 g');
+		expect(on('2026-01-17', 'dinner').ingredients[0].amount).toBe('100 g');
+		expect(on('2026-01-18', 'lunch')).toMatchObject({ servings: 0, ingredients: [{ amount: '100 g' }] });
+	});
+
 	it("shows the current version for future meals, in the reader's language", async () => {
 		const week = await readAs(englishReader, 'getWeek', { familyId, weekStartsOn: '2099-01-05' });
 		expect(week.data.days[0].meals[0].recipe.name).toBe('Zuppa (en)');
@@ -2115,7 +2153,7 @@ Settimana futura del 5 gennaio 2099 con la stessa ricetta il lunedì a pranzo.
 	});
 ```
 
-`englishReader` è un secondo utente creato con `db.createUser({ locale: 'en-GB' })` e aggiunto alla stessa famiglia (`db.addMember`); `readAs` è `read` con il suo token. Il nome inglese resta `Zuppa (en)` perché la fixture cambia solo quello italiano. Il membro uscito si ottiene con `delete from app.family_members` da `db.admin`. `read` è come nel Task 9, con un `now` fisso al 10 ottobre 2026: la generazione pigra crea solo la settimana corrente, che il test ignora.
+Gli importi esatti («200 g») seguono la presentazione delle quantità di W4 usata dalle viste di W6: se il formato reale differisce (spazio, separatore), si adegua l'atteso, non il comportamento. `englishReader` è un secondo utente creato con `db.createUser({ locale: 'en-GB' })` e aggiunto alla stessa famiglia (`db.addMember`); `readAs` è `read` con il suo token. Il nome inglese resta `Zuppa (en)` perché la fixture cambia solo quello italiano. Il membro uscito si ottiene con `delete from app.family_members` da `db.admin`. `read` è come nel Task 9, con un `now` fisso al 10 ottobre 2026: la generazione pigra crea solo la settimana corrente, che il test ignora.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -2198,7 +2236,7 @@ export async function weekViewOf(context: OperationContext, familyId: string, we
 }
 ```
 
-Una ricetta che l'RLS nasconde manca dalla mappa di W6, e allora il pasto ha `recipe: null` con `kind: 'recipe'`. Succede solo con una bozza non citata dalla famiglia, cioè mai per uno slot della famiglia stessa. In `router.ts`: `getWeek: os.menu.getWeek.handler(async ({ context, input }) => fresh(context, await weekViewOf(context, input.familyId, input.weekStartsOn)))`.
+Un `RecipeRef` per pasto: due pasti con la stessa ricetta e versione ma porzioni diverse hanno chiavi diverse, due con le stesse porzioni condividono la vista (W6 deduplica). `version` viene da `mealRecipeVersions` così com'è (numero, `null` solo per una ricetta mai pubblicata): il Menu non passa mai `null` per una ricetta pubblicata, così un pasto passato resta sulla sua versione storica. Una ricetta che l'RLS nasconde manca dalla mappa di W6, e allora il pasto ha `recipe: null` con `kind: 'recipe'`. Succede solo con una bozza non citata dalla famiglia, cioè mai per uno slot della famiglia stessa. In `router.ts`: `getWeek: os.menu.getWeek.handler(async ({ context, input }) => fresh(context, await weekViewOf(context, input.familyId, input.weekStartsOn)))`.
 
 - [ ] **Step 4: Run**
 
@@ -2216,7 +2254,7 @@ git commit -m "Menu: vista della settimana con le versioni dei pasti e le viste 
 
 ### Task 12: Menu dell'app web sui dati veri
 
-**Cancello:** seconda PR di W5 (client oRPC reale) e PR di W6 (`ratings.set`, `IngredientList` con la preparazione, tipi web della ricetta) su `main`. Prima di scrivere codice, leggere su `main` `web/src/api/`, `web/src/routes/MenuPage.tsx`, `web/src/api/queries.ts` e i test esistenti del Menu, e adeguare i percorsi qui sotto a quelli reali.
+**Cancello:** cancello unico delle viste (PR delle viste di W6 unita, con `ratings.set`, `RecipeCard`, `IngredientList` con la preparazione e tipi web della ricetta adeguati da W6) più la seconda PR di W5 (client oRPC reale), su `main`. Prima di scrivere codice, leggere su `main` `web/src/api/`, `web/src/routes/MenuPage.tsx`, `web/src/api/queries.ts` e i test esistenti del Menu, e adeguare i percorsi qui sotto a quelli reali.
 
 **Files:**
 - Modify: `web/src/api/types.ts` (solo le voci del menu: tipi da `@app/contract`)
@@ -2226,7 +2264,7 @@ git commit -m "Menu: vista della settimana con le versioni dei pasti e le viste 
 - Test: test del Menu di W5 (`web/src/routes/MenuPage.test.tsx` o il nome reale)
 
 **Interfaces:**
-- Consumes: `contract.menu` (Task 5); il calcolo della data locale già usato da W5 per i pasti passati (`web/src/lib/calendar.ts`), oppure `localDateTime` di `@app/domain/planner` se il web dichiara già il workspace `@app/domain`.
+- Consumes: `contract.menu` (Task 6); il calcolo della data locale già usato da W5 per i pasti passati (`web/src/lib/calendar.ts`), oppure `localDateTime` di `@app/domain/planner` se il web dichiara già il workspace `@app/domain`.
 - Produces: nessuna interfaccia per altri task.
 
 - [ ] **Step 1: Write the failing tests**

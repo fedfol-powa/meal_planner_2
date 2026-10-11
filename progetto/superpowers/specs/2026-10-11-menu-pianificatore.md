@@ -43,8 +43,8 @@ Resend nell'ondata 3 (qui solo una riga di log, sezione 4.5).
 | W2 schema (su `main`) | `app.weeks`, `app.meal_slots`, `app.weekly_jobs`, `app.recipe_version_at`, `app.meal_passed_at`, `family_scores`, `global_scores`, contatori di versione, ruolo `app_job` | unito |
 | W3 ricetta e import | `RecipeDocument` e `toPlannerRecipe(id, document)` in `domain/src/recipe/projection.ts` (il libro viene da `document.bookId`) | PR #9 |
 | W2 profilo e famiglia | `resolveFamilySettings(saved) → PlannerSettings` in `domain/src/family/settings.ts`, con lo schema zod dei valori salvati in `families.settings`. Non fallisce sui valori malformati: li sostituisce con i default | in implementazione |
-| W6 ricettario e voti | autore unico di `contract/src/recipes/views.ts` e `server/src/recipes/views.ts`; firme nella sua spec, sezione 1 «Interfaccia per W1» (`2026-10-11-ricettario-e-voti.md`); `ratings.set`; `IngredientList` con la preparazione e tipi web della ricetta | in implementazione |
-| W4 unità e spesa | scalatura e presentazione delle quantità, usate da W6; W4 importa `mealRecipeVersions` (sezione 3) | PR #7 |
+| W6 ricettario e voti | autore unico di `contract/src/recipes/views.ts` e `server/src/recipes/views.ts`; interfaccia **definitiva** nella sua spec, sezione 1 «Interfaccia per W1» (`2026-10-11-ricettario-e-voti.md`, commit `f5b1dd2`), registrata nel piano generale; `ratings.set`; `RecipeCard`, `IngredientList` con la preparazione e tipi web della ricetta | in implementazione |
+| W4 unità e spesa | scalatura e presentazione delle quantità, usate da W6; W4 **consuma** `mealRecipeVersions` (sezione 3), che questa attività consegna per prima in una PR piccola | PR #7 |
 | W5 app web | `MenuPage`, `DatePicker`, `DaySelector`, `RecipeCard`, `RatingStars`, client oRPC reale (seconda PR di W5) | PR #6 |
 
 Il pianificatore (`PlannerSettings`, `PlannerInput`, default) resta di questa attività;
@@ -210,7 +210,9 @@ Stesso codice in entrambi i casi: cambia solo il ruolo della transazione.
 ## 3. Versione della ricetta per pasto (R1)
 
 `server/src/menu/versions.ts`, riusabile, **importata da W4 per la spesa** (richiesta
-del coordinatore):
+del coordinatore). Questa attività ne è il produttore: la consegna per prima, in una PR
+piccola a parte (`versions.ts`, i dati di prova del menu e i test), da unire subito; dipende
+solo dallo schema e dalla piattaforma già su `main`.
 
 ```ts
 export interface MealRecipeVersion {
@@ -437,12 +439,23 @@ spec, sezione 1):
 1. la settimana e i suoi slot, con nome dell'autore dell'ultima modifica;
 2. `mealRecipeVersions(tx, familyId, weekId)`;
 3. per ogni pasto con ricetta un `RecipeRef { recipeId, version, servings }` di W6, con
-   la versione data da `mealRecipeVersions` (numero, oppure `null` per una ricetta mai
-   pubblicata) e le porzioni dello slot;
+   la versione data da `mealRecipeVersions` (numero, oppure `null` solo per una ricetta
+   mai pubblicata) e le porzioni dello slot, 0 compreso;
 4. una sola chiamata `recipeViews(tx, { familyId, userId, locale }, refs)` per tutta la
-   settimana; ogni pasto legge la sua `RecipeView` con `recipeViewKey(ref)`:
-   `recipe = view.summary`, `ingredients = view.ingredients`, `rating = view.rating`,
+   settimana; ogni pasto legge la sua `RecipeView` con `recipeViewKey(ref)`
+   (`${recipeId}@${version ?? 'now'}@${servings}`): `recipe = view.summary`,
+   `ingredients = view.ingredients`, `rating = view.rating`,
    `canOpenRecipe = view.status !== 'draft'`.
+
+Equivalente ammesso dall'interfaccia di W6: `recipeSummaries(tx, refs, locale)`,
+`ingredientLines(tx, refs, { familyId, locale })` e `ratingSummaries(tx, familyId,
+userId, recipeIds)`, una chiamata ciascuna per settimana, con le stesse chiavi
+(`recipeId` per i voti) e il voto `null` per le mai pubblicate. Il Menu usa `recipeViews`,
+che dà già stato e voto nullo.
+
+Porzioni: due pasti con la stessa ricetta e versione ma porzioni diverse hanno chiavi e
+righe diverse; un pasto con 0 porzioni mostra le righe alle porzioni di riferimento della
+ricetta (regola di W6) e la sua chiave conserva lo 0.
 
 Le ricette archiviate restano visibili e votabili dai pasti che le usano (specifica,
 sezione 5). L'output di `getWeek` e `getDates` non dipende dall'ora oltre alla
@@ -452,17 +465,31 @@ contatore.
 
 ## 6. Interfaccia con W6
 
-Definitiva nella spec di W6, sezione 1 «Interfaccia per W1»; il Menu la importa così
-com'è e non scrive mai `contract/src/recipes/views.ts` né `server/src/recipes/views.ts`.
-Si usano: gli schemi `recipeSummaryView`, `ratingSummaryView`, `ingredientLineView` nel
-contratto del menu; `RecipeRef`, `recipeViewKey`, `Viewer`, `recipeViews` nel server.
-Se all'implementazione le firme di W6 su `main` differiscono da quanto scritto qui, vale
-W6 e questa spec si allinea.
+**Definitiva** (decisione del coordinatore dell'11 ottobre 2026): spec di W6, sezione 1
+«Interfaccia per W1», commit `f5b1dd2` del branch `traguardo/ricettario`, registrata nel
+piano generale («Interfaccia per W1 definitiva»). Il Menu la importa così com'è e non
+scrive mai `contract/src/recipes/views.ts` né `server/src/recipes/views.ts`, nemmeno come
+ripiego. Firme usate:
 
-**Cancello** dei task che usano le viste (vista della settimana e web): PR di W6 con le
-viste complete di R1 (versioni storiche e ricette mai pubblicate) unita; `ratings.set`
-disponibile; `IngredientList` di W6 con la preparazione e tipi web della ricetta
-adeguati.
+- contratto: `recipeSummaryView`, `ratingSummaryView`, `ingredientLineView`,
+  `isoDateSchema`, `mealTypeSchema`;
+- server: `RecipeRef { recipeId: string; version: number | null; servings: number }`,
+  `recipeViewKey(ref)`, `Viewer { familyId, userId, locale }`,
+  `recipeViews(tx, viewer, refs): Promise<Map<string, RecipeView>>` con
+  `RecipeView { summary, status, version, baseServings, ingredients, rating }`; in
+  alternativa `recipeSummaries(tx, refs, locale)`, `ingredientLines(tx, refs, { familyId,
+  locale })`, `ratingSummaries(tx, familyId, userId, recipeIds)`.
+
+`RecipeRef` si costruisce sempre da `mealRecipeVersions` (versione) e dallo slot
+(porzioni). Il contenuto viene dal documento immutabile della versione richiesta (R1
+coerente anche con una pubblicazione concorrente, garanzia di W6). Ogni modifica
+all'interfaccia passa dal coordinatore.
+
+**Cancello** dei task che usano le viste (vista della settimana e web): PR delle viste di
+W6 unita (complete di R1: versioni storiche e ricette mai pubblicate), con `ratings.set`,
+`RecipeCard`, `IngredientList` (con la preparazione) e tipi web della ricetta adeguati da
+W6. Il voto dal Menu si prova con la risposta applicata solo dopo la conferma del server
+(sezione 7).
 
 ## 7. Web
 
@@ -534,7 +561,8 @@ Sulla base di W5, quando la sua seconda PR (client oRPC reale) e la PR di W6 son
     successiva dopo mercoledì sera), «invariato» con la versione della risposta e non
     con quella di prima della generazione; apertura nei cinque casi della sezione 5.2,
     compresa una settimana di soli slot vuoti; `getWeek` con R1, ultima modifica ed ex
-    membro, `not_found`; `getDates`; generazione fallita in savepoint e lettura
+    membro, la stessa ricetta con porzioni diverse in due pasti (righe diverse) e un
+    pasto con 0 porzioni (righe alle porzioni di riferimento), `not_found`; `getDates`; generazione fallita in savepoint e lettura
     riuscita;
   - **MCP**: `tools/list` con le tre letture in sola lettura; `tools/call` di
     `getOpening` che genera la prima settimana; cambio di giorno con `knownVersion` del
@@ -559,8 +587,8 @@ W3 e W4; `server/` dichiara il workspace interno `@app/domain`.
 
 ## 11. Ordine di lavoro
 
-Dominio, hook, contratto, versioni per pasto e migrazione non dipendono da altri worker
-e partono subito dopo il via. La generazione e il job aspettano `toPlannerRecipe` (W3) e
+Per prima, `mealRecipeVersions` in una PR piccola per W4 (sezione 3). Poi dominio, hook,
+contratto e migrazione, che non dipendono da altri worker. La generazione e il job aspettano `toPlannerRecipe` (W3) e
 `resolveFamilySettings` (W2 profilo); la vista della settimana il cancello di W6
 (sezione 6); il web anche la seconda PR di W5. Se uno di questi non è su `main` quando
 serve, `STATO: DOMANDA` al coordinatore; i file degli altri worker non si scrivono.
@@ -586,7 +614,8 @@ serve, `STATO: DOMANDA` al coordinatore; i file degli altri worker non si scrivo
 | Generazioni della stessa famiglia serializzate con `pg_advisory_xact_lock` su una chiave derivata dal `family_id`, preso prima di ogni scrittura nella richiesta pigra e nel job | 4 |
 | Hook `prepare` per operazione nel percorso della richiesta, prima del calcolo della versione e dell'uscita «invariato», con una parte di versione facoltativa; istante della richiesta fissato una volta nel contesto; implementatore unico in `server/src/router.ts` con factory per area | 1 (strato delle operazioni) |
 | Candidate del pianificatore dal documento della versione corrente con `toPlannerRecipe(id, document)` di W3; impostazioni con `resolveFamilySettings` di W2 | 2, 3 |
-| `mealRecipeVersions(tx, familyId, weekId)` in `server/src/menu/versions.ts` come unica scelta della versione per pasto (R1), usata da Menu e spesa | 5, 6 |
+| `mealRecipeVersions(tx, familyId, weekId)` in `server/src/menu/versions.ts` come unica scelta della versione per pasto (R1), usata da Menu e spesa; consegnata per prima in una PR piccola | 5, 6 |
+| Menu sulle viste definitive di W6: un `RecipeRef` per pasto da `mealRecipeVersions` e dalle porzioni dello slot, una chiamata `recipeViews` per settimana, mappe lette con `recipeViewKey` | 5, 8 |
 | La data effettiva di `menu.getOpening` entra nella versione dell'operazione e `today` si valida prima della risposta «invariato» | 1 (letture dalla copia sul dispositivo), 5 |
 | La generazione non scrive `meal_changes` e lascia `updated_by` null: l'ultima modifica mostrata è solo quella delle persone | 2, 5 |
 | `PlannerInput.from` per generare una settimana a metà e `PlannerInput.upcoming` per le settimane successive già pianificate | 3 |
