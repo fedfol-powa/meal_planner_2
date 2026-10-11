@@ -41,3 +41,8 @@ w1:pZ	STATO: DOMANDA Restano bloccati: il task 8 (la funzione mealRecipeVersions
 w1:pZ	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/11 #1cd49c53
 w1:pC	STATO: SPEC_E_PIANO_PRONTI #27ac63f8
 w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/12 #d57f9bdc
+w1:p1B	REVISORE_FINITO
+w1:p1C	REVISORE_FINITO
+w1:p1D	REVISORE_FINITO
+w1:p1E	REVISORE_FINITO
+w1:p1F	REVISORE_FINITO

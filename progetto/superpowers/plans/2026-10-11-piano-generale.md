@@ -201,3 +201,4 @@ solo il coordinatore.
 | 11 ottobre 2026 | L'utente approva l'ordine dell'ondata 2: interfacce prima, poi produttori con PR piccole, poi consumatori; regola della tabella produttori → consumatori prima di lanciare un worker |
 | 11 ottobre 2026 | L'utente approva i quattro YAML dell'import (tagli di carne come varietà, «Sale e pepe» solo sale, cotti/precotti come preparazione, peperoncino secco per «1 pizzico», preparazioni del libro come prodotti in `other`, 4 traduzioni en-GB scritte da W3) |
 | 11 ottobre 2026 | Unite la PR #6 (app web di base, dopo tre review) e la PR #9 (documento ricetta e import, dopo due review, YAML approvati dall'utente): ondata 1 completata |
+| 11 ottobre 2026 | Unita la PR #12 (viste condivise della ricetta di W6, `ratings.set`, adeguamenti web della ricetta) dopo una review senza rilievi |

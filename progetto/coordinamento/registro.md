@@ -7,28 +7,20 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Spec e piano adeguati alle viste (6f42b05); seconda review breve in corso (revisioni/w1-menu-spec-piano-2.md) | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Seconda review «approvabile con correzioni»; corregge (w2-07), poi PR piccola di `resolveFamilySettings` e implementazione senza parti web | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Seconda review «approvabile con correzioni»; corregge il test R1, poi PR piccola di `mealRecipeVersions` + `versionedInput` (w1-09), poi implementazione senza parti web | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #10 «approvabile con correzioni» (rilievo minore, w2-08) → merge senza nuova review; implementazione senza parti web | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 (sola parte server) aperta, review in corso (revisioni/w4-pr11.md); task 8 e web in una PR successiva | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #6 unita. Seconda PR (client oRPC reale + agganci di W4): aggiorna spec e piano (w5-05), poi review breve | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-viste | .worktrees/ricettario | PR #12 (viste) aperta, review in corso (revisioni/w6-pr12.md) | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 «approvabile con correzioni» (run_worker_first, settimana inesistente; w4-06) | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR: spec e piano approvabili con correzioni; via all'implementazione (w5-06) | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #12 (viste) unita; prosegue ricerca, dettaglio, MCP senza parti web (w6-04) | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6). Ondata 1 completata.
 
 ## Revisori attivi
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR10 impostazioni | PR #10 di W2 (`resolveFamilySettings`), worktree .worktrees/review-pr10 | R PR10 impostazioni | w1:p1B | in corso → revisioni/w2-pr10.md |
-| R PR11 spesa | PR #11 di W4, worktree .worktrees/review-pr11 | R PR11 spesa | w1:p1D | in corso → revisioni/w4-pr11.md |
-| R web client spec | spec e piano della seconda PR di W5 | R web client spec | — | in corso → revisioni/w5-web-client-spec-piano.md |
-| R PR12 viste | PR #12 di W6, worktree .worktrees/review-pr12 | R PR12 viste | — | in corso → revisioni/w6-pr12.md |
-| R menu spec 2 | seconda review di spec e piano di W1 | R PR11 spesa | PR #11 di W4, worktree .worktrees/review-pr11 | R PR11 spesa | w1:p1D | in corso → revisioni/w4-pr11.md |
-| R web client spec | spec e piano della seconda PR di W5 | R web client spec | — | in corso → revisioni/w5-web-client-spec-piano.md |
-| R PR12 viste | PR #12 di W6, worktree .worktrees/review-pr12 | R PR12 viste | — | in corso → revisioni/w6-pr12.md |
-| R menu spec 2 | w1:p1C | in corso → revisioni/w1-menu-spec-piano-2.md |
 
 ## Domande in sospeso
 
@@ -39,20 +31,16 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
 0. **In corso (ordine dell'ondata 2):**
-   - PR #6 e #9 unite (merge eseguito dal coordinatore su conferma esplicita dell'utente).
-   - W6: PR piccola delle viste → review → merge; poi W1 può implementare le schede.
-   - W5: seconda PR (spec e piano → review breve → implementazione → review → merge);
-     poi le parti web di W1, W2, W4, W6.
-   - W2: PR #10 in review → merge; poi il resto senza parti web.
-   - W1: seconda review in corso; poi PR piccola di `mealRecipeVersions` → merge → W4
-     task 8. **Nel via a W1:** nella stessa PR piccola corregge `versionedInput`
-     (`contract/src/versioned.ts` fa perdere il tipo dell'input ai gestori; generico sulla
-     forma dell'oggetto), segnalato da W4.
-   - W4: implementa senza task 8, task 10 e parti web.
-   - W3 libero: prima di assegnargli un'attività (revisione dei pasti, gestione MCP del
-     ricettario, collegamento agenti, esportazione R2, messa in produzione) scrivere la
-     tabella produttori → consumatori nel piano generale.
-   - Fine ondata 1: decisioni riportate nella specifica principale (commit 0ce9828); il punto 6 sotto è fatto.
+   - Unite: #6, #9, #12 (viste di W6: i task di W1 che le usano sono sbloccati).
+   - W5: implementa la seconda PR (client oRPC reale + agganci di W4) → review → merge;
+     poi le parti web di W1, W2, W4, W6 (ognuno si ferma lì con `STATO: DOMANDA`).
+   - W2: PR #10 → correzione minore → merge senza nuova review se CI verde.
+   - W1: PR piccola di `mealRecipeVersions` + `versionedInput` → review → merge → W4
+     task 8 (togliere lo schema scritto a mano e la query provvisoria).
+   - W4: PR #11 → correzioni → verifica breve → merge.
+   - W6: ricerca, dettaglio, MCP; poi parti web dopo W5.
+   - W3 libero: prima di assegnargli un'attività scrivere la tabella produttori →
+     consumatori nel piano generale.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli
