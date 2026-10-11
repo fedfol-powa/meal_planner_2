@@ -74,7 +74,6 @@ function RecipeView({ family }: { family: FamilyView }) {
   return (
     <section className="secondary-view app-view">
       <article className="page-column">
-        {recipe.photo && <img className={styles.photo} src={recipe.photo} alt="" />}
         {/* The title is always the link to the source when there is one (spec section 14). */}
         <PageHeader
           back={back}

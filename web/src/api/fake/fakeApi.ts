@@ -13,7 +13,7 @@ export { DEMO_FAMILY_ID, DEMO_USER_ID } from './seed';
 interface DemoRecipe {
   id: string; status: string; name: Translated; description: Translated; sourceType: SourceType; sourceUrl: string | null;
   bookId: string | null; bookPages: string | null; durationMinutes: number | null; baseServings: number | null;
-  mealType: RecipeMealType; proteinGroup: ProteinGroup | null; photo: string | null; addedOn: IsoDate;
+  mealType: RecipeMealType; proteinGroup: ProteinGroup | null; addedOn: IsoDate;
   ingredients: { ingredientId: string; quantity: Quantity; sourceText: string; text: Translated | null; isOptional: boolean }[];
 }
 interface DemoSlot {
@@ -119,9 +119,16 @@ export function createFakeApi(options: FakeApiOptions): Api {
     };
   }
   function summary(recipe: DemoRecipe, locale: Locale): RecipeSummary {
+    // Like the server (W6): a never-published recipe shows its name and description only.
+    if (recipe.status === 'draft') {
+      return {
+        id: recipe.id, name: localized(recipe.name, locale), description: localized(recipe.description, locale) || null,
+        durationMinutes: null, sourceType: null, sourceUrl: null, bookTitle: null, bookPages: null, mealType: null, proteinGroup: null
+      };
+    }
     return {
       id: recipe.id, name: localized(recipe.name, locale), description: localized(recipe.description, locale),
-      photo: recipe.photo, durationMinutes: recipe.durationMinutes, sourceType: recipe.sourceType, sourceUrl: recipe.sourceUrl,
+      durationMinutes: recipe.durationMinutes, sourceType: recipe.sourceType, sourceUrl: recipe.sourceUrl,
       bookTitle: data.books.find((b) => b.id === recipe.bookId)?.title ?? null, bookPages: recipe.bookPages,
       mealType: recipe.mealType, proteinGroup: recipe.proteinGroup
     };
@@ -133,6 +140,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
       ingredientId: line.ingredientId,
       name: localized(data.ingredients.find((i) => i.id === line.ingredientId)?.name ?? { 'it-IT': line.ingredientId, 'en-GB': null }, locale),
       amount: formatAmount(scaleQuantity(line.quantity, factor), line.sourceText, line.text, locale),
+      preparation: null,
       optional: line.isOptional
     }));
   }

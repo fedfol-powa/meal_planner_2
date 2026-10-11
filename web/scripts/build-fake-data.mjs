@@ -3,9 +3,13 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse } from 'yaml';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = JSON.parse(readFileSync(resolve(root, '../prototype/src/lib/demo-data/generated.json'), 'utf8'));
+// Protein groups as classified for the import (8 codes of domain/src/planner); the prototype had 6.
+const attributes = parse(readFileSync(resolve(root, '../scripts/import/recipe-attributes.yaml'), 'utf8')).recipes;
+const proteinGroup = (r) => attributes[r.id]?.protein_group ?? (r.proteinGroup === 'meat' ? 'red_meat' : r.proteinGroup);
 
 const data = {
   books: source.books,
@@ -13,7 +17,7 @@ const data = {
   recipes: source.recipes.map((r) => ({
     id: r.id, status: r.status, name: r.name, description: r.description, sourceType: r.sourceType,
     sourceUrl: r.sourceUrl, bookId: r.bookId, bookPages: r.bookPages, durationMinutes: r.durationMinutes,
-    baseServings: r.baseServings, mealType: r.mealType, proteinGroup: r.proteinGroup, photo: r.photo, addedOn: r.addedOn,
+    baseServings: r.baseServings, mealType: r.mealType, proteinGroup: proteinGroup(r), addedOn: r.addedOn,
     ingredients: r.ingredients.map(({ ingredientId, quantity, sourceText, text, isOptional }) => ({ ingredientId, quantity, sourceText, text: text ?? null, isOptional }))
   })),
   weeks: source.weeks.map(({ startsOn, generatedAt, slots }) => ({

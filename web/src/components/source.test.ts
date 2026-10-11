@@ -20,4 +20,7 @@ describe('source', () => {
     expect(sourceLine(recipe({ sourceType: 'home' }), t)).toBe('Ricetta di casa');
     expect(sourceLine(recipe({ sourceType: 'web', sourceUrl: 'bad' }), t)).toBeNull();
   });
+  it('names no source for a never-published recipe', () => {
+    expect(sourceLine(recipe({ sourceType: null, sourceUrl: 'https://www.gnambox.com/r' }), t)).toBeNull();
+  });
 });
