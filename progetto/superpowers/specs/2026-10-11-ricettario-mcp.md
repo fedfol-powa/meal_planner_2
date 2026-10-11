@@ -117,10 +117,10 @@ Prese con il coordinatore l'11 ottobre 2026 (la 5 dall'utente):
   export interface Actor { userId: string; channel: Channel }
 
   export interface CreateDraftInput {
-  	draftId: string;                       // uuid stabile della creazione
-  	content: RecipeDraftDocument;          // con id del catalogo (resolveReferences già applicato)
-  	originSlug?: string | null;            // import: identità nell'origine, unica
-  	originType?: string | null;
+    draftId: string;                       // uuid stabile della creazione
+    content: RecipeDraftDocument;          // con id del catalogo (resolveReferences già applicato)
+    originSlug?: string | null;            // import: identità nell'origine, unica
+    originType?: string | null;
   }
   export interface CreatedDraft { draftId: string; recipeId: string; created: boolean }
   export interface SaveDraftInput { draftId: string; baseRevision: number; content: RecipeDraftDocument; overwriteRevision?: number }
@@ -128,12 +128,12 @@ Prese con il coordinatore l'11 ottobre 2026 (la 5 dall'utente):
   export interface PublishInput { draftId: string; confirmVersion?: number }
   export interface Published { recipeId: string; version: number; publishedAt: Date; conversions: Conversion[] }
   export interface CreateIngredientInput {
-  	ingredientId: string;                  // uuid stabile della creazione
-  	slug?: string;                         // import: lo slug del pacchetto, conservato com'è
-  	name: { 'it-IT': string; 'en-GB': string | null };
-  	department: Department;
-  	isPantry: boolean;
-  	synonyms?: { 'it-IT': string[]; 'en-GB': string[] };
+    ingredientId: string;                  // uuid stabile della creazione
+    slug?: string;                         // import: lo slug del pacchetto, conservato com'è
+    name: { 'it-IT': string; 'en-GB': string | null };
+    department: Department;
+    isPantry: boolean;
+    synonyms?: { 'it-IT': string[]; 'en-GB': string[] };
   }
   export interface CreatedIngredient { ingredientId: string; slug: string; created: boolean }
   export interface CreateBookInput { bookId: string; slug?: string; title: string }
@@ -183,7 +183,7 @@ client (`checkContract`).
 solo da ricette non in bozza, ingredienti, equivalenze e libri, che fanno crescere
 `catalogue_state`.
 **Letture non versionate:** `getGuide` (testo statico), `overview`, `getDraft`,
-`checkDraft`, `checkVariety`: le bozze non toccano il contatore del ricettario (sezione 1
+`listDraftSaves`, `getDraftSave`, `checkDraft`, `checkVariety`: le bozze non toccano il contatore del ricettario (sezione 1
 della specifica), quindi si leggono sempre fresche.
 
 ### Viste comuni
@@ -240,6 +240,8 @@ stesso percorso del documento della bozza: una riga in tazze senza equivalenza r
 | `getGuide` | GET `/catalogue/guide` | `{}` | `{ guide: string }` (Markdown in inglese) | |
 | `overview` | GET `/catalogue/overview` | `{}` | `{ drafts: draftSummaryView[]; archived: archivedSummaryView[] }` | |
 | `getDraft` | GET `/catalogue/drafts/{draftId}` | `{ draftId }` | `draftView` | `not_found` |
+| `listDraftSaves` | GET `/catalogue/drafts/{draftId}/saves` | `{ draftId }` | `{ draftId; recipeId; kind; revision; outcome; saves: { revision; savedBy: author; savedAt; channel; overwritten }[] }` (più recenti prima, anche per le bozze chiuse) | `not_found` |
+| `getDraftSave` | GET `/catalogue/drafts/{draftId}/saves/{revision}` | `{ draftId; revision }` | `{ draftId; revision; savedBy; savedAt; channel; overwritten; content }` (`content` come in `draftView`) | `not_found` |
 | `createDraft` | POST `/catalogue/drafts` | `{ id: uuid; content: draftDocument }` | `draftView` | `invalid` |
 | `startRevision` | POST `/catalogue/recipes/{recipeId}/revision` | `{ recipeId; id: uuid }` | `draftView` | `not_found`, `not_allowed` (`not_published`) |
 | `saveDraft` | PUT `/catalogue/drafts/{draftId}` | `{ draftId; baseRevision: int ≥ 1; content: draftDocument; overwriteRevision?: int ≥ 1 }` | `draftView` | `not_found`, `invalid`, `conflict` (`draft`) |
@@ -368,13 +370,16 @@ z.enum(['cited_by_meals', 'not_published', 'already_current']) })`, aggiunto a
   `recipe_draft_saves`.
 - **`startRevision`**, in quest'ordine:
   1. lucchetto delle creazioni; una bozza con lo stesso `id` già esistente, **aperta o
-     chiusa**, della stessa ricetta → risposta con quella (ripetizione dopo una risposta
-     persa, anche se nel frattempo è stata pubblicata o scartata); di un'altra ricetta →
-     `invalid` su `['id']`;
+     chiusa**, oppure la bozza associata a quell'`id` in `recipe_draft_requests` (punto
+     3), della stessa ricetta → risposta con quella (ripetizione dopo una risposta persa,
+     anche se nel frattempo è stata pubblicata o scartata o ne è stata aperta un'altra);
+     di un'altra ricetta → `invalid` su `['id']`;
   2. ricetta `for update`; inesistente → `not_found`; in stato `draft` → `not_allowed`
      (`not_published`), anche se ha una bozza `new` aperta;
-  3. una revisione aperta della ricetta (indice `recipe_drafts_one_open`) → risposta con
-     quella (la si riprende, chiunque l'abbia aperta);
+  3. una revisione aperta della ricetta (indice `recipe_drafts_one_open`) → si registra
+     in `recipe_draft_requests` l'associazione fra l'`id` della richiesta e quella bozza
+     (con autore e istante) e si risponde con quella (la si riprende, chiunque l'abbia
+     aperta);
   4. altrimenti nuova revisione con l'`id` del client, `base_version = recipes.version` e
      il contenuto della versione corrente (`recipe_versions.content`).
 - **`saveDraft`:** bozza aperta `for update` (chiusa: se l'ultimo salvataggio ha lo stesso
@@ -394,6 +399,13 @@ z.enum(['cited_by_meals', 'not_published', 'already_current']) })`, aggiunto a
      fa crescere i contatori delle famiglie che la citano.
   `baseRevision > revision` → `invalid` su `['baseRevision']`.
 - **`checkDraft`:** conversioni e `checkPublishable` sull'ultima revisione, senza scrivere.
+- **`listDraftSaves`, `getDraftSave`:** le righe di `recipe_draft_saves` di una bozza,
+  aperta o chiusa (bozza inesistente o revisione assente → `not_found`), con autore,
+  istante, canale e `overwritten`; il contenuto solo nella seconda. Il recupero di un
+  salvataggio sovrascritto non ha un'operazione propria: l'agente lo mostra al curatore e
+  lo salva di nuovo con `saveDraft` dall'ultima revisione, con i controlli e i conflitti
+  di sempre; per una revisione chiusa prima `startRevision`, per una bozza nuova scartata
+  `createDraft` con un `id` nuovo.
 - **`discardDraft`:** bozza aperta; `new` citata (`app.recipe_is_cited`) →
   `not_allowed` (`cited_by_meals`); altrimenti `closed_at/by`, `outcome = 'discarded'`. La
   ricetta di una bozza `new` resta in stato `draft`, senza bozza aperta: esce dalla
@@ -523,15 +535,24 @@ Markdown in inglese, statico nel server (`guide.ts`), in tre parti:
    mostrare `theirs` e chiedere se prendere l'altra versione (rileggere la bozza) o
    sovrascriverla (`overwriteRevision`); in un `conflict` `version` chiedere conferma
    prima di ripetere con `confirmVersion`; ripristinare una versione solo dopo averla
-   mostrata.
+   mostrata; un salvataggio sovrascritto si ritrova con `catalogue_listDraftSaves` e
+   `catalogue_getDraftSave` e si recupera salvandolo di nuovo dopo averlo mostrato.
 2. **Requisiti per pubblicare:** campi per tipo di fonte, attributi del pianificatore,
-   due lingue, quantità, tazze USA convertite dalle equivalenze (con `source`).
+   due lingue, quantità, tazze USA convertite dalle equivalenze (con `source`), con
+   l'equivalenza della preparazione della riga che prevale sulla generica.
 3. **Istruzioni sugli ingredienti** del quinto giro (`prototype/src/lib/operations/
-   curation-guide.ts`), con i nomi reali degli strumenti.
+   curation-guide.ts`), con i nomi reali degli strumenti. Correzione rispetto al
+   prototipo: il testo originale resta sempre in `sourceText`, ma la preparazione
+   verificata sulla fonte va anche nel campo bilingue `preparation` della riga (anche
+   quando `checkVariety` segnala parole di preparazione nella varietà), con le stesse
+   parole italiane dell'equivalenza dell'ingrediente se c'è: le conversioni delle tazze e
+   quelle della spesa leggono solo quel campo, mai `sourceText`. Un esempio guidato:
+   equivalenza generica 1 tazza = 100 g e «grattugiato» 1 tazza = 120 g; con la
+   preparazione nel campo si pubblicano 120 g, nel solo `sourceText` 100 g.
 
 ## 4. Migrazione e database
 
-Una migrazione nuova, `supabase/migrations/20261011180000_catalogue_citations.sql`:
+Due migrazioni nuove. La prima, `supabase/migrations/20261011180000_catalogue_citations.sql`:
 
 ```sql
 create function app.recipe_is_cited(p_recipe_id uuid) returns boolean
@@ -552,9 +573,8 @@ stessa firma e gli stessi permessi aggiunge agli autori `ingredient_versions.cha
 così il conflitto `ingredient` e lo storico degli ingredienti mostrano il nome di chi ha
 cambiato l'ingrediente. Nessun altro cambiamento della funzione.
 
-Nessuna tabella né colonna nuova: le colonne e i permessi di W2 bastano (verificati nel
-piano con i test del server). Se il piano trova un permesso mancante, lo dichiara al
-coordinatore prima dell'implementazione.
+Per il resto le colonne e i permessi di W2 bastano (verificati con i test del server),
+salvo la tabella della seconda migrazione qui sotto.
 
 Test pgTAP (`supabase/tests/catalogue_citations_test.sql`), sulle fixture condivise di
 `supabase/tests/helpers/fixtures.psql` (gli helper `tests.recipe` e `tests.ingredient`
@@ -571,6 +591,38 @@ aggiungono da soli il prefisso `test-`):
 `supabase/tests/coverage_test.sql` confronta l'elenco completo delle funzioni eseguibili da
 `authenticated`: la migrazione lo modifica aggiungendo `recipe_is_cited` all'elenco
 ordinato (fra `meal_passed_at` e `recipe_version_at`).
+
+### Richieste di `startRevision` (correzione della review della PR #23)
+
+Una seconda migrazione, `supabase/migrations/20261011190000_draft_requests.sql`:
+
+```sql
+create table app.recipe_draft_requests (
+	id uuid primary key,                                   -- id della richiesta
+	draft_id uuid not null references app.recipe_drafts (id),
+	requested_by uuid references auth.users (id) on delete set null,
+	requested_at timestamptz not null default now()
+);
+create index recipe_draft_requests_draft on app.recipe_draft_requests (draft_id);
+-- RLS; select e insert ad authenticated; politica dei soli curatori come recipe_drafts.
+```
+
+**Perché questa forma.** Una richiesta che crea la revisione ha già un'associazione
+stabile: l'`id` della richiesta è l'`id` della bozza. Manca solo per le richieste
+risposte con una revisione già aperta, che sono le uniche righe di questa tabella: una
+per richiesta, legata alla bozza che ha ricevuto, scritta una volta e mai cambiata né
+cancellata. È specifica delle bozze (niente tabella generica delle ricevute, decisione
+del coordinatore) e non tocca `recipe_drafts`, il cui trigger rende immutabile una bozza
+chiusa: una colonna con l'elenco delle richieste sulla bozza avrebbe richiesto di
+allentarlo o di aggiornare righe aperte a ogni ripresa. La chiave primaria rende unica
+l'associazione e la cerca per indice.
+
+Test pgTAP (`supabase/tests/draft_requests_test.sql`): un curatore scrive e legge una
+riga; stesso `id` due volte → `23505`; bozza inesistente → `23503`; `update` e `delete`
+→ `42501`; un membro non curatore non vede nulla e non scrive (`42501`); nessun privilegio
+per `anon`; l'autore cancellato lascia la riga con `requested_by` nullo.
+`supabase/tests/helpers/cleanup.psql` cancella le righe delle bozze di prova prima delle
+bozze.
 
 ## 5. Web (dopo il cancello)
 
@@ -624,7 +676,10 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
   - creazioni: stesso uuid ripetuto in sequenza e **in parallelo** (una sola entità, stessa
     risposta, nessun `internal`); due uuid diversi con lo stesso nome in parallelo (slug
     diversi); ripetizione di `startRevision` dopo pubblicazione e dopo scarto della sua
-    bozza; `startRevision` su una ricetta mai pubblicata con bozza aperta → `not_allowed`;
+    bozza; ripetizione di una `startRevision` risposta con la revisione già aperta di un
+    altro curatore: stessa bozza dopo il suo scarto, dopo la sua pubblicazione e dopo
+    l'apertura di una revisione successiva, senza bozze nuove, e `invalid` per un'altra
+    ricetta; `startRevision` su una ricetta mai pubblicata con bozza aperta → `not_allowed`;
   - write.ts per l'import: ingrediente con `slug` `olio-extravergine-di-oliva` e nome
     «Olio extravergine d'oliva» conservato; secondo import con un uuid diverso e lo stesso
     slug → `created: false`, stesso id; `resolveReferences` con la lookup costruita dalle
@@ -634,9 +689,15 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
   - conflitti: conflitto con `theirs`, `theirFields` e `myFields`; sovrascrittura con le
     righe `overwritten`; terzo salvataggio fra conflitto e sovrascrittura → nuovo
     conflitto; ripetizione dopo il successo senza revisione nuova;
+  - salvataggi: percorso completo via MCP da una conversazione nuova (sovrascrittura →
+    `listDraftSaves` con `overwritten` → `getDraftSave` → `saveDraft` dall'ultima
+    revisione con il contenuto recuperato); elenco di una bozza chiusa; `not_found` per
+    revisione o bozza assente; `forbidden` per un membro;
   - pubblicazione: nuova e di revisione (proiezioni, righe, versione, stato, chiusura,
     canale); errore forzato a metà senza scritture parziali; versione superata con e
-    senza `confirmVersion`; tazze convertite, senza equivalenza `invalid`; revisione di
+    senza `confirmVersion`; tazze convertite, senza equivalenza `invalid`; equivalenza
+    della preparazione della riga (generica 100, «grattugiato» 120: 120 con la
+    preparazione nel campo, 100 con la preparazione nel solo `sourceText`); revisione di
     un'archiviata che resta archiviata; ripetizione dopo la chiusura;
   - istante R1, due casi: la ricetta bloccata da un'altra transazione, e la riga globale
     `catalogue_state` tenuta da un'altra transazione (che cambia un altro ingrediente);
@@ -672,7 +733,7 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
 
 ## 7. Consegna
 
-1. **PR del server** (`traguardo/ricettario-mcp`): contratto, server, migrazione, MCP,
+1. **PR del server** (`traguardo/ricettario-mcp`): contratto, server, migrazioni, MCP,
    test, più la compatibilità del web con `not_allowed` (sezione 1). Indipendente dalle
    schermate.
 2. **PR del web** (stesso branch ribasato o `traguardo/ricettario-mcp-web`), dopo il
@@ -700,6 +761,10 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
   dispensa, ciascuna con la versione di partenza e conflitto; equivalenze di ambito
   ricetta; archiviazione degli ingredienti ed equivalenze di spesa nell'ondata 3
   (sezioni 8 e 13).
+- **Preparazione nelle righe scritte dall'agente:** il testo originale resta in
+  `sourceText`, la preparazione verificata va anche nel campo bilingue `preparation`,
+  perché le equivalenze dipendenti dalla preparazione (tazze nelle ricette, acquisto nella
+  spesa) leggono solo quello (sezioni 6, 8 e 13).
 - **Web nel traguardo A:** «Bozze» e «Archiviate» nel ricettario, visibili ai curatori
   anche senza famiglia, e pagina della bozza in sola lettura; archiviazione dalla scheda, versioni e ripristino nell'app nell'ondata 3
   (sezioni 8 e 10).
@@ -718,6 +783,13 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
   ripristini e creazioni (sezione 1).
 - **Codice d'errore `not_allowed`** (409) con `reason` (`cited_by_meals`,
   `not_published`, `already_current`) (sezione 1).
+- **Idempotenza di `startRevision` anche quando riprende una revisione aperta:**
+  `app.recipe_draft_requests` associa l'`id` della richiesta alla bozza restituita; la
+  ripetizione risponde con quella anche dopo scarto, pubblicazione o apertura di un'altra
+  revisione (sezioni 1 e 2).
+- **Letture dei salvataggi delle bozze** (`catalogue.listDraftSaves`,
+  `catalogue.getDraftSave`), anche per le bozze chiuse: un salvataggio sovrascritto si
+  recupera via MCP passando dalle scritture di sempre (sezioni 8 e 13).
 - **`app.recipe_is_cited`**, funzione `security definer` per i soli curatori, e
   `app.catalogue_author_names()` estesa agli autori di `ingredient_versions` (sezione 2).
 - **Contenuto di `ingredient_versions`** con tutte le equivalenze dell'ingrediente;

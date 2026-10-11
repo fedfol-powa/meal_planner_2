@@ -85,6 +85,8 @@ principale `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezio
 | `contract/src/catalogue/catalogue-contract.test.ts` | metadati e forme |
 | `supabase/migrations/20261011180000_catalogue_citations.sql` | `recipe_is_cited`, autori degli ingredienti |
 | `supabase/tests/catalogue_citations_test.sql` | pgTAP |
+| `supabase/migrations/20261011190000_draft_requests.sql` | richieste di `startRevision` risposte con una revisione aperta (Task 10bis) |
+| `supabase/tests/draft_requests_test.sql` | pgTAP (Task 10bis) |
 | `server/src/catalogue/convert.ts` (+ test) | conversioni delle tazze, puro |
 | `server/src/catalogue/fields.ts` (+ test) | campi cambiati e confronto canonico, puro |
 | `server/src/catalogue/slug.ts` (+ test) | slug unici |
@@ -1552,6 +1554,9 @@ Note per l'implementatore:
   committed`: ogni istruzione vede i commit precedenti). Lo stesso vale per lo slug.
 - `startRevision` con un uuid di una bozza chiusa risponde con quella bozza: la vista ha
   `outcome` valorizzato, così il client capisce che va aperta una revisione nuova.
+- Superato dal Task 10bis: quando `startRevision` riprende una revisione aperta registra
+  anche l'associazione richiesta → bozza in `app.recipe_draft_requests`, e il primo passo
+  la cerca insieme alla bozza con lo stesso `id`.
 
 Gestori nel router:
 
@@ -2624,6 +2629,51 @@ Leggere `server/test/support/requests.ts` per la forma esatta di `toolBody` sugl
 - [ ] **Step 5: PR del server** (comprende la compatibilità del web con `not_allowed` del Task 1) — push e `gh pr create` (descrizione in italiano: cosa fa,
   come è stato verificato, sezioni 8 e 13 realizzate, file condivisi toccati, interfaccia
   `write.ts` per la messa in produzione), poi `STATO: PR_APERTA <url>`.
+
+---
+
+### Task 10bis: correzioni della review della PR #23
+
+Rilievi in `progetto/coordinamento/revisioni/w3-pr23.md`, decisioni del coordinatore in
+`progetto/coordinamento/messaggi/w3-05-review-pr23.md`. Spec di dettaglio: sezioni 2
+(operazioni), 3 (`startRevision`, salvataggi, guida), 4 (seconda migrazione) e 6.
+
+**Files:**
+- Create: `supabase/migrations/20261011190000_draft_requests.sql`, `supabase/tests/draft_requests_test.sql`
+- Modify: `supabase/tests/helpers/cleanup.psql`, `server/src/catalogue/write.ts`,
+  `contract/src/catalogue/{views,operations}.ts` (+ test del contratto),
+  `server/src/catalogue/{views,load,router,guide}.ts`, `server/src/catalogue/convert.test.ts`,
+  `server/test/catalogue/{drafts,mcp,publish}.test.ts`
+
+- [ ] **Step 1: idempotenza di `startRevision`.** Migrazione con `app.recipe_draft_requests`
+  (`id` della richiesta come chiave primaria, `draft_id`, `requested_by`, `requested_at`;
+  RLS, `select`/`insert` ad `authenticated`, politica dei curatori) e test pgTAP. In
+  `startRevision`, dopo il lucchetto delle creazioni, una sola lettura cerca la bozza con
+  lo stesso `id` e quella associata all'`id` in `recipe_draft_requests`; quando riprende la
+  revisione aperta inserisce l'associazione con `writeInstant`. Test del server: la
+  richiesta di Marco riceve la revisione A di Lucia; ripetuta dopo lo scarto di A, dopo
+  l'apertura di B, dopo la pubblicazione di B e l'apertura di C risponde sempre con la
+  bozza ricevuta la prima volta, senza bozze nuove; per un'altra ricetta → `invalid`.
+- [ ] **Step 2: salvataggi recuperabili.** Nel contratto `draftSaveSummaryView`,
+  `draftSavesView`, `draftSaveView` e le letture `listDraftSaves` (GET
+  `/catalogue/drafts/{draftId}/saves`) e `getDraftSave` (GET
+  `/catalogue/drafts/{draftId}/saves/{revision}`), non versionate, ruolo `curator`,
+  `not_found`. Nel server `draftSaves(tx, row)` e `draftSave(tx, draftId, revision)` in
+  `views.ts` (contenuto con `parseContent` di `load.ts`, autori con `loadAuthors`). Test
+  MCP da un agente nuovo: sovrascrittura → elenco con `overwritten` → lettura → `saveDraft`
+  dall'ultima revisione col contenuto recuperato; elenco di una bozza chiusa; `not_found`;
+  `forbidden` per un membro. Elenco degli strumenti di sola lettura aggiornato.
+- [ ] **Step 3: guida e preparazione.** Nella guida: `sourceText` sempre col testo
+  originale, preparazione verificata anche nel campo bilingue `preparation` (con le parole
+  dell'equivalenza), anche nel suggerimento `preparation` di `checkVariety`; esempio
+  guidato generica 100 / «grattugiato» 120; recupero dei salvataggi nel flusso. Test puro
+  in `convert.test.ts` (120 col campo, 100 col solo `sourceText`) e test con database in
+  `publish.test.ts` (`setEquivalence` → `checkDraft` → `publish` a 120 g).
+- [ ] **Step 4: spazi** delle righe 120–136 della spec (`git diff --check` vuoto).
+- [ ] **Step 5: verifica** — `npm test` e `npm run typecheck` da radice e workspace; dopo
+  il push, controllare nella CI che `supabase db start`, `supabase test db` e le suite con
+  database siano eseguiti e verdi, non saltati.
+- [ ] **Step 6: commit piccoli e push** (senza push forzato), poi `STATO: PR_CORRETTA <url>`.
 
 ---
 
