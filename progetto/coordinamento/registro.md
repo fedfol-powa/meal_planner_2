@@ -8,7 +8,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
-| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Review di spec e piano «da rifare» (14 rilievi); correzioni da messaggi/w1-11-review-revisione-pasti.md (azione con actionId, tabella delle richieste, migrazione per le bozze); poi seconda review breve | 11/10 |
+| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Spec e piano corretti; seconda review breve in corso (revisioni/w1-revisione-pasti-spec-piano-2.md). Se approvati: /clear e implementazione | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Review di spec e piano «da rifare» (10 rilievi); contesto azzerato, correzioni da messaggi/w2-agenti-01-review-spec.md («ultimo rinnovo» al posto di «ultimo uso», testi veritieri sui poteri, CI con OAuth); poi seconda review breve | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | — | .worktrees/ricettario-mcp | PR #26 unita: gestione del ricettario completa (server e web). Contesto azzerato; libero | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
@@ -25,6 +25,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Domande in sospeso
 
+- Decisa dall'utente l'11/10: rilasci a mano con un comando unico (npm run release), non automatici; impostazioni della famiglia scritte dallo script di caricamento (W6).
 - Decise dall'utente l'11/10 (commit d0c02ca): permesso `Bash(herdr pane run *)`, produzione `lronuqvtjdhfyychnscr`, 7 copie in R2, i tre conflitti del consolidamento come proposto.
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
