@@ -7,6 +7,7 @@ export const errorCodes = [
 	'not_found',
 	'invalid',
 	'conflict',
+	'not_allowed',
 	'last_admin',
 	'last_app_admin',
 	'sole_member',
@@ -22,8 +23,25 @@ export function isErrorCode(code: string): code is ErrorCode {
 export const invalidData = z.object({
 	issues: z.array(z.object({ path: z.array(z.union([z.string(), z.number()])), code: z.string() })),
 });
-/** Final shape fixed with the drafts in wave 2. */
-export const conflictData = z.object({ by: z.uuid(), at: z.iso.datetime(), fields: z.array(z.string()) });
+const conflictAuthor = { by: z.uuid().nullable(), byName: z.string().nullable(), at: z.iso.datetime() };
+/** Catalogue conflicts (spec section 8): a draft saved by someone else, a newer version, a changed ingredient. */
+export const conflictData = z.discriminatedUnion('kind', [
+	z.object({
+		kind: z.literal('draft'),
+		revision: z.number().int().min(1),
+		...conflictAuthor,
+		theirFields: z.array(z.string()),
+		myFields: z.array(z.string()),
+		/** The draft document as the other curator saved it. */
+		theirs: z.record(z.string(), z.unknown()),
+	}),
+	z.object({ kind: z.literal('version'), version: z.number().int().min(1), ...conflictAuthor }),
+	z.object({ kind: z.literal('ingredient'), version: z.number().int().min(1), ...conflictAuthor, fields: z.array(z.string()) }),
+]);
+export type ConflictData = z.infer<typeof conflictData>;
+/** A rule of state, not wrong data: a cited draft, a never-published recipe, the current version. */
+export const notAllowedData = z.object({ reason: z.enum(['cited_by_meals', 'not_published', 'already_current']) });
+export type NotAllowedReason = z.infer<typeof notAllowedData>['reason'];
 export const webOnlyData = z.object({ url: z.url() });
 /** Correlates the answer with the Worker log line of the unexpected error. */
 export const internalData = z.object({ requestId: z.string() });
@@ -34,6 +52,7 @@ export const errorDefinitions = {
 	not_found: { status: 404 },
 	invalid: { status: 400, data: invalidData },
 	conflict: { status: 409, data: conflictData },
+	not_allowed: { status: 409, data: notAllowedData },
 	last_admin: { status: 409 },
 	last_app_admin: { status: 409 },
 	sole_member: { status: 409 },

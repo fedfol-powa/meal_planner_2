@@ -16,8 +16,12 @@ export const messages: Record<ErrorCode, Record<Locale, string>> = {
 		'en-GB': 'Some data is not valid: check the fields listed.',
 	},
 	conflict: {
-		'it-IT': 'Qualcun altro ha modificato questi dati nel frattempo.',
-		'en-GB': 'Someone else changed this data in the meantime.',
+		'it-IT': 'Qualcun altro ha modificato questi dati nel frattempo: guarda chi e cosa ha cambiato prima di riprovare.',
+		'en-GB': 'Someone else changed this data in the meantime: check who changed what before trying again.',
+	},
+	not_allowed: {
+		'it-IT': 'Operazione non consentita nello stato attuale della ricetta.',
+		'en-GB': 'This operation is not allowed in the recipe’s current state.',
 	},
 	last_admin: {
 		'it-IT': 'La famiglia deve avere almeno un amministratore.',

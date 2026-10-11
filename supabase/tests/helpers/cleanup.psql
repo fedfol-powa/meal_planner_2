@@ -10,6 +10,11 @@ begin
 		delete from app.recipe_ingredients where recipe_id in (select id from app.recipes where slug like 'test-%');
 		delete from app.recipe_status_changes where recipe_id in (select id from app.recipes where slug like 'test-%');
 		delete from app.recipe_versions where recipe_id in (select id from app.recipes where slug like 'test-%');
+		if to_regclass('app.recipe_draft_requests') is not null then
+			delete from app.recipe_draft_requests where draft_id in (
+				select d.id from app.recipe_drafts d join app.recipes r on r.id = d.recipe_id where r.slug like 'test-%'
+			);
+		end if;
 		delete from app.recipe_draft_saves where draft_id in (
 			select d.id from app.recipe_drafts d join app.recipes r on r.id = d.recipe_id where r.slug like 'test-%'
 		);
