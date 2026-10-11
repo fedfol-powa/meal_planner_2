@@ -1,2 +1,31 @@
 # Equivalenze di ambito recipe per ingrediente (tazze USA), con fonte verificata e preparazione facoltativa.
-equivalences: []
+# Dal prototipo (prototype/scripts/demo-unit-equivalences.json), senza quelle di ambito shopping.
+equivalences:
+  - ingredient: cipolle
+    from: us_cup
+    to: piece
+    factor: 1
+    preparation: a dadini
+    source: "Fonte della ricetta: 1/2 cup è circa 1/2 cipolla media"
+  - ingredient: cheddar
+    from: us_cup
+    to: g
+    factor: 113
+    preparation: grattugiato
+    source: "King Arthur Baking, Ingredient Weight Chart: grated cheddar, 1 cup = 113 g"
+  - ingredient: lattuga
+    from: us_cup
+    to: g
+    factor: 72
+    preparation: tagliata o spezzettata
+    source: "USDA FoodData Central: iceberg lettuce, raw, 1 cup shredded = 72 g"
+  - ingredient: salsa-messicana
+    from: us_cup
+    to: ml
+    factor: 236.5882365
+    source: "Liquido: 1 US cup = 236,588 ml (NIST)"
+  - ingredient: yogurt
+    from: us_cup
+    to: ml
+    factor: 236.5882365
+    source: "Semiliquido: 1 US cup = 236,588 ml (NIST)"
