@@ -35,6 +35,7 @@ export async function withDb<T>(connectionString: string, identity: DbIdentity, 
 	try {
 		return await withDbOn(sql, identity, fn);
 	} finally {
-		await sql.end();
+		// A failing close must not hide the result or the original error.
+		await sql.end().catch(() => {});
 	}
 }

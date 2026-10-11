@@ -1,7 +1,34 @@
 import postgres from 'postgres';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { withDb, withDbOn } from '../src/db.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
+
+describe('withDb closing the client', () => {
+	afterEach(() => {
+		vi.doUnmock('postgres');
+		vi.resetModules();
+	});
+
+	it('keeps the result and the original error when closing fails', async () => {
+		vi.resetModules();
+		vi.doMock('postgres', () => ({
+			default: () => ({
+				begin: async (fn: (tx: unknown) => Promise<unknown>) => fn(async () => []),
+				end: async () => {
+					throw new Error('close failed');
+				},
+			}),
+		}));
+		const { withDb: mocked } = await import('../src/db.ts');
+		await expect(mocked('postgres://unused', { kind: 'job' }, async () => 'result')).resolves.toBe('result');
+		const original = new Error('original');
+		await expect(
+			mocked('postgres://unused', { kind: 'job' }, async () => {
+				throw original;
+			}),
+		).rejects.toBe(original);
+	});
+});
 
 describe.skipIf(!hasDatabase)('withDb', () => {
 	let db: TestDatabase;
