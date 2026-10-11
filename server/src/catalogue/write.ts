@@ -1,11 +1,14 @@
 import { blocksDraft, checkDraft, checkPublishable, cleanDraft, projectDraftNames, recipeDraftSchema, toPublished, type RecipeDraftDocument } from '@app/domain/recipe';
+import type { Department } from '@app/domain/shopping';
 import type { Tx } from '../db.ts';
+import { withInvalidOn } from '../db-errors.ts';
 import { appError } from '../errors.ts';
 import { lockCreations, writeInstant, type Actor } from './actor.ts';
 import { publicationCheck } from './check.ts';
 import type { Conversion } from './convert.ts';
 import { versionConflict, writeVersion } from './recipe-writes.ts';
 import { changedFields, sameDocument } from './fields.ts';
+import { cleanName, cleanSynonyms, recordIngredientVersion } from './ingredients.ts';
 import { isCited, loadAuthors, loadDraftRow, loadLookup } from './load.ts';
 import { slugify, uniqueSlug } from './slug.ts';
 
@@ -237,4 +240,63 @@ export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: st
 	if (issues.length) throw appError('invalid', { issues });
 	const { version } = await writeVersion(tx, actor, { recipeId: input.recipeId, document: toPublished(document), restoredFrom: input.version });
 	return { recipeId: input.recipeId, version, restoredFrom: input.version };
+}
+
+export interface CreateIngredientInput {
+	ingredientId: string;
+	/** Import: the slug of the bundle, kept as it is. */
+	slug?: string;
+	name: { 'it-IT': string; 'en-GB': string | null };
+	department: Department;
+	isPantry: boolean;
+	synonyms?: { 'it-IT': string[]; 'en-GB': string[] };
+}
+export interface CreatedIngredient {
+	ingredientId: string;
+	slug: string;
+	created: boolean;
+}
+export interface CreateBookInput {
+	bookId: string;
+	slug?: string;
+	title: string;
+}
+export interface CreatedBook {
+	bookId: string;
+	slug: string;
+	title: string;
+	created: boolean;
+}
+
+/** Same uuid, or the same import slug: the ingredient already there (created: false), nothing written. */
+export async function createIngredient(tx: Tx, actor: Actor, input: CreateIngredientInput): Promise<CreatedIngredient> {
+	await lockCreations(tx);
+	const [existing] = await tx<{ id: string; slug: string }[]>`
+		select id, slug from app.ingredients where id = ${input.ingredientId} or slug = ${input.slug ?? null}
+		order by (id = ${input.ingredientId}) desc limit 1`;
+	if (existing) return { ingredientId: existing.id, slug: existing.slug, created: false };
+	const name = cleanName(input.name);
+	const slug = input.slug ?? (await uniqueSlug(slugify(name['it-IT'], 'ingredient'), async (s) => (await tx`select 1 from app.ingredients where slug = ${s}`).length > 0));
+	const at = await writeInstant(tx);
+	await withInvalidOn(['name'], () =>
+		tx`insert into app.ingredients (id, slug, name, synonyms, department, is_pantry, version, created_by, created_at, updated_by, updated_at)
+			values (${input.ingredientId}, ${slug}, ${tx.json(name)}, ${tx.json(cleanSynonyms(input.synonyms))}, ${input.department}, ${input.isPantry}, 1,
+				${actor.userId}, ${at}, ${actor.userId}, ${at})`,
+	);
+	await recordIngredientVersion(tx, actor, input.ingredientId, { bump: false, at });
+	return { ingredientId: input.ingredientId, slug, created: true };
+}
+
+/** Same uuid, or the same import slug: the book already there (created: false). */
+export async function createBook(tx: Tx, actor: Actor, input: CreateBookInput): Promise<CreatedBook> {
+	await lockCreations(tx);
+	const [existing] = await tx<{ id: string; slug: string; title: string }[]>`
+		select id, slug, title from app.books where id = ${input.bookId} or slug = ${input.slug ?? null}
+		order by (id = ${input.bookId}) desc limit 1`;
+	if (existing) return { bookId: existing.id, slug: existing.slug, title: existing.title, created: false };
+	const title = input.title.trim();
+	const slug = input.slug ?? (await uniqueSlug(slugify(title, 'book'), async (s) => (await tx`select 1 from app.books where slug = ${s}`).length > 0));
+	const at = await writeInstant(tx);
+	await withInvalidOn(['title'], () => tx`insert into app.books (id, slug, title, created_by, created_at) values (${input.bookId}, ${slug}, ${title}, ${actor.userId}, ${at})`);
+	return { bookId: input.bookId, slug, title, created: true };
 }

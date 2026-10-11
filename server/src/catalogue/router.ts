@@ -3,13 +3,30 @@ import { appError } from '../errors.ts';
 import { fresh, type Implementer, type OperationContext } from '../pipeline.ts';
 import { publicationCheck } from './check.ts';
 import { CURATOR_GUIDE } from './guide.ts';
+import {
+	ingredientViewOf,
+	knownVarieties,
+	listBooks,
+	removeEquivalence,
+	searchCatalogueIngredients,
+	setEquivalence,
+	updateIngredient,
+	varietyCheck,
+} from './ingredients.ts';
 import { loadDraftRow } from './load.ts';
 import { draftViewOf, overview, searchCatalogueRecipes, versionDetail, versionList } from './views.ts';
-import { actorOf, createDraft, discardDraft, publishDraft, restoreVersion, saveDraft, setArchived, startRevision } from './write.ts';
-
-const notYet = () => {
-	throw appError('not_found');
-};
+import {
+	actorOf,
+	createBook,
+	createDraft,
+	createIngredient,
+	discardDraft,
+	publishDraft,
+	restoreVersion,
+	saveDraft,
+	setArchived,
+	startRevision,
+} from './write.ts';
 
 async function draftView(context: OperationContext, draftId: string) {
 	const row = await loadDraftRow(context.tx, draftId);
@@ -51,16 +68,29 @@ export function catalogueRouter(os: Implementer) {
 			fresh(context, await versionDetail(context.tx, input.recipeId, input.version, context.locale)),
 		),
 		restoreVersion: os.catalogue.restoreVersion.handler(({ context, input }) => restoreVersion(context.tx, actorOf(context), input)),
-		// Task 9
-		searchIngredients: os.catalogue.searchIngredients.handler(notYet),
-		getIngredient: os.catalogue.getIngredient.handler(notYet),
-		listVarieties: os.catalogue.listVarieties.handler(notYet),
-		checkVariety: os.catalogue.checkVariety.handler(notYet),
-		createIngredient: os.catalogue.createIngredient.handler(notYet),
-		updateIngredient: os.catalogue.updateIngredient.handler(notYet),
-		setEquivalence: os.catalogue.setEquivalence.handler(notYet),
-		removeEquivalence: os.catalogue.removeEquivalence.handler(notYet),
-		listBooks: os.catalogue.listBooks.handler(notYet),
-		createBook: os.catalogue.createBook.handler(notYet),
+		searchIngredients: os.catalogue.searchIngredients.handler(async ({ context, input }) =>
+			fresh(context, await searchCatalogueIngredients(context.tx, input.text, context.locale)),
+		),
+		getIngredient: os.catalogue.getIngredient.handler(async ({ context, input }) => fresh(context, await ingredientViewOf(context.tx, input.ingredientId))),
+		listVarieties: os.catalogue.listVarieties.handler(async ({ context, input }) => fresh(context, await knownVarieties(context.tx, input.ingredientId))),
+		checkVariety: os.catalogue.checkVariety.handler(({ context, input }) => varietyCheck(context.tx, input.ingredientId, input.text, input.locale)),
+		createIngredient: os.catalogue.createIngredient.handler(async ({ context, input }) => {
+			const { ingredientId } = await createIngredient(context.tx, actorOf(context), {
+				ingredientId: input.id,
+				name: input.name,
+				department: input.department,
+				isPantry: input.isPantry,
+				synonyms: input.synonyms,
+			});
+			return ingredientViewOf(context.tx, ingredientId);
+		}),
+		updateIngredient: os.catalogue.updateIngredient.handler(({ context, input }) => updateIngredient(context.tx, actorOf(context), input)),
+		setEquivalence: os.catalogue.setEquivalence.handler(({ context, input }) => setEquivalence(context.tx, actorOf(context), input)),
+		removeEquivalence: os.catalogue.removeEquivalence.handler(({ context, input }) => removeEquivalence(context.tx, actorOf(context), input)),
+		listBooks: os.catalogue.listBooks.handler(async ({ context }) => fresh(context, await listBooks(context.tx))),
+		createBook: os.catalogue.createBook.handler(async ({ context, input }) => {
+			const { bookId, slug, title } = await createBook(context.tx, actorOf(context), { bookId: input.id, title: input.title });
+			return { bookId, slug, title };
+		}),
 	};
 }
