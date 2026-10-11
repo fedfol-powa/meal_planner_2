@@ -140,7 +140,12 @@ nella review dell'utente):
 | volume da 1 pinta | pinte al ¼ |
 | cucchiai, conteggi, tazze | come nel metrico |
 
-La soglia si sceglie sul valore non arrotondato.
+La soglia si sceglie sul valore arrotondato (15,8 oz → «1 lb», 996 g → «1 kg»).
+
+**Cucchiai nella stessa voce** (review di spec e piano): se un volume viene presentato in
+cucchiai o cucchiaini di misura e la stessa voce ha cucchiai domestici dello stesso codice,
+si mostrano sommati («3 tbsp», non «2 tbsp + 1 tbsp»), arrotondando la somma al mezzo. Il
+calcolo resta separato: `volume_ml` e `counts.tbsp` non si fondono in `CombinedQuantity`.
 
 **Lista della spesa** (pezzi interi, tolleranza 0,1 per gli avanzi delle conversioni):
 `piece`, `bunch`, `slice` per eccesso all'intero (½ peperone → 1, 2,06 limoni → 2,
@@ -205,7 +210,9 @@ testi non numerici, opzionale, provenienze, esclusione), `skipped`, `mealCount`.
   in lista».
 - Reparti nell'ordine standard; voci per nome nella lingua (`localeCompare`).
 - Ogni voce porta nome («Pomodori Roma»), quantità presentata con i pezzi interi,
-  provenienze presentate, opzionale, stato della spunta.
+  provenienze presentate, opzionale, stato della spunta e la quantità canonica
+  (`combined`): il client la conserva così com'era quando l'utente ha visto la voce e la
+  invia con la spunta come `quantity_at_check` (review di spec e piano).
 
 Le voci libere le aggiunge il chiamante nella sezione «Altro».
 
@@ -277,6 +284,8 @@ Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contr
   (sezioni 6 e 15).
 - Varietà mostrata nella lista: la grafia più usata fra le righe della lista
   (sezione 6).
+- Cucchiai di misura e cucchiai domestici dello stesso tipo nella stessa voce si
+  mostrano sommati nel sistema imperiale; il calcolo resta separato (sezione 6).
 
 **Tecniche**
 
@@ -288,6 +297,7 @@ Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contr
   `shopping` a ogni calcolo della lista (sezioni 2 e 6).
 - Reparti: codici `produce`, `butcher`, `fish`, `chilled`, `bakery`, `pasta_grains`,
   `tinned`, `frozen`, `condiments`, `other` definiti in `domain/src/shopping/` (sezione 2).
-- `quantity_at_check` nella forma canonica `CombinedQuantity` (sezione 2).
+- `quantity_at_check` nella forma canonica `CombinedQuantity` (sezione 2); la vista della
+  lista espone la quantità canonica di ogni voce, che il client invia con la spunta.
 - Etichette di unità e reparti in `domain/`, condivise da server e web (sezione 12).
 - Sezione 15, «Misure»: chiusa da questo documento.

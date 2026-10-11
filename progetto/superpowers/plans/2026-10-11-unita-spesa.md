@@ -901,6 +901,15 @@ describe('formatCombined', () => {
 		expect(formatCombined(c, { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('1 + 1½ spicchi');
 		expect(formatCombined(combine(amount(2.06, 'piece')), { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('2');
 	});
+	it('shows measuring spoons and household spoons of the same kind as one sum, in UK imperial only', () => {
+		expect(formatCombined(combine(amount(30, 'ml'), amount(1, 'tbsp')), { system: 'uk_imperial', locale: 'en-GB' })).toBe('3 tbsp');
+		expect(formatCombined(combine(amount(5, 'ml'), amount(0.5, 'tsp')), { system: 'uk_imperial', locale: 'en-GB' })).toBe('1½ tsp');
+		expect(formatCombined(combine(amount(10, 'ml'), amount(1, 'tbsp')), { system: 'uk_imperial', locale: 'en-GB' })).toBe('2 tsp + 1 tbsp');
+		expect(formatCombined(combine(amount(30, 'ml'), amount(1, 'tbsp')), { system: 'metric', locale: 'it-IT' })).toBe('30 ml + 1 cucchiaio');
+		const c = combine(amount(30, 'ml'), amount(1, 'tbsp'));
+		expect(c.volume_ml).toBe(30);
+		expect(c.counts.tbsp).toBe(1);
+	});
 	it('labels a US cup left in a draft and returns an empty text for an empty sum', () => {
 		expect(formatCombined(combine(amount(0.5, 'us_cup')), { system: 'metric', locale: 'it-IT' })).toBe('½ tazza USA');
 		expect(formatCombined(emptyCombined(), { system: 'metric', locale: 'it-IT' })).toBe('');
@@ -947,7 +956,7 @@ export const TO_TASTE: Translated = { 'it-IT': 'q.b.', 'en-GB': 'to taste' };
 `domain/src/units/format.ts`:
 
 ```ts
-import { COUNTED_UNITS, type UnitCode } from './codes.ts';
+import { COUNTED_UNITS, ML_PER_UK_TBSP, ML_PER_UK_TSP, type CountedUnit, type UnitCode } from './codes.ts';
 import type { CombinedQuantity } from './combined.ts';
 import { TO_TASTE, UNIT_LABELS } from './labels.ts';
 import type { Locale, Translated } from './locale.ts';
@@ -994,11 +1003,21 @@ export interface FormatOptions {
 /** A sum, converted and rounded only now: "50 g + 100 ml + 2 + q.b." (spec section 6). */
 export function formatCombined(c: CombinedQuantity, { system, locale, rounding = 'recipe', texts = {} }: FormatOptions): string {
 	const parts: string[] = [];
+	let merged: CountedUnit | null = null;
 	if (c.mass_g !== null) parts.push(formatAmount(presentMass(c.mass_g, system), locale));
-	if (c.volume_ml !== null) parts.push(formatAmount(presentVolume(c.volume_ml, system), locale));
+	if (c.volume_ml !== null) {
+		const volume = presentVolume(c.volume_ml, system);
+		const spoons = volume.unit === 'tbsp' || volume.unit === 'tsp' ? c.counts[volume.unit] : undefined;
+		if (spoons !== undefined && (volume.unit === 'tbsp' || volume.unit === 'tsp')) {
+			// "3 tbsp", not "2 tbsp + 1 tbsp": shown as one sum, still kept apart in the calculation.
+			const perSpoon = volume.unit === 'tbsp' ? ML_PER_UK_TBSP : ML_PER_UK_TSP;
+			parts.push(formatAmount(presentCount(c.volume_ml / perSpoon + spoons, volume.unit, rounding), locale));
+			merged = volume.unit;
+		} else parts.push(formatAmount(volume, locale));
+	}
 	for (const unit of COUNTED_UNITS) {
 		const value = c.counts[unit];
-		if (value !== undefined) parts.push(formatAmount(presentCount(value, unit, rounding), locale));
+		if (value !== undefined && unit !== merged) parts.push(formatAmount(presentCount(value, unit, rounding), locale));
 	}
 	parts.push(...c.texts.map((key) => texts[key]?.[locale] ?? key));
 	if (c.to_taste) parts.push(TO_TASTE[locale]);
@@ -1562,7 +1581,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `ShoppingItemRef { ingredientId: string; varietyKey: string }`
   - `ArrangeOptions { checks: readonly ShoppingCheck[]; addedBack: readonly ShoppingItemRef[]; system: MeasurementSystem; locale: Locale }`
   - `ShoppingSourceView { slotId; date; mealType; recipeName: string; quantity: string }`
-  - `ShoppingItemView { key; ingredientId; varietyKey; department: Department; name: string; quantity: string; isOptional: boolean; excluded: Exclusion | null; checked: boolean; previousQuantity: string | null; sources: ShoppingSourceView[] }`
+  - `ShoppingItemView { key; ingredientId; varietyKey; department: Department; name: string; quantity: string; combined: CombinedQuantity; isOptional: boolean; excluded: Exclusion | null; checked: boolean; previousQuantity: string | null; sources: ShoppingSourceView[] }`
+    (`combined` è la quantità canonica che il client invia con la spunta come `quantity_at_check`)
   - `ArrangedShoppingList { locale: Locale; mealCount: number; departments: { department: Department; items: ShoppingItemView[] }[]; excluded: ShoppingItemView[]; skipped: { slotId: string; recipeId: string; recipeName: string }[] }`
   - `displayName(name: Translated, variety: Translated | null, locale: Locale): string`
   - `arrangeShoppingList(list: ConsolidatedList, options: ArrangeOptions): ArrangedShoppingList`
@@ -1631,6 +1651,11 @@ describe('arrangeShoppingList', () => {
 		expect(view(arranged, 'lemon~').quantity).toBe('1');
 		expect(view(arranged, 'lemon~').sources[0].quantity).toBe('50 g');
 		expect(view(arranged, 'tomato~roma').quantity).toBe('200 g');
+	});
+
+	it('exposes the canonical quantity the client sends when ticking', () => {
+		expect(view(arrange(), 'tomato~roma').combined).toEqual(combine(amount(200, 'g')));
+		expect(view(arrange(), 'pepper~').combined).toEqual(combine(amount(0.5, 'piece')));
 	});
 
 	it('keeps an item ticked unless its quantity grew, and ignores ticks of items gone', () => {
@@ -1725,6 +1750,8 @@ export interface ShoppingItemView {
 	department: Department;
 	name: string;
 	quantity: string;
+	/** Canonical sum shown now: the client keeps it and sends it as `quantity_at_check` when ticking. */
+	combined: CombinedQuantity;
 	isOptional: boolean;
 	excluded: Exclusion | null;
 	checked: boolean;
@@ -1756,6 +1783,7 @@ function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, s
 		department: item.department,
 		name: displayName(item.name, item.variety, locale),
 		quantity: formatCombined(item.combined, options),
+		combined: item.combined,
 		isOptional: item.isOptional,
 		excluded: item.excluded,
 		checked: checked !== undefined && !grew,
