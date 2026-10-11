@@ -310,8 +310,9 @@ export interface RecipeView { summary: RecipeSummaryView; status: 'draft' | 'pub
 export function recipeViews(tx: Tx, viewer: Viewer, refs: RecipeRef[]): Promise<Map<string, RecipeView>>;
 // Usate anche dai gestori dei task 7 e 8:
 export function loadFamily(tx: Tx, familyId: string): Promise<{ system: MeasurementSystem; timeZone: string }>;
-export function loadRows(tx: Tx, recipeIds: string[]): Promise<Map<string, RecipeRow>>;
-export function loadProjectedLines(tx: Tx, recipeIds: string[]): Promise<Map<string, LineInput[]>>;
+/** One SQL statement: recipe row joined to the document of the version asked (or current). */
+export function loadContents(tx: Tx, refs: RecipeRef[]): Promise<Map<string, Content>>;
+export function contentKey(ref: RecipeRef): string; // `${recipeId}@${version ?? 'now'}`
 export function loadIngredientNamesById(tx: Tx, ids: string[]): Promise<Map<string, Localized>>;
 export function loadBookTitlesById(tx: Tx, ids: (string | null)[]): Promise<Map<string, string>>;
 export function summaryOf(content: Content, titles: Map<string, string>, locale: Locale): RecipeSummaryView;
@@ -347,13 +348,15 @@ export function marker(): string; // `m` + 6 caratteri casuali
 
 ```ts
 import type { ProteinGroup } from '@app/domain/planner';
+import { publishedRecipeSchema } from '@app/domain/recipe';
 import type { Locale, Localized, Quantity } from '@app/domain/units';
 import type { TestDatabase } from '../support/db.ts';
 
 export const marker = () => `m${crypto.randomUUID().slice(0, 6)}`;
 const unique = (slug: string) => `${slug}-${crypto.randomUUID().slice(0, 8)}`;
 
-function documentOf(r: RecipeFixture) {
+/** `defaultLine`: the line used when the fixture gives none (W3 publishes at least one). */
+function documentOf(r: RecipeFixture, defaultLine: string) {
 	const sourceType = r.bookId ? 'book' : r.sourceUrl ? 'web' : 'home';
 	return {
 		schemaVersion: 1,
@@ -364,7 +367,7 @@ function documentOf(r: RecipeFixture) {
 		durationMinutes: r.durationMinutes ?? 30, baseServings: r.baseServings ?? 2, mealType: r.mealType ?? 'both',
 		proteinGroup: r.proteinGroup ?? 'vegetarian', isFreshFish: false, carbohydrateGroup: 'pasta', category: 'pan',
 		hasVegetables: true, isHeavy: false, seasons: [],
-		ingredients: (r.lines ?? []).map((l) => ({ ingredientId: l.ingredientId, variety: l.variety ?? null,
+		ingredients: (r.lines?.length ? r.lines : [{ ingredientId: defaultLine, quantity: { kind: 'to_taste' } as Quantity }]).map((l) => ({ ingredientId: l.ingredientId, variety: l.variety ?? null,
 			preparation: l.preparation ?? null, quantity: l.quantity, sourceText: 'source line', isOptional: l.isOptional ?? false, isPrimary: false })),
 	};
 }
@@ -372,9 +375,13 @@ function documentOf(r: RecipeFixture) {
 export function catalogueFixture(db: TestDatabase): CatalogueFixture {
 	const { admin } = db;
 	const current = new Map<string, RecipeFixture>();
+	let salt: string | undefined;
 
 	async function writeVersion(recipeId: string, r: RecipeFixture, version: number) {
-		const d = documentOf(r);
+		salt ??= (await admin<{ id: string }[]>`insert into app.ingredients (slug, name, department, is_pantry)
+			values (${unique('salt')}, ${admin.json({ 'it-IT': 'Sale', 'en-GB': 'Salt' })}, 'condiments', true) returning id`)[0].id;
+		// A fixture that W3 would refuse fails here, not in the code under test.
+		const d = publishedRecipeSchema.parse(documentOf(r, salt));
 		await admin`update app.recipes set status = 'published', version = ${version},
 			name = ${admin.json(d.name)}, description = ${admin.json(d.description)}, source_type = ${d.sourceType},
 			source_url = ${d.sourceUrl}, book_id = ${d.bookId}, book_pages = ${d.bookPages},
@@ -560,6 +567,36 @@ describe.skipIf(!hasDatabase)('recipe views', () => {
 		expect(summaries.get(recipeViewKey(ref))).toMatchObject({ name: 'Soup', description: 'Calda' });
 	});
 
+	it('never mixes two versions when a publication lands between the statements of a read', async () => {
+		const { user, familyId } = await family();
+		const tomato = await cat.ingredient('tomato', { 'it-IT': 'Pomodori', 'en-GB': 'Tomatoes' });
+		const recipeId = await cat.recipe({ name: { 'it-IT': 'Sugo v1', 'en-GB': 'Sauce v1' }, baseServings: 2,
+			lines: [{ ingredientId: tomato, quantity: { kind: 'amount', value: 200, unit: 'g' } }] });
+		// After the first statement the transaction runs, V2 is published and committed elsewhere.
+		const interleaved = (tx: Tx, after: () => Promise<unknown>): Tx => {
+			let done = false;
+			return ((strings: TemplateStringsArray, ...values: unknown[]) =>
+				(tx as any)(strings, ...values).then(async (rows: unknown) => {
+					if (!done) { done = true; await after(); }
+					return rows;
+				})) as unknown as Tx;
+		};
+		const old = { recipeId, version: 1, servings: 0 };
+		const now = { recipeId, version: null, servings: 0 };
+		const views = await asUser(user, (tx) => recipeViews(interleaved(tx, () =>
+			cat.publishVersion(recipeId, { name: { 'it-IT': 'Sugo v2', 'en-GB': 'Sauce v2' }, baseServings: 4,
+				lines: [{ ingredientId: tomato, quantity: { kind: 'amount', value: 500, unit: 'g' } }] })),
+			{ familyId, userId: user.userId, locale: 'it-IT' }, [old, now]));
+		expect(views.get(recipeViewKey(old))).toMatchObject({ version: 1, baseServings: 2, summary: { name: 'Sugo v1' }, ingredients: [{ amount: '200 g' }] });
+		const current = views.get(recipeViewKey(now))!;
+		const coherent = [
+			{ version: 1, baseServings: 2, name: 'Sugo v1', amount: '200 g' },
+			{ version: 2, baseServings: 4, name: 'Sugo v2', amount: '500 g' },
+		];
+		expect(coherent).toContainEqual({ version: current.version, baseServings: current.baseServings,
+			name: current.summary.name, amount: current.ingredients![0].amount });
+	});
+
 	it('leaves out recipes the user cannot read', async () => {
 		const { user, familyId } = await family();
 		const draftId = await cat.draft({ 'it-IT': 'Segreta', 'en-GB': 'Secret' });
@@ -586,7 +623,7 @@ describe.skipIf(!hasDatabase)('recipe views as the menu uses them', () => {
 	beforeAll(async () => { db = await setupDatabase(); });
 	afterAll(() => db?.close());
 
-	it('composes a week: older version, never-published recipe, same recipe at different servings', async () => {
+	it('composes a week: older version, never-published recipe, different servings, zero servings', async () => {
 		const cat = catalogueFixture(db);
 		const user = await db.createUser({ locale: 'en-GB' });
 		const familyId = await db.createFamily([{ userId: user.userId, role: 'family_admin' }]);
@@ -601,6 +638,7 @@ describe.skipIf(!hasDatabase)('recipe views as the menu uses them', () => {
 			{ recipeId, version: 1, servings: 2 },          // past meal, eaten with version 1
 			{ recipeId, version: 2, servings: 4 },          // future meal, current version, more servings
 			{ recipeId: draftId, version: null, servings: 2 },
+			{ recipeId, version: 2, servings: 0 },          // a slot with zero servings: lines at the base
 		];
 		const claims = { sub: user.userId, role: 'authenticated' as const, session_id: user.sessionId, exp: Math.floor(Date.now() / 1000) + 3600 };
 		const { summaries, lines, ratings } = await withDb(db.appServerUrl, { kind: 'user', claims }, async (tx) => ({
@@ -614,6 +652,7 @@ describe.skipIf(!hasDatabase)('recipe views as the menu uses them', () => {
 		expect(lines.get(recipeViewKey(refs[0]))?.[0].amount).toBe('200 g');
 		expect(lines.get(recipeViewKey(refs[1]))?.[0].amount).toBe('400 g');
 		expect(lines.get(recipeViewKey(refs[2]))).toBeNull();
+		expect(lines.get(recipeViewKey(refs[3]))?.[0].amount).toBe('200 g');
 		expect(ratings.get(recipeId)).toEqual({ familyAverage: null, familyCount: 0, myStars: null });
 	});
 });
@@ -626,7 +665,7 @@ describe.skipIf(!hasDatabase)('recipe views as the menu uses them', () => {
 ```ts
 import type { IngredientLineView, Locale, RatingSummaryView, RecipeSummaryView } from '@app/contract';
 import { publishedRecipeSchema } from '@app/domain/recipe';
-import type { Localized, MeasurementSystem, Quantity } from '@app/domain/units';
+import type { Localized, MeasurementSystem } from '@app/domain/units';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
 import { ingredientLinesView, type LineInput } from './lines.ts';
@@ -651,7 +690,7 @@ export interface RecipeView {
 }
 
 export const recipeViewKey = (ref: RecipeRef) => `${ref.recipeId}@${ref.version ?? 'now'}@${ref.servings}`;
-const contentKey = (ref: RecipeRef) => `${ref.recipeId}@${ref.version ?? 'now'}`;
+export const contentKey = (ref: RecipeRef) => `${ref.recipeId}@${ref.version ?? 'now'}`;
 
 /** Projections of a draft may miss a language, or hold null. */
 type PartialText = Partial<Record<Locale, string | null>> | null;
@@ -659,9 +698,11 @@ const OTHER: Record<Locale, Locale> = { 'it-IT': 'en-GB', 'en-GB': 'it-IT' };
 /** The caller's language, else the other one (spec of W6, section 1). */
 const pick = (text: PartialText, locale: Locale): string | null => text?.[locale] || text?.[OTHER[locale]] || null;
 
-export interface RecipeRow {
+/** What a reference shows: the document of a published version, or a never-published recipe. */
+export interface Content {
 	recipeId: string;
 	status: RecipeView['status'];
+	/** Version shown; 0 for a never-published recipe. */
 	version: number;
 	name: PartialText;
 	description: PartialText;
@@ -673,9 +714,6 @@ export interface RecipeRow {
 	mealType: RecipeSummaryView['mealType'];
 	proteinGroup: RecipeSummaryView['proteinGroup'];
 	baseServings: number | null;
-}
-/** What a reference shows: the current projection, an older document, or a never-published recipe. */
-export interface Content extends RecipeRow {
 	/** null for a never-published recipe. */
 	lines: LineInput[] | null;
 }
@@ -700,78 +738,43 @@ export async function ratingSummaries(tx: Tx, familyId: string, userId: string, 
 	}]));
 }
 
-export async function loadRows(tx: Tx, recipeIds: string[]): Promise<Map<string, RecipeRow>> {
-	const rows = await tx<RecipeRow[]>`
-		select id as "recipeId", status, version, name, description, duration_minutes as "durationMinutes",
-			source_type as "sourceType", source_url as "sourceUrl", book_id as "bookId", book_pages as "bookPages",
-			meal_type as "mealType", protein_group as "proteinGroup", base_servings as "baseServings"
-		from app.recipes where id = any(${recipeIds}::uuid[])`;
-	return new Map(rows.map((row) => [row.recipeId, row]));
-}
+const NEVER_PUBLISHED = { version: 0, durationMinutes: null, sourceType: null, sourceUrl: null, bookId: null, bookPages: null,
+	mealType: null, proteinGroup: null, baseServings: null, lines: null } as const;
 
-export async function loadProjectedLines(tx: Tx, recipeIds: string[]): Promise<Map<string, LineInput[]>> {
-	const lines = new Map<string, LineInput[]>(recipeIds.map((id) => [id, []]));
-	if (!recipeIds.length) return lines;
-	const rows = await tx<{ recipeId: string; ingredientId: string; variety: Localized | null; preparation: Localized | null;
-		kind: Quantity['kind']; quantity: string | null; unit: string | null; text: Localized | null; isOptional: boolean }[]>`
-		select recipe_id as "recipeId", ingredient_id as "ingredientId", variety, preparation, quantity_kind as kind,
-			quantity::text as quantity, unit, quantity_text as text, is_optional as "isOptional"
-		from app.recipe_ingredients where recipe_id = any(${recipeIds}::uuid[]) order by recipe_id, position`;
+/**
+ * Contents of the references, keyed by contentKey, from ONE statement: the recipe row and the
+ * immutable document of the version asked (the current one for null). Read committed gives a
+ * statement a single snapshot, so a concurrent publication cannot mix two versions (R1).
+ * References RLS hides, and versions that do not exist, are left out.
+ */
+export async function loadContents(tx: Tx, refs: RecipeRef[]): Promise<Map<string, Content>> {
+	const wanted = [...new Map(refs.map((ref) => [contentKey(ref), ref])).values()];
+	if (!wanted.length) return new Map();
+	const rows = await tx<{ recipeId: string; requested: number; status: RecipeView['status']; name: PartialText;
+		description: PartialText; version: number | null; content: unknown }[]>`
+		select r.id as "recipeId", w.version as requested, r.status, r.name, r.description, v.version, v.content
+		from unnest(${wanted.map((ref) => ref.recipeId)}::uuid[], ${wanted.map((ref) => ref.version ?? 0)}::int[]) as w(recipe_id, version)
+		join app.recipes r on r.id = w.recipe_id
+		left join app.recipe_versions v
+			on v.recipe_id = r.id and v.version = coalesce(nullif(w.version, 0), nullif(r.version, 0))`;
+	const contents = new Map<string, Content>();
 	for (const row of rows) {
-		const quantity = (row.kind === 'amount' ? { kind: 'amount', value: Number(row.quantity), unit: row.unit }
-			: row.kind === 'text' ? { kind: 'text', text: row.text } : { kind: 'to_taste' }) as Quantity;
-		lines.get(row.recipeId)!.push({ ingredientId: row.ingredientId, variety: row.variety, preparation: row.preparation, quantity, isOptional: row.isOptional });
-	}
-	return lines;
-}
-
-async function loadDocuments(tx: Tx, pairs: { recipeId: string; version: number }[], rows: Map<string, RecipeRow>): Promise<Map<string, Content>> {
-	if (!pairs.length) return new Map();
-	const found = await tx<{ recipeId: string; version: number; content: unknown }[]>`
-		select v.recipe_id as "recipeId", v.version, v.content
-		from app.recipe_versions v
-		join unnest(${pairs.map((p) => p.recipeId)}::uuid[], ${pairs.map((p) => p.version)}::int[]) as wanted(recipe_id, version)
-			on wanted.recipe_id = v.recipe_id and wanted.version = v.version`;
-	return new Map(found.map((row) => {
+		const key = contentKey({ recipeId: row.recipeId, version: row.requested || null, servings: 0 });
+		if (row.status === 'draft') {
+			// Never published: name and description only (a draft has no version to ask for).
+			if (!row.requested) contents.set(key, { recipeId: row.recipeId, status: 'draft', name: row.name, description: row.description, ...NEVER_PUBLISHED });
+			continue;
+		}
+		if (row.content === null || row.version === null) continue;
 		const d = publishedRecipeSchema.parse(row.content);
-		const content: Content = {
-			recipeId: row.recipeId, status: rows.get(row.recipeId)!.status, version: row.version,
+		contents.set(key, {
+			recipeId: row.recipeId, status: row.status, version: row.version,
 			name: d.name, description: d.description, durationMinutes: d.durationMinutes, sourceType: d.sourceType,
 			sourceUrl: d.sourceUrl, bookId: d.bookId, bookPages: d.bookPages, mealType: d.mealType, proteinGroup: d.proteinGroup,
 			baseServings: d.baseServings,
 			lines: d.ingredients.map((l) => ({ ingredientId: l.ingredientId, variety: l.variety, preparation: l.preparation,
 				quantity: l.quantity, isOptional: l.isOptional })),
-		};
-		return [`${row.recipeId}@${row.version}`, content];
-	}));
-}
-
-/** Content of every reference, keyed by contentKey; references RLS hides are left out. */
-async function loadContents(tx: Tx, refs: RecipeRef[]): Promise<Map<string, Content>> {
-	const rows = await loadRows(tx, [...new Set(refs.map((ref) => ref.recipeId))]);
-	const older: { recipeId: string; version: number }[] = [];
-	const currentIds = new Set<string>();
-	for (const ref of refs) {
-		const row = rows.get(ref.recipeId);
-		if (!row || row.status === 'draft') continue;
-		if (ref.version === null || ref.version === row.version) currentIds.add(ref.recipeId);
-		else older.push({ recipeId: ref.recipeId, version: ref.version });
-	}
-	const [lines, documents] = await Promise.all([loadProjectedLines(tx, [...currentIds]), loadDocuments(tx, older, rows)]);
-	const contents = new Map<string, Content>();
-	for (const ref of refs) {
-		const row = rows.get(ref.recipeId);
-		if (!row) continue;
-		const key = contentKey(ref);
-		if (row.status === 'draft') {
-			if (ref.version === null) contents.set(key, { ...row, version: 0, durationMinutes: null, sourceType: null, sourceUrl: null,
-				bookId: null, bookPages: null, mealType: null, proteinGroup: null, baseServings: null, lines: null });
-		} else if (ref.version === null || ref.version === row.version) {
-			contents.set(key, { ...row, lines: lines.get(ref.recipeId) ?? [] });
-		} else {
-			const document = documents.get(`${ref.recipeId}@${ref.version}`);
-			if (document) contents.set(key, document);
-		}
+		});
 	}
 	return contents;
 }
@@ -802,8 +805,11 @@ export const summaryOf = (c: Content, titles: Map<string, string>, locale: Local
 	mealType: c.mealType, proteinGroup: c.proteinGroup,
 });
 
+/** Zero servings (allowed on a meal slot) show the lines at the recipe's base: scaleQuantity never sees 0. */
 const linesOf = (c: Content, ref: RecipeRef, names: Map<string, Localized>, system: MeasurementSystem, locale: Locale) =>
-	c.lines && c.baseServings ? ingredientLinesView(c.lines, names, { servings: ref.servings, baseServings: c.baseServings, system, locale }) : null;
+	c.lines && c.baseServings
+		? ingredientLinesView(c.lines, names, { servings: ref.servings > 0 ? ref.servings : c.baseServings, baseServings: c.baseServings, system, locale })
+		: null;
 
 export async function recipeSummaries(tx: Tx, refs: RecipeRef[], locale: Locale): Promise<Map<string, RecipeSummaryView>> {
 	const contents = await loadContents(tx, refs);
@@ -854,7 +860,8 @@ export async function recipeViews(tx: Tx, viewer: Viewer, refs: RecipeRef[]): Pr
 ```
 
 Nota: Postgres.js accoda le query della stessa transazione, quindi `Promise.all` è
-corretto (nessuna richiesta concorrente sulla connessione).
+corretto (nessuna richiesta concorrente sulla connessione). L'array delle versioni usa 0
+per «corrente» invece di `null`, così Postgres.js lo serializza come semplice `int[]`.
 
 - [ ] **Passo 6:** `npm test -w server -- recipes && npm run typecheck` → PASS.
 - [ ] **Passo 7: commit** `Ricettario: viste condivise per il Menu, con versioni storiche e bozze citate`.
@@ -1241,7 +1248,7 @@ export function searchRecipes(candidates: SearchCandidate[], query: RecipeQuery,
   `recipes`), `server/src/recipes/router.ts`, `server/src/router.ts`
 
 **Interfacce:**
-- Consuma: task 3 (`loadFamily`, `loadRows`, `loadProjectedLines`,
+- Consuma: task 3 (`loadFamily`, `loadContents`, `contentKey`,
   `loadIngredientNamesById`, `loadBookTitlesById`, `ratingSummaries`, `summaryOf`,
   `ingredientLinesView`) e task 6; `testApp`, `catalogueFixture`, `marker` dei test.
 - Produce: `recipesContract.search`, `recipeQuerySchema`, `recipeListItemView`;
@@ -1449,36 +1456,39 @@ search: os.recipes.search.handler(async ({ context, input }) => {
 	const { tx, userId, locale } = context;
 	const { familyId } = input;
 	const ids = await loadCandidateIds(tx, familyId);
-	const [{ system }, rows, lines, ratings, addedOn, meals] = await Promise.all([
-		loadFamily(tx, familyId), loadRows(tx, ids), loadProjectedLines(tx, ids),
+	const refs = ids.map((recipeId) => ({ recipeId, version: null, servings: 0 }));
+	const [{ system }, contents, ratings, addedOn, meals] = await Promise.all([
+		loadFamily(tx, familyId), loadContents(tx, refs),
 		ratingSummaries(tx, familyId, userId, ids), loadAddedOn(tx, familyId, ids), loadMealOccurrences(tx, familyId, ids),
 	]);
-	const ingredientIds = [...new Set([...lines.values()].flat().map((line) => line.ingredientId))];
+	// A recipe archived between the two statements has no content here: it simply drops out.
+	const shown = refs.flatMap((ref) => {
+		const content = contents.get(contentKey(ref));
+		return content && content.status === 'published' ? [content] : [];
+	});
+	const ingredientIds = [...new Set(shown.flatMap((c) => c.lines!.map((line) => line.ingredientId)))];
 	const [names, synonyms, titles] = await Promise.all([
 		loadIngredientNamesById(tx, ingredientIds), loadSynonyms(tx, ingredientIds),
-		loadBookTitlesById(tx, [...rows.values()].map((row) => row.bookId)),
+		loadBookTitlesById(tx, shown.map((c) => c.bookId)),
 	]);
-	const candidates: SearchCandidate[] = ids.map((id) => {
-		const row = rows.get(id)!;
-		return {
-			id, name: row.name as Localized, description: row.description as Localized, mealType: row.mealType!,
-			durationMinutes: row.durationMinutes!, proteinGroup: row.proteinGroup!, familyAverage: ratings.get(id)!.familyAverage,
-			addedOn: addedOn.get(id)!, lastEatenOn: meals.find((meal) => meal.recipeId === id && meal.past)?.date ?? null,
-			ingredientTexts: lines.get(id)!.flatMap((line) => [names.get(line.ingredientId)![locale], line.variety?.[locale] ?? '',
-				...(synonyms.get(line.ingredientId)?.[locale] ?? [])]),
-		};
-	});
+	const byId = new Map(shown.map((c) => [c.recipeId, c]));
+	const candidates: SearchCandidate[] = shown.map((c) => ({
+		id: c.recipeId, name: c.name as Localized, description: c.description as Localized, mealType: c.mealType!,
+		durationMinutes: c.durationMinutes!, proteinGroup: c.proteinGroup!, familyAverage: ratings.get(c.recipeId)!.familyAverage,
+		addedOn: addedOn.get(c.recipeId)!, lastEatenOn: meals.find((meal) => meal.recipeId === c.recipeId && meal.past)?.date ?? null,
+		ingredientTexts: c.lines!.flatMap((line) => [names.get(line.ingredientId)![locale], line.variety?.[locale] ?? '',
+			...(synonyms.get(line.ingredientId)?.[locale] ?? [])]),
+	}));
 	const items = searchRecipes(candidates, input.query, locale).map((candidate) => {
-		const row = rows.get(candidate.id)!;
-		const recipeLines = lines.get(candidate.id)!;
+		const c = byId.get(candidate.id)!;
 		return {
-			recipe: summaryOf({ ...row, lines: recipeLines }, titles, locale),
-			rating: ratings.get(candidate.id)!,
-			baseServings: row.baseServings!,
-			ingredients: ingredientLinesView(recipeLines, names, { servings: row.baseServings!, baseServings: row.baseServings!, system, locale }),
+			recipe: summaryOf(c, titles, locale),
+			rating: ratings.get(c.recipeId)!,
+			baseServings: c.baseServings!,
+			ingredients: ingredientLinesView(c.lines!, names, { servings: c.baseServings!, baseServings: c.baseServings!, system, locale }),
 			addedOn: candidate.addedOn,
 			lastEatenOn: candidate.lastEatenOn,
-			upcoming: upcomingOf(meals, candidate.id),
+			upcoming: upcomingOf(meals, c.recipeId),
 		};
 	});
 	return fresh(context, { items });
@@ -1652,15 +1662,11 @@ get: os.recipes.get.handler(async ({ context, input }) => {
 		if (!slot) throw appError('not_found');
 		version = slot.version;
 	}
-	const viewer = { familyId, userId, locale };
-	// Without servings, the base of the version shown: a first read finds it.
-	const first = { recipeId, version, servings: input.servings ?? 1 };
-	let view = (await recipeViews(tx, viewer, [first])).get(recipeViewKey(first))!;
+	// Without servings, 0: the lines come at the base of the version shown (section 1).
+	const ref = { recipeId, version, servings: input.servings ?? 0 };
+	const view = (await recipeViews(tx, { familyId, userId, locale }, [ref])).get(recipeViewKey(ref));
+	if (!view) throw appError('not_found');
 	const servings = input.servings ?? view.baseServings!;
-	if (servings !== first.servings) {
-		const ref = { ...first, servings };
-		view = (await recipeViews(tx, viewer, [ref])).get(recipeViewKey(ref))!;
-	}
 	const meals = await loadMealOccurrences(tx, familyId, [recipeId]);
 	return fresh(context, {
 		recipe: view.summary,
@@ -1850,10 +1856,12 @@ Le pagine passano a `useMealClock` un array stabile (`useMemo` sulle viste).
 **File:**
 - Modifica: `web/src/api/types.ts`, `web/src/api/queries.ts`, `web/src/api/fake/fakeApi.ts`,
   `web/src/api/fake/demo-data.json` (o il seed), `web/src/components/IngredientList.tsx`
-  (e il suo modulo CSS), `web/src/i18n/messages/recipes.ts`,
-  `web/src/components/RecipeFilters.tsx`
+  (e il suo modulo CSS), `web/src/components/RecipeCard.tsx`, `web/src/components/source.ts`,
+  `web/src/i18n/messages/recipes.ts`, `web/src/components/RecipeFilters.tsx`
+  (`RecipeCard`, `RecipePage`, `IngredientList` e `source.ts` sono componenti della
+  ricetta assegnati a W6 dal coordinatore; W1 li riusa)
 - Crea o modifica i test accanto: `web/src/api/fake/fakeApi.test.ts`,
-  `web/src/components/IngredientList.test.tsx`
+  `web/src/components/IngredientList.test.tsx`, `web/src/components/RecipeCard.test.tsx`
 
 **Interfacce:**
 - Consuma: gli schemi del contratto (`recipeListItemView`, `recipeDetailView`,
@@ -1864,7 +1872,8 @@ Le pagine passano a `useMealClock` un array stabile (`useMemo` sulle viste).
   - `recipes.search` → `{ items: RecipeListItem[] }` (prima un array);
   - `RecipeListItem`: `baseServings` al posto di `servings`, più `addedOn`,
     `lastEatenOn`, `upcoming`;
-  - `RecipeSummary`: `description` nullabile, niente `photo`;
+  - `RecipeSummary`: `description`, `durationMinutes`, `sourceType`, `mealType` e
+    `proteinGroup` nullabili (ricette mai pubblicate), niente `photo`;
   - `IngredientLine`: con `preparation`;
   - `RecipeDetailView`: con `status` e `upcoming`;
   - `ProteinGroup` e `PROTEIN_GROUPS` con gli 8 codici reali.
@@ -1874,6 +1883,12 @@ Le pagine passano a `useMealClock` un array stabile (`useMemo` sulle viste).
     `baseServings`, `upcoming` e gruppi tra gli 8 codici e, se lo schema è importabile,
     passa `recipeListItemView.parse` (stesso per `recipes.get` con `recipeDetailView`);
     un filtro `proteinGroup: 'red_meat'` restituisce solo quelle ricette.
+  - `RecipeCard.test.tsx`: una scheda del Menu alimentata dal payload reale di una
+    ricetta mai pubblicata (riepilogo con solo `id`, `name`, `description: null`, gli
+    altri campi `null`; `ingredients: null`; `rating: null`) mostra il nome, nessuna
+    immagine, nessuna riga di fonte, durata o gruppo, nessun voto né ingredienti, e non
+    lancia errori; una scheda di ricetta pubblicata non mostra immagini (non esiste più
+    `photo`) e mostra fonte, durata e voto.
   - `IngredientList.test.tsx`: con `preparation: 'a dadini'` mostra «Pomodori Roma» e
     «a dadini»; in inglese con `preparation: 'diced'` mostra «diced»; senza preparazione
     nessun testo in più; `optional: true` mostra l'etichetta esistente degli opzionali.
@@ -1884,6 +1899,9 @@ Le pagine passano a `useMealClock` un array stabile (`useMemo` sulle viste).
   - API finta e dati demo: forme nuove; ogni ricetta demo ha `addedOn`, `lastEatenOn`,
     `upcoming` (vuoto, o dai menu demo futuri) e gruppi convertiti (`meat` → `red_meat`,
     oppure `cured_meat` se i tag d'origine indicano salumi).
+  - `RecipeCard`: tolto il ramo della foto (resta sempre `meal-heading` con il chip);
+    riga di metadati solo con i campi non nulli; `sourceLine` restituisce `null` se
+    `sourceType` è nullo.
   - `IngredientList`: dopo il nome, se c'è, `<span className={styles.preparation}>, {line.preparation}</span>`
     in tono secondario (colore del testo secondario dei token di `design/`).
   - `RecipeFilters` e dizionario `recipes`: gruppi dalla costante, etichette
@@ -1925,7 +1943,7 @@ Le pagine passano a `useMealClock` un array stabile (`useMemo` sulle viste).
   - `RecipePage`: `recipeQuery(familyId, recipeId, servings, slotId)`; storico
     `pastMeals(view, now)` con `useMealClock(useMemo(() => [view.upcoming], [view]))`;
     fonte del libro con `bookTitle` e `bookPages`; descrizione solo se non nulla;
-    nessun blocco «bozza».
+    tolta l'immagine (`recipe.photo` non esiste più); nessun blocco «bozza».
   - `RatingStars`: `useRateRecipe` di W5 (già consapevole dell'offline); la chiamata è
     `api.ratings.set({ familyId, recipeId, stars })`.
 - [ ] **Passo 4:** `npm test -w web && npm run typecheck -w web` → PASS.

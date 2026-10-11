@@ -12,7 +12,8 @@ dell'ondata 2.
 ## Obiettivo
 
 - **Ricettario:** elenco delle ricette pubblicate visibili alla famiglia, con ricerca,
-  filtri e ordinamenti del prototipo (primo giro), costruito sulle proiezioni.
+  filtri e ordinamenti del prototipo (primo giro), costruito sui documenti delle
+  versioni correnti (sezione 1, «Regole comuni»).
 - **Scheda ricetta:** versione corrente, oppure quella mangiata in un pasto passato (R1),
   con porzioni scalate e quantità nel sistema di misura della famiglia, nella lingua
   dell'utente; storico dei pasti della famiglia.
@@ -162,9 +163,9 @@ export interface Viewer { familyId: string; userId: string; locale: Locale }
 export function recipeSummaries(tx: Tx, refs: RecipeRef[], locale: Locale): Promise<Map<string, RecipeSummaryView>>;
 
 /**
- * Righe pronte in blocco: documenti o proiezioni, nomi degli ingredienti, scalatura alle
- * `servings` del riferimento, sistema della famiglia, lingua. null per una ricetta mai
- * pubblicata. Chiave recipeViewKey.
+ * Righe pronte in blocco: documenti delle versioni, nomi degli ingredienti, scalatura alle
+ * `servings` del riferimento (0: porzioni di riferimento), sistema della famiglia, lingua.
+ * null per una ricetta mai pubblicata. Chiave recipeViewKey.
  */
 export function ingredientLines(
 	tx: Tx, refs: RecipeRef[], options: { familyId: string; locale: Locale },
@@ -210,15 +211,27 @@ o controlla lo stato.
 
 **Regole comuni:**
 
-- Poche query per insieme, mai una per pasto: ricette (stato, versione corrente,
-  proiezioni) in una query; documenti delle versioni richieste diverse dalla corrente da
-  `recipe_versions` in una query, letti con `publishedRecipeSchema` di W3; righe delle
-  proiezioni in una query; nomi degli ingredienti in una; **titoli dei libri in una, per
-  tutti i `bookId` effettivamente referenziati** (dalla proiezione per la versione
-  corrente, dal documento per una versione storica: una versione dal libro A mostra il
-  libro A anche se la corrente è del libro B o è diventata una fonte web); sistema di
-  misura dalla famiglia.
-- Versione numerata uguale alla corrente: proiezioni (stesso contenuto, nessun parsing).
+- **Contenuto sempre dal documento immutabile della versione** (correzione della seconda
+  review, R1): per ogni riferimento si legge `recipe_versions.content` della versione
+  richiesta, letto con `publishedRecipeSchema` di W3, anche quando coincide con la
+  corrente; per `version: null` la versione è quella corrente. Stato, versione corrente,
+  nome e descrizione delle bozze e documento arrivano da **una sola istruzione SQL**
+  (`recipes` unita a `recipe_versions` sulla versione richiesta o corrente): Postgres in
+  `read committed` dà a ogni istruzione una sola fotografia, quindi una pubblicazione
+  concorrente non può mescolare due versioni (riepilogo di V1 con ingredienti di V2). Le
+  proiezioni (`recipe_ingredients` e colonne di contenuto di `recipes`) servono a
+  pianificazione e spesa, non alle viste.
+- Poche query per insieme, mai una per pasto: contenuti in una istruzione; nomi degli
+  ingredienti in una; **titoli dei libri in una, per i `bookId` dei documenti mostrati**
+  (una versione dal libro A mostra il libro A anche se la corrente è del libro B o è
+  diventata una fonte web); sistema di misura dalla famiglia. Nomi degli ingredienti e
+  titoli dei libri sono entità condivise lette al momento: non fanno parte della
+  versione (sezione 8).
+- **Porzioni zero** (decisione del coordinatore dopo la seconda review):
+  `meal_slots.servings` ammette 0 anche con una ricetta. Le viste non chiamano mai
+  `scaleQuantity` con zero: per `servings: 0` le righe si mostrano alle porzioni di
+  riferimento della ricetta, così la scheda resta leggibile; la spesa li esclude per
+  conto suo. La chiave `recipeViewKey` conserva lo 0 del riferimento.
 - Le funzioni non decidono permessi oltre l'RLS: chi le chiama ha già verificato la
   famiglia (ruolo `familyMember` della pipeline). Una ricetta che l'RLS nasconde (bozza
   non citata dalla famiglia) manca dalla mappa.
@@ -229,8 +242,10 @@ o controlla lo stato.
 - **Ordine delle righe:** quello della fonte (`position`, ordine del documento).
 - Un test d'integrazione della prima PR usa le viste come il Menu: una settimana con un
   pasto passato su una versione storica, uno su una ricetta mai pubblicata con il solo
-  nome italiano letto da un utente inglese, e la stessa ricetta con porzioni diverse in
-  due pasti.
+  nome italiano letto da un utente inglese, la stessa ricetta con porzioni diverse in
+  due pasti e un pasto con zero porzioni. Un secondo test pubblica una versione nuova fra
+  la prima istruzione delle viste e le successive e verifica che ogni vista sia coerente
+  con una sola versione.
 
 ## 2. Operazioni
 
@@ -270,7 +285,9 @@ output: versionedOutput(z.object({ items: z.array(z.object({
 ```
 
 **Insieme di partenza:** ricette `published`; quelle con `book_id` solo se il libro è
-fra i `family_books` della famiglia. Archiviate e bozze mai (le seconde l'RLS le
+fra i `family_books` della famiglia. Il contenuto di ciascuna (testi, attributi, righe)
+viene dal documento della versione corrente, caricato come nelle viste (sezione 1); il
+filtro iniziale su stato e libro legge le colonne di `recipes`. Archiviate e bozze mai (le seconde l'RLS le
 nasconde ai non curatori; per i curatori le escludiamo noi).
 
 **Filtri** (tutti in AND):
@@ -415,8 +432,9 @@ arriva per primo. Tutte le query girano nella transazione dell'utente aperta dal
 pipeline.
 
 **Query previste per `recipes.search`** (in parallelo dove possibile, stessa
-transazione): famiglia (fuso, sistema); ricette candidate con libro; righe di
-ingrediente delle candidate; nomi e sinonimi degli ingredienti citati; `family_scores` e
+transazione): famiglia (fuso, sistema); ricette candidate con libro; documenti delle
+versioni correnti delle candidate (una istruzione); nomi e sinonimi degli ingredienti
+citati; `family_scores` e
 voti propri; pasti della famiglia con ricetta, con l'istante calcolato in SQL. Il costo è
 lineare nel catalogo e si paga solo quando la versione cambia.
 
@@ -456,8 +474,12 @@ rotte di W5); file condivisi toccati solo per registrare l'area.
   basterebbe.
 - **Adeguamenti espliciti alla base di W5** (tipi dell'API web, query, API finta, dati
   demo dell'area): `recipes.search` restituisce `{ items }` invece di un array;
-  `RecipeListItem.servings` diventa `baseServings`; `RecipeSummary.description` diventa
-  nullabile e `photo` sparisce; `IngredientLine` riceve `preparation`; il dettaglio
+  `RecipeListItem.servings` diventa `baseServings`; in `RecipeSummary` diventano
+  nullabili `description`, `durationMinutes`, `sourceType`, `mealType` e `proteinGroup`
+  (ricette mai pubblicate) e `photo` sparisce; `RecipeCard`, `RecipePage` e
+  `sourceLine` (componenti della ricetta, di W6 per decisione del coordinatore) si
+  adeguano: niente immagine, nessuna riga di fonte, durata o gruppo quando il campo è
+  nullo; `IngredientLine` riceve `preparation`; il dettaglio
   riceve `status` e `upcoming`; i gruppi proteici passano agli 8 codici reali.
 - **`IngredientList`** (componente di W6, riusato dal Menu): mostra la preparazione dopo
   il nome, nella lingua dell'utente, in tono secondario («Pomodori Roma, a dadini»).
@@ -520,8 +542,13 @@ rotte di W5); file condivisi toccati solo per registrare l'area.
 
 - Viste condivise fra Menu e Ricettario possedute dall'area `recipes` (sezione 1,
   contratto).
-- Ricerca e ordinamento in una funzione pura nel Worker sulle proiezioni caricate in
-  blocco, senza filtri SQL (sezione 1).
+- Ricerca e ordinamento in una funzione pura nel Worker sui documenti delle versioni
+  correnti caricati in blocco, senza filtri SQL (sezione 1).
+- Viste delle ricette sempre dal documento immutabile della versione, caricato con la
+  riga della ricetta in una sola istruzione, per non mescolare versioni durante una
+  pubblicazione (sezioni 1 e 2, R1).
+- Pasti con zero porzioni: righe mostrate alle porzioni di riferimento della ricetta
+  (sezioni 5 e 6).
 - Dati che dipendono dall'ora: le viste portano date e istanti dei pasti, il giudizio
   «passato» si fa sul dispositivo; nessun ambito di versione legato all'orologio
   (sezione 1, «Letture dalla copia sul dispositivo»).
