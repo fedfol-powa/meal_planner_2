@@ -10,11 +10,16 @@
 	},
 	"dependencies": {
 		"@app/contract": "*",
+		"@orpc/contract": "1.15.5",
+		"@orpc/openapi": "1.15.5",
+		"@orpc/server": "1.15.5",
+		"@orpc/zod": "1.15.5",
 		"jose": "6.2.12",
 		"zod": "4.6.5"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "5.20261011.1",
+		"@orpc/client": "1.15.5",
 		"wrangler": "4.149.0"
 	}
 }
