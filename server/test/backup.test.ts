@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { exportKey, runNightlyExport, runNightlyExportOn, type ExportDeps } from '../src/backup/export.ts';
 import { decodeExport, EXPORT_FORMAT, importKey, type BackupKey } from '../src/backup/format.ts';
 import { estimateExportBytes, exportParts, readSnapshot } from '../src/backup/read.ts';
+import { RestoreError, restoreExport, verifyRestored } from '../src/backup/restore.ts';
 import { withDbOn } from '../src/db.ts';
 import type { Env } from '../src/env.ts';
 import { type BackupFixtures, seedBackupFixtures } from './support/backup.ts';
@@ -173,5 +174,153 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		const env = { HYPERDRIVE: { connectionString: db.appServerUrl }, BACKUPS: bucket.asBucket(), BACKUP_ENCRYPTION_KEY: keyB64, BACKUP_KEY_ID: 'k1' } as unknown as Env;
 		expect(await runNightlyExport(env, night(12))).toBe('done');
 		expect(bucket.objects.size).toBe(1);
+	});
+
+	class Rollback extends Error {}
+
+	/** Decrypted document of a fresh export of the test database. */
+	const freshExport = async () => {
+		const bucket = new MemoryBucket();
+		quiet();
+		await runNightlyExportOn(deps(bucket), night(20));
+		vi.restoreAllMocks();
+		const [stored] = bucket.objects.values();
+		return decodeExport(stored.body, { k1: key });
+	};
+
+	/**
+	 * Emulates a destination just prepared with the migrations, inside a rolled-back
+	 * transaction of the shared test database. The real preparation (`supabase db reset
+	 * --no-seed`) runs in the drill of Task 8.
+	 */
+	const emulateFreshDestination = async (tx: postgres.TransactionSql) => {
+		const tables = await tx<{ ident: string }[]>`
+			select quote_ident(relname) as ident from pg_class where relnamespace = 'app'::regnamespace and relkind = 'r'`;
+		await tx.unsafe(`truncate ${[...tables.map((t) => `app.${t.ident}`), 'auth.identities', 'auth.users'].join(', ')} cascade`);
+		await tx`insert into app.catalogue_state default values`;
+	};
+
+	/** Runs `fn` as the database owner, then rolls everything back: other test files keep their data. */
+	const inRolledBack = async (fn: (tx: postgres.TransactionSql) => Promise<void>) => {
+		await expect(db.admin.begin(async (tx) => {
+			await fn(tx);
+			throw new Rollback();
+		})).rejects.toBeInstanceOf(Rollback);
+	};
+
+	const restoreReason = async (tx: postgres.TransactionSql, document: string) => {
+		const error = await restoreExport(tx, document).then(() => null, (e: unknown) => e);
+		expect(error).toBeInstanceOf(RestoreError);
+		return (error as RestoreError).reason;
+	};
+
+	it('restores into a fresh destination, from a session in another time zone, with markers reset', async () => {
+		const document = await freshExport();
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			await tx`set local time zone 'Europe/Rome'`;
+			const result = await restoreExport(tx, document);
+			expect(result.users).toBeGreaterThan(0);
+			expect(await verifyRestored(tx)).toEqual([]);
+			const [markers] = await tx<{ n: number }[]>`
+				select (select count(*) from app.families where data_version_xid is not null)
+					+ (select count(*) from app.catalogue_state where version_xid is not null) as n`;
+			expect(Number(markers.n)).toBe(0);
+		});
+	});
+
+	it('keeps bumping counters when an imported marker equals the restoring transaction', async () => {
+		const document = await freshExport();
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			const [{ xid }] = await tx<{ xid: string }[]>`select pg_current_xact_id()::text as xid`;
+			const coinciding = document.replace(
+				new RegExp(`("id":"${fx.familyId}".*?"data_version_xid":)(null|"\\d+")`),
+				`$1"${xid}"`,
+			);
+			expect(coinciding).not.toBe(document);
+			await restoreExport(tx, coinciding);
+			const [before] = await tx<{ v: string }[]>`select data_version::text as v from app.families where id = ${fx.familyId}`;
+			await tx`update app.families set name = 'Renamed after restore' where id = ${fx.familyId}`;
+			const [after] = await tx<{ v: string }[]>`select data_version::text as v from app.families where id = ${fx.familyId}`;
+			expect(BigInt(after.v)).toBe(BigInt(before.v) + 1n);
+		});
+	});
+
+	it('detects any change after the load, beyond JavaScript precision and inside nested Auth metadata', async () => {
+		const document = await freshExport();
+		const mutations: [string, string][] = [
+			[`update app.shopping_list_checks set quantity_at_check = '{"mass_g": 9007199254740994}' where shopping_list_id = '${fx.listId}' and variety_key = 'a'`, 'app.shopping_list_checks'],
+			[`update app.families set data_version = data_version + 1 where id = '${fx.familyId}'`, 'app.families'],
+			[`update auth.users set raw_user_meta_data = jsonb_set(raw_user_meta_data, '{tags,1}', '[2, 3, 4]') where id = '${fx.userId}'`, 'auth.users'],
+		];
+		for (const [mutation, table] of mutations) {
+			await inRolledBack(async (tx) => {
+				await emulateFreshDestination(tx);
+				await restoreExport(tx, document);
+				// Without triggers: a counter bump in families would add a second difference.
+				await tx`set local session_replication_role = replica`;
+				await tx.unsafe(mutation);
+				await tx`set local session_replication_role = origin`;
+				expect(await verifyRestored(tx)).toEqual([table]);
+			});
+		}
+	});
+
+	it('restores and verifies an export without identities (empty Auth table)', async () => {
+		const document = await freshExport();
+		// The auth text precedes "tables"; identities is its last key (jsonb orders keys by length).
+		const noIdentities = document.replace(/"identities": \[.*?\]\},"tables":/s, '"identities": []},"tables":');
+		expect(noIdentities).not.toBe(document);
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			const result = await restoreExport(tx, noIdentities);
+			expect(result.identities).toBe(0);
+			expect(await verifyRestored(tx)).toEqual([]);
+		});
+	});
+
+	it('refuses a destination with data, even only a changed catalogue counter', async () => {
+		const document = await freshExport();
+		await inRolledBack(async (tx) => {
+			expect(await restoreReason(tx, document)).toBe('not_empty');
+		});
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			await tx`update app.catalogue_state set version = 7`;
+			expect(await restoreReason(tx, document)).toBe('not_empty');
+		});
+	});
+
+	it('refuses other migrations, other tables, unknown columns, another format and dangling references', async () => {
+		const document = await freshExport();
+		const doc = JSON.parse(document);
+		const orphan = JSON.stringify({ ...doc.tables['app.ratings'][0], recipe_id: '00000000-0000-0000-0000-000000000000' });
+		const cases: [string, string][] = [
+			[document.replace('"migrations":[', '"migrations":["19990101000000",'), 'migrations'],
+			[document.replace('"app.books":', '"app.bookz":'), 'tables'],
+			[document.replace('"app.books":[{', '"app.books":[{"ghost":1,'), 'columns'],
+			[document.replace('cosasimangia-export/1', 'cosasimangia-export/9'), 'format'],
+			[document.replace('"app.ratings":[', `"app.ratings":[${orphan},`), 'orphans'],
+		];
+		for (const [variant, reason] of cases) {
+			expect(variant, reason).not.toBe(document);
+			await inRolledBack(async (tx) => {
+				await emulateFreshDestination(tx);
+				expect(await restoreReason(tx, variant)).toBe(reason);
+			});
+		}
+	});
+
+	it('reports a failing load with table and SQLSTATE only', async () => {
+		const document = await freshExport();
+		const at = document.indexOf('"app.families":');
+		const broken = document.slice(0, at) + document.slice(at).replace('"measurement_system":"metric"', '"measurement_system":"SENTINEL-4f1c"');
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			const error = await restoreExport(tx, broken).then(() => null, (e: unknown) => e);
+			expect(error).toMatchObject({ reason: 'load_failed', details: ['app.families', '23514'] });
+			expect(String((error as Error).message)).not.toContain('SENTINEL');
+		});
 	});
 });
