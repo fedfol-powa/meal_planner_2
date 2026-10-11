@@ -1,6 +1,9 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createFakeApi } from '../api/fake/fakeApi';
+import { ApiError } from '../api/errors';
+import { createFakeApi, createFakeData, DEMO_FAMILY_ID } from '../api/fake/fakeApi';
+import type { RecipeDetailView } from '../api/types';
+import { setOnline } from '../test/connectivity';
 import type { CreateApi } from '../session/SessionScope';
 import { LanguageSwitch } from '../test/LanguageSwitch';
 import { renderApp } from '../test/renderApp';
@@ -54,7 +57,80 @@ describe('recipe page', () => {
   });
   it('says when a recipe does not exist', async () => {
     renderApp('/recipes/nope');
-    expect(await screen.findByText('Contenuto non trovato.')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Ricetta non disponibile' })).toBeTruthy();
+  });
+});
+
+describe('recipe page from the Worker (W6)', () => {
+  const detail = (patch: Partial<RecipeDetailView> = {}): RecipeDetailView => ({
+    recipe: {
+      id: 'r1', name: 'Frittata', description: null, durationMinutes: 15, sourceType: 'home', sourceUrl: null,
+      bookTitle: null, bookPages: null, mealType: 'both', proteinGroup: 'eggs'
+    },
+    status: 'published', baseServings: 2, servings: 2, ingredients: [],
+    rating: { familyAverage: null, familyCount: 0, myStars: null }, history: [], upcoming: [],
+    ...patch
+  });
+  const withDetail = (view: RecipeDetailView) => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const get = vi.fn(() => Promise.resolve({ unchanged: false as const, version: 'v1', data: view }));
+    api.recipes.get = get;
+    return { api, get };
+  };
+
+  it('reads again with the servings chosen', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const get = vi.spyOn(api.recipes, 'get');
+    renderApp(`/recipes/${WOK}`, { api });
+    fireEvent.click(await screen.findByRole('button', { name: 'Una porzione in più' }));
+    await waitFor(() => expect(get).toHaveBeenLastCalledWith(expect.objectContaining({ recipeId: WOK, servings: 7 }), expect.anything()));
+  });
+  it('adds a planned meal that passes while the page is open to the last five times, without reading again', async () => {
+    const history = ['2026-10-01', '2026-09-24', '2026-09-17', '2026-09-10', '2026-09-03'].map((date) => ({ date, mealType: 'dinner' as const }));
+    // Now is 2026-10-08T10:00:00Z: today's lunch passes 50 ms later.
+    const { api, get } = withDetail(detail({ history, upcoming: [{ date: '2026-10-08', mealType: 'lunch', passesAt: '2026-10-08T10:00:00.050Z' }] }));
+    renderApp('/recipes/r1', { api });
+    const list = () => screen.getByRole('heading', { name: 'Le ultime volte' }).parentElement!.querySelectorAll('li');
+    await screen.findByText('giovedì 1 ottobre, Cena');
+    expect(list()).toHaveLength(5);
+    act(() => vi.setSystemTime(new Date('2026-10-08T10:01:00Z')));
+    await waitFor(() => expect(list()[0]?.textContent).toBe('giovedì 8 ottobre, Pranzo'));
+    expect(list()).toHaveLength(5);
+    expect(screen.queryByText('giovedì 3 settembre, Cena')).toBeNull();
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+  it('shows no empty paragraph without a description', async () => {
+    const { api } = withDetail(detail());
+    const { container } = renderApp('/recipes/r1', { api });
+    await screen.findByRole('heading', { name: 'Frittata' });
+    expect(container.querySelector('.description')).toBeNull();
+  });
+  it('says the recipe is not available when the Worker answers not_found', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    api.recipes.get = () => Promise.reject(new ApiError('not_found'));
+    renderApp('/recipes/r1', { api });
+    expect(await screen.findByRole('heading', { name: 'Ricetta non disponibile' })).toBeTruthy();
+  });
+  it('refuses a rating offline at once and sends nothing', async () => {
+    const data = createFakeData();
+    const before = structuredClone(data.ratings);
+    renderApp(`/recipes/${WOK}`, { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, data }) });
+    const star = await screen.findByLabelText(/Dai 1 stelle a Wok/);
+    act(() => setOnline(false));
+    fireEvent.click(star);
+    expect((await screen.findByRole('alert')).textContent).toBe('Sei offline o il servizio non risponde: riprova quando torni in linea.');
+    act(() => setOnline(true));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(data.ratings).toEqual(before);
+    expect(data.revision).toBe(1);
+  });
+  it('sends the rating online and shows the answer', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const set = vi.spyOn(api.ratings, 'set');
+    renderApp(`/recipes/${WOK}`, { api });
+    fireEvent.click(await screen.findByLabelText(/Dai 1 stelle a Wok/));
+    await waitFor(() => expect(set).toHaveBeenCalledWith({ familyId: DEMO_FAMILY_ID, recipeId: WOK, stars: 1 }, expect.anything()));
+    expect(await screen.findByLabelText(/Il tuo voto: 1 stelle/)).toBeTruthy();
   });
 });
 
