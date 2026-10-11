@@ -7,14 +7,19 @@ import { addDays, mealIndex, type IsoDate, type PastMeal } from '../../domain/sr
 export interface OriginRecipe {
 	id: string;
 	nome: string;
+	descrizione?: string;
 	tipo: 'web' | 'youtube' | 'libro' | 'casa';
+	url?: string | null;
 	tempo?: string | null;
-	libro?: { titolo: string } | null;
+	libro?: { titolo: string; pagine?: string } | null;
 	porzioni_base: number | null;
 	ingredienti: { nome: string; quantita: string | number }[] | null;
+	collaudata?: boolean;
 	feedback: number | null;
 	tag: string[];
 	storico?: { settimana: string; pasto: string; cucinata: boolean | null }[] | null;
+	dipendenze_libro?: unknown;
+	note?: string | null;
 }
 
 /**
