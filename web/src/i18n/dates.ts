@@ -38,3 +38,8 @@ export function formatChangeTime(locale: Locale, at: LocalDateTime): string {
 export function formatAverage(locale: Locale, value: number): string {
   return new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 }
+
+/** An instant as «6 ott», in the device's time zone: the curator's sections have no family time zone. */
+export function formatInstantShort(locale: Locale, at: string): string {
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(new Date(at)).replace('.', '');
+}
