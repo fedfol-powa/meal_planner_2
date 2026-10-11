@@ -7,12 +7,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Spec e piano corretti salvo le viste; aspetta l'«Interfaccia per W1» definitiva di W6, poi completa e fa la seconda review | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Dopo `/clear`: adegua spec e piano alle viste definitive di W6 (w1-08), PR piccola di `mealRecipeVersions` come primo task; poi seconda review breve | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Seconda review «approvabile con correzioni»; corregge (w2-07), poi PR piccola di `resolveFamilySettings` e implementazione senza parti web | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 APPROVABILE (revisioni/w3-pr9-2.md), CI verde su 5536b6b: merge da fare (serve l'utente o un permesso) | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Seconda review «approvabile con correzioni»; corregge (w4-05), poi implementa senza task 8, task 10 e parti web; l'«Interfaccia richiesta a W5» va a W5 | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6: terza review APPROVABILE (revisioni/w5-pr6-3.md), CI verde su 3d0a4cd; merge negato dal classificatore della modalità auto, in attesa dell'utente | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Seconda review «approvabile con correzioni»; corregge (w6-02); poi sezione 1 definitiva → W1 e via alla PR piccola delle viste dopo il merge della #9 | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Spec e piano corretti (f5b1dd2), sezione 1 definitiva; via alla PR piccola delle viste dopo il merge della #9 | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e spesa), #8
 (fonte delle equivalenze).
@@ -21,6 +21,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
+| R PR10 impostazioni | PR #10 di W2 (`resolveFamilySettings`), worktree .worktrees/review-pr10 | R PR10 impostazioni | — | in corso → revisioni/w2-pr10.md |
 
 ## Domande in sospeso
 
@@ -36,9 +37,9 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
      all'utente di lanciarlo o di dare il permesso. Dopo il #6: W5 fa la seconda PR (client
      oRPC reale + agganci di sessione dell'«Interfaccia richiesta a W5» nella spec di W4).
      Dopo il #9: via a W6 per la PR piccola delle viste.
-   - W6 corregge (w6-02); a `SPEC_E_PIANO_CORRETTI` registrare la sezione 1 della sua spec
-     come definitiva nel piano generale, `/clear` a W1 (contesto 45%) e messaggio di
-     ripresa con la sezione da recepire; poi seconda review breve della spec di W1.
+   - Sezione 1 di W6 definitiva (piano generale); W1 la recepisce dopo `/clear` (w1-08);
+     al suo `SPEC_E_PIANO_CORRETTI` seconda review breve, poi PR piccola di
+     `mealRecipeVersions`. W6 aspetta il merge della #9 per la PR delle viste.
    - W2 corregge (w2-07), poi PR piccola di `resolveFamilySettings` (da esaminare e unire
      subito) e implementazione senza parti web.
    - W4 corregge (w4-05), poi implementa senza task 8, task 10 e parti web.
