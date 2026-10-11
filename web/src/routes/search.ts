@@ -19,16 +19,18 @@ function positiveInt(value: unknown, max: number): number | undefined {
 }
 const oneOf = <T extends string>(values: readonly T[], value: unknown): T | undefined =>
   values.includes(value as T) ? (value as T) : undefined;
-// Drops undefined fields so URLs and comparisons stay clean.
+// Drops undefined fields so URLs and comparisons stay clean (not for validators, see below).
 const compact = <T extends object>(value: T): T =>
   Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
 
+// Validators keep every key, undefined when invalid: the router merges the raw search of the
+// parent route into the child's, so a dropped key would let the raw value through.
 export function validateMenuSearch(raw: Record<string, unknown>): MenuSearch {
-  return isIsoDate(raw.day) ? { day: raw.day } : {};
+  return { day: isIsoDate(raw.day) ? raw.day : undefined };
 }
 
 export function validateRecipesSearch(raw: Record<string, unknown>): RecipesSearch {
-  return compact({
+  return {
     q: typeof raw.q === 'string' && raw.q !== '' ? raw.q : undefined,
     meal: oneOf(MEALS, raw.meal),
     time: positiveInt(raw.time, 600),
@@ -36,23 +38,23 @@ export function validateRecipesSearch(raw: Record<string, unknown>): RecipesSear
     rating: positiveInt(raw.rating, 5),
     sort: oneOf(SORTS, raw.sort),
     dir: raw.dir === 'reverse' ? ('reverse' as const) : undefined
-  });
+  };
 }
 
 export function validateRecipeSearch(raw: Record<string, unknown>): RecipeSearch {
-  return compact({
+  return {
     servings: positiveInt(raw.servings, 50),
     from: oneOf(['menu', 'recipes'] as const, raw.from),
     day: isIsoDate(raw.day) ? raw.day : undefined,
     // Meal the recipe was opened from: the hook for past versions (spec R1, wave 2).
     slot: typeof raw.slot === 'string' && /^[\w-]{1,80}$/.test(raw.slot) ? raw.slot : undefined
-  });
+  };
 }
 
 export function validateLoginSearch(raw: Record<string, unknown>): LoginSearch {
   const target = raw.redirect;
   const local = typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/login');
-  return local ? { redirect: target } : {};
+  return { redirect: local ? target : undefined };
 }
 
 export function toRecipeQuery(search: RecipesSearch): RecipeQuery {
