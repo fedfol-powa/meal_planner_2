@@ -84,6 +84,30 @@ describe('«Collega un agente»', () => {
     expect(screen.getByText('Claude Code', { selector: '.row-main' })).toBeTruthy();
   });
 
+  it('opens the sheet again without the error of the previous attempt, and drops an old «scollegato»', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    vi.spyOn(api.agents, 'list').mockResolvedValue([
+      { clientId: '6a046a4a-3adc-4818-b1b1-47c5966d7fa7', name: 'Claude Code', connectedAt: '2026-10-01T10:00:00Z', lastRenewedAt: null, current: false },
+      { clientId: '7b046a4a-3adc-4818-b1b1-47c5966d7fa7', name: 'Codex', connectedAt: '2026-10-01T10:00:00Z', lastRenewedAt: null, current: false }
+    ]);
+    const disconnect = vi.spyOn(api.agents, 'disconnect').mockResolvedValueOnce({ clientId: '7b046a4a-3adc-4818-b1b1-47c5966d7fa7' }).mockRejectedValueOnce(new ApiError('internal'));
+    renderApp('/profile/agents', { api });
+    const rowOf = async (name: string) => (await screen.findByText(name, { selector: '.row-main' })).closest('li')!;
+    fireEvent.click(within(await rowOf('Codex')).getByRole('button', { name: 'Scollega' }));
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Scollegare Codex?' })).getByRole('button', { name: 'Scollega' }));
+    expect(await screen.findByText('Codex scollegato.')).toBeTruthy();
+    fireEvent.click(within(await rowOf('Claude Code')).getByRole('button', { name: 'Scollega' }));
+    const sheet = await screen.findByRole('dialog', { name: 'Scollegare Claude Code?' });
+    expect(screen.queryByText('Codex scollegato.')).toBeNull();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Scollega' }));
+    expect(await within(sheet).findByRole('alert')).toBeTruthy();
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Annulla' }));
+    fireEvent.click(within(await rowOf('Claude Code')).getByRole('button', { name: 'Scollega' }));
+    const again = await screen.findByRole('dialog', { name: 'Scollegare Claude Code?' });
+    expect(within(again).queryByRole('alert')).toBeNull();
+    expect(disconnect).toHaveBeenCalledTimes(2);
+  });
+
   it('says when no agent is connected, and disables «Scollega» offline', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
     renderApp('/profile/agents', { api });

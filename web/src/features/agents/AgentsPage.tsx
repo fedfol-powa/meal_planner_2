@@ -51,6 +51,12 @@ export function AgentsPage() {
     sending.current = true;
     disconnect.mutate(agent, { onSettled: () => (sending.current = false) });
   };
+  // Each opening starts clean: no error of an earlier attempt, no old «scollegato».
+  const open = (agent: ConnectedAgent) => {
+    disconnect.reset();
+    setDone(null);
+    setLeaving(agent);
+  };
   const removal = (agent: ConnectedAgent) => {
     const key = guideFor(agent.name);
     return key ? t(CLIENT_GUIDES[key].remove) : t('agents.removeGeneric');
@@ -111,7 +117,7 @@ export function AgentsPage() {
                         : t('agents.connectedOn', { date: formatDayMonth(locale, agent.connectedAt.slice(0, 10)) })}
                     </small>
                   </span>
-                  <button type="button" className="text-button" disabled={!online} onClick={() => setLeaving(agent)}>{t('agents.disconnect')}</button>
+                  <button type="button" className="text-button" disabled={!online} onClick={() => open(agent)}>{t('agents.disconnect')}</button>
                 </li>
               ))}
             </ul>
