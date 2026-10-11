@@ -6,7 +6,7 @@ const valid = (schema: unknown, value: unknown) =>
 
 describe('meals contract', () => {
 	it('declares member writes that create an action with a client id', () => {
-		for (const name of ['setServings', 'setRecipe', 'setFree', 'setNote'] as const) {
+		for (const name of ['setServings', 'setRecipe', 'setFree', 'setNote', 'swap'] as const) {
 			expect(contract.meals[name]['~orpc'].meta).toEqual({ mcp: { readOnly: false }, offline: false, role: 'familyMember', creates: true });
 		}
 	});

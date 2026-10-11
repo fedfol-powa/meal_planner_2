@@ -30,4 +30,13 @@ export const mealsContract = {
 		.errors(notFound)
 		.input(slot.extend({ id: z.uuid(), note: z.string().trim().max(200).nullable() }))
 		.output(mealActionResult),
+	swap: write()
+		.route({
+			method: 'POST',
+			path: '/families/{familyId}/meals/{slotId}/swap',
+			summary: `Swap two meals of the same week: dish or free text and note move, servings stay. ${idHint}`,
+		})
+		.errors(notFound)
+		.input(slot.extend({ id: z.uuid(), otherSlotId: z.uuid() }))
+		.output(mealActionResult),
 };
