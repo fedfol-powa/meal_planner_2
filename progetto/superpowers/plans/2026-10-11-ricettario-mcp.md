@@ -2694,6 +2694,10 @@ Rilievi in `progetto/coordinamento/revisioni/w3-pr23.md`, decisioni del coordina
 - nel finto Federico ha `globalRoles: ['recipe_curator']`; area `catalogue` finta con due
   bozze e una archiviata, in `web/src/api/fake/fakeCatalogue.ts`;
 - `test-support.tsx` usa `renderWithProviders` (restituisce `queryClient()` come funzione).
+- le sezioni leggono il profilo già in cache (`refetchOnMount: false`): montarle non lo
+  rilegge; nel test di W6 sul cambio di lingua (`RecipesPage.test.tsx`) le API finte delle
+  due lingue condividono lo stato (`createFakeData`), come in `fakeClients`, altrimenti i
+  due profili dichiarano lingue opposte e la lingua oscilla.
 
 **Cancello:** merge della #17 (W5, già unita), della #18 (W2, `profile.get` con
 `globalRoles` al posto di `me.get`), della #19 (W6, ricettario sui dati veri, che cambia
