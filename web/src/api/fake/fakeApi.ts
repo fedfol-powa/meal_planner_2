@@ -1,10 +1,11 @@
-import { addDays, daysBetween, isMealPast, localNow, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
+import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Department } from '@app/domain/shopping';
 import type { Locale } from '../../i18n/translate';
 import { isOnline } from '../../lib/connectivity';
 import { ApiError } from '../errors';
 import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, RecipeListItem, RecipeMealType, RecipeQuery, RecipeSummary, SourceType, ProteinGroup } from '../types';
 import raw from './demo-data.json';
+import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
 import { createFakeShopping } from './fakeShopping';
 import { formatAmount, scaleQuantity, type Quantity, type Translated } from './quantity';
 import { DEMO_CHANGES, DEMO_FAMILY, DEMO_PEOPLE, DEMO_USER_ID, seedRatings, type DemoRating } from './seed';
@@ -53,11 +54,21 @@ export interface FakeData {
   revision: number;
   /** What the person changed in the profile; missing values come from the demo people. */
   readonly profile: { displayName?: string; locale?: Locale };
+  /** The demo family's name, units, time zone, settings and exclusions. */
+  readonly family: FakeFamilyData;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
 const localized = (text: Translated, locale: Locale) => text[locale] ?? text['it-IT'];
 const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+/** The instant a wall-clock time happens in a time zone, as ISO: the Worker sends it as `passesAt`. */
+function zonedInstant(local: LocalDateTime, timeZone: string): string {
+  const asUtc = Date.parse(`${local}:00Z`);
+  let instant = asUtc;
+  // Two rounds settle the offset also next to a change of daylight saving time.
+  for (let round = 0; round < 2; round++) instant = asUtc - (Date.parse(`${localNow(timeZone, new Date(instant))}:00Z`) - instant);
+  return new Date(instant).toISOString();
+}
 // Descending order with missing values last.
 const desc = <T extends string | number>(a: T | null, b: T | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? 1 : -1);
 
@@ -79,7 +90,7 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {} };
+  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData() };
 }
 
 /**
@@ -124,7 +135,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
         globalRoles: []
       },
-      families: [{ ...DEMO_FAMILY, role: person?.role ?? 'member' }],
+      families: [{ id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' }],
       currentFamilyId: DEMO_FAMILY.id
     } satisfies Awaited<ReturnType<Api['profile']['get']>>;
   }
@@ -172,6 +183,13 @@ export function createFakeApi(options: FakeApiOptions): Api {
   function pastMeals(recipeId: string) {
     return visibleWeeks().flatMap((w) => w.slots).filter((s) => s.recipeId === recipeId && isMealPast(s.date, s.mealType, now()));
   }
+  /** Every planned meal not yet past, soonest first, with the instant it passes (contract of W6). */
+  function upcomingMeals(recipeId: string) {
+    return visibleWeeks().flatMap((w) => w.slots)
+      .filter((s) => s.recipeId === recipeId && !isMealPast(s.date, s.mealType, now()))
+      .sort((a, b) => a.date.localeCompare(b.date) || MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType])
+      .map((s) => ({ date: s.date, mealType: s.mealType, passesAt: zonedInstant(`${s.date}T${MEAL_PAST_AT[s.mealType]}`, DEMO_FAMILY.timeZone) }));
+  }
   function mealView(slot: DemoSlot, locale: Locale): MealView {
     const recipe = slot.recipeId ? recipes.find((r) => r.id === slot.recipeId) ?? null : null;
     const isPublished = recipe?.status === 'published';
@@ -218,18 +236,35 @@ export function createFakeApi(options: FakeApiOptions): Api {
         return delayed(profileView());
       }
     },
+    family: createFakeFamily({
+      data: state.family,
+      userId,
+      role: DEMO_PEOPLE.find((p) => p.id === userId)?.role ?? 'member',
+      displayName: () => profileView().user.displayName,
+      locale: options.getLocale,
+      books: data.books,
+      ingredients: data.ingredients,
+      recipeName: (recipeId, locale) => {
+        const recipe = recipes.find((r) => r.id === recipeId);
+        return recipe ? localized(recipe.name, locale) : null;
+      },
+      checkFamily,
+      respond,
+      delayed,
+      bump: () => void (state.revision += 1)
+    }),
     menu: {
-      async getOpening({ familyId }) {
+      async getOpening({ familyId, today: requested }) {
         checkFamily(familyId);
         const visible = visibleWeeks();
         if (visible.length === 0) return respond<OpeningView>({ kind: 'no_weeks' });
-        const today = now().slice(0, 10);
-        const next = visible
-          .flatMap((w) => w.slots.filter((s) => s.recipeId || s.freeText).map((s) => ({ date: s.date, weekStartsOn: w.startsOn })))
-          .filter((d) => d.date >= today)
-          .sort((a, b) => a.date.localeCompare(b.date))[0];
-        const last = visible[visible.length - 1]!;
-        return respond<OpeningView>(next ? { kind: 'day', ...next } : { kind: 'day', date: last.startsOn, weekStartsOn: last.startsOn });
+        const today = requested ?? now().slice(0, 10);
+        // Spec of the menu, 5.2: first day from today with content, then with any slot, then the last earlier day with a slot, then the latest Monday.
+        const slots = visible.flatMap((w) => w.slots).sort((a, b) => a.date.localeCompare(b.date));
+        const coming = slots.filter((s) => s.date >= today);
+        const date =
+          coming.find((s) => s.recipeId || s.freeText)?.date ?? coming[0]?.date ?? slots.filter((s) => s.date < today).at(-1)?.date ?? visible.at(-1)!.startsOn;
+        return respond<OpeningView>({ kind: 'day', date, weekStartsOn: mondayOf(date) });
       },
       async getWeek({ familyId, weekStartsOn }) {
         checkFamily(familyId);
@@ -265,19 +300,25 @@ export function createFakeApi(options: FakeApiOptions): Api {
           .filter((r) => !query.maxMinutes || (r.durationMinutes !== null && r.durationMinutes <= query.maxMinutes))
           .filter((r) => !query.proteinGroup || r.proteinGroup === query.proteinGroup)
           .filter((r) => matches(r, locale, needle))
-          .map((r) => ({ r, item: { recipe: summary(r, locale), rating: ratingSummary(r.id), servings: r.baseServings ?? 1, ingredients: lines(r, r.baseServings ?? 1, locale) ?? [] } satisfies RecipeListItem }))
+          .map((r) => ({
+            r,
+            item: {
+              recipe: summary(r, locale), rating: ratingSummary(r.id), baseServings: r.baseServings ?? 1,
+              ingredients: lines(r, r.baseServings ?? 1, locale) ?? [], addedOn: r.addedOn, lastEatenOn: lastEaten(r.id), upcoming: upcomingMeals(r.id)
+            } satisfies RecipeListItem
+          }))
           .filter(({ item }) => !query.minStars || (item.rating.familyAverage ?? 0) >= query.minStars)
           .sort((a, b) => {
             const byName = a.item.recipe.name.localeCompare(b.item.recipe.name, locale);
             const primary =
               query.sort === 'rating' ? desc(a.item.rating.familyAverage, b.item.rating.familyAverage)
               : query.sort === 'added' ? desc(a.r.addedOn, b.r.addedOn)
-              : query.sort === 'lastEaten' ? desc(lastEaten(a.r.id), lastEaten(b.r.id))
+              : query.sort === 'lastEaten' ? desc(a.item.lastEatenOn, b.item.lastEatenOn)
               : 0;
             return primary || byName;
           })
           .map(({ item }) => item);
-        return respond(query.reversed ? items.reverse() : items);
+        return respond({ items: query.reversed ? items.reverse() : items });
       },
       // slotId is accepted and ignored: versions of past meals arrive with wave 2.
       async get({ familyId, recipeId, servings }) {
@@ -288,9 +329,13 @@ export function createFakeApi(options: FakeApiOptions): Api {
         const base = recipe.baseServings;
         const chosen = servings && Number.isInteger(servings) && servings > 0 && servings <= 50 ? servings : (base ?? 1);
         return respond({
-          recipe: summary(recipe, locale), baseServings: base, servings: chosen,
+          recipe: summary(recipe, locale), status: 'published' as const, baseServings: base ?? chosen, servings: chosen,
           ingredients: lines(recipe, chosen, locale) ?? [], rating: ratingSummary(recipe.id),
-          history: pastMeals(recipe.id).map((s) => ({ date: s.date, mealType: s.mealType })).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
+          history: pastMeals(recipe.id)
+            .sort((a, b) => b.date.localeCompare(a.date) || MEAL_ORDER[b.mealType] - MEAL_ORDER[a.mealType])
+            .slice(0, 5)
+            .map((s) => ({ date: s.date, mealType: s.mealType })),
+          upcoming: upcomingMeals(recipe.id)
         });
       }
     },
@@ -327,5 +372,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), profile: wrap(api.profile), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping) };
+  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping) };
 }

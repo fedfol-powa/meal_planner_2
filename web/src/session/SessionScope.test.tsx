@@ -19,6 +19,7 @@ import type { CreateApi } from './SessionScope';
 import type { SessionMessage } from './channel';
 import { useAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
+import { localNow } from '../lib/calendar';
 import { createMemoryHub } from '../test/memoryChannel';
 import { setOnline } from '../test/connectivity';
 import { createStubBackend } from '../test/stubBackend';
@@ -177,7 +178,8 @@ describe('language', () => {
     await screen.findByText('name: A');
     fireEvent.click(screen.getByText('english'));
     await screen.findByText('locale: en-GB');
-    expect(readPreference(userScope('a'))).toBe('en-GB');
+    // Saved in the profile: no temporary choice left on the device.
+    expect(readPreference(userScope('a'))).toBeNull();
     fireEvent.click(screen.getByText('out'));
     await screen.findByText('auth: signedOut');
     expect(readPreference(userScope('a'))).toBeNull();
@@ -454,7 +456,7 @@ describe('fake data shared by the languages (PR review, C13)', () => {
   function RatingProbe() {
     const deps = useQueryDeps();
     client = deps.queryClient;
-    const opening = useQuery(openingQuery(deps, DEMO_FAMILY_ID));
+    const opening = useQuery(openingQuery(deps, DEMO_FAMILY_ID, localNow('Europe/Rome').slice(0, 10)));
     const weekStartsOn = opening.data?.kind === 'day' ? opening.data.weekStartsOn : undefined;
     const week = useQuery({ ...weekQuery(deps, DEMO_FAMILY_ID, weekStartsOn ?? ''), enabled: !!weekStartsOn });
     const meal = week.data?.days.flatMap((d) => d.meals).find((m) => m.rating && m.recipe);
@@ -462,7 +464,7 @@ describe('fake data shared by the languages (PR review, C13)', () => {
     rated = recipeId;
     const recipe = useQuery({ ...recipeQuery(deps, DEMO_FAMILY_ID, recipeId ?? ''), enabled: !!recipeId });
     const list = useQuery(searchQuery(deps, DEMO_FAMILY_ID, {}));
-    const listed = list.data?.find((item) => item.recipe.id === recipeId);
+    const listed = list.data?.items.find((item) => item.recipe.id === recipeId);
     const rate = useRateRecipe(DEMO_FAMILY_ID);
     const choose = useChooseLocale();
     const idle = useIsFetching() === 0 && !rate.isPending && recipe.isSuccess && list.isSuccess;

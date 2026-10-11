@@ -11,9 +11,13 @@ const source = JSON.parse(readFileSync(resolve(root, '../prototype/src/lib/demo-
 const attributes = parse(readFileSync(resolve(root, '../scripts/import/recipe-attributes.yaml'), 'utf8')).recipes;
 const proteinGroup = (r) => attributes[r.id]?.protein_group ?? (r.proteinGroup === 'meat' ? 'red_meat' : r.proteinGroup);
 
+// The list marks optional lines itself: the names keep only the ingredient.
+const OPTIONAL_SUFFIX = / \((facoltativ[oa]|opzionale|optional)\)$/;
+const plainName = (name) => Object.fromEntries(Object.entries(name).map(([locale, text]) => [locale, text?.replace(OPTIONAL_SUFFIX, '') ?? text]));
+
 const data = {
   books: source.books,
-  ingredients: source.ingredients.map(({ id, name, department, isPantry }) => ({ id, name, department, isPantry })),
+  ingredients: source.ingredients.map(({ id, name, department, isPantry }) => ({ id, name: plainName(name), department, isPantry })),
   recipes: source.recipes.map((r) => ({
     id: r.id, status: r.status, name: r.name, description: r.description, sourceType: r.sourceType,
     sourceUrl: r.sourceUrl, bookId: r.bookId, bookPages: r.bookPages, durationMinutes: r.durationMinutes,

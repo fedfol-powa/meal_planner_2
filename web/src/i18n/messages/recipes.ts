@@ -19,6 +19,8 @@ export const it = {
   'recipes.noResults.title': 'Nessuna ricetta trovata',
   'recipes.noResults.body': 'Prova a togliere qualche filtro o a cercare un altro ingrediente.',
   'recipes.reset': 'Azzera filtri',
+  'recipes.count.one': '1 ricetta',
+  'recipes.count.other': '{count} ricette',
   'group.fish': 'Pesce',
   'group.white_meat': 'Carne bianca',
   'group.red_meat': 'Carne rossa',
@@ -34,7 +36,10 @@ export const it = {
   'recipe.baseServings.other': 'Dosi della fonte per {count} porzioni',
   'recipe.history': 'Le ultime volte',
   'recipe.historyEmpty': 'Non l’avete ancora mangiata.',
-  'recipe.historyItem': '{day}, {meal}'
+  'recipe.historyItem': '{day}, {meal}',
+  'recipe.optional': 'facoltativo',
+  'recipe.unavailable.title': 'Ricetta non disponibile',
+  'recipe.unavailable.body': 'Non è nel ricettario della famiglia o non è ancora pubblicata.'
 };
 
 export const en = {
@@ -58,6 +63,8 @@ export const en = {
   'recipes.noResults.title': 'No recipes found',
   'recipes.noResults.body': 'Try removing a filter or searching for another ingredient.',
   'recipes.reset': 'Clear filters',
+  'recipes.count.one': '1 recipe',
+  'recipes.count.other': '{count} recipes',
   'group.fish': 'Fish',
   'group.white_meat': 'White meat',
   'group.red_meat': 'Red meat',
@@ -73,5 +80,8 @@ export const en = {
   'recipe.baseServings.other': 'Source quantities for {count} servings',
   'recipe.history': 'Last times',
   'recipe.historyEmpty': 'You have not had it yet.',
-  'recipe.historyItem': '{day}, {meal}'
+  'recipe.historyItem': '{day}, {meal}',
+  'recipe.optional': 'optional',
+  'recipe.unavailable.title': 'Recipe not available',
+  'recipe.unavailable.body': 'It is not in the family’s recipe book or has not been published yet.'
 } satisfies Record<keyof typeof it, string>;

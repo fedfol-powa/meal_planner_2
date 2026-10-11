@@ -7,21 +7,20 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20 «approvabile con correzioni»: corregge 3 e 4 ora; 1 e 2 dopo il merge di #18 e #19 (aggiorna su main); poi revisione dei pasti | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #18 «approvabile con correzioni» (test del collegamento reale di profile) → merge per prima; PR #21 in review | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Spec e piano «da rifare» (12 rilievi, w3-04 con le decisioni); poi seconda review breve | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Dopo `/clear`: web e coda offline (task 9-14; web-01) | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 unita (tre review). Libero | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 «approvabile con correzioni»: corregge 2 e 3 ora; 1 dopo il merge della #18 | 11/10 |
+| W1 revisione-pasti | W1 menu (da rinominare) | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | PR #20 unita. Sessione chiusa, pane già nel worktree (branch avanzato a main); avvio di `claude --permission-mode auto` bloccato dal classificatore: serve l'utente | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 approvata; sta portando la PR su main dopo il merge della #20; a PR_CORRETTA: CI verde e diff dei conflitti → merge, poi W4 | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Implementa la parte server della gestione del ricettario (area `catalogue`) dopo due review di spec; a `PR_APERTA` review avversariale. Web dopo #21 (e #19, già unita): avvisarlo | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 approvata, prova reale fatta; in conflitto: aggiorna solo dopo il merge di #20 e #21 | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Libero (PR #17 unita). Candidato per collegamento agenti o esportazione R2, che richiedono passi esterni dell'utente | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 unita; libero | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web). Ondata 1 completata.
 
 ## Revisori attivi
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR21 profilo web | PR #21 | R PR21 profilo web | w1:p10 | → revisioni/w2-pr21.md |
 
 ## Domande in sospeso
 
@@ -32,17 +31,34 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
-0. **In corso (ordine dell'ondata 2):**
-   - Tutto il server e il client reale sono su main. Parti web (messaggio web-01): ordine dei merge #18 → #19 → #20 → #21, poi W4; merge una alla
-     volta, chi arriva dopo porta il branch su main.
-   - W3: brainstorming chiuso, scrive spec e piano della gestione del ricettario (area
-     `catalogue`); web dopo la PR web di W2.
-   - W5 libero: prossima attività da scegliere con la tabella del piano generale
-     (collegamento agenti ed esportazione R2 richiedono passi esterni dell'utente).
-   - W1 dopo il web del menu: revisione dei pasti (serve brief).
-   - `eventi.py` ha ora un controllo di riconciliazione ogni 2 minuti (gli eventi
-     `REVISORE_FINITO` a volte non arrivano); a ogni riarmo controllare comunque
-     `attendi.py --stato`.
+0. **In corso (ordine dell'ondata 2), aggiornato l'11/10 alle 17:40:**
+   - **Merge web in sequenza:** #20 unita → W2 avvisato di portare di portare la #21
+     su main → merge → scrivere a W4 di portare la #22 su main → merge. #21 e #22 sono già
+     approvate: dopo il riallineamento basta controllare CI verde e risoluzione dei conflitti
+     (diff dei file condivisi del web), senza nuova review salvo modifiche sostanziali.
+   - **Dopo il merge della #20:** `/clear` a W1 e messaggio di ripresa per la revisione dei
+     pasti: la sessione va riavviata nel worktree `.worktrees/revisione-pasti` (branch
+     `traguardo/revisione-pasti`, già creato): `/exit`, `herdr pane run w1:pW "cd
+     <worktree> && claude --permission-mode auto -n 'W1 revisione-pasti'"`, rinominare la
+     tab, poi «Leggi progetto/coordinamento/brief/w1-revisione-pasti.md e
+     progetto/coordinamento/protocollo-worker.md ed eseguili, partendo dal brainstorming».
+     Nel brainstorming: controllare che ogni scrittura abbia la lettura che la rende usabile e
+     che ogni PR passi da sola i controlli di main.
+   - **W3:** implementazione della parte server di `catalogue`; review della PR quando la
+     apre; il web dopo il merge della #21.
+   - **W5 e W6 liberi.** Attività restanti senza assegnatario: collegamento degli agenti
+     (serve confermare il server OAuth sul progetto di produzione, da verificare prima) ed
+     esportazione notturna in R2 (serve un bucket e una chiave, e la conservazione da
+     decidere con l'utente). Spiegate all'utente in modo semplice; lui ha detto di
+     avvisarlo quando arriva il momento. Scrivere la tabella produttori → consumatori prima
+     di assegnarle.
+   - **Uso dell'account:** la finestra di 5 ore era al 78% alle 17:30 (rinnovo verso le 18:20).
+   - **Merge:** `gh pr merge <n> --merge` come comando singolo (autorizzato dall'utente).
+   - **`eventi.py`:** la riconciliazione ogni 2 minuti rilegge i pane e rinnova
+     l'iscrizione; dopo un riarmo controllare comunque `attendi.py --stato`. Opzioni di
+     prova: `EVENTI_RECONCILE=<s>` e `EVENTI_DEBUG=1`.
+   - I testi nel campo di input dei pane (per esempio «Leggi il prossimo messaggio…») sono
+     suggerimenti automatici di Claude Code, non messaggi: `agent prompt` li sostituisce.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli

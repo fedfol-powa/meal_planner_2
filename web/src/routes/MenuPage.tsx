@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isBlocking, toApiError } from '../api/errors';
-import { openingQuery, useQueryDeps, weekQuery } from '../api/queries';
-import type { FamilyView } from '../api/types';
+import { openingQuery, queryKeys, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
+import type { FamilyView, OpeningView, WeekView } from '../api/types';
 import { DatePicker } from '../components/DatePicker';
 import { DaySelector } from '../components/DaySelector';
 import { FamilyGate } from '../components/FamilyGate';
@@ -13,6 +13,7 @@ import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { StateNotice } from '../components/StateNotice';
 import { formatDayLong, formatMonthYear } from '../i18n/dates';
+import type { Locale } from '../i18n/translate';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { isMealPast, localNow, mondayOf, type IsoDate } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
@@ -25,6 +26,26 @@ export function MenuPage() {
   return <FamilyGate>{(family) => <MenuView family={family} />}</FamilyGate>;
 }
 
+/**
+ * While today's opening has not been read (offline after the day changed, or still loading), the
+ * saved copy answers: today in its week if that week is saved, else the latest saved opening of the
+ * same family and language. The server's answer replaces it as soon as it arrives.
+ */
+function savedOpening(queryClient: QueryClient, familyId: string, today: IsoDate, locale: Locale): Versioned<OpeningView> | undefined {
+  const weekStartsOn = mondayOf(today);
+  if (queryClient.getQueryData<Versioned<WeekView>>(queryKeys.week(familyId, weekStartsOn, locale))) {
+    return { version: '', data: { kind: 'day', date: today, weekStartsOn } };
+  }
+  const saved = queryClient
+    .getQueriesData<Versioned<OpeningView>>({ queryKey: ['menu', 'getOpening'] })
+    .filter(([key, value]) => {
+      const input = key[2] as { familyId?: string; locale?: string; today?: string } | undefined;
+      return value && input?.familyId === familyId && input.locale === locale;
+    })
+    .sort(([a], [b]) => String((b[2] as { today?: string }).today).localeCompare(String((a[2] as { today?: string }).today)));
+  return saved[0]?.[1];
+}
+
 const notice = (content: ReactNode) => <section className="secondary-view app-view">{content}</section>;
 
 function MenuView({ family }: { family: FamilyView }) {
@@ -35,7 +56,9 @@ function MenuView({ family }: { family: FamilyView }) {
   const navigate = route.useNavigate();
   const familyId = family.id;
 
-  const opening = useQuery(openingQuery(deps, familyId));
+  // The family's local date, sent with the opening: the server validates it and answers for that day.
+  const today = localNow(family.timeZone).slice(0, 10);
+  const opening = useQuery({ ...openingQuery(deps, familyId, today), placeholderData: () => savedOpening(deps.queryClient, familyId, today, locale) });
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
   const week = useQuery({ ...weekQuery(deps, familyId, weekStart ?? ''), enabled: !!weekStart, retry: false });
@@ -101,9 +124,10 @@ function MenuView({ family }: { family: FamilyView }) {
     }, 120);
   }
 
-  if (opening.isError && isBlocking(opening.error, !!opening.data)) return notice(<QueryError error={opening.error} onRetry={() => void opening.refetch()} />);
-  if (!opening.data) return notice(<Loading />);
-  if (opening.data.kind === 'no_weeks') return notice(<StateNotice title={t('menu.noWeeks.title')} body={t('menu.noWeeks.body')} />);
+  // A requested day needs no opening: its week is enough (offline after the day changed).
+  if (!requested && opening.isError && isBlocking(opening.error, !!opening.data)) return notice(<QueryError error={opening.error} onRetry={() => void opening.refetch()} />);
+  if (!requested && !opening.data) return notice(<Loading />);
+  if (opening.data?.kind === 'no_weeks') return notice(<StateNotice title={t('menu.noWeeks.title')} body={t('menu.noWeeks.body')} />);
   if (week.isError && !weekMissing && isBlocking(week.error, !!week.data)) return notice(<QueryError error={week.error} onRetry={() => void week.refetch()} />);
   if (!week.data || !selected) return notice(<Loading />);
 

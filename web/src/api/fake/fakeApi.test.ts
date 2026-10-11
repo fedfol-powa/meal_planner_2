@@ -3,7 +3,18 @@ import type { Locale } from '../../i18n/translate';
 import { ApiError } from '../errors';
 import { setOnline } from '../../test/connectivity';
 import type { Read } from '../types';
-import { createFakeApi, DEMO_FAMILY_ID, fakeClients } from './fakeApi';
+import { createFakeApi, createFakeData, DEMO_FAMILY_ID, fakeClients } from './fakeApi';
+import { recipeDetailView, recipeListItemView } from '@app/contract';
+import { PROTEIN_GROUPS } from '../types';
+
+/** Differences from the contract's schema, except the demo ids, which are readable slugs instead of uuids. */
+const contractIssues = (schema: typeof recipeListItemView | typeof recipeDetailView, value: unknown) => {
+  const result = schema.safeParse(value);
+  if (result.success) return [];
+  return result.error.issues
+    .filter((issue) => !(issue.code === 'invalid_format' && (issue as { format?: string }).format === 'uuid'))
+    .map((issue) => `${issue.path.join('.')}: ${issue.message}`);
+};
 
 const data = <T,>(read: Read<T>): T => {
   if (read.unchanged) throw new Error('fake reads are never unchanged');
@@ -30,6 +41,33 @@ describe('fake api', () => {
     expect(week.days.map((d) => d.date)[0]).toBe('2026-11-02');
     expect(week.days.flatMap((d) => d.meals).length).toBeGreaterThan(0);
   });
+  it('opens like the server in the five cases of the menu spec (5.2)', async () => {
+    const opening = async (change: (weeks: ReturnType<typeof createFakeData>['weeks']) => void) => {
+      const shared = createFakeData();
+      change(shared.weeks);
+      return data(await createFakeApi({ getLocale: () => locale, data: shared, latencyMs: 0 }).menu.getOpening({ familyId, today: '2026-10-08' }));
+    };
+    const emptied = (weeks: ReturnType<typeof createFakeData>['weeks']) =>
+      weeks.forEach((w) => w.slots.forEach((s) => Object.assign(s, { recipeId: null, freeText: null })));
+    // 1. no weeks
+    expect(await opening((weeks) => weeks.splice(0))).toEqual({ kind: 'no_weeks' });
+    // 2. first day from today with content (the demo week has meals today)
+    expect(await opening(() => {})).toEqual({ kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' });
+    // 3. only empty slots: the first day from today with a slot, not the Monday
+    expect(await opening(emptied)).toEqual({ kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' });
+    // 4. only earlier slots: the last of them
+    expect(
+      await opening((weeks) => {
+        weeks.forEach((w) => (w.slots = w.slots.filter((s) => s.date < '2026-10-07')));
+      })
+    ).toEqual({ kind: 'day', date: '2026-10-06', weekStartsOn: '2026-10-05' });
+    // 5. weeks without slots: Monday of the latest week
+    expect(
+      await opening((weeks) => {
+        weeks.forEach((w) => (w.slots = []));
+      })
+    ).toEqual({ kind: 'day', date: '2026-10-12', weekStartsOn: '2026-10-12' });
+  });
   it('rejects unknown weeks and other families', async () => {
     await expect(api().menu.getWeek({ familyId, weekStartsOn: '2030-01-07' })).rejects.toEqual(new ApiError('not_found'));
     await expect(api().menu.getOpening({ familyId: 'family-other' })).rejects.toEqual(new ApiError('forbidden'));
@@ -49,18 +87,44 @@ describe('fake api', () => {
   });
   it('searches by ingredient in the user language and filters by time', async () => {
     locale = 'en-GB';
-    const found = data(await api().recipes.search({ familyId, query: { text: 'basmati' } }));
+    const found = data(await api().recipes.search({ familyId, query: { text: 'basmati' } })).items;
     expect(found.map((i) => i.recipe.id)).toContain('wok-pollo-peperoni-riso-basmati');
     expect(found[0]?.recipe.name).toMatch(/[A-Za-z]/);
-    const quick = data(await api().recipes.search({ familyId, query: { text: 'basmati', maxMinutes: 20 } }));
+    const quick = data(await api().recipes.search({ familyId, query: { text: 'basmati', maxMinutes: 20 } })).items;
     expect(quick.map((i) => i.recipe.id)).not.toContain('wok-pollo-peperoni-riso-basmati');
   });
   it('sorts by rating and reverses the order', async () => {
-    const byRating = data(await api().recipes.search({ familyId, query: { sort: 'rating' } }));
+    const byRating = data(await api().recipes.search({ familyId, query: { sort: 'rating' } })).items;
     const averages = byRating.map((i) => i.rating.familyAverage ?? 0);
     expect(averages).toEqual([...averages].sort((a, b) => b - a));
-    const reversed = data(await api().recipes.search({ familyId, query: { sort: 'rating', reversed: true } }));
+    const reversed = data(await api().recipes.search({ familyId, query: { sort: 'rating', reversed: true } })).items;
     expect(reversed.map((i) => i.recipe.id)).toEqual(byRating.map((i) => i.recipe.id).reverse());
+  });
+  it('answers the search in the shape of the contract, with the planned meals still to come', async () => {
+    const { items } = data(await api().recipes.search({ familyId, query: {} }));
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) expect(contractIssues(recipeListItemView, item)).toEqual([]);
+    const groups = new Set(items.map((i) => i.recipe.proteinGroup));
+    expect([...groups].every((g) => g === null || (PROTEIN_GROUPS as readonly string[]).includes(g))).toBe(true);
+    // Thursday 8 October, 12:00 in Rome: today's lunch passes at 15:30 local time.
+    const planned = items.flatMap((i) => i.upcoming);
+    expect(planned.length).toBeGreaterThan(0);
+    expect(planned.every((m) => Date.parse(m.passesAt) > Date.parse('2026-10-08T10:00:00Z'))).toBe(true);
+    expect(planned.find((m) => m.date === '2026-10-08' && m.mealType === 'lunch')?.passesAt).toBe('2026-10-08T13:30:00.000Z');
+    const wok = items.find((i) => i.recipe.id === 'wok-pollo-peperoni-riso-basmati')!;
+    expect(wok.baseServings).toBe(6);
+    expect(wok.addedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+  it('filters by one of the eight protein groups', async () => {
+    const { items } = data(await api().recipes.search({ familyId, query: { proteinGroup: 'red_meat' } }));
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((i) => i.recipe.proteinGroup === 'red_meat')).toBe(true);
+  });
+  it('answers the recipe detail in the shape of the contract', async () => {
+    const detail = data(await api().recipes.get({ familyId, recipeId: 'omelette-spinaci-montasio' }));
+    expect(contractIssues(recipeDetailView, detail)).toEqual([]);
+    expect(detail.status).toBe('published');
+    expect(detail.history.length).toBeLessThanOrEqual(5);
   });
   it('scales the recipe detail to the chosen servings', async () => {
     const detail = data(await api().recipes.get({ familyId, recipeId: 'wok-pollo-peperoni-riso-basmati', servings: 3 }));

@@ -1,0 +1,12 @@
+.intro { margin-bottom: 16px; }
+.zone { margin: 12px 0 0; }
+.advanced summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; cursor: pointer; list-style: none; }
+.advanced summary::-webkit-details-marker { display: none; }
+.advanced summary::after { content: ''; width: 8px; height: 8px; margin-right: 6px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.advanced[open] summary::after { transform: rotate(225deg); }
+.advanced summary h2 { margin: 0; }
+.advanced h3 { margin: 20px 0 4px; font-size: 1rem; }
+.groups li { flex-wrap: wrap; padding: 8px 0; }
+.groups :global(.row-main) { flex-basis: 100%; }
+.range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: 100%; }
+.range :global(.stepper) { gap: 6px; }
