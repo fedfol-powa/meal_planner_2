@@ -277,7 +277,9 @@ Rotta figlia della radice, senza navbar. L'URL arriva da Supabase:
 - Altrimenti la schermata del sesto giro, con i testi decisi dopo la review:
   - titolo «{client} vuole usare Cosa si mangia con il tuo account»; sotto, in piccolo,
     «È il nome con cui l'agente si presenta: non è verificato.»;
-  - riquadro account con nome ed email e «Non sei tu? Cambia account»;
+  - riquadro account con nome ed email, «Non sei tu? Cambia account» e sotto, in piccolo,
+    «Con un altro account dovrai ripartire dall'agente: questa richiesta vale solo per
+    l'account con cui l'hai aperta.»;
   - «Cosa potrà fare»: «Agirà con il tuo account, come se fossi tu: per esempio leggere e
     cambiare il menu, la spesa e la famiglia.» più, secondo i ruoli globali del profilo,
     «Potrà anche gestire il ricettario.» (curatore) e «Potrà anche amministrare l'app.»
@@ -300,7 +302,9 @@ Rotta figlia della radice, senza navbar. L'URL arriva da Supabase:
   (ruoli noti e attuali). Profilo in caricamento: la sezione «Cosa potrà fare» mostra il
   caricamento e «Consenti» resta disabilitato; profilo in errore, anche con un profilo
   precedente in cache: errore con «Riprova» (rilettura del profilo), «Consenti»
-  disabilitato e ricontrollato nel gestore, «Annulla» disponibile.
+  disabilitato e ricontrollato al clic sullo stato corrente della query del profilo
+  (successo, nessuna lettura in corso, stessa persona), non sul valore dell'ultimo render:
+  una rilettura partita un istante prima blocca già il consenso. «Annulla» disponibile.
 - Consenti → `approveAuthorization(id, { skipBrowserRedirect: true })` e navigazione a
   `redirect_url` (pagina di ritorno del client). Annulla → `denyAuthorization` allo stesso
   modo. Durante l'attesa i pulsanti sono disabilitati; un errore mostra il testo comune e
@@ -310,17 +314,27 @@ Rotta figlia della radice, senza navbar. L'URL arriva da Supabase:
   pagina, cambio della richiesta e un nuovo caricamento la chiudono; cambio account e
   uscita la chiudono in modo sincrono, perché `SessionScope` chiude la sessione
   nell'ascoltatore dell'evento di Supabase, prima di ogni aggiornamento di React, e la
-  risposta controlla anche che la sua sessione sia aperta.
+  risposta controlla anche che la sua sessione sia aperta. Lo stesso vale per l'uscita
+  annunciata da un'altra scheda: `SessionScope` chiude la sessione nel gestore del
+  messaggio `signedOut`, prima di aggiornare l'identità.
   Prima di aggiornare lo stato o di navigare, ogni risposta controlla che la sua
   generazione sia ancora quella corrente; altrimenti viene ignorata. Così una risposta
   arrivata tardi non manda il browser al callback di una richiesta abbandonata e due
   caricamenti sovrapposti non si sovrascrivono.
-- **Cambia account** usa la chiusura comune della sessione (`useSignOut()` di
+- **Cambia account.** Supabase lega la richiesta alla prima persona che ne legge i
+  dettagli (gotrue v2.197.0: per un altro utente la lettura risponde
+  `oauth_authorization_not_found`), quindi un altro account non può proseguirla. La
+  pagina sostituisce l'indirizzo con `/authorize?switched=true`, senza
+  `authorization_id`, poi usa la chiusura comune della sessione (`useSignOut()` di
   `SessionScope`, come «Esci»): chiude subito l'identità locale, cancella i dati della
   persona (compresa la coda della spesa) e avvisa le altre schede prima della chiamata a
-  Supabase, anche se questa fallisce. Lo stato `signedOut` fa scattare la guardia della
-  rotta, che porta a `/login?redirect=<url della richiesta>`: chi accede dopo torna alla
-  stessa richiesta con il proprio account.
+  Supabase, anche se questa fallisce. La guardia della rotta porta a
+  `/login?redirect=/authorize?switched=true`; chi accede dopo vede «Ricomincia
+  dall'agente»: «La richiesta di prima resta legata all'account con cui era stata aperta
+  e non può passare a un altro. Chiedi di nuovo all'agente di collegarsi (in Claude Code:
+  /mcp › Authenticate): ti aprirà una pagina nuova per questo account.» Nessuna lettura
+  della vecchia richiesta, nessun pulsante. Decisione del coordinatore dopo la review
+  della PR.
 - Il nome del client e gli altri dati di Supabase sono testo semplice (React li inserisce
   come testo; nomi lunghi vanno a capo).
 
@@ -358,7 +372,10 @@ senza Supabase.
 
 Rotta dentro il layout dell'app. Ordine del sesto giro, senza paragrafo introduttivo:
 
-1. **Indirizzo del servizio**: `${serviceOrigin}/mcp` con «Copia». `serviceOrigin` è
+1. **Indirizzo del servizio**: `${serviceOrigin}/mcp` con «Copia» (come ogni comando da
+   copiare: «Copiato» solo se gli appunti sono stati aggiornati; altrimenti il testo viene
+   selezionato e sotto compare «Non è stato possibile copiare: il testo è selezionato,
+   copialo tu.»). `serviceOrigin` è
    l'origine della pagina (in produzione il Worker serve SPA, `/mcp` e i metadati di
    scoperta); sul Vite di sviluppo, che inoltra solo `/api`, è l'origine del Worker a cui
    inoltra (`VITE_API_TARGET`, default `http://localhost:8787`), fissata da
@@ -442,7 +459,9 @@ non locali, e verifica:
   `code_verifier` errato rifiutato; codice già usato rifiutato; `redirect_uri` non
   registrato rifiutato senza redirect verso di esso; codice di un client scambiato con un
   altro `client_id` rifiutato; richiesta scaduta (scadenza forzata nel database locale)
-  rifiutata da `getAuthorizationDetails`.
+  rifiutata da `getAuthorizationDetails`; **cambio account**: Anna legge i dettagli di una
+  richiesta, Bruno legge la stessa e riceve `oauth_authorization_not_found` e non può
+  approvarla; ripartendo dall'agente (nuova richiesta) Bruno ottiene un token suo.
 - **Canale e `webOnly`**: i token reali portano `client_id` anche dopo il rinnovo; con il
   token d'agente `session.whoami` risponde `channel: 'mcp'` su MCP, RPC e REST (prima e
   dopo il rinnovo), con il token web `channel: 'web'`. Il contratto di produzione non ha
@@ -458,7 +477,8 @@ non locali, e verifica:
   refresh token di A per Anna non valgono più (MCP 401 con `WWW-Authenticate`, RPC e REST
   401, rinnovo rifiutato); B, la sessione web di Anna e A di Bruno continuano (MCP con il
   corpo controllato: risultato senza `isError` e canale `mcp`). Ricollegare A chiede di
-  nuovo il consenso. Poi B si scollega da sé via MCP (`agents_disconnect` con il proprio
+  nuovo il consenso; il nuovo accesso funziona su MCP, RPC e REST e si rinnova, mentre i
+  vecchi access token e refresh token restano rifiutati. Poi B si scollega da sé via MCP (`agents_disconnect` con il proprio
   `clientId`): la risposta arriva senza errore, la richiesta successiva di B prende 401.
   Scollegare di nuovo un client già scollegato risponde comunque `{ clientId }` (404
   `oauth_consent_not_found` reale).
@@ -563,10 +583,13 @@ da parte degli agenti. Prima i prerequisiti verificabili, poi l'attivazione, poi
   errore con «Consenti» disabilitato, profilo in cache con rilettura fallita e poi
   riuscita, consenti, annulla, errore di rete, offline); generazioni (risposte invertite
   di due caricamenti, smontaggio, uscita e cambio account seguiti subito dalla risposta,
-  durante la lettura e durante la decisione: nessuna navigazione); cambia account (chiusura
+  durante la lettura e durante la decisione, anche con l'uscita annunciata da un'altra
+  scheda: nessuna navigazione; «Consenti» cliccato appena parte una rilettura del profilo,
+  prima del render: nessun consenso); cambia account (nota sotto il pulsante, chiusura
   comune con Supabase in errore, coda della spesa cancellata, altra scheda avvisata,
-  accesso di un'altra persona che torna alla richiesta); pagina agenti (indirizzo dal
-  `serviceOrigin`, copia, fisarmonica, elenco con ultimo rinnovo e spiegazione, conferma
+  ritorno senza la richiesta, accesso di un'altra persona che vede «Ricomincia
+  dall'agente» senza rileggere la richiesta); pagina agenti (indirizzo dal
+  `serviceOrigin`, copia e copia senza appunti, fisarmonica, elenco con ultimo rinnovo e spiegazione, conferma
   con i testi sui poteri, scollegamento con rilettura, errore, offline, vuoto); voce del
   Profilo con il conteggio.
 - CI: prova end-to-end (sezione «Prova end-to-end in CI»).
@@ -622,6 +645,10 @@ lascia typecheck e test verdi.
 - **Nome dell'agente** mostrato come quello con cui si presenta, non verificato, con
   identificativo e pagina di ritorno consultabili; il consenso mostra anche i dati
   richiesti (scope) precisando che non limitano ciò che l'agente può fare (sezione 13).
+- **Cambia account durante il consenso** (sezione 13, «Schermata di autorizzazione»): la
+  richiesta resta di chi l'ha aperta; dopo il cambio la pagina chiede di ripartire
+  dall'agente, nelle due lingue, senza promettere la prosecuzione. Decisione del
+  coordinatore dopo la review della PR #31.
 - **Istruzioni per i curatori** nella pagina: rimando alle istruzioni servite
   all'agente, senza il testo (sezione 13, che lo consente già: «rimanda alle istruzioni
   scritte»; diverge dal prototipo, che lo mostrava).
@@ -657,6 +684,7 @@ lascia typecheck e test verdi.
 - **Prova end-to-end degli agenti in CI** (sezioni 15 e 17): stack locale con server OAuth
   e Worker, token reali, confini PKCE e redirect, canale e `webOnly` dopo il rinnovo su
   MCP, RPC e REST (Worker di test con le operazioni di test della piattaforma),
-  scollegamento con `agents.disconnect` anche dall'agente stesso.
+  scollegamento con `agents.disconnect` anche dall'agente stesso, vecchi token rifiutati
+  anche dopo la riautorizzazione, richiesta legata alla prima persona che la legge.
 - **Indirizzo MCP in sviluppo** (sezione 1, sviluppo locale): sul Vite di sviluppo la
   pagina mostra l'origine del Worker; in produzione SPA e MCP condividono l'origine.

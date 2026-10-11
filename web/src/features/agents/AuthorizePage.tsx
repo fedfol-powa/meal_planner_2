@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getRouteApi, useRouter } from '@tanstack/react-router';
+import { profileQuery } from '../../api/profile';
+import { useQueryDeps } from '../../api/queries';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AgentAuthorization, AuthorizationFailure } from '../../auth/backend';
 import { useOnline } from '../../components/OfflineBanner';
@@ -18,6 +21,7 @@ type Phase =
   | { kind: 'invalid' }
   | { kind: 'failed' }
   | { kind: 'leaving' }
+  | { kind: 'switched' }
   | { kind: 'consent'; request: ConsentRequest };
 
 /** Consent opened by an agent in the browser (spec section 13, round 6): who asks, as whom, allow or cancel. */
@@ -28,7 +32,7 @@ export function AuthorizePage() {
   const signOut = useSignOut();
   const router = useRouter();
   const online = useOnline();
-  const { authorization_id: id } = route.useSearch();
+  const { authorization_id: id, switched } = route.useSearch();
   const userId = state.status === 'signedIn' ? state.user.id : null;
   const usable = online && state.status === 'signedIn' && state.verified;
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
@@ -48,6 +52,7 @@ export function AuthorizePage() {
     sending.current = false;
     setDeciding(false);
     setDecisionFailure(null);
+    if (switched) return setPhase({ kind: 'switched' });
     if (!id) return setPhase({ kind: 'invalid' });
     setPhase({ kind: 'loading' });
     const result = await backend.getAuthorization(id);
@@ -58,7 +63,7 @@ export function AuthorizePage() {
       return leavePage.to(result.value.url);
     }
     setPhase({ kind: 'consent', request: result.value });
-  }, [backend, id, session]);
+  }, [backend, id, switched, session]);
 
   useEffect(() => {
     if (!usable || !userId) return;
@@ -78,8 +83,8 @@ export function AuthorizePage() {
   }, [usable, userId, load, router, id]);
 
   async function decide(decision: 'approve' | 'deny', canAllow: boolean) {
-    if (phase.kind !== 'consent' || sending.current) return;
-    // The button may be stale for one render: the handler checks the profile state too (second review, finding 2).
+    if (phase.kind !== 'consent' || sending.current || session.isClosed()) return;
+    // The button may be stale for one render: `canAllow` is read from the query at the click (PR #31 review, finding 2).
     if (decision === 'approve' && !canAllow) return;
     const mine = generation.current;
     const of = session;
@@ -96,6 +101,14 @@ export function AuthorizePage() {
     }
     setPhase({ kind: 'leaving' });
     leavePage.to(result.value);
+  }
+
+  // Supabase binds the request to the first person who read it (gotrue v2.197.0): another
+  // account cannot continue it. The way back after sign-in asks to start again from the agent,
+  // then the common sign-out of «Esci» (review, finding 4; PR #31 review, finding 3).
+  async function switchAccount() {
+    await router.navigate({ to: '/authorize', search: { switched: true }, replace: true });
+    await signOut();
   }
 
   return (
@@ -116,9 +129,14 @@ export function AuthorizePage() {
           <button type="button" className="text-button wide" onClick={() => void load()}>{t('authorize.retry')}</button>
         </>
       )}
+      {usable && phase.kind === 'switched' && (
+        <>
+          <h1 className="entry-title">{t('authorize.switched')}</h1>
+          <p className="meta-line">{t('authorize.switchedBody')}</p>
+        </>
+      )}
       {usable && phase.kind === 'consent' && userId && (
-        // The common sign-out of «Esci» (review, finding 4): the route guard then opens the sign-in page with the way back here.
-        <Consent request={phase.request} userId={userId} deciding={deciding} failure={decisionFailure} onDecide={decide} onSwitch={() => void signOut()} />
+        <Consent request={phase.request} userId={userId} deciding={deciding} failure={decisionFailure} onDecide={decide} onSwitch={() => void switchAccount()} />
       )}
     </main>
   );
@@ -135,12 +153,19 @@ function Consent(props: {
   const t = useT();
   const { state } = useAuth();
   const read = useProfile();
+  const queryClient = useQueryClient();
+  const profileKey = profileQuery(useQueryDeps()).queryKey;
   // The roles shown must be those of this person, from a successful read: a cached profile
   // whose re-read failed may be out of date, so «Consenti» waits (review finding 3, second review finding 2).
   const profile = read.data?.user.id === props.userId ? read.data : undefined;
   const failed = read.isError;
   // A re-read in flight may bring other roles: until it lands, the cached ones do not allow (final review).
   const canAllow = !!profile && read.status === 'success' && !read.isFetching;
+  // The same rule on the query as it is now: a re-read started after the last render already forbids (PR #31 review, finding 2).
+  const canAllowNow = () => {
+    const current = queryClient.getQueryState(profileKey);
+    return current?.status === 'success' && current.fetchStatus === 'idle' && current.data?.user.id === props.userId;
+  };
   const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
   const roles = canAllow ? profile.user.globalRoles : [];
   const { request } = props;
@@ -153,6 +178,7 @@ function Consent(props: {
         {profile && <strong>{profile.user.displayName}</strong>}
         <span>{email}</span>
         <button type="button" className={styles.plain} onClick={props.onSwitch}>{t('authorize.notYou')}</button>
+        <span className={styles.switchNote}>{t('authorize.switchNote')}</span>
       </div>
       <h2 className={styles.heading}>{t('authorize.can')}</h2>
       <p>{t('authorize.acts')}</p>
@@ -187,8 +213,8 @@ function Consent(props: {
       <p>{t('authorize.disconnect')}</p>
       {props.failure && <p className="form-error" role="alert">{t(props.failure === 'network' ? 'errors.network' : 'errors.unknown')}</p>}
       <div className={styles.actions}>
-        <button type="button" className="text-button primary wide" disabled={props.deciding || !canAllow} onClick={() => props.onDecide('approve', canAllow)}>{t('authorize.allow')}</button>
-        <button type="button" className="text-button wide" disabled={props.deciding} onClick={() => props.onDecide('deny', canAllow)}>{t('authorize.deny')}</button>
+        <button type="button" className="text-button primary wide" disabled={props.deciding || !canAllow} onClick={() => props.onDecide('approve', canAllow && canAllowNow())}>{t('authorize.allow')}</button>
+        <button type="button" className="text-button wide" disabled={props.deciding} onClick={() => props.onDecide('deny', false)}>{t('authorize.deny')}</button>
       </div>
     </>
   );

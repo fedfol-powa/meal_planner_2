@@ -37,7 +37,7 @@ const loginRoute = createRoute({
   component: LoginPage
 });
 
-// Agent consent (spec section 13): no navbar; signing in first comes back here, also after «Cambia account».
+// Agent consent (spec section 13): no navbar; signing in first comes back here (after «Cambia account», to the page that asks to start again from the agent).
 const authorizeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/authorize',

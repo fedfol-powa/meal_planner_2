@@ -141,6 +141,29 @@ describe('agent consent page', () => {
     expect(screen.getByText('Potrà anche gestire il ricettario.')).toBeTruthy();
   });
 
+  it('«Consenti» clicked as soon as a re-read of the profile starts, before React updates: nothing is approved (PR review, finding 2)', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const profile = await api.profile.get({});
+    const read = vi.spyOn(api.profile, 'get');
+    let queries!: QueryClient;
+    function GrabClient() {
+      queries = useQueryClient();
+      return null;
+    }
+    const backend = createStubBackend(DEMO_USER);
+    renderApp('/authorize?authorization_id=auth-1', { backend, api, extra: <GrabClient /> });
+    const allow = await screen.findByRole('button', { name: 'Consenti' });
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+    let answer!: (value: typeof profile) => void;
+    read.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    // No act: the button still shows the old render when it is clicked.
+    void queries.refetchQueries({ queryKey: ['profile', 'get'] });
+    fireEvent.click(allow);
+    expect(backend.decisions).toEqual([]);
+    await act(async () => answer(profile));
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+  });
+
   it('shows a hostile or very long client name as plain text', async () => {
     const backend = createStubBackend(DEMO_USER);
     const hostile = `<img src=x onerror="alert(1)">${'Claude'.repeat(40)}`;
@@ -263,6 +286,35 @@ describe('agent consent page', () => {
       expect(leave).not.toHaveBeenCalled();
     });
 
+    it('another tab announces the sign-out while the request is read: the answer is dropped at once (PR review, finding 1)', async () => {
+      const backend = createStubBackend(DEMO_USER);
+      const answer = backend.holdAuthorization();
+      const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
+      const hub = createMemoryHub();
+      renderApp('/authorize?authorization_id=auth-1', { backend, channel: hub.channel() });
+      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      // Same tick, no React update in between.
+      hub.channel().post({ type: 'signedOut', userId: DEMO_USER.id });
+      answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=old' } });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(leave).not.toHaveBeenCalled();
+    });
+
+    it('another tab announces the sign-out while the decision is sent', async () => {
+      const backend = createStubBackend(DEMO_USER);
+      const answer = backend.holdDecision();
+      const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
+      const hub = createMemoryHub();
+      renderApp('/authorize?authorization_id=auth-1', { backend, channel: hub.channel() });
+      const allow = await screen.findByRole('button', { name: 'Consenti' });
+      await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(allow);
+      hub.channel().post({ type: 'signedOut', userId: DEMO_USER.id });
+      answer({ ok: true, value: 'http://127.0.0.1:9/callback?code=old' });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(leave).not.toHaveBeenCalled();
+    });
+
     it('another account signs in while the request is read', async () => {
       const backend = createStubBackend(DEMO_USER);
       const answer = backend.holdAuthorization();
@@ -300,23 +352,35 @@ describe('agent consent page', () => {
     expect(history.location.search).toContain(encodeURIComponent('/authorize?authorization_id=auth-1'));
   });
 
-  it('switches account with the common sign-out, even when Supabase fails, and comes back to the request', async () => {
+  it('says that another account must start again from the agent', async () => {
+    renderApp('/authorize?authorization_id=auth-1', { backend: createStubBackend(DEMO_USER) });
+    expect(await screen.findByText('Con un altro account dovrai ripartire dall’agente: questa richiesta vale solo per l’account con cui l’hai aperta.')).toBeTruthy();
+  });
+
+  it('switches account with the common sign-out, even when Supabase fails; the next person is asked to start again from the agent', async () => {
     const backend = createStubBackend(DEMO_USER);
     backend.signOutError = new Error('Auth unreachable');
     const store = createMemoryStore();
     store.entries.set(queueKey(DEMO_USER.id), { ops: [], notices: [], seq: 0 });
     const hub = createMemoryHub();
+    const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
     const { history } = renderApp('/authorize?authorization_id=auth-1', { backend, store, channel: hub.channel() });
     fireEvent.click(await screen.findByRole('button', { name: 'Non sei tu? Cambia account' }));
     await waitFor(() => expect(history.location.pathname).toBe('/login'));
-    expect(history.location.search).toContain(encodeURIComponent('/authorize?authorization_id=auth-1'));
+    // Supabase binds the request to the first person who read it: the way back no longer carries it.
+    expect(history.location.search).not.toContain('auth-1');
     expect(hub.sent).toContainEqual({ type: 'signedOut', userId: DEMO_USER.id });
     await waitFor(() => expect(store.entries.has(queueKey(DEMO_USER.id))).toBe(false));
     expect(backend.signOutCalls).toBe(1);
 
+    const reads = vi.spyOn(backend, 'getAuthorization');
     backend.setUser(OTHER);
     await waitFor(() => expect(history.location.pathname).toBe('/authorize'));
-    expect(await screen.findByText(OTHER.email)).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Ricomincia dall’agente' })).toBeTruthy();
+    expect(screen.getByText(/Chiedi di nuovo all’agente di collegarsi/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Consenti' })).toBeNull();
+    expect(reads).not.toHaveBeenCalled();
+    expect(leave).not.toHaveBeenCalled();
   });
 
   it('offline: explains that the connection is needed and offers no buttons', async () => {
