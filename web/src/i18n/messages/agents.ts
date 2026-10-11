@@ -75,7 +75,11 @@ export const it = {
   'client.claude_desktop.step3': 'Premi «Collega», accedi nel browser e consenti l’accesso.',
   'client.claude_desktop.remove': 'rimuovi il connettore nelle impostazioni di Claude.',
   'copy.copy': 'Copia',
-  'copy.copied': 'Copiato'
+  'copy.copied': 'Copiato',
+  'profile.agents': 'Collega un agente',
+  'profile.agentsHint': 'Claude, ChatGPT o Codex con MCP',
+  'profile.agentsCount.one': '1 agente collegato',
+  'profile.agentsCount.other': '{count} agenti collegati'
 };
 
 export const en: Record<keyof typeof it, string> = {
@@ -155,5 +159,9 @@ export const en: Record<keyof typeof it, string> = {
   'client.claude_desktop.step3': 'Press “Connect”, sign in in the browser and allow access.',
   'client.claude_desktop.remove': 'remove the connector in Claude’s settings.',
   'copy.copy': 'Copy',
-  'copy.copied': 'Copied'
+  'copy.copied': 'Copied',
+  'profile.agents': 'Connect an agent',
+  'profile.agentsHint': 'Claude, ChatGPT or Codex through MCP',
+  'profile.agentsCount.one': '1 agent connected',
+  'profile.agentsCount.other': '{count} agents connected'
 };
