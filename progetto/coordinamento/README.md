@@ -55,7 +55,12 @@ stampando `<pane> <etichetta> | <evento>` quando:
 - un worker è fermo con un'ultima riga `STATO:` non ancora segnata come vista, anche se
   si era fermato prima che l'attesa partisse;
 - un worker passa da «working» a fermo, anche senza `STATO:` (per esempio aspetta la CI);
+- un worker ha un menu di scelta aperto (`MENU: <domanda>`): le domande del brainstorming
+  arrivano spesso così, senza riga `STATO:`;
 - un revisore ha stampato `REVISORE_FINITO` non ancora segnato come visto.
+
+Le righe `STATO:` sono riconosciute con un'impronta delle righe precedenti, quindi due
+`STATO: DOMANDA` uguali per domande diverse sono eventi distinti.
 
 Dopo aver gestito un evento: `attendi.py --visto <pane>` (salva pane e riga in
 `visti.txt`), poi si rilancia l'attesa. `attendi.py --stato` mostra tutti i pane con lo
@@ -85,7 +90,7 @@ herdr pane send-text <pane> "…"; herdr pane send-keys <pane> Enter
 
 **Messaggi lunghi (oltre 2-3 righe) in un file** `progetto/coordinamento/messaggi/<worker>-<nn>-<tema>.md`, e al worker si manda solo «Leggi <percorso> ed eseguilo»: con `send-text` i testi lunghi arrivano tagliati.
 
-**Prima di inviare testo leggi il pane**: se è aperto un menu di scelta, il testo finisce nel menu e l'Invio seleziona l'opzione evidenziata. Con un menu aperto rispondi solo con il numero dell'opzione e manda le informazioni dopo, a menu chiuso.
+**Prima di inviare testo leggi il pane** (o controlla che le ultime righe non contengano «Enter to select»): se è aperto un menu di scelta, il testo finisce nel menu e l'Invio seleziona l'opzione evidenziata. Con un menu aperto rispondi solo con il numero dell'opzione e manda le informazioni dopo, a menu chiuso.
 
 Il brainstorming dei worker fa domande con l'interfaccia a scelta multipla: si
 risponde con i tasti (numero dell'opzione o testo libero) dopo aver letto il pane.
