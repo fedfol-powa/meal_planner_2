@@ -1,10 +1,9 @@
-import { varietyKey } from '../shopping/index.ts';
+import { VARIETY_FILLER_WORDS, varietyKey } from '../shopping/index.ts';
 import type { Locale, Localized } from '../units/index.ts';
 import { filled, type DraftTranslated } from './localized.ts';
 
 // Variety of an ingredient on a recipe line (spec section 8): free text, compared through W4's varietyKey.
 
-const FILLER = new Set(['tipo', 'varieta', 'var', 'qualita', 'type', 'variety']);
 const PREPARATION = [
 	'tritat', 'a dadini', 'a cubetti', 'a fette', 'affettat', 'grattugiat', 'succo', 'scorza', 'schiacciat', 'tagliat', 'a pezzi',
 	'sminuzzat', 'frullat', 'spezzettat', 'a julienne', 'a rondelle', 'chopped', 'diced', 'sliced', 'grated', 'juice', 'zest',
@@ -42,7 +41,7 @@ export function varietyHints(input: { ingredientName: string; known: Localized[]
 	const words = cleaned.split(' ');
 	let start = stem.length >= 3 && words.length > 1 && plain(words[0]).startsWith(stem) ? 1 : 0;
 	const repeats = start === 1;
-	while (start < words.length - 1 && FILLER.has(plain(words[start]))) start++;
+	while (start < words.length - 1 && VARIETY_FILLER_WORDS.has(plain(words[start]))) start++;
 	const core = words.slice(start).join(' ');
 	const known = input.known.find((k) => varietyKey(k[input.locale]) === varietyKey(core));
 	if (repeats) hints.push({ kind: 'repeats_ingredient', suggestion: known ? known[input.locale] : core });
