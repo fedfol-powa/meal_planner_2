@@ -1,5 +1,5 @@
 import { RouterProvider, type RouterHistory } from '@tanstack/react-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import type { KeyValueStore } from './api/persister';
 import type { AuthBackend } from './auth/backend';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
@@ -16,14 +16,17 @@ export interface AppRootProps {
   channel: SessionChannel;
   history?: RouterHistory;
   initialLocale?: Locale;
+  /** Rendered inside the session next to the router; tests use it to act on the session. */
+  children?: ReactNode;
 }
 
-export function AppRoot({ backend, store, createApi, channel, history, initialLocale: locale }: AppRootProps) {
+export function AppRoot({ backend, store, createApi, channel, history, initialLocale: locale, children }: AppRootProps) {
   return (
     <LocaleProvider initial={locale ?? initialLocale(navigator.languages)}>
       <AuthProvider backend={backend}>
         <SessionScope store={store} createApi={createApi} channel={channel}>
           <AppRouter history={history} />
+          {children}
         </SessionScope>
       </AuthProvider>
     </LocaleProvider>

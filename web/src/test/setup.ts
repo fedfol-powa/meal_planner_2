@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach } from 'vitest';
 import { rememberMenuDay } from '../routes/menu/lastDay';
@@ -11,6 +12,8 @@ Element.prototype.scrollIntoView = function scrollIntoView() {};
 beforeEach(() => {
   localStorage.clear();
   setOnline(true);
+  // TanStack's manager keeps its last state while no app listens: a test that went offline must not leak.
+  onlineManager.setOnline(true);
   setBrowserLanguages(['it-IT', 'it']);
   rememberMenuDay(undefined);
 });
