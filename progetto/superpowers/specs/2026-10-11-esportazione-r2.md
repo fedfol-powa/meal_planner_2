@@ -111,7 +111,7 @@ come `postgres`, l'utente delle migrazioni, in transazioni annullate:
 - Il tipo `json` conserva il testo esatto e `->` ne restituisce la porzione originale,
   spazi e cifre comprese: il confronto può essere fatto sul testo.
 
-## 1. Ruolo e permessi (migrazione `20261012100000_backup.sql`)
+## 1. Ruolo e permessi (migrazione `20261012110000_backup.sql`)
 
 ```sql
 create role app_backup nologin bypassrls;   -- dentro il blocco "if not exists"
@@ -495,7 +495,7 @@ del bucket e la prima esportazione notturna:
 
 **Produco:**
 
-- migrazione `20261012100000_backup.sql` (ruolo `app_backup`, funzione
+- migrazione `20261012110000_backup.sql` (ruolo `app_backup`, funzione
   `app.backup_auth_rows()`), nessuna tabella o colonna nuova o cambiata; test
   `supabase/tests/backup_test.sql`;
 - `server/src/backup/` (`format.ts`, `read.ts`, `export.ts`, `restore.ts`) e
