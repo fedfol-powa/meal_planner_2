@@ -153,3 +153,4 @@ html { height: 100%; }
 .stepper-button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 700 1.25rem/1 var(--text-font); cursor: pointer; }
 .stepper-button:disabled { opacity: 0.4; cursor: not-allowed; }
 .stepper-value { min-width: 9ch; text-align: center; font-weight: 700; }
+.row-link:disabled { color: var(--muted); cursor: not-allowed; }
