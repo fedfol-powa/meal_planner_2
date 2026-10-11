@@ -56,7 +56,7 @@ Dopo ogni modifica alle migrazioni o ai test pgTAP: `rsync -a --delete supabase/
 
 | File | Responsabilità |
 |---|---|
-| `supabase/migrations/20261012100000_backup.sql` (nuovo) | ruolo `app_backup`, permessi, `app.backup_auth_rows()` |
+| `supabase/migrations/20261012110000_backup.sql` (nuovo) | ruolo `app_backup`, permessi, `app.backup_auth_rows()` |
 | `supabase/tests/backup_test.sql` (nuovo) | permessi e lettura di `app_backup`, chiavi primarie, niente sequenze, marcatori `xid8` |
 | `supabase/tests/coverage_test.sql` | funzioni eseguibili da `app_backup` |
 | `server/src/backup/format.ts` (nuovo) | chiavi, intestazione, gzip, AES-GCM; valido in Worker e Node |
@@ -77,7 +77,7 @@ Dopo ogni modifica alle migrazioni o ai test pgTAP: `rsync -a --delete supabase/
 ### Task 1: ruolo `app_backup` e funzione degli utenti di Auth
 
 **Files:**
-- Create: `supabase/migrations/20261012100000_backup.sql`
+- Create: `supabase/migrations/20261012110000_backup.sql`
 - Create: `supabase/tests/backup_test.sql`
 - Modify: `supabase/tests/coverage_test.sql` (dopo l'asserzione «app_job executes only pure functions»)
 - Modify: `supabase/README.md` (tabella dei ruoli e delle funzioni per ruolo)
@@ -167,7 +167,7 @@ Expected: FAIL in `backup_test.sql` (`role "app_backup" does not exist`) e in `c
 
 - [ ] **Step 3: scrivi la migrazione**
 
-`supabase/migrations/20261012100000_backup.sql`:
+`supabase/migrations/20261012110000_backup.sql`:
 
 ```sql
 -- Nightly export (spec section 8): a read-only role that sees every row of app and,
@@ -228,7 +228,7 @@ e nella tabella delle funzioni per ruolo `| `app_backup` | `backup_auth_rows` |`
 - [ ] **Step 6: commit**
 
 ```bash
-git add supabase/migrations/20261012100000_backup.sql supabase/tests/backup_test.sql supabase/tests/coverage_test.sql supabase/README.md
+git add supabase/migrations/20261012110000_backup.sql supabase/tests/backup_test.sql supabase/tests/coverage_test.sql supabase/README.md
 git commit -m "Esportazione: ruolo app_backup in sola lettura e funzione degli utenti di Auth"
 ```
 
@@ -527,7 +527,7 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		expect(snapshot.tables.find((t) => t.name === 'shopping_list_checks')!.rows).toContain('9007199254740993');
 		expect(snapshot.tables.find((t) => t.name === 'ingredient_unit_equivalences')!.rows).toContain('"from_dimension"');
 		expect(snapshot.identities).toBeGreaterThan(0);
-		expect(JSON.parse(snapshot.migrations)).toContain('20261012100000');
+		expect(JSON.parse(snapshot.migrations)).toContain('20261012110000');
 	});
 
 	it('reads one snapshot even when another connection commits between two reads', async () => {

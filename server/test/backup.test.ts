@@ -44,7 +44,7 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		expect(snapshot.tables.find((t) => t.name === 'shopping_list_checks')!.rows).toContain('9007199254740993');
 		expect(snapshot.tables.find((t) => t.name === 'ingredient_unit_equivalences')!.rows).toContain('"from_dimension"');
 		expect(snapshot.identities).toBeGreaterThan(0);
-		expect(JSON.parse(snapshot.migrations)).toContain('20261012100000');
+		expect(JSON.parse(snapshot.migrations)).toContain('20261012110000');
 	});
 
 	it('reads one snapshot even when another connection commits between two reads', async () => {
