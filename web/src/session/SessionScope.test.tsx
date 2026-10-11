@@ -10,6 +10,7 @@ import { useRateRecipe } from '../api/ratings';
 import type { Api, MeView, Read, RecipeDetailView, WeekView } from '../api/types';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import type { CreateApi } from './SessionScope';
+import type { SessionMessage } from './channel';
 import { useAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
 import { createMemoryHub } from '../test/memoryChannel';
@@ -329,6 +330,20 @@ describe('other tabs of the same person (second review, C4)', () => {
     renderSession(<WeekProbe />, { backend: createStubBackend(A), store, channel: hub.channel(), api: tabApi(() => true) });
     await screen.findByText('auth: signedIn');
     expect(screen.getByText('week: none')).toBeTruthy();
+  });
+  it('treats as a sign-out only signedOut: extension messages and unknown types change nothing (second PR)', async () => {
+    const hub = createMemoryHub();
+    renderSession(<WeekProbe />, { backend: createStubBackend(A), channel: hub.channel(), api: tabApi(() => false) });
+    await screen.findByText('week: shown');
+    const other = hub.channel();
+    act(() => {
+      other.post({ type: 'extension', userId: 'a', topic: 'shopping-queue', payload: { type: 'reread' } });
+      other.post({ type: 'mystery', userId: 'a', familyId: 'f' } as unknown as SessionMessage);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(screen.getByText('auth: signedIn')).toBeTruthy();
+    expect(screen.getByText('allowed')).toBeTruthy();
+    expect(screen.getByText('week: shown')).toBeTruthy();
   });
   it('a sign-out in one tab closes the session in the other, which does not write the copy again', async () => {
     const store = createMemoryStore();
