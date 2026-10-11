@@ -8,15 +8,15 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
-| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | PR #29: review con 3 rilievi (concorrenza annullamento/chiusura bozza, UUID maiuscoli, autore delle azioni senza effetti) + test MCP tools/call; correzioni in corso; poi verifica breve → merge → PR web | 11/10 |
-| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Spec e piano approvati; contesto azzerato; implementazione fino a PR_APERTA | 11/10 |
+| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #29 (server) unita; contesto azzerato; implementa la PR web | 11/10 |
+| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | PR #31 aperta, review Codex in corso (revisioni/w2-pr31.md, worktree .worktrees/review-pr31); W2 aspetta la CI; poi /clear | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | — | .worktrees/ricettario-mcp | PR #26 unita: gestione del ricettario completa (server e web). Contesto azzerato; libero | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
-| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | PR #30 aperta, review Codex in corso (revisioni/w5-pr30.md, worktree .worktrees/review-pr30); contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
+| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | PR #30: review con 2 rilievi (TLS della CLI di ripristino, argomenti non validati); correzioni in corso | 11/10 |
 | W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Design approvato in 5 sezioni (esecuzione del coordinatore, fasi, finestra lun–mer, rotazione finale); scrive spec e piano → review | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server). Ondata 1 completata.
 
 ## Revisori attivi
 
@@ -32,6 +32,8 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
 
 - **Decise dall'utente (prova di W6):** scheda aperta da un pasto con le porzioni del pasto (a W6 dopo il merge della #25); unità contate scalate all'intero superiore (W4).
+
+- **Da riportare nella specifica principale (consolidamento a lotti):** decisioni della spec revisione-pasti (#29), poi esportazione (#30), collegamento agenti (#31), messa in produzione.
 
 ## Prossima azione del coordinatore
 
