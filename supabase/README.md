@@ -117,6 +117,26 @@ Lo esegue l'utente; nessun agente lo esegue sul remoto senza una domanda.
 dopo la rinomina, utente mancante, segnaposto rifiutato) e tocca solo le famiglie e
 l'utente che crea.
 
+### Impostazioni della famiglia dopo lo script
+
+Lo script crea la famiglia con le impostazioni di default (sezione 2 della specifica).
+Le impostazioni vere si sistemano poi da un amministratore della famiglia, dall'app
+(Profilo → Impostazioni) o da un agente collegato (strumenti `family_setMeal`,
+`family_addRule`, `family_setIngredientRestriction`…). Valori della famiglia di
+Federico, dalle regole del progetto d'origine (`scripts/planner-data/family.ts`):
+
+| Pasto | Lun | Mar | Mer | Gio | Ven | Sab | Dom |
+|---|---|---|---|---|---|---|---|
+| Pranzo | 2, ≤ 30 min | 3, ≤ 30 min | 3, ≤ 30 min | 3, ≤ 30 min | 3, ≤ 30 min | 4 | 4, fisso «Pizza» |
+| Cena | 2, ≤ 20 min | 4 | 2, ≤ 20 min | 4 | 4 | 4, fisso «Cena libera» | 4 |
+
+- Regole: pasta solo a pranzo; pesce almeno una volta il venerdì; mai pesce di
+  pescheria il lunedì.
+- Ingredienti: cetrioli limitati a 1 volta la settimana. Si imposta dopo l'import del
+  ricettario, che crea gli ingredienti.
+- Quota note/nuove e intervalli dei gruppi: i default.
+- Sistema metrico e fuso `Europe/Rome`: già nello script.
+
 ## Passi remoti
 
 Nessuno si esegue senza una domanda all'utente (`STATO: DOMANDA`):
