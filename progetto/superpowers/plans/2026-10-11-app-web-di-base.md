@@ -6857,6 +6857,17 @@ test.
   finte, agganci per la coda (puntatore alla spec).
 - [ ] Commit.
 
+### Task 27b: test instabile della sessione non verificata (richiesta del coordinatore)
+
+- Causa: `AuthProvider` ascolta l'evento `online` da un effetto montato solo con la sessione
+  «non verificata»; se la rete torna prima (durante la prima verifica, o prima che
+  l'effetto giri in una CI lenta) l'evento si perde e la sessione non si ricontrolla più.
+- Test: prima verifica sospesa offline → rete di nuovo presente → risposta «non
+  verificata» ⇒ sessione verificata. I test della sessione non verificata partono offline,
+  come nella realtà. Nessun timeout allungato.
+- Codice: all'iscrizione, se `navigator.onLine`, il controllo parte subito.
+- Verifica: il file ripetuto 20 volte, poi 24 volte con tre processi in parallelo.
+
 ### Task 28: verifiche e PR
 
 - [ ] `npm test` e `npm run typecheck` dalla radice e da `web/`; `npm run build` (il
