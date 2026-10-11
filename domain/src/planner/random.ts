@@ -30,11 +30,11 @@ export function createRandom(seed: number): Random {
 export function weightedPick<T>(choices: { item: T; weight: number }[], random: Random): T {
 	if (choices.length === 0) throw new Error('weightedPick: no choices');
 	const total = choices.reduce((sum, c) => sum + Math.max(c.weight, 0), 0);
-	if (total <= 0) return choices[0].item;
+	if (total <= 0) return choices[0]!.item;
 	let rest = random() * total;
 	for (const choice of choices) {
 		rest -= Math.max(choice.weight, 0);
 		if (rest < 0) return choice.item;
 	}
-	return choices[choices.length - 1].item;
+	return choices[choices.length - 1]!.item;
 }
