@@ -1,0 +1,29 @@
+{
+	"$schema": "../node_modules/wrangler/config-schema.json",
+	"name": "cosasimangia",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": { "enabled": true },
+	"workers_dev": true,
+	"vars": {
+		// Supabase project URL; token issuer and JWKS are derived from it.
+		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co"
+	},
+	"version_metadata": { "binding": "CF_VERSION_METADATA" },
+	"assets": {
+		"directory": "../web/dist",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		// Only these paths run the Worker; everything else is served as a static file.
+		"run_worker_first": ["/api/*", "/mcp", "/.well-known/*"]
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			// Production config `cosasimangia` (cache disabled, explicit origin connection limit).
+			// Replace with the id returned when the coordinator approves creating it.
+			"id": "00000000000000000000000000000000"
+		}
+	]
+}
