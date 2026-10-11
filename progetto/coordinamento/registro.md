@@ -7,12 +7,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Review «da rifare» (revisioni/w1-menu-spec-piano.md); correzioni in corso (messaggi/w1-07-review-menu.md); aspetta la sezione «Interfaccia per W1» di W6 | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Spec e piano corretti; seconda review breve in corso (revisioni/w2-profilo-spec-piano-2.md) | 11/10 |
-| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9: review «approvabile con correzioni» (revisioni/w3-pr9.md); correzioni in corso (messaggi/w3-03-review-pr9.md); poi verifica breve e merge | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Spec e piano corretti (557f3be); seconda review breve in corso; poi la sezione «Interfaccia richiesta a W5» va a W5 | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Spec e piano corretti salvo le viste; aspetta l'«Interfaccia per W1» definitiva di W6, poi completa e fa la seconda review | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Seconda review «approvabile con correzioni»; corregge (w2-07), poi PR piccola di `resolveFamilySettings` e implementazione senza parti web | 11/10 |
+| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 APPROVABILE (revisioni/w3-pr9-2.md), CI verde su 5536b6b: merge da fare (serve l'utente o un permesso) | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Seconda review «approvabile con correzioni»; corregge (w4-05), poi implementa senza task 8, task 10 e parti web; l'«Interfaccia richiesta a W5» va a W5 | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6: terza review APPROVABILE (revisioni/w5-pr6-3.md), CI verde su 3d0a4cd; merge negato dal classificatore della modalità auto, in attesa dell'utente | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Spec e piano corretti (6977089), sezione 1 «Interfaccia per W1» scritta; seconda review breve in corso (revisioni/w6-ricettario-spec-piano-2.md); poi la sezione diventa definitiva nel piano generale e va a W1 | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Seconda review «approvabile con correzioni»; corregge (w6-02); poi sezione 1 definitiva → W1 e via alla PR piccola delle viste dopo il merge della #9 | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e spesa), #8
 (fonte delle equivalenze).
@@ -28,16 +28,20 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 
 ## Prossima azione del coordinatore
 
-Aggiornato l'11 ottobre 2026, pomeriggio. Revisori: R PR9 verifica (w1:p17 → revisioni/w3-pr9-2.md), R spesa spec 2 (w1:p18 → revisioni/w4-spesa-spec-piano-2.md), R profilo spec 2 (→ revisioni/w2-profilo-spec-piano-2.md). Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
+Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
-0. **In corso:** correzioni di spec e piano di W1, W2, W4, W6 (messaggi w1-07, w2-06,
-   w4-04, w6-01) e della PR #9 di W3 (w3-03). Ai `SPEC_E_PIANO_CORRETTI`: seconda review
-   Codex breve sui rilievi bloccanti (W4 rilievi 1–4; W1 e W6 l'interfaccia delle viste).
-   La sezione «Interfaccia per W1» di W6 va passata a W1; la sezione «Interfaccia
-   richiesta a W5» di W4 va passata a W5 per la sua seconda PR. Al `PR_CORRETTA` di W3:
-   verifica breve, CI, merge.
-   **PR #6:** approvata e con CI verde, ma il merge (`gh pr merge 6 --merge`) è stato
-   negato dal classificatore della modalità auto: l'ha chiesto all'utente.
+0. **In corso (ordine dell'ondata 2):**
+   - **Merge da fare: PR #6 (W5) e PR #9 (W3)**, approvate e con CI verde; il comando
+     `gh pr merge` è stato negato dal classificatore della modalità auto: chiesto
+     all'utente di lanciarlo o di dare il permesso. Dopo il #6: W5 fa la seconda PR (client
+     oRPC reale + agganci di sessione dell'«Interfaccia richiesta a W5» nella spec di W4).
+     Dopo il #9: via a W6 per la PR piccola delle viste.
+   - W6 corregge (w6-02); a `SPEC_E_PIANO_CORRETTI` registrare la sezione 1 della sua spec
+     come definitiva nel piano generale, `/clear` a W1 (contesto 45%) e messaggio di
+     ripresa con la sezione da recepire; poi seconda review breve della spec di W1.
+   - W2 corregge (w2-07), poi PR piccola di `resolveFamilySettings` (da esaminare e unire
+     subito) e implementazione senza parti web.
+   - W4 corregge (w4-05), poi implementa senza task 8, task 10 e parti web.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli
