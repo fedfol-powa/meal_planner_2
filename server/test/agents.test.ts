@@ -47,7 +47,8 @@ describe.skipIf(!hasDatabase)('agents', () => {
 		noGrant: () => Response.json({ code: 404, error_code: 'oauth_consent_not_found', msg: 'No active grant found' }, { status: 404 }),
 		otherNotFound: () => new Response('<html>Not Found</html>', { status: 404, headers: { 'content-type': 'text/html' } }),
 		down: () => new Response('boom', { status: 500 }),
-		refused: () => new Response(null, { status: 401 }),
+		refused: () => Response.json({ code: 401, error_code: 'bad_jwt', msg: 'invalid JWT' }, { status: 401 }),
+		badKey: () => Response.json({ message: 'Invalid API key' }, { status: 401 }),
 	};
 
 	function stubSupabase(answer: () => Response) {
@@ -110,7 +111,7 @@ describe.skipIf(!hasDatabase)('agents', () => {
 
 	it('answers internal when Supabase Auth fails or answers another 404, unauthorized when it refuses the token', async () => {
 		const franco = await actors.user();
-		for (const answer of [ANSWERS.down, ANSWERS.otherNotFound]) {
+		for (const answer of [ANSWERS.down, ANSWERS.otherNotFound, ANSWERS.badKey]) {
 			stubSupabase(answer);
 			expect((await errorOf(franco.client.agents.disconnect({ clientId: crypto.randomUUID() }))).code).toBe('internal');
 			vi.restoreAllMocks();

@@ -3,6 +3,12 @@ import { appError } from '../errors.ts';
 const TIMEOUT_MS = 5000;
 /** Supabase Auth's answer when the user has no active grant for the client (verified on gotrue v2.197.0). */
 const NO_ACTIVE_GRANT = 'oauth_consent_not_found';
+/**
+ * Supabase Auth codes that refuse the caller's token or session. A 401 or 403 without one of
+ * them comes from the gateway (unknown publishable key: placeholder, rotated, revoked): the
+ * request already proved its session, so that is a configuration outage, not a sign-out.
+ */
+const TOKEN_REFUSED = new Set(['bad_jwt', 'no_authorization', 'session_not_found']);
 
 /** Supabase Auth could not revoke the grant: an outage, answered as `internal`. */
 export class GrantRevocationError extends Error {
@@ -36,7 +42,7 @@ export async function revokeGrant(options: {
 	}
 	if (response.status === 204) return;
 	if (response.status === 404 && (await errorCode(response)) === NO_ACTIVE_GRANT) return;
-	if (response.status === 401 || response.status === 403) throw appError('unauthorized');
+	if ((response.status === 401 || response.status === 403) && TOKEN_REFUSED.has((await errorCode(response)) ?? '')) throw appError('unauthorized');
 	throw new GrantRevocationError(`Supabase Auth answered ${response.status}`);
 }
 

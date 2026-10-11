@@ -52,11 +52,23 @@ describe('revokeGrant', () => {
 	});
 
 	it('refuses with unauthorized when Supabase does not accept the token', async () => {
-		for (const status of [401, 403]) {
-			const { fetch } = fakeFetch(() => new Response(null, { status }));
+		for (const [status, code] of [[401, 'bad_jwt'], [403, 'session_not_found'], [401, 'no_authorization']] as const) {
+			const { fetch } = fakeFetch(() => Response.json({ code: status, error_code: code, msg: 'refused' }, { status }));
 			const error = await revokeGrant(options(fetch)).catch((e: unknown) => e);
 			expect(error).toBeInstanceOf(ORPCError);
 			expect((error as ORPCError<string, unknown>).code).toBe('unauthorized');
+		}
+	});
+
+	it('takes a refusal of the publishable key (placeholder, rotated) for an outage, never for an expired session', async () => {
+		const answers = [
+			() => Response.json({ message: 'Invalid API key' }, { status: 401 }),
+			() => new Response(null, { status: 401 }),
+			() => new Response(null, { status: 403 }),
+		];
+		for (const answer of answers) {
+			const { fetch } = fakeFetch(answer);
+			await expect(revokeGrant(options(fetch))).rejects.toBeInstanceOf(GrantRevocationError);
 		}
 	});
 
