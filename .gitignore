@@ -11,3 +11,6 @@ supabase/.temp/
 .superpowers/
 # Local Git worktrees
 .worktrees/
+
+# Claude Code personal settings
+.claude/settings.local.json
