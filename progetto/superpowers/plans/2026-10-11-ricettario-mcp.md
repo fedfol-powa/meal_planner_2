@@ -26,8 +26,8 @@ principale `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezio
 - Nessuna dipendenza nuova.
 - Ogni operazione: `role: 'curator'`, `offline: false`, `mcp` presente; nessuna ha
   `familyId`; le creazioni hanno `creates: true` e un `id` uuid del client.
-- Letture versionate (`reads: ['catalogue']`): `listVersions`, `getVersion`,
-  `searchIngredients`, `getIngredient`, `listVarieties`, `listBooks`. Non versionate: `getGuide`,
+- Letture versionate (`reads: ['catalogue']`): `searchRecipes`, `listVersions`,
+  `getVersion`, `searchIngredients`, `getIngredient`, `listVarieties`, `listBooks`. Non versionate: `getGuide`,
   `overview`, `getDraft`, `checkDraft`, `checkVariety`.
 - Nessuna cancellazione fisica di ricette, bozze, versioni, ingredienti, libri.
 - Migrazioni solo nuove, con test pgTAP: `supabase/migrations/20261011180000_catalogue_citations.sql`.
@@ -42,7 +42,10 @@ principale `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezio
 - Web solo dopo il cancello: merge della #17 (W5, già unita), della #18 (W2, `profile.get`)
   e della #19 (W6, `RecipesPage` sui dati veri).
 - Istante delle scritture: `clock_timestamp()` letto nel database dopo i lucchetti
-  (`writeInstant(tx)`), mai `context.now`; `Actor` non porta un orologio.
+  (`writeInstant(tx)`), mai `context.now`; `Actor` non porta un orologio. Per la
+  pubblicazione e il ripristino l'istante si legge dopo tutte le attese, cioè dopo
+  l'aggiornamento di `recipes` e `recipe_ingredients` (che fa crescere `catalogue_state`),
+  subito prima di inserire la versione (`writeVersion`).
 - Creazioni (`createDraft`, `startRevision`, `createIngredient`, `createBook`) serializzate
   con `pg_advisory_xact_lock(hashtext('app.catalogue_create'))` (`lockCreations(tx)`).
 - Comandi: `npm run typecheck`, `npm test`, `npm test -w server`, `npm test -w contract`;
@@ -535,7 +538,7 @@ Nota sul test di `slugify` con 100 «x»: la lunghezza attesa è 60.
 
 **Interfaces:**
 - Consumes: `conflictData`, `notAllowedData`, `errorDefinitions` (Task 1).
-- Produces: `catalogueContract` con le 23 operazioni della spec, sezione 2; tipi
+- Produces: `catalogueContract` con le 24 operazioni della spec, sezione 2; tipi
   `DraftView`, `DraftSummaryView`, `ArchivedSummaryView`, `ConversionView`,
   `IngredientView`, `VersionListView`, `VersionDetailView`, `BookView`.
 
@@ -559,7 +562,7 @@ describe('catalogue contract', () => {
 		expect(ops.map(([name]) => name).sort()).toEqual([
 			'checkDraft', 'checkVariety', 'createBook', 'createDraft', 'createIngredient', 'discardDraft', 'getDraft', 'getGuide',
 			'getIngredient', 'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'overview', 'publish', 'removeEquivalence',
-			'restoreVersion', 'saveDraft', 'searchIngredients', 'setArchived', 'setEquivalence', 'startRevision', 'updateIngredient',
+			'restoreVersion', 'saveDraft', 'searchIngredients', 'searchRecipes', 'setArchived', 'setEquivalence', 'startRevision', 'updateIngredient',
 		]);
 		for (const [name, o] of ops) {
 			expect(o['~orpc'].meta, name).toMatchObject({ role: 'curator', offline: false });
@@ -571,12 +574,12 @@ describe('catalogue contract', () => {
 	});
 	it('versions only the reads that depend on the catalogue counter', () => {
 		const versioned = ops.filter(([, o]) => o['~orpc'].meta.reads).map(([n]) => n).sort();
-		expect(versioned).toEqual(['getIngredient', 'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'searchIngredients']);
+		expect(versioned).toEqual(['getIngredient', 'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'searchIngredients', 'searchRecipes']);
 	});
 });
 ```
 
-L'elenco atteso ha 23 nomi; `startRevision` è una creazione (`creates: true`) con `id`.
+L'elenco atteso ha 24 nomi; `startRevision` è una creazione (`creates: true`) con `id`.
 Prima di scrivere il test leggere in `contract/src/check.ts` dove oRPC tiene lo schema di
 input (`'~orpc'.inputSchema`) e usare lo stesso accesso.
 
@@ -629,6 +632,9 @@ export const draftView = z.object({
 export const checkView = z.object({ revision: z.number().int().min(1), issues: z.array(issueView), missing, conversions: z.array(conversionView) });
 export const publishedView = z.object({ recipeId: z.uuid(), version: z.number().int().min(1), conversions: z.array(conversionView) });
 
+export const recipeMatchView = z.object({
+	recipeId: z.uuid(), name: z.string(), status: z.enum(['published', 'archived']), version: z.number().int().min(1), updatedAt: instant,
+});
 export const statusView = z.object({ recipeId: z.uuid(), status: z.enum(['published', 'archived']), changedBy: authorView, changedAt: instant });
 export const versionListView = z.object({
 	recipeId: z.uuid(), name: z.string(), status: z.enum(['published', 'archived']), current: z.number().int().min(1),
@@ -686,7 +692,7 @@ import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
 import {
-	bookView, checkView, departmentSchema, draftView, ingredientMatchView, ingredientView, overviewView, publishedView,
+	bookView, checkView, departmentSchema, draftView, ingredientMatchView, ingredientView, overviewView, publishedView, recipeMatchView,
 	restoredView, statusView, synonymsSchema, unitCodeSchema, varietyHintView, versionDetailView, versionListView,
 } from './views.ts';
 
@@ -751,6 +757,10 @@ export const catalogueContract = {
 		.errors({ ...notFound, ...notAllowed })
 		.input(recipeId.extend({ archived: z.boolean() }))
 		.output(statusView),
+	searchRecipes: versionedRead()
+		.route({ method: 'GET', path: '/catalogue/recipes', summary: 'Find published and archived recipes of the whole catalogue by name or description in your language (empty text: all, by name). Start here to revise, archive or restore a recipe' })
+		.input(versionedInput(z.object({ text: z.string().trim().max(60).default(''), status: z.enum(['published', 'archived', 'any']).default('any') })))
+		.output(versionedOutput(z.object({ items: z.array(recipeMatchView) }))),
 	listVersions: versionedRead()
 		.route({ method: 'GET', path: '/catalogue/recipes/{recipeId}/versions', summary: 'Published versions of a recipe, newest first, with who published them and when' })
 		.errors(notFound)
@@ -1581,7 +1591,7 @@ function draftHandlers(os: Implementer) {
 **Interfaces:**
 - Consumes: Task 5 (`publicationCheck`), Task 6 (`Actor`, `loadDraftRow`).
 - Produces:
-  - `recipe-writes.ts`: `writeVersion(tx, actor, { recipeId, document: RecipeDocument, restoredFrom: number | null, at: Date }): Promise<number>` (proiezioni, righe, versione, riga di stato alla prima pubblicazione; restituisce la nuova versione; la ricetta è già bloccata dal chiamante); `versionConflict(tx, recipeId, version): Promise<never>`
+  - `recipe-writes.ts`: `writeVersion(tx, actor, { recipeId, document: RecipeDocument, restoredFrom: number | null }): Promise<{ version: number; at: Date }>` (proiezioni, righe, poi l'istante dopo tutte le attese, poi versione e riga di stato alla prima pubblicazione; restituisce la nuova versione e l'istante, che il chiamante usa per chiudere la bozza); `versionConflict(tx, recipeId, version): Promise<never>`
   - `write.ts`: `PublishInput`, `Published { recipeId; version; publishedAt: Date; conversions }`, `publishDraft(tx, actor, input: PublishInput): Promise<Published>`
 
 - [ ] **Step 1: test che falliscono**
@@ -1706,6 +1716,33 @@ describe.skipIf(!hasDatabase)('catalogue publication', () => {
 		expect(await db()`select app.recipe_version_at(${d.recipeId}, ${v2!.published_at}) as v`).toEqual([{ v: 2 }]);
 	});
 
+	it('dates the version after a wait for the catalogue counter held by another writer', async () => {
+		const curator = await c.curator();
+		const ingredientId = await c.ingredient('Fave');
+		const d = await curator.client.catalogue.createDraft({ id: crypto.randomUUID(), content: completeContent('Macco di fave', ingredientId) });
+		await curator.client.catalogue.publish({ draftId: d.draftId });
+		const revision = await curator.client.catalogue.startRevision({ recipeId: d.recipeId, id: crypto.randomUUID() });
+		await curator.client.catalogue.saveDraft({ draftId: revision.draftId, baseRevision: 1, content: { ...revision.content, durationMinutes: 40 } });
+		// Another curator changing another ingredient holds the global counter row until commit.
+		let released!: Date;
+		const holder = db().begin(async (sql) => {
+			await sql`select version from app.catalogue_state for update`;
+			await new Promise((resolve) => setTimeout(resolve, 400));
+			released = (await sql<{ at: Date }[]>`select clock_timestamp() as at`)[0]!.at;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		const requested = new Date();
+		const publication = curator.client.catalogue.publish({ draftId: revision.draftId });
+		await holder;
+		expect((await publication).version).toBe(2);
+		const [v2] = await db()<{ published_at: Date }[]>`select published_at from app.recipe_versions where recipe_id = ${d.recipeId} and version = 2`;
+		expect(v2!.published_at.getTime()).toBeGreaterThanOrEqual(released.getTime());
+		const during = new Date((requested.getTime() + released.getTime()) / 2);
+		expect(await db()`select app.recipe_version_at(${d.recipeId}, ${during}) as v`).toEqual([{ v: 1 }]);
+		const [closed] = await db()<{ closed_at: Date }[]>`select closed_at from app.recipe_drafts where id = ${revision.draftId}`;
+		expect(closed!.closed_at.getTime()).toBe(v2!.published_at.getTime()); // the repeat recognises the version by this instant
+	});
+
 	it('leaves nothing behind when a write fails halfway', async () => {
 		const curator = await c.curator();
 		const ingredientId = await c.ingredient('Orzo');
@@ -1744,19 +1781,20 @@ import { loadAuthors } from './load.ts';
 import type { Actor } from './write.ts';
 
 /** Projections, lines, the immutable version and the first status change, in the caller's transaction. */
-export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: string; document: RecipeDocument; restoredFrom: number | null; at: Date }): Promise<number> {
+export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: string; document: RecipeDocument; restoredFrom: number | null }): Promise<{ version: number; at: Date }> {
 	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
 	if (!recipe) throw appError('not_found');
 	const version = recipe.version + 1;
 	const { recipe: p, ingredients } = projectRecipe(input.document);
 	const status = recipe.status === 'draft' ? 'published' : recipe.status;
+	// The projections bump catalogue_state through its trigger: this may wait for another writer.
 	await tx`update app.recipes set
 		status = ${status}, version = ${version}, name = ${tx.json(p.name)}, description = ${tx.json(p.description)},
 		source_type = ${p.sourceType}, source_url = ${p.sourceUrl}, book_id = ${p.bookId}, book_pages = ${p.bookPages},
 		duration_minutes = ${p.durationMinutes}, base_servings = ${p.baseServings}, meal_type = ${p.mealType},
 		protein_group = ${p.proteinGroup}, is_fresh_fish = ${p.isFreshFish}, carbohydrate_group = ${p.carbohydrateGroup},
 		category = ${p.category}, has_vegetables = ${p.hasVegetables}, is_heavy = ${p.isHeavy}, seasons = ${p.seasons},
-		updated_by = ${actor.userId}, updated_at = ${input.at}
+		updated_by = ${actor.userId}, updated_at = clock_timestamp()
 		where id = ${input.recipeId}`;
 	await tx`delete from app.recipe_ingredients where recipe_id = ${input.recipeId}`;
 	for (const l of ingredients) {
@@ -1766,13 +1804,15 @@ export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: stri
 				${l.quantity}, ${l.unit}, ${l.quantityText ? tx.json(l.quantityText) : null}, ${l.sourceText}, ${l.preparation ? tx.json(l.preparation) : null},
 				${l.isOptional}, ${l.isPrimary})`;
 	}
+	// After every wait (locks, catalogue counter): the instant R1 compares with meals (spec section 3).
+	const at = await writeInstant(tx);
 	await tx`insert into app.recipe_versions (recipe_id, version, content, published_by, published_at, channel, restored_from)
-		values (${input.recipeId}, ${version}, ${tx.json(input.document as never)}, ${actor.userId}, ${input.at}, ${actor.channel}, ${input.restoredFrom})`;
+		values (${input.recipeId}, ${version}, ${tx.json(input.document as never)}, ${actor.userId}, ${at}, ${actor.channel}, ${input.restoredFrom})`;
 	if (recipe.status === 'draft') {
 		await tx`insert into app.recipe_status_changes (recipe_id, status, changed_by, changed_at, channel)
-			values (${input.recipeId}, 'published', ${actor.userId}, ${input.at}, ${actor.channel})`;
+			values (${input.recipeId}, 'published', ${actor.userId}, ${at}, ${actor.channel})`;
 	}
-	return version;
+	return { version, at };
 }
 
 /** The current version was published after the one the curator saw. */
@@ -1813,8 +1853,7 @@ export async function publishDraft(tx: Tx, actor: Actor, input: PublishInput): P
 	if (row.kind === 'revision' && row.recipeVersion !== row.baseVersion && input.confirmVersion !== row.recipeVersion) {
 		await versionConflict(tx, row.recipeId, row.recipeVersion);
 	}
-	const at = await writeInstant(tx); // after the locks: never earlier than the wait (R1)
-	const version = await writeVersion(tx, actor, { recipeId: row.recipeId, document: toPublished(document), restoredFrom: null, at });
+	const { version, at } = await writeVersion(tx, actor, { recipeId: row.recipeId, document: toPublished(document), restoredFrom: null });
 	await tx`update app.recipe_drafts set closed_at = ${at}, closed_by = ${actor.userId}, outcome = 'published' where id = ${row.id}`;
 	return { recipeId: row.recipeId, version, publishedAt: at, conversions };
 }
@@ -1853,7 +1892,7 @@ function publicationHandlers(os: Implementer) {
 
 ---
 
-### Task 8: archiviazione, versioni e ripristino
+### Task 8: ricerca globale, archiviazione, versioni e ripristino
 
 **Files:**
 - Modify: `server/src/catalogue/router.ts`, `server/src/catalogue/views.ts`, `server/src/catalogue/write.ts`
@@ -1861,7 +1900,7 @@ function publicationHandlers(os: Implementer) {
 
 **Interfaces:**
 - Consumes: Task 7 (`writeVersion`, `versionConflict`).
-- Produces: `setArchived(tx, actor, { recipeId, archived })`, `restoreVersion(tx, actor, { recipeId, version, confirmVersion })` in `write.ts`; `versionList(tx, recipeId, locale)`, `versionDetail(tx, recipeId, version, locale)` in `views.ts`.
+- Produces: `setArchived(tx, actor, { recipeId, archived })`, `restoreVersion(tx, actor, { recipeId, version, confirmVersion })` in `write.ts`; `searchCatalogueRecipes(tx, { text, status }, locale)`, `versionList(tx, recipeId, locale)`, `versionDetail(tx, recipeId, version, locale)` in `views.ts`.
 
 - [ ] **Step 1: test che falliscono**
 
@@ -1885,6 +1924,24 @@ describe.skipIf(!hasDatabase)('archive, versions and restore', () => {
 		await curator.client.catalogue.publish({ draftId: d.draftId });
 		return { curator, recipeId: d.recipeId, ingredientId };
 	}
+
+	it('lets a curator without a family find a recipe by name and go on to revise it', async () => {
+		const { recipeId } = await published('Pappa al pomodoro');
+		await published('Ribollita');
+		const archived = await published('Panzanella');
+		await db()`update app.recipes set status = 'archived', archived_at = now() where id = ${archived.recipeId}`;
+		const fresh = await c.curator(); // new session, no family, no ids kept
+		await fresh.client.catalogue.createDraft({ id: crypto.randomUUID(), content: draftContent('Pappa in bozza') });
+		const found = await fresh.client.catalogue.searchRecipes({ text: 'pappa' });
+		if (found.unchanged) throw new Error('expected data');
+		expect(found.data.items).toEqual([expect.objectContaining({ recipeId, name: 'Pappa al pomodoro', status: 'published', version: 1 })]);
+		const onlyArchived = await fresh.client.catalogue.searchRecipes({ text: 'panz', status: 'archived' });
+		if (onlyArchived.unchanged) throw new Error('expected data');
+		expect(onlyArchived.data.items.map((i) => i.recipeId)).toEqual([archived.recipeId]);
+		const versions = await fresh.client.catalogue.listVersions({ recipeId });
+		expect(versions.unchanged).toBe(false);
+		expect((await fresh.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() })).kind).toBe('revision');
+	});
 
 	it('archives and brings back with absolute state', async () => {
 		const { curator, recipeId } = await published('Gnocchi');
@@ -1926,6 +1983,26 @@ describe.skipIf(!hasDatabase)('archive, versions and restore', () => {
 		expect(await curator.client.catalogue.restoreVersion({ recipeId, version: 1, confirmVersion: 2 })).toEqual(restored); // repeat
 		expect((await db()`select base_servings from app.recipes where id = ${recipeId}`)[0].base_servings).toBe(2);
 		expect((await errorOf(curator.client.catalogue.restoreVersion({ recipeId, version: 3, confirmVersion: 3 }))).data).toEqual({ reason: 'already_current' });
+	});
+
+	it('dates a restore after a wait for the catalogue counter', async () => {
+		const { curator, recipeId } = await published('Canederli');
+		const rev = await curator.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() });
+		await curator.client.catalogue.saveDraft({ draftId: rev.draftId, baseRevision: 1, content: { ...rev.content, baseServings: 4 } });
+		await curator.client.catalogue.publish({ draftId: rev.draftId });
+		let released!: Date;
+		const holder = db().begin(async (sql) => {
+			await sql`select version from app.catalogue_state for update`;
+			await new Promise((resolve) => setTimeout(resolve, 400));
+			released = (await sql<{ at: Date }[]>`select clock_timestamp() as at`)[0]!.at;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		const restore = curator.client.catalogue.restoreVersion({ recipeId, version: 1, confirmVersion: 2 });
+		await holder;
+		expect((await restore).version).toBe(3);
+		const [v3] = await db()<{ published_at: Date }[]>`select published_at from app.recipe_versions where recipe_id = ${recipeId} and version = 3`;
+		expect(v3!.published_at.getTime()).toBeGreaterThanOrEqual(released.getTime());
+		expect(await db()`select app.recipe_version_at(${recipeId}, ${new Date(released.getTime() - 100)}) as v`).toEqual([{ v: 2 }]);
 	});
 
 	it('refuses a version that no longer passes today’s checks', async () => {
@@ -1980,8 +2057,7 @@ export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: st
 	const document = chosen.content as RecipeDraftDocument;
 	const issues = checkPublishable(document, await loadLookup(tx, document));
 	if (issues.length) throw appError('invalid', { issues });
-	const at = await writeInstant(tx); // after the lock on the recipe (R1, as publishDraft)
-	const version = await writeVersion(tx, actor, { recipeId: input.recipeId, document: toPublished(document), restoredFrom: input.version, at });
+	const { version } = await writeVersion(tx, actor, { recipeId: input.recipeId, document: toPublished(document), restoredFrom: input.version });
 	return { recipeId: input.recipeId, version, restoredFrom: input.version };
 }
 ```
@@ -1990,6 +2066,21 @@ export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: st
 
 ```ts
 // views.ts
+/** The curator's search of the whole catalogue (no family, no owned books): published and archived, never drafts. */
+export async function searchCatalogueRecipes(tx: Tx, query: { text: string; status: 'published' | 'archived' | 'any' }, locale: Locale) {
+	const rows = await tx<{ id: string; name: Record<Locale, string>; description: Record<Locale, string>; status: 'published' | 'archived'; version: number; updated_at: Date }[]>`
+		select id, name, description, status, version, updated_at from app.recipes
+		where status <> 'draft' and (${query.status} = 'any' or status = ${query.status})`;
+	const needle = foldText(query.text);
+	const items = rows
+		.map((r) => ({ recipeId: r.id, name: localText(r.name, locale), description: localText(r.description, locale), status: r.status, version: r.version, updatedAt: r.updated_at.toISOString() }))
+		.filter((r) => !needle || foldText(r.name).includes(needle) || foldText(r.description).includes(needle))
+		.sort((a, b) => a.name.localeCompare(b.name, locale))
+		.slice(0, 50)
+		.map(({ description: _description, ...item }) => item);
+	return { items };
+}
+
 export async function versionList(tx: Tx, recipeId: string, locale: Locale): Promise<VersionListView> {
 	const [recipe] = await tx<{ status: 'draft' | 'published' | 'archived'; version: number; name: Record<Locale, string> }[]>`
 		select status, version, name from app.recipes where id = ${recipeId}`;
@@ -2023,8 +2114,10 @@ e chiamare `summaryOf(content, titles, locale)` invece di una funzione nuova; se
 `ingredientLinesView` vuole righe in un'altra forma, adattare il documento con una
 funzione locale di poche righe, senza modificare i file di W6.
 
-Gestori: `setArchived`, `restoreVersion` diretti; `listVersions` e `getVersion` con
-`fresh(context, await versionList(...))`.
+Gestori: `setArchived`, `restoreVersion` diretti; `searchRecipes`, `listVersions` e
+`getVersion` con `fresh(context, await ...)`. `foldText` si importa da
+`server/src/family/views.ts` (W2, senza modificarlo). Le ricette nel ricettario sono
+poche decine: caricarle tutte e filtrare nel Worker segue l'approccio della ricerca di W6.
 
 - [ ] **Step 4: eseguire** → PASS; i test del ricettario di W6 che escludono le archiviate
   restano verdi.
@@ -2474,7 +2567,7 @@ import { catalogueActors, completeContent, draftContent, type CatalogueActors } 
 describe('catalogue tools', () => {
 	it('exposes every operation, read-only only for reads', () => {
 		const tools = new Map(collectTools(contract).map((t) => [t.name, t.readOnly]));
-		for (const name of ['getGuide', 'overview', 'getDraft', 'checkDraft', 'listVersions', 'getVersion', 'searchIngredients', 'getIngredient', 'listVarieties', 'checkVariety', 'listBooks']) {
+		for (const name of ['getGuide', 'overview', 'getDraft', 'checkDraft', 'listVersions', 'getVersion', 'searchIngredients', 'getIngredient', 'searchRecipes', 'listVarieties', 'checkVariety', 'listBooks']) {
 			expect(tools.get(`catalogue_${name}`)).toBe(true);
 		}
 		for (const name of ['createDraft', 'startRevision', 'saveDraft', 'publish', 'discardDraft', 'setArchived', 'restoreVersion', 'createIngredient', 'updateIngredient', 'setEquivalence', 'removeEquivalence', 'createBook']) {
@@ -2537,8 +2630,8 @@ Leggere `server/test/support/requests.ts` per la forma esatta di `toolBody` sugl
 ### Task 11: web delle bozze (dopo il cancello)
 
 **Cancello:** merge della #17 (W5, già unita), della #18 (W2, `profile.get` con
-`globalRoles` al posto di `me.get`) e della #19 (W6, ricettario sui dati veri, che cambia
-`RecipesPage`). Prima di iniziare: `git fetch && git rebase origin/main`, poi leggere:
+`globalRoles` al posto di `me.get`), della #19 (W6, ricettario sui dati veri, che cambia
+`RecipesPage`) e della #21 (pagine di Profilo e famiglia), poi il via del coordinatore. Prima di iniziare: `git fetch && git rebase origin/main`, poi leggere:
 - `web/src/api/types.ts` (`SERVER_AREAS`, `Api`, `ProvisionalApi`) e `clients.ts`
   (`realClients`), con `clients.test.ts` come modello del test;
 - `web/src/api/fake/fakeApi.ts` (come le aree servite hanno il loro finto);
@@ -2551,7 +2644,7 @@ con un'API finta) si allineano a quelli reali in questo primo passo, senza cambi
 comportamento descritto.
 
 **Files:**
-- Modify: `web/src/api/types.ts` (`SERVER_AREAS` con `'catalogue'`), `web/src/api/fake/fakeApi.ts` (area `catalogue` finta), `web/src/api/clients.test.ts`
+- Modify: `web/src/api/types.ts` (`SERVER_AREAS` con `'catalogue'`), `web/src/api/fake/fakeApi.ts` (area `catalogue` finta e `withTransport`), `web/src/api/clients.test.ts`
 - Create: `web/src/features/catalogue/queries.ts`, `useIsCurator.ts`, `CatalogueDraftsSection.tsx`, `ArchivedRecipesSection.tsx`, `DraftPage.tsx`, `catalogue.module.css`, test accanto
 - Create: `web/src/i18n/messages/catalogue.ts`; Modify: `web/src/i18n/messages/index.ts`
 - Modify: `web/src/router.tsx` (rotta `/recipes/drafts/$draftId`), `web/src/routes/RecipesPage.tsx` (solo import e corpo di `RecipesPage`)
@@ -2577,6 +2670,26 @@ it('sends the catalogue reads and the archive switch to the Worker', async () =>
 Leggere in `web/src/test/rpcServer.ts` come il server di prova risponde a una procedura
 sconosciuta e come registra le richieste: adeguare l'estrazione del percorso (la forma di
 `server.fetch.mock.calls` e il prefisso RPC) a quello reale.
+
+```ts
+// in web/src/api/clients.test.ts: the fake mode has the area too, through its transport wrapper
+it('in fake mode answers the catalogue area, also offline', async () => {
+	const api = fakeClients({ latencyMs: 0 })(user)('it-IT');
+	const overview = await api.catalogue.overview({});
+	expect(overview.drafts.length).toBeGreaterThan(0);
+	setOnline(false);
+	try {
+		await expect(api.catalogue.overview({})).rejects.toMatchObject({ code: 'network' });
+	} finally {
+		setOnline(true);
+	}
+});
+```
+
+Il comportamento offline del finto è quello di `withTransport` per le altre aree (leggerlo
+in `fakeApi.ts`): se le letture offline rispondono `network`, il test lo verifica come
+sopra; se rispondono dai dati, verificare quello. `setOnline` da
+`web/src/test/connectivity.ts`.
 
 ```tsx
 // web/src/features/catalogue/CatalogueDraftsSection.test.tsx
@@ -2637,6 +2750,7 @@ describe('CatalogueDraftsSection', () => {
 // web/src/features/catalogue/ArchivedRecipesSection.test.tsx
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../api/errors';
 import { catalogueApi, renderCatalogue } from './test-support';
 import { ArchivedRecipesSection } from './ArchivedRecipesSection';
 
@@ -2654,6 +2768,18 @@ describe('ArchivedRecipesSection', () => {
 		release();
 		await waitFor(() => expect(screen.queryByText('Erbazzone')).not.toBeInTheDocument());
 		expect(setArchived).toHaveBeenCalledWith({ recipeId: 'r9', archived: false });
+	});
+
+	it('drops the catalogue views when the bring-back is refused (role revoked)', async () => {
+		const archived = [{ recipeId: 'r9', name: 'Erbazzone', archivedBy: { userId: 'u1', name: 'Lucia' }, archivedAt: '2026-10-05T10:00:00.000Z' }];
+		const { queryClient } = renderCatalogue(<ArchivedRecipesSection />, {
+			roles: ['recipe_curator'],
+			api: catalogueApi({ overview: async () => ({ drafts: [], archived }), setArchived: async () => { throw new ApiError('forbidden'); } }),
+		});
+		fireEvent.click(await screen.findByText('Archiviate'));
+		fireEvent.click(screen.getByRole('button', { name: 'Riporta nel ricettario' }));
+		await waitFor(() => expect(screen.queryByText('Erbazzone')).not.toBeInTheDocument());
+		expect(queryClient.getQueriesData({ queryKey: ['catalogue'] })).toEqual([]);
 	});
 });
 ```
@@ -2678,11 +2804,17 @@ profilo deve permetterlo; se non ha un'opzione per i ruoli e le famiglie, aggiun
 finto del profilo con la modifica minima (è il finto dell'area di W2: segnalarlo nella PR).
 Il commento nel test va sostituito dalle opzioni reali.
 
+In `withTransport` di `web/src/api/fake/fakeApi.ts` l'elenco esplicito delle aree riceve
+`catalogue: wrap(api.catalogue)`, altrimenti il valore restituito non soddisfa `Api` e la
+modalità finta perde l'area.
+
 `test-support.tsx` (accanto ai componenti) esporta `catalogueApi(overrides)`, un'`Api` finta
 con l'area `catalogue` sovrascritta e il profilo con i ruoli richiesti, e
 `renderCatalogue(ui, { roles, api })`, che usa `renderWithProviders` della base e
-restituisce anche `refetchAll()` (`queryClient.refetchQueries()` seguito dall'attesa delle
-query attive).
+restituisce anche `queryClient` e `refetchAll()` (`queryClient.refetchQueries()` seguito
+dall'attesa delle query attive). Nel test del rifiuto la query di `overview` resta rimossa
+perché il profilo riletto dal finto non ha più il ruolo: `catalogueApi` lo permette
+(ruoli che cambiano dopo il primo `profile.get`), altrimenti la sezione rileggerebbe.
 
 - [ ] **Step 2: eseguire** `npm test -w web -- catalogue clients` → FAIL.
 
@@ -2775,7 +2907,7 @@ Registrarlo in `web/src/i18n/messages/index.ts` come `errors.ts` e le altre aree
 ```ts
 // web/src/features/catalogue/queries.ts
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { isBlocking, toApiError } from '../../api/errors';
 import { useLocale } from '../../i18n/LocaleProvider';
@@ -2786,19 +2918,25 @@ export const catalogueKeys = {
 };
 
 /**
- * A catalogue read as the other screens do it: a stored copy stays only for a network error.
- * A refusal (role revoked while the profile is still cached) drops every catalogue view and
- * reads the profile again, so the sections disappear with their data.
+ * Role revoked while the profile is still cached (a read or a mutation answered forbidden):
+ * every catalogue view leaves the cache and the profile is read again, so the sections go.
  */
-function useCatalogueQuery<T>(options: ReturnType<typeof queryOptions<T>>, enabled: boolean) {
+export function useCatalogueRevocation() {
 	const queryClient = useQueryClient();
-	const query = useQuery({ ...options, enabled });
-	const code = query.error ? toApiError(query.error).code : null;
-	useEffect(() => {
-		if (code !== 'forbidden') return;
+	return useCallback((error: unknown) => {
+		if (toApiError(error).code !== 'forbidden') return;
 		queryClient.removeQueries({ queryKey: ['catalogue'] });
 		void queryClient.invalidateQueries({ queryKey: PROFILE_KEY_PREFIX });
-	}, [code, queryClient]);
+	}, [queryClient]);
+}
+
+/** A catalogue read as the other screens do it: a stored copy stays only for a network error. */
+function useCatalogueQuery<T>(options: ReturnType<typeof queryOptions<T>>, enabled: boolean) {
+	const revoke = useCatalogueRevocation();
+	const query = useQuery({ ...options, enabled });
+	useEffect(() => {
+		if (query.error) revoke(query.error);
+	}, [query.error, revoke]);
 	const blocked = query.isError && isBlocking(query.error, query.data !== undefined);
 	return { query, data: blocked ? undefined : query.data, blocked };
 }
@@ -2819,12 +2957,14 @@ export function useDraft(draftId: string, enabled: boolean) {
 export function useBringBack() {
 	const api = useApi();
 	const queryClient = useQueryClient();
+	const revoke = useCatalogueRevocation();
 	return useMutation({
 		mutationFn: (recipeId: string) => api.catalogue.setArchived({ recipeId, archived: false }),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['catalogue', 'overview'] });
 			await queryClient.invalidateQueries({ queryKey: ['recipes'] });
 		},
+		onError: revoke,
 	});
 }
 ```

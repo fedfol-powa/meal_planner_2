@@ -178,8 +178,8 @@ sotto `/catalogue/...`. Le creazioni hanno `creates: true` e un `id` uuid genera
 client (`checkContract`).
 
 **Letture versionate** (`reads: ['catalogue']`, input con `knownVersion`):
-`listVersions`, `getVersion`, `searchIngredients`, `getIngredient`, `listVarieties`,
-`listBooks`. Dipendono
+`searchRecipes`, `listVersions`, `getVersion`, `searchIngredients`, `getIngredient`,
+`listVarieties`, `listBooks`. Dipendono
 solo da ricette non in bozza, ingredienti, equivalenze e libri, che fanno crescere
 `catalogue_state`.
 **Letture non versionate:** `getGuide` (testo statico), `overview`, `getDraft`,
@@ -246,6 +246,7 @@ stesso percorso del documento della bozza: una riga in tazze senza equivalenza r
 | `checkDraft` | GET `/catalogue/drafts/{draftId}/check` | `{ draftId }` | `{ revision; issues; missing; conversions }` | `not_found` |
 | `publish` | POST `/catalogue/drafts/{draftId}/publish` | `{ draftId; confirmVersion?: int ≥ 1 }` | `{ recipeId; version; conversions }` | `not_found`, `invalid`, `conflict` (`version`) |
 | `discardDraft` | POST `/catalogue/drafts/{draftId}/discard` | `{ draftId }` | `{ draftId; recipeId; kind }` | `not_found`, `not_allowed` (`cited_by_meals`) |
+| `searchRecipes` | GET `/catalogue/recipes` | `versionedInput({ text?: string ≤ 60; status?: 'published' \| 'archived' \| 'any' })` | `versionedOutput({ items: { recipeId; name; status: 'published' \| 'archived'; version; updatedAt }[] })` | |
 | `setArchived` | PUT `/catalogue/recipes/{recipeId}/archived` | `{ recipeId; archived: boolean }` | `{ recipeId; status: 'published' \| 'archived'; changedBy: author; changedAt }` | `not_found`, `not_allowed` (`not_published`) |
 | `listVersions` | GET `/catalogue/recipes/{recipeId}/versions` | `versionedInput({ recipeId })` | `versionedOutput({ recipeId; name; status; current; versions: { version; publishedBy: author; publishedAt; channel; restoredFrom: int \| null }[] })` | `not_found` |
 | `getVersion` | GET `/catalogue/recipes/{recipeId}/versions/{version}` | `versionedInput({ recipeId; version })` | `versionedOutput({ recipeId; version; current; publishedBy; publishedAt; restoredFrom; content: RecipeDocument; summary: recipeSummaryView; ingredients: ingredientLineView[]; issues })` | `not_found` |
@@ -260,6 +261,15 @@ stesso percorso del documento della bozza: una riga in tazze senza equivalenza r
 | `removeEquivalence` | DELETE `/catalogue/ingredients/{ingredientId}/equivalences/{equivalenceId}` | `{ ingredientId; equivalenceId }` | `ingredientView` | `not_found` (solo ingrediente inesistente) |
 | `listBooks` | GET `/catalogue/books` | `versionedInput({})` | `versionedOutput({ books: { bookId; slug; title; archived: boolean }[] })` | |
 | `createBook` | POST `/catalogue/books` | `{ id: uuid; title: string 1..200 }` | `{ bookId; slug; title }` | `invalid` |
+
+`searchRecipes` è la ricerca globale del curatore, senza `familyId` e senza libri
+posseduti: ricette pubblicate e archiviate (mai le bozze, che stanno in `overview`), per
+nome e descrizione nella lingua dell'utente con `foldText` (testo vuoto: tutte), ordinate
+per nome, al massimo 50. È il primo passo di un agente che deve rivedere, archiviare o
+ripristinare una ricetta in una conversazione nuova: `searchRecipes` → `listVersions` o
+`getVersion` → `startRevision`, `setArchived` o `restoreVersion`. Non dice se c'è una
+revisione aperta (le bozze non fanno crescere il contatore del ricettario e la lettura è
+versionata): `startRevision` la restituisce comunque.
 
 `ingredientView`: `{ ingredientId; slug; name: Localized (en-GB può essere ''); synonyms;
 department; isPantry; version; equivalences: { id; fromUnit; toUnit; factor; preparation;
@@ -419,10 +429,15 @@ pasto passato con `published_at <= istante del pasto`. Se `published_at` fosse l
 della richiesta, una pubblicazione partita alle 15:29 e rimasta in attesa di un lucchetto
 fino alle 15:31 risulterebbe in vigore per un pranzo già passato alle 15:30, cambiando a
 posteriori la versione mangiata. Per questo `published_at` (e con lui `closed_at` della
-bozza, così la ripetizione riconosce la versione) è `clock_timestamp()` letto dopo i
-lucchetti, subito prima delle scritture che chiudono la transazione. Resta solo lo scarto
-fra quell'istante e il commit, pochi millisecondi senza attese. Vale anche per
-`restoreVersion`.
+bozza e `changed_at` della prima riga di stato, così la ripetizione riconosce la versione)
+è `clock_timestamp()` letto **dopo tutte le attese**: dopo i lucchetti di bozza e
+ricetta e dopo l'aggiornamento delle proiezioni e delle righe, che fa crescere
+`catalogue_state` con il suo trigger e può attendere un'altra transazione che tiene quella
+riga globale. Nell'ordine: lucchetti, `recipes` (proiezioni), `recipe_ingredients`,
+istante, inserimento in `recipe_versions`, riga di stato, chiusura della bozza; queste
+ultime tre scritture non toccano righe tenute da altri (`recipe_versions` e
+`recipe_status_changes` non hanno trigger di contatore, la bozza è già bloccata). Resta
+solo lo scarto fra l'istante e il commit, senza attese. Vale anche per `restoreVersion`.
 
 ### Archiviazione
 
@@ -560,20 +575,23 @@ ordinato (fra `meal_passed_at` e `recipe_version_at`).
 ## 5. Web (dopo il cancello)
 
 **Cancello:** dopo il merge della #17 (W5, già unita), della #18 (W2, `profile.get` con
-`globalRoles` al posto di `me.get`) e della #19 (W6, ricettario sui dati veri, che cambia
-`RecipesPage`).
+`globalRoles` al posto di `me.get`) della #19 (W6, ricettario sui dati veri, che cambia
+`RecipesPage`) e della #21 (pagine di Profilo e famiglia), poi il via del coordinatore.
 
 **Registrazione dell'area nel client:** `catalogue` entra in `SERVER_AREAS`
 (`web/src/api/types.ts`), così `api.catalogue` è il client RPC del contratto in modalità
 reale (`realClients` di `web/src/api/clients.ts`); il client finto implementa le stesse
-operazioni con dati dimostrativi solo per la modalità finta. Un test di `realClients`
+operazioni con dati dimostrativi solo per la modalità finta ed è registrato anche nel suo
+involucro di trasporto (`withTransport` di `web/src/api/fake/fakeApi.ts`, che elenca le
+aree una per una), così la modalità finta, anche offline, ha l'area. Un test di `realClients`
 verifica che `overview`, `getDraft` e `setArchived` vadano al client RPC.
 
 **Rifiuti del server:** sezioni e pagina della bozza usano `isBlocking` come le altre
 schermate: i dati in cache restano visibili solo per un errore di rete. Un `forbidden`
-(ruolo revocato con il profilo ancora in cache) rimuove le query `['catalogue', …]` e fa
-rileggere il profilo (`globalRoles`): le sezioni spariscono, la pagina della bozza mostra
-l'avviso dei permessi. Un `unauthorized` segue il percorso della sessione di W5.
+(ruolo revocato con il profilo ancora in cache), sia su una lettura sia sulla mutazione
+«Riporta nel ricettario», rimuove le query `['catalogue', …]` e fa rileggere il profilo
+(`globalRoles`): le sezioni spariscono, la pagina della bozza mostra l'avviso dei
+permessi. Una sola funzione dell'area (`useCatalogueRevocation`) lo fa per entrambe. Un `unauthorized` segue il percorso della sessione di W5.
 
 Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
 
@@ -620,10 +638,16 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
     canale); errore forzato a metà senza scritture parziali; versione superata con e
     senza `confirmVersion`; tazze convertite, senza equivalenza `invalid`; revisione di
     un'archiviata che resta archiviata; ripetizione dopo la chiusura;
-  - istante R1: con la ricetta bloccata da un'altra transazione, una pubblicazione avviata
-    prima dello sblocco ha `published_at` non anteriore allo sblocco; il resolver reale
-    `app.recipe_version_at` restituisce la versione precedente per un istante fra l'inizio
-    della richiesta e lo sblocco e la nuova da `published_at` in poi;
+  - istante R1, due casi: la ricetta bloccata da un'altra transazione, e la riga globale
+    `catalogue_state` tenuta da un'altra transazione (che cambia un altro ingrediente);
+    in entrambi una pubblicazione avviata prima dello sblocco ha `published_at` non
+    anteriore allo sblocco, e il resolver reale `app.recipe_version_at` restituisce la
+    versione precedente per un istante fra l'inizio della richiesta e lo sblocco e la
+    nuova da `published_at` in poi; lo stesso per `restoreVersion` con `catalogue_state`
+    occupata;
+  - ricerca globale: un curatore senza famiglia trova per nome una ricetta pubblicata e
+    una archiviata senza conoscerne l'id, mai una bozza; poi ne legge le versioni e apre
+    la revisione;
   - scarto: bozza nuova citata rifiutata, non citata chiusa; revisione scartata;
   - archiviazione: avanti e indietro con `recipe_status_changes`; ripetizione senza righe
     nuove; esclusione dal ricettario di W6;
@@ -643,7 +667,8 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
 - **Web:** Testing Library sulle due sezioni (nascoste ai non curatori, visibili a un
   curatore senza famiglia, schede e dati mancanti, «Riporta nel ricettario» senza
   aggiornamento ottimistico, dati già caricati seguiti da `forbidden` che spariscono) e
-  sulla pagina della bozza; test di `realClients` per l'area.
+  sulla pagina della bozza; «Riporta nel ricettario» rifiutato con `forbidden` che toglie
+  le viste; test di `realClients` e di `fakeClients` (anche offline) per l'area.
 
 ## 7. Consegna
 
@@ -681,6 +706,8 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
 
 ### Tecniche
 
+- **Ricerca globale delle ricette per i curatori** (`catalogue.searchRecipes`), senza
+  famiglia, per ritrovare le ricette pubblicate e archiviate da rivedere (sezione 13).
 - **Area `catalogue`** del contratto con le operazioni della sezione 2, ruolo `curator`,
   nessun `familyId`; strumenti MCP `catalogue_*` dal contratto (sezioni 1 e 13).
 - **Conversioni delle tazze USA** applicate dal server al controllo e alla pubblicazione
@@ -699,8 +726,9 @@ Nella struttura che la base impone (`web/src/features/catalogue/` se prevista):
   il contatore del ricettario (sezione 1).
 - **Modulo di scrittura riusabile** `server/src/catalogue/write.ts` per l'import della
   messa in produzione, con canale `import` e slug dell'import conservati (sezioni 8 e 11).
-- **Istante di pubblicazione per R1:** `published_at` è `clock_timestamp()` letto dopo i
-  lucchetti, non l'inizio della richiesta, così un'attesa non rende retroattiva una
+- **Istante di pubblicazione per R1:** `published_at` è `clock_timestamp()` letto dopo
+  tutte le attese (lucchetti e contatore del ricettario), subito prima dell'inserimento
+  della versione, non l'inizio della richiesta, così un'attesa non rende retroattiva una
   versione per un pasto già passato (sezioni 2 e 5).
 - **Creazioni del ricettario serializzate** con un lucchetto consultivo di transazione:
   idempotenza per uuid e slug unici anche con richieste concorrenti (sezione 1).
