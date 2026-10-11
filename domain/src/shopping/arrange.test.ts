@@ -188,4 +188,12 @@ describe('counted units in the list (user decision, option 1)', () => {
 		expect(view(list, 'garlic~').sources[0].quantity).toBe('3 spicchi');
 		expect(view(list, 'onion~').sources[0].quantity).toBe('½');
 	});
+
+	it('buys as many cloves as the meal shows, even just over a whole (1 clove for 10, made for 11)', () => {
+		for (const [servings, shown] of [[10, '1 spicchio'], [11, '2 spicchi']] as const) {
+			const one = { slotId: 's1', date: '2026-10-12', mealType: 'lunch' as const, servings, recipe: { id: 'r', name: t('Ricetta', 'Recipe'), baseServings: 10, lines: [line('garlic', amount(1, 'clove'))] } };
+			const list = arrangeShoppingList(consolidateShoppingList({ meals: [one], ingredients: pantryless, equivalences: [], avoided: new Set() }), { checks: [], addedBack: [], system: 'metric', locale: 'it-IT' });
+			expect(view(list, 'garlic~')).toMatchObject({ quantity: shown, sources: [{ quantity: shown }] });
+		}
+	});
 });

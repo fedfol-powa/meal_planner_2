@@ -29,7 +29,7 @@ export function formatAmount({ value, unit }: PresentedAmount, locale: Locale): 
 
 /**
  * One recipe line, as in recipes, meal cards and item sources: `scaled` when the servings differ
- * from the source's (whole cloves, halves of pieces), `recipe` at the source's servings.
+ * from the source's (whole cloves, halves of pieces), `recipe` at the source's servings (counts as written).
  */
 export function formatQuantity(q: Quantity, system: MeasurementSystem, locale: Locale, rounding: 'recipe' | 'scaled' = 'recipe'): string {
 	if (q.kind === 'to_taste') return TO_TASTE[locale];
@@ -43,8 +43,8 @@ export interface FormatOptions {
 	rounding?: CountRounding;
 }
 
-/** A sum, converted and rounded only now: "50 g + 100 ml + 2 + q.b." (spec section 6). */
-export function formatCombined(c: CombinedQuantity, { system, locale, rounding = 'recipe' }: FormatOptions): string {
+/** A sum to buy, converted and rounded only now: "50 g + 100 ml + 2 + q.b." (spec section 6). */
+export function formatCombined(c: CombinedQuantity, { system, locale, rounding = 'shopping' }: FormatOptions): string {
 	const parts: string[] = [];
 	let merged: CountedUnit | null = null;
 	if (c.mass_g !== null) parts.push(formatAmount(presentMass(c.mass_g, system), locale));

@@ -24,8 +24,10 @@ describe('formatQuantity', () => {
 	});
 
 	it('writes halves and quarters of counted units, with singular and plural labels', () => {
-		expect(formatQuantity(amount(1 / 3, 'clove'), 'metric', 'it-IT')).toBe('½ spicchio');
-		expect(formatQuantity(amount(1.2, 'clove'), 'metric', 'it-IT')).toBe('1½ spicchi');
+		expect(formatQuantity(amount(0.25, 'clove'), 'metric', 'it-IT')).toBe('¼ spicchio');
+		expect(formatQuantity(amount(0.5, 'slice'), 'metric', 'en-GB')).toBe('½ slice');
+		expect(formatQuantity(amount(1.2, 'clove'), 'metric', 'it-IT')).toBe('1,2 spicchi');
+		expect(formatQuantity(amount(1.2, 'clove'), 'metric', 'en-GB')).toBe('1.2 cloves');
 		expect(formatQuantity(amount(1, 'clove'), 'metric', 'en-GB')).toBe('1 clove');
 		expect(formatQuantity(amount(0.5, 'piece'), 'metric', 'en-GB')).toBe('½');
 		expect(formatQuantity(amount(2.5, 'tbsp'), 'metric', 'it-IT')).toBe('2½ cucchiai');
@@ -63,10 +65,10 @@ describe('formatCombined', () => {
 		expect(formatCombined(combine(amount(400, 'g'), amount(400, 'g')), { system: 'uk_imperial', locale: 'en-GB' })).toBe('1¾ lb');
 		expect(formatCombined(combine(amount(250, 'ml')), { system: 'uk_imperial', locale: 'en-GB' })).toBe('9 fl oz');
 	});
-	it('rounds pieces up to whole ones only for shopping', () => {
+	it('rounds pieces up to whole ones only for shopping, the default of a sum', () => {
 		const c = combine(amount(0.5, 'piece'), amount(1.25, 'clove'));
-		expect(formatCombined(c, { system: 'metric', locale: 'it-IT' })).toBe('½ + 1½ spicchi');
-		expect(formatCombined(c, { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('1 + 2 spicchi');
+		expect(formatCombined(c, { system: 'metric', locale: 'it-IT', rounding: 'scaled' })).toBe('½ + 2 spicchi');
+		expect(formatCombined(c, { system: 'metric', locale: 'it-IT' })).toBe('1 + 2 spicchi');
 		expect(formatCombined(combine(amount(2.06, 'piece')), { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('2');
 	});
 	it('shows measuring spoons and household spoons of the same kind as one sum, in UK imperial only', () => {

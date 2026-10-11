@@ -38,7 +38,12 @@ describe('ingredientLinesView', () => {
 		expect(amounts(6)).toEqual(['5 spicchi', '1']);
 		expect(amounts(3)).toEqual(['3 spicchi', '½']);
 		expect(amounts(4)).toEqual(['3 spicchi', '½']);
-		expect(ingredientLinesView([{ ...counted[0]!, quantity: { kind: 'amount', value: 0.5, unit: 'clove' } }], withCounts, { servings: 4, baseServings: 4, system: 'metric', locale: 'it-IT' })[0]!.amount).toBe('½ spicchio');
+		const asWritten = (value: number, locale: 'it-IT' | 'en-GB') =>
+			ingredientLinesView([{ ...counted[0]!, quantity: { kind: 'amount', value, unit: 'clove' } }], withCounts, { servings: 4, baseServings: 4, system: 'uk_imperial', locale })[0]!.amount;
+		expect(asWritten(0.5, 'it-IT')).toBe('½ spicchio');
+		expect(asWritten(0.25, 'it-IT')).toBe('¼ spicchio');
+		expect(asWritten(0.25, 'en-GB')).toBe('¼ clove');
+		expect(asWritten(1.2, 'en-GB')).toBe('1.2 cloves');
 	});
 
 	it('converts to the family system', () => {
