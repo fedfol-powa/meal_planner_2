@@ -169,29 +169,30 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     return 'stop';
   }
 
-  async function round(): Promise<void> {
-    if (!userId || gone()) return;
+  /** One round under the lock: `done` when the queue emptied, `stopped` otherwise (network, renewal, closing). */
+  async function round(): Promise<'done' | 'stopped'> {
+    if (!userId || gone()) return 'stopped';
     const renewal = await session.renew();
-    if (gone()) return;
+    if (gone()) return 'stopped';
     if (renewal.kind === 'ok' && renewal.userId !== userId) {
       // Another person holds the device now: this queue never leaves with their token.
       await session.store.delete(key).catch(() => undefined);
-      return;
+      return 'stopped';
     }
     // rejected: the session closes and its hook deletes the queue; network: next time.
-    if (renewal.kind !== 'ok') return;
+    if (renewal.kind !== 'ok') return 'stopped';
     for (;;) {
-      if (gone()) return;
+      if (gone()) return 'stopped';
       const head = await takeHead();
-      if (!head) return;
+      if (!head) return 'done';
       let result: SendResult;
       try {
         result = await session.call(() => deps.send(head.op), head.op.input.familyId);
       } catch (error) {
-        if ((await refuse(head, error)) === 'stop') return;
+        if ((await refuse(head, error)) === 'stop') return 'stopped';
         continue;
       }
-      if (gone()) return;
+      if (gone()) return 'stopped';
       await confirm(head, result);
     }
   }
@@ -205,14 +206,17 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     }
     running = (async () => {
       await loading;
+      let outcome: 'done' | 'stopped' = 'stopped';
       do {
         again = false;
         try {
-          await withLock(locks, key, round);
+          outcome = await withLock(locks, key, round);
         } catch {
           // The store or the lock failed: the next event tries again.
+          outcome = 'stopped';
         }
-      } while (again && !gone());
+        // Queued while the round was ending: one more round, unless the round stopped (no network…).
+      } while (again && outcome === 'done' && !gone());
       running = null;
     })();
     return running;

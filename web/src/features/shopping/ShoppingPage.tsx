@@ -18,6 +18,7 @@ import { ExcludedItems } from './ExcludedItems';
 import { FreeItems } from './FreeItems';
 import type { ShoppingOperation } from './queue/ops';
 import { QueueNotices } from './QueueNotices';
+import { ShareMenu } from './ShareMenu';
 import { ShoppingItemRow } from './ShoppingItemRow';
 import styles from './ShoppingPage.module.css';
 import { useShoppingList } from './useShoppingList';
@@ -93,12 +94,20 @@ function ShoppingView({ family }: { family: FamilyView }) {
   const skipped = view.skipped.map((s) => s.recipeName ?? t('shopping.unpublished'));
 
   return page(
-    <>
-      <div className={styles.titleRow}>{back}</div>
+    <div className={styles.header}>
+      {back}
+      <ShareMenu
+        view={view}
+        base={list.query.data!}
+        familyId={familyId}
+        weekStartsOn={weekStartsOn}
+        unsynced={list.pendingCount + list.notices.length}
+        flush={() => void list.flush()}
+      />
       <h1 className="page-title" id="list-title">{t('shopping.title', { range: weekRange(locale, weekStartsOn) })}</h1>
       <p className={styles.meta}>{t('shopping.meals', { count: view.mealCount })}</p>
       {list.pendingCount > 0 && <p className={styles.pending} role="status">{t('shopping.pendingSync')}</p>}
-    </>,
+    </div>,
     <>
       <QueueNotices notices={list.notices} onDismiss={(id) => void list.dismiss(id)} />
       {skipped.length > 0 && <p className={styles.notice}>{t('shopping.skipped', { names: skipped.join(', ') })}</p>}

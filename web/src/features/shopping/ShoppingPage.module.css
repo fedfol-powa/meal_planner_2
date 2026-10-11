@@ -1,5 +1,22 @@
 /* The shopping list of the prototype (round 3), with the tokens of design/design.md. */
-.titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; }
+.header > :not(:first-child, .menuWrap) { grid-column: 1 / -1; }
+.header > .menuWrap { grid-row: 1; grid-column: 2; }
+.header > .shareStatus { grid-row: 99; }
+
+/* The «…» menu at the top right (round 3 pattern). */
+.menuWrap { position: relative; justify-self: end; }
+.menuToggle { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -8px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
+.menuToggle :global(.icon) { width: 26px; height: 26px; fill: currentColor; stroke-width: 1.2; }
+.menuToggle[aria-expanded='true'] { color: var(--green); }
+.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; display: flex; flex-direction: column; min-width: 220px; padding: 6px 0; background: var(--paper); border-radius: 8px; box-shadow: 0 4px 16px rgb(0 0 0 / 15%); }
+.menu button { min-height: 44px; padding: 10px 16px; border: 0; background: none; color: var(--ink); font: 400 1rem/1.3 var(--text-font); text-align: left; cursor: pointer; }
+.menu button:hover:not(:disabled) { background: var(--canvas); }
+.menu button:disabled, .menu button[aria-disabled='true'] { color: var(--muted); }
+.menu button:disabled { cursor: not-allowed; }
+.menu small { font-size: 0.75rem; }
+.shareStatus:not(:empty) { margin-top: 12px; }
+.shareStatus p { margin: 0; color: var(--body-text); font-size: 0.875rem; }
 .meta { margin: 4px 0 0; color: var(--body-text); font-size: 0.875rem; }
 .pending { margin: 6px 0 0; color: var(--green); font-size: 0.875rem; font-weight: 700; }
 .notice { margin: 0 0 16px; color: var(--body-text); font-size: 0.875rem; }
