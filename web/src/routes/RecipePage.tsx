@@ -101,7 +101,13 @@ function RecipeView({ family }: { family: FamilyView }) {
         {source && <p className="meal-source">{source}</p>}
         <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={family.id} />
         {recipe.description && <p className="description">{recipe.description}</p>}
-        {recipe.durationMinutes && <p className="meal-meta"><Icon name="clock" />{t('meal.minutes', { count: recipe.durationMinutes })}</p>}
+        {(recipe.durationMinutes || recipe.proteinGroup) && (
+          <p className="meal-meta">
+            {recipe.durationMinutes ? <><Icon name="clock" />{t('meal.minutes', { count: recipe.durationMinutes })}</> : null}
+            {recipe.durationMinutes && recipe.proteinGroup ? ' · ' : null}
+            {recipe.proteinGroup ? t(`group.${recipe.proteinGroup}`) : null}
+          </p>
+        )}
         <section className={styles.section} aria-labelledby="ingredients-title" aria-busy={updating}>
           <h2 id="ingredients-title" className={styles.heading}>{t('meal.ingredients')}</h2>
           <ServingsStepper value={servings} onChange={(value) => void navigate({ search: { ...search, servings: value }, replace: true })} />

@@ -99,6 +99,25 @@ describe('recipe page from the Worker (W6)', () => {
     expect(screen.queryByText('giovedì 3 settembre, Cena')).toBeNull();
     expect(get).toHaveBeenCalledTimes(1);
   });
+  it('shows time and food group under the description, in Italian and British English', async () => {
+    const first = renderApp('/recipes/r1', { api: withDetail(detail()).api });
+    expect((await screen.findByText(/Uova/)).textContent).toBe('15 min · Uova');
+    first.unmount();
+    renderApp('/recipes/r1', { api: withDetail(detail()).api, extra: <LanguageSwitch /> });
+    await screen.findByText(/Uova/);
+    fireEvent.click(screen.getByText('test: english'));
+    expect((await screen.findByText(/Eggs/)).textContent).toBe('15 min · Eggs');
+  });
+  it('shows the group alone without a time, and no line without either', async () => {
+    const view = withDetail(detail({ recipe: { ...detail().recipe, durationMinutes: null } }));
+    const first = renderApp('/recipes/r1', { api: view.api });
+    expect((await screen.findByText(/Uova/)).textContent).toBe('Uova');
+    first.unmount();
+    const bare = withDetail(detail({ recipe: { ...detail().recipe, durationMinutes: null, proteinGroup: null } }));
+    const { container } = renderApp('/recipes/r1', { api: bare.api });
+    await screen.findByRole('heading', { name: 'Frittata' });
+    expect(container.querySelector('.meal-meta')).toBeNull();
+  });
   it('shows no empty paragraph without a description', async () => {
     const { api } = withDetail(detail());
     const { container } = renderApp('/recipes/r1', { api });
