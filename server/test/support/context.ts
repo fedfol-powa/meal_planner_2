@@ -10,6 +10,7 @@ export function contextFor(keys: TestKeys, token: string | undefined, connection
 	const env = {
 		HYPERDRIVE: { connectionString } as Hyperdrive,
 		SUPABASE_URL: TEST_SUPABASE_URL,
+		SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test',
 		CF_VERSION_METADATA: { id: 'deploy-1', tag: '', timestamp: '' },
 		ASSETS: {} as Fetcher,
 	} satisfies Env;

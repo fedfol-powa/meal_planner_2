@@ -10,7 +10,10 @@
 	"workers_dev": true,
 	"vars": {
 		// Supabase project URL; token issuer and JWKS are derived from it.
-		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co"
+		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
+		// Publishable key of the project (public value): Project Settings › API Keys.
+		// Replace with the value the user gives the coordinator (spec «Passi esterni», step 3).
+		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_REPLACE_ME"
 	},
 	"version_metadata": { "binding": "CF_VERSION_METADATA" },
 	"assets": {

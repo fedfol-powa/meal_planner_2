@@ -12,6 +12,7 @@ export function testEnv(connectionString = UNREACHABLE_DB): Env {
 	return {
 		HYPERDRIVE: { connectionString } as Hyperdrive,
 		SUPABASE_URL: TEST_SUPABASE_URL,
+		SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test',
 		CF_VERSION_METADATA: { id: 'deploy-1', tag: '', timestamp: '' },
 		ASSETS: { fetch: async () => new Response('<!doctype html><title>SPA</title>', { headers: { 'content-type': 'text/html' } }) } as unknown as Fetcher,
 	};
