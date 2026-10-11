@@ -126,3 +126,4 @@ w1:pC	STATO: DOMANDA 1: cosa comprende «l'intero database»? #cd418433
 w1:pC	STATO: DOMANDA 2: cifratura (la mia proposta di opzione minima adeguata) #6b9e3eaa
 w1:pX	STATO: FATTO #0f727b09
 w1:pZ	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/24 #1b9702f5
+w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/25 #c85bfd07
