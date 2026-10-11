@@ -1188,7 +1188,7 @@ import type { SuggestionsView } from '@app/contract';
 import { rankSuggestions } from '@app/domain/planner';
 import { loadPlannerInput } from '../menu/generation.ts';
 import type { OperationContext } from '../pipeline.ts';
-import { ratingSummaries, recipeSummaries } from '../recipes/views.ts';
+import { ratingSummaries, recipeSummaries, recipeViewKey } from '../recipes/views.ts';
 import { readSlot } from './slots.ts';
 
 export const SUGGESTION_PAGE = 5;
@@ -1213,16 +1213,15 @@ export async function suggestionsOf(context: OperationContext, familyId: string,
 		where w.family_id = ${familyId} and s.free_text is not null
 		group by s.free_text order by count(*) desc, s.free_text limit ${FREE_TEXTS}`;
 	return {
-		recipes: refs.map((ref) => ({ recipe: summaries.get(recipeViewKeyOf(ref))!, rating: ratings.get(ref.recipeId)! })),
+		recipes: refs.map((ref) => ({ recipe: summaries.get(recipeViewKey(ref))!, rating: ratings.get(ref.recipeId)! })),
 		nextOffset: start + SUGGESTION_PAGE < ranked.length ? start + SUGGESTION_PAGE : 0,
 		freeTexts: texts.map((t) => t.text),
 	};
 }
 ```
 
-Use the key function the module exports for `recipeSummaries` (`recipeViewKey` or
-`contentKey`, `server/src/recipes/views.ts:34-35`): read its body in Step 4 and pick the one
-whose map keys match; `recipeViewKeyOf` above stands for that import.
+`recipeSummaries` keys its map by `recipeViewKey(ref)` (`server/src/recipes/views.ts:211`);
+`ratingSummaries` by recipe id.
 
 ```ts
 // server/src/meals/router.ts, in mealsRouter
@@ -2116,7 +2115,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
           <article key={recipe.id} className={styles.suggestion} aria-labelledby={`s-${recipe.id}`}>
             <h4 id={`s-${recipe.id}`}>{recipe.name}</h4>
             {recipe.description && <p>{recipe.description}</p>}
-            <RatingStars rating={rating} readOnly />
+            <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={familyId} readOnly />
             <button type="button" data-name={recipe.name} aria-label={`${t('meals.choose')} ${recipe.name}`} disabled={setRecipe.isPending} onClick={() => choose(recipe.id)}>{t('meals.choose')}</button>
           </article>
         ))}
@@ -2135,10 +2134,10 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
 }
 ```
 
-Add `'meals.choose': 'Scegli'` / `'Choose'` to the dictionary. Adapt to the real props of
-`RatingStars` (read-only mode: check `web/src/components/RatingStars.tsx`; if it has none,
-add a `readOnly` prop that renders the same summary without the radio group — a minimal
-change to the shared component) and of `RecipeFilters` (check its props; pass the text field
+Add `'meals.choose': 'Scegli'` / `'Choose'` to the dictionary. `RatingStars` (`web/src/components/RatingStars.tsx`, props `summary, recipeId,
+recipeName, familyId`) gets an optional `readOnly?: boolean` that renders the same summary
+(average, count, own stars) without the radio group: a minimal change to the shared
+component, with a test in `RatingStars.test.tsx`. Adapt to the real props and of `RecipeFilters` (check its props; pass the text field
 as the first filter). Suggestion cards scroll horizontally (`styles.cards`, prototype
 `RecipePicker.svelte`).
 
@@ -2197,17 +2196,60 @@ git commit -m "Web: Cambia ricetta con suggerimenti, Proponimene altri, ricerca 
 ```tsx
 // web/src/features/meals/forms.test.tsx
 describe('swap, free meal and note', () => {
-  it('swaps with another meal of the week: dish and note move, servings stay', async () => { /* open picker, «Scambia con un altro pasto», choose the second meal, check both cards */ });
-  it('marks a meal free from a quick pick or a typed text up to 60 characters', async () => { /* «Segna come pasto libero», click the first quick pick, card shows the free text */ });
-  it('writes a note with a counter and removes it', async () => { /* «Nota», type, Salva, card shows the note; «Togli nota» removes it */ });
+  const openSheet = async (button: string, index = 0) => {
+    renderApp('/menu');
+    const card = (await screen.findAllByRole('article'))[index]!;
+    fireEvent.click(within(card).getByRole('button', { name: /Modifica/ }));
+    fireEvent.click(within(card).getByRole('button', { name: button }));
+    return { card, sheet: await screen.findByRole('dialog') };
+  };
+  const heading = (card: HTMLElement) => within(card).getByRole('heading', { level: 3 }).textContent;
+
+  it('swaps with another meal of the week: dish and note move, servings stay', async () => {
+    const { card, sheet } = await openSheet('Cambia ricetta');
+    const cards = screen.getAllByRole('article').filter((a) => !sheet.contains(a));
+    const other = cards[1]!;
+    const [mine, theirs] = [heading(card), heading(other)];
+    const servings = within(card).getByText(/porzioni/).textContent;
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Scambia con un altro pasto' }));
+    fireEvent.click((await within(screen.getByRole('dialog')).findAllByRole('button')).find((b) => b.textContent?.includes(theirs!))!);
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(heading(card)).toBe(theirs);
+    expect(heading(other)).toBe(mine);
+    expect(within(card).getByText(/porzioni/).textContent).toBe(servings);
+  });
+
+  it('marks a meal free from a quick pick or a typed text up to 60 characters', async () => {
+    const { card, sheet } = await openSheet('Cambia ricetta');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Segna come pasto libero' }));
+    const input = (await within(screen.getByRole('dialog')).findByRole('textbox', { name: 'Pasto libero' })) as HTMLInputElement;
+    expect(input.maxLength).toBe(60);
+    const save = within(screen.getByRole('dialog')).getByRole('button', { name: 'Salva' }) as HTMLButtonElement;
+    fireEvent.change(input, { target: { value: '   ' } });
+    expect(save.disabled).toBe(true);
+    fireEvent.change(input, { target: { value: 'Cena fuori' } });
+    fireEvent.click(save);
+    await waitFor(() => expect(heading(card)).toBe('Cena fuori'));
+  });
+
+  it('writes a note with a counter and removes it', async () => {
+    const { card } = await openSheet('Nota');
+    const box = within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Nota' }) as HTMLTextAreaElement;
+    expect(box.maxLength).toBe(200);
+    fireEvent.change(box, { target: { value: 'Senza cipolla' } });
+    expect(within(screen.getByRole('dialog')).getByText('13/200')).toBeTruthy();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Salva' }));
+    await waitFor(() => expect(within(card).getByText('Senza cipolla', { exact: false })).toBeTruthy());
+    fireEvent.click(within(card).getByRole('button', { name: /Modifica/ }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Nota' }));
+    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: 'Togli nota' }));
+    await waitFor(() => expect(within(card).queryByText('Senza cipolla', { exact: false })).toBeNull());
+  });
 });
 ```
 
-Write each body like the tests of Task 11 (`renderApp('/menu')`, open the pencil, act,
-`waitFor` on the card). For the swap, read the two cards' headings and servings before and
-after; for the note, assert `maxLength` 200 on the textarea and the counter text
-`'{n}/200'`; for the free meal, assert the input has `maxLength` 60 and that an empty text
-disables «Salva».
+Imports as in `MealActions.test.tsx` (Task 10). The first card of the demo menu must be a
+recipe; if it is not, pick the first card with a recipe by its heading.
 
 - [ ] **Step 2: Run** `npm test -w web -- forms` — Expected: FAIL.
 
