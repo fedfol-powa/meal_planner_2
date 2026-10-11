@@ -1,7 +1,7 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { toApiError } from '../api/errors';
 import { clearRevoked, createPersister, createQueryClient, markRevoked, type KeyValueStore, type SessionPersister } from '../api/persister';
-import { familyOfKey } from '../api/queries';
+import { familyOfKey, localeOfKey } from '../api/queries';
 import type { Api } from '../api/types';
 import type { SessionChannel } from './channel';
 import { clearPreference, userScope } from './localePreference';
@@ -156,17 +156,35 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
   return session;
 }
 
-/** Every Api method goes through the session: unauthorized protocol and family marks. */
-export function wrapApi(api: Api, session: Session): Api {
+/** The language an Api client was made for, and whether it is still the one shown. */
+export interface ClientLanguage {
+  locale: string;
+  isCurrent: () => boolean;
+}
+
+/**
+ * Every Api method goes through the session: unauthorized protocol and family marks. The client
+ * speaks one language, also in the retries; an answer that arrives after the language changed
+ * cancels the reads of that language, so it never reaches the cache (PR review, C12).
+ */
+export function wrapApi(api: Api, session: Session, language?: ClientLanguage): Api {
+  const dropIfStale = <T,>(value: T): T => {
+    if (language && !language.isCurrent()) {
+      void session.queryClient.cancelQueries({ predicate: (query) => localeOfKey(query.queryKey) === language.locale });
+    }
+    return value;
+  };
   const wrapArea = <T extends object>(area: T): T =>
     Object.fromEntries(
       Object.entries(area).map(([name, method]) => [
         name,
         (input?: { familyId?: unknown }) =>
-          session.call(
-            () => (method as (input: unknown) => Promise<unknown>).call(area, input),
-            typeof input?.familyId === 'string' ? input.familyId : undefined
-          )
+          session
+            .call(
+              () => (method as (input: unknown) => Promise<unknown>).call(area, input),
+              typeof input?.familyId === 'string' ? input.familyId : undefined
+            )
+            .then(dropIfStale)
       ])
     ) as T;
   return { me: wrapArea(api.me), menu: wrapArea(api.menu), recipes: wrapArea(api.recipes), ratings: wrapArea(api.ratings) };

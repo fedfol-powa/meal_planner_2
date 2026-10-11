@@ -15,7 +15,7 @@ import type { CreateApi } from './session/SessionScope';
 
 const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supabase.publishableKey) : createFakeBackend();
 // Until W1's server exists, data come from the fake client in both modes (spec "Accesso e modalità").
-const createApi: CreateApi = (user, getLocale) => createFakeApi({ getLocale, user: user ?? undefined, latencyMs: 150 });
+const createApi: CreateApi = (user, locale) => createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 150 });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

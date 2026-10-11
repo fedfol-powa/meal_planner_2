@@ -1,11 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { persistQueryClientRestore } from '@tanstack/react-query-persist-client';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
-import { cacheKey, createMemoryStore } from '../api/persister';
-import { meQuery, useQueryDeps, weekQuery } from '../api/queries';
-import type { Api, MeView, Read, WeekView } from '../api/types';
+import { cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
+import { meQuery, queryKeys, recipeQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
+import type { Api, MeView, Read, RecipeDetailView, WeekView } from '../api/types';
+import { DEMO_FAMILY_ID } from '../api/fake/seed';
+import type { CreateApi } from './SessionScope';
 import { useAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
 import { createMemoryHub } from '../test/memoryChannel';
@@ -13,6 +16,7 @@ import { setOnline } from '../test/connectivity';
 import { createStubBackend } from '../test/stubBackend';
 import { renderSession } from '../test/sessionHarness';
 import { readPreference, userScope, writePreference } from './localePreference';
+import { env } from '../env';
 import { useChooseLocale, useSession, useSessionRevision, useSignOut } from './SessionScope';
 
 const A = { id: 'a', email: 'a@example.com' };
@@ -192,12 +196,13 @@ describe('language', () => {
       const week = useQuery(weekQuery(useQueryDeps(), 'f', '2026-10-05'));
       return <><p>week: {week.data?.startsOn ?? '-'}</p><button onClick={() => setLocale('en-GB')}>switch</button></>;
     }
+    // One client per language: the count of reads is shared by both.
+    let call = 0;
     renderSession(<LanguageProbe />, {
       backend,
       locale: 'it-IT',
       api: (id) => {
         const base = api(async () => meOf(id))(id);
-        let call = 0;
         return { ...base, menu: { ...base.menu, getWeek: () => (call++ === 0 ? new Promise((resolve) => (releaseItalian = resolve)) : Promise.resolve({ unchanged: false as const, version: 'en', data: weekIn('english') })) } };
       }
     });
@@ -336,5 +341,66 @@ describe('other tabs of the same person (second review, C4)', () => {
     await waitFor(() => expect(store.entries.has(cacheKey('a'))).toBe(false));
     await new Promise((resolve) => setTimeout(resolve, 1100));
     expect(store.entries.has(cacheKey('a'))).toBe(false);
+  });
+});
+
+describe('language of a read (PR review, C12)', () => {
+  const recipeId = 'bistecche-tonno-skottle';
+  const italian = 'Bistecche di tonno allo skottle';
+  const english = 'Skottle tuna steaks';
+  const italianKey = queryKeys.recipe(DEMO_FAMILY_ID, recipeId, 'it-IT');
+  let client: QueryClient | null = null;
+
+  function RecipeProbe() {
+    client = useQueryClient();
+    const recipe = useQuery(recipeQuery(useQueryDeps(), DEMO_FAMILY_ID, recipeId));
+    const choose = useChooseLocale();
+    return (
+      <>
+        <p>recipe: {recipe.data?.recipe.name ?? '-'}</p>
+        <button onClick={() => choose('en-GB')}>english</button>
+        <button onClick={() => choose('it-IT')}>italian</button>
+      </>
+    );
+  }
+
+  it('drops an answer whose language changed during a renewal, in memory, on disk and after reopening', async () => {
+    const backend = createStubBackend(A);
+    const renewal = backend.holdRefresh();
+    let refused = false;
+    const createApi: CreateApi = (user, locale) => {
+      const base = createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 });
+      const get = base.recipes.get;
+      // The first read is refused: its renewal waits while the language changes.
+      const recipes = { ...base.recipes, get: (input: Parameters<typeof get>[0]) => (refused ? get(input) : ((refused = true), Promise.reject(new ApiError('unauthorized')))) };
+      return { ...base, recipes };
+    };
+    const { store } = renderSession(<RecipeProbe />, { backend, createApi });
+    await waitFor(() => expect(backend.refreshCalls).toBe(1));
+    fireEvent.click(screen.getByText('english'));
+    await screen.findByText(`recipe: ${english}`);
+    await act(async () => renewal(true));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The Italian read came back after the change: nothing of it is kept.
+    const cached = client!.getQueryData<Versioned<RecipeDetailView>>(italianKey);
+    expect(cached).toBeUndefined();
+    // On disk, after the throttled write: only the English view.
+    await waitFor(
+      () => {
+        const entry = store.entries.get(cacheKey('a')) as { clientState: { queries: { queryKey: unknown[]; state: { data: Versioned<RecipeDetailView> } }[] } } | undefined;
+        const recipes = entry?.clientState.queries.filter((q) => q.queryKey[1] === 'get' && q.queryKey[0] === 'recipes') ?? [];
+        expect(recipes.map((q) => [(q.queryKey[2] as { locale: string }).locale, q.state.data.data.recipe.name])).toEqual([['en-GB', english]]);
+      },
+      { timeout: 3000 }
+    );
+    fireEvent.click(screen.getByText('italian'));
+    await screen.findByText(`recipe: ${italian}`);
+    // Reopening: each language restores its own view.
+    await waitFor(async () => {
+      const restored = createQueryClient();
+      await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: env.buildVersion });
+      expect(restored.getQueryData<Versioned<RecipeDetailView>>(italianKey)?.data.recipe.name).toBe(italian);
+      expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, recipeId, 'en-GB'))?.data.recipe.name).toBe(english);
+    }, { timeout: 3000 });
   });
 });

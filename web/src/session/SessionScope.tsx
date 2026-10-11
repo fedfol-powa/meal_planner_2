@@ -15,7 +15,8 @@ import type { SessionChannel } from './channel';
 import { readPreference, userScope, writePreference } from './localePreference';
 import { createSession, persisterOf, wrapApi, type Session } from './session';
 
-export type CreateApi = (user: AuthUser | null, getLocale: () => Locale) => Api;
+/** One client per language: a read keeps the language it started with, also when retried. */
+export type CreateApi = (user: AuthUser | null, locale: Locale) => Api;
 
 interface SessionContextValue {
   session: Session;
@@ -61,8 +62,20 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
         : createSession(identity, store, { refresh: () => backend.refresh(), end: (s) => endRef.current(s), channel }),
     [identity, store, backend, channel]
   );
-  // The data client depends on the user only; the language is read at each call.
-  const api = useMemo(() => (session ? wrapApi(createApi(user, () => localeRef.current), session) : null), [session, createApi]);
+  // The data client depends on the user and the language; answers in a language no longer shown are dropped (PR review, C12).
+  const clients = useMemo(() => {
+    const byLocale = new Map<Locale, Api>();
+    return (current: Locale) => {
+      if (!session) return null;
+      let client = byLocale.get(current);
+      if (!client) {
+        client = wrapApi(createApi(user, current), session, { locale: current, isCurrent: () => localeRef.current === current });
+        byLocale.set(current, client);
+      }
+      return client;
+    };
+  }, [session, createApi]);
+  const api = clients(locale);
 
   // One closing procedure for sign-out, sign-out elsewhere and change of user. Never in an
   // effect cleanup: StrictMode re-runs effects and would close a live session.

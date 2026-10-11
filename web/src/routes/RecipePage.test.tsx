@@ -61,10 +61,10 @@ describe('recipe page', () => {
 describe('previous data only within the same view (second review, C7)', () => {
   type GetInput = Parameters<ReturnType<typeof createFakeApi>['recipes']['get']>[0];
   /** Fake client whose recipe reads matching `held` never answer. */
-  const holding = (held: (input: GetInput, locale: string) => boolean): CreateApi => (user, getLocale) => {
-    const api = createFakeApi({ getLocale, user: user ?? undefined, latencyMs: 0 });
+  const holding = (held: (input: GetInput, locale: string) => boolean): CreateApi => (user, locale) => {
+    const api = createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 });
     const get = api.recipes.get;
-    api.recipes.get = (input) => (held(input, getLocale()) ? new Promise(() => {}) : get(input));
+    api.recipes.get = (input) => (held(input, locale) ? new Promise(() => {}) : get(input));
     return api;
   };
   const wokTitle = () => screen.queryByRole('link', { name: /Wok di pollo/ });

@@ -13,11 +13,16 @@ import { createMemoryHub } from './memoryChannel';
 
 type MemoryStore = ReturnType<typeof createMemoryStore>;
 
-export function renderSession(ui: ReactNode, options: { backend: AuthBackend; store?: MemoryStore; api?: (user: string | null) => Api; locale?: Locale; channel?: SessionChannel }) {
+export function renderSession(
+  ui: ReactNode,
+  options: { backend: AuthBackend; store?: MemoryStore; api?: (user: string | null) => Api; createApi?: CreateApi; locale?: Locale; channel?: SessionChannel }
+) {
   const store = options.store ?? createMemoryStore();
-  const createApi: CreateApi = options.api
-    ? (user) => options.api!(user?.id ?? null)
-    : (user, getLocale) => createFakeApi({ getLocale, user: user ?? undefined, latencyMs: 0 });
+  const createApi: CreateApi =
+    options.createApi ??
+    (options.api
+      ? (user) => options.api!(user?.id ?? null)
+      : (user, locale) => createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 }));
   const result = render(
     <LocaleProvider initial={options.locale ?? 'it-IT'}>
       <AuthProvider backend={options.backend}>

@@ -16,7 +16,7 @@ export function renderApp(path: string, options: { backend?: AuthBackend; api?: 
   const backend = options.backend ?? createStubBackend(DEMO_USER);
   const createApi: CreateApi = options.createApi ?? (options.api
     ? () => options.api!
-    : (user, getLocale) => createFakeApi({ getLocale, user: user ?? undefined, latencyMs: 0 }));
+    : (user, locale) => createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 }));
   const result = render(
     <AppRoot backend={backend} store={options.store ?? createMemoryStore()} createApi={createApi} channel={createMemoryHub().channel()} history={history} initialLocale={options.locale ?? 'it-IT'}>
       {options.extra}

@@ -49,6 +49,14 @@ export function familyOfKey(queryKey: QueryKey): string | null {
   return typeof familyId === 'string' ? familyId : null;
 }
 
+/** The language a cached view was read in, if any. */
+export function localeOfKey(queryKey: QueryKey): string | null {
+  const input = queryKey[2];
+  if (typeof input !== 'object' || input === null || !('locale' in input)) return null;
+  const locale = (input as { locale: unknown }).locale;
+  return typeof locale === 'string' ? locale : null;
+}
+
 /**
  * placeholderData that keeps the previous data only within the same view: same area, operation
  * and listed input fields. Never across languages, families, recipes or meals (second review, C7).

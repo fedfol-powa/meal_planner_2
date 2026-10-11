@@ -70,10 +70,10 @@ describe('recipes', () => {
 
 describe('previous data only within the same view (second review, C7)', () => {
   it('never shows the list in the previous language while the new one loads', async () => {
-    const createApi: CreateApi = (user, getLocale) => {
-      const api = createFakeApi({ getLocale, user: user ?? undefined, latencyMs: 0 });
+    const createApi: CreateApi = (user, locale) => {
+      const api = createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 });
       const search = api.recipes.search;
-      api.recipes.search = (input) => (getLocale() === 'en-GB' ? new Promise(() => {}) : search(input));
+      api.recipes.search = (input) => (locale === 'en-GB' ? new Promise(() => {}) : search(input));
       return api;
     };
     renderApp('/recipes', { createApi, extra: <LanguageSwitch /> });
