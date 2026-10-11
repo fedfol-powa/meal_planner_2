@@ -1,32 +1,8 @@
-import { contract } from '@app/contract';
-import { implement, ORPCError } from '@orpc/server';
-import { RPCHandler } from '@orpc/server/fetch';
+import { ORPCError } from '@orpc/server';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
 import { createRpcClient } from './rpc';
-
-const whoami = { userId: '7c1f2e7e-3a7b-4f0a-9d55-1b2c3d4e5f60', channel: 'web' as const, clientId: null, locale: 'it-IT' as const };
-
-/** A server of the contract in this process: the RPC handler of the Worker, without the Worker. */
-function testServer() {
-  const seen: (string | null)[] = [];
-  let answer: () => unknown = () => whoami;
-  const os = implement({ session: contract.session });
-  const router = os.router({
-    session: {
-      whoami: os.session.whoami.handler(({ context }) => {
-        seen.push((context as { authorization: string | null }).authorization);
-        return answer() as typeof whoami;
-      })
-    }
-  });
-  const handler = new RPCHandler(router);
-  const fetch = vi.fn(async (request: Request) => {
-    const { matched, response } = await handler.handle(request, { prefix: '/api/rpc', context: { authorization: request.headers.get('authorization') } });
-    return matched ? response : new Response('not found', { status: 404 });
-  });
-  return { seen, fetch, answer: (next: () => unknown) => (answer = next) };
-}
+import { createRpcTestServer as testServer, WHOAMI as whoami } from '../test/rpcServer';
 
 describe('oRPC client (second PR)', () => {
   it('sends the token read at each request, and no header without a token', async () => {

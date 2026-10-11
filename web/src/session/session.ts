@@ -241,18 +241,25 @@ export function wrapApi(api: Api, session: Session, language?: ClientLanguage): 
     }
     return value;
   };
-  const wrapArea = <T extends object>(area: T): T =>
-    Object.fromEntries(
-      Object.entries(area).map(([name, method]) => [
-        name,
-        (input?: { familyId?: unknown }) =>
-          session
-            .call(
-              () => (method as (input: unknown) => Promise<unknown>).call(area, input),
-              typeof input?.familyId === 'string' ? input.familyId : undefined
-            )
-            .then(dropIfStale)
-      ])
-    ) as T;
-  return { me: wrapArea(api.me), menu: wrapArea(api.menu), recipes: wrapArea(api.recipes), ratings: wrapArea(api.ratings) };
+  const familyOf = (input: unknown) => {
+    const familyId = typeof input === 'object' && input !== null ? (input as { familyId?: unknown }).familyId : undefined;
+    return typeof familyId === 'string' ? familyId : undefined;
+  };
+  // A Proxy at every level: the oRPC client has no keys to enumerate (second PR). Every
+  // argument is passed on, the client options with `signal` too, also in the retry.
+  const wrap = (target: object): unknown =>
+    new Proxy(target, {
+      get(object, key, receiver) {
+        const value: unknown = Reflect.get(object, key, receiver);
+        // Not wrapped: symbols, and `then`, so that a client never looks like a promise.
+        if (typeof key !== 'string' || key === 'then' || value === null || (typeof value !== 'object' && typeof value !== 'function')) return value;
+        return typeof value === 'function' ? wrapMethod(value as (...args: unknown[]) => Promise<unknown>, object) : wrap(value);
+      }
+    });
+  const wrapMethod = (method: ((...args: unknown[]) => Promise<unknown>) & object, owner: object) =>
+    new Proxy(method, {
+      get: (target, key, receiver) => (typeof key === 'string' && key !== 'then' ? (wrap(target) as Record<string, unknown>)[key] : Reflect.get(target, key, receiver)),
+      apply: (target, _thisArg, args: unknown[]) => session.call(() => Reflect.apply(target, owner, args), familyOf(args[0])).then(dropIfStale)
+    });
+  return wrap(api) as Api;
 }

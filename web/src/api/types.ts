@@ -1,3 +1,5 @@
+import type { Contract } from '@app/contract';
+import type { ContractRouterClient } from '@orpc/contract';
 import type { Locale } from '../i18n/translate';
 import type { IsoDate, LocalDateTime, MealType } from '../lib/calendar';
 
@@ -49,8 +51,18 @@ export type Read<T> = { unchanged: true; version: string } | { unchanged: false;
 export interface ReadInput { knownVersion?: string }
 export interface FamilyInput extends ReadInput { familyId: string }
 
-/** Same shape as the future oRPC client (nested by area). Names align with wave 2's contract. */
-export interface Api {
+/**
+ * Areas of the contract read from the Worker (second PR). Each wave 2 producer adds its area here
+ * when it is in the contract and served, removes it from ProvisionalApi and aligns the fake client.
+ */
+export const SERVER_AREAS = ['session'] as const satisfies readonly (keyof Contract)[];
+export type ServerArea = (typeof SERVER_AREAS)[number];
+
+/** What the screens use: the contract's client for the server areas, the provisional areas otherwise. */
+export type Api = ContractRouterClient<Pick<Contract, ServerArea>> & ProvisionalApi;
+
+/** Areas not served yet: same shape as the oRPC client (nested by area), answered by the fake client. */
+export interface ProvisionalApi {
   me: { get(input: ReadInput): Promise<Read<MeView>> };
   menu: {
     getOpening(input: FamilyInput): Promise<Read<OpeningView>>;
