@@ -26,3 +26,5 @@ jobs:
       - run: npm run typecheck
       # CI is set by GitHub Actions: database suites fail instead of being skipped.
       - run: npm test
+      # Last: resets the database, then restores an export into it with the real CLI.
+      - run: npm run test:drill -w server
