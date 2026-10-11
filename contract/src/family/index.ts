@@ -1,11 +1,14 @@
 import { z } from 'zod';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
+import { measurementSystemSchema } from '../profile/index.ts';
 import { familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './views.ts';
 
 export * from './views.ts';
 
 const family = z.object({ familyId: z.uuid() });
+/** Family administrators only; the answer is the updated view, not versioned. */
+const adminWrite = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyAdmin' });
 const memberRead = (reads?: ('family' | 'catalogue')[]) =>
 	op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', ...(reads ? { reads } : {}) });
 
@@ -35,4 +38,25 @@ export const familyContract = {
 		})
 		.input(family.extend({ text: z.string().max(60) }))
 		.output(z.array(ingredientMatchSchema)),
+
+	rename: adminWrite()
+		.route({ method: 'PUT', path: '/families/{familyId}/name', summary: 'Rename a family (family administrators)' })
+		.input(family.extend({ name: z.string().trim().min(1).max(60) }))
+		.output(familyViewSchema),
+	setMeasurementSystem: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/measurement-system',
+			summary: 'Use metric or UK imperial units for meals, shopping and exports (family administrators)',
+		})
+		.input(family.extend({ measurementSystem: measurementSystemSchema }))
+		.output(familyViewSchema),
+	setTimeZone: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/time-zone',
+			summary: 'Set the family time zone, an IANA name such as Europe/Rome (family administrators)',
+		})
+		.input(family.extend({ timeZone: z.string().min(1).max(64) }))
+		.output(familyViewSchema),
 };
