@@ -3,7 +3,7 @@ import type { FamilyRole } from '../types';
 
 export const DEMO_FAMILY_ID = 'family-main';
 export const DEMO_USER_ID = 'user-federico';
-export const DEMO_FAMILY = { id: DEMO_FAMILY_ID, name: 'Famiglia Folloni', timeZone: 'Europe/Rome' };
+export const DEMO_FAMILY = { id: DEMO_FAMILY_ID, name: 'Famiglia Folloni', timeZone: 'Europe/Rome', measurementSystem: 'metric' as const };
 
 export interface DemoPerson { id: string; displayName: string; email: string; locale: Locale; role: FamilyRole }
 export const DEMO_PEOPLE: DemoPerson[] = [

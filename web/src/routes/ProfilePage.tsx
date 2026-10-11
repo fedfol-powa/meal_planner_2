@@ -6,7 +6,7 @@ import { QueryError } from '../components/QueryError';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../i18n/translate';
 import { useChooseLocale, useSignOut } from '../session/SessionScope';
-import { useFamily, useMe } from '../session/useFamily';
+import { useFamily, useProfile } from '../session/useFamily';
 import styles from './ProfilePage.module.css';
 
 // Destinations that arrive with wave 2 (spec, Profilo): visible, disabled.
@@ -22,11 +22,11 @@ export function ProfilePage() {
   const chooseLocale = useChooseLocale();
   const { state, backend } = useAuth();
   const signOut = useSignOut();
-  const me = useMe();
+  const read = useProfile();
   const family = useFamily();
-  const meBlocked = me.isError && isBlocking(me.error, !!me.data);
+  const blocked = read.isError && isBlocking(read.error, !!read.data);
   // No cached profile next to a blocking error (second review, C8).
-  const profile = meBlocked ? undefined : me.data;
+  const profile = blocked ? undefined : read.data;
   const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
 
   return (
@@ -36,8 +36,8 @@ export function ProfilePage() {
           <h1 className={styles.name}>{profile?.user.displayName ?? email}</h1>
           {profile && <p className={styles.email}>{email}</p>}
         </header>
-        {meBlocked && <QueryError error={me.error} onRetry={() => void me.refetch()} />}
-        {!meBlocked && !me.data && <Loading />}
+        {blocked && <QueryError error={read.error} onRetry={() => void read.refetch()} />}
+        {!blocked && !read.data && <Loading />}
         {family.status === 'ready' && (
           <section className="settings-card" aria-labelledby="family-title">
             <h2 id="family-title">{t('profile.family')}</h2>

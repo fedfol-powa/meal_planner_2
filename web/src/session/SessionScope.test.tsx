@@ -5,14 +5,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
-import { meQuery, openingQuery, queryKeys, recipeQuery, searchQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
+import { openingQuery, queryKeys, recipeQuery, searchQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
 import { useRateRecipe } from '../api/ratings';
 import { useApi } from '../api/ApiProvider';
 import { realClients } from '../api/clients';
 import { createRpcClient } from '../api/rpc';
 import { createRpcTestServer } from '../test/rpcServer';
 import { SessionClosedError, type Session } from './session';
-import type { Api, MeView, Read, RecipeDetailView, WeekView } from '../api/types';
+import type { Api, ProfileView, Read, RecipeDetailView, WeekView } from '../api/types';
+import { profileQuery } from '../api/profile';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import type { CreateApi } from './SessionScope';
 import type { SessionMessage } from './channel';
@@ -29,30 +30,30 @@ import { useChooseLocale, useSession, useSessionRevision, useSignOut } from './S
 const A = { id: 'a', email: 'a@example.com' };
 const B = { id: 'b', email: 'b@example.com' };
 
-const meOf = (id: string | null, locale: 'it-IT' | 'en-GB' = 'it-IT'): Read<MeView> => ({
-  unchanged: false,
-  version: `me:${id}`,
-  data: { user: { id: id ?? 'anon', displayName: (id ?? 'anon').toUpperCase(), email: '', locale }, families: [], currentFamilyId: null }
+const meOf = (id: string | null, locale: 'it-IT' | 'en-GB' = 'it-IT'): ProfileView => ({
+  user: { id: id ?? 'anon', displayName: (id ?? 'anon').toUpperCase(), email: '', locale, globalRoles: [] },
+  families: [],
+  currentFamilyId: null
 });
 
 /** Fake data client whose profile read can be replaced per user. */
-function api(me: (id: string | null) => Promise<Read<MeView>>) {
+function api(read: (id: string | null) => Promise<ProfileView>) {
   return (id: string | null) => {
     const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
-    return { ...base, me: { get: () => me(id) } } as Api;
+    return { ...base, profile: { ...base.profile, get: () => read(id) } } as Api;
   };
 }
 
 function Probe() {
   const { state } = useAuth();
-  const me = useQuery({ ...meQuery(useQueryDeps()), enabled: state.status === 'signedIn' });
+  const profile = useQuery({ ...profileQuery(useQueryDeps()), enabled: state.status === 'signedIn' });
   const signOut = useSignOut();
   const choose = useChooseLocale();
   const { locale } = useLocale();
   return (
     <>
       <p>auth: {state.status}</p>
-      <p>name: {me.data?.user.displayName ?? '-'}</p>
+      <p>name: {profile.data?.user.displayName ?? '-'}</p>
       <p>locale: {locale}</p>
       <button onClick={() => void signOut()}>out</button>
       <button onClick={() => choose('en-GB')}>english</button>
@@ -88,7 +89,7 @@ describe('closing the session', () => {
     expect(screen.queryByText('name: A')).toBeNull();
   });
   it('drops answers still pending when the user changes and keeps only the new user on disk', async () => {
-    let releaseA: (value: Read<MeView>) => void = () => {};
+    let releaseA: (value: ProfileView) => void = () => {};
     const backend = createStubBackend(A);
     const { store } = renderSession(<Probe />, {
       backend,
@@ -546,7 +547,8 @@ describe('credentials of the session that makes the call (PR #17 review, second 
     release({ accessToken: 'token-of-b', userId: 'b' });
     await vi.waitFor(() => expect(outcome).not.toBe('pending'));
     expect(outcome).toBe('closed');
-    expect(server.fetch).not.toHaveBeenCalled();
+    // The profile of B may be read; A's call never leaves.
+    expect(server.fetch.mock.calls.filter(([request]) => request.url.endsWith('/session/whoami'))).toEqual([]);
     await screen.findByText('auth: b');
     expect(backend.signOutCalls).toBe(0);
   });
