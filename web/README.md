@@ -35,8 +35,10 @@ sessione con la stessa procedura e cancellano tutto.
 `unauthorized` dal server: un solo rinnovo per sessione, condiviso dalle chiamate
 rifiutate, che poi si ripetono una volta; se il rinnovo fallisce o il rifiuto si ripete,
 l'ingresso. `forbidden`: i dati di quella famiglia spariscono, anche dalle altre schede
-(`BroadcastChannel`) e dalla copia, dove un segno (`revoked:<id>`) impedisce di
-riscriverli finché una lettura nuova non riesce. Il voto non è ottimistico: in cache entra
+(`BroadcastChannel`) e dalla copia, dove un segno per famiglia (`revoked:<utente>:<famiglia>`,
+aggiornato in una sola transazione di IndexedDB) impedisce di riscriverli finché una lettura
+nuova non riesce. Ogni lettura resta nella lingua in cui è partita, anche nel tentativo dopo
+un rinnovo; se nel frattempo la lingua cambia, la risposta si scarta. Il voto non è ottimistico: in cache entra
 solo quello che il server ha confermato, dopo aver annullato le letture partite prima.
 
 Il service worker installa la shell intera (`precache.json`) e serve le navigazioni da
