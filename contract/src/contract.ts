@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { localeSchema } from './locale.ts';
 import { op } from './op.ts';
+import { familyContract } from './family/index.ts';
+import { profileContract } from './profile/index.ts';
 import { ratingsContract } from './recipes/ratings.ts';
 
 export const contract = {
@@ -18,6 +20,8 @@ export const contract = {
 			),
 	},
 	ratings: ratingsContract,
+	profile: profileContract,
+	family: familyContract,
 };
 
 export type Contract = typeof contract;
