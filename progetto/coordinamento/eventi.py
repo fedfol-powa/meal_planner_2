@@ -92,6 +92,7 @@ def main():
     pending_at_start()
     status = {}  # last agent status seen per worker pane
     last_emitted = {}  # last event line printed per pane, to avoid repeats
+    next_check = time.monotonic() + RECONCILE
     while True:
         known = {p: (label, kind) for p, label, kind, st in panes()}
         for p, label, kind, st in panes():
@@ -100,8 +101,10 @@ def main():
             sock = subscribe(known)
             for msg in lines(sock):
                 ev, data = msg.get("event"), msg.get("data") or {}
-                if ev == "tick":
+                if time.monotonic() >= next_check:  # by elapsed time: other events keep the socket busy
                     reconcile(known, last_emitted)
+                    next_check = time.monotonic() + RECONCILE
+                if ev == "tick":
                     continue
                 if ev in ("pane.created", "pane.closed", "pane.agent_detected"):
                     break  # renew the subscription with the current panes

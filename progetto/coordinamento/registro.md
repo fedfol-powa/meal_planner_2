@@ -7,12 +7,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20 (web del menu) in review; dopo il merge: revisione dei pasti (brief w1-revisione-pasti.md, worktree .worktrees/revisione-pasti già creato, nuova sessione) | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #18 (me → profile) in review, va unita per prima; poi Task 11-15 | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Spec e piano pronti (f88a22f); review in corso (revisioni/w3-catalogue-spec-piano.md) | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20 «approvabile con correzioni»: corregge 3 e 4 ora; 1 e 2 dopo il merge di #18 e #19 (aggiorna su main); poi revisione dei pasti | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #18 «approvabile con correzioni» (test del collegamento reale di profile) → merge per prima; PR #21 in review | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Spec e piano «da rifare» (12 rilievi, w3-04 con le decisioni); poi seconda review breve | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Dopo `/clear`: web e coda offline (task 9-14; web-01) | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 unita (tre review). Libero | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 (web) in review | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 «approvabile con correzioni»: corregge 2 e 3 ora; 1 dopo il merge della #18 | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione). Ondata 1 completata.
@@ -21,10 +21,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R catalogue spec | spec e piano di W3 | R catalogue spec | w1:p1W | → revisioni/w3-catalogue-spec-piano.md |
-| R PR18 profilo web | PR #18 | R PR18 profilo web | w1:p1X | → revisioni/w2-pr18.md |
-| R PR19 ricettario web | PR #19 | R PR19 ricettario web | w1:p1Y | → revisioni/w6-pr19.md |
-| R PR20 menu web | PR #20 | R PR20 menu web | w1:p1Z | → revisioni/w1-pr20.md |
+| R PR21 profilo web | PR #21 | R PR21 profilo web | w1:p10 | → revisioni/w2-pr21.md |
 
 ## Domande in sospeso
 
@@ -36,8 +33,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
 0. **In corso (ordine dell'ondata 2):**
-   - Tutto il server e il client reale sono su main. Parti web (messaggio web-01): W2 per
-     primo (me → profile), poi W6, W1, W4 nell'ordine di approvazione; merge una alla
+   - Tutto il server e il client reale sono su main. Parti web (messaggio web-01): ordine dei merge #18 → #19 → #20 → #21, poi W4; merge una alla
      volta, chi arriva dopo porta il branch su main.
    - W3: brainstorming chiuso, scrive spec e piano della gestione del ricettario (area
      `catalogue`); web dopo la PR web di W2.

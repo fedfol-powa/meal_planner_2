@@ -95,3 +95,8 @@ w1:p1V	REVISORE_FINITO
 w1:pA	STATO: SPEC_E_PIANO_PRONTI #ca7f2af3
 w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/19 #de0cf35a
 w1:pW	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/20 #28f45f02
+w1:pY	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/21 #adf6eb42
+w1:p1W	REVISORE_FINITO
+w1:p1X	REVISORE_FINITO
+w1:p1Y	REVISORE_FINITO
+w1:p1Z	REVISORE_FINITO
