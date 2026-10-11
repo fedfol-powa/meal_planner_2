@@ -4,6 +4,7 @@ import { op } from './op.ts';
 import { familyContract } from './family/index.ts';
 import { profileContract } from './profile/index.ts';
 import { ratingsContract } from './recipes/ratings.ts';
+import { recipesContract } from './recipes/recipes.ts';
 
 export const contract = {
 	session: {
@@ -19,6 +20,7 @@ export const contract = {
 				}),
 			),
 	},
+	recipes: recipesContract,
 	ratings: ratingsContract,
 	profile: profileContract,
 	family: familyContract,
