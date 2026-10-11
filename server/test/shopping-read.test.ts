@@ -159,6 +159,14 @@ describe.skipIf(!hasDatabase)('shopping.getWeekList', () => {
 		expect((await errorOf(read(user, familyId, '2026-10-13'))).code).toBe('invalid');
 	});
 
+	it('answers not_found for a week not generated even with a current version of another week (PR review, finding 2)', async () => {
+		const { user, familyId } = await family();
+		await seedWeek(db, familyId, MONDAY, []);
+		const current = await read(user, familyId);
+		const error = await errorOf(read(user, familyId, '2026-11-02', current.version));
+		expect(error.code).toBe('not_found');
+	});
+
 	it('answers unchanged with the same version, a new view after a change', async () => {
 		const { user, familyId } = await family();
 		const flour = await seedIngredient(db, { name: 'Farina' });

@@ -17,11 +17,19 @@ const item = { ingredientId: z.uuid(), varietyKey: z.string().max(200) };
 /** Mutations answer with the updated view and its version (the web mutation model). */
 const updated = z.object({ version: z.string(), data: shoppingListViewSchema });
 const found = { not_found: errorDefinitions.not_found };
+/** Counters the list view depends on (spec section 1, versioned reads). */
+export const SHOPPING_LIST_READS = ['family', 'catalogue'] as const;
 const write = { mcp: { readOnly: false }, offline: true, role: 'familyMember' } as const;
 
 export const shoppingContract = {
 	shopping: {
-		getWeekList: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] })
+		/**
+		 * Versioned read handled in the operation, without `reads`: the week must exist before an
+		 * «unchanged» answer, and the request path compares versions before any handler. It reads
+		 * the family and catalogue counters (SHOPPING_LIST_READS); it moves back to `reads` with
+		 * W1's `prepare` hook.
+		 */
+		getWeekList: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember' })
 			.route({ method: 'GET', path: '/shopping/week-list', summary: 'Shopping list of a week, ready to show' })
 			.errors(found)
 			.input(versionedWeek)

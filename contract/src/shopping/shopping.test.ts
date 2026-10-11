@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { checkContract } from '../check.ts';
+import { isVersionedOutput } from '../versioned.ts';
 import { normalizeFreeItemText, shoppingContract, shoppingListViewSchema } from './index.ts';
 
 const contract = shoppingContract;
@@ -9,6 +10,16 @@ const valid = (schema: unknown, value: unknown) =>
 describe('shopping contract', () => {
 	it('follows the conventions', () => {
 		expect(checkContract(shoppingContract)).toEqual([]);
+	});
+
+	it('keeps getWeekList a versioned read, handled in the operation', () => {
+		const def = contract.shopping.getWeekList['~orpc'];
+		expect(isVersionedOutput(def.outputSchema)).toBe(true);
+		const input = def.inputSchema!;
+		const base = { familyId: crypto.randomUUID(), weekStartsOn: '2026-10-12' };
+		expect(valid(input, base)).toBe(true);
+		expect(valid(input, { ...base, knownVersion: 'v1' })).toBe(true);
+		expect(valid(input, { ...base, knownVersion: 1 })).toBe(false);
 	});
 
 	it('requires quantityAtCheck exactly when ticking', () => {

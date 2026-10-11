@@ -1,4 +1,4 @@
-import { normalizeFreeItemText, type ShoppingListView } from '@app/contract';
+import { normalizeFreeItemText, SHOPPING_LIST_READS, type ShoppingListView } from '@app/contract';
 import type { CombinedQuantity } from '@app/domain/units';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
@@ -40,7 +40,7 @@ async function change(
 	const { tx } = context;
 	const { weekId } = await findWeek(tx, input.familyId, input.weekStartsOn);
 	await write(tx, await ensureList(tx, input.familyId, weekId, context.userId));
-	const version = await readVersion(tx, ['family', 'catalogue'], input, context.locale, context.deployId);
+	const version = await readVersion(tx, [...SHOPPING_LIST_READS], input, context.locale, context.deployId);
 	const data = await readListView(tx, deps, { familyId: input.familyId, weekStartsOn: input.weekStartsOn, locale: context.locale });
 	return { version, data };
 }
