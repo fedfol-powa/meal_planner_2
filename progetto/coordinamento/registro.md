@@ -7,7 +7,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20: porta su main dopo la #19, chiude il rilievo 2 e il falso forbidden del menu finto; prossimo merge. Poi `/clear` (contesto ~50%) e revisione dei pasti | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20 corretta e su main; verifica breve in corso (revisioni/w1-pr20-2.md, tab «R PR20 verifica»); se approvata e CI verde: merge, poi #21 | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 approvata; in conflitto dopo la #19: aggiorna solo dopo il merge della #20 | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Implementa la parte server della gestione del ricettario (area `catalogue`) dopo due review di spec; a `PR_APERTA` review avversariale. Web dopo #21 (e #19, già unita): avvisarlo | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 approvata, prova reale fatta; in conflitto: aggiorna solo dopo il merge di #20 e #21 | 11/10 |
@@ -32,8 +32,8 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
 0. **In corso (ordine dell'ondata 2), aggiornato l'11/10 alle 17:40:**
-   - **Merge web in sequenza:** #20 (W1, menu web: porta su main dopo la #19, chiude il
-     rilievo 2 e il falso `forbidden` del menu finto) → poi scrivere a W2 di portare la #21
+   - **Merge web in sequenza:** #20 (W1, menu web: corretta, verifica breve in corso →
+     revisioni/w1-pr20-2.md) → poi scrivere a W2 di portare la #21
      su main → merge → scrivere a W4 di portare la #22 su main → merge. #21 e #22 sono già
      approvate: dopo il riallineamento basta controllare CI verde e risoluzione dei conflitti
      (diff dei file condivisi del web), senza nuova review salvo modifiche sostanziali.
