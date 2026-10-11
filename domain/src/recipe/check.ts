@@ -1,7 +1,7 @@
 import { LOCALES } from '../units/index.ts';
 import { LIMITS, PLANNER_ATTRIBUTES, publishedRecipeSchema, recipeDraftSchema, type RecipeDocument, type RecipeDraftDocument } from './document.ts';
 import { issuesFromZod, type IssueCode, type IssuePath, type ValidationIssue } from './issues.ts';
-import { filled, type DraftTranslated } from './localized.ts';
+import { filled, textOrNull, type DraftTranslated } from './localized.ts';
 import { comparableVariety, lineKey } from './variety.ts';
 
 // Shared recipe checks (spec section 8): the same rules for MCP, the curators' form and the import.
@@ -145,16 +145,16 @@ const emptyToNull = (v: DraftTranslated | null | undefined) => (v && LOCALES.som
 
 /**
  * Narrows a document that passed checkPublishable. Absent fields become their published form first
- * (source fields null, seasons empty, empty varieties and preparations null), so the invariant holds:
+ * (blank or missing source fields null, seasons empty, empty varieties and preparations null), so the invariant holds:
  * no publication problem ⇒ conversion succeeds.
  */
 export function toPublished(input: unknown): RecipeDocument {
 	const d = recipeDraftSchema.parse(input);
 	return publishedRecipeSchema.parse({
 		...d,
-		sourceUrl: d.sourceUrl ?? null,
-		bookId: d.bookId ?? null,
-		bookPages: d.bookPages ?? null,
+		sourceUrl: textOrNull(d.sourceUrl),
+		bookId: textOrNull(d.bookId),
+		bookPages: textOrNull(d.bookPages),
 		seasons: d.seasons ?? [],
 		ingredients: (d.ingredients ?? []).map((l) => ({ ...l, variety: emptyToNull(l.variety), preparation: emptyToNull(l.preparation) }))
 	});

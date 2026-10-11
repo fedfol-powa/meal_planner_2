@@ -11,3 +11,6 @@ export const draftTranslatedSchema = z.strictObject({
 });
 
 export const filled = (text: string | null | undefined): text is string => !!text && text.trim().length > 0;
+
+/** A text that counts as absent (blank or missing) becomes null, with the same test as the checks. */
+export const textOrNull = (text: string | null | undefined): string | null => (filled(text) ? text : null);

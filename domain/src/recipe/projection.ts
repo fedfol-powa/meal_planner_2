@@ -2,7 +2,7 @@ import type { PlannerRecipe } from '../planner/index.ts';
 import { varietyKey } from '../shopping/index.ts';
 import type { Localized, UnitCode } from '../units/index.ts';
 import type { RecipeDocument, RecipeDraftDocument } from './document.ts';
-import type { DraftTranslated } from './localized.ts';
+import { filled, type DraftTranslated } from './localized.ts';
 
 // Projections of the current published version (spec section 2): columns of recipes and rows of
 // recipe_ingredients, recomputed in the transaction that publishes or restores. camelCase here, snake_case
@@ -88,7 +88,7 @@ export function resolveReferences<T extends RecipeDraftDocument>(d: T, lookup: R
 	};
 	return {
 		...d,
-		bookId: d.bookId ? resolve('book', d.bookId) : d.bookId,
+		bookId: filled(d.bookId) ? resolve('book', d.bookId) : null,
 		ingredients: d.ingredients?.map((l) => ({ ...l, ingredientId: l.ingredientId === null ? null : resolve('ingredient', l.ingredientId) }))
 	};
 }
