@@ -185,15 +185,19 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 	});
 
 	it('never reuses a version across families or languages', async () => {
+		// Every write happens before the first read: between the reads only the family or
+		// the language differs, never a counter.
 		const user = await db.createUser();
-		const a = await db.createFamily([{ userId: user.userId, role: 'member' }]);
+		const english = await db.createUser({ locale: 'en-GB' });
+		const a = await db.createFamily([{ userId: user.userId, role: 'member' }, { userId: english.userId, role: 'member' }]);
 		const b = await db.createFamily([{ userId: user.userId, role: 'member' }]);
 		const viewA = await call(testRouter.test.familyView, { familyId: a }, options(await asUser(user)));
 		const viewB = await call(testRouter.test.familyView, { familyId: b, knownVersion: viewA.version }, options(await asUser(user)));
 		expect(viewB.unchanged).toBe(false);
-		const english = await db.createUser({ locale: 'en-GB' });
-		await db.addMember(a, english.userId, 'member');
 		const viewEnglish = await call(testRouter.test.familyView, { familyId: a, knownVersion: viewA.version }, options(await asUser(english)));
 		expect(viewEnglish.unchanged).toBe(false);
+		// Same family and counters: the Italian reader still holds a current version.
+		const again = await call(testRouter.test.familyView, { familyId: a, knownVersion: viewA.version }, options(await asUser(user)));
+		expect(again).toEqual({ unchanged: true, version: viewA.version });
 	});
 });
