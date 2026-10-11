@@ -24,6 +24,10 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Domande in sospeso
 
+- **Avvio di W1 (revisione dei pasti):** il classificatore blocca `herdr pane run … claude --permission-mode auto`. Chiesto all'utente se lo avvia lui o aggiunge `Bash(herdr pane run *)`.
+- **Collegamento degli agenti:** conferma che `lronuqvtjdhfyychnscr` è la produzione (chiesta all'utente).
+- **Esportazione R2:** quante copie conservare (proposta: 30 notti + una al mese per un anno).
+- **Conflitti di prodotto emersi dal consolidamento della specifica (11/10, commit 740e7e0):** (1) ingrediente creabile senza nome inglese (spec ricettario-mcp) contro la sezione 8 che chiede le due lingue; (2) pulsante «Genera la prima settimana» del wizard superfluo con la generazione pigra, da decidere prima dell'ondata 3; (3) email di allarme del job e PDF della spesa rinviati all'ondata 3.
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
 
@@ -82,7 +86,7 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
    ricettario tramite MCP, collegamento degli agenti, esportazione notturna in R2, messa
    in produzione. Assegnarle ai worker che si liberano (W3 dopo il merge, W5 dopo la
    seconda PR), con un brief nuovo in `brief/` come quelli esistenti.
-6. **Fine ondata 1** (dopo il merge di W3 e W5): riportare nella specifica principale le
+6. **Fatto l'11/10 (commit 740e7e0, anche ondata 2 fino alla #23).** Era: riportare nella specifica principale le
    «Decisioni da riportare» delle spec unite e le decisioni del piano generale che
    superano la specifica (Cron Trigger al posto di pg_cron nella sezione 4, risposta
    «invariato» nella sezione 1, campi bilingui jsonb nelle sezioni 2, 12, 15, attributi
