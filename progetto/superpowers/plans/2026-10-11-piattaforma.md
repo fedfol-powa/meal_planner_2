@@ -6,22 +6,30 @@
 
 **Obiettivo:** il monorepo con workspace e un Worker che serve SPA, RPC, REST, OpenAPI e
 MCP da un contratto unico, con token, contesto, ruolo Postgres, permessi, errori a codici
-e letture versionate, provato end-to-end con `session.whoami`.
+e letture versionate, provato end-to-end con `session.whoami` contro lo schema di W2.
 
 **Architettura:** npm workspaces (`domain`, `contract`, `server`, `web`) che esportano i
 sorgenti TypeScript. `contract` definisce le operazioni con metadati obbligatori ed
 errori; `server` le implementa con oRPC tramite un implementatore comune che valida
-l'input, verifica il token, applica `webOnly`, apre la transazione nel ruolo scelto,
-legge profilo e sessione, controlla il ruolo e gestisce le versioni. Una `fetch` smista
-le rotte e genera gli strumenti MCP dal contratto.
+l'input, verifica il token e i claim, apre la transazione nel ruolo dell'utente, legge
+profilo e sessione, applica `webOnly`, controlla il ruolo e gestisce le versioni. Una
+`fetch` smista le rotte; `/mcp` controlla token e sessione all'ingresso e genera gli
+strumenti dal contratto, lasciando la validazione a oRPC.
 
 **Stack:** TypeScript 6, npm workspaces, oRPC 1.15.5, zod 4, Postgres.js 3, jose 6,
-`@modelcontextprotocol/server` 2.3.1, Wrangler 4, Vitest 4 (in Node).
+`@modelcontextprotocol/server` 2.3.1, Wrangler 4, Vitest 4 (in Node), CLI di Supabase
+per il database locale e di CI.
 
 **Spec:** `progetto/superpowers/specs/2026-10-11-piattaforma.md` (da leggere per prima),
 che estende la specifica principale
 `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md` (sezioni 1, 9, 13, 15).
-Codice di partenza provato: `spike/server/src/` (sul branch, solo da leggere).
+Interfaccia del database: spec di W2
+`progetto/superpowers/specs/2026-10-11-schema-e-permessi.md` (su `main` dopo il merge di
+W2; prima nel worktree `.worktrees/schema`, solo da leggere).
+Codice di partenza provato: `spike/server/src/` (solo da leggere).
+
+Corretto l'11 ottobre 2026 dopo la review di spec e piano
+(`progetto/coordinamento/revisioni/w1-spec-piano.md`, sette rilievi applicati).
 
 ## Vincoli globali
 
@@ -36,46 +44,45 @@ Codice di partenza provato: `spike/server/src/` (sul branch, solo da leggere).
   è `schemaConverters`), zod `4.6.5`, jose `6.2.12`, postgres `3.4.9`, SDK MCP `2.3.1`,
   wrangler `4.149.0`, workers-types `5.20261011.1`.
 - Cache di modulo solo con dati già risolti, mai promesse condivise fra richieste.
+- Log: mai messaggi d'errore, cause, query, parametri, header o stringhe di connessione;
+  solo i campi scelti di `server/src/errors.ts`.
 - Nessuna risorsa esterna (Cloudflare, Supabase, segreti GitHub) creata o cambiata senza
   `STATO: DOMANDA` al coordinatore. Nessun merge: lo fa il coordinatore.
 - Non toccare `supabase/` (W2), `web/src` (W5), `domain/src` (W3, W4), la specifica
   principale, `AGENTS.md`, `progetto/coordinamento/`.
-- Nomi delle tabelle e funzioni di W2 usati dal server, concentrati in
-  `server/src/permissions.ts`, `server/src/session.ts` e `server/src/versions.ts`:
-  `profiles(id, locale)`, `app.session_is_active()`, `families(id, data_version)`,
-  `family_members(family_id, user_id, role in ('admin','member'))`,
-  `user_global_roles(user_id, role in ('curator','app_admin'))`,
-  `catalogue_state(version)`, ruoli `app_server`, `authenticated`, `anon`, `app_job`.
-  Se la spec di W2 usa nomi diversi, si allineano questi tre file e la fixture.
+- Oggetti di W2 usati dal server, tutti nello schema `app` e concentrati in
+  `server/src/session.ts`, `server/src/permissions.ts`, `server/src/versions.ts`:
+  `app.profiles(user_id, locale)` (creato da trigger su `auth.users`),
+  `app.session_is_active()`, `app.is_member(uuid)`, `app.is_family_admin(uuid)`,
+  `app.has_role(text)` con `recipe_curator`/`app_admin`, `app.families.data_version`,
+  `app.catalogue_state.version`; ruoli `app_server`, `authenticated`, `anon`,
+  `app_job`. Se la spec di W2 cambia un nome, si allineano questi tre file e la fixture.
+- **Ordine:** la consegna completa (task 11) si apre dopo il merge di W2 e si verifica
+  contro le sue migrazioni reali. Prima, solo per sviluppare, la fixture provvisoria con
+  `TEST_DB_FIXTURE=1`.
 
 ## Focus della review
 
 1. **Versione di un'altra famiglia o lingua**: una `knownVersion` posseduta per la
    famiglia A non vale come «invariato» per la famiglia B con gli stessi contatori (test
    nel task 6).
-2. **Header `Authorization` malformato** (`bearer x`, `Bearer ` vuoto, token non JWT):
-   sempre `unauthorized`, mai `internal` (test nel task 3 e nel task 7).
-3. **Database irraggiungibile**: `internal` con stato 500 in tempi brevi, senza la
-   stringa di connessione nel corpo della risposta (test nel task 6).
+2. **Header `Authorization` malformato e claim non validi** (`bearer x`, `Bearer `
+   vuoto, token non JWT, senza `exp`, `session_id` non UUID, `client_id` vuoto o non
+   stringa): sempre `unauthorized`, mai `internal` né canale web, senza arrivare al
+   database (test nei task 3, 6 e 7).
+3. **Database irraggiungibile**: `internal` con stato 500 e `requestId`, senza la
+   stringa di connessione né nel corpo della risposta né nei log (test nei task 4 e 6).
 4. **Chiamate concorrenti a cache vuota delle chiavi**: nessuna promessa condivisa, ogni
    richiesta fa il proprio fetch (test nel task 3).
-5. **Procedura inesistente sotto `/api/rpc` o `/api`**: 404 `not_found`, non 500 e non la
-   pagina della SPA (test nel task 7).
+5. **Sessione chiusa con un token ancora valido**: rifiutata su RPC, REST e su ogni
+   richiesta MCP, compresi `initialize` e `tools/list`, e prima del rimando `web_only`
+   (test nei task 6 e 8).
 
 ---
 
 ## Mappa dei file
 
 ```
-package.json                        workspaces e script della radice (modifica)
-tsconfig.base.json                  opzioni comuni (nuovo)
-tsconfig.json                       domain/ con i test, scripts/, vitest.config (modifica)
-vitest.config.ts                    solo scripts/ (modifica)
-.gitignore                          dist/, .wrangler/, .dev.vars (modifica)
-.github/workflows/ci.yml            typecheck e test (nuovo)
-domain/package.json                 @app/domain (nuovo)
-domain/tsconfig.json                estende la base (modifica)
-contract/package.json, tsconfig.json
 contract/src/index.ts               esporta contratto e convenzioni
 contract/src/locale.ts              lingue supportate
 contract/src/errors.ts              codici, stati HTTP, schemi dei dati
@@ -84,342 +91,47 @@ contract/src/versioned.ts           input e output delle letture versionate
 contract/src/check.ts               controllo delle convenzioni (riusato dal server)
 contract/src/contract.ts            il contratto: session.whoami
 contract/src/check.test.ts, contract.test.ts
-server/package.json, tsconfig.json, wrangler.jsonc, .env.example, README.md
+server/package.json, wrangler.jsonc, .env.example, README.md
 server/src/env.ts                   tipo Env dei binding
-server/src/auth.ts                  verifica del token, sorgente delle chiavi, canale
+server/src/auth.ts                  verifica del token e dei claim, sorgente delle chiavi, canale
 server/src/messages.ts              messaggi degli errori in it-IT e en-GB
-server/src/errors.ts                normalizzazione degli errori
+server/src/errors.ts                normalizzazione degli errori e log senza segreti
 server/src/db.ts                    transazione con scelta del ruolo
 server/src/session.ts               profilo e sessione dell'utente
-server/src/permissions.ts           controllo dei ruoli
+server/src/permissions.ts           controllo dei ruoli con le funzioni di W2
 server/src/versions.ts              composizione della versione
 server/src/pipeline.ts              implementatore comune con il middleware
 server/src/router.ts                implementazione del contratto
-server/src/mcp.ts                   strumenti MCP dal contratto
+server/src/mcp.ts                   strumenti MCP dal contratto, validazione lasciata a oRPC
 server/src/well-known.ts            metadati OAuth
-server/src/app.ts                   createApp: smistamento delle rotte
+server/src/app.ts                   createApp: smistamento delle rotte, ingresso MCP
 server/src/index.ts                 Worker di produzione
 server/test/support/keys.ts         chiavi e token di prova
 server/test/support/db.ts           database di prova
-server/test/support/schema.sql      fixture provvisoria degli oggetti di W2
+server/test/support/schema.sql      fixture provvisoria con i nomi di W2 (tolta nel task 11)
 server/test/support/test-contract.ts contratto e router di prova
+server/test/support/context.ts      contesto di prova per chiamare il router senza HTTP
 server/test/support/requests.ts     chiamate RPC, REST e MCP verso l'app
 server/test/*.test.ts
-web/package.json                    segnaposto con build minima (W5 lo sostituisce)
+.github/workflows/ci.yml            job unico con database (task 11)
 ```
 
 ---
 
-### Task 1: Scheletro del monorepo e CI (prima PR)
+### Task 1: Scheletro del monorepo e CI (fatto)
 
-**File:**
-- Modifica: `package.json`, `tsconfig.json`, `vitest.config.ts`, `.gitignore`, `domain/tsconfig.json`
-- Crea: `tsconfig.base.json`, `domain/package.json`, `contract/package.json`,
-  `contract/tsconfig.json`, `contract/src/index.ts`, `contract/src/index.test.ts`,
-  `server/package.json`, `server/tsconfig.json`, `server/src/index.ts`,
-  `server/src/index.test.ts`, `web/package.json`, `.github/workflows/ci.yml`
+Consegnato con la PR #3 (branch `fondamenta/scheletro`, da `origin/main`): workspace,
+`tsconfig.base.json`, una `vitest.config.ts` per workspace, segnaposto di `contract`,
+`server` e `web`, CI con typecheck e test. Prima di iniziare il task 2:
 
-**Interfacce:**
-- Produce: workspace `@app/domain` (export `./planner`), `@app/contract` (export `.`),
-  `@app/server`, `@app/web`; script della radice `test`, `typecheck`, `deploy`.
+- [ ] **Passo 1: porta lo scheletro su `fondamenta/piattaforma`**
 
-- [ ] **Passo 1: annota lo stato di partenza**
+Se la PR #3 è unita: `git fetch origin && git merge origin/main`. Altrimenti
+`git merge origin/fondamenta/scheletro` (stesso contenuto; il merge di `main` arriverà
+dopo senza conflitti).
 
 Run: `npm ci && npm test && npm run typecheck`
-Expected: PASS (test del pianificatore). Annota il numero di test per confrontarlo dopo.
-
-- [ ] **Passo 2: `tsconfig.base.json`**
-
-```json
-{
-	"compilerOptions": {
-		"target": "ES2024",
-		"lib": ["ES2024"],
-		"module": "ESNext",
-		"moduleResolution": "Bundler",
-		"strict": true,
-		"noEmit": true,
-		"allowImportingTsExtensions": true,
-		"erasableSyntaxOnly": true,
-		"verbatimModuleSyntax": true,
-		"skipLibCheck": true,
-		"types": []
-	}
-}
-```
-
-- [ ] **Passo 3: `domain/` come workspace**
-
-`domain/tsconfig.json`:
-
-```json
-{
-	"extends": "../tsconfig.base.json",
-	"include": ["src/**/*.ts"],
-	"exclude": ["src/**/*.test.ts"]
-}
-```
-
-`domain/package.json`:
-
-```json
-{
-	"name": "@app/domain",
-	"private": true,
-	"type": "module",
-	"exports": {
-		"./planner": "./src/planner/index.ts"
-	},
-	"scripts": {
-		"test": "vitest run",
-		"typecheck": "tsc -p tsconfig.json"
-	}
-}
-```
-
-- [ ] **Passo 4: `contract/`**
-
-`contract/package.json`:
-
-```json
-{
-	"name": "@app/contract",
-	"private": true,
-	"type": "module",
-	"exports": { ".": "./src/index.ts" },
-	"scripts": {
-		"test": "vitest run",
-		"typecheck": "tsc -p tsconfig.json"
-	},
-	"dependencies": {
-		"@orpc/contract": "1.15.5",
-		"zod": "4.6.5"
-	}
-}
-```
-
-`contract/tsconfig.json`:
-
-```json
-{
-	"extends": "../tsconfig.base.json",
-	"include": ["src/**/*.ts"]
-}
-```
-
-`contract/src/index.ts`:
-
-```ts
-export const contract = {};
-```
-
-`contract/src/index.test.ts`:
-
-```ts
-import { describe, expect, it } from 'vitest';
-import { contract } from './index.ts';
-
-describe('contract package', () => {
-	it('exports the contract', () => {
-		expect(contract).toBeTypeOf('object');
-	});
-});
-```
-
-- [ ] **Passo 5: `server/`**
-
-`server/package.json`:
-
-```json
-{
-	"name": "@app/server",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"dev": "wrangler dev",
-		"deploy": "wrangler deploy",
-		"test": "vitest run",
-		"typecheck": "tsc -p tsconfig.json"
-	},
-	"dependencies": {
-		"@app/contract": "*"
-	},
-	"devDependencies": {
-		"@cloudflare/workers-types": "5.20261011.1",
-		"wrangler": "4.149.0"
-	}
-}
-```
-
-`server/tsconfig.json`:
-
-```json
-{
-	"extends": "../tsconfig.base.json",
-	"compilerOptions": {
-		"types": ["@cloudflare/workers-types"]
-	},
-	"include": ["src/**/*.ts", "test/**/*.ts"]
-}
-```
-
-`server/src/index.ts`:
-
-```ts
-export default {
-	async fetch(): Promise<Response> {
-		return new Response('Not found', { status: 404 });
-	},
-} satisfies ExportedHandler;
-```
-
-`server/src/index.test.ts`:
-
-```ts
-import { describe, expect, it } from 'vitest';
-import worker from './index.ts';
-
-describe('worker skeleton', () => {
-	it('answers 404', async () => {
-		const response = await worker.fetch();
-		expect(response.status).toBe(404);
-	});
-});
-```
-
-- [ ] **Passo 6: `web/` segnaposto**
-
-`web/package.json` (W5 lo sostituisce; la build crea `dist/index.html` perché Wrangler
-richiede la cartella degli asset):
-
-```json
-{
-	"name": "@app/web",
-	"private": true,
-	"type": "module",
-	"scripts": {
-		"build": "node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/index.html','<!doctype html><title>Cosa si mangia</title>')\""
-	}
-}
-```
-
-- [ ] **Passo 7: radice**
-
-`package.json` (mantiene gli script esistenti):
-
-```json
-{
-	"name": "app-famiglia",
-	"private": true,
-	"type": "module",
-	"workspaces": ["domain", "contract", "server", "web"],
-	"scripts": {
-		"test": "vitest run && npm run test --workspaces --if-present",
-		"typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
-		"deploy": "npm run build -w web && npm run deploy -w server",
-		"planner-report": "node scripts/planner-report.ts",
-		"recipe-attributes-table": "node scripts/recipe-attributes-table.ts"
-	},
-	"devDependencies": {
-		"@types/node": "^26.6.4",
-		"typescript": "^6.0.3",
-		"vitest": "^4.1.11",
-		"yaml": "^2.9.1"
-	}
-}
-```
-
-`tsconfig.json` (come oggi controlla `domain/` compresi i test e `scripts/` con i tipi
-di Node; `domain/tsconfig.json` resta il controllo senza Node del solo codice):
-
-```json
-{
-	"extends": "./tsconfig.base.json",
-	"compilerOptions": {
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
-		"lib": ["ES2024"],
-		"types": ["node"]
-	},
-	"include": ["domain/**/*.ts", "scripts/**/*.ts", "vitest.config.ts"]
-}
-```
-
-`vitest.config.ts`:
-
-```ts
-import { defineConfig } from 'vitest/config';
-
-// Workspaces run their own tests; the prototype keeps its own Vitest setup in prototype/.
-export default defineConfig({
-	test: { include: ['scripts/**/*.test.ts'], passWithNoTests: true }
-});
-```
-
-`.gitignore`: aggiungi in fondo
-
-```
-# Build e strumenti dei workspace
-dist/
-.wrangler/
-.dev.vars
-```
-
-- [ ] **Passo 8: CI**
-
-`.github/workflows/ci.yml`:
-
-```yaml
-name: CI
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 26
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-```
-
-- [ ] **Passo 9: installa e verifica**
-
-Run: `npm install && npm test && npm run typecheck`
-Expected: PASS; i test del pianificatore sono gli stessi del passo 1 (ora sotto
-`@app/domain`), più i due test segnaposto. `node scripts/planner-report.ts --help`
-non è richiesto; basta che `npm run typecheck` controlli `scripts/`.
-
-- [ ] **Passo 10: commit**
-
-```bash
-git add package.json package-lock.json tsconfig.base.json tsconfig.json vitest.config.ts .gitignore domain/package.json domain/tsconfig.json contract server web .github
-git commit -m "Scheletro del monorepo: workspace domain, contract, server, web e CI"
-```
-
-- [ ] **Passo 11: PR dello scheletro**
-
-Branch separato dal commit dello scheletro, così il resto del lavoro continua su
-`fondamenta/piattaforma`:
-
-```bash
-git branch fondamenta/scheletro
-git push -u origin fondamenta/scheletro
-gh pr create --base main --head fondamenta/scheletro --title "Scheletro del monorepo" --body "<descrizione in italiano: cosa fa, come è stato verificato, sezione 1 della specifica (struttura); chiude con la riga di attribuzione>"
-```
-
-Il branch contiene anche i commit di spec e piano, già approvati. Scrivi
-`STATO: PR_APERTA <url> (scheletro)` e prosegui con il task 2 senza aspettare: gli
-altri worker aspettano solo questa PR. Dopo il merge dello scheletro, `git merge
-origin/main` su `fondamenta/piattaforma`.
+Expected: PASS (66 test di `scripts/` e `domain/`, più i due segnaposto).
 
 ---
 
@@ -505,6 +217,39 @@ describe('checkContract', () => {
 		expect(problems).toContain('create: offline or creating operation needs a uuid id input');
 	});
 
+	it('rejects optional or nullable identifiers', () => {
+		const contract = {
+			optionalFamily: op({ mcp: false, offline: false, role: 'familyMember' })
+				.route(route).input(z.object({ familyId: z.uuid().optional() })).output(z.object({})),
+			nullableFamily: op({ mcp: false, offline: false, role: 'familyAdmin' })
+				.route(route).input(z.object({ familyId: z.uuid().nullable() })).output(z.object({})),
+			optionalId: op({ mcp: false, offline: true, role: 'user' })
+				.route(route).input(z.object({ id: z.uuid().optional() })).output(z.object({})),
+		};
+		expect(checkContract(contract)).toEqual([
+			'optionalFamily: family role needs a uuid familyId input',
+			'nullableFamily: family role needs a uuid familyId input',
+			'optionalId: offline or creating operation needs a uuid id input',
+		]);
+	});
+
+	it('rejects a knownVersion that is not an optional string', () => {
+		const numeric = {
+			view: op({ mcp: { readOnly: true }, offline: false, role: 'user', reads: ['catalogue'] })
+				.route(route)
+				.input(z.object({ knownVersion: z.number().optional() }))
+				.output(versionedOutput(z.object({}))),
+		};
+		expect(checkContract(numeric)).toEqual(['view: versioned read needs an optional string knownVersion input']);
+		const required = {
+			view: op({ mcp: { readOnly: true }, offline: false, role: 'user', reads: ['catalogue'] })
+				.route(route)
+				.input(z.object({ knownVersion: z.string() }))
+				.output(versionedOutput(z.object({}))),
+		};
+		expect(checkContract(required)).toEqual(['view: versioned read needs an optional string knownVersion input']);
+	});
+
 	it('requires the versioned shape for reads', () => {
 		const good = {
 			view: op({ mcp: { readOnly: true }, offline: false, role: 'user', reads: ['catalogue'] })
@@ -520,7 +265,7 @@ describe('checkContract', () => {
 				.output(z.object({})),
 		};
 		expect(checkContract(bad)).toEqual([
-			'view: versioned read needs an optional knownVersion input',
+			'view: versioned read needs an optional string knownVersion input',
 			'view: versioned read needs versionedOutput',
 		]);
 	});
@@ -611,6 +356,8 @@ export const invalidData = z.object({
 /** Final shape fixed with the drafts in wave 2. */
 export const conflictData = z.object({ by: z.uuid(), at: z.iso.datetime(), fields: z.array(z.string()) });
 export const webOnlyData = z.object({ url: z.url() });
+/** Correlates the answer with the Worker log line of the unexpected error. */
+export const internalData = z.object({ requestId: z.string() });
 
 export const errorDefinitions = {
 	unauthorized: { status: 401 },
@@ -622,7 +369,7 @@ export const errorDefinitions = {
 	last_app_admin: { status: 409 },
 	sole_member: { status: 409 },
 	web_only: { status: 403, data: webOnlyData },
-	internal: { status: 500 },
+	internal: { status: 500, data: internalData },
 } as const satisfies Record<ErrorCode, { status: number; data?: z.ZodType }>;
 
 /** Errors every operation can raise; operations add their own with `.errors()`. */
@@ -718,9 +465,23 @@ function walk(node: object, path: string[], visit: (def: ProcedureDef, name: str
 	}
 }
 
-function acceptsOnlyUuid(schema: unknown): boolean {
+const accepts = (schema: z.ZodType, value: unknown) => schema.safeParse(value).success;
+
+/** A required, non-nullable uuid: identifiers that idempotence and permissions rely on. */
+function requiresUuid(schema: unknown): boolean {
 	if (!(schema instanceof z.ZodType)) return false;
-	return schema.safeParse(crypto.randomUUID()).success && !schema.safeParse('not-a-uuid').success;
+	return (
+		accepts(schema, crypto.randomUUID()) &&
+		!accepts(schema, 'not-a-uuid') &&
+		!accepts(schema, undefined) &&
+		!accepts(schema, null)
+	);
+}
+
+/** An optional string: absent or a version string, never a number or null. */
+function isOptionalString(schema: unknown): boolean {
+	if (!(schema instanceof z.ZodType)) return false;
+	return accepts(schema, undefined) && accepts(schema, 'v1') && !accepts(schema, 1) && !accepts(schema, null);
 }
 
 /** Convention problems of every operation in a contract router; empty when all is well. */
@@ -740,16 +501,15 @@ export function checkContract(router: object): string[] {
 			problems.push(`${name}: input must be a zod object`);
 			return;
 		}
-		if ((meta.role === 'familyMember' || meta.role === 'familyAdmin') && !acceptsOnlyUuid(shape.familyId)) {
+		if ((meta.role === 'familyMember' || meta.role === 'familyAdmin') && !requiresUuid(shape.familyId)) {
 			problems.push(`${name}: family role needs a uuid familyId input`);
 		}
-		if ((meta.offline || meta.creates) && !acceptsOnlyUuid(shape.id)) {
+		if ((meta.offline || meta.creates) && !requiresUuid(shape.id)) {
 			problems.push(`${name}: offline or creating operation needs a uuid id input`);
 		}
 		if (meta.reads) {
-			const known = shape.knownVersion;
-			if (!(known instanceof z.ZodType) || !known.safeParse(undefined).success) {
-				problems.push(`${name}: versioned read needs an optional knownVersion input`);
+			if (!isOptionalString(shape.knownVersion)) {
+				problems.push(`${name}: versioned read needs an optional string knownVersion input`);
 			}
 			if (!isVersionedOutput(def.outputSchema)) problems.push(`${name}: versioned read needs versionedOutput`);
 		}
@@ -817,7 +577,7 @@ git commit -m "Contratto: metadati obbligatori, errori a codici, letture version
 
 ---
 
-### Task 3: Verifica del token e canale
+### Task 3: Verifica del token, claim obbligatori e canale
 
 **File:**
 - Crea: `server/src/env.ts`, `server/src/auth.ts`, `server/test/support/keys.ts`,
@@ -827,19 +587,21 @@ git commit -m "Contratto: metadati obbligatori, errori a codici, letture version
 **Interfacce:**
 - Produce:
   - `interface Env { HYPERDRIVE: Hyperdrive; SUPABASE_URL: string; CF_VERSION_METADATA: WorkerVersionMetadata; ASSETS: Fetcher }`
-  - `interface Claims extends JWTPayload { sub: string; role: string; session_id?: string; client_id?: string }`
+  - `type Claims` (da `claimsSchema`): `sub` UUID, `role: 'authenticated'`, `session_id`
+    UUID, `exp` numero, `client_id?` stringa non vuota, più gli altri claim invariati
   - `type Channel = 'web' | 'mcp'`, `channelOf(claims): Channel`
   - `type KeySource = (forceRefresh: boolean) => Promise<JSONWebKeySet>`
-  - `remoteKeySource(supabaseUrl: string): KeySource` (cache di modulo con dati risolti)
+  - `remoteKeySource(supabaseUrl: string): KeySource`
   - `verifyAccessToken(token: string, options: { issuer: string; keys: KeySource }): Promise<Claims>`
   - `bearerToken(header: string | null): string | undefined`
-  - test: `createTestKeys(): Promise<TestKeys>` con `keys: KeySource`, `issuer`,
-    `sign(claims: Partial<Claims> & { sub: string }, options?: { expiresIn?: string; kid?: string }): Promise<string>`
+  - test: `createTestKeys(): Promise<TestKeys>` con `keys`, `issuer`,
+    `sign(claims: Record<string, unknown> & { sub: string }, options?: { expiresIn?: string; noExpiry?: boolean; kid?: string }): Promise<string>`;
+    `sign` aggiunge `role`, `aud` e un `session_id` casuale, sovrascrivibili (passare
+    `session_id: undefined` lo toglie)
 
 - [ ] **Passo 1: dipendenze**
 
-Run: `npm install -w server jose@6.2.12`
-Expected: `jose` in `server/package.json`.
+Run: `npm install -w server jose@6.2.12 zod@4.6.5`
 
 - [ ] **Passo 2: chiavi di prova**
 
@@ -847,7 +609,7 @@ Expected: `jose` in `server/package.json`.
 
 ```ts
 import { exportJWK, generateKeyPair, SignJWT, type JSONWebKeySet } from 'jose';
-import type { Claims, KeySource } from '../../src/auth.ts';
+import type { KeySource } from '../../src/auth.ts';
 
 export const TEST_SUPABASE_URL = 'https://test.supabase.local';
 export const TEST_ISSUER = `${TEST_SUPABASE_URL}/auth/v1`;
@@ -855,7 +617,10 @@ export const TEST_ISSUER = `${TEST_SUPABASE_URL}/auth/v1`;
 export interface TestKeys {
 	keys: KeySource;
 	issuer: string;
-	sign(claims: Partial<Claims> & { sub: string }, options?: { expiresIn?: string; kid?: string }): Promise<string>;
+	sign(
+		claims: Record<string, unknown> & { sub: string },
+		options?: { expiresIn?: string; noExpiry?: boolean; kid?: string },
+	): Promise<string>;
 }
 
 /** An ES256 key pair like Supabase asymmetric signing keys, served from memory. */
@@ -867,12 +632,16 @@ export async function createTestKeys(): Promise<TestKeys> {
 		keys: async () => jwks,
 		issuer: TEST_ISSUER,
 		async sign(claims, options = {}) {
-			return new SignJWT({ role: 'authenticated', aud: 'authenticated', ...claims })
+			// JSON drops undefined values: `session_id: undefined` removes the default.
+			const payload = JSON.parse(
+				JSON.stringify({ role: 'authenticated', aud: 'authenticated', session_id: crypto.randomUUID(), ...claims }),
+			);
+			const jwt = new SignJWT(payload)
 				.setProtectedHeader({ alg: 'ES256', kid: options.kid ?? 'test-key' })
 				.setIssuer(TEST_ISSUER)
-				.setIssuedAt()
-				.setExpirationTime(options.expiresIn ?? '1h')
-				.sign(privateKey);
+				.setIssuedAt();
+			if (!options.noExpiry) jwt.setExpirationTime(options.expiresIn ?? '1h');
+			return jwt.sign(privateKey);
 		},
 	};
 }
@@ -892,15 +661,41 @@ const userId = '11111111-1111-4111-8111-111111111111';
 describe('verifyAccessToken', () => {
 	it('accepts a valid user token', async () => {
 		const t = await createTestKeys();
-		const claims = await verifyAccessToken(await t.sign({ sub: userId, session_id: 's1' }), { issuer: TEST_ISSUER, keys: t.keys });
+		const sessionId = crypto.randomUUID();
+		const claims = await verifyAccessToken(await t.sign({ sub: userId, session_id: sessionId }), { issuer: TEST_ISSUER, keys: t.keys });
 		expect(claims.sub).toBe(userId);
-		expect(claims.session_id).toBe('s1');
+		expect(claims.session_id).toBe(sessionId);
+		expect(claims.client_id).toBeUndefined();
 	});
 
-	it('rejects an expired token', async () => {
+	it('keeps a valid client_id', async () => {
 		const t = await createTestKeys();
-		const token = await t.sign({ sub: userId }, { expiresIn: '-1m' });
-		await expect(verifyAccessToken(token, { issuer: TEST_ISSUER, keys: t.keys })).rejects.toThrow();
+		const claims = await verifyAccessToken(await t.sign({ sub: userId, client_id: 'codex' }), { issuer: TEST_ISSUER, keys: t.keys });
+		expect(channelOf(claims)).toBe('mcp');
+	});
+
+	it('rejects an expired token or one without expiry', async () => {
+		const t = await createTestKeys();
+		const expired = await t.sign({ sub: userId }, { expiresIn: '-1m' });
+		const endless = await t.sign({ sub: userId }, { noExpiry: true });
+		await expect(verifyAccessToken(expired, { issuer: TEST_ISSUER, keys: t.keys })).rejects.toThrow();
+		await expect(verifyAccessToken(endless, { issuer: TEST_ISSUER, keys: t.keys })).rejects.toThrow();
+	});
+
+	it('rejects invalid identity claims', async () => {
+		const t = await createTestKeys();
+		const cases: Record<string, unknown>[] = [
+			{ sub: 'not-a-uuid' },
+			{ sub: userId, session_id: undefined },
+			{ sub: userId, session_id: 'not-a-uuid' },
+			{ sub: userId, client_id: '' },
+			{ sub: userId, client_id: false },
+			{ sub: userId, client_id: 42 },
+		];
+		for (const claims of cases) {
+			const token = await t.sign(claims as { sub: string });
+			await expect(verifyAccessToken(token, { issuer: TEST_ISSUER, keys: t.keys }), JSON.stringify(claims)).rejects.toThrow();
+		}
 	});
 
 	it('rejects another issuer, audience or role', async () => {
@@ -944,12 +739,7 @@ describe('remoteKeySource', () => {
 	});
 });
 
-describe('channel and bearer', () => {
-	it('derives the channel from client_id', () => {
-		expect(channelOf({ sub: userId, role: 'authenticated' })).toBe('web');
-		expect(channelOf({ sub: userId, role: 'authenticated', client_id: 'agent' })).toBe('mcp');
-	});
-
+describe('bearer header', () => {
 	it('reads only well-formed bearer headers', () => {
 		expect(bearerToken('Bearer abc')).toBe('abc');
 		expect(bearerToken('bearer abc')).toBeUndefined();
@@ -977,24 +767,31 @@ export interface Env {
 }
 ```
 
-`server/src/auth.ts` (dalla prova, con la sorgente delle chiavi iniettabile):
+`server/src/auth.ts`:
 
 ```ts
-import { createLocalJWKSet, decodeProtectedHeader, jwtVerify, type JSONWebKeySet, type JWTPayload } from 'jose';
+import { createLocalJWKSet, decodeProtectedHeader, jwtVerify, type JSONWebKeySet } from 'jose';
+import { z } from 'zod';
 
-/** Claims of a verified Supabase access token, forwarded to Postgres as `request.jwt.claims`. */
-export interface Claims extends JWTPayload {
-	sub: string;
-	role: string;
-	session_id?: string;
+/**
+ * Claims the server relies on, validated after the signature: they are the security
+ * boundary (identity, session for revocation, channel). Other claims pass through to
+ * Postgres unchanged as `request.jwt.claims`.
+ */
+const claimsSchema = z.looseObject({
+	sub: z.uuid(),
+	role: z.literal('authenticated'),
+	session_id: z.uuid(),
+	exp: z.number(),
 	/** Present only on tokens issued by the OAuth server to an agent (MCP channel). */
-	client_id?: string;
-}
+	client_id: z.string().min(1).optional(),
+});
 
+export type Claims = z.infer<typeof claimsSchema>;
 export type Channel = 'web' | 'mcp';
 
 export function channelOf(claims: Claims): Channel {
-	return claims.client_id ? 'mcp' : 'web';
+	return claims.client_id === undefined ? 'web' : 'mcp';
 }
 
 export type KeySource = (forceRefresh: boolean) => Promise<JSONWebKeySet>;
@@ -1026,11 +823,11 @@ export async function verifyAccessToken(token: string, options: { issuer: string
 	const { payload } = await jwtVerify(token, createLocalJWKSet(keys), {
 		issuer: options.issuer,
 		audience: 'authenticated',
+		requiredClaims: ['exp', 'sub', 'session_id'],
 	});
-	if (typeof payload.sub !== 'string' || payload.role !== 'authenticated') {
-		throw new Error('Token is not an authenticated user token');
-	}
-	return payload as Claims;
+	const claims = claimsSchema.safeParse(payload);
+	if (!claims.success) throw new Error('Token claims are not valid');
+	return claims.data;
 }
 
 export function bearerToken(header: string | null): string | undefined {
@@ -1040,8 +837,8 @@ export function bearerToken(header: string | null): string | undefined {
 }
 ```
 
-Il `remoteKeySource` va creato **una volta per isolate** (sezione del task 7), non per
-richiesta, altrimenti la cache non serve.
+Il `remoteKeySource` va creato **una volta per isolate** (task 7), non per richiesta,
+altrimenti la cache non serve.
 
 - [ ] **Passo 6: verifica che passino**
 
@@ -1052,29 +849,32 @@ Expected: PASS.
 
 ```bash
 git add server package-lock.json
-git commit -m "Server: verifica dei token di Supabase con chiavi iniettabili e canale da client_id"
+git commit -m "Server: verifica dei token di Supabase con claim obbligatori e canale da client_id"
 ```
 
 ---
 
-### Task 4: Errori normalizzati e messaggi localizzati
+### Task 4: Errori normalizzati, log senza segreti e messaggi localizzati
 
 **File:**
 - Crea: `server/src/messages.ts`, `server/src/errors.ts`, `server/test/errors.test.ts`
-- Modifica: `server/package.json` (dipendenze oRPC e zod)
+- Modifica: `server/package.json` (dipendenze oRPC)
 
 **Interfacce:**
 - Consuma: `ErrorCode`, `errorCodes`, `isErrorCode`, `errorDefinitions`, `Locale`, `locales` da `@app/contract`.
 - Produce:
   - `messages: Record<ErrorCode, Record<Locale, string>>`, `messageFor(code, locale): string`
   - `appError(code: ErrorCode, data?: unknown): ORPCError<ErrorCode, unknown>`
-  - `normalizeError(error: unknown): ORPCError<ErrorCode, unknown>`
-  - `mapErrors` interceptor: `async ({ next }) => …` per `clientInterceptors` e `interceptors` del client del router
-  - `toolErrorBody(error: unknown, locale: Locale): { code: ErrorCode; data?: unknown; message: string }`
+  - `interface ErrorScope { requestId: string; path?: readonly string[] }`
+  - `normalizeError(error: unknown, scope: ErrorScope): ORPCError<ErrorCode, unknown>`
+  - `diagnosticOf(error: unknown): { name: string; code?: string }`
+  - `mapErrors`: interceptor `({ next, context, path }) => …` per `clientInterceptors`
+    degli handler e `interceptors` del client del router; legge `context.requestId`
+  - `toolErrorBody(error: unknown, locale: Locale, scope: ErrorScope): { code: ErrorCode; data?: unknown; message: string }`
 
 - [ ] **Passo 1: dipendenze**
 
-Run: `npm install -w server @orpc/server@1.15.5 @orpc/openapi@1.15.5 @orpc/zod@1.15.5 @orpc/contract@1.15.5 zod@4.6.5 && npm install -w server -D @orpc/client@1.15.5`
+Run: `npm install -w server @orpc/server@1.15.5 @orpc/openapi@1.15.5 @orpc/zod@1.15.5 @orpc/contract@1.15.5 && npm install -w server -D @orpc/client@1.15.5`
 
 - [ ] **Passo 2: test (falliscono)**
 
@@ -1083,9 +883,13 @@ Run: `npm install -w server @orpc/server@1.15.5 @orpc/openapi@1.15.5 @orpc/zod@1
 ```ts
 import { errorCodes, locales } from '@app/contract';
 import { ORPCError, ValidationError } from '@orpc/server';
-import { describe, expect, it, vi } from 'vitest';
-import { appError, normalizeError, toolErrorBody } from '../src/errors.ts';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { appError, diagnosticOf, normalizeError, toolErrorBody } from '../src/errors.ts';
 import { messages } from '../src/messages.ts';
+
+const scope = { requestId: 'req-1', path: ['session', 'whoami'] };
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('messages', () => {
 	it('has a non-empty text for every code in both languages', () => {
@@ -1102,32 +906,56 @@ describe('normalizeError', () => {
 				data: {},
 			}),
 		});
-		const error = normalizeError(validation);
+		const error = normalizeError(validation, scope);
 		expect(error.code).toBe('invalid');
 		expect(error.status).toBe(400);
 		expect(error.data).toEqual({ issues: [{ path: ['familyId'], code: 'invalid_format' }] });
 	});
 
 	it('keeps known codes', () => {
-		const error = normalizeError(appError('forbidden'));
+		const error = normalizeError(appError('forbidden'), scope);
 		expect(error.code).toBe('forbidden');
 		expect(error.status).toBe(403);
 	});
 
-	it('hides unexpected errors as internal', () => {
-		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-		const error = normalizeError(new Error('postgres://user:secret@host/db refused'));
+	it('hides unexpected errors as internal with the request id', () => {
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		const error = normalizeError(new Error('postgres://user:secret@host/db refused'), scope);
 		expect(error.code).toBe('internal');
 		expect(error.status).toBe(500);
+		expect(error.data).toEqual({ requestId: 'req-1' });
 		expect(JSON.stringify(error.toJSON())).not.toContain('secret');
-		expect(log).toHaveBeenCalled();
-		log.mockRestore();
+	});
+
+	it('logs chosen fields only, never secrets', () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const inner = Object.assign(
+			new Error('connect ECONNREFUSED postgres://app_server:hunter2@db.local:5432/postgres, Authorization: Bearer eyJhbGciOi.secret'),
+			{ code: 'ECONNREFUSED', query: 'select secret_column', parameters: ['hunter2'] },
+		);
+		normalizeError(new ORPCError('INTERNAL_SERVER_ERROR', { cause: inner }), scope);
+		const logged = JSON.stringify(log.mock.calls);
+		for (const secret of ['hunter2', 'postgres://', 'Bearer', 'eyJhbGciOi', 'secret_column']) {
+			expect(logged).not.toContain(secret);
+		}
+		expect(logged).toContain('ECONNREFUSED');
+		expect(logged).toContain('req-1');
+		expect(logged).toContain('session.whoami');
+	});
+});
+
+describe('diagnosticOf', () => {
+	it('takes the innermost name and a code only when it looks like one', () => {
+		const pg = Object.assign(new Error('relation "x" does not exist'), { name: 'PostgresError', code: '42P01' });
+		expect(diagnosticOf(new Error('outer', { cause: pg }))).toEqual({ name: 'PostgresError', code: '42P01' });
+		expect(diagnosticOf(Object.assign(new Error('x'), { code: 'postgres://u:p@h' }))).toEqual({ name: 'Error' });
+		expect(diagnosticOf('a string')).toEqual({ name: 'string' });
 	});
 });
 
 describe('toolErrorBody', () => {
 	it('adds the message in the user language', () => {
-		expect(toolErrorBody(appError('web_only', { url: 'https://x/family' }), 'en-GB')).toEqual({
+		expect(toolErrorBody(appError('web_only', { url: 'https://x/family' }), 'en-GB', scope)).toEqual({
 			code: 'web_only',
 			data: { url: 'https://x/family' },
 			message: messages.web_only['en-GB'],
@@ -1201,12 +1029,31 @@ import { errorDefinitions, isErrorCode, type ErrorCode, type Locale } from '@app
 import { ORPCError, ValidationError } from '@orpc/server';
 import { messageFor } from './messages.ts';
 
+export interface ErrorScope {
+	requestId: string;
+	path?: readonly string[];
+}
+
 export function appError(code: ErrorCode, data?: unknown): ORPCError<ErrorCode, unknown> {
 	return new ORPCError(code, { status: errorDefinitions[code].status, data });
 }
 
+const CODE_SHAPE = /^[A-Z0-9_]{2,40}$/;
+
+/**
+ * Name and code of the innermost cause. Messages, queries, parameters and causes are
+ * never logged: they can hold passwords, tokens, connection strings or personal data.
+ */
+export function diagnosticOf(error: unknown): { name: string; code?: string } {
+	let current = error;
+	for (let depth = 0; depth < 5 && current instanceof Error && current.cause !== undefined; depth++) current = current.cause;
+	const name = current instanceof Error ? current.name : typeof current;
+	const code = (current as { code?: unknown } | null)?.code;
+	return typeof code === 'string' && CODE_SHAPE.test(code) ? { name, code } : { name };
+}
+
 /** Every error leaving an operation becomes one of the contract codes. */
-export function normalizeError(error: unknown): ORPCError<ErrorCode, unknown> {
+export function normalizeError(error: unknown, scope: ErrorScope): ORPCError<ErrorCode, unknown> {
 	if (error instanceof ORPCError) {
 		if (error.code === 'BAD_REQUEST' && error.cause instanceof ValidationError) {
 			const issues = error.cause.issues.map((issue) => ({
@@ -1216,31 +1063,46 @@ export function normalizeError(error: unknown): ORPCError<ErrorCode, unknown> {
 				}),
 				code: (issue as { code?: string }).code ?? 'invalid',
 			}));
-			return new ORPCError('invalid', { status: 400, data: { issues }, cause: error });
+			return new ORPCError('invalid', { status: 400, data: { issues } });
 		}
 		if (isErrorCode(error.code)) return error as ORPCError<ErrorCode, unknown>;
 	}
-	console.error('Unexpected error', error);
-	return new ORPCError('internal', { status: 500 });
+	console.error(
+		JSON.stringify({ event: 'unexpected_error', requestId: scope.requestId, path: scope.path?.join('.'), ...diagnosticOf(error) }),
+	);
+	return new ORPCError('internal', { status: 500, data: { requestId: scope.requestId } });
 }
 
 /** Interceptor for handlers and router clients: run, then normalise what is thrown. */
-export async function mapErrors<T>({ next }: { next: () => Promise<T> }): Promise<T> {
+export async function mapErrors<T>(options: {
+	next: () => Promise<T>;
+	context?: { requestId?: string };
+	path?: readonly string[];
+}): Promise<T> {
 	try {
-		return await next();
+		return await options.next();
 	} catch (error) {
-		throw normalizeError(error);
+		throw normalizeError(error, { requestId: options.context?.requestId ?? 'unknown', path: options.path });
 	}
 }
 
-export function toolErrorBody(error: unknown, locale: Locale): { code: ErrorCode; data?: unknown; message: string } {
-	const normalized = normalizeError(error);
+export function toolErrorBody(
+	error: unknown,
+	locale: Locale,
+	scope: ErrorScope,
+): { code: ErrorCode; data?: unknown; message: string } {
+	const normalized = normalizeError(error, scope);
 	return { code: normalized.code, data: normalized.data, message: messageFor(normalized.code, locale) };
 }
 ```
 
-Nota: `new ORPCError('internal', …)` senza `cause` evita che dettagli interni finiscano
-nel JSON; il log resta nel Worker.
+Note:
+
+- `new ORPCError('internal', …)` e `invalid` sono creati senza `cause`: nulla di interno
+  finisce nel JSON della risposta.
+- Se i tipi di oRPC 1.15.5 non accettano `mapErrors` così com'è in `clientInterceptors`
+  o in `interceptors`, adegua solo la firma (le opzioni reali hanno `context`, `path`,
+  `next`), non il comportamento.
 
 - [ ] **Passo 5: verifica che passino**
 
@@ -1251,7 +1113,7 @@ Expected: PASS.
 
 ```bash
 git add server package-lock.json
-git commit -m "Server: errori normalizzati sui codici del contratto e messaggi in italiano e inglese"
+git commit -m "Server: errori normalizzati sui codici del contratto, log senza segreti e messaggi localizzati"
 ```
 
 ---
@@ -1273,93 +1135,129 @@ git commit -m "Server: errori normalizzati sui codici del contratto e messaggi i
   - test: `hasDatabase: boolean`, `setupDatabase(): Promise<TestDatabase>` con
     `admin: postgres.Sql`, `appServerUrl: string`,
     `createUser(options?: { locale?: Locale }): Promise<{ userId: string; sessionId: string }>`,
-    `endSession(sessionId: string): Promise<void>`, `deleteProfile(userId: string): Promise<void>`,
-    `createFamily(members: { userId: string; role: 'admin' | 'member' }[]): Promise<string>`,
-    `grantGlobalRole(userId: string, role: 'curator' | 'app_admin'): Promise<void>`,
+    `endSession(sessionId: string): Promise<void>`, `deleteUser(userId: string): Promise<void>`,
+    `createFamily(members: { userId: string; role: 'family_admin' | 'member' }[]): Promise<string>`,
+    `addMember(familyId: string, userId: string, role: 'family_admin' | 'member'): Promise<void>`,
+    `grantGlobalRole(userId: string, role: 'recipe_curator' | 'app_admin'): Promise<void>`,
     `bumpFamily(familyId: string): Promise<void>`, `close(): Promise<void>`
 
-**Database dei test.** I test con il database leggono `TEST_DATABASE_URL`: una
-connessione con privilegi da superutente a un Postgres compatibile con Supabase (schema
-`auth` con `users`, `sessions`, `uid()`, `jwt()`; ruoli `authenticated` e `anon`),
-nell'ambiente locale che W2 stabilisce (Supabase locale con Podman o alternativa). Se
-quando arrivi a questo task l'ambiente di W2 non è ancora disponibile, scrivi
-`STATO: DOMANDA` chiedendo al coordinatore come avviarlo; i test senza database non ne
-dipendono. Senza `TEST_DATABASE_URL` le suite con il database sono saltate e Vitest le
-mostra come `skipped`.
+**Database dei test.** `TEST_DATABASE_URL` è la connessione da superutente al Postgres
+locale di Supabase avviato con la CLI su Podman (scelta di W2): dalla radice del
+repository, con `supabase/` di W2 presente, `supabase db start` (serve `/opt/podman/bin`
+nel `PATH` e la VM `podman machine start`), poi
+`TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres` (porta e
+credenziali: verificale con `supabase status`).
+
+- **Schema reale presente** (`app.profiles` esiste): i test lo usano così com'è.
+- **Prima del merge di W2**: `supabase/` non è su questo branch. Avvia il database da
+  una cartella di appoggio nello scratchpad (`supabase init` lì, poi `supabase db
+  start`, senza migrazioni) e lancia i test con `TEST_DB_FIXTURE=1`: la fixture
+  provvisoria crea gli oggetti di W2 con gli stessi nomi. Se l'avvio non riesce, scrivi
+  `STATO: DOMANDA`; i test senza database non ne dipendono.
+- **Schema assente senza `TEST_DB_FIXTURE=1`**: i test falliscono con un messaggio che
+  spiega come avviare il database. **In CI** (`CI` impostata) la fixture è rifiutata e
+  l'assenza di `TEST_DATABASE_URL` fa fallire i test: nessuna suite saltata.
 
 - [ ] **Passo 1: dipendenza**
 
 Run: `npm install -w server postgres@3.4.9`
 
-- [ ] **Passo 2: fixture provvisoria degli oggetti di W2**
+- [ ] **Passo 2: fixture provvisoria con i nomi di W2**
 
-`server/test/support/schema.sql` (si applica solo se `public.profiles` non esiste;
-da togliere quando lo schema di W2 è su `main`):
+`server/test/support/schema.sql` (stessi nomi e firme della spec di W2, sezioni
+«Identità», «Famiglie», «Permessi», «Contatori»; solo quanto usa il server; si toglie
+nel task 11):
 
 ```sql
--- Stand-in for the W2 objects the server relies on, same names as agreed.
--- Applied by the tests only when the real schema is missing.
+-- Stand-in for the W2 objects the server relies on, same names as the W2 spec.
+-- Applied only with TEST_DB_FIXTURE=1 when the real schema is missing; never in CI.
 do $$ begin
 	if not exists (select 1 from pg_roles where rolname = 'app_job') then create role app_job nologin; end if;
 	if not exists (select 1 from pg_roles where rolname = 'app_server') then create role app_server login noinherit; end if;
 end $$;
 grant authenticated, anon, app_job to app_server;
 
-create schema if not exists app;
-grant usage on schema app to authenticated;
+create schema app;
+grant usage on schema app to authenticated, anon, app_job;
 
-create table public.profiles (
-	id uuid primary key references auth.users (id) on delete cascade,
+create table app.profiles (
+	user_id uuid primary key references auth.users (id) on delete cascade,
+	display_name text not null check (display_name <> ''),
 	locale text not null default 'it-IT' check (locale in ('it-IT', 'en-GB'))
 );
-alter table public.profiles enable row level security;
-create policy profiles_own on public.profiles for select to authenticated using (id = auth.uid());
-grant select on public.profiles to authenticated;
+create function app.create_profile() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+	insert into app.profiles (user_id, display_name, locale) values (
+		new.id,
+		coalesce(nullif(new.raw_user_meta_data ->> 'display_name', ''), split_part(new.email, '@', 1)),
+		case when new.raw_user_meta_data ->> 'locale' in ('it-IT', 'en-GB') then new.raw_user_meta_data ->> 'locale' else 'it-IT' end
+	);
+	return new;
+end $$;
+create trigger create_profile after insert on auth.users for each row execute function app.create_profile();
 
-create or replace function app.session_is_active() returns boolean
+create table app.user_roles (
+	user_id uuid not null references auth.users (id) on delete cascade,
+	role text not null check (role in ('recipe_curator', 'app_admin')),
+	primary key (user_id, role)
+);
+create table app.families (
+	id uuid primary key default gen_random_uuid(),
+	name text not null check (name <> ''),
+	measurement_system text not null default 'metric' check (measurement_system in ('metric', 'uk_imperial')),
+	data_version bigint not null default 0
+);
+create table app.family_members (
+	family_id uuid not null references app.families (id) on delete cascade,
+	user_id uuid not null references auth.users (id) on delete cascade,
+	role text not null check (role in ('family_admin', 'member')),
+	primary key (family_id, user_id)
+);
+create table app.catalogue_state (
+	id boolean primary key default true check (id),
+	version bigint not null default 0
+);
+insert into app.catalogue_state default values;
+
+create function app.session_is_active() returns boolean
 language sql stable security definer set search_path = '' as $$
 	select exists (
 		select 1 from auth.sessions s
-		where s.id = (auth.jwt() ->> 'session_id')::uuid
+		where s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
 			and s.user_id = auth.uid()
 			and (s.not_after is null or s.not_after > now())
 	);
 $$;
-revoke all on function app.session_is_active() from public;
-grant execute on function app.session_is_active() to authenticated;
+create function app.is_member(target uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+	select exists (select 1 from app.family_members m where m.family_id = target and m.user_id = auth.uid());
+$$;
+create function app.is_family_admin(target uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+	select exists (
+		select 1 from app.family_members m
+		where m.family_id = target and m.user_id = auth.uid() and m.role = 'family_admin'
+	);
+$$;
+create function app.has_role(wanted text) returns boolean
+language sql stable security definer set search_path = '' as $$
+	select exists (select 1 from app.user_roles r where r.user_id = auth.uid() and r.role = wanted);
+$$;
+revoke all on function app.session_is_active(), app.is_member(uuid), app.is_family_admin(uuid), app.has_role(text), app.create_profile() from public;
+grant execute on function app.session_is_active(), app.is_member(uuid), app.is_family_admin(uuid), app.has_role(text) to authenticated;
 
-create table public.families (
-	id uuid primary key default gen_random_uuid(),
-	name text not null,
-	data_version bigint not null default 0
-);
-create table public.family_members (
-	family_id uuid not null references public.families (id) on delete cascade,
-	user_id uuid not null references auth.users (id) on delete cascade,
-	role text not null check (role in ('admin', 'member')),
-	primary key (family_id, user_id)
-);
-create table public.user_global_roles (
-	user_id uuid not null references auth.users (id) on delete cascade,
-	role text not null check (role in ('curator', 'app_admin')),
-	primary key (user_id, role)
-);
-create table public.catalogue_state (
-	id boolean primary key default true check (id),
-	version bigint not null default 0
-);
-insert into public.catalogue_state default values;
-
-alter table public.families enable row level security;
-alter table public.family_members enable row level security;
-alter table public.user_global_roles enable row level security;
-alter table public.catalogue_state enable row level security;
-create policy family_members_own on public.family_members for select to authenticated using (user_id = auth.uid());
-create policy families_member on public.families for select to authenticated
-	using (exists (select 1 from public.family_members m where m.family_id = id and m.user_id = auth.uid()));
-create policy user_global_roles_own on public.user_global_roles for select to authenticated using (user_id = auth.uid());
-create policy catalogue_state_all on public.catalogue_state for select to authenticated using (true);
-grant select on public.families, public.family_members, public.user_global_roles, public.catalogue_state to authenticated;
+alter table app.profiles enable row level security;
+alter table app.user_roles enable row level security;
+alter table app.families enable row level security;
+alter table app.family_members enable row level security;
+alter table app.catalogue_state enable row level security;
+create policy profiles_own on app.profiles for select to authenticated using (user_id = (select auth.uid()));
+create policy user_roles_own on app.user_roles for select to authenticated using (user_id = (select auth.uid()));
+create policy families_member on app.families for select to authenticated using ((select app.is_member(id)));
+create policy family_members_member on app.family_members for select to authenticated using ((select app.is_member(family_id)));
+create policy catalogue_state_all on app.catalogue_state for select to authenticated using (true);
+grant select on app.profiles, app.user_roles, app.families, app.family_members, app.catalogue_state to authenticated;
 ```
 
 - [ ] **Passo 3: supporto dei test con il database**
@@ -1367,11 +1265,16 @@ grant select on public.families, public.family_members, public.user_global_roles
 `server/test/support/db.ts`:
 
 ```ts
+import { readFile } from 'node:fs/promises';
 import type { Locale } from '@app/contract';
 import postgres from 'postgres';
 
 const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+const inCi = Boolean(env.CI);
 const databaseUrl = env.TEST_DATABASE_URL;
+
+// In CI an integration suite must never be skipped: no database is a failure.
+if (inCi && !databaseUrl) throw new Error('TEST_DATABASE_URL is required in CI (see .github/workflows/ci.yml)');
 export const hasDatabase = Boolean(databaseUrl);
 
 const APP_SERVER_PASSWORD = 'app_server_test';
@@ -1382,25 +1285,38 @@ export interface TestDatabase {
 	appServerUrl: string;
 	createUser(options?: { locale?: Locale }): Promise<{ userId: string; sessionId: string }>;
 	endSession(sessionId: string): Promise<void>;
-	deleteProfile(userId: string): Promise<void>;
-	createFamily(members: { userId: string; role: 'admin' | 'member' }[]): Promise<string>;
-	grantGlobalRole(userId: string, role: 'curator' | 'app_admin'): Promise<void>;
+	deleteUser(userId: string): Promise<void>;
+	createFamily(members: { userId: string; role: 'family_admin' | 'member' }[]): Promise<string>;
+	addMember(familyId: string, userId: string, role: 'family_admin' | 'member'): Promise<void>;
+	grantGlobalRole(userId: string, role: 'recipe_curator' | 'app_admin'): Promise<void>;
 	bumpFamily(familyId: string): Promise<void>;
 	close(): Promise<void>;
+}
+
+async function ensureSchema(admin: postgres.Sql): Promise<void> {
+	const [{ present }] = await admin<{ present: boolean }[]>`select to_regclass('app.profiles') is not null as present`;
+	if (present) return;
+	if (inCi || env.TEST_DB_FIXTURE !== '1') {
+		throw new Error(
+			'Schema app is missing: start the local database with the migrations of supabase/ ' +
+				'(supabase db start), or set TEST_DB_FIXTURE=1 to use the provisional fixture before the schema is merged.',
+		);
+	}
+	await admin.unsafe(await readFile(new URL('./schema.sql', import.meta.url), 'utf8'));
 }
 
 export async function setupDatabase(): Promise<TestDatabase> {
 	if (!databaseUrl) throw new Error('TEST_DATABASE_URL is not set');
 	const admin = postgres(databaseUrl, { max: 1, onnotice: () => {} });
-	const [{ present }] = await admin<{ present: boolean }[]>`select to_regclass('public.profiles') is not null as present`;
-	if (!present) {
-		const schema = await import('node:fs/promises').then((fs) => fs.readFile(new URL('./schema.sql', import.meta.url), 'utf8'));
-		await admin.unsafe(schema);
-	}
+	await ensureSchema(admin);
 	await admin.unsafe(`alter role app_server password '${APP_SERVER_PASSWORD}'`);
 	const url = new URL(databaseUrl);
 	url.username = 'app_server';
 	url.password = APP_SERVER_PASSWORD;
+
+	const addMember = async (familyId: string, userId: string, role: 'family_admin' | 'member') => {
+		await admin`insert into app.family_members (family_id, user_id, role) values (${familyId}, ${userId}, ${role})`;
+	};
 
 	return {
 		admin,
@@ -1408,29 +1324,32 @@ export async function setupDatabase(): Promise<TestDatabase> {
 		async createUser(options = {}) {
 			const userId = crypto.randomUUID();
 			const sessionId = crypto.randomUUID();
-			await admin`insert into auth.users (id, email, aud, role) values (${userId}, ${`${userId}@test.local`}, 'authenticated', 'authenticated')`;
+			const metadata = { display_name: `Test ${userId.slice(0, 8)}`, locale: options.locale ?? 'it-IT' };
+			// The W2 trigger on auth.users creates the profile from the metadata.
+			await admin`
+				insert into auth.users (id, email, aud, role, raw_user_meta_data)
+				values (${userId}, ${`${userId}@test.local`}, 'authenticated', 'authenticated', ${admin.json(metadata)})`;
 			await admin`insert into auth.sessions (id, user_id) values (${sessionId}, ${userId})`;
-			await admin`insert into public.profiles (id, locale) values (${userId}, ${options.locale ?? 'it-IT'})`;
 			return { userId, sessionId };
 		},
 		async endSession(sessionId) {
 			await admin`delete from auth.sessions where id = ${sessionId}`;
 		},
-		async deleteProfile(userId) {
-			await admin`delete from public.profiles where id = ${userId}`;
+		async deleteUser(userId) {
+			await admin`delete from auth.users where id = ${userId}`;
 		},
 		async createFamily(members) {
-			const [{ id }] = await admin<{ id: string }[]>`insert into public.families (name) values ('Test') returning id`;
-			for (const member of members) {
-				await admin`insert into public.family_members (family_id, user_id, role) values (${id}, ${member.userId}, ${member.role})`;
-			}
+			const [{ id }] = await admin<{ id: string }[]>`
+				insert into app.families (name, measurement_system) values ('Test', 'metric') returning id`;
+			for (const member of members) await addMember(id, member.userId, member.role);
 			return id;
 		},
+		addMember,
 		async grantGlobalRole(userId, role) {
-			await admin`insert into public.user_global_roles (user_id, role) values (${userId}, ${role})`;
+			await admin`insert into app.user_roles (user_id, role) values (${userId}, ${role})`;
 		},
 		async bumpFamily(familyId) {
-			await admin`update public.families set data_version = data_version + 1 where id = ${familyId}`;
+			await admin`update app.families set data_version = data_version + 1 where id = ${familyId}`;
 		},
 		async close() {
 			await admin.end();
@@ -1439,9 +1358,11 @@ export async function setupDatabase(): Promise<TestDatabase> {
 }
 ```
 
-Se lo schema vero di W2 è già presente e i suoi inserimenti richiedono colonne in più
-(per esempio `families` con altri campi obbligatori o profili creati da un trigger su
-`auth.users`), adegua qui `createUser` e `createFamily`, non il codice del server.
+Con lo schema reale di W2 gli inserimenti possono richiedere colonne in più (per
+esempio `app.user_roles.granted_by`, `app.families.time_zone`) o rifiutare l'aggiornamento
+diretto di `data_version`: adegua qui `createFamily`, `grantGlobalRole` e `bumpFamily`
+(per esempio facendo crescere il contatore con una scrittura vera su
+`app.families.name`), mai il codice del server.
 
 - [ ] **Passo 4: test (falliscono)**
 
@@ -1460,10 +1381,16 @@ describe.skipIf(!hasDatabase)('withDb', () => {
 	});
 	afterAll(() => db?.close());
 
+	const userClaims = (userId: string, sessionId: string) => ({
+		sub: userId,
+		role: 'authenticated' as const,
+		session_id: sessionId,
+		exp: Math.floor(Date.now() / 1000) + 3600,
+	});
+
 	it('acts as the user with the claims', async () => {
 		const { userId, sessionId } = await db.createUser();
-		const claims = { sub: userId, role: 'authenticated', session_id: sessionId };
-		const [row] = await withDb(db.appServerUrl, { kind: 'user', claims }, (tx) =>
+		const [row] = await withDb(db.appServerUrl, { kind: 'user', claims: userClaims(userId, sessionId) }, (tx) =>
 			tx<{ role: string; uid: string }[]>`select current_user as role, auth.uid()::text as uid`,
 		);
 		expect(row).toEqual({ role: 'authenticated', uid: userId });
@@ -1476,14 +1403,34 @@ describe.skipIf(!hasDatabase)('withDb', () => {
 		expect(job[0].role).toBe('app_job');
 	});
 
-	it('leaves nothing behind on a reused connection', async () => {
-		const { userId } = await db.createUser();
+	async function stateAfter(sql: postgres.Sql) {
+		const [row] = await sql<{ role: string; claims: string | null }[]>`
+			select current_user as role, nullif(current_setting('request.jwt.claims', true), '') as claims`;
+		return row;
+	}
+
+	it('leaves nothing behind on a reused connection after a commit', async () => {
+		const { userId, sessionId } = await db.createUser();
 		const sql = postgres(db.appServerUrl, { max: 1, fetch_types: false });
 		try {
-			await withDbOn(sql, { kind: 'user', claims: { sub: userId, role: 'authenticated' } }, async () => {});
-			const [after] = await sql<{ role: string; claims: string | null }[]>`
-				select current_user as role, nullif(current_setting('request.jwt.claims', true), '') as claims`;
-			expect(after).toEqual({ role: 'app_server', claims: null });
+			await withDbOn(sql, { kind: 'user', claims: userClaims(userId, sessionId) }, async () => {});
+			expect(await stateAfter(sql)).toEqual({ role: 'app_server', claims: null });
+		} finally {
+			await sql.end();
+		}
+	});
+
+	it('leaves nothing behind on a reused connection after a rollback', async () => {
+		const { userId, sessionId } = await db.createUser();
+		const sql = postgres(db.appServerUrl, { max: 1, fetch_types: false });
+		try {
+			await expect(
+				withDbOn(sql, { kind: 'user', claims: userClaims(userId, sessionId) }, async (tx) => {
+					await tx`select 1`;
+					throw new Error('boom');
+				}),
+			).rejects.toThrow('boom');
+			expect(await stateAfter(sql)).toEqual({ role: 'app_server', claims: null });
 		} finally {
 			await sql.end();
 		}
@@ -1492,7 +1439,7 @@ describe.skipIf(!hasDatabase)('withDb', () => {
 	it('sees no table as app_server without a chosen role', async () => {
 		const sql = postgres(db.appServerUrl, { max: 1, fetch_types: false });
 		try {
-			await expect(sql`select * from public.profiles`).rejects.toThrow(/permission denied/);
+			await expect(sql`select * from app.profiles`).rejects.toThrow(/permission denied/);
 		} finally {
 			await sql.end();
 		}
@@ -1502,7 +1449,8 @@ describe.skipIf(!hasDatabase)('withDb', () => {
 
 - [ ] **Passo 5: verifica che falliscano**
 
-Run: `TEST_DATABASE_URL=<url del database locale> npm test -w server -- db`
+Run: `TEST_DATABASE_URL=<url> TEST_DB_FIXTURE=1 npm test -w server -- db` (senza
+`TEST_DB_FIXTURE` se lo schema di W2 è già nel database)
 Expected: FAIL, `../src/db.ts` inesistente.
 
 - [ ] **Passo 6: implementazione**
@@ -1521,7 +1469,7 @@ export type DbIdentity = { kind: 'user'; claims: Claims } | { kind: 'anon' } | {
 /**
  * Runs `fn` in a transaction under the chosen role. `set local` and the `true` flag of
  * `set_config` keep role and claims inside this transaction, so they never leak to the
- * next request that reuses the same pooled connection.
+ * next request that reuses the same pooled connection, after a commit or a rollback.
  */
 export async function withDbOn<T>(sql: postgres.Sql, identity: DbIdentity, fn: (tx: Tx) => Promise<T>): Promise<T> {
 	return (await sql.begin(async (tx) => {
@@ -1554,7 +1502,7 @@ export async function withDb<T>(connectionString: string, identity: DbIdentity, 
 
 - [ ] **Passo 7: verifica che passino**
 
-Run: `TEST_DATABASE_URL=<url> npm test -w server -- db && npm test -w server && npm run typecheck -w server`
+Run: `TEST_DATABASE_URL=<url> TEST_DB_FIXTURE=1 npm test -w server -- db && npm test -w server && npm run typecheck -w server`
 Expected: PASS con database; senza `TEST_DATABASE_URL` la suite risulta `skipped` e
 il resto passa.
 
@@ -1562,7 +1510,7 @@ il resto passa.
 
 ```bash
 git add server package-lock.json
-git commit -m "Server: transazione nel ruolo scelto (utente, anon, job) e database di prova"
+git commit -m "Server: transazione nel ruolo scelto (utente, anon, job) e database di prova con i nomi di W2"
 ```
 
 ---
@@ -1572,26 +1520,22 @@ git commit -m "Server: transazione nel ruolo scelto (utente, anon, job) e databa
 **File:**
 - Crea: `server/src/session.ts`, `server/src/permissions.ts`, `server/src/versions.ts`,
   `server/src/pipeline.ts`, `server/src/router.ts`, `server/test/support/test-contract.ts`,
-  `server/test/support/requests.ts`, `server/test/pipeline.test.ts`
-- Nota: `requests.ts` usa `createApp` del task 7; in questo task i test chiamano il
-  router direttamente con `call` di oRPC tramite `callAs` definito qui sotto.
+  `server/test/support/context.ts`, `server/test/pipeline.test.ts`
 
 **Interfacce:**
-- Consuma: `Claims`, `channelOf`, `verifyAccessToken`, `KeySource` (task 3); `appError`,
-  `mapErrors` (task 4); `withDb`, `Tx` (task 5); `OperationMeta`, `Locale`, `checkContract` (task 2).
+- Consuma: `Claims`, `channelOf` (task 3); `appError`, `mapErrors` (task 4); `withDb`,
+  `Tx` (task 5); `OperationMeta`, `Locale`, `checkContract` (task 2).
 - Produce:
   - `interface RequestState { locale?: Locale }`
-  - `interface RequestContext { env: Env; origin: string; token: string | undefined; verify(token: string): Promise<Claims>; deployId: string; state: RequestState }`
+  - `interface RequestContext { env: Env; requestId: string; origin: string; token: string | undefined; verify(token: string): Promise<Claims>; deployId: string; state: RequestState }`
   - `interface OperationContext extends RequestContext { userId: string; channel: Channel; clientId: string | null; locale: Locale; tx: Tx; version?: string }`
-  - `createImplementer<C extends AnyContractRouter>(contract: C)`: implementatore oRPC con
-    contesto `RequestContext`, validazione dell'input prima del middleware e middleware
-    del percorso
+  - `createImplementer<C extends AnyContractRouter>(contract: C)`
   - `fresh<T>(context: OperationContext, data: T): { unchanged: false; version: string; data: T }`
   - `webOnlyUrl(origin: string, path: string, input: unknown): string`
-  - `loadSession(tx): Promise<Locale>` (in `session.ts`), `checkRole(tx, role, input): Promise<void>`
-    (in `permissions.ts`), `readVersion(tx, scopes, input, locale, deployId): Promise<string>` (in `versions.ts`)
+  - `loadSession(tx: Tx): Promise<Locale>` (`session.ts`), `checkRole(tx, role, input): Promise<void>`
+    (`permissions.ts`), `readVersion(tx, scopes, input, locale, deployId): Promise<string>` (`versions.ts`)
   - `router` (implementazione di `contract`) in `router.ts`
-  - test: `testContract`, `testRouter`, `testHandlerCalls` (contatore delle esecuzioni)
+  - test: `testContract`, `testRouter`, `testHandlerCalls`; `contextFor(keys, token, connectionString?)` in `support/context.ts`
 
 - [ ] **Passo 1: contratto e router di prova**
 
@@ -1643,29 +1587,18 @@ export const testRouter = os.router({
 });
 ```
 
-- [ ] **Passo 2: test (falliscono)**
-
-`server/test/pipeline.test.ts`:
+`server/test/support/context.ts`:
 
 ```ts
-import { checkContract, contract } from '@app/contract';
-import { call, ORPCError } from '@orpc/server';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { verifyAccessToken } from '../src/auth.ts';
-import type { Env } from '../src/env.ts';
-import { mapErrors } from '../src/errors.ts';
-import type { RequestContext } from '../src/pipeline.ts';
-import { router } from '../src/router.ts';
-import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
-import { createTestKeys, TEST_ISSUER, TEST_SUPABASE_URL, type TestKeys } from './support/keys.ts';
-import { testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
+import { verifyAccessToken } from '../../src/auth.ts';
+import type { Env } from '../../src/env.ts';
+import type { RequestContext } from '../../src/pipeline.ts';
+import { TEST_ISSUER, TEST_SUPABASE_URL, type TestKeys } from './keys.ts';
 
-let keys: TestKeys;
-beforeAll(async () => {
-	keys = await createTestKeys();
-});
+/** A connection string nobody listens on: any database access fails fast. */
+export const UNREACHABLE_DB = 'postgres://nobody:secret@127.0.0.1:1/none';
 
-function contextFor(token: string | undefined, connectionString = 'postgres://nobody:secret@127.0.0.1:1/none'): RequestContext {
+export function contextFor(keys: TestKeys, token: string | undefined, connectionString = UNREACHABLE_DB): RequestContext {
 	const env = {
 		HYPERDRIVE: { connectionString } as Hyperdrive,
 		SUPABASE_URL: TEST_SUPABASE_URL,
@@ -1674,6 +1607,7 @@ function contextFor(token: string | undefined, connectionString = 'postgres://no
 	} satisfies Env;
 	return {
 		env,
+		requestId: crypto.randomUUID(),
 		origin: 'https://app.test',
 		token,
 		verify: (t) => verifyAccessToken(t, { issuer: TEST_ISSUER, keys: keys.keys }),
@@ -1681,6 +1615,30 @@ function contextFor(token: string | undefined, connectionString = 'postgres://no
 		state: {},
 	};
 }
+```
+
+- [ ] **Passo 2: test (falliscono)**
+
+`server/test/pipeline.test.ts`:
+
+```ts
+import { checkContract } from '@app/contract';
+import { call, ORPCError } from '@orpc/server';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { mapErrors } from '../src/errors.ts';
+import type { RequestContext } from '../src/pipeline.ts';
+import { router } from '../src/router.ts';
+import { contextFor } from './support/context.ts';
+import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
+import { createTestKeys, type TestKeys } from './support/keys.ts';
+import { testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
+
+let keys: TestKeys;
+beforeAll(async () => {
+	keys = await createTestKeys();
+});
+
+const options = (context: RequestContext) => ({ context, interceptors: [mapErrors] });
 
 async function errorOf(promise: Promise<unknown>): Promise<ORPCError<string, unknown>> {
 	try {
@@ -1702,43 +1660,52 @@ describe('conventions', () => {
 });
 
 describe('request path without database', () => {
-	const options = (context: RequestContext) => ({ context, interceptors: [mapErrors] });
-
-	it('rejects a missing or invalid token with unauthorized', async () => {
+	// Every case below would fail with `internal` if it reached the (unreachable) database.
+	it('rejects a missing or malformed token with unauthorized', async () => {
 		for (const token of [undefined, 'not-a-jwt']) {
-			const error = await errorOf(call(router.session.whoami, {}, options(contextFor(token))));
+			const error = await errorOf(call(router.session.whoami, {}, options(contextFor(keys, token))));
 			expect(error.code).toBe('unauthorized');
 			expect(error.status).toBe(401);
 		}
 	});
 
-	it('answers web_only to agents before touching the database', async () => {
-		const token = await keys.sign({ sub: userId, client_id: 'agent' });
-		const error = await errorOf(call(testRouter.test.removeFamily, { familyId }, options(contextFor(token))));
-		expect(error.code).toBe('web_only');
-		expect(error.data).toEqual({ url: `https://app.test/family/${familyId}/delete` });
+	it('rejects tokens with invalid claims before the database', async () => {
+		const tokens = [
+			await keys.sign({ sub: userId }, { noExpiry: true }),
+			await keys.sign({ sub: userId, session_id: 'not-a-uuid' }),
+			await keys.sign({ sub: userId, session_id: undefined }),
+			await keys.sign({ sub: userId, client_id: '' }),
+			await keys.sign({ sub: userId, client_id: false }),
+		];
+		for (const token of tokens) {
+			expect((await errorOf(call(router.session.whoami, {}, options(contextFor(keys, token))))).code).toBe('unauthorized');
+		}
 	});
 
 	it('validates the input before anything else', async () => {
 		const token = await keys.sign({ sub: userId });
-		const error = await errorOf(call(testRouter.test.member, { familyId: 'nope' }, options(contextFor(token))));
+		const error = await errorOf(call(testRouter.test.member, { familyId: 'nope' }, options(contextFor(keys, token))));
 		expect(error.code).toBe('invalid');
 		expect(error.data).toMatchObject({ issues: [{ path: ['familyId'] }] });
 	});
 
 	it('turns an unreachable database into internal without leaking the connection string', async () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
 		const token = await keys.sign({ sub: userId });
-		const error = await errorOf(call(router.session.whoami, {}, options(contextFor(token))));
+		const context = contextFor(keys, token);
+		const error = await errorOf(call(router.session.whoami, {}, options(context)));
 		expect(error.code).toBe('internal');
+		expect(error.data).toEqual({ requestId: context.requestId });
 		expect(JSON.stringify(error.toJSON())).not.toContain('secret');
+		expect(JSON.stringify(log.mock.calls)).not.toContain('secret');
+		log.mockRestore();
 	});
 });
 
 describe.skipIf(!hasDatabase)('request path with database', () => {
 	let db: TestDatabase;
-	const options = (context: RequestContext) => ({ context, interceptors: [mapErrors] });
 	const asUser = async (user: { userId: string; sessionId: string }, extra: Record<string, unknown> = {}) =>
-		contextFor(await keys.sign({ sub: user.userId, session_id: user.sessionId, ...extra }), db.appServerUrl);
+		contextFor(keys, await keys.sign({ sub: user.userId, session_id: user.sessionId, ...extra }), db.appServerUrl);
 
 	beforeAll(async () => {
 		db = await setupDatabase();
@@ -1751,20 +1718,36 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 		expect(result).toEqual({ userId: user.userId, channel: 'web', clientId: null, locale: 'en-GB' });
 	});
 
-	it('rejects an ended session or a deleted profile', async () => {
+	it('rejects an ended session or a deleted account', async () => {
 		const ended = await db.createUser();
 		await db.endSession(ended.sessionId);
 		expect((await errorOf(call(router.session.whoami, {}, options(await asUser(ended))))).code).toBe('unauthorized');
 		const deleted = await db.createUser();
-		await db.deleteProfile(deleted.userId);
-		expect((await errorOf(call(router.session.whoami, {}, options(await asUser(deleted))))).code).toBe('unauthorized');
+		const context = await asUser(deleted);
+		await db.deleteUser(deleted.userId);
+		expect((await errorOf(call(router.session.whoami, {}, options(context)))).code).toBe('unauthorized');
+	});
+
+	it('checks the session before answering web_only', async () => {
+		const admin = await db.createUser({ locale: 'en-GB' });
+		const id = await db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+		const agent = await asUser(admin, { client_id: 'codex' });
+		const error = await errorOf(call(testRouter.test.removeFamily, { familyId: id }, options(agent)));
+		expect(error.code).toBe('web_only');
+		expect(error.data).toEqual({ url: `https://app.test/family/${id}/delete` });
+		expect(agent.state.locale).toBe('en-GB');
+
+		const revoked = await db.createUser();
+		const revokedAgent = await asUser(revoked, { client_id: 'codex' });
+		await db.endSession(revoked.sessionId);
+		expect((await errorOf(call(testRouter.test.removeFamily, { familyId: id }, options(revokedAgent)))).code).toBe('unauthorized');
 	});
 
 	it('checks family membership and family administration', async () => {
 		const admin = await db.createUser();
 		const member = await db.createUser();
 		const stranger = await db.createUser();
-		const id = await db.createFamily([{ userId: admin.userId, role: 'admin' }, { userId: member.userId, role: 'member' }]);
+		const id = await db.createFamily([{ userId: admin.userId, role: 'family_admin' }, { userId: member.userId, role: 'member' }]);
 		await expect(call(testRouter.test.member, { familyId: id }, options(await asUser(member)))).resolves.toEqual({ ok: true });
 		await expect(call(testRouter.test.admin, { familyId: id }, options(await asUser(admin)))).resolves.toEqual({ ok: true });
 		expect((await errorOf(call(testRouter.test.admin, { familyId: id }, options(await asUser(member))))).code).toBe('forbidden');
@@ -1775,7 +1758,7 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 	it('checks global roles', async () => {
 		const curator = await db.createUser();
 		const appAdmin = await db.createUser();
-		await db.grantGlobalRole(curator.userId, 'curator');
+		await db.grantGlobalRole(curator.userId, 'recipe_curator');
 		await db.grantGlobalRole(appAdmin.userId, 'app_admin');
 		await expect(call(testRouter.test.curator, {}, options(await asUser(curator)))).resolves.toEqual({ ok: true });
 		await expect(call(testRouter.test.appAdmin, {}, options(await asUser(appAdmin)))).resolves.toEqual({ ok: true });
@@ -1806,12 +1789,15 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 		const viewB = await call(testRouter.test.familyView, { familyId: b, knownVersion: viewA.version }, options(await asUser(user)));
 		expect(viewB.unchanged).toBe(false);
 		const english = await db.createUser({ locale: 'en-GB' });
-		await db.admin`insert into public.family_members (family_id, user_id, role) values (${a}, ${english.userId}, 'member')`;
+		await db.addMember(a, english.userId, 'member');
 		const viewEnglish = await call(testRouter.test.familyView, { familyId: a, knownVersion: viewA.version }, options(await asUser(english)));
 		expect(viewEnglish.unchanged).toBe(false);
 	});
 });
 ```
+
+Nota: aggiungere un membro alla famiglia `a` fa crescere il suo contatore con i trigger
+di W2; l'ultimo controllo resta valido perché anche la lingua è diversa.
 
 - [ ] **Passo 3: verifica che falliscano**
 
@@ -1828,13 +1814,14 @@ import type { Tx } from './db.ts';
 import { appError } from './errors.ts';
 
 /**
- * Profile language and session check in one query. No profile (account deleted) or an
- * ended session (logout, expiry, agent disconnected) refuse the still-valid token.
+ * Profile language and session check in one query. No profile (account deleted: the
+ * profile goes with the user) or an ended session (logout, expiry, agent disconnected)
+ * refuse the still-valid token.
  */
 export async function loadSession(tx: Tx): Promise<Locale> {
 	const rows = await tx<{ locale: string; active: boolean }[]>`
 		select p.locale, app.session_is_active() as active
-		from public.profiles p where p.id = auth.uid()`;
+		from app.profiles p where p.user_id = auth.uid()`;
 	const row = rows[0];
 	if (!row || !row.active) throw appError('unauthorized');
 	return localeSchema.parse(row.locale);
@@ -1848,31 +1835,31 @@ import type { Role } from '@app/contract';
 import type { Tx } from './db.ts';
 import { appError } from './errors.ts';
 
+const familyIdOf = (input: unknown) => (input as { familyId: string }).familyId;
+
 /**
- * Gives clear errors before the handler; row level security stays the real guarantee.
- * A family that does not exist and one the user is not in look the same: forbidden.
+ * Clear errors before the handler, through the W2 helper functions (security definer,
+ * based on auth.uid()); row level security stays the real guarantee. A family that does
+ * not exist and one the user is not in look the same: forbidden.
  */
 export async function checkRole(tx: Tx, role: Role, input: unknown): Promise<void> {
+	if (role === 'user') return;
+	let rows: { ok: boolean }[];
 	switch (role) {
-		case 'user':
-			return;
 		case 'familyMember':
-		case 'familyAdmin': {
-			const familyId = (input as { familyId: string }).familyId;
-			const rows = await tx<{ role: string }[]>`
-				select role from public.family_members where family_id = ${familyId} and user_id = auth.uid()`;
-			const membership = rows[0]?.role;
-			if (!membership || (role === 'familyAdmin' && membership !== 'admin')) throw appError('forbidden');
-			return;
-		}
+			rows = await tx`select app.is_member(${familyIdOf(input)}::uuid) as ok`;
+			break;
+		case 'familyAdmin':
+			rows = await tx`select app.is_family_admin(${familyIdOf(input)}::uuid) as ok`;
+			break;
 		case 'curator':
-		case 'appAdmin': {
-			const globalRole = role === 'curator' ? 'curator' : 'app_admin';
-			const rows = await tx`select 1 from public.user_global_roles where user_id = auth.uid() and role = ${globalRole}`;
-			if (rows.length === 0) throw appError('forbidden');
-			return;
-		}
+			rows = await tx`select app.has_role('recipe_curator') as ok`;
+			break;
+		case 'appAdmin':
+			rows = await tx`select app.has_role('app_admin') as ok`;
+			break;
 	}
+	if (!rows[0]?.ok) throw appError('forbidden');
 }
 ```
 
@@ -1893,12 +1880,12 @@ export async function readVersion(tx: Tx, scopes: VersionScope[], input: unknown
 	const parts: string[] = [];
 	if (scopes.includes('family')) {
 		const familyId = (input as { familyId: string }).familyId;
-		const rows = await tx<{ version: string }[]>`select data_version::text as version from public.families where id = ${familyId}`;
+		const rows = await tx<{ version: string }[]>`select data_version::text as version from app.families where id = ${familyId}`;
 		if (!rows[0]) throw appError('forbidden');
 		parts.push(`f${familyId}:${rows[0].version}`);
 	}
 	if (scopes.includes('catalogue')) {
-		const rows = await tx<{ version: string }[]>`select version::text as version from public.catalogue_state`;
+		const rows = await tx<{ version: string }[]>`select version::text as version from app.catalogue_state`;
 		parts.push(`c${rows[0]?.version ?? '0'}`);
 	}
 	parts.push(locale, deployId);
@@ -1926,6 +1913,8 @@ export interface RequestState {
 
 export interface RequestContext {
 	env: Env;
+	/** Correlates log lines and `internal` errors of this request. */
+	requestId: string;
 	/** Origin of the request, for absolute `web_only` URLs. */
 	origin: string;
 	token: string | undefined;
@@ -1966,8 +1955,8 @@ async function authenticate(context: RequestContext): Promise<Claims> {
 
 /**
  * Implementer shared by every operation. Input is validated first (validation index
- * before all middleware), then: token, web-only check, transaction as the user,
- * profile and session, role, version; the handler runs inside the transaction.
+ * before all middleware), then: token and claims, transaction as the user, profile and
+ * session, web-only check, role, version; the handler runs inside the transaction.
  */
 export function createImplementer<C extends AnyContractRouter>(contract: C) {
 	return implement(contract)
@@ -1977,12 +1966,12 @@ export function createImplementer<C extends AnyContractRouter>(contract: C) {
 			const meta = procedure['~orpc'].meta as OperationMeta;
 			const claims = await authenticate(context);
 			const channel = channelOf(claims);
-			if (meta.webOnly && channel === 'mcp') {
-				throw appError('web_only', { url: webOnlyUrl(context.origin, meta.webOnly.path, input) });
-			}
 			return withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
 				const locale = await loadSession(tx);
 				context.state.locale = locale;
+				if (meta.webOnly && channel === 'mcp') {
+					throw appError('web_only', { url: webOnlyUrl(context.origin, meta.webOnly.path, input) });
+				}
 				await checkRole(tx, meta.role, input);
 				const operation: OperationContext = {
 					...context,
@@ -2032,13 +2021,15 @@ export const router = os.router({
 - se nell'handler `context` non risulta `OperationContext`, aggiungi il tipo esplicito
   `next<OperationContext>`, oppure dichiara il middleware con
   `os.middleware<OperationContext, …>` secondo i tipi di oRPC 1.15.5
-  (`server/node_modules/@orpc/server/dist/shared/*.d.mts`, `MiddlewareOptions`).
+  (`node_modules/@orpc/server/dist/shared/*.d.mts`, `MiddlewareOptions`).
+- il tipo delle righe in `checkRole` può richiedere `tx<{ ok: boolean }[]>`.
   Non cambiare il comportamento per far tornare i tipi.
 
 - [ ] **Passo 5: verifica che passino**
 
 Run: `npm test -w server -- pipeline` (senza database: passano la parte senza database e
-la prova delle convenzioni) e poi `TEST_DATABASE_URL=<url> npm test -w server -- pipeline`
+la prova delle convenzioni) e poi
+`TEST_DATABASE_URL=<url> TEST_DB_FIXTURE=1 npm test -w server -- pipeline`
 Expected: PASS in entrambi i casi.
 
 - [ ] **Passo 6: typecheck e commit**
@@ -2047,7 +2038,7 @@ Run: `npm run typecheck -w server`
 
 ```bash
 git add server
-git commit -m "Server: percorso della richiesta con token, web_only, sessione, ruoli e versioni"
+git commit -m "Server: percorso della richiesta con token, sessione, web_only, ruoli e versioni"
 ```
 
 ---
@@ -2061,14 +2052,15 @@ git commit -m "Server: percorso della richiesta con token, web_only, sessione, r
   (dipendenza `@modelcontextprotocol/server`)
 
 **Interfacce:**
-- Consuma: `router`, `createImplementer`, `RequestContext` (task 6); `remoteKeySource`,
-  `verifyAccessToken`, `bearerToken`, `KeySource`, `Claims` (task 3); `mapErrors`,
-  `toolErrorBody` (task 4).
+- Consuma: `router`, `RequestContext` (task 6); `loadSession` (task 6); `withDb`
+  (task 5); `remoteKeySource`, `verifyAccessToken`, `bearerToken`, `KeySource`, `Claims`
+  (task 3); `mapErrors`, `toolErrorBody` (task 4).
 - Produce:
-  - `collectTools(contract: AnyContractRouter): ToolSpec[]`, `buildMcpServer(router, tools, context): McpServer`
+  - `collectTools(contract: AnyContractRouter): ToolSpec[]` (con lo schema JSON
+    dell'input), `buildMcpServer(router, tools, context): McpServer`
   - `createApp(options: { contract: AnyContractRouter; router: AnyRouter; keys?: (env: Env) => KeySource; resourceName: string }): { fetch(request: Request, env: Env): Promise<Response> }`
-  - test: `testEnv(connectionString?)`, `rpcClient<T>(app, env, token?)`, `rest(app, env, method, path, token?, body?)`,
-    `mcp(app, env, token, method, params?)`
+  - test: `testEnv(connectionString?)`, `rpcClient<T>(app, env, token?)`,
+    `rest(app, env, method, path, token?, body?)`, `mcp(app, env, token, method, params?)`
 
 - [ ] **Passo 1: dipendenza**
 
@@ -2082,13 +2074,14 @@ Run: `npm install -w server @modelcontextprotocol/server@2.3.1`
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { Env } from '../../src/env.ts';
+import { UNREACHABLE_DB } from './context.ts';
 import { TEST_SUPABASE_URL } from './keys.ts';
 
 export interface TestApp {
 	fetch(request: Request, env: Env): Promise<Response>;
 }
 
-export function testEnv(connectionString = 'postgres://nobody:secret@127.0.0.1:1/none'): Env {
+export function testEnv(connectionString = UNREACHABLE_DB): Env {
 	return {
 		HYPERDRIVE: { connectionString } as Hyperdrive,
 		SUPABASE_URL: TEST_SUPABASE_URL,
@@ -2128,12 +2121,18 @@ export async function mcp(app: TestApp, env: Env, token: string | undefined, met
 		: text;
 	return { status: response.status, headers: response.headers, body: data ? JSON.parse(data) : undefined };
 }
+
+/** Body of an MCP tool result (the JSON in its first text block). */
+export function toolBody(result: { body: any }): any {
+	return JSON.parse(result.body.result.content[0].text);
+}
 ```
 
 Se `RPCLink` di oRPC 1.15.5 passa a `fetch` argomenti diversi da `(request, init)`,
 adegua la funzione leggendo il tipo in `node_modules/@orpc/client/dist/adapters/fetch/*.d.mts`.
+Con l'SDK 2.3.1 `tools/list` funziona senza `initialize` (provato l'11 ottobre 2026).
 
-- [ ] **Passo 3: test (falliscono)**
+- [ ] **Passo 3: test senza database (falliscono)**
 
 `server/test/app.test.ts`:
 
@@ -2141,25 +2140,19 @@ adegua la funzione leggendo il tipo in `node_modules/@orpc/client/dist/adapters/
 import type { Contract } from '@app/contract';
 import { contract } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
-import { ORPCError } from '@orpc/client';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.ts';
-import { collectTools } from '../src/mcp.ts';
 import { router } from '../src/router.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
 import { mcp, rest, rpcClient, testEnv } from './support/requests.ts';
-import { testContract, testRouter } from './support/test-contract.ts';
 
 const userId = '11111111-1111-4111-8111-111111111111';
-const familyId = '22222222-2222-4222-8222-222222222222';
 let keys: TestKeys;
 let app: ReturnType<typeof createApp>;
-let testApp: ReturnType<typeof createApp>;
 
 beforeAll(async () => {
 	keys = await createTestKeys();
 	app = createApp({ contract, router, keys: () => keys.keys, resourceName: 'Cosa si mangia (test)' });
-	testApp = createApp({ contract: testContract, router: testRouter, keys: () => keys.keys, resourceName: 'test' });
 });
 
 describe('routes', () => {
@@ -2186,15 +2179,17 @@ describe('routes', () => {
 	});
 });
 
-describe('authentication on every channel', () => {
-	it('RPC: unauthorized without token or with a malformed header', async () => {
-		const client = rpcClient<ContractRouterClient<Contract>>(app, testEnv());
-		await expect(client.session.whoami({})).rejects.toMatchObject({ code: 'unauthorized', status: 401 });
-		const response = await app.fetch(
+describe('authentication on every channel, without reaching the database', () => {
+	it('RPC: unauthorized without token, with a malformed header or with invalid claims', async () => {
+		const anonymous = rpcClient<ContractRouterClient<Contract>>(app, testEnv());
+		await expect(anonymous.session.whoami({})).rejects.toMatchObject({ code: 'unauthorized', status: 401 });
+		const malformed = await app.fetch(
 			new Request('https://app.test/api/rpc/session/whoami', { method: 'POST', headers: { authorization: 'bearer x' } }),
 			testEnv(),
 		);
-		expect(response.status).toBe(401);
+		expect(malformed.status).toBe(401);
+		const badClient = rpcClient<ContractRouterClient<Contract>>(app, testEnv(), await keys.sign({ sub: userId, client_id: '' }));
+		await expect(badClient.session.whoami({})).rejects.toMatchObject({ code: 'unauthorized' });
 	});
 
 	it('REST: unauthorized with the error code', async () => {
@@ -2203,44 +2198,29 @@ describe('authentication on every channel', () => {
 		expect(await response.json()).toMatchObject({ code: 'unauthorized' });
 	});
 
-	it('MCP: 401 with the protected resource metadata link', async () => {
-		const result = await mcp(app, testEnv(), undefined, 'tools/list');
-		expect(result.status).toBe(401);
-		expect(result.headers.get('www-authenticate')).toContain('/.well-known/oauth-protected-resource/mcp');
-	});
-});
-
-describe('MCP tools', () => {
-	it('has exactly one tool per exposed operation', async () => {
-		const token = await keys.sign({ sub: userId, client_id: 'agent' });
-		const result = await mcp(testApp, testEnv(), token, 'tools/list');
-		const names = result.body.result.tools.map((tool: { name: string }) => tool.name).sort();
-		expect(names).toEqual(collectTools(testContract).map((tool) => tool.name).sort());
-		expect(names).toContain('test_removeFamily');
-	});
-
-	it('answers web_only with the URL and a localised message, without the database', async () => {
-		const token = await keys.sign({ sub: userId, client_id: 'agent' });
-		const result = await mcp(testApp, testEnv(), token, 'tools/call', { name: 'test_removeFamily', arguments: { familyId } });
-		expect(result.body.result.isError).toBe(true);
-		const body = JSON.parse(result.body.result.content[0].text);
-		expect(body).toMatchObject({ code: 'web_only', data: { url: `https://app.test/family/${familyId}/delete` } });
-		expect(body.message.length).toBeGreaterThan(0);
-	});
-
-	it('answers web_only on RPC too when the token belongs to an agent', async () => {
-		const token = await keys.sign({ sub: userId, client_id: 'agent' });
-		const client = rpcClient<ContractRouterClient<typeof testContract>>(testApp, testEnv(), token);
-		const error = await client.test.removeFamily({ familyId }).catch((e: unknown) => e);
-		expect(error).toBeInstanceOf(ORPCError);
-		expect(error).toMatchObject({ code: 'web_only', data: { url: `https://app.test/family/${familyId}/delete` } });
+	it('MCP: 401 with the protected resource metadata link, for any method', async () => {
+		for (const [token, method] of [
+			[undefined, 'tools/list'],
+			['not-a-jwt', 'initialize'],
+			[await keys.sign({ sub: userId, client_id: 'codex' }, { noExpiry: true }), 'tools/list'],
+		] as const) {
+			const result = await mcp(app, testEnv(), token, method);
+			expect(result.status).toBe(401);
+			expect(result.headers.get('www-authenticate')).toContain('/.well-known/oauth-protected-resource/mcp');
+		}
 	});
 });
 
 describe('OAuth metadata', () => {
 	it('serves the protected resource metadata for /mcp', async () => {
 		const original = globalThis.fetch;
-		globalThis.fetch = (async () => Response.json({ issuer: 'https://test.supabase.local/auth/v1', authorization_endpoint: 'https://test.supabase.local/auth/v1/oauth/authorize', token_endpoint: 'https://test.supabase.local/auth/v1/oauth/token', response_types_supported: ['code'] })) as typeof fetch;
+		globalThis.fetch = (async () =>
+			Response.json({
+				issuer: 'https://test.supabase.local/auth/v1',
+				authorization_endpoint: 'https://test.supabase.local/auth/v1/oauth/authorize',
+				token_endpoint: 'https://test.supabase.local/auth/v1/oauth/token',
+				response_types_supported: ['code'],
+			})) as typeof fetch;
 		try {
 			const response = await rest(app, testEnv(), 'GET', '/.well-known/oauth-protected-resource/mcp');
 			expect(response.status).toBe(200);
@@ -2252,6 +2232,9 @@ describe('OAuth metadata', () => {
 });
 ```
 
+Gli strumenti MCP, la validazione via `/mcp`, la revoca all'ingresso e `web_only` via
+MCP richiedono una sessione vera: sono nel task 8, con il database.
+
 - [ ] **Passo 4: verifica che falliscano**
 
 Run: `npm test -w server -- app`
@@ -2259,13 +2242,13 @@ Expected: FAIL, `../src/app.ts` inesistente.
 
 - [ ] **Passo 5: implementazione**
 
-`server/src/mcp.ts` (dalla prova, generico sul contratto):
+`server/src/mcp.ts`:
 
 ```ts
 import type { OperationMeta } from '@app/contract';
-import { McpServer } from '@modelcontextprotocol/server';
+import { fromJsonSchema, McpServer, type JsonSchemaType, type jsonSchemaValidator } from '@modelcontextprotocol/server';
 import { createRouterClient, traverseContractProcedures, type AnyContractRouter, type AnyRouter } from '@orpc/server';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { mapErrors, toolErrorBody } from './errors.ts';
 import type { RequestContext } from './pipeline.ts';
 
@@ -2273,9 +2256,21 @@ export interface ToolSpec {
 	name: string;
 	path: readonly string[];
 	description: string;
-	inputSchema: z.ZodObject;
+	/** JSON Schema of the contract input, shown to agents. */
+	inputSchema: JsonSchemaType;
 	readOnly: boolean;
 }
+
+/**
+ * The SDK would validate arguments itself and answer with its own English text. It
+ * accepts them as they are here; oRPC validates with the contract's zod schema, so
+ * agents get the same `invalid` error as the web, with field paths and a localised text.
+ */
+const acceptAsIs: jsonSchemaValidator = {
+	getValidator<T>() {
+		return (input: unknown) => ({ valid: true as const, data: input as T, errorMessage: undefined });
+	},
+};
 
 /** One tool per operation exposed to MCP; computed once per isolate. */
 export function collectTools(contract: AnyContractRouter): ToolSpec[] {
@@ -2288,7 +2283,7 @@ export function collectTools(contract: AnyContractRouter): ToolSpec[] {
 			name: path.join('_'),
 			path,
 			description: def.route.summary ?? path.join('.'),
-			inputSchema: def.inputSchema as z.ZodObject,
+			inputSchema: z.toJSONSchema(def.inputSchema as z.ZodType, { io: 'input' }) as JsonSchemaType,
 			readOnly: meta.mcp.readOnly,
 		});
 	});
@@ -2303,14 +2298,18 @@ export function buildMcpServer(router: AnyRouter, tools: ToolSpec[], context: Re
 		const call = tool.path.reduce<any>((node, key) => node[key], client) as (input: unknown) => Promise<unknown>;
 		server.registerTool(
 			tool.name,
-			{ description: tool.description, inputSchema: tool.inputSchema, annotations: { readOnlyHint: tool.readOnly } },
+			{
+				description: tool.description,
+				inputSchema: fromJsonSchema(tool.inputSchema, acceptAsIs),
+				annotations: { readOnlyHint: tool.readOnly },
+			},
 			async (input: unknown) => {
 				try {
 					const result = await call(input);
 					return { content: [{ type: 'text', text: JSON.stringify(result) }] };
 				} catch (error) {
 					// Same codes as the web app, plus the text in the user's language.
-					const body = toolErrorBody(error, context.state.locale ?? 'it-IT');
+					const body = toolErrorBody(error, context.state.locale ?? 'it-IT', { requestId: context.requestId, path: tool.path });
 					return { isError: true, content: [{ type: 'text', text: JSON.stringify(body) }] };
 				}
 			},
@@ -2351,14 +2350,16 @@ import {
 } from '@modelcontextprotocol/server';
 import { OpenAPIGenerator } from '@orpc/openapi';
 import { OpenAPIHandler } from '@orpc/openapi/fetch';
-import type { AnyContractRouter, AnyRouter } from '@orpc/server';
+import { ORPCError, type AnyContractRouter, type AnyRouter } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
-import { bearerToken, remoteKeySource, verifyAccessToken, type KeySource } from './auth.ts';
+import { bearerToken, remoteKeySource, verifyAccessToken, type Claims, type KeySource } from './auth.ts';
+import { withDb } from './db.ts';
 import type { Env } from './env.ts';
 import { mapErrors } from './errors.ts';
 import { buildMcpServer, collectTools } from './mcp.ts';
 import type { RequestContext } from './pipeline.ts';
+import { loadSession } from './session.ts';
 import { supabaseAuthMetadata } from './well-known.ts';
 
 export interface AppOptions {
@@ -2392,6 +2393,7 @@ export function createApp(options: AppOptions) {
 		const issuer = `${env.SUPABASE_URL}/auth/v1`;
 		return {
 			env,
+			requestId: crypto.randomUUID(),
 			origin: new URL(request.url).origin,
 			token,
 			verify: (t) => verifyAccessToken(t, { issuer, keys: keysFor(env) }),
@@ -2400,17 +2402,29 @@ export function createApp(options: AppOptions) {
 		};
 	}
 
+	/**
+	 * Every MCP request (initialize and tools/list included) needs a valid token and a
+	 * session that still exists: a disconnected agent gets 401 and must authorise again.
+	 */
 	async function serveMcp(request: Request, env: Env, mcpUrl: URL): Promise<Response> {
 		const gate = requireBearerAuth({
 			resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl),
 			verifier: {
 				async verifyAccessToken(token): Promise<AuthInfo> {
 					const context = contextFor(request, env, token);
-					let claims;
+					let claims: Claims;
 					try {
 						claims = await context.verify(token);
+					} catch {
+						throw new OAuthError(OAuthErrorCode.InvalidToken, 'The access token is not valid');
+					}
+					try {
+						context.state.locale = await withDb(env.HYPERDRIVE.connectionString, { kind: 'user', claims }, loadSession);
 					} catch (error) {
-						throw new OAuthError(OAuthErrorCode.InvalidToken, String(error));
+						if (error instanceof ORPCError && error.code === 'unauthorized') {
+							throw new OAuthError(OAuthErrorCode.InvalidToken, 'The session has ended');
+						}
+						throw error;
 					}
 					return { token, clientId: claims.client_id ?? '', scopes: [], expiresAt: claims.exp, extra: { context } };
 				},
@@ -2483,10 +2497,8 @@ Note di verifica durante l'implementazione:
 - Il test REST di `unauthorized` si aspetta il corpo JSON di oRPC per OpenAPI
   (`{ defined, code, status, message, data }`): `toMatchObject({ code })` regge entrambe
   le forme.
-- Se il trasporto senza stato dell'SDK MCP rifiuta `tools/list` senza `initialize`,
-  aggiungi a `mcp()` una prima chiamata `initialize` con
-  `{ protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } }`
-  e conserva l'eventuale `mcp-session-id`: non cambiare il server.
+- Se un errore del database nel verificatore MCP diventa una risposta diversa da 500,
+  annotalo: il comportamento atteso è un errore del server, non un 401.
 
 - [ ] **Passo 6: verifica che passino**
 
@@ -2502,92 +2514,163 @@ git commit -m "Server: Worker con RPC, REST, OpenAPI, MCP generato dal contratto
 
 ---
 
-### Task 8: `session.whoami` end-to-end sui tre canali
+### Task 8: I tre canali con il database: `whoami`, revoca, validazione e `web_only` su MCP
 
 **File:**
-- Crea: `server/test/whoami.test.ts`
+- Crea: `server/test/channels.test.ts`
 
 **Interfacce:**
-- Consuma: `createApp` (task 7), `setupDatabase` (task 5), `createTestKeys` (task 3),
-  aiuti di `requests.ts` (task 7).
+- Consuma: `createApp`, `collectTools` (task 7), `setupDatabase` (task 5),
+  `createTestKeys` (task 3), aiuti di `requests.ts` (task 7), `testContract` e
+  `testRouter` (task 6), `messages` (task 4).
 
 - [ ] **Passo 1: test**
 
-`server/test/whoami.test.ts`:
+`server/test/channels.test.ts`:
 
 ```ts
 import type { Contract } from '@app/contract';
 import { contract } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
+import { ORPCError } from '@orpc/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.ts';
+import { collectTools } from '../src/mcp.ts';
 import { messages } from '../src/messages.ts';
 import { router } from '../src/router.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
-import { mcp, rest, rpcClient, testEnv } from './support/requests.ts';
+import { mcp, rest, rpcClient, testEnv, toolBody } from './support/requests.ts';
+import { testContract, testRouter } from './support/test-contract.ts';
 
-describe.skipIf(!hasDatabase)('session.whoami end to end', () => {
+describe.skipIf(!hasDatabase)('channels with a real session', () => {
 	let db: TestDatabase;
 	let keys: TestKeys;
 	let app: ReturnType<typeof createApp>;
+	let testApp: ReturnType<typeof createApp>;
+	const env = () => testEnv(db.appServerUrl);
+	const tokenFor = (user: { userId: string; sessionId: string }, extra: Record<string, unknown> = {}) =>
+		keys.sign({ sub: user.userId, session_id: user.sessionId, ...extra });
 
 	beforeAll(async () => {
 		db = await setupDatabase();
 		keys = await createTestKeys();
 		app = createApp({ contract, router, keys: () => keys.keys, resourceName: 'test' });
+		testApp = createApp({ contract: testContract, router: testRouter, keys: () => keys.keys, resourceName: 'test' });
 	});
 	afterAll(() => db?.close());
 
-	it('answers on RPC as the web app', async () => {
-		const user = await db.createUser();
-		const token = await keys.sign({ sub: user.userId, session_id: user.sessionId });
-		const client = rpcClient<ContractRouterClient<Contract>>(app, testEnv(db.appServerUrl), token);
-		await expect(client.session.whoami({})).resolves.toEqual({ userId: user.userId, channel: 'web', clientId: null, locale: 'it-IT' });
+	describe('session.whoami', () => {
+		it('answers on RPC as the web app', async () => {
+			const user = await db.createUser();
+			const client = rpcClient<ContractRouterClient<Contract>>(app, env(), await tokenFor(user));
+			await expect(client.session.whoami({})).resolves.toEqual({ userId: user.userId, channel: 'web', clientId: null, locale: 'it-IT' });
+		});
+
+		it('answers on REST', async () => {
+			const user = await db.createUser({ locale: 'en-GB' });
+			const response = await rest(app, env(), 'GET', '/api/session/whoami', await tokenFor(user));
+			expect(response.status).toBe(200);
+			expect(await response.json()).toEqual({ userId: user.userId, channel: 'web', clientId: null, locale: 'en-GB' });
+		});
+
+		it('answers on MCP as an agent', async () => {
+			const user = await db.createUser();
+			const token = await tokenFor(user, { client_id: 'codex' });
+			const result = await mcp(app, env(), token, 'tools/call', { name: 'session_whoami', arguments: {} });
+			expect(toolBody(result)).toEqual({ userId: user.userId, channel: 'mcp', clientId: 'codex', locale: 'it-IT' });
+		});
 	});
 
-	it('answers on REST', async () => {
-		const user = await db.createUser({ locale: 'en-GB' });
-		const token = await keys.sign({ sub: user.userId, session_id: user.sessionId });
-		const response = await rest(app, testEnv(db.appServerUrl), 'GET', '/api/session/whoami', token);
-		expect(response.status).toBe(200);
-		expect(await response.json()).toEqual({ userId: user.userId, channel: 'web', clientId: null, locale: 'en-GB' });
+	describe('revocation at the MCP entrance', () => {
+		it('refuses initialize, tools/list and tools/call once the session has ended', async () => {
+			const user = await db.createUser();
+			const token = await tokenFor(user, { client_id: 'codex' });
+			expect((await mcp(app, env(), token, 'tools/list')).status).toBe(200);
+			await db.endSession(user.sessionId);
+			for (const [method, params] of [
+				['initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } }],
+				['tools/list', {}],
+				['tools/call', { name: 'session_whoami', arguments: {} }],
+			] as const) {
+				const result = await mcp(app, env(), token, method, params);
+				expect(result.status, method).toBe(401);
+				expect(result.headers.get('www-authenticate')).toContain('/.well-known/oauth-protected-resource/mcp');
+			}
+		});
+
+		it('refuses a deleted account the same way', async () => {
+			const user = await db.createUser();
+			const token = await tokenFor(user, { client_id: 'codex' });
+			await db.deleteUser(user.userId);
+			expect((await mcp(app, env(), token, 'tools/list')).status).toBe(401);
+		});
 	});
 
-	it('answers on MCP as an agent', async () => {
-		const user = await db.createUser();
-		const token = await keys.sign({ sub: user.userId, session_id: user.sessionId, client_id: 'codex' });
-		const result = await mcp(app, testEnv(db.appServerUrl), token, 'tools/call', { name: 'session_whoami', arguments: {} });
-		expect(JSON.parse(result.body.result.content[0].text)).toEqual({ userId: user.userId, channel: 'mcp', clientId: 'codex', locale: 'it-IT' });
+	describe('MCP tools', () => {
+		it('has exactly one tool per exposed operation, with the contract input schema', async () => {
+			const user = await db.createUser();
+			const result = await mcp(testApp, env(), await tokenFor(user, { client_id: 'codex' }), 'tools/list');
+			const listed = result.body.result.tools as { name: string; inputSchema: { required?: string[] } }[];
+			expect(listed.map((tool) => tool.name).sort()).toEqual(collectTools(testContract).map((tool) => tool.name).sort());
+			expect(listed.find((tool) => tool.name === 'test_member')?.inputSchema.required).toEqual(['familyId']);
+		});
+
+		it('answers invalid input with the contract error, field path and language of the profile', async () => {
+			for (const locale of ['it-IT', 'en-GB'] as const) {
+				const user = await db.createUser({ locale });
+				const token = await tokenFor(user, { client_id: 'codex' });
+				const result = await mcp(testApp, env(), token, 'tools/call', { name: 'test_member', arguments: { familyId: 'bad' } });
+				expect(result.body.result.isError).toBe(true);
+				const body = toolBody(result);
+				expect(body.code).toBe('invalid');
+				expect(body.data.issues[0].path).toEqual(['familyId']);
+				expect(body.message).toBe(messages.invalid[locale]);
+			}
+		});
 	});
 
-	it('refuses a disconnected agent on MCP with the message in the user language', async () => {
-		const user = await db.createUser({ locale: 'en-GB' });
-		const token = await keys.sign({ sub: user.userId, session_id: user.sessionId, client_id: 'codex' });
-		await db.endSession(user.sessionId);
-		const result = await mcp(app, testEnv(db.appServerUrl), token, 'tools/call', { name: 'session_whoami', arguments: {} });
-		expect(result.body.result.isError).toBe(true);
-		// The session check fails before the language is known: the Italian default is used.
-		expect(JSON.parse(result.body.result.content[0].text)).toEqual({ code: 'unauthorized', message: messages.unauthorized['it-IT'] });
+	describe('web_only', () => {
+		it('sends a valid agent to the page, in the language of the profile, on MCP and RPC', async () => {
+			const admin = await db.createUser({ locale: 'en-GB' });
+			const familyId = await db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+			const token = await tokenFor(admin, { client_id: 'codex' });
+			const url = `https://app.test/family/${familyId}/delete`;
+
+			const viaMcp = await mcp(testApp, env(), token, 'tools/call', { name: 'test_removeFamily', arguments: { familyId } });
+			expect(toolBody(viaMcp)).toEqual({ code: 'web_only', data: { url }, message: messages.web_only['en-GB'] });
+
+			const client = rpcClient<ContractRouterClient<typeof testContract>>(testApp, env(), token);
+			const error = await client.test.removeFamily({ familyId }).catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(ORPCError);
+			expect(error).toMatchObject({ code: 'web_only', data: { url } });
+		});
+
+		it('refuses a revoked agent instead of sending it to the page', async () => {
+			const admin = await db.createUser();
+			const familyId = await db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+			const token = await tokenFor(admin, { client_id: 'codex' });
+			await db.endSession(admin.sessionId);
+			const client = rpcClient<ContractRouterClient<typeof testContract>>(testApp, env(), token);
+			await expect(client.test.removeFamily({ familyId })).rejects.toMatchObject({ code: 'unauthorized' });
+			expect((await mcp(testApp, env(), token, 'tools/call', { name: 'test_removeFamily', arguments: { familyId } })).status).toBe(401);
+		});
 	});
 });
 ```
 
-Nota sull'ultimo test: la query unica di `loadSession` legge lingua e sessione insieme;
-con la sessione chiusa la lingua non viene impostata e il messaggio è in italiano. È il
-comportamento voluto: un token non più valido non deve leggere il profilo.
-
 - [ ] **Passo 2: esegui**
 
-Run: `TEST_DATABASE_URL=<url> npm test -w server -- whoami`
+Run: `TEST_DATABASE_URL=<url> TEST_DB_FIXTURE=1 npm test -w server -- channels`
 Expected: PASS. Se fallisce, correggi il codice dei task 5-7, non il test, salvo errori
-evidenti di forma della risposta MCP (vedi note del task 7).
+evidenti di forma della risposta MCP (per esempio una risposta JSON invece di SSE, già
+gestita da `mcp()`).
 
 - [ ] **Passo 3: commit**
 
 ```bash
-git add server/test/whoami.test.ts
-git commit -m "Server: session.whoami provato su RPC, REST e MCP"
+git add server/test/channels.test.ts
+git commit -m "Server: whoami, revoca, validazione e web_only provati su RPC, REST e MCP"
 ```
 
 ---
@@ -2644,7 +2727,7 @@ task 10 (stesso progetto per la produzione).
 ```
 # Copy to server/.env (not versioned). Wrangler reads it for local development.
 # Postgres used in place of Hyperdrive, connected as the technical user app_server
-# (local database set up by the schema task, see supabase/).
+# (local Supabase database: `supabase db start`, see supabase/README.md).
 CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=
 # Local Supabase Auth URL, overriding the production value in wrangler.jsonc.
 SUPABASE_URL=
@@ -2665,18 +2748,22 @@ Worker di Cloudflare che serve la SPA (`web/dist`) e le rotte del contratto:
 
 ## Sviluppo locale
 
-1. Avvia il database locale (vedi `supabase/`).
+1. Avvia il database locale con le migrazioni: `supabase db start` (vedi
+   `supabase/README.md`; serve Podman avviato).
 2. Copia `.env.example` in `.env` e compila la connessione come `app_server` e l'URL
    dell'Auth locale.
-3. `npm run build -w web`, poi `npm run dev -w server` (porta 8787).
-4. Prova: `curl -H "Authorization: Bearer <token>" http://localhost:8787/api/session/whoami`.
+3. Una volta sola: `npm install-scripts approve workerd` (npm 11 blocca lo script
+   d'installazione del runtime usato da `wrangler dev`).
+4. `npm run build -w web`, poi `npm run dev -w server` (porta 8787).
+5. Prova: `curl -H "Authorization: Bearer <token>" http://localhost:8787/api/session/whoami`.
 
 In locale Hyperdrive non fa da pool: le prove di concorrenza si fanno sul Worker pubblicato.
 
 ## Test
 
 `npm test -w server`. I test con il database richiedono `TEST_DATABASE_URL`
-(superutente del database locale); senza, sono saltati.
+(superutente del database locale, `supabase status`); senza, in locale sono saltati, in
+CI falliscono.
 
 ## Pubblicazione
 
@@ -2688,7 +2775,7 @@ fino alla pubblicazione.
 ## Risorse di produzione
 
 (compilata nel task 10: Worker, Hyperdrive con limite di connessioni, chiavi di firma,
-integrazione GitHub di Supabase)
+esito della verifica dell'integrazione GitHub di Supabase fatta dal coordinatore)
 ```
 
 - [ ] **Passo 4: prova locale**
@@ -2710,15 +2797,18 @@ git commit -m "Server: configurazione di Wrangler, sviluppo locale e procedura d
 
 ---
 
-### Task 10: Integrazione di Supabase e risorse di produzione
+### Task 10: Risorse di produzione e prima pubblicazione
 
 Ogni passo che crea o cambia una risorsa esterna inizia con `STATO: DOMANDA` e aspetta
-la risposta del coordinatore.
+la risposta del coordinatore. **Fuori da questo task:** la verifica dell'integrazione
+GitHub di Supabase (la fa il coordinatore con l'utente prima del merge di W2; qui se ne
+riporta solo l'esito) e qualunque nuovo collegamento di un agente con consenso (la
+pagina `/authorize` arriva nell'ondata 2; la prova della revoca spetta a «Collegamento
+degli agenti», spec, sezione 10).
 
 **File:**
 - Modifica: `server/wrangler.jsonc` (id di Hyperdrive), `server/README.md` (sezione
-  «Risorse di produzione»), `progetto/superpowers/specs/2026-10-11-piattaforma.md`
-  (esito nelle decisioni da riportare)
+  «Risorse di produzione»)
 
 - [ ] **Passo 1: verifiche in sola lettura**
 
@@ -2726,35 +2816,28 @@ Run:
 
 ```bash
 curl -s https://lronuqvtjdhfyychnscr.supabase.co/auth/v1/.well-known/jwks.json
-~/.local/bin/supabase projects list
-~/.local/bin/supabase --version
 ```
 
-Expected: il JWKS contiene almeno una chiave `EC` o `RSA` (chiavi asimmetriche attive);
-il progetto compare nell'elenco (se la CLI non è autenticata, annotalo e non fare login
-da solo). Consulta con Context7 la documentazione dell'integrazione GitHub di Supabase
-(cartella, branch di produzione, «Deploy to production», cosa succede alle migrazioni
-già applicate).
+Expected: il JWKS contiene almeno una chiave `EC` o `RSA` (chiavi asimmetriche attive).
+Se è vuoto, `STATO: DOMANDA`: senza chiavi asimmetriche il server non può verificare i
+token.
 
-- [ ] **Passo 2: verifica della dashboard (domanda)**
+- [ ] **Passo 2: pool e password di `app_server` (domanda)**
 
-Scrivi `STATO: DOMANDA` chiedendo al coordinatore di far controllare all'utente in
-Supabase > Project Settings > Integrations > GitHub: cartella `supabase`, branch di
-produzione `main`, «Deploy to production» attivo, branch di anteprima disattivati; e in
-Database > Connection pooling la dimensione del pool del Session pooler. Registra le
-risposte.
+Scrivi `STATO: DOMANDA` chiedendo al coordinatore:
 
-- [ ] **Passo 3: utente `app_server` nel pooler (domanda)**
+- la dimensione del pool del Session pooler (Supabase > Database > Connection pooling),
+  per fissare `origin_connection_limit`;
+- chi imposta la password di `app_server` sul progetto (W2 la prevede con
+  `alter role app_server with password …` dall'editor SQL) e come arriva nella
+  configurazione di Hyperdrive senza passare dalla conversazione: per esempio l'utente
+  lancia lui il comando del passo 3. Nel Session pooler l'utente si scrive
+  `app_server.<project_ref>`.
 
-Il ruolo `app_server` lo crea la migrazione di W2; la password non sta nel repository.
-Chiedi al coordinatore chi la imposta (l'utente dalla dashboard o dal SQL editor) e come
-arriva nella configurazione di Hyperdrive senza passare dalla conversazione (per esempio
-l'utente lancia lui il comando del passo 4). Nel Session pooler l'utente si scrive
-`app_server.<project_ref>`.
+- [ ] **Passo 3: Hyperdrive di produzione (domanda)**
 
-- [ ] **Passo 4: Hyperdrive di produzione (domanda)**
-
-Proponi il comando, da far lanciare all'utente o al coordinatore:
+Verifica prima con Context7 (Wrangler, Hyperdrive) il nome esatto delle opzioni e il
+valore minimo ammesso, poi proponi il comando, da far lanciare all'utente:
 
 ```bash
 npx wrangler hyperdrive create cosasimangia \
@@ -2763,74 +2846,140 @@ npx wrangler hyperdrive create cosasimangia \
   --origin-connection-limit=<pool del passo 2 meno almeno 5>
 ```
 
-Verifica prima con Context7 (Wrangler, Hyperdrive) il nome esatto delle opzioni
-`--caching-disabled` e `--origin-connection-limit` e il valore minimo ammesso. Con l'id
-restituito aggiorna `server/wrangler.jsonc`.
+Con l'id restituito aggiorna `server/wrangler.jsonc`.
 
-- [ ] **Passo 5: prima pubblicazione (domanda)**
+- [ ] **Passo 4: prima pubblicazione (domanda)**
 
-Chiedi il via per `npm run deploy` sull'account POWA (o che la lanci il coordinatore).
-Dopo la pubblicazione, verifica:
+Chiedi il via per `npm run deploy` sull'account POWA (o che la lanci il coordinatore),
+dopo il merge di W2 e l'applicazione delle sue migrazioni al progetto. Dopo la
+pubblicazione verifica:
 
 ```bash
-curl -s https://cosasimangia.<sottodominio>.workers.dev/api/openapi.json | head -c 200
-curl -s -o /dev/null -w '%{http_code}\n' https://cosasimangia.<sottodominio>.workers.dev/api/session/whoami
-curl -s https://cosasimangia.<sottodominio>.workers.dev/.well-known/oauth-protected-resource/mcp
+BASE=https://cosasimangia.<sottodominio>.workers.dev
+curl -s $BASE/api/openapi.json | head -c 200
+curl -s -o /dev/null -w '%{http_code}\n' $BASE/api/session/whoami
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' $BASE/mcp
+curl -s $BASE/.well-known/oauth-protected-resource/mcp
+curl -s -o /dev/null -w '%{http_code}\n' $BASE/menu
 ```
 
-Expected: OpenAPI servito, `401` senza token, metadati con `resource` che termina in
-`/mcp`. Con un utente creato a mano da W2 e un token ottenuto dall'Auth (come
-`spike/server/token.sh`), `session.whoami` risponde `200`; da Claude Code
-(`claude mcp add --transport http cosasimangia https://…/mcp`, poi `/mcp` >
-Authenticate) lo strumento `session_whoami` risponde con `channel: "mcp"`. Il Site URL
-del server OAuth di Supabase punta ancora al Worker della prova: se serve cambiarlo per
-il collegamento MCP è una domanda al coordinatore, non una modifica autonoma.
+Expected: OpenAPI servito; `401` senza token su `whoami` e su `/mcp`; metadati con
+`resource` che termina in `/mcp`; `200` con l'HTML segnaposto per `/menu`. Con un
+utente creato dallo script di W2 e un token ottenuto con email e password (come
+`spike/server/token.sh`, che l'utente lancia da sé), `session.whoami` risponde `200`
+con `channel: "web"`.
 
-- [ ] **Passo 6: registra l'esito e fai commit**
+- [ ] **Passo 5: registra l'esito e fai commit**
 
-Compila «Risorse di produzione» in `server/README.md` (nomi delle risorse, limite di
-connessioni scelto e perché, stato dell'integrazione GitHub, procedura di
-pubblicazione) e aggiungi l'esito della verifica alla riga «Flusso Git» delle decisioni
-da riportare della spec di dettaglio.
+Compila «Risorse di produzione» in `server/README.md`: nomi delle risorse, limite di
+connessioni scelto e perché, esito della verifica dell'integrazione GitHub ricevuto dal
+coordinatore, procedura di pubblicazione.
 
 ```bash
-git add server/wrangler.jsonc server/README.md progetto/superpowers/specs/2026-10-11-piattaforma.md
-git commit -m "Piattaforma: risorse di produzione e integrazione GitHub di Supabase verificate"
+git add server/wrangler.jsonc server/README.md
+git commit -m "Piattaforma: risorse di produzione e prima pubblicazione su workers.dev"
 ```
 
 ---
 
-### Task 11: Verifica finale e PR
+### Task 11: Schema reale, CI con il database e PR
 
-- [ ] **Passo 1: verifica completa** (skill `superpowers:verification-before-completion`)
+Si esegue **dopo il merge di W2** su `main`.
+
+**File:**
+- Modifica: `.github/workflows/ci.yml`, `server/test/support/db.ts`
+- Elimina: `server/test/support/schema.sql`
+
+- [ ] **Passo 1: unisci `main` e togli la fixture**
+
+```bash
+git fetch origin && git merge origin/main
+git rm server/test/support/schema.sql
+```
+
+In `server/test/support/db.ts`, `ensureSchema` diventa:
+
+```ts
+async function ensureSchema(admin: postgres.Sql): Promise<void> {
+	const [{ present }] = await admin<{ present: boolean }[]>`select to_regclass('app.profiles') is not null as present`;
+	if (!present) {
+		throw new Error('Schema app is missing: start the local database with the migrations of supabase/ (supabase db start).');
+	}
+}
+```
+
+e sparisce l'import di `readFile`. Avvia il database con le migrazioni reali
+(`supabase db start` dalla radice; se lo schema `app` non compare, `supabase db reset`)
+e adegua solo `server/test/support/db.ts` se gli inserimenti di prova non rispettano
+vincoli o permessi dello schema vero.
+
+- [ ] **Passo 2: verifica locale completa** (skill `superpowers:verification-before-completion`)
 
 Run:
 
 ```bash
 npm ci
 npm run typecheck
-npm test
-TEST_DATABASE_URL=<url> npm test -w server
+TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test
+CI=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server
 npm run build -w web && npx wrangler deploy --dry-run --outdir /tmp/cosasimangia-dry -c server/wrangler.jsonc
 ```
 
-Expected: tutto PASS; nessun test con il database saltato nell'esecuzione con
-`TEST_DATABASE_URL`. Se lo schema di W2 è già su `main`, unisci `origin/main`, togli
-`server/test/support/schema.sql` e il ramo che lo applica in `setupDatabase`, e
-riesegui.
+Expected: tutto PASS; nell'output di Vitest nessuna suite `skipped`.
 
-- [ ] **Passo 2: CI con il database**
+- [ ] **Passo 3: CI con il database**
 
-Se W2 ha stabilito come avviare il database locale su GitHub Actions, aggiungi a
-`.github/workflows/ci.yml` il job che lo avvia e imposta `TEST_DATABASE_URL`; altrimenti
-annota nella PR che i test con il database sono saltati in CI e la riga resta da fare
-insieme a W2.
+Verifica con Context7 (CLI di Supabase) che `supabase db start` applichi le migrazioni
+di `supabase/migrations` su un database nuovo e la versione della CLI da fissare
+(la stessa di `~/.local/bin/supabase --version`). Poi `.github/workflows/ci.yml` diventa
+un job unico, perché `npm test` comprende i test del server, che in CI richiedono il
+database:
 
-- [ ] **Passo 3: push e PR**
+```yaml
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: <versione della CLI usata in locale>
+      - run: supabase db start
+      - run: supabase test db
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+```
+
+`supabase test db` esegue i test pgTAP di W2, come proposto nella sua spec. Se W2 ha già
+aggiunto un job per i suoi test, unisci i due senza duplicare l'avvio del database.
+
+- [ ] **Passo 4: commit**
+
+```bash
+git add -A server/test/support .github/workflows/ci.yml
+git commit -m "Piattaforma: test contro lo schema reale di W2 e CI con il database"
+```
+
+- [ ] **Passo 5: push e PR**
 
 ```bash
 git push -u origin fondamenta/piattaforma
-gh pr create --base main --title "Piattaforma: Worker, contratto e percorso della richiesta" --body "<in italiano: cosa fa; come è stato verificato (comandi ed esiti, prove locali e su workers.dev); sezioni della specifica realizzate (1, 9, 13, 15); interfacce con W2 e W5; riga di attribuzione finale>"
+gh pr create --base main --title "Piattaforma: Worker, contratto e percorso della richiesta" --body "<in italiano: cosa fa; come è stato verificato (comandi ed esiti, test contro le migrazioni di W2, prove locali e su workers.dev); sezioni della specifica realizzate (1, 9, 13, 15); interfacce con W2 e W5; riga di attribuzione finale>"
 ```
 
-Scrivi `STATO: PR_APERTA <url>` e fermati.
+Attendi che la CI passi sulla PR (`gh pr checks`), poi scrivi `STATO: PR_APERTA <url>` e
+fermati.
