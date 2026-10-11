@@ -8,6 +8,7 @@
 		"typecheck": "tsc -p tsconfig.json"
 	},
 	"dependencies": {
+		"@app/domain": "*",
 		"@orpc/contract": "1.15.5",
 		"zod": "4.6.5"
 	}
