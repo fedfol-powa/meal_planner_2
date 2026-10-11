@@ -237,7 +237,7 @@ review del quarto giro). La Spesa non è più una voce della navbar: si apre dal
 Lo stato attivo è verde su un piccolo fondo verde chiaro; la navbar riserva spazio
 all’area sicura dell’iPhone e non copre il contenuto. Il cambio di vista conserva
 il giorno scelto nel menu; un tocco su Menu quando il Menu è già aperto porta a oggi
-(o al primo giorno con pasti, come all'apertura), decisione del 6 ottobre 2026. Famiglia, preferenze, curatela, amministrazione e
+(o al primo giorno con pasti, come all'apertura), decisione del 6 ottobre 2026. Famiglia, preferenze, gestione del ricettario, amministrazione e
 istruzioni MCP si raggiungono dalla quarta voce; i loro flussi sono descritti in
 [percorsi.md](percorsi.md), mantenendo questo linguaggio.
 
@@ -305,7 +305,7 @@ modifica sotto il titolo. Su schermi larghi la pagina è una colonna di 720 px.
 - **Scheda dopo la prima generazione:** riquadro compatto sopra la barra del mese, con
   i colori dei pasti liberi, due link e la ×.
 
-## Curatela (quinto giro, approvato il 7 ottobre 2026)
+## Gestione del ricettario (quinto giro, approvato il 7 ottobre 2026)
 
 Visibile solo ai curatori; ai membri il ricettario non cambia.
 

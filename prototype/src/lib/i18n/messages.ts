@@ -152,7 +152,7 @@ const it = {
 	'profile.families': 'Le tue famiglie',
 	'profile.role.family_admin': 'Amministratore',
 	'profile.role.member': 'Membro',
-	'profile.dest.curation': 'Curatela del ricettario',
+	'profile.dest.curation': 'Gestione del ricettario',
 	'profile.dest.admin': 'Amministrazione dell’app',
 	'dev.open': 'Prova',
 	'dev.title': 'Strumenti di prova',
