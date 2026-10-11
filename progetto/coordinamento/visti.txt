@@ -129,3 +129,5 @@ w1:pZ	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/24 #1b
 w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/25 #c85bfd07
 w1:pZ	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/24 #a9ac9227
 w1:pW	STATO: SPEC_PIANO_PRONTI #ad269148
+w1:pY	STATO: DOMANDA — Quale opzione scegli per i poteri dei token d'agente su Supabase Auth: A (consigliata: richiedere la password attuale per cambiarla, consenso veritiero, rischi #7bd1da66
+w1:pC	STATO: SPEC_PIANO_PRONTI #03f721ba

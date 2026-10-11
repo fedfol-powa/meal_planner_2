@@ -8,10 +8,10 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Spec e piano pronti (area meals, due PR: server poi web); review Codex in corso | 11/10 |
-| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Brainstorming con prova della revoca in locale (brief/w2-collegamento-agenti.md); passi esterni sulla produzione all'utente | 11/10 |
+| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Revoca provata (funziona con session_is_active). Decisioni: riautorizzazione come Supabase (una riga per client); poteri dei token su Supabase Auth solo documentati per ora (utente), consenso veritiero. Scrive la spec | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #24 unita (specifica aggiornata); libero | 11/10 |
-| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Brainstorming dell'esportazione notturna (brief/w5-esportazione-r2.md), ultime 7 copie; bucket all'utente | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | (branch nuovo) | .worktrees/spesa | Unità contate scalate arrotondate all'intero superiore (decisione dell'utente); a PR_APERTA review | 11/10 |
+| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Spec e piano pronti; review Codex in corso | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | correzioni/prova-stack-reale | .worktrees/ricettario | Prova sullo stack reale fatta (messaggi/w6-prova-stack-reale.md). PR #25: review approvabile con un rilievo minore (destinazione dopo l'uscita); a PR_CORRETTA controllo del commit, CI → merge | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
@@ -29,7 +29,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
 
-- **Da chiedere all'utente (prova di W6):** porzioni della scheda aperta da un pasto (oggi quelle della fonte, non del pasto); scalatura delle unità contate («4½ spicchi»).
+- **Decise dall'utente (prova di W6):** scheda aperta da un pasto con le porzioni del pasto (a W6 dopo il merge della #25); unità contate scalate all'intero superiore (W4).
 
 ## Prossima azione del coordinatore
 
