@@ -118,6 +118,29 @@ describe('agent consent page', () => {
     await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
   });
 
+  it('while the profile is read again, the cached roles do not allow: «Consenti» waits for the current ones', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const profile = await api.profile.get({});
+    const read = vi.spyOn(api.profile, 'get');
+    let queries!: QueryClient;
+    function GrabClient() {
+      queries = useQueryClient();
+      return null;
+    }
+    renderApp('/authorize?authorization_id=auth-1', { backend: createStubBackend(DEMO_USER), api, extra: <GrabClient /> });
+    const allow = await screen.findByRole('button', { name: 'Consenti' });
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+    let answer!: (value: typeof profile) => void;
+    read.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    act(() => void queries.refetchQueries({ queryKey: ['profile', 'get'] }));
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(true));
+    expect(screen.getByText('Sto leggendo il tuo profilo…')).toBeTruthy();
+    expect(screen.queryByText('Potrà anche gestire il ricettario.')).toBeNull();
+    answer({ ...profile, user: { ...profile.user, globalRoles: ['recipe_curator'] } });
+    await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+    expect(screen.getByText('Potrà anche gestire il ricettario.')).toBeTruthy();
+  });
+
   it('shows a hostile or very long client name as plain text', async () => {
     const backend = createStubBackend(DEMO_USER);
     const hostile = `<img src=x onerror="alert(1)">${'Claude'.repeat(40)}`;

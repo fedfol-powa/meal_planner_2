@@ -139,9 +139,10 @@ function Consent(props: {
   // whose re-read failed may be out of date, so «Consenti» waits (review finding 3, second review finding 2).
   const profile = read.data?.user.id === props.userId ? read.data : undefined;
   const failed = read.isError;
-  const canAllow = !!profile && read.status === 'success';
+  // A re-read in flight may bring other roles: until it lands, the cached ones do not allow (final review).
+  const canAllow = !!profile && read.status === 'success' && !read.isFetching;
   const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
-  const roles = profile?.user.globalRoles ?? [];
+  const roles = canAllow ? profile.user.globalRoles : [];
   const { request } = props;
   return (
     <>
