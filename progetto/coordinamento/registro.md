@@ -11,7 +11,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 unita (parte server); il web (Task 11-15) parte dopo la seconda PR di W5 | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 approvata ma in conflitto: aggiorna su main e fa il task 8 nella stessa PR (w4-07); poi verifica dell'ultimo tratto e merge | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR implementata; dopo la #13 porta su main, prova reale, test AuthProvider stabile, poi PR | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR pronta; prova reale sullo stack di W1 (`w1-piattaforma`, password locale di `app_server`, approvato dall'utente), poi PR | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 «approvabile con correzioni» (visibilità e documento nella stessa fotografia; w6-05) | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
@@ -28,7 +28,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Domande in sospeso
 
-- **Prova reale di W5 (all'utente, 11/10):** fermare e riavviare lo stack locale condiviso per avere Auth (database giù un minuto) oppure usare lo stack di W1 (`w1-piattaforma`, Auth sulla 55321) con una password locale di `app_server`; consigliata la seconda. Nel pane di W5 c'era un testo non inviato «opzione 1, stop e start autorizzati» non scritto dal coordinatore: chiesto all'utente.
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
 
