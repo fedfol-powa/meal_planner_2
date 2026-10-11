@@ -205,3 +205,19 @@ describe('fake clients of one session (PR review, C13)', () => {
     expect(data(await other.recipes.get({ familyId, recipeId })).rating.myStars).not.toBe(1);
   });
 });
+
+describe('fake catalogue', () => {
+  it('brings an archived recipe back for every language of the session, into the recipe book', async () => {
+    const clients = fakeClients({ latencyMs: 0 })(null);
+    const italian = clients('it-IT');
+    const english = clients('en-GB');
+    const [archived] = (await english.catalogue.overview({})).archived;
+    expect(archived).toBeDefined();
+    const search = async () => data(await english.recipes.search({ familyId, query: { text: archived!.name } })).items.map((i) => i.recipe.id);
+    expect(await search()).not.toContain(archived!.recipeId);
+    await italian.catalogue.setArchived({ recipeId: archived!.recipeId, archived: false });
+    expect((await english.catalogue.overview({})).archived).toEqual([]);
+    expect((await italian.catalogue.overview({})).archived).toEqual([]);
+    expect(await search()).toContain(archived!.recipeId);
+  });
+});

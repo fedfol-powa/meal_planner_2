@@ -12,10 +12,26 @@ interface DemoRecipe {
   ingredients: { ingredientId: string; sourceText: string }[];
 }
 
+/** The archived recipes of the session, shared by the clients of both languages (in FakeData). */
+export interface FakeCatalogueData {
+  archived: { recipeId: string; archivedBy: string; archivedAt: string }[];
+}
+
+/** A published demo recipe on no menu starts archived, so bringing it back puts it in the recipe book. */
+const ARCHIVED_DEMO_RECIPE = 'riso-curry-giappone';
+
+export function createFakeCatalogueData(recipes: { id: string; status: string }[]): FakeCatalogueData {
+  const recipe = recipes.find((r) => r.id === ARCHIVED_DEMO_RECIPE && r.status === 'published');
+  if (!recipe) return { archived: [] };
+  recipe.status = 'archived';
+  return { archived: [{ recipeId: recipe.id, archivedBy: 'user-federico', archivedAt: '2026-10-05T10:00:00.000Z' }] };
+}
+
 export interface FakeCatalogueDeps {
   getLocale: () => Locale;
   latencyMs?: number;
   recipes: DemoRecipe[];
+  data: FakeCatalogueData;
   ingredientName: (ingredientId: string, locale: Locale) => string | null;
 }
 
@@ -31,7 +47,6 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
     ...(newRecipe ? [{ draftId: `draft-${newRecipe.id}`, recipe: newRecipe, kind: 'new' as const, updatedBy: 'user-anna', updatedAt: '2026-10-06T16:00:00.000Z', missing: ['attributes', 'baseServings', 'ingredients', 'translation'] as DraftSummaryView['missing'] }] : []),
     ...(revised ? [{ draftId: `draft-${revised.id}`, recipe: revised, kind: 'revision' as const, updatedBy: 'user-federico', updatedAt: '2026-10-08T09:30:00.000Z', missing: [] }] : [])
   ];
-  let archived: ArchivedSummaryView[] = [{ recipeId: 'erbazzone', name: 'Erbazzone', archivedBy: person('user-federico'), archivedAt: '2026-10-05T10:00:00.000Z' }];
 
   async function delayed<T>(value: T): Promise<T> {
     if (deps.latencyMs) await new Promise((resolve) => setTimeout(resolve, deps.latencyMs));
@@ -50,7 +65,10 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
       draftId: d.draftId, recipeId: r.id, kind: d.kind, revision: 2,
       content: {
         schemaVersion: 1, name: { 'it-IT': r.name['it-IT'] ?? '', 'en-GB': r.name['en-GB'] }, description: { 'it-IT': r.description['it-IT'] ?? '', 'en-GB': r.description['en-GB'] },
-        sourceType: r.sourceType as 'web', sourceUrl: r.sourceUrl, durationMinutes: r.durationMinutes, baseServings: r.baseServings, ingredients: lines
+        sourceType: r.sourceType as 'web', sourceUrl: r.sourceUrl, durationMinutes: r.durationMinutes, baseServings: r.baseServings, ingredients: lines,
+        mealType: r.mealType as 'lunch', proteinGroup: r.proteinGroup as 'fish' | null,
+        // The revision is ready to publish: the attributes the demo recipes do not carry, chosen for the demo.
+        ...(d.kind === 'revision' ? { carbohydrateGroup: 'rice' as const, category: 'wok' as const, isFreshFish: false, hasVegetables: true, isHeavy: false, seasons: [] } : {})
       },
       createdBy: person(d.updatedBy), createdAt: d.updatedAt, updatedBy: person(d.updatedBy), updatedAt: d.updatedAt,
       baseVersion: d.kind === 'revision' ? 1 : null, currentVersion: d.kind === 'revision' ? 1 : 0, recipeStatus: d.kind === 'revision' ? 'published' : 'draft',
@@ -73,7 +91,10 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
           draftId: d.draftId, recipeId: d.recipe.id, kind: d.kind, name: text(d.recipe.name, locale),
           createdBy: person(d.updatedBy), updatedBy: person(d.updatedBy), updatedAt: d.updatedAt, missing: d.missing
         })),
-        archived
+        archived: deps.data.archived.flatMap((a): ArchivedSummaryView[] => {
+          const recipe = deps.recipes.find((r) => r.id === a.recipeId);
+          return recipe ? [{ recipeId: a.recipeId, name: text(recipe.name, locale), archivedBy: person(a.archivedBy), archivedAt: a.archivedAt }] : [];
+        })
       });
     },
     async getDraft({ draftId }) {
@@ -82,8 +103,10 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
       return delayed(draftView(draft, deps.getLocale()));
     },
     async setArchived({ recipeId, archived: wanted }) {
-      if (wanted || !archived.some((a) => a.recipeId === recipeId)) throw new ApiError('not_found');
-      archived = archived.filter((a) => a.recipeId !== recipeId);
+      const recipe = deps.recipes.find((r) => r.id === recipeId && r.status === 'archived');
+      if (wanted || !recipe) throw new ApiError('not_found');
+      deps.data.archived = deps.data.archived.filter((a) => a.recipeId !== recipeId);
+      recipe.status = 'published';
       const answer: StatusView = { recipeId, status: 'published', changedBy: person('user-federico'), changedAt: new Date().toISOString() };
       return delayed(answer);
     }

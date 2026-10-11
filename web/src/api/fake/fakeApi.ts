@@ -6,7 +6,7 @@ import { ApiError } from '../errors';
 import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, RecipeListItem, RecipeMealType, RecipeQuery, RecipeSummary, SourceType, ProteinGroup } from '../types';
 import raw from './demo-data.json';
 import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
-import { createFakeCatalogue } from './fakeCatalogue';
+import { createFakeCatalogue, createFakeCatalogueData, type FakeCatalogueData } from './fakeCatalogue';
 import { createFakeShopping } from './fakeShopping';
 import { formatAmount, scaleQuantity, type Quantity, type Translated } from './quantity';
 import { DEMO_CHANGES, DEMO_FAMILY, DEMO_PEOPLE, DEMO_USER_ID, seedRatings, type DemoRating } from './seed';
@@ -57,6 +57,8 @@ export interface FakeData {
   readonly profile: { displayName?: string; locale?: Locale };
   /** The demo family's name, units, time zone, settings and exclusions. */
   readonly family: FakeFamilyData;
+  /** The archived recipes the curator can bring back. */
+  readonly catalogue: FakeCatalogueData;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -91,7 +93,10 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData() };
+  return {
+    user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData(),
+    catalogue: createFakeCatalogueData(recipes)
+  };
 }
 
 /**
@@ -347,7 +352,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
       week: (weekStartsOn) => visibleWeeks().find((w) => w.startsOn === weekStartsOn)
     }),
     catalogue: createFakeCatalogue({
-      getLocale: options.getLocale, latencyMs: options.latencyMs, recipes,
+      getLocale: options.getLocale, latencyMs: options.latencyMs, recipes, data: state.catalogue,
       ingredientName: (ingredientId, locale) => {
         const ingredient = data.ingredients.find((i) => i.id === ingredientId);
         return ingredient ? localized(ingredient.name, locale) : null;
