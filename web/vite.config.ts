@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { precacheList } from './src/pwa/precache';
+import { precacheList } from './src/pwa/precache.ts';
 
 // One value per build: cache names of the service worker and buster of the persisted query cache.
 const buildVersion = new Date().toISOString();
