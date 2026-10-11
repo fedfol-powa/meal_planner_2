@@ -13,7 +13,7 @@ const proteinGroup = (r) => attributes[r.id]?.protein_group ?? (r.proteinGroup =
 
 const data = {
   books: source.books,
-  ingredients: source.ingredients.map(({ id, name }) => ({ id, name })),
+  ingredients: source.ingredients.map(({ id, name, department, isPantry }) => ({ id, name, department, isPantry })),
   recipes: source.recipes.map((r) => ({
     id: r.id, status: r.status, name: r.name, description: r.description, sourceType: r.sourceType,
     sourceUrl: r.sourceUrl, bookId: r.bookId, bookPages: r.bookPages, durationMinutes: r.durationMinutes,

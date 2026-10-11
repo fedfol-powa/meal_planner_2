@@ -219,7 +219,8 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
   }
 
   if (userId) {
-    cleanups.push(session.onClose(() => session.store.delete(key).catch(() => undefined)));
+    // Kept after dispose: the screen may go before the session closes, the queue must go with it.
+    session.onClose(() => session.store.delete(key).catch(() => undefined));
     cleanups.push(
       session.onRevoke(async (familyId) => {
         await mutate((record) => ({
