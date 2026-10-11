@@ -7,10 +7,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| Codex | spec e piano di W2 collegamento agenti | R W2 spec | w1:p2J | in corso → revisioni/w2-agenti-spec-piano.md |
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Review di spec e piano «da rifare» (14 rilievi); correzioni da messaggi/w1-11-review-revisione-pasti.md (azione con actionId, tabella delle richieste, migrazione per le bozze); poi seconda review breve | 11/10 |
-| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Spec e piano pronti; review Codex in corso (revisioni/w2-agenti-spec-piano.md). Ai rilievi: /clear e messaggio di ripresa | 11/10 |
+| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Review di spec e piano «da rifare» (10 rilievi); contesto azzerato, correzioni da messaggi/w2-agenti-01-review-spec.md («ultimo rinnovo» al posto di «ultimo uso», testi veritieri sui poteri, CI con OAuth); poi seconda review breve | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26: review con 5 rilievi (bozze legacy, errori silenziosi, profilo in caricamento, attributi, finto fra lingue); correzioni e prova visiva in corso | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Review di spec e piano «da rifare» (10 rilievi); correzioni da messaggi/w5-08-review-esportazione.md; poi seconda review breve. Prova di produzione dell'utente: voce separata dopo il bucket | 11/10 |
