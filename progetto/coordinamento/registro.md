@@ -10,18 +10,17 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 unita; Task 12 (web) dopo il merge della #17 | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 unita (parte server); il web (Task 11-15) parte dopo la seconda PR di W5 | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11: aggiorna su main (con #14 e #15) e aggiunge `mealPassedCount` alla versione di getWeekList; poi controllo del tratto nuovo, CI e merge | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 corretta (d93df15); verifica breve in corso (revisioni/w5-pr17-2.md) | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 unita (server della spesa); web e coda offline (task 9-14) dopo il merge della #17 | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17: verifica con rilievo 1 risolto in parte (token di B nella finestra prima dell'effetto React); corregge, poi nuova verifica breve | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 unita; web (task 10-12) dopo il merge della #17 | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server). Ondata 1 completata.
 
 ## Revisori attivi
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR17 verifica | PR #17 dopo le correzioni | R PR17 verifica | w1:p1S | → revisioni/w5-pr17-2.md |
 
 ## Domande in sospeso
 
@@ -33,18 +32,18 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
 0. **In corso (ordine dell'ondata 2):**
-   - Unite: #6, #9, #12 (viste di W6: i task di W1 che le usano sono sbloccati).
-   - W5: implementa la seconda PR (client oRPC reale + agganci di W4) → review → merge;
-     poi le parti web di W1, W2, W4, W6 (ognuno si ferma lì con `STATO: DOMANDA`).
-   - W2: PR #10 unita; prosegue senza parti web.
-   - W1: PR piccola di `mealRecipeVersions` + `versionedInput` + 11 errori del
-     pianificatore con `noUncheckedIndexedAccess` nel tsconfig di `domain/` (blocca il
-     typecheck web di W5) → review → merge → avvisare W5 (porta su main e prosegue) e W4
-     task 8 (togliere lo schema scritto a mano e la query provvisoria).
-   - W4: PR #11 → correzioni → verifica breve → merge.
-   - W6: ricerca, dettaglio, MCP; poi parti web dopo W5.
+   - Lato server dell'ondata 2 tutto unito: #10, #11, #12, #13, #14, #15, #16.
+   - **PR #17 di W5** (client reale + agganci di sessione): ultima correzione sull'identità
+     delle credenziali, poi verifica breve, CI, merge. Dopo il merge avvisare W1 (Task 12),
+     W2 (Task 11-15, con il passaggio da `me` a `profile`), W4 (task 9-14, coda offline,
+     registrazione del prefisso in `main.tsx`), W6 (task 10-12): ognuno porta il branch su
+     main e fa una PR web piccola. Attenzione ai conflitti nei file condivisi del web
+     (`web/src/api/types.ts`, wrapper, fake, `main.tsx`): unire in sequenza.
    - W3 libero: prima di assegnargli un'attività scrivere la tabella produttori →
-     consumatori nel piano generale.
+     consumatori nel piano generale (revisione dei pasti, gestione MCP del ricettario,
+     collegamento agenti, esportazione R2, messa in produzione).
+   - Nota: due volte il Monitor non ha consegnato `REVISORE_FINITO`; a ogni riarmo
+     controllare `attendi.py --stato` per i «DA GESTIRE».
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli
