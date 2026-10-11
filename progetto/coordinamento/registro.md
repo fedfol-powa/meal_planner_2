@@ -10,7 +10,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Spec e piano adeguati alle viste (6f42b05); seconda review breve in corso (revisioni/w1-menu-spec-piano-2.md) | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Seconda review «approvabile con correzioni»; corregge (w2-07), poi PR piccola di `resolveFamilySettings` e implementazione senza parti web | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Seconda review «approvabile con correzioni»; corregge (w4-05), poi implementa senza task 8, task 10 e parti web; l'«Interfaccia richiesta a W5» va a W5 | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Parte server implementata; porta su main con `publishedRecipeSchema` e apre la PR della sola parte server; task 8 e web in una PR successiva | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #6 unita. Seconda PR (client oRPC reale + agganci di W4): aggiorna spec e piano (w5-05), poi review breve | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-viste | .worktrees/ricettario | Implementa la PR piccola delle viste (w6-03) | 11/10 |
 
@@ -39,7 +39,9 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
      poi le parti web di W1, W2, W4, W6.
    - W2: PR #10 in review → merge; poi il resto senza parti web.
    - W1: seconda review in corso; poi PR piccola di `mealRecipeVersions` → merge → W4
-     task 8.
+     task 8. **Nel via a W1:** nella stessa PR piccola corregge `versionedInput`
+     (`contract/src/versioned.ts` fa perdere il tipo dell'input ai gestori; generico sulla
+     forma dell'oggetto), segnalato da W4.
    - W4: implementa senza task 8, task 10 e parti web.
    - W3 libero: prima di assegnargli un'attività (revisione dei pasti, gestione MCP del
      ricettario, collegamento agenti, esportazione R2, messa in produzione) scrivere la

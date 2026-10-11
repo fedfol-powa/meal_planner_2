@@ -37,3 +37,4 @@ w1:pA	STATO: PR_CORRETTA #673f5bd5
 w1:pY	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/10 #28e780ea
 w1:pX	STATO: SPEC_E_PIANO_CORRETTI #84b295b6
 w1:pW	STATO: SPEC_E_PIANO_CORRETTI #0a39a5bc
+w1:pZ	STATO: DOMANDA Restano bloccati: il task 8 (la funzione mealRecipeVersions di W1; fino ad allora resta la query provvisoria), lo schema della ricetta di W3 e i task 9-14, cioè tutta #7891b6f7
