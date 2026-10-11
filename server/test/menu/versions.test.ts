@@ -113,7 +113,12 @@ describe.skipIf(!hasDatabase)('mealRecipeVersions', () => {
 		expect(await count('2026-10-14T20:59:59Z')).toBe(1);
 		expect(await count('2026-10-14T21:00:00Z')).toBe(2);
 		expect(await count('2026-10-15T13:30:00Z')).toBe(3);
-		expect(await count(null)).toBe(0); // the transaction instant, before 2026-10-14
+		// Without an instant: the transaction's now(), whatever the real date of the run.
+		const [withoutInstant, atNow] = await withDb(db.appServerUrl, { kind: 'user', claims }, async (tx) => {
+			const [{ now }] = await tx<{ now: Date }[]>`select now() as now`;
+			return [await mealPassedCount(tx, familyId, week), await mealPassedCount(tx, familyId, week, now)];
+		});
+		expect(withoutInstant).toBe(atNow);
 		expect(await count('2026-10-15T13:30:00Z', await db.createFamily([]))).toBe(0);
 	});
 
