@@ -66,6 +66,28 @@ Inviti familiari e all'app, wizard, accesso con Google, Resend e dominio
 Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del
 ricettario (ultima priorità), giudice AI opzionale.
 
+### Ordine dell'ondata 2 (approvato dall'utente l'11 ottobre 2026)
+
+Dopo quattro review di spec «da rifare» per interfacce incompatibili scritte in
+parallelo. Un consumatore implementa solo ciò che dipende da interfacce fissate qui o
+già unite.
+
+| Interfaccia | Produttore | Consumatori |
+|---|---|---|
+| Viste della ricetta (`contract/src/recipes/views.ts`, `server/src/recipes/views.ts`), `ratings.set`, `IngredientList` | W6 | W1 (schede del menu) |
+| `mealRecipeVersions` (`server/src/menu/versions.ts`) | W1 | W4 |
+| `resolveFamilySettings` e schema delle impostazioni (`domain/src/family/settings.ts`) | W2 | W1 |
+| Implementatore unico in `server/src/router.ts`, tipo `Implementer` | piattaforma (chi arriva prima, forma fissata sopra) | tutti |
+| Client oRPC reale e agganci di sessione per la coda della spesa | W5 (seconda PR) | parti web di W1, W2, W4, W6 |
+
+1. **Interfacce:** W6 scrive «Interfaccia per W1», W4 «Interfaccia richiesta a W5»; il
+   coordinatore le registra qui come definitive. W1 completa la spec sulle viste solo dopo.
+2. **Produttori con PR piccole, unite presto:** viste di W6, `resolveFamilySettings` di W2,
+   `mealRecipeVersions` di W1, seconda PR di W5 con gli agganci.
+3. **Consumatori:** schede del menu, spesa, e ogni parte web dopo la seconda PR di W5.
+4. **Regola:** prima di lanciare un worker, tabella produttori → consumatori in questo
+   piano; il worker parte solo con gli input fissati o uniti.
+
 ## Metodo per ogni attività
 
 1. Worker Claude in una tab herdr, con branch e worktree dedicati in `.worktrees/`.
@@ -174,4 +196,5 @@ solo il coordinatore.
 | 11 ottobre 2026 | Ondata 2 avviata in parallelo alla chiusura dell'ondata 1, su richiesta dell'utente: sei worker (i revisori Codex non contano); W1 menu e pianificatore, W6 ricettario e voti, W2 profilo e famiglia; regole comuni in `progetto/coordinamento/brief/ondata2-comune.md` |
 | 11 ottobre 2026 | Unita la PR #8 (fonte obbligatoria e non vuota nelle equivalenze, come il trim di JavaScript; 449 test pgTAP) |
 | 11 ottobre 2026 | Unita la PR #7 (dominio unità e spesa) dopo due review; W3 passa all'implementazione; W4 avviato sull'attività Spesa dell'ondata 2 |
+| 11 ottobre 2026 | L'utente approva l'ordine dell'ondata 2: interfacce prima, poi produttori con PR piccole, poi consumatori; regola della tabella produttori → consumatori prima di lanciare un worker |
 | 11 ottobre 2026 | L'utente approva i quattro YAML dell'import (tagli di carne come varietà, «Sale e pepe» solo sale, cotti/precotti come preparazione, peperoncino secco per «1 pizzico», preparazioni del libro come prodotti in `other`, 4 traduzioni en-GB scritte da W3) |
