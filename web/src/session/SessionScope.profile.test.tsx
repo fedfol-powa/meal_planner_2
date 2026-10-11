@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import { realClients } from '../api/clients';
 import { ApiError } from '../api/errors';
 import { createRpcClient } from '../api/rpc';
-import { createRpcTestServer, SERVER_PROFILE } from '../test/rpcServer';
+import { createRpcTestServer, SERVER_FAMILY, SERVER_PROFILE, serverSettings } from '../test/rpcServer';
+import { familyQuery, settingsQuery } from '../api/family';
+import { useAreaMutation } from '../api/mutations';
+import { useFamily } from './useFamily';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { profileQuery } from '../api/profile';
 import { useQueryDeps, weekQuery } from '../api/queries';
@@ -86,6 +89,21 @@ describe('profile through the session', () => {
   });
 });
 
+/** Real clients on the test server; the token changes at each renewal, like Supabase's. */
+function realSetup(user: { id: string; email: string } = A) {
+  const server = createRpcTestServer();
+  const backend = createStubBackend(user);
+  const rpc = createRpcClient({
+    getCredentials: async () => {
+      const current = await backend.getCredentials();
+      return current && { ...current, accessToken: `${current.accessToken}#${backend.refreshCalls}` };
+    },
+    fetch: server.fetch
+  });
+  const createApi = realClients({ rpc, latencyMs: 0 });
+  return { server, backend, createApi };
+}
+
 /** The profile goes to the Worker in real mode (PR #18 review): realClients → RPC link → RPC handler. */
 describe('profile from the Worker, through SessionScope', () => {
   const B = { id: 'b', email: 'b@example.com' };
@@ -104,21 +122,6 @@ describe('profile from the Worker, through SessionScope', () => {
         <button onClick={() => void week.refetch()}>week</button>
       </>
     );
-  }
-
-  /** Real clients on the test server; the token changes at each renewal, like Supabase's. */
-  function realSetup(user: { id: string; email: string } = A) {
-    const server = createRpcTestServer();
-    const backend = createStubBackend(user);
-    const rpc = createRpcClient({
-      getCredentials: async () => {
-        const current = await backend.getCredentials();
-        return current && { ...current, accessToken: `${current.accessToken}#${backend.refreshCalls}` };
-      },
-      fetch: server.fetch
-    });
-    const createApi = realClients({ rpc, latencyMs: 0 });
-    return { server, backend, createApi };
   }
 
   it('shows the profile answered by the server, not the demo data', async () => {
@@ -226,5 +229,91 @@ describe('language answers out of order (PR #21 review, finding 3)', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByText('locale: it-IT')).toBeTruthy();
     expect(cachedLocales.every((locale) => locale !== 'en-GB')).toBe(true);
+  });
+});
+
+const withSundayLunch = (servings: number) => {
+  const view = serverSettings();
+  view.settings.slots.lunch[6] = { servings, fixedText: null, maxMinutes: null };
+  return view;
+};
+
+/** The family area goes to the Worker too, with the family of the real profile (PR #18 second review). */
+describe('family from the Worker, through SessionScope', () => {
+  const familyId = SERVER_FAMILY.id;
+
+  function FamilyProbe() {
+    const deps = useQueryDeps();
+    const state = useFamily();
+    const session = useSession();
+    useSessionRevision();
+    const ready = state.status === 'ready';
+    const detail = useQuery({ ...familyQuery(deps, familyId), enabled: ready });
+    const settings = useQuery({ ...settingsQuery(deps, familyId), enabled: ready });
+    const setMeal = useAreaMutation('family.setMeal', familyId, (servings: number) =>
+      deps.api.family.setMeal({ familyId, mealType: 'lunch', weekday: 6, servings, fixedText: null, maxMinutes: null })
+    );
+    return (
+      <>
+        <p>family: {ready ? state.family.name : state.status}</p>
+        <p>members: {detail.data?.members.map((m) => m.displayName).join(', ') ?? '-'}</p>
+        <p>sunday lunch: {settings.data?.settings.slots.lunch[6]?.servings ?? '-'}</p>
+        <p>{session.isRevoked(familyId) ? 'revoked' : 'allowed'}</p>
+        <button onClick={() => setMeal.mutate(3)}>three</button>
+      </>
+    );
+  }
+
+  it('reads the family of the real profile and its views from the server', async () => {
+    const { server, backend, createApi } = realSetup();
+    renderSession(<FamilyProbe />, { backend, createApi });
+    await screen.findByText('family: Famiglia dal server');
+    await screen.findByText('members: Amministratrice dal server, Persona dal server');
+    await screen.findByText('sunday lunch: 2');
+    expect(server.familySeen).toEqual(
+      expect.arrayContaining([
+        { operation: 'get', authorization: 'Bearer token-of-a#0' },
+        { operation: 'getSettings', authorization: 'Bearer token-of-a#0' }
+      ])
+    );
+  });
+
+  it('renews once on unauthorized from a family read', async () => {
+    const { server, backend, createApi } = realSetup();
+    const settings = server.familySeen;
+    server.answerFamily({
+      getSettings: (authorization) => {
+        if (authorization === 'Bearer token-of-a#0') throw new ORPCError('unauthorized');
+        return { unchanged: false, version: 'v1', data: withSundayLunch(4) };
+      }
+    });
+    renderSession(<FamilyProbe />, { backend, createApi });
+    await screen.findByText('sunday lunch: 4');
+    expect(backend.refreshCalls).toBe(1);
+    expect(settings.filter((call) => call.operation === 'getSettings').map((call) => call.authorization)).toEqual(['Bearer token-of-a#0', 'Bearer token-of-a#1']);
+  });
+
+  it('revokes the family and reads the real profile again after forbidden from the server', async () => {
+    const { server, backend, createApi } = realSetup();
+    let reads = 0;
+    server.answerProfile(() => (reads++ === 0 ? SERVER_PROFILE : { ...SERVER_PROFILE, families: [], currentFamilyId: null }));
+    server.answerFamily({
+      getSettings: () => {
+        throw new ORPCError('forbidden');
+      }
+    });
+    renderSession(<FamilyProbe />, { backend, createApi });
+    await screen.findByText('revoked');
+    await screen.findByText('family: none');
+    expect(server.profileSeen).toHaveLength(2);
+  });
+
+  it('writes the answer of a family mutation sent through the real client', async () => {
+    const { server, backend, createApi } = realSetup();
+    renderSession(<FamilyProbe />, { backend, createApi });
+    await screen.findByText('sunday lunch: 2');
+    fireEvent.click(screen.getByText('three'));
+    await screen.findByText('sunday lunch: 3');
+    expect(server.familySeen.filter((call) => call.operation === 'setMeal')).toEqual([{ operation: 'setMeal', authorization: 'Bearer token-of-a#0' }]);
   });
 });
