@@ -57,15 +57,21 @@ async function authenticate(context: RequestContext): Promise<Claims> {
 }
 
 /**
- * Implementer shared by every operation. Input is validated first (validation index
- * before all middleware), then: token and claims, transaction as the user, profile and
- * session, web-only check, role, version; the handler runs inside the transaction.
+ * Implementer shared by every operation. Input is validated first and output last
+ * (validation indexes around all middleware); in between: token and claims, transaction
+ * as the user, profile and session, web-only check, role, version; the handler runs
+ * inside the transaction.
  */
 export function createImplementer<C extends AnyContractRouter>(contract: C) {
 	// With a generic contract the implementer is a deferred conditional type: name the
 	// router branch so `.use` resolves; callers still get the concrete implementer.
 	const base = implement(contract)
-		.$config({ initialInputValidationIndex: Number.NEGATIVE_INFINITY })
+		// Index 0: input is validated before the middleware, output after it returns, so the
+		// `unchanged` answer given without the handler is validated like any other.
+		.$config({
+			initialInputValidationIndex: Number.NEGATIVE_INFINITY,
+			initialOutputValidationIndex: Number.NEGATIVE_INFINITY,
+		})
 		.$context<RequestContext>() as unknown as RouterImplementer<C, RequestContext, RequestContext>;
 	return base.use<OperationContext>(async ({ context, procedure, next }, input) => {
 		const meta = procedure['~orpc'].meta as OperationMeta;
