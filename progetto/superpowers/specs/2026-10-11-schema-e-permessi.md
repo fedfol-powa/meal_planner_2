@@ -1,9 +1,10 @@
 # Schema e permessi (W2): design di dettaglio
 
 Creato: 11 ottobre 2026
-Ultimo aggiornamento: 11 ottobre 2026, correzioni dopo la review di spec e piano
-(`progetto/coordinamento/revisioni/w2-spec-piano.md`, decisioni del coordinatore in
-`progetto/coordinamento/messaggi/w2-01-review.md`).
+Ultimo aggiornamento: 11 ottobre 2026, correzioni dopo la seconda review di spec e piano
+(`progetto/coordinamento/revisioni/w2-spec-piano-2.md`, decisioni del coordinatore in
+`progetto/coordinamento/messaggi/w2-02-review2.md`; prima review in
+`w2-spec-piano.md` e `w2-01-review.md`).
 Attività: ondata 1, W2, branch `fondamenta/schema`, proprietà `supabase/`.
 Riferimenti: specifica principale `2026-09-29-app-famiglia-design.md`, sezioni 1, 2,
 5, 7, 8, 12, 15, 16, 17 (R1, R2, R4); piano generale `2026-10-11-piano-generale.md`;
@@ -121,6 +122,30 @@ Punti aperti decisi dal coordinatore:
   dati letti», con trigger per riga deduplicati nella transazione. Test con transazioni
   reali distinte e con rollback.
 
+## Decisioni dopo la seconda review (11 ottobre 2026)
+
+1. **Controllo della data dello slot**: il trigger legge la settimana con i permessi di
+   chi inserisce (non SECURITY DEFINER). Una settimana altrui o inesistente non si trova,
+   il controllo si salta e l'inserimento cade sulla policy: stesso errore nei due casi,
+   nessun dato della settimana nel messaggio. Il job vede tutte le settimane e il
+   controllo vale anche per lui.
+2. **Autori delle bozze chiuse**: contenuto, revisione, identità ed esito restano
+   immutabili; l'unico aggiornamento ammesso su una bozza chiusa è l'azzeramento di
+   `created_by`, `updated_by`, `closed_by` da parte delle chiavi esterne
+   (`on delete set null`) quando si cancella un utente. Gli utenti non possono farlo.
+3. **Prova del bootstrap**: sostituisce solo i valori dell'input; famiglie di prova con
+   UUID espliciti, pulizia solo per UUID; una famiglia omonima estranea sopravvive.
+4. **Fixture**: slot di prova con UUID fissi, conteggi per UUID.
+5. **Nomi degli autori per i curatori** (decisione del coordinatore):
+   `app.catalogue_author_names()`, SECURITY DEFINER, restituisce solo `user_id` e
+   `display_name` delle persone che compaiono come autori in bozze, salvataggi, versioni
+   e storico degli stati; vuota per chi non è curatore; eseguibile da `authenticated`,
+   non da `anon` né da `app_job`. Serve all'attribuzione delle bozze condivise e dei
+   conflitti fra curatori che non hanno famiglie in comune.
+6. **Scritture senza effetti**: accettato che facciano crescere i contatori; il contratto
+   diventa «al massimo un incremento per transazione; una scrittura senza effetti può
+   farlo crescere comunque (invalidazione in più, mai dati sbagliati)».
+
 ## Struttura di `supabase/`
 
 ```
@@ -185,7 +210,7 @@ esegue solo il proprietario, quando scatta un trigger.
 | Ruolo | Funzioni eseguibili |
 |---|---|
 | `anon` | `temporary_list_by_token` |
-| `authenticated` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `has_role`, `session_is_active`, `is_member`, `is_family_admin`, `shares_family`, `can_access_week`, `can_access_slot`, `can_access_list`, `meal_passed_at`, `recipe_version_at` |
+| `authenticated` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `has_role`, `session_is_active`, `is_member`, `is_family_admin`, `shares_family`, `can_access_week`, `can_access_slot`, `can_access_list`, `catalogue_author_names` (vuota per chi non è curatore), `meal_passed_at`, `recipe_version_at` |
 | `app_job` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `meal_passed_at`, `recipe_version_at` |
 | PUBLIC, `app_server` | nessuna |
 
@@ -236,7 +261,7 @@ quindi una rimozione o una revoca vale dalla query successiva anche con lo stess
 | `ingredient_versions` | PK (`ingredient_id`, `version`); `ingredient_id` → `ingredients` senza cascata; `content` jsonb (reparto, dispensa, nomi, sinonimi ed equivalenze); `changed_by`, `changed_at`, `channel`; solo aggiunte |
 | `ingredient_unit_equivalences` | `id`; `ingredient_id` → `ingredients`; `from_unit`, `to_unit`; `from_dimension` generata con `app.unit_dimension(from_unit)`; `factor` > 0; `scope` check `recipe`/`shopping`; `preparation` text facoltativo; `source`; univoca (`ingredient_id`, `scope`, `from_dimension`, `preparation`) con `nulls not distinct` |
 | `books` | `id`; `slug` univoco (W3); `title`; `archived_at`, `archived_by`; `created_by`, `created_at` |
-| `recipe_drafts` | `id`; `recipe_id` → `recipes` senza cascata; `kind` check `new`/`revision`; `base_version`, nullo se e solo se `new`; `content` jsonb; `revision` int ≥ 1; `created_by`, `created_at`, `updated_by`, `updated_at`; `closed_at`, `closed_by`, `outcome` check `published`/`discarded` (`closed_at` e `outcome` entrambi nulli o entrambi presenti); al massimo una bozza aperta per ricetta (indice univoco parziale su `recipe_id` dove `closed_at is null`); una bozza chiusa non si modifica più (trigger) |
+| `recipe_drafts` | `id`; `recipe_id` → `recipes` senza cascata; `kind` check `new`/`revision`; `base_version`, nullo se e solo se `new`; `content` jsonb; `revision` int ≥ 1; `created_by`, `created_at`, `updated_by`, `updated_at`; `closed_at`, `closed_by`, `outcome` check `published`/`discarded` (`closed_at` e `outcome` entrambi nulli o entrambi presenti); al massimo una bozza aperta per ricetta (indice univoco parziale su `recipe_id` dove `closed_at is null`); una bozza chiusa non si modifica più (trigger), salvo l'azzeramento degli autori da parte delle chiavi esterne quando si cancella un utente |
 | `recipe_draft_saves` | PK (`draft_id`, `revision`); `draft_id` → `recipe_drafts` senza cascata; `content`; `saved_by`, `saved_at`, `channel`; `overwritten` boolean, unica colonna aggiornabile; conservati per sempre |
 | `recipe_versions` | PK (`recipe_id`, `version`); `content` jsonb; `published_by`, `published_at`, `channel`; `restored_from` int; `restored_instant` timestamptz (ripristino dell'intero catalogo); solo aggiunte |
 | `recipe_status_changes` | `id`; `recipe_id`; `status`; `changed_by`, `changed_at`, `channel`; solo aggiunte |
@@ -315,7 +340,7 @@ scelta fra specifica e generica è del dominio.
 | Tabella | Colonne e vincoli |
 |---|---|
 | `weeks` | `id`; `family_id` on delete cascade; `starts_on` lunedì; univoche (`family_id`, `starts_on`) e (`id`, `family_id`); `generated_at` |
-| `meal_slots` | `id`; `week_id` on delete cascade; `date` dentro la settimana (trigger all'inserimento; settimana e data sono poi immutabili); `meal_type` `lunch`/`dinner`; univoca (`week_id`, `date`, `meal_type`); `recipe_id` → `recipes` on delete restrict; `free_text`; non entrambi; `servings` ≥ 0; `note` al massimo 200 caratteri; `updated_by` (null = app), `updated_at` |
+| `meal_slots` | `id`; `week_id` on delete cascade; `date` dentro la settimana (trigger all'inserimento, con i permessi di chi inserisce: non legge settimane non autorizzate; settimana e data sono poi immutabili); `meal_type` `lunch`/`dinner`; univoca (`week_id`, `date`, `meal_type`); `recipe_id` → `recipes` on delete restrict; `free_text`; non entrambi; `servings` ≥ 0; `note` al massimo 200 caratteri; `updated_by` (null = app), `updated_at` |
 | `meal_changes` | `id` (dal client); `meal_slot_id` on delete cascade; `actor_id`; `channel`; `before`, `after` jsonb; `undoes`; `created_at`; univoca (`id`, `meal_slot_id`); chiave esterna (`undoes`, `meal_slot_id`) → (`id`, `meal_slot_id`) on delete cascade: si annulla solo una modifica dello stesso slot; solo aggiunte |
 | `ratings` | PK (`user_id`, `recipe_id`); `user_id` on delete cascade; `stars` 1-5; `updated_at`; non su ricette in bozza (policy) |
 
@@ -386,12 +411,22 @@ I risolutori `app.week_family_id`, `app.slot_family_id`, `app.list_family_id`
 restituiscono la famiglia di un record e servono solo alle funzioni dei contatori:
 nessun ruolo li esegue.
 
+**Nomi degli autori.** La specifica principale chiede che i curatori vedano autore e
+ultima modifica delle bozze condivise e chi ha salvato in un conflitto, anche senza
+famiglie in comune. `profiles` resta leggibile solo a sé stessi e ai membri delle stesse
+famiglie; i curatori leggono i nomi degli autori con
+`app.catalogue_author_names() returns table (user_id uuid, display_name text)`: solo le
+persone che compaiono in `recipe_drafts` (`created_by`, `updated_by`, `closed_by`),
+`recipe_draft_saves.saved_by`, `recipe_versions.published_by`,
+`recipe_status_changes.changed_by`; nessun altro campo del profilo; nessuna riga per chi
+non è curatore.
+
 Permessi di `authenticated` (lettura e scrittura filtrate dalle policy; per gli
 `update`, le sole colonne elencate):
 
 | Tabelle | Lettura | Inserimento | Modifica (colonne) | Cancellazione |
 |---|---|---|---|---|
-| `profiles` | propria o di chi condivide una famiglia | — (trigger) | propria: `display_name`, `locale`, `updated_at` | — |
+| `profiles` | propria o di chi condivide una famiglia; i curatori leggono i nomi degli autori del ricettario solo con `catalogue_author_names` | — (trigger) | propria: `display_name`, `locale`, `updated_at` | — |
 | `user_roles` | propri | — | — | — |
 | `recipes` | `published`, `archived`; `draft` ai curatori e ai membri di famiglie con un pasto che la cita | curatori | curatori: tutte tranne `id`, `created_by`, `created_at` | — |
 | `recipe_ingredients` | tutti | curatori | — | curatori (riscrittura della proiezione) |
@@ -431,7 +466,10 @@ Permessi di `authenticated` (lettura e scrittura filtrate dalle policy; per gli
 
 ## Contatori di versione
 
-Contratto con W1: **al massimo un incremento per transazione che cambia i dati letti**.
+Contratto con W1: **al massimo un incremento per transazione; una scrittura senza
+effetti (zero righe, stessi valori, righe escluse dall'RLS) può farlo crescere comunque**:
+un'invalidazione in più, mai dati sbagliati. Ogni transazione che cambia i dati letti
+fa crescere il contatore.
 
 - `app.bump_family_version(family_id)` e `app.bump_catalogue_version()` incrementano il
   contatore solo se nella transazione corrente non è già stato fatto
@@ -482,9 +520,17 @@ Copertura:
   famiglie con un pasto che la cita;
 - ciclo di vita delle bozze: pubblicazione, scarto, nuova bozza della stessa ricetta,
   bozza chiusa immutabile, nessuna cancellazione di bozze, salvataggi, ricette,
-  ingredienti e libri;
+  ingredienti e libri; cancellazione del creatore, dell'ultimo modificatore e di chi ha
+  chiuso una bozza pubblicata e una scartata, con contenuto e salvataggi intatti;
+- nomi degli autori: due curatori senza famiglie in comune leggono il nome l'uno
+  dell'altro solo con `catalogue_author_names`; utenti ordinari, `anon`, `app_job` e un
+  curatore revocato no;
+- controllo della data dello slot con settimana propria, altrui e inesistente e data
+  esterna: i due casi non autorizzati danno lo stesso errore;
 - `undoes` fra slot diversi e fra famiglie rifiutato; cancellazione di una famiglia con
-  annullamenti;
+  una catena di annullamenti verificata prima;
+- Anna non sposta un pasto né una settimana fra le sue due famiglie; la bozza citata
+  sparisce dopo la rimozione del membro;
 - revoca con gli stessi claim: rimozione dalla famiglia e revoca del ruolo di curatore
   hanno effetto alla query successiva;
 - funzioni di autorizzazione con record propri, altrui, inesistenti e dopo la rimozione;
@@ -521,6 +567,8 @@ Copertura:
   lo esegue sul remoto senza una DOMANDA.
 - `supabase/scripts/bootstrap_test.sh`: prova lo script sul database locale con una
   famiglia omonima preesistente, un rilancio dopo la rinomina e un'email mancante.
+  Sostituisce solo i valori dell'input (il controllo del segnaposto resta e si prova);
+  usa UUID espliciti e cancella solo quelli: una famiglia omonima estranea sopravvive.
 
 ## Passi remoti (tutti con DOMANDA, nessuno in questa attività senza via)
 
@@ -582,7 +630,8 @@ migrazioni (richiesta della review).
 - Campi bilingui jsonb `{it-IT, en-GB}` nelle proiezioni al posto delle tabelle
   `*_translations` (sezioni 2, 12 e 15).
 - Contatori di versione: `families.data_version` e `catalogue_state.version`, al
-  massimo un incremento per transazione che cambia i dati letti; voti e nomi fanno
+  massimo un incremento per transazione (una scrittura senza effetti può farlo crescere:
+  invalidazione in più, mai dati sbagliati); voti e nomi fanno
   crescere tutte le famiglie dell'utente; le bozze citate fanno crescere le famiglie che
   le citano; le bozze non toccano il ricettario (sezioni 1 e 15).
 - Idempotenza con identificativi del client sulle righe create, nessuna tabella
@@ -606,5 +655,8 @@ migrazioni (richiesta della review).
 - Funzioni SQL `meal_passed_at` e `recipe_version_at` per la R1 (sezione 5).
 - Revoca immediata: `app.session_is_active()` a ogni richiesta; appartenenze e ruoli
   letti a ogni query (sezioni 1 e 17).
+- Nomi degli autori del ricettario leggibili dai curatori con
+  `app.catalogue_author_names()` (solo id e nome), senza aprire i profili (sezioni 2 e 8).
+- Bozze chiuse immutabili tranne l'azzeramento degli autori cancellati (sezioni 2 e 8).
 - Ambiente locale: CLI di Supabase su Podman, test pgTAP isolati dal seed (sezione 9).
 - Tabelle dell'ondata 3 rimandate (sezione 15).

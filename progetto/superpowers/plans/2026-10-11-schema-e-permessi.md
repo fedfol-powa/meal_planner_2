@@ -129,7 +129,7 @@ ancora dell'RLS.
 - Test: `supabase/tests/foundation_test.sql`
 
 **Interfaces:**
-- Produces: schema `app`; ruoli `app_server` (LOGIN NOINHERIT, membro di `authenticated`, `anon`, `app_job`) e `app_job` (NOLOGIN); `app.is_localized_text(jsonb) returns boolean`, `app.is_localized_list(jsonb) returns boolean`; funzioni dei test `tests.create_user(name text, locale text default 'it-IT') returns uuid`, `tests.uid(name text) returns uuid`, `tests.create_session(name text, not_after timestamptz default null) returns uuid`, `tests.login(name text, session_id uuid default null)`, `tests.login_with_claims(claims jsonb)`, `tests.become(role text)`, `tests.affected(sql text) returns bigint`, `tests.family(name text) returns uuid`, `tests.recipe(slug text) returns uuid`, `tests.ingredient(slug text) returns uuid`, `tests.week(family text) returns uuid`, `tests.shopping_list(family text) returns uuid`, `tests.family_version(name text) returns bigint`, `tests.catalogue_version() returns bigint`, `tests.insert_line(kind text, quantity numeric, unit text, text jsonb)`. Le funzioni che cercano per nome aggiungono da sole il prefisso `test-`: `tests.family('Rossi')` è la famiglia `test-Rossi`.
+- Produces: schema `app`; ruoli `app_server` (LOGIN NOINHERIT, membro di `authenticated`, `anon`, `app_job`) e `app_job` (NOLOGIN); `app.is_localized_text(jsonb) returns boolean`, `app.is_localized_list(jsonb) returns boolean`; funzioni dei test `tests.create_user(name text, locale text default 'it-IT') returns uuid`, `tests.uid(name text) returns uuid`, `tests.create_session(name text, not_after timestamptz default null) returns uuid`, `tests.login(name text, session_id uuid default null)`, `tests.login_with_claims(claims jsonb)`, `tests.become(role text)`, `tests.affected(sql text) returns bigint`, `tests.error_of(sql text) returns text` (SQLSTATE e messaggio, per confrontare due rifiuti), `tests.family(name text) returns uuid`, `tests.recipe(slug text) returns uuid`, `tests.ingredient(slug text) returns uuid`, `tests.week(family text) returns uuid`, `tests.shopping_list(family text) returns uuid`, `tests.family_version(name text) returns bigint`, `tests.catalogue_version() returns bigint`, `tests.insert_line(kind text, quantity numeric, unit text, text jsonb)`. Le funzioni che cercano per nome aggiungono da sole il prefisso `test-`: `tests.family('Rossi')` è la famiglia `test-Rossi`.
 
 - [ ] **Step 1: Inizializza la CLI**
 
@@ -211,6 +211,17 @@ begin
 	execute p_sql;
 	get diagnostics v_count = row_count;
 	return v_count;
+end;
+$$;
+
+-- SQLSTATE and message of a failing statement, to compare two refusals.
+create function tests.error_of(p_sql text)
+returns text language plpgsql as $$
+begin
+	execute p_sql;
+	return 'no error';
+exception when others then
+	return sqlstate || ': ' || sqlerrm;
 end;
 $$;
 
@@ -449,7 +460,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: Task 1.
-- Produces: `app.profiles(user_id, display_name, locale, created_at, updated_at)`, `app.user_roles(user_id, role, granted_by, granted_at)`, `app.has_role(text) returns boolean`, `app.session_is_active() returns boolean`; trigger su `auth.users`; persone di prova anna, bruno, carla, dario (curatore), elena (`app_admin`), franco (`en-GB`).
+- Produces: `app.profiles(user_id, display_name, locale, created_at, updated_at)`, `app.user_roles(user_id, role, granted_by, granted_at)`, `app.has_role(text) returns boolean`, `app.session_is_active() returns boolean`; trigger su `auth.users`; persone di prova anna, bruno, carla, dario (curatore), elena (`app_admin`), franco (`en-GB`), gina (seconda curatrice, nessuna famiglia).
 
 - [ ] **Step 1: Aggiungi le persone di prova**
 
@@ -457,7 +468,8 @@ In fondo a `supabase/tests/helpers/fixtures.psql`:
 
 ```sql
 -- People: Anna (Rossi admin, Bianchi member), Bruno (Rossi), Carla (Bianchi admin),
--- Dario (curator, no family), Elena (app admin, no family), Franco (Verdi admin).
+-- Dario (curator, no family), Elena (app admin, no family), Franco (Verdi admin),
+-- Gina (curator, no family: shares nothing with Dario).
 do $$
 begin
 	perform tests.create_user('anna');
@@ -466,9 +478,11 @@ begin
 	perform tests.create_user('dario');
 	perform tests.create_user('elena');
 	perform tests.create_user('franco', 'en-GB');
+	perform tests.create_user('gina');
 	insert into app.user_roles (user_id, role) values
 		(tests.uid('dario'), 'recipe_curator'),
-		(tests.uid('elena'), 'app_admin');
+		(tests.uid('elena'), 'app_admin'),
+		(tests.uid('gina'), 'recipe_curator');
 end;
 $$;
 ```
@@ -540,11 +554,13 @@ select throws_ok($$select app.has_role('app_admin')$$, '42501', null, 'anon cann
 select throws_ok($$select app.session_is_active()$$, '42501', null, 'anon cannot call session_is_active');
 select throws_ok($$select * from app.profiles$$, '42501', null, 'anon cannot read profiles');
 
--- Deleting a user removes profile and roles
+-- Deleting a user removes profile and roles (counted by the saved id: the seed has
+-- another Dario)
 reset role;
-delete from auth.users where id = tests.uid('dario');
-select is((select count(*) from app.profiles where display_name like 'Dario%'), 0::bigint, 'profile deleted with the user');
-select is((select count(*) from app.user_roles r where not exists (select 1 from auth.users u where u.id = r.user_id)), 0::bigint, 'roles deleted with the user');
+select tests.uid('dario') as dario_id \gset
+delete from auth.users where id = :'dario_id';
+select is((select count(*) from app.profiles where user_id = :'dario_id'), 0::bigint, 'profile deleted with the user');
+select is((select count(*) from app.user_roles where user_id = :'dario_id'), 0::bigint, 'roles deleted with the user');
 
 select * from finish();
 rollback;
@@ -676,7 +692,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: `app.has_role`, `app.is_localized_text`, `app.is_localized_list`.
-- Produces: `app.unit_dimension(text) returns text`; `app.books`, `app.ingredients`, `app.ingredient_versions`, `app.ingredient_unit_equivalences`, `app.recipes`, `app.recipe_ingredients`, `app.recipe_drafts`, `app.recipe_draft_saves`, `app.recipe_versions`, `app.recipe_status_changes` con le colonne della spec; dati di prova: ricette `test-pasta-al-pomodoro` (pubblicata, versioni 1 e 2), `test-old-minestrone` (archiviata), `test-new-draft` (bozza nuova aperta, un salvataggio); ingredienti `test-pasta` (con una versione), `test-tomatoes`, `test-salt`; libro `test-cucchiaio`.
+- Produces: `app.unit_dimension(text) returns text`; `app.catalogue_author_names() returns table (user_id uuid, display_name text)` (solo curatori); `app.books`, `app.ingredients`, `app.ingredient_versions`, `app.ingredient_unit_equivalences`, `app.recipes`, `app.recipe_ingredients`, `app.recipe_drafts`, `app.recipe_draft_saves`, `app.recipe_versions`, `app.recipe_status_changes` con le colonne della spec; dati di prova: ricette `test-pasta-al-pomodoro` (pubblicata, versioni 1 e 2), `test-old-minestrone` (archiviata), `test-new-draft` (bozza nuova aperta, un salvataggio); ingredienti `test-pasta` (con una versione), `test-tomatoes`, `test-salt`; libro `test-cucchiaio`.
 
 - [ ] **Step 1: Aggiungi il catalogo di prova**
 
@@ -811,6 +827,32 @@ select throws_ok($$update app.recipe_status_changes set status = 'archived'$$, '
 select throws_ok($$delete from app.ingredient_versions$$, '42501', null, 'ingredient history is never deleted');
 select throws_ok($$update app.recipe_draft_saves set content = '{}'$$, '42501', null, 'draft saves keep their content');
 select is(tests.affected($$update app.recipe_draft_saves set overwritten = true where draft_id in (select id from app.recipe_drafts where recipe_id = tests.recipe('new-draft'))$$), 1::bigint, 'a save can be marked as overwritten');
+select throws_ok($$update app.recipe_drafts set closed_by = null where recipe_id = tests.recipe('new-draft') and closed_at is not null$$, '55000', null, 'users cannot clear the authors of a closed draft');
+
+-- Author names: two curators with no family in common see each other's name, only
+-- through the function; nobody else does
+reset role;
+select tests.login('gina');
+select lives_ok($$insert into app.recipe_draft_saves (draft_id, revision, content, saved_by, channel)
+	select id, 2, '{}', tests.uid('gina'), 'web' from app.recipe_drafts where recipe_id = tests.recipe('new-draft') and closed_at is null$$, 'Gina saves Dario''s draft');
+select is((select display_name from app.catalogue_author_names() where user_id = tests.uid('dario')), 'Dario', 'Gina reads the name of Dario');
+select is((select count(*) from app.profiles where user_id = tests.uid('dario')), 0::bigint, 'but not his profile');
+select is(pg_get_function_result('app.catalogue_author_names()'::regprocedure), 'TABLE(user_id uuid, display_name text)', 'only id and name');
+reset role;
+select tests.login('dario');
+select is((select display_name from app.catalogue_author_names() where user_id = tests.uid('gina')), 'Gina', 'Dario reads the name of Gina');
+select is((select count(*) from app.catalogue_author_names() where user_id = tests.uid('elena')), 0::bigint, 'people who wrote nothing are not listed');
+reset role;
+select tests.login('elena');
+select is((select count(*) from app.catalogue_author_names()), 0::bigint, 'non-curators read no author');
+reset role;
+select tests.become('anon');
+select throws_ok($$select * from app.catalogue_author_names()$$, '42501', null, 'anon cannot call it');
+reset role;
+select tests.become('app_job');
+select throws_ok($$select * from app.catalogue_author_names()$$, '42501', null, 'the job does not need it');
+reset role;
+select tests.login('dario');
 
 -- Revocation with the same token: the curator role is read at every query
 reset role;
@@ -819,6 +861,7 @@ set local role authenticated;
 select is((select count(*) from app.recipes where slug like 'test-%'), 2::bigint, 'after revocation only published and archived recipes');
 select is((select count(*) from app.recipe_drafts), 0::bigint, 'after revocation no drafts');
 select throws_ok($$insert into app.recipes (slug) values ('test-late')$$, '42501', null, 'after revocation no writes');
+select is((select count(*) from app.catalogue_author_names()), 0::bigint, 'after revocation no author names');
 
 -- Integrity, as owner
 reset role;
@@ -880,6 +923,42 @@ select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, 
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation) values (tests.ingredient('pasta'), 'g', 'piece', 1, 'shopping', '  ')$$, '23514', null, 'no blank preparation');
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('pasta'), 'cup', 'g', 100, 'recipe')$$, '23502', null, 'unknown from unit');
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('pasta'), 'us_cup', 'grams', 100, 'recipe')$$, '23514', null, 'unknown to unit');
+
+-- Deleting the authors of closed drafts: references cleared, the rest intact
+do $$
+declare
+	v_recipe uuid;
+begin
+	perform tests.create_user('hugo');
+	perform tests.create_user('ivo');
+	perform tests.create_user('luca');
+	insert into app.recipes (slug, name) values ('test-discarded-draft', '{"it-IT": "Scartata"}') returning id into v_recipe;
+	insert into app.recipe_drafts (id, recipe_id, kind, content, revision, created_by, updated_by, closed_at, closed_by, outcome) values
+		('d0d0d0d0-0000-4000-8000-000000000001', v_recipe, 'new', '{"v": 1}', 2,
+			tests.uid('hugo'), tests.uid('ivo'), now(), tests.uid('luca'), 'discarded'),
+		('d0d0d0d0-0000-4000-8000-000000000002', tests.recipe('pasta-al-pomodoro'), 'revision', 1, '{"v": 2}', 2,
+			tests.uid('hugo'), tests.uid('ivo'), now(), tests.uid('luca'), 'published');
+	insert into app.recipe_draft_saves (draft_id, revision, content, saved_by, channel) values
+		('d0d0d0d0-0000-4000-8000-000000000001', 1, '{"s": 1}', tests.uid('hugo'), 'web'),
+		('d0d0d0d0-0000-4000-8000-000000000002', 1, '{"s": 2}', tests.uid('ivo'), 'mcp');
+end;
+$$;
+create temporary table closed_drafts_before as
+	select id, recipe_id, kind, base_version, content, revision, created_at, updated_at, closed_at, outcome
+	from app.recipe_drafts where id::text like 'd0d0d0d0-%';
+select lives_ok($$delete from auth.users where id = tests.uid('hugo')$$, 'the creator of closed drafts can be deleted');
+select is((select count(*) from app.recipe_drafts where id::text like 'd0d0d0d0-%' and created_by is null), 2::bigint, 'creator cleared');
+select lives_ok($$delete from auth.users where id = tests.uid('ivo')$$, 'the last modifier can be deleted');
+select is((select count(*) from app.recipe_drafts where id::text like 'd0d0d0d0-%' and updated_by is null), 2::bigint, 'last modifier cleared');
+select lives_ok($$delete from auth.users where id = tests.uid('luca')$$, 'whoever closed them can be deleted');
+select is((select count(*) from app.recipe_drafts where id::text like 'd0d0d0d0-%' and closed_by is null), 2::bigint, 'closer cleared');
+select set_eq(
+	$$select id, recipe_id, kind, base_version, content, revision, created_at, updated_at, closed_at, outcome
+		from app.recipe_drafts where id::text like 'd0d0d0d0-%'$$,
+	$$select * from closed_drafts_before$$,
+	'content, revision, identity and outcome unchanged');
+select is((select array_agg(content::text order by content::text) from app.recipe_draft_saves where draft_id::text like 'd0d0d0d0-%'),
+	array['{"s": 1}', '{"s": 2}'], 'saves kept with their content');
 
 -- Deleting an author keeps the catalogue
 delete from auth.users where id = tests.uid('dario');
@@ -1073,9 +1152,23 @@ create table app.recipe_drafts (
 );
 create unique index recipe_drafts_one_open on app.recipe_drafts (recipe_id) where closed_at is null;
 
+-- A closed draft keeps content, revision, identity and outcome. Only its author
+-- references may be cleared, and only by the foreign keys (on delete set null) when a
+-- user is deleted: that update runs nested in the referential trigger.
 create function app.prevent_closed_draft_update()
 returns trigger language plpgsql set search_path = '' as $$
 begin
+	if pg_catalog.pg_trigger_depth() > 1
+		and (new.id, new.recipe_id, new.kind, new.base_version, new.content, new.revision,
+				new.created_at, new.updated_at, new.closed_at, new.outcome)
+			is not distinct from (old.id, old.recipe_id, old.kind, old.base_version, old.content, old.revision,
+				old.created_at, old.updated_at, old.closed_at, old.outcome)
+		and (new.created_by is null or new.created_by = old.created_by)
+		and (new.updated_by is null or new.updated_by = old.updated_by)
+		and (new.closed_by is null or new.closed_by = old.closed_by)
+	then
+		return new;
+	end if;
 	raise exception 'draft % is closed', old.id using errcode = '55000';
 end;
 $$;
@@ -1120,7 +1213,27 @@ create table app.recipe_status_changes (
 );
 create index recipe_status_changes_recipe on app.recipe_status_changes (recipe_id, changed_at);
 
-revoke execute on function app.prevent_closed_draft_update() from public;
+-- Names of the people who wrote drafts, saves, versions and status changes, for the
+-- curators only (attribution of shared drafts and of conflicts): id and name, nothing
+-- else of the profile; empty for everybody else.
+create function app.catalogue_author_names()
+returns table (user_id uuid, display_name text)
+language sql stable security definer set search_path = '' as $$
+	select p.user_id, p.display_name
+	from app.profiles p
+	where app.has_role('recipe_curator')
+		and p.user_id in (
+			select d.created_by from app.recipe_drafts d
+			union select d.updated_by from app.recipe_drafts d
+			union select d.closed_by from app.recipe_drafts d
+			union select s.saved_by from app.recipe_draft_saves s
+			union select v.published_by from app.recipe_versions v
+			union select c.changed_by from app.recipe_status_changes c
+		);
+$$;
+
+revoke execute on function app.prevent_closed_draft_update(), app.catalogue_author_names() from public;
+grant execute on function app.catalogue_author_names() to authenticated;
 
 alter table app.books enable row level security;
 alter table app.ingredients enable row level security;
@@ -1531,7 +1644,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: Task 3 e 4.
-- Produces: `app.weeks(id, family_id, starts_on, generated_at)`, `app.meal_slots(id, week_id, date, meal_type, recipe_id, free_text, servings, note, updated_by, updated_at)`, `app.meal_changes(id, meal_slot_id, actor_id, channel, before, after, undoes, created_at)`, `app.ratings(user_id, recipe_id, stars, updated_at)`; viste `app.family_scores(family_id, recipe_id, average, votes)`, `app.global_scores(recipe_id, average, votes)`; `app.can_access_week(uuid) returns boolean`, `app.can_access_slot(uuid) returns boolean` (per `authenticated`); risolutori interni `app.week_family_id(uuid) returns uuid`, `app.slot_family_id(uuid) returns uuid` (nessun grant: li usano i trigger del Task 8); `app.meal_passed_at(date, text, text) returns timestamptz`, `app.recipe_version_at(uuid, timestamptz) returns integer`; settimana di prova del 12 ottobre 2026 per `test-Rossi` e `test-Verdi`; modifica di prova `a1a1a1a1-0000-4000-8000-000000000001` sul pranzo di lunedì di `test-Rossi`.
+- Produces: `app.weeks(id, family_id, starts_on, generated_at)`, `app.meal_slots(id, week_id, date, meal_type, recipe_id, free_text, servings, note, updated_by, updated_at)`, `app.meal_changes(id, meal_slot_id, actor_id, channel, before, after, undoes, created_at)`, `app.ratings(user_id, recipe_id, stars, updated_at)`; viste `app.family_scores(family_id, recipe_id, average, votes)`, `app.global_scores(recipe_id, average, votes)`; `app.can_access_week(uuid) returns boolean`, `app.can_access_slot(uuid) returns boolean` (per `authenticated`); risolutori interni `app.week_family_id(uuid) returns uuid`, `app.slot_family_id(uuid) returns uuid` (nessun grant: li usano i trigger del Task 8); `app.meal_passed_at(date, text, text) returns timestamptz`, `app.recipe_version_at(uuid, timestamptz) returns integer`; settimana di prova del 12 ottobre 2026 per `test-Rossi` e `test-Verdi`; slot di prova con UUID fissi (`c0c0c0c0-…-000000000001` pranzo e `…02` cena di lunedì di `test-Rossi`, `…03` pranzo di `test-Verdi`); modifica di prova `a1a1a1a1-0000-4000-8000-000000000001` sul pranzo di lunedì di `test-Rossi`.
 
 - [ ] **Step 1: Aggiungi pasti e voti di prova**
 
@@ -1539,6 +1652,10 @@ In fondo a `fixtures.psql`:
 
 ```sql
 -- Week of Monday 12 October 2026: Rossi with the pasta and the new draft, Verdi free.
+-- Slots have fixed ids, used by the tests:
+--   c0c0c0c0-0000-4000-8000-000000000001  Rossi, Monday lunch (pasta)
+--   c0c0c0c0-0000-4000-8000-000000000002  Rossi, Monday dinner (new draft)
+--   c0c0c0c0-0000-4000-8000-000000000003  Verdi, Monday lunch (pizza)
 do $$
 declare
 	v_rossi_week uuid;
@@ -1548,14 +1665,13 @@ begin
 		values (tests.family('Rossi'), '2026-10-12', now()) returning id into v_rossi_week;
 	insert into app.weeks (family_id, starts_on)
 		values (tests.family('Verdi'), '2026-10-12') returning id into v_verdi_week;
-	insert into app.meal_slots (week_id, date, meal_type, recipe_id, servings) values
-		(v_rossi_week, '2026-10-12', 'lunch', tests.recipe('pasta-al-pomodoro'), 2),
-		(v_rossi_week, '2026-10-12', 'dinner', tests.recipe('new-draft'), 2);
-	insert into app.meal_slots (week_id, date, meal_type, free_text, servings)
-		values (v_verdi_week, '2026-10-12', 'lunch', 'Pizza', 3);
+	insert into app.meal_slots (id, week_id, date, meal_type, recipe_id, servings) values
+		('c0c0c0c0-0000-4000-8000-000000000001', v_rossi_week, '2026-10-12', 'lunch', tests.recipe('pasta-al-pomodoro'), 2),
+		('c0c0c0c0-0000-4000-8000-000000000002', v_rossi_week, '2026-10-12', 'dinner', tests.recipe('new-draft'), 2);
+	insert into app.meal_slots (id, week_id, date, meal_type, free_text, servings)
+		values ('c0c0c0c0-0000-4000-8000-000000000003', v_verdi_week, '2026-10-12', 'lunch', 'Pizza', 3);
 	insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
-		select 'a1a1a1a1-0000-4000-8000-000000000001', id, tests.uid('anna'), 'web', '{}', '{}'
-		from app.meal_slots where week_id = v_rossi_week and meal_type = 'lunch';
+		values ('a1a1a1a1-0000-4000-8000-000000000001', 'c0c0c0c0-0000-4000-8000-000000000001', tests.uid('anna'), 'web', '{}', '{}');
 	insert into app.ratings (user_id, recipe_id, stars) values
 		(tests.uid('anna'), tests.recipe('pasta-al-pomodoro'), 5),
 		(tests.uid('bruno'), tests.recipe('pasta-al-pomodoro'), 3),
@@ -1602,7 +1718,8 @@ select tests.login('bruno');
 select ok(app.can_access_week(tests.week('Rossi')), 'own week');
 select ok(not app.can_access_week(tests.week('Verdi')), 'other family''s week');
 select ok(not app.can_access_week(gen_random_uuid()), 'missing week');
-select ok(app.can_access_slot((select id from app.meal_slots where meal_type = 'lunch')), 'own slot');
+select ok(app.can_access_slot('c0c0c0c0-0000-4000-8000-000000000001'), 'own slot');
+select ok(not app.can_access_slot('c0c0c0c0-0000-4000-8000-000000000003'), 'other family''s slot');
 select ok(not app.can_access_slot(gen_random_uuid()), 'missing slot');
 select throws_ok(format($$select app.week_family_id(%L)$$, tests.week('Verdi')), '42501', null, 'the family of a week is not disclosed');
 select throws_ok(format($$select app.slot_family_id(%L)$$, gen_random_uuid()), '42501', null, 'nor the family of a slot');
@@ -1617,49 +1734,76 @@ select lives_ok($$insert into app.meal_slots (week_id, date, meal_type, free_tex
 	values (tests.week('Rossi'), '2026-10-13', 'lunch', 'Avanzi', 2)$$, 'member adds a meal');
 select throws_ok($$insert into app.meal_slots (week_id, date, meal_type, servings)
 	values (tests.week('Verdi'), '2026-10-13', 'lunch', 2)$$, '42501', null, 'not in another family');
-select is(tests.affected($$update app.meal_slots set servings = 4 where free_text = 'Pizza'$$), 0::bigint, 'cannot change Verdi meals');
-select is(tests.affected($$update app.meal_slots set servings = 3, updated_by = tests.uid('bruno') where meal_type = 'dinner'$$), 1::bigint, 'member changes a Rossi meal');
+select is(tests.affected($$update app.meal_slots set servings = 4 where id = 'c0c0c0c0-0000-4000-8000-000000000003'$$), 0::bigint, 'cannot change Verdi meals');
+select is(tests.affected($$update app.meal_slots set servings = 3, updated_by = tests.uid('bruno') where id = 'c0c0c0c0-0000-4000-8000-000000000002'$$), 1::bigint, 'member changes a Rossi meal');
 select throws_ok($$delete from app.meal_slots$$, '42501', null, 'meals are changed, not deleted');
 
--- Identity of weeks and slots is immutable (Anna is in two families)
+-- The date check reads no week the user cannot access: a date outside the week is
+-- refused in one's own week; in another family's week and in a missing one the
+-- refusal is the same, and tells nothing about that week
+select throws_ok($$insert into app.meal_slots (week_id, date, meal_type, servings)
+	values (tests.week('Rossi'), '2026-11-30', 'lunch', 2)$$, '23514', null, 'own week: date outside the week');
+select is(
+	tests.error_of(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi'))),
+	tests.error_of(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, gen_random_uuid())),
+	'another family''s week and a missing week give the same refusal');
+select matches(
+	tests.error_of(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi'))),
+	'^42501: ', 'the refusal is the row-level security one');
 reset role;
+select tests.become('app_job');
+select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi')),
+	'23514', null, 'the job keeps the date check on every family');
+
+-- Identity of weeks and slots is immutable: Anna, in Rossi and Bianchi, cannot move a
+-- meal or a week from one of her families to the other
+reset role;
+insert into app.weeks (id, family_id, starts_on) values ('b1b1b1b1-0000-4000-8000-000000000001', tests.family('Bianchi'), '2026-10-12');
 select tests.login('anna');
-select throws_ok(format($$update app.meal_slots set week_id = %L where meal_type = 'dinner'$$, tests.week('Verdi')), '42501', null, 'a meal cannot move to another week');
-select throws_ok($$update app.meal_slots set date = '2026-10-14' where meal_type = 'dinner'$$, '42501', null, 'a meal keeps its date');
-select throws_ok($$update app.meal_slots set meal_type = 'lunch' where meal_type = 'dinner'$$, '42501', null, 'a meal keeps its meal type');
-select throws_ok($$update app.weeks set starts_on = '2026-10-19'$$, '42501', null, 'a week keeps its Monday');
-select throws_ok(format($$update app.weeks set family_id = %L$$, tests.family('Bianchi')), '42501', null, 'a week keeps its family');
-select is(tests.affected(format($$update app.meal_slots set recipe_id = null, free_text = 'Pizza', note = 'swap' where meal_type = 'lunch' and week_id = %L$$, tests.week('Rossi'))), 1::bigint, 'a swap updates the contents');
+select ok(app.can_access_week('b1b1b1b1-0000-4000-8000-000000000001'), 'Anna reaches the Bianchi week');
+select throws_ok($$update app.meal_slots set week_id = 'b1b1b1b1-0000-4000-8000-000000000001' where id = 'c0c0c0c0-0000-4000-8000-000000000002'$$, '42501', null, 'a Rossi meal cannot move to a Bianchi week');
+select throws_ok($$update app.meal_slots set date = '2026-10-14' where id = 'c0c0c0c0-0000-4000-8000-000000000002'$$, '42501', null, 'a meal keeps its date');
+select throws_ok($$update app.meal_slots set meal_type = 'lunch' where id = 'c0c0c0c0-0000-4000-8000-000000000002'$$, '42501', null, 'a meal keeps its meal type');
+select throws_ok(format($$update app.weeks set starts_on = '2026-10-19' where id = %L$$, tests.week('Rossi')), '42501', null, 'a week keeps its Monday');
+select throws_ok(format($$update app.weeks set family_id = %L where id = %L$$, tests.family('Bianchi'), tests.week('Rossi')), '42501', null, 'a Rossi week cannot move to Bianchi');
+reset role;
+select is((select week_id from app.meal_slots where id = 'c0c0c0c0-0000-4000-8000-000000000002'), tests.week('Rossi'), 'the meal is still in Rossi');
+select is((select family_id from app.weeks where id = tests.week('Rossi')), tests.family('Rossi'), 'the week is still of Rossi');
+delete from app.weeks where id = 'b1b1b1b1-0000-4000-8000-000000000001';
+select tests.login('anna');
+select is(tests.affected($$update app.meal_slots set recipe_id = null, free_text = 'Pizza', note = 'swap' where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$), 1::bigint, 'a swap updates the contents');
 
 -- Change log
 reset role;
 select tests.login('bruno');
 select lives_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after)
-	select id, tests.uid('bruno'), 'mcp', '{}', '{}' from app.meal_slots where meal_type = 'dinner'$$, 'member logs a change');
+	values ('c0c0c0c0-0000-4000-8000-000000000002', tests.uid('bruno'), 'mcp', '{}', '{}')$$, 'member logs a change');
 select throws_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after)
-	select id, tests.uid('anna'), 'web', '{}', '{}' from app.meal_slots where meal_type = 'dinner'$$, '42501', null, 'only as oneself');
+	values ('c0c0c0c0-0000-4000-8000-000000000002', tests.uid('anna'), 'web', '{}', '{}')$$, '42501', null, 'only as oneself');
+select throws_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after)
+	values ('c0c0c0c0-0000-4000-8000-000000000003', tests.uid('bruno'), 'web', '{}', '{}')$$, '42501', null, 'not on another family''s slot');
 select throws_ok($$update app.meal_changes set after = '{"x": 1}'$$, '42501', null, 'change log is immutable');
 select throws_ok($$delete from app.meal_changes$$, '42501', null, 'change log is never deleted');
 select lives_ok($$insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
-	select '7d1f6f39-6f0e-4c4b-9b67-2f6c0c8a0001', id, tests.uid('bruno'), 'web', '{}', '{}' from app.meal_slots where meal_type = 'dinner'
+	values ('7d1f6f39-6f0e-4c4b-9b67-2f6c0c8a0001', 'c0c0c0c0-0000-4000-8000-000000000002', tests.uid('bruno'), 'web', '{}', '{}')
 	on conflict (id) do nothing$$, 'client id');
 select lives_ok($$insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
-	select '7d1f6f39-6f0e-4c4b-9b67-2f6c0c8a0001', id, tests.uid('bruno'), 'web', '{}', '{}' from app.meal_slots where meal_type = 'dinner'
+	values ('7d1f6f39-6f0e-4c4b-9b67-2f6c0c8a0001', 'c0c0c0c0-0000-4000-8000-000000000002', tests.uid('bruno'), 'web', '{}', '{}')
 	on conflict (id) do nothing$$, 'repeating it is harmless');
 select is((select count(*) from app.meal_changes where id = '7d1f6f39-6f0e-4c4b-9b67-2f6c0c8a0001'), 1::bigint, 'no duplicate');
 
 -- Undo: only a change of the same slot
-select lives_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after, undoes)
-	select id, tests.uid('bruno'), 'web', '{}', '{}', 'a1a1a1a1-0000-4000-8000-000000000001'
-	from app.meal_slots where week_id = tests.week('Rossi') and meal_type = 'lunch'$$, 'undo on the same slot');
+select lives_ok($$insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after, undoes)
+	values ('a1a1a1a1-0000-4000-8000-000000000002', 'c0c0c0c0-0000-4000-8000-000000000001', tests.uid('bruno'), 'web', '{}', '{}',
+		'a1a1a1a1-0000-4000-8000-000000000001')$$, 'undo on the same slot');
 select throws_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after, undoes)
-	select id, tests.uid('bruno'), 'web', '{}', '{}', 'a1a1a1a1-0000-4000-8000-000000000001'
-	from app.meal_slots where week_id = tests.week('Rossi') and meal_type = 'dinner'$$, '23503', null, 'undo on another slot');
+	values ('c0c0c0c0-0000-4000-8000-000000000002', tests.uid('bruno'), 'web', '{}', '{}', 'a1a1a1a1-0000-4000-8000-000000000001')$$,
+	'23503', null, 'undo on another slot');
 reset role;
 select tests.login('franco');
 select throws_ok($$insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after, undoes)
-	select id, tests.uid('franco'), 'web', '{}', '{}', 'a1a1a1a1-0000-4000-8000-000000000001'
-	from app.meal_slots where week_id = tests.week('Verdi')$$, '23503', null, 'undo across families');
+	values ('c0c0c0c0-0000-4000-8000-000000000003', tests.uid('franco'), 'web', '{}', '{}', 'a1a1a1a1-0000-4000-8000-000000000001')$$,
+	'23503', null, 'undo across families');
 
 -- Ratings
 reset role;
@@ -1685,11 +1829,13 @@ select is((select average from app.global_scores where recipe_id = tests.recipe(
 reset role;
 select tests.login('bruno');
 select ok(app.can_access_week(tests.week('Rossi')), 'before removal');
+select is((select name ->> 'it-IT' from app.recipes where id = tests.recipe('new-draft')), 'Bozza nuova', 'the cited draft before removal');
 reset role;
 delete from app.family_members where user_id = tests.uid('bruno');
 set local role authenticated;
 select ok(not app.can_access_week(tests.week('Rossi')), 'after removal, same token');
 select is((select count(*) from app.meal_slots), 0::bigint, 'no meals after removal');
+select is((select count(*) from app.recipes where id = tests.recipe('new-draft')), 0::bigint, 'the cited draft is hidden after removal');
 
 -- Integrity, as owner
 reset role;
@@ -1715,7 +1861,9 @@ select is(app.recipe_version_at(tests.recipe('new-draft'), '2026-10-11 12:00+02'
 -- Deletions: users leave the log as "former member"; families go with their log
 delete from auth.users where id = tests.uid('anna');
 select is((select count(*) from app.meal_changes where actor_id is null), 1::bigint, 'change kept, actor cleared');
+select is((select count(*) from app.meal_changes where undoes = 'a1a1a1a1-0000-4000-8000-000000000001'), 1::bigint, 'the undo chain exists');
 select lives_ok($$delete from app.families where name = 'test-Rossi'$$, 'a family with undo chains can be deleted');
+select is((select count(*) from app.meal_changes where id::text like 'a1a1a1a1-%'), 0::bigint, 'the chain went with the family');
 
 select * from finish();
 rollback;
@@ -1761,12 +1909,18 @@ create table app.meal_slots (
 );
 create index meal_slots_recipe on app.meal_slots (recipe_id);
 
+-- Security invoker on purpose: the week is read with the caller's RLS. A week the user
+-- cannot access (another family's or missing) is not found, the check is skipped and
+-- the insert fails on the policy in both cases alike; the job sees every week.
 create function app.check_meal_slot_date()
-returns trigger language plpgsql security definer set search_path = '' as $$
+returns trigger language plpgsql set search_path = '' as $$
 declare
 	v_starts_on date;
 begin
 	select starts_on into v_starts_on from app.weeks where id = new.week_id;
+	if v_starts_on is null then
+		return new;
+	end if;
 	if new.date < v_starts_on or new.date > v_starts_on + 6 then
 		raise exception 'meal date % outside the week starting %', new.date, v_starts_on using errcode = '23514';
 	end if;
@@ -2468,9 +2622,10 @@ deve stampare `0`; se no, `supabase db reset`.
 
 ```sql
 -- Version counters for the "unchanged" reads (spec section 1): one per family, one
--- for the catalogue. Contract with W1: at most one bump per transaction that changes
--- the data read. Row triggers, deduplicated by transaction id; a rollback undoes the
--- bump with the rest.
+-- for the catalogue. Contract with W1: at most one bump per transaction; a write with
+-- no effect (zero rows, same values) may bump anyway: one extra invalidation, never
+-- stale data. Triggers deduplicated by transaction id; a rollback undoes the bump with
+-- the rest.
 
 create table app.catalogue_state (
 	id boolean primary key default true check (id),
@@ -2695,7 +2850,7 @@ select is(
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE') order by 1),
-	array['can_access_list', 'can_access_slot', 'can_access_week', 'has_role', 'is_family_admin',
+	array['can_access_list', 'can_access_slot', 'can_access_week', 'catalogue_author_names', 'has_role', 'is_family_admin',
 		'is_localized_list', 'is_localized_text', 'is_member', 'meal_passed_at', 'recipe_version_at',
 		'session_is_active', 'shares_family', 'unit_dimension'],
 	'authenticated executes only authorisation and pure functions');
@@ -2947,44 +3102,60 @@ commit;
 ```bash
 #!/usr/bin/env bash
 # Local check of bootstrap.sql: homonymous family, rerun after a rename, missing user.
-# Needs the local database (supabase db start). Leaves no data behind.
+# Needs the local database (supabase db start). Touches only the families and the user
+# it creates, by id and email: a stranger family with the same names survives.
 set -euo pipefail
 export PATH=/opt/podman/bin:$PATH
 DB=supabase_db_meal_planner_2
 SCRIPT="$(dirname "$0")/bootstrap.sql"
-FAMILY_ID=7b3c8a52-5d0e-4f43-9a51-6c1f0e2a9b10
+FAMILY_ID=7b3c8a52-5d0e-4f43-9a51-6c1f0e2a9b10    # declared in the input
+HOMONYM_ID=7b3c8a52-5d0e-4f43-9a51-6c1f0e2a9b11   # same name, created before the run
+STRANGER_ID=7b3c8a52-5d0e-4f43-9a51-6c1f0e2a9b12  # same names, must survive the cleanup
 
 psql_db() { podman exec -i "$DB" psql -U postgres -v ON_ERROR_STOP=1 -tAq "$@"; }
+# Only the input values change; the checks of the script stay as they are.
 fill() {
-	sed -e "s/person@example.com/$1/" \
-		-e "s/00000000-0000-0000-0000-000000000000/$FAMILY_ID/" \
-		-e "s/'Family name'/'Bootstrap test'/" "$SCRIPT"
+	sed -e "/^insert into input_family values/s/'00000000-0000-0000-0000-000000000000'/'$FAMILY_ID'/" \
+		-e "/^insert into input_family values/s/'Family name'/'Bootstrap test'/" \
+		-e "/^	('person@example.com'/s/'person@example.com'/'$1'/" "$SCRIPT"
 }
 check() {
 	if [ "$2" != "$3" ]; then echo "FAIL: $1 (expected $3, got $2)"; exit 1; fi
 	echo "ok: $1"
 }
 cleanup() {
-	psql_db -c "delete from app.families where id = '$FAMILY_ID' or name in ('Bootstrap test', 'Renamed');
+	psql_db -c "delete from app.families where id in ('$FAMILY_ID', '$HOMONYM_ID');
 		delete from auth.users where email = 'bootstrap@test.local';" >/dev/null
 }
-trap cleanup EXIT
+remove_stranger() {
+	psql_db -c "delete from app.families where id = '$STRANGER_ID'" >/dev/null
+}
+trap 'cleanup; remove_stranger' EXIT
 cleanup
+remove_stranger
 
-# A homonymous family already exists
+# A homonymous family and a stranger with the same names already exist
 psql_db -c "insert into auth.users (id, email, aud, role) values (gen_random_uuid(), 'bootstrap@test.local', 'authenticated', 'authenticated');
-	insert into app.families (name) values ('Bootstrap test');" >/dev/null
+	insert into app.families (id, name) values ('$HOMONYM_ID', 'Bootstrap test'), ('$STRANGER_ID', 'Bootstrap test');" >/dev/null
+
+# The script with only the email filled in refuses the placeholder id
+if out=$(sed -e "/^	('person@example.com'/s/'person@example.com'/'bootstrap@test.local'/" "$SCRIPT" | psql_db 2>&1); then
+	echo "FAIL: placeholder id accepted"; exit 1
+fi
+case "$out" in *"write the family id first"*) echo "ok: placeholder id refused" ;; *) echo "FAIL: unexpected error: $out"; exit 1 ;; esac
+check "nothing written with the placeholder" "$(psql_db -c "select count(*) from app.family_members m join auth.users u on u.id = m.user_id where u.email = 'bootstrap@test.local'")" 0
 
 fill bootstrap@test.local | psql_db >/dev/null
 check "family created with the declared id" "$(psql_db -c "select count(*) from app.families where id = '$FAMILY_ID'")" 1
-check "homonym left without members" "$(psql_db -c "select count(*) from app.family_members m join app.families f on f.id = m.family_id where f.name = 'Bootstrap test' and f.id <> '$FAMILY_ID'")" 0
+check "homonyms left without members" "$(psql_db -c "select count(*) from app.family_members where family_id in ('$HOMONYM_ID', '$STRANGER_ID')")" 0
 check "membership on the declared family" "$(psql_db -c "select role from app.family_members where family_id = '$FAMILY_ID'")" family_admin
 
 # Rerun after a rename
 psql_db -c "update app.families set name = 'Renamed' where id = '$FAMILY_ID'" >/dev/null
 fill bootstrap@test.local | psql_db >/dev/null
 check "rerun keeps the renamed family" "$(psql_db -c "select name from app.families where id = '$FAMILY_ID'")" Renamed
-check "rerun creates no family" "$(psql_db -c "select count(*) from app.families where name in ('Bootstrap test', 'Renamed')")" 2
+check "rerun creates no family" "$(psql_db -c "select count(*) from app.families where id in ('$FAMILY_ID', '$HOMONYM_ID', '$STRANGER_ID')")" 3
+check "rerun adds no family with those names" "$(psql_db -c "select count(*) from app.families where name in ('Bootstrap test', 'Renamed') and id not in ('$FAMILY_ID', '$HOMONYM_ID', '$STRANGER_ID')")" 0
 check "rerun duplicates no membership" "$(psql_db -c "select count(*) from app.family_members where family_id = '$FAMILY_ID'")" 1
 check "global roles assigned once" "$(psql_db -c "select count(*) from app.user_roles r join auth.users u on u.id = r.user_id where u.email = 'bootstrap@test.local'")" 2
 
@@ -2994,6 +3165,11 @@ if fill nobody@test.local | psql_db >/dev/null 2>&1; then echo "FAIL: missing us
 echo "ok: missing user refused"
 check "nothing written for the missing user" "$(psql_db -c "select count(*) from app.families where id = '$FAMILY_ID'")" 0
 
+# The cleanup removes only what the test created
+cleanup
+check "test families removed" "$(psql_db -c "select count(*) from app.families where id in ('$FAMILY_ID', '$HOMONYM_ID')")" 0
+check "stranger family survives the cleanup" "$(psql_db -c "select name from app.families where id = '$STRANGER_ID'")" "Bootstrap test"
+
 echo "bootstrap: all checks passed"
 ```
 
@@ -3002,7 +3178,9 @@ chmod +x supabase/scripts/bootstrap_test.sh
 supabase/scripts/bootstrap_test.sh
 ```
 
-Atteso: tutte le righe `ok:` e `bootstrap: all checks passed`.
+Atteso: tutte le righe `ok:` e `bootstrap: all checks passed`; poi
+`podman exec -i supabase_db_meal_planner_2 psql -U postgres -tAc "select count(*) from app.families where id::text like '7b3c8a52-%'"`
+stampa `0`.
 
 - [ ] **Step 9: Completa il README**
 
