@@ -17,6 +17,16 @@ export interface WorkerDeps {
   origin: string;
 }
 
+/**
+ * Cloudflare's assets answer /index.html with a redirect to /: the followed redirect stays marked on
+ * the response, and the browser refuses a redirected response for a navigation. Stored as a plain
+ * response, whatever the host does (W6 test on the real stack).
+ */
+async function withoutRedirect(response: Response): Promise<Response> {
+  if (!response.redirected) return response;
+  return new Response(await response.blob(), { status: response.status, statusText: response.statusText, headers: response.headers });
+}
+
 /** All or nothing: a missing file fails the install, the partial cache goes and the previous version stays. */
 export async function install({ caches, fetch, version }: WorkerDeps): Promise<void> {
   const name = cacheName(version);
@@ -28,7 +38,7 @@ export async function install({ caches, fetch, version }: WorkerDeps): Promise<v
       urls.map(async (url) => {
         const response = await fetch(url, { cache: 'reload' });
         if (!response.ok) throw new Error(`precache ${url}: ${response.status}`);
-        return [url, response] as const;
+        return [url, await withoutRedirect(response)] as const;
       })
     );
     const cache = await caches.open(name);
