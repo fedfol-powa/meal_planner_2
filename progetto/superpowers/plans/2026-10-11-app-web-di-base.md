@@ -110,7 +110,7 @@ Review: `progetto/coordinamento/revisioni/w5-pr6.md`; scelte tecniche del coordi
 - Test (`persister.test.ts`, su archivio in memoria e su IndexedDB): revoca contemporanea di due famiglie; nuova revoca concorrente con la rimozione del vecchio segno, nei due ordini; poi scrittura tardiva di una scheda ignara e ripristino ⇒ le famiglie revocate non tornano. Venti transazioni «leggi e incrementa» concorrenti su IndexedDB ⇒ contatore a 20.
 
 **C12. Lingua fissa per lettura (rilievo 3; C3).**
-- `CreateApi = (user, locale) => Api`: un client per lingua, creato da `SessionScope` alla prima richiesta in quella lingua. La lettura usa il client della lingua in cui è partita, e `session.call` ne ripete la stessa funzione: anche il tentativo dopo il rinnovo resta nella lingua di partenza. Il client finto usa quella lingua per dati e versione.
+- Un client per lingua, creato da `SessionScope` alla prima richiesta in quella lingua (firma di `CreateApi` in C13). La lettura usa il client della lingua in cui è partita, e `session.call` ne ripete la stessa funzione: anche il tentativo dopo il rinnovo resta nella lingua di partenza. Il client finto usa quella lingua per dati e versione.
 - `wrapApi(api, session, { locale, isCurrent })`: se all'arrivo della risposta la lingua mostrata è cambiata, annulla con `cancelQueries` le letture di quella lingua (`localeOfKey`), che tornano allo stato precedente senza scrivere in cache.
 - Test (`SessionScope.test.tsx`): lettura italiana rifiutata → rinnovo sospeso → passaggio all'inglese → rinnovo riuscito ⇒ nessun dato sotto la chiave italiana, in memoria e nella copia salvata; ritorno all'italiano ⇒ testo italiano; ripristino ⇒ ogni lingua ha il suo testo.
 
@@ -6742,3 +6742,8 @@ Scrivere al coordinatore l'indirizzo, chiedendo la prova su iPhone di resa e ins
 git add web/README.md
 git commit -m "Web: README con comandi, modalità, sessione e limiti del service worker sulla rete locale"
 ```
+
+**C13. Stato finto condiviso dalle lingue (seconda review della PR #6, rilievo 1; regressione di C12).**
+- `CreateApi = (user) => (locale) => Api`: il primo passo si esegue una volta per sessione, il secondo una volta per lingua; i client delle lingue condividono quello che il primo passo ha creato.
+- `createFakeData(user)` tiene settimane, ricette, voti e contatore di versione; `createFakeApi({ getLocale, data })` ci costruisce sopra il client di una lingua (senza `data` ne crea uno nuovo, come prima). `fakeClients({ latencyMs })` è la `CreateApi` della modalità finta e dei test. Restano la lingua fissa per richiesta e lo scarto delle risposte superate di C12.
+- Test: `SessionScope.test.tsx`, voto di 1 stella in italiano → inglese → italiano, con scheda ricetta, settimana del Menu e lista del Ricettario sempre a 1; voto di 5 stelle in inglese, coerente dopo rilettura, nella copia salvata e al ripristino in entrambe le lingue (fallisce sul codice di C12). `fakeApi.test.ts`: due lingue della stessa sessione condividono voto e contatore, ciascuna risponde nella sua lingua; un'altra sessione riparte dai dati demo.
