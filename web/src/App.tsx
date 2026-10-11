@@ -1,5 +1,5 @@
 import { RouterProvider, type RouterHistory } from '@tanstack/react-router';
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react';
 import type { KeyValueStore } from './api/persister';
 import type { AuthBackend } from './auth/backend';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
@@ -21,11 +21,13 @@ export interface AppRootProps {
 }
 
 export function AppRoot({ backend, store, createApi, channel, history, initialLocale: locale, children }: AppRootProps) {
+  // Above the session, which remounts its children at each change of person.
+  const hadSession = useRef(false);
   return (
     <LocaleProvider initial={locale ?? initialLocale(navigator.languages)}>
       <AuthProvider backend={backend}>
         <SessionScope store={store} createApi={createApi} channel={channel}>
-          <AppRouter history={history} />
+          <AppRouter history={history} hadSession={hadSession} />
           {children}
         </SessionScope>
       </AuthProvider>
@@ -33,13 +35,15 @@ export function AppRoot({ backend, store, createApi, channel, history, initialLo
   );
 }
 
-function AppRouter({ history }: { history?: RouterHistory }) {
+function AppRouter({ history, hadSession }: { history?: RouterHistory; hadSession: RefObject<boolean> }) {
   const { state } = useAuth();
   const router = useMemo(() => createAppRouter(history), [history]);
+  // After Esci (or a session closed elsewhere) the last page belongs to the previous person (W6 real-stack test).
+  if (state.status === 'signedIn') hadSession.current = true;
   // Signing in or out re-runs the guards, which redirect on their own.
   useEffect(() => {
     void router.invalidate();
   }, [state, router]);
   if (state.status === 'loading') return null;
-  return <RouterProvider router={router} context={{ auth: state }} />;
+  return <RouterProvider router={router} context={{ auth: state, sessionEnded: state.status === 'signedOut' && hadSession.current }} />;
 }
