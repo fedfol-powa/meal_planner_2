@@ -15,1701 +15,2187 @@
    "name": {
     "it-IT": "Riso basmati",
     "en-GB": "Basmati rice"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "petto-di-pollo",
    "name": {
     "it-IT": "Petto di pollo",
     "en-GB": "Chicken breast"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "peperone-rosso",
    "name": {
     "it-IT": "Peperone rosso",
     "en-GB": "Red pepper"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "peperone-giallo",
    "name": {
     "it-IT": "Peperone giallo",
     "en-GB": "Yellow pepper"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "carote",
    "name": {
     "it-IT": "Carote",
     "en-GB": "Carrots"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "zucchine",
    "name": {
     "it-IT": "Zucchine",
     "en-GB": "Courgettes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "melanzana-piccola",
    "name": {
     "it-IT": "Melanzana piccola",
     "en-GB": "Small aubergine"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-rossa-di-tropea-o-1-cipollotto",
    "name": {
     "it-IT": "Cipolla rossa di Tropea (o 1 cipollotto)",
     "en-GB": "Tropea red onion (or 1 spring onion)"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "salsa-di-soia-senza-glutine",
    "name": {
     "it-IT": "Salsa di soia (senza glutine)",
     "en-GB": "Soy sauce (gluten-free)"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "mezze-penne",
    "name": {
     "it-IT": "Mezze penne",
     "en-GB": "Mezze penne"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "pomodori-ramati",
    "name": {
     "it-IT": "Pomodori ramati",
     "en-GB": "Vine tomatoes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-piccola",
    "name": {
     "it-IT": "Cipolla piccola",
     "en-GB": "Small onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "peperoncino",
    "name": {
     "it-IT": "Peperoncino",
     "en-GB": "Chilli"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "aglio",
    "name": {
     "it-IT": "Aglio",
     "en-GB": "Garlic"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "basilico",
    "name": {
     "it-IT": "Basilico",
     "en-GB": "Basil"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "ricotta",
    "name": {
     "it-IT": "Ricotta",
     "en-GB": "Ricotta"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "uova",
    "name": {
     "it-IT": "Uova",
     "en-GB": "Eggs"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "bietole-gia-cotte",
    "name": {
     "it-IT": "Bietole gia' cotte",
     "en-GB": "Cooked chard"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "ricotta-vaccina",
    "name": {
     "it-IT": "Ricotta vaccina",
     "en-GB": "Cow's milk ricotta"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pecorino-romano-grattugiato-o-parmigiano",
    "name": {
     "it-IT": "Pecorino romano grattugiato (o Parmigiano)",
     "en-GB": "Grated Pecorino Romano (or Parmesan)"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "noodles-di-grano-o-di-riso",
    "name": {
     "it-IT": "Noodles di grano (o di riso)",
     "en-GB": "Wheat noodles (or rice noodles)"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "cipolla",
    "name": {
     "it-IT": "Cipolla",
     "en-GB": "Onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "peperone",
    "name": {
     "it-IT": "Peperone",
     "en-GB": "Pepper"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "carota",
    "name": {
     "it-IT": "Carota",
     "en-GB": "Carrot"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "zucchina",
    "name": {
     "it-IT": "Zucchina",
     "en-GB": "Courgette"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "salsa-d-ostriche-facoltativa",
    "name": {
     "it-IT": "Salsa d'ostriche",
     "en-GB": "Oyster sauce"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "salsa-di-soia",
    "name": {
     "it-IT": "Salsa di soia",
     "en-GB": "Soy sauce"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "curry-in-polvere-facoltativo",
    "name": {
     "it-IT": "Curry in polvere",
     "en-GB": "Curry powder"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "aglio-in-polvere",
    "name": {
     "it-IT": "Aglio in polvere",
     "en-GB": "Garlic powder"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "filetti-di-merluzzo",
    "name": {
     "it-IT": "Filetti di merluzzo",
     "en-GB": "Cod fillets"
-   }
+   },
+   "department": "fish",
+   "isPantry": false
   },
   {
    "id": "pomodori-ciliegini-o-pomodorini",
    "name": {
     "it-IT": "Pomodori ciliegini (o pomodorini)",
     "en-GB": "Cherry tomatoes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "concentrato-di-pomodoro",
    "name": {
     "it-IT": "Concentrato di pomodoro",
     "en-GB": "Tomato purée"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "cipollotto",
    "name": {
     "it-IT": "Cipollotto",
     "en-GB": "Spring onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "olive-taggiasche",
    "name": {
     "it-IT": "Olive taggiasche",
     "en-GB": "Taggiasca olives"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "cous-cous",
    "name": {
     "it-IT": "Cous cous",
     "en-GB": "Couscous"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "zafferano",
    "name": {
     "it-IT": "Zafferano",
     "en-GB": "Saffron"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "basilico-fresco",
    "name": {
     "it-IT": "Basilico fresco",
     "en-GB": "Fresh basil"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "mandorle",
    "name": {
     "it-IT": "Mandorle",
     "en-GB": "Almonds"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "piadine-integrali-da-50-g-ciascuna",
    "name": {
     "it-IT": "Piadine integrali (da 50 g ciascuna)",
     "en-GB": "Wholemeal flatbreads (50 g each)"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "peperoncino-fresco-dolce",
    "name": {
     "it-IT": "Peperoncino fresco dolce",
     "en-GB": "Fresh mild chilli"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "lattuga-iceberg",
    "name": {
     "it-IT": "Lattuga iceberg",
     "en-GB": "Iceberg lettuce"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "barbabietole",
    "name": {
     "it-IT": "Barbabietole",
     "en-GB": "Beetroot"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "emmentaler-8-fette",
    "name": {
     "it-IT": "Emmentaler (8 fette)",
     "en-GB": "Emmental (8 slices)"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "ceci-precotti",
    "name": {
     "it-IT": "Ceci precotti",
     "en-GB": "Pre-cooked chickpeas"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "prezzemolo",
    "name": {
     "it-IT": "Prezzemolo",
     "en-GB": "Parsley"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "tabasco",
    "name": {
     "it-IT": "Tabasco",
     "en-GB": "Tabasco"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "succo-di-limone",
    "name": {
     "it-IT": "Succo di limone",
     "en-GB": "Lemon juice"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "paprika-piccante",
    "name": {
     "it-IT": "Paprika piccante",
     "en-GB": "Hot paprika"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "tahina",
    "name": {
     "it-IT": "Tahina",
     "en-GB": "Tahini"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "pane-casereccio-tipo-toscano",
    "name": {
     "it-IT": "Pane casereccio (tipo toscano)",
     "en-GB": "Rustic bread (Tuscan style)"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "code-di-gambero",
    "name": {
     "it-IT": "Code di gambero",
     "en-GB": "Prawn tails"
-   }
+   },
+   "department": "fish",
+   "isPantry": false
   },
   {
    "id": "vino-bianco-secco",
    "name": {
     "it-IT": "Vino bianco secco",
     "en-GB": "Dry white wine"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "scalogno",
    "name": {
     "it-IT": "Scalogno",
     "en-GB": "Shallot"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "uova-medie",
    "name": {
     "it-IT": "Uova medie",
     "en-GB": "Medium eggs"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pomodorini-perini",
    "name": {
     "it-IT": "Pomodorini perini",
     "en-GB": "Plum cherry tomatoes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-dorata",
    "name": {
     "it-IT": "Cipolla dorata",
     "en-GB": "Brown onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "olio-extravergine-d-oliva",
    "name": {
     "it-IT": "Olio extravergine d'oliva",
     "en-GB": "Extra virgin olive oil"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "sale-fino",
    "name": {
     "it-IT": "Sale fino",
     "en-GB": "Fine salt"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "pepe-nero",
    "name": {
     "it-IT": "Pepe nero",
     "en-GB": "Black pepper"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "melanzane",
    "name": {
     "it-IT": "Melanzane",
     "en-GB": "Aubergines"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pangrattato",
    "name": {
     "it-IT": "Pangrattato",
     "en-GB": "Breadcrumbs"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "uovo",
    "name": {
     "it-IT": "Uovo",
     "en-GB": "Egg"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "caciocavallo-grattugiato",
    "name": {
     "it-IT": "Caciocavallo grattugiato",
     "en-GB": "Grated caciocavallo"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "noce-moscata",
    "name": {
     "it-IT": "Noce moscata",
     "en-GB": "Nutmeg"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "sale-e-pepe",
    "name": {
     "it-IT": "Sale e pepe",
     "en-GB": "Salt and pepper"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "pappardelle",
    "name": {
     "it-IT": "Pappardelle",
     "en-GB": "Pappardelle"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "burro",
    "name": {
     "it-IT": "Burro",
     "en-GB": "Butter"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "parmigiano",
    "name": {
     "it-IT": "Parmigiano",
     "en-GB": "Parmesan"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pasta",
    "name": {
     "it-IT": "Pasta",
     "en-GB": "Pasta"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "pesto-alla-genovese",
    "name": {
     "it-IT": "Pesto alla genovese",
     "en-GB": "Genoese pesto"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "hamburger-di-cavallo",
    "name": {
     "it-IT": "Hamburger di cavallo",
     "en-GB": "Horse meat burgers"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "panini-per-hamburger",
    "name": {
     "it-IT": "Panini per hamburger",
     "en-GB": "Burger buns"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "tonno-sott-olio",
    "name": {
     "it-IT": "Tonno sott'olio",
     "en-GB": "Tuna in oil"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "alici",
    "name": {
     "it-IT": "Alici",
     "en-GB": "Anchovies"
-   }
+   },
+   "department": "fish",
+   "isPantry": false
   },
   {
    "id": "passata-di-pomodoro",
    "name": {
     "it-IT": "Passata di pomodoro",
     "en-GB": "Tomato passata"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "sugo-di-pesce",
    "name": {
     "it-IT": "Sugo di pesce",
     "en-GB": "Fish sauce for pasta"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "pasta-fresca",
    "name": {
     "it-IT": "Pasta fresca",
     "en-GB": "Fresh pasta"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "penne-rigate",
    "name": {
     "it-IT": "Penne rigate",
     "en-GB": "Penne rigate"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "panna-fresca",
    "name": {
     "it-IT": "Panna fresca",
     "en-GB": "Fresh cream"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "prosciutto-cotto",
    "name": {
     "it-IT": "Prosciutto cotto",
     "en-GB": "Cooked ham"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pomodori-pelati",
    "name": {
     "it-IT": "Pomodori pelati",
     "en-GB": "Peeled tomatoes"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "sale",
    "name": {
     "it-IT": "Sale",
     "en-GB": "Salt"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "rigatoni",
    "name": {
     "it-IT": "Rigatoni",
     "en-GB": "Rigatoni"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "zucca-a-pezzetti",
    "name": {
     "it-IT": "Zucca a pezzetti",
     "en-GB": "Diced squash"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "salsicce",
    "name": {
     "it-IT": "Salsicce",
     "en-GB": "Sausages"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "robiola",
    "name": {
     "it-IT": "Robiola",
     "en-GB": "Robiola"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "orecchiette",
    "name": {
     "it-IT": "Orecchiette",
     "en-GB": "Orecchiette"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "broccolo",
    "name": {
     "it-IT": "Broccolo",
     "en-GB": "Broccoli"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "paccheri",
    "name": {
     "it-IT": "Paccheri",
     "en-GB": "Paccheri"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "peperoni-rossi",
    "name": {
     "it-IT": "Peperoni rossi",
     "en-GB": "Red peppers"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "latte",
    "name": {
     "it-IT": "Latte",
     "en-GB": "Milk"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "tonno",
    "name": {
     "it-IT": "Tonno",
     "en-GB": "Tuna"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "limone",
    "name": {
     "it-IT": "Limone",
     "en-GB": "Lemon"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "filetti-di-branzino",
    "name": {
     "it-IT": "Filetti di branzino",
     "en-GB": "Sea bass fillets"
-   }
+   },
+   "department": "fish",
+   "isPantry": false
   },
   {
    "id": "sovracosce-di-pollo-disossate-e-spellate",
    "name": {
     "it-IT": "Sovracosce di pollo disossate e spellate",
     "en-GB": "Boneless skinless chicken thighs"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "pane-durum-misura-l-30-cm",
    "name": {
     "it-IT": "Pane durum misura L (30 cm)",
     "en-GB": "Durum flatbread, size L (30 cm)"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "fagioli-rossi-in-scatola",
    "name": {
     "it-IT": "Fagioli rossi in scatola",
     "en-GB": "Tinned kidney beans"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "cumino-in-polvere",
    "name": {
     "it-IT": "Cumino in polvere",
     "en-GB": "Ground cumin"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "succo-di-lime",
    "name": {
     "it-IT": "Succo di lime",
     "en-GB": "Lime juice"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "guacamole-pagina-185-del-libro",
    "name": {
     "it-IT": "Guacamole (pagina 185 del libro)",
     "en-GB": "Guacamole (page 185 of the book)"
-   }
+   },
+   "department": "other",
+   "isPantry": false
   },
   {
    "id": "patata-dolce-arrosto-pagina-189-del-libro",
    "name": {
     "it-IT": "Patata dolce arrosto (pagina 189 del libro)",
     "en-GB": "Roast sweet potato (page 189 of the book)"
-   }
+   },
+   "department": "other",
+   "isPantry": false
   },
   {
    "id": "mais-in-scatola",
    "name": {
     "it-IT": "Mais in scatola",
     "en-GB": "Tinned sweetcorn"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "straccetti-vegani-tex-mex",
    "name": {
     "it-IT": "Straccetti vegani tex-mex",
     "en-GB": "Tex-Mex vegan strips"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "cipolla-rossa",
    "name": {
     "it-IT": "Cipolla rossa",
     "en-GB": "Red onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "coriandolo",
    "name": {
     "it-IT": "Coriandolo",
     "en-GB": "Coriander"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "insalata",
    "name": {
     "it-IT": "Insalata",
     "en-GB": "Salad leaves"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "peperoncino-verde",
    "name": {
     "it-IT": "Peperoncino verde",
     "en-GB": "Green chilli"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pane-libanese",
    "name": {
     "it-IT": "Pane libanese",
     "en-GB": "Lebanese bread"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "caviale-di-melanzane",
    "name": {
     "it-IT": "Caviale di melanzane",
     "en-GB": "Aubergine caviar"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "melanzana-grigliata",
    "name": {
     "it-IT": "Melanzana grigliata",
     "en-GB": "Grilled aubergine"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "peperone-grigliato",
    "name": {
     "it-IT": "Peperone grigliato",
     "en-GB": "Grilled pepper"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "feta",
    "name": {
     "it-IT": "Feta",
     "en-GB": "Feta"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pickles-di-cavolo-rosso-pagina-182-del-libro",
    "name": {
     "it-IT": "Pickles di cavolo rosso (pagina 182 del libro)",
     "en-GB": "Pickled red cabbage (page 182 of the book)"
-   }
+   },
+   "department": "other",
+   "isPantry": false
   },
   {
    "id": "uvetta",
    "name": {
     "it-IT": "Uvetta",
     "en-GB": "Raisins"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "menta",
    "name": {
     "it-IT": "Menta",
     "en-GB": "Mint"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "carne-di-maiale-macinata",
    "name": {
     "it-IT": "Carne di maiale macinata",
     "en-GB": "Minced pork"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "riso-bianco-per-sushi",
    "name": {
     "it-IT": "Riso bianco per sushi",
     "en-GB": "White sushi rice"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "olio-di-semi-di-colza",
    "name": {
     "it-IT": "Olio di semi di colza",
     "en-GB": "Rapeseed oil"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "curry-o-garam-masala",
    "name": {
     "it-IT": "Curry o garam masala",
     "en-GB": "Curry powder or garam masala"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "salsa-base-giapponese-pagina-24-del-libro",
    "name": {
     "it-IT": "Salsa base giapponese (pagina 24 del libro)",
     "en-GB": "Japanese base sauce (page 24 of the book)"
-   }
+   },
+   "department": "other",
+   "isPantry": false
   },
   {
    "id": "peperone-verde",
    "name": {
     "it-IT": "Peperone verde",
     "en-GB": "Green pepper"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "kimchi-veloce-pagina-36-del-libro",
    "name": {
     "it-IT": "Kimchi veloce (pagina 36 del libro)",
     "en-GB": "Quick kimchi (page 36 of the book)"
-   }
+   },
+   "department": "other",
+   "isPantry": false
   },
   {
    "id": "montasio",
    "name": {
     "it-IT": "Montasio",
     "en-GB": "Montasio"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "spinacini-freschi",
    "name": {
     "it-IT": "Spinacini freschi",
     "en-GB": "Fresh baby spinach"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pepe",
    "name": {
     "it-IT": "Pepe",
     "en-GB": "Pepper (spice)"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "farina-00",
    "name": {
     "it-IT": "Farina 00",
     "en-GB": "Type 00 flour"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "limoni-medi",
    "name": {
     "it-IT": "Limoni medi",
     "en-GB": "Medium lemons"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "acqua",
    "name": {
     "it-IT": "Acqua",
     "en-GB": "Water"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "prezzemolo-o-altre-erbe-aromatiche",
    "name": {
     "it-IT": "Prezzemolo o altre erbe aromatiche",
     "en-GB": "Parsley or other herbs"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "riso",
    "name": {
     "it-IT": "Riso",
     "en-GB": "Rice"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "zucca-pulita",
    "name": {
     "it-IT": "Zucca pulita",
     "en-GB": "Prepared squash"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "lenticchie-cotte",
    "name": {
     "it-IT": "Lenticchie cotte",
     "en-GB": "Cooked lentils"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "broccoli",
    "name": {
     "it-IT": "Broccoli",
     "en-GB": "Broccoli florets"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "gamberi-freschi-puliti",
    "name": {
     "it-IT": "Gamberi freschi puliti",
     "en-GB": "Fresh peeled prawns"
-   }
+   },
+   "department": "fish",
+   "isPantry": false
   },
   {
    "id": "riso-integrale",
    "name": {
     "it-IT": "Riso integrale",
     "en-GB": "Brown rice"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "zenzero-fresco",
    "name": {
     "it-IT": "Zenzero fresco",
     "en-GB": "Fresh ginger"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "riso-jasmine",
    "name": {
     "it-IT": "Riso jasmine",
     "en-GB": "Jasmine rice"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "piselli",
    "name": {
     "it-IT": "Piselli",
     "en-GB": "Peas"
-   }
+   },
+   "department": "frozen",
+   "isPantry": false
   },
   {
    "id": "prosciutto-cotto-a-dadini",
    "name": {
     "it-IT": "Prosciutto cotto a dadini",
     "en-GB": "Diced cooked ham"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "fagioli-borlotti-o-cannellini-lessati-o-in-scatola-sgocciolati",
    "name": {
     "it-IT": "Fagioli borlotti o cannellini, lessati o in scatola sgocciolati",
     "en-GB": "Borlotti or cannellini beans, boiled or tinned and drained"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "brodo-vegetale",
    "name": {
     "it-IT": "Brodo vegetale",
     "en-GB": "Vegetable stock"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "guanciale-a-listarelle",
    "name": {
     "it-IT": "Guanciale a listarelle",
     "en-GB": "Guanciale strips"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "piadine",
    "name": {
     "it-IT": "Piadine",
     "en-GB": "Flatbreads"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "pollo-gia-cotto",
    "name": {
     "it-IT": "Pollo già cotto",
     "en-GB": "Cooked chicken"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "hummus-pronto",
    "name": {
     "it-IT": "Hummus pronto",
     "en-GB": "Ready-made hummus"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "carota-julienne-cruda",
    "name": {
     "it-IT": "Carota (julienne cruda)",
     "en-GB": "Carrot (raw julienne)"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "filetti-di-orata-spinati-e-senza-pelle",
    "name": {
     "it-IT": "Filetti di orata spinati e senza pelle",
     "en-GB": "Boneless skinless sea bream fillets"
-   }
+   },
+   "department": "fish",
+   "isPantry": false
   },
   {
    "id": "pomodorini-rossi-e-gialli",
    "name": {
     "it-IT": "Pomodorini rossi e gialli",
     "en-GB": "Red and yellow cherry tomatoes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "patata-media",
    "name": {
     "it-IT": "Patata media",
     "en-GB": "Medium potato"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "fette-di-lonza-di-maiale",
    "name": {
     "it-IT": "Fette di lonza di maiale",
     "en-GB": "Pork loin slices"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "limone-bio-succo-e-scorza",
    "name": {
     "it-IT": "Limone bio (succo e scorza)",
     "en-GB": "Organic lemon (juice and zest)"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "miele",
    "name": {
     "it-IT": "Miele",
     "en-GB": "Honey"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "reale-di-vitellone-o-di-bovino-a-fettine",
    "name": {
     "it-IT": "Reale di vitellone (o di bovino) a fettine",
     "en-GB": "Sliced beef chuck"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "pomodori-pelati-o-pomodorini-freschi-maturi",
    "name": {
     "it-IT": "Pomodori pelati (o pomodorini freschi maturi)",
     "en-GB": "Peeled tomatoes (or ripe fresh cherry tomatoes)"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "prezzemolo-fresco",
    "name": {
     "it-IT": "Prezzemolo fresco",
     "en-GB": "Fresh parsley"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "lenticchie-meglio-pardine",
    "name": {
     "it-IT": "Lenticchie (meglio pardine)",
     "en-GB": "Lentils (ideally pardina)"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "patata-grande-o-2-piccole",
    "name": {
     "it-IT": "Patata grande (o 2 piccole)",
     "en-GB": "Large potato (or 2 small)"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-grande",
    "name": {
     "it-IT": "Cipolla grande",
     "en-GB": "Large onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pomodoro-tritato-o-grattugiato",
    "name": {
     "it-IT": "Pomodoro tritato o grattugiato",
     "en-GB": "Chopped or grated tomato"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "peperone-rosso-o-1-2-verde",
    "name": {
     "it-IT": "Peperone rosso (o 1/2 verde)",
     "en-GB": "Red pepper (or 1/2 green)"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "paprika-affumicata",
    "name": {
     "it-IT": "Paprika affumicata",
     "en-GB": "Smoked paprika"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "cumino",
    "name": {
     "it-IT": "Cumino",
     "en-GB": "Cumin"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "vino-bianco-o-fino-facoltativo",
    "name": {
     "it-IT": "Vino bianco o fino",
     "en-GB": "White wine or fino sherry"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "alloro",
    "name": {
     "it-IT": "Alloro",
     "en-GB": "Bay leaf"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "fusilloni",
    "name": {
     "it-IT": "Fusilloni",
     "en-GB": "Fusilloni"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "speck-da-tagliare-a-cubetti",
    "name": {
     "it-IT": "Speck da tagliare a cubetti",
     "en-GB": "Speck, to dice"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "cipollotti",
    "name": {
     "it-IT": "Cipollotti",
     "en-GB": "Spring onions"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "spaghettoni",
    "name": {
     "it-IT": "Spaghettoni",
     "en-GB": "Spaghettoni"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "salvia",
    "name": {
     "it-IT": "Salvia",
     "en-GB": "Sage"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "couscous",
    "name": {
     "it-IT": "Couscous",
     "en-GB": "Couscous grains"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "tonno-sott-olio-peso-sgocciolato",
    "name": {
     "it-IT": "Tonno sott'olio (peso sgocciolato)",
     "en-GB": "Tuna in oil (drained weight)"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "fagioli-rossi-precotti-peso-sgocciolato",
    "name": {
     "it-IT": "Fagioli rossi precotti (peso sgocciolato)",
     "en-GB": "Pre-cooked kidney beans (drained weight)"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "ravanelli",
    "name": {
     "it-IT": "Ravanelli",
     "en-GB": "Radishes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "couscous-precotto",
    "name": {
     "it-IT": "Couscous precotto",
     "en-GB": "Pre-cooked couscous"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "brodo-vegetale-caldo",
    "name": {
     "it-IT": "Brodo vegetale caldo",
     "en-GB": "Hot vegetable stock"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "curcuma-in-polvere",
    "name": {
     "it-IT": "Curcuma in polvere",
     "en-GB": "Ground turmeric"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "cipolle-rosse",
    "name": {
     "it-IT": "Cipolle rosse",
     "en-GB": "Red onions"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pisellini",
    "name": {
     "it-IT": "Pisellini",
     "en-GB": "Petits pois"
-   }
+   },
+   "department": "frozen",
+   "isPantry": false
   },
   {
    "id": "peperoncino-fresco",
    "name": {
     "it-IT": "Peperoncino fresco",
     "en-GB": "Fresh chilli"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "mandorle-in-scaglie",
    "name": {
     "it-IT": "Mandorle in scaglie",
     "en-GB": "Flaked almonds"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "pappardelle-all-uovo",
    "name": {
     "it-IT": "Pappardelle all'uovo",
     "en-GB": "Egg pappardelle"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "salsiccia",
    "name": {
     "it-IT": "Salsiccia",
     "en-GB": "Sausage"
-   }
+   },
+   "department": "butcher",
+   "isPantry": false
   },
   {
    "id": "porri",
    "name": {
     "it-IT": "Porri",
     "en-GB": "Leeks"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "vino-rosso",
    "name": {
     "it-IT": "Vino rosso",
     "en-GB": "Red wine"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "parmigiano-reggiano-dop",
    "name": {
     "it-IT": "Parmigiano Reggiano DOP",
     "en-GB": "Parmigiano Reggiano PDO"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "timo",
    "name": {
     "it-IT": "Timo",
     "en-GB": "Thyme"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "corn-flakes-non-zuccherati",
    "name": {
     "it-IT": "Corn flakes non zuccherati",
     "en-GB": "Unsweetened cornflakes"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "latte-intero",
    "name": {
     "it-IT": "Latte intero",
     "en-GB": "Whole milk"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "paprika-dolce",
    "name": {
     "it-IT": "Paprika dolce",
     "en-GB": "Sweet paprika"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "yogurt-bianco-naturale",
    "name": {
     "it-IT": "Yogurt bianco naturale",
     "en-GB": "Plain natural yoghurt"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "maionese",
    "name": {
     "it-IT": "Maionese",
     "en-GB": "Mayonnaise"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "scorza-di-limone",
    "name": {
     "it-IT": "Scorza di limone",
     "en-GB": "Lemon zest"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "erba-cipollina",
    "name": {
     "it-IT": "Erba cipollina",
     "en-GB": "Chives"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "olio-di-semi-di-girasole",
    "name": {
     "it-IT": "Olio di semi di girasole",
     "en-GB": "Sunflower oil"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "bresaola",
    "name": {
     "it-IT": "Bresaola",
     "en-GB": "Bresaola"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "stracchino",
    "name": {
     "it-IT": "Stracchino",
     "en-GB": "Stracchino"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "rucola",
    "name": {
     "it-IT": "Rucola",
     "en-GB": "Rocket"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pomodori-secchi-sott-olio",
    "name": {
     "it-IT": "Pomodori secchi sott'olio",
     "en-GB": "Sun-dried tomatoes in oil"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "foglie-di-basilico",
    "name": {
     "it-IT": "Foglie di basilico",
     "en-GB": "Basil leaves"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-rossa-piccola",
    "name": {
     "it-IT": "Cipolla rossa piccola",
     "en-GB": "Small red onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "pomodori",
    "name": {
     "it-IT": "Pomodori",
     "en-GB": "Tomatoes"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "zenzero-fresco-grattugiato",
    "name": {
     "it-IT": "Zenzero fresco grattugiato",
     "en-GB": "Grated fresh ginger"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "coriandolo-macinato",
    "name": {
     "it-IT": "Coriandolo macinato",
     "en-GB": "Ground coriander"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "cumino-macinato",
    "name": {
     "it-IT": "Cumino macinato",
     "en-GB": "Ground cumin seeds"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "cannella",
    "name": {
     "it-IT": "Cannella",
     "en-GB": "Cinnamon"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "peperoncino-in-fiocchi",
    "name": {
     "it-IT": "Peperoncino in fiocchi",
     "en-GB": "Chilli flakes"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "crema-di-mandorle-croccante",
    "name": {
     "it-IT": "Crema di mandorle croccante",
     "en-GB": "Crunchy almond butter"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "ceci-in-scatola",
    "name": {
     "it-IT": "Ceci in scatola",
     "en-GB": "Tinned chickpeas"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "garam-masala",
    "name": {
     "it-IT": "Garam masala",
     "en-GB": "Garam masala"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "curcuma",
    "name": {
     "it-IT": "Curcuma",
     "en-GB": "Turmeric"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "mandorle-tritate",
    "name": {
     "it-IT": "Mandorle tritate",
     "en-GB": "Chopped almonds"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "coriandolo-fresco",
    "name": {
     "it-IT": "Coriandolo fresco",
     "en-GB": "Fresh coriander"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "spaghetti-di-riso",
    "name": {
     "it-IT": "Spaghetti di riso",
     "en-GB": "Rice noodles"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "tofu-affumicato",
    "name": {
     "it-IT": "Tofu affumicato",
     "en-GB": "Smoked tofu"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "germogli-di-soia",
    "name": {
     "it-IT": "Germogli di soia",
     "en-GB": "Bean sprouts"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-o-cipollotto",
    "name": {
     "it-IT": "Cipolla o cipollotto",
     "en-GB": "Onion or spring onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "aceto",
    "name": {
     "it-IT": "Aceto",
     "en-GB": "Vinegar"
-   }
+   },
+   "department": "condiments",
+   "isPantry": true
   },
   {
    "id": "salsa-barbecue-o-fumo-liquido-q-b",
    "name": {
     "it-IT": "Salsa barbecue (o fumo liquido q.b.)",
     "en-GB": "Barbecue sauce (or liquid smoke to taste)"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "semi-di-sesamo",
    "name": {
     "it-IT": "Semi di sesamo",
     "en-GB": "Sesame seeds"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "prezzemolo-opzionale",
    "name": {
     "it-IT": "Prezzemolo",
     "en-GB": "Parsley"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "radicchio-pulito",
    "name": {
     "it-IT": "Radicchio pulito",
     "en-GB": "Prepared radicchio"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "noci-sgusciate",
    "name": {
     "it-IT": "Noci sgusciate",
     "en-GB": "Shelled walnuts"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "ditali",
    "name": {
     "it-IT": "Ditali",
     "en-GB": "Ditali"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "ceci-gia-cotti-e-sgocciolati",
    "name": {
     "it-IT": "Ceci già cotti e sgocciolati",
     "en-GB": "Cooked drained chickpeas"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "rosmarino",
    "name": {
     "it-IT": "Rosmarino",
     "en-GB": "Rosemary"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "trofie",
    "name": {
     "it-IT": "Trofie",
     "en-GB": "Trofie"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "funghi-champignon-puliti",
    "name": {
     "it-IT": "Funghi champignon puliti",
     "en-GB": "Cleaned button mushrooms"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "fusilli",
    "name": {
     "it-IT": "Fusilli",
     "en-GB": "Fusilli"
-   }
+   },
+   "department": "pasta_grains",
+   "isPantry": false
   },
   {
    "id": "spinaci-freschi-puliti",
    "name": {
     "it-IT": "Spinaci freschi puliti",
     "en-GB": "Prepared fresh spinach"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cipolla-a-dadini",
    "name": {
     "it-IT": "Cipolla a dadini",
     "en-GB": "Diced onion"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "aglio-tritato-o-schiacciato",
    "name": {
     "it-IT": "Aglio tritato o schiacciato",
     "en-GB": "Chopped or crushed garlic"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "fagioli-neri-scolati-e-sciacquati",
    "name": {
     "it-IT": "Fagioli neri scolati e sciacquati",
     "en-GB": "Black beans, drained and rinsed"
-   }
+   },
+   "department": "tinned",
+   "isPantry": false
   },
   {
    "id": "salsa-messicana-pronta",
    "name": {
     "it-IT": "Salsa messicana pronta",
     "en-GB": "Ready-made Mexican salsa"
-   }
+   },
+   "department": "condiments",
+   "isPantry": false
   },
   {
    "id": "yogurt-greco-o-panna-acida",
    "name": {
     "it-IT": "Yogurt greco (o panna acida)",
     "en-GB": "Greek yoghurt (or soured cream)"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "lattuga-tagliata-o-spezzettata",
    "name": {
     "it-IT": "Lattuga tagliata o spezzettata",
     "en-GB": "Shredded lettuce"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "cheddar-jack-grattugiato-oppure-monterey-jack-cheddar-o-cotija",
    "name": {
     "it-IT": "Cheddar Jack grattugiato (oppure Monterey Jack, cheddar o Cotija)",
     "en-GB": "Grated Cheddar Jack (or Monterey Jack, cheddar or Cotija)"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pomodoro-a-dadini-varieta-roma",
    "name": {
     "it-IT": "Pomodoro a dadini (varietà Roma)",
     "en-GB": "Diced tomato (Roma)"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "tortillas-di-farina",
    "name": {
     "it-IT": "Tortillas di farina",
     "en-GB": "Flour tortillas"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "erbazzone-congelato",
    "name": {
     "it-IT": "Erbazzone congelato",
     "en-GB": "Frozen erbazzone"
-   }
+   },
+   "department": "frozen",
+   "isPantry": false
   },
   {
    "id": "pane",
    "name": {
     "it-IT": "Pane",
     "en-GB": "Bread"
-   }
+   },
+   "department": "bakery",
+   "isPantry": false
   },
   {
    "id": "mozzarelle",
    "name": {
     "it-IT": "Mozzarelle",
     "en-GB": "Mozzarella balls"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   },
   {
    "id": "pomodoro-cuore-di-bue",
    "name": {
     "it-IT": "Pomodoro cuore di bue",
     "en-GB": "Oxheart tomato"
-   }
+   },
+   "department": "produce",
+   "isPantry": false
   },
   {
    "id": "tacchino",
    "name": {
     "it-IT": "Tacchino",
     "en-GB": "Turkey"
-   }
+   },
+   "department": "chilled",
+   "isPantry": false
   }
  ],
  "recipes": [

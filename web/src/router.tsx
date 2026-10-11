@@ -12,6 +12,7 @@ import { SettingsPage } from './routes/profile/SettingsPage';
 import { RecipePage } from './routes/RecipePage';
 import { RecipesPage } from './routes/RecipesPage';
 import { RouteError } from './routes/RouteError';
+import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
 export interface RouterContext { auth: AuthState }
@@ -57,10 +58,12 @@ const preferencesRoute = createRoute({ getParentRoute: () => appRoute, path: '/p
 const membersRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family', component: MembersPage });
 const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/settings', component: SettingsPage });
 const exclusionsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/exclusions', component: ExclusionsPage });
+// `day`: the menu day the list was opened from, where «Menu» goes back to.
+const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shopping/$weekStartsOn', validateSearch: validateMenuSearch, component: ShoppingPage });
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

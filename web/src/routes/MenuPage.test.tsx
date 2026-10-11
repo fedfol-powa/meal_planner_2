@@ -29,8 +29,9 @@ describe('menu', () => {
     expect(screen.getByRole('button', { name: 'ottobre 2026' })).toBeTruthy();
     expect(screen.getByText('Doppia dose, avanza per venerdì', { exact: false })).toBeTruthy();
     expect(screen.getByText('Cambiato da Anna, venerdì 21:30')).toBeTruthy();
-    const bag = screen.getByRole('button', { name: 'Lista della spesa (in arrivo)' });
-    expect((bag as HTMLButtonElement).disabled).toBe(true);
+    // The bag opens the list of the week shown, coming back to the same day.
+    const bag = screen.getByRole('link', { name: 'Lista della spesa' });
+    expect(bag.getAttribute('href')).toBe('/shopping/2026-10-05?day=2026-10-08');
   });
   it('opens the requested day', async () => {
     renderApp('/menu?day=2026-10-06');

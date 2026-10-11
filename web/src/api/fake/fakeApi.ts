@@ -1,10 +1,12 @@
 import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
+import type { Department } from '@app/domain/shopping';
 import type { Locale } from '../../i18n/translate';
 import { isOnline } from '../../lib/connectivity';
 import { ApiError } from '../errors';
 import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, RecipeListItem, RecipeMealType, RecipeQuery, RecipeSummary, SourceType, ProteinGroup } from '../types';
 import raw from './demo-data.json';
 import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
+import { createFakeShopping } from './fakeShopping';
 import { formatAmount, scaleQuantity, type Quantity, type Translated } from './quantity';
 import { DEMO_CHANGES, DEMO_FAMILY, DEMO_PEOPLE, DEMO_USER_ID, seedRatings, type DemoRating } from './seed';
 
@@ -25,7 +27,7 @@ interface DemoWeek { startsOn: IsoDate; generatedAt: LocalDateTime; slots: DemoS
 
 const data = raw as unknown as {
   books: { id: string; title: string }[];
-  ingredients: { id: string; name: Translated }[];
+  ingredients: { id: string; name: Translated; department: Department; isPantry: boolean }[];
   recipes: DemoRecipe[];
   weeks: { startsOn: IsoDate; generatedAt: LocalDateTime; slots: Omit<DemoSlot, 'updatedBy' | 'updatedAt'>[] }[];
   federicoRatings: { recipeId: string; stars: number }[];
@@ -337,6 +339,11 @@ export function createFakeApi(options: FakeApiOptions): Api {
         });
       }
     },
+    shopping: createFakeShopping({
+      familyId: DEMO_FAMILY.id, userId, getLocale: options.getLocale, latencyMs: options.latencyMs,
+      ingredients: data.ingredients, recipes, data: state,
+      week: (weekStartsOn) => visibleWeeks().find((w) => w.startsOn === weekStartsOn)
+    }),
     ratings: {
       async set({ familyId, recipeId, stars }) {
         checkFamily(familyId);
@@ -365,5 +372,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
+  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping) };
 }

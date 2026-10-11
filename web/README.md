@@ -22,7 +22,7 @@ linguaggio visivo in `../design/design.md`.
 - **Finta** (nessuna variabile): utente demo Federico nella Famiglia Folloni, nessun accesso.
 - **Vera**: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (per lo sviluppo, dallo
   stack locale: `supabase status`). Accesso con email e password. Le aree elencate in
-  `SERVER_AREAS` (`src/api/types.ts`, oggi `session` e `menu`) arrivano dal Worker con il client
+  `SERVER_AREAS` (`src/api/types.ts`, oggi `session`, `profile`, `recipes`, `ratings`, `menu`, `family` e `shopping`) arrivano dal Worker con il client
   oRPC (`/api/rpc`, token di Supabase a ogni richiesta); le altre restano sul client finto
   finché il loro produttore non le aggiunge al contratto e all'elenco.
 - In sviluppo e in anteprima `/api` va al Worker locale (`npm run dev -w server`, porta
@@ -61,6 +61,16 @@ Per la coda della Spesa (W4) la sessione offre `renew()`, `SessionClosedError`,
 utente alla pulizia; `subscribeExtension` riceve i messaggi fra schede di un argomento.
 Offline con sessione non verificata solo la Spesa resta modificabile. Dettagli nella sezione
 «Seconda PR» della spec di dettaglio.
+
+## Spesa (`src/features/shopping`)
+
+Ogni modifica della lista, anche online, passa da una coda per persona in IndexedDB
+(`shopping-queue:<id>`, prefisso registrato in `main.tsx` per la pulizia). La schermata
+mostra la vista confermata dal server con sopra le modifiche in coda («da sincronizzare»);
+la cache riceve solo risposte del server. Una scheda alla volta invia (Web Locks; senza,
+invio senza esclusione), dopo un rinnovo riuscito della stessa persona. «Condividi» calcola
+il testo sul dispositivo, anche offline; Bring! richiede rete e lista sincronizzata e si
+apre in due passi. Dettagli in `../progetto/superpowers/specs/2026-10-11-spesa.md`.
 
 ## Struttura
 

@@ -17,7 +17,7 @@ const plainName = (name) => Object.fromEntries(Object.entries(name).map(([locale
 
 const data = {
   books: source.books,
-  ingredients: source.ingredients.map(({ id, name }) => ({ id, name: plainName(name) })),
+  ingredients: source.ingredients.map(({ id, name, department, isPantry }) => ({ id, name: plainName(name), department, isPantry })),
   recipes: source.recipes.map((r) => ({
     id: r.id, status: r.status, name: r.name, description: r.description, sourceType: r.sourceType,
     sourceUrl: r.sourceUrl, bookId: r.bookId, bookPages: r.bookPages, durationMinutes: r.durationMinutes,
