@@ -246,8 +246,10 @@ ricette saltate, ingrediente mancante.
 
 ## 11. Dipendenze
 
-Solo `zod` (già nello stack deciso; la usa anche W3, la aggiunge chi arriva prima):
-serve agli schemi di `Quantity` e `CombinedQuantity` condivisi con contratto e database.
+Solo `zod` (già nello stack deciso; la usa anche W3), in `domain/package.json`
+(`@app/domain`, workspace npm creato dallo scheletro di W1; il `package.json` della radice
+non si tocca, deciso dal coordinatore l'11 ottobre 2026). Serve agli schemi di `Quantity`
+e `CombinedQuantity` condivisi con contratto e database.
 Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contratto.
 `Intl.NumberFormat` è del runtime, presente in Workers e nei browser.
 
