@@ -19,18 +19,23 @@ const HALF_OZ_IN_G = G_PER_OZ / 2;
 const MAX_SPOON_ML = 3 * ML_PER_UK_TBSP;
 const BOUGHT_WHOLE: ReadonlySet<CountedUnit> = new Set<CountedUnit>(['piece', 'bunch', 'slice']);
 
-const roundTo = (value: number, step: number) => Math.round(value / step) * step;
+/**
+ * Halfway points round up even when a conversion left them a hair below: 14.5 oz becomes
+ * 14.499999999999998 through grams, and must show as 14 + 0.5 oz does.
+ */
+const round = (value: number) => Math.round(value + 1e-9);
+const roundTo = (value: number, step: number) => round(value / step) * step;
 const ceilTo = (value: number, step: number) => Math.ceil(value / step - 1e-9) * step;
 
 /** Grams or millilitres: whole below 5 (at least 1), to 5 below 50, then to 10. */
 function roundMetric(value: number): number {
-	if (value < 5) return Math.max(1, Math.round(value));
+	if (value < 5) return Math.max(1, round(value));
 	return roundTo(value, value < 50 ? 5 : 10);
 }
 
 function metric(base: number, small: 'g' | 'ml', large: 'kg' | 'l'): PresentedAmount {
 	const rounded = roundMetric(base);
-	return rounded < 1000 ? { value: rounded, unit: small } : { value: Math.round(base / 100) / 10, unit: large };
+	return rounded < 1000 ? { value: rounded, unit: small } : { value: round(base / 100) / 10, unit: large };
 }
 
 /** Display only (spec section 6); the threshold is chosen on the rounded value. */
@@ -39,7 +44,7 @@ export function presentMass(grams: number, system: MeasurementSystem): Presented
 	if (system === 'metric' || grams < HALF_OZ_IN_G) return metric(grams, 'g', 'kg');
 	const ounces = grams / G_PER_OZ;
 	if (ounces < 4) return { value: roundTo(ounces, 0.5), unit: 'oz' };
-	const whole = Math.round(ounces);
+	const whole = round(ounces);
 	return whole < OZ_PER_LB ? { value: whole, unit: 'oz' } : { value: roundTo(ounces / OZ_PER_LB, 0.25), unit: 'lb' };
 }
 
@@ -53,7 +58,7 @@ export function presentVolume(millilitres: number, system: MeasurementSystem): P
 	}
 	const fluidOunces = millilitres / ML_PER_UK_FL_OZ;
 	if (fluidOunces <= 4) return { value: roundTo(fluidOunces, 0.5), unit: 'uk_fl_oz' };
-	const whole = Math.round(fluidOunces);
+	const whole = round(fluidOunces);
 	return whole < UK_FL_OZ_PER_PINT
 		? { value: whole, unit: 'uk_fl_oz' }
 		: { value: roundTo(fluidOunces / UK_FL_OZ_PER_PINT, 0.25), unit: 'uk_pint' };

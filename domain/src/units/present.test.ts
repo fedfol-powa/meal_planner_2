@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { addQuantity, emptyCombined } from './combined.ts';
 import { presentAmount, presentCount, presentMass, presentVolume } from './present.ts';
 
 describe('metric presentation', () => {
@@ -96,5 +97,23 @@ describe('presentAmount', () => {
 		expect(presentAmount(1, 'uk_pint', 'metric')).toEqual({ value: 570, unit: 'ml' });
 		expect(presentAmount(2, 'clove', 'uk_imperial')).toEqual({ value: 2, unit: 'clove' });
 		expect(presentAmount(0.5, 'piece', 'metric', 'shopping')).toEqual({ value: 1, unit: 'piece' });
+	});
+});
+
+describe('rounding at halfway points, whatever the sum the amount came from', () => {
+	const OZ = 28.349523125;
+	const FL_OZ = 28.4130625;
+	const grams = (...ounces: number[]) => ounces.reduce((c, value) => addQuantity(c, { kind: 'amount', value, unit: 'oz' }), emptyCombined()).mass_g ?? 0;
+	it('shows 14.5 oz the same as 14 + 0.5 oz and 7.25 + 7.25 oz', () => {
+		expect(presentAmount(14.5, 'oz', 'uk_imperial')).toEqual({ value: 15, unit: 'oz' });
+		expect(presentMass(grams(14, 0.5), 'uk_imperial')).toEqual({ value: 15, unit: 'oz' });
+		expect(presentMass(grams(7.25, 7.25), 'uk_imperial')).toEqual({ value: 15, unit: 'oz' });
+		expect(presentAmount(10.5, 'uk_fl_oz', 'uk_imperial')).toEqual({ value: 11, unit: 'uk_fl_oz' });
+	});
+	it('still rounds amounts really below or above the halfway point', () => {
+		expect(presentMass(14.49 * OZ, 'uk_imperial')).toEqual({ value: 14, unit: 'oz' });
+		expect(presentMass(14.51 * OZ, 'uk_imperial')).toEqual({ value: 15, unit: 'oz' });
+		expect(presentVolume(10.49 * FL_OZ, 'uk_imperial')).toEqual({ value: 10, unit: 'uk_fl_oz' });
+		expect(presentVolume(10.51 * FL_OZ, 'uk_imperial')).toEqual({ value: 11, unit: 'uk_fl_oz' });
 	});
 });
