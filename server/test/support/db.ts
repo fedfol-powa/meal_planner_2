@@ -39,11 +39,24 @@ async function ensureSchema(admin: postgres.Sql): Promise<void> {
 	await admin.unsafe(await readFile(fileURLToPath(new URL('./schema.sql', import.meta.url).href), 'utf8'));
 }
 
+/**
+ * Schema and app_server password, once per test run (Vitest global setup): test files
+ * run in parallel, and concurrent `alter role` fail with "tuple concurrently updated".
+ */
+export async function prepareDatabase(): Promise<void> {
+	if (!databaseUrl) return;
+	const admin = postgres(databaseUrl, { max: 1, onnotice: () => {} });
+	try {
+		await ensureSchema(admin);
+		await admin.unsafe(`alter role app_server password '${APP_SERVER_PASSWORD}'`);
+	} finally {
+		await admin.end();
+	}
+}
+
 export async function setupDatabase(): Promise<TestDatabase> {
 	if (!databaseUrl) throw new Error('TEST_DATABASE_URL is not set');
 	const admin = postgres(databaseUrl, { max: 1, onnotice: () => {} });
-	await ensureSchema(admin);
-	await admin.unsafe(`alter role app_server password '${APP_SERVER_PASSWORD}'`);
 	const url = new URL(databaseUrl);
 	url.username = 'app_server';
 	url.password = APP_SERVER_PASSWORD;
