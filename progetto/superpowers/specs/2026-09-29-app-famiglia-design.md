@@ -1089,8 +1089,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   (ondata 3). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
   curatore non abilita a ricevere segnalazioni sulle altre famiglie. Contenuti e accessi
   operativi devono rispettare la separazione dei ruoli della sezione 2.
-- **Generazione su richiesta** (wizard della famiglia nuova, oppure "rigenera" se la
-  settimana manca): stessa funzione, al massimo 3 volte a settimana per famiglia. Arriva
+- **Generazione su richiesta** ("rigenera" se la settimana manca; il wizard non genera,
+  deciso l'11 ottobre 2026): stessa funzione, al massimo 3 volte a settimana per famiglia. Arriva
   con il wizard nell'ondata 3; nel traguardo A non c'è un'operazione «rigenera».
 - **Prima generazione di una famiglia nuova** (deciso il 6 ottobre 2026): riempie i
   pasti non ancora passati da oggi a domenica; se è già passato mercoledì alle 20:00
@@ -1382,9 +1382,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `it-IT`, altrimenti `en-GB`), modificabile già nella pagina di accesso. Senza
   famiglie l'utente sceglie "Crea la tua famiglia" o apre il link d'invito ricevuto.
 - **Wizard della famiglia nuova** (minimo, deciso il 6 ottobre 2026): nome e sistema di
-  misura, poi "Genera la prima settimana". Commensali, pasti fissi, ingredienti, libri
-  e obiettivi partono dai default (sezione 2) e si sistemano dalle impostazioni; dopo
-  la prima generazione il Menu mostra una sola volta, agli amministratori, una scheda
+  misura. Non c'è un pulsante "Genera la prima settimana" (deciso l'11 ottobre 2026): il
+  menu si prepara da solo alla prima apertura, con la generazione pigra (sezione 4).
+  Commensali, pasti fissi, ingredienti, libri e obiettivi partono dai default
+  (sezione 2) e si sistemano dalle impostazioni; dopo la prima generazione il Menu mostra una sola volta, agli amministratori, una scheda
   richiudibile con "Invita la famiglia" e "Sistema le impostazioni".
 - **Vista Profilo**: quarta voce della navbar, con famiglia corrente (membri e inviti,
   impostazioni, "non proporre più"), elenco delle proprie famiglie (un tocco cambia la
@@ -1572,8 +1573,10 @@ stessa entità canonica, anche se i nomi sono in lingue diverse.
 **Ingredienti e varietà, decisi nel quinto giro del prototipo:**
 
 - l'ingrediente del catalogo è il prodotto generico; si cerca prima di crearne uno nuovo
-  (la ricerca trova anche le varietà già usate) e un ingrediente nuovo ha nome nelle due
-  lingue e reparto, senza varietà, taglia o preparazione nel nome;
+  (la ricerca trova anche le varietà già usate) e un ingrediente nuovo ha reparto e nome,
+  senza varietà, taglia o preparazione nel nome. Si può creare con il solo nome italiano
+  (deciso l'11 ottobre 2026, come nel prototipo): la pubblicazione di una ricetta che lo
+  usa segnala il nome inglese mancante, quindi nessuna ricetta pubblicata resta senza;
 - la **varietà** è testo libero e facoltativo sulla riga della ricetta, nelle due lingue,
   solo quando cambia cosa si compra (cultivar o tipo: «Roma», «cuore di bue», «gialla
   senza semi»). Taglia, maturazione e preparazione non sono varietà e restano nel testo
@@ -1677,8 +1680,9 @@ o riportare il catalogo a una data; la perdita o il danneggiamento del database 
 coperti da un'esportazione notturna dell'intero database, che comprende quindi anche i
 dati delle famiglie. Il piano gratuito di Supabase non offre backup della piattaforma
 (deciso l'8 ottobre 2026): l'esportazione va in R2 di Cloudflare e la perdita massima
-di lavoro è di circa un giorno. Strumento, conservazione, cifratura, tempi di recupero
-e modalità operative si definiscono prima dell'uso del catalogo in produzione. La procedura dovrà essere provata con un ripristino in un
+di lavoro è di circa un giorno. Si conservano le ultime 7 esportazioni notturne (deciso
+l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore). Strumento,
+cifratura, tempi di recupero e modalità operative si definiscono prima dell'uso del catalogo in produzione. La procedura dovrà essere provata con un ripristino in un
 ambiente di verifica.
 
 Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
@@ -1829,7 +1833,7 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 | Gestione del ricettario tramite MCP | Server e strumenti MCP uniti (PR #23); in corso le sezioni web delle bozze |
 | Revisione dei pasti | Da avviare: azioni sui pasti, suggerimenti, annullamento e registro delle modifiche |
 | Collegamento degli agenti | Da assegnare; serve confermare il server OAuth sul progetto di produzione |
-| Esportazione notturna in R2 | Da assegnare; servono bucket, chiave e conservazione decisa con l'utente |
+| Esportazione notturna in R2 | Da assegnare; conservazione decisa (ultime 7 copie); servono bucket e chiave |
 | Messa in produzione | Ultima; il Worker non è ancora pubblicato e i passi di produzione (pool, password di `app_server`, Hyperdrive, primo deploy) si concordano con l'utente prima della prima pubblicazione |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
@@ -2231,7 +2235,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Implementazione | Automazione della pubblicazione del Worker prima del traguardo A (preferibilmente GitHub Actions a test verdi) e modo di applicare le migrazioni al progetto di produzione. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1) | Sezioni 1 e 10 |
 | Architettura | Valutare nell'ondata 2 `@orpc/tanstack-query` (per ora `queryOptions` scritte a mano). Decisi l'11 ottobre 2026 oRPC senza Hono, Postgres.js senza ORM e l'SDK ufficiale di MCP, provati su Workers con RLS tramite Hyperdrive, e cosa fa crescere i contatori di versione (sezione 1) | Sezione 1 |
 | Hosting e costi | Pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3; una richiesta all'API ne usa circa 7, una chiamata MCP circa 13, misurati l'11 ottobre), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare | Sezioni 1, 4, 7 e 8 |
-| Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta («rigenera») e wizard rispetto alla generazione pigra, nell'ondata 3 (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre; l'11 ottobre regola unica di generazione all'apertura per la settimana in corso e la successiva, recupero e abbandono dei job, generazioni serializzate per famiglia, sezione 4) | Sezioni 2, 4 e 5 |
+| Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta («rigenera») nell'ondata 3; il wizard non genera (deciso l'11 ottobre) (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre; l'11 ottobre regola unica di generazione all'apertura per la settimana in corso e la successiva, recupero e abbandono dei job, generazioni serializzate per famiglia, sezione 4) | Sezioni 2, 4 e 5 |
 | Pianificatore e giudice | Classificazione dei vincoli in parte decisa nell'esperimento dell'8 ottobre: vincoli rigidi (compreso il massimo settimanale degli ingredienti limitati) filtrano, voto ≤ 2 ammesso solo senza alternative, slot senza candidati segnati «nessuna ricetta adatta», regole di settimana (venerdì pesce, intervalli, quota) riparate quando possibile e altrimenti mostrate nel report. Restano: come mostrare alla famiglia una regola non soddisfatta, un modello di regola per «niente skottle il lunedì sera», crescita del ricettario per la quota note/nuove; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
 ### 16. Registro delle revisioni
@@ -2268,6 +2272,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 11 ottobre 2026, prove tecniche | Scelti oRPC senza Hono, Postgres.js senza ORM, `jose` e l'SDK ufficiale di MCP, per tenere al minimo le dipendenze con pochi utenti. Provati su un Worker: RPC, OpenAPI e strumenti MCP dal contratto, RLS nel ruolo dell'utente tramite Hyperdrive senza scambi di dati sotto carico, limite di connessioni di Hyperdrive sotto il pool di Supabase, cache senza promesse condivise. Server OAuth 2.1 di Supabase disponibile sul piano gratuito; Claude Code e Codex CLI collegati con consenso e canale `client_id`; revoca da provare in M1; Claude Desktop e ChatGPT da verificare. Esito in `spike/REPORT.md`. Deciso l'account Cloudflare di POWA; installata la CLI di Supabase |
 | 11 ottobre 2026, fine dell'ondata 1 | Riportate le decisioni delle cinque attività unite (piattaforma, schema e permessi, ricetta e import, unità e spesa, app web di base) e del piano generale: fasi a tre ondate con il traguardo A; campi bilingui jsonb; attributi del pianificatore obbligatori per pubblicare; «invariato» nel contratto; Cron Trigger per il job; R1 con la prima versione pubblicata; spesa offline anche senza sessione verificabile; ruoli Postgres e schema `app`; contatori di versione; copia e sessione sul dispositivo; codici delle unità, presentazione imperiale e pezzi nella spesa; casi R4 e import con revisione approvata; accesso con email e password nel traguardo A |
 | 11 ottobre 2026, attività dell'ondata 2 unite | Riportate le decisioni di profilo e famiglia, ricettario e voti, menu e pianificatore, spesa e gestione del ricettario tramite MCP: regola unica di generazione all'apertura, settimane successive già pianificate considerate dal pianificatore, recupero e abbandono dei job, apertura sul primo giorno con pasti; famiglia mostrata sul server e Profilo senza i comandi dell'ondata 3; ricerca nella lingua dell'utente e ordinamento con i valori mancanti in fondo; Condividi e Bring! nel traguardo A, PDF nell'ondata 3, coda della spesa per ogni modifica; conferma del curatore nelle istruzioni dell'agente, eliminazione di una bozza come chiusura, revisione di ricette archiviate, ingredienti ed equivalenze via MCP, bozze in sola lettura nell'app; errori `not_allowed` e `conflict` con tipo, hook `prepare`, tabelle `profile_preferences` e `recipe_draft_requests`; fasi della sezione 10 con lo stato delle attività |
+| 11 ottobre 2026, decisioni dell'utente sul consolidamento | Ingrediente creabile con il solo nome italiano, con il nome inglese richiesto alla pubblicazione della ricetta; nessun pulsante «Genera la prima settimana» nel wizard, perché il menu si genera all'apertura; confermati il rinvio all'ondata 3 dell'email di allarme del job e del PDF della spesa; esportazione notturna in R2 con le ultime 7 copie; progetto Supabase `lronuqvtjdhfyychnscr` confermato come produzione |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
