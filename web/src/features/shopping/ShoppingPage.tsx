@@ -9,7 +9,7 @@ import { Icon } from '../../components/Icon';
 import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
-import { formatChangeTime } from '../../i18n/dates';
+import { formatChangeTime, formatDayMonth } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import type { Locale } from '../../i18n/translate';
 import { addDays, localNow } from '../../lib/calendar';
@@ -29,10 +29,11 @@ export function ShoppingPage() {
   return <FamilyGate>{(family) => <ShoppingView family={family} />}</FamilyGate>;
 }
 
-/** «12–18 ottobre»: days of the week as calendar dates. */
+/** «12–18 ottobre», «28 settembre – 4 ottobre»: days of the week as calendar dates. */
 function weekRange(locale: Locale, monday: string): string {
-  const day = (date: string) => new Date(`${date}T00:00:00Z`);
-  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', timeZone: 'UTC' }).formatRange(day(monday), day(addDays(monday, 6)));
+  const sunday = addDays(monday, 6);
+  if (monday.slice(0, 7) === sunday.slice(0, 7)) return `${Number(monday.slice(8))}–${formatDayMonth(locale, sunday)}`;
+  return `${formatDayMonth(locale, monday)} – ${formatDayMonth(locale, sunday)}`;
 }
 
 function ShoppingView({ family }: { family: FamilyView }) {
@@ -96,6 +97,10 @@ function ShoppingView({ family }: { family: FamilyView }) {
   return page(
     <div className={styles.header}>
       {back}
+      <h1 className="page-title" id="list-title">{t('shopping.title', { range: weekRange(locale, weekStartsOn) })}</h1>
+      <p className={styles.meta}>{t('shopping.meals', { count: view.mealCount })}</p>
+      {list.pendingCount > 0 && <p className={styles.pending} role="status">{t('shopping.pendingSync')}</p>}
+      {/* After the title in the reading order; the grid puts the «…» button at the top right. */}
       <ShareMenu
         view={view}
         base={list.query.data!}
@@ -104,9 +109,6 @@ function ShoppingView({ family }: { family: FamilyView }) {
         unsynced={list.pendingCount + list.notices.length}
         flush={() => void list.flush()}
       />
-      <h1 className="page-title" id="list-title">{t('shopping.title', { range: weekRange(locale, weekStartsOn) })}</h1>
-      <p className={styles.meta}>{t('shopping.meals', { count: view.mealCount })}</p>
-      {list.pendingCount > 0 && <p className={styles.pending} role="status">{t('shopping.pendingSync')}</p>}
     </div>,
     <>
       <QueueNotices notices={list.notices} onDismiss={(id) => void list.dismiss(id)} />
