@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
-import { createFakeApi } from '../api/fake/fakeApi';
+import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
 import { setOnline } from '../test/connectivity';
 import type { Api, ProfileView, RecipeListItem } from '../api/types';
 import type { CreateApi } from '../session/SessionScope';
@@ -154,11 +154,15 @@ describe('recipes from the Worker (W6)', () => {
 
 describe('previous data only within the same view (second review, C7)', () => {
   it('never shows the list in the previous language while the new one loads', async () => {
-    const createApi: CreateApi = (user) => (locale) => {
-      const api = createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 });
-      const search = api.recipes.search;
-      api.recipes.search = (input) => (locale === 'en-GB' ? new Promise(() => {}) : search(input));
-      return api;
+    const createApi: CreateApi = (user) => {
+      // One fake backend for both languages, as fakeClients does: the profile says the same language in both.
+      const data = createFakeData(user ?? undefined);
+      return (locale) => {
+        const api = createFakeApi({ getLocale: () => locale, data, latencyMs: 0 });
+        const search = api.recipes.search;
+        api.recipes.search = (input) => (locale === 'en-GB' ? new Promise(() => {}) : search(input));
+        return api;
+      };
     };
     renderApp('/recipes', { createApi, extra: <LanguageSwitch /> });
     await screen.findByRole('heading', { name: new RegExp(WOK.slice(0, 20)) });

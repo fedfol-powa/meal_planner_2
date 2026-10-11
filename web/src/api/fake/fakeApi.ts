@@ -6,6 +6,7 @@ import { ApiError } from '../errors';
 import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, RecipeListItem, RecipeMealType, RecipeQuery, RecipeSummary, SourceType, ProteinGroup } from '../types';
 import raw from './demo-data.json';
 import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
+import { createFakeCatalogue, createFakeCatalogueData, type FakeCatalogueData } from './fakeCatalogue';
 import { createFakeShopping } from './fakeShopping';
 import { formatAmount, scaleQuantity, type Quantity, type Translated } from './quantity';
 import { DEMO_CHANGES, DEMO_FAMILY, DEMO_PEOPLE, DEMO_USER_ID, seedRatings, type DemoRating } from './seed';
@@ -56,6 +57,8 @@ export interface FakeData {
   readonly profile: { displayName?: string; locale?: Locale };
   /** The demo family's name, units, time zone, settings and exclusions. */
   readonly family: FakeFamilyData;
+  /** The archived recipes the curator can bring back. */
+  readonly catalogue: FakeCatalogueData;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -90,7 +93,10 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData() };
+  return {
+    user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData(),
+    catalogue: createFakeCatalogueData(recipes)
+  };
 }
 
 /**
@@ -133,7 +139,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
         displayName: state.profile.displayName ?? person?.displayName ?? (fromEmail.charAt(0).toUpperCase() + fromEmail.slice(1)),
         email,
         locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
-        globalRoles: []
+        // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
+        globalRoles: userId === DEMO_USER_ID ? ['recipe_curator' as const] : []
       },
       families: [{ id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' }],
       currentFamilyId: DEMO_FAMILY.id
@@ -347,6 +354,13 @@ export function createFakeApi(options: FakeApiOptions): Api {
       ingredients: data.ingredients, recipes, data: state,
       week: (weekStartsOn) => visibleWeeks().find((w) => w.startsOn === weekStartsOn)
     }),
+    catalogue: createFakeCatalogue({
+      getLocale: options.getLocale, latencyMs: options.latencyMs, recipes, data: state.catalogue,
+      ingredientName: (ingredientId, locale) => {
+        const ingredient = data.ingredients.find((i) => i.id === ingredientId);
+        return ingredient ? localized(ingredient.name, locale) : null;
+      }
+    }),
     ratings: {
       async set({ familyId, recipeId, stars }) {
         checkFamily(familyId);
@@ -375,5 +389,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping) };
+  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue) };
 }

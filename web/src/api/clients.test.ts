@@ -6,6 +6,7 @@ import { realClients } from './clients';
 import { fakeClients } from './fake/fakeApi';
 import type { Api } from './types';
 import { createSession, SessionClosedError, wrapApi, type RenewResult } from '../session/session';
+import { setOnline } from '../test/connectivity';
 import { createRpcTestServer, WHOAMI } from '../test/rpcServer';
 
 const user = { id: 'user-federico', email: 'federico@example.com' };
@@ -26,6 +27,29 @@ describe('clients by area (second PR)', () => {
     const opening = await api.menu.getOpening({ familyId: '5eed0000-0000-4000-8000-000000000001', today: '2026-10-08' });
     expect(opening).toEqual({ unchanged: false, version: 'opening-1', data: { kind: 'no_weeks' } });
     expect(server.fetch).toHaveBeenCalledTimes(2);
+  });
+  it('sends the catalogue reads and the archive switch to the Worker', async () => {
+    const { server, api } = setup();
+    const paths = () => server.fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname);
+    await api.catalogue.overview({}).catch(() => undefined);
+    await api.catalogue.getDraft({ draftId: crypto.randomUUID() }).catch(() => undefined);
+    await api.catalogue.setArchived({ recipeId: crypto.randomUUID(), archived: false }).catch(() => undefined);
+    expect(paths().map((p) => p.replace(/^.*\/catalogue\//, 'catalogue/'))).toEqual(['catalogue/overview', 'catalogue/getDraft', 'catalogue/setArchived']);
+  });
+  it('in fake mode answers the catalogue area to the curator Federico, failing offline like the other areas', async () => {
+    const api = fakeClients({ latencyMs: 0 })(user)('it-IT');
+    expect((await api.profile.get({})).user.globalRoles).toEqual(['recipe_curator']);
+    const overview = await api.catalogue.overview({});
+    expect(overview.drafts.length).toBeGreaterThan(0);
+    expect(overview.archived.length).toBeGreaterThan(0);
+    const draft = await api.catalogue.getDraft({ draftId: overview.drafts[0]!.draftId });
+    expect(draft.draftId).toBe(overview.drafts[0]!.draftId);
+    setOnline(false);
+    try {
+      await expect(api.catalogue.overview({})).rejects.toMatchObject({ code: 'network' });
+    } finally {
+      setOnline(true);
+    }
   });
   it('in fake mode answers the server areas too, with the demo user', async () => {
     const api = fakeClients({ latencyMs: 0 })(user)('en-GB');

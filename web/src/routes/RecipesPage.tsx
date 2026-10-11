@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { isBlocking } from '../api/errors';
 import { keepPreviousWithin, searchQuery, useQueryDeps } from '../api/queries';
 import type { FamilyView, RecipeQuery } from '../api/types';
@@ -10,6 +10,8 @@ import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { RecipeFilters } from '../components/RecipeFilters';
 import { StateNotice } from '../components/StateNotice';
+import { ArchivedRecipesSection } from '../features/catalogue/ArchivedRecipesSection';
+import { CatalogueDraftsSection } from '../features/catalogue/CatalogueDraftsSection';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { resortByLastEaten } from '../lib/mealTime';
 import { useMealClock } from '../lib/useMealClock';
@@ -18,10 +20,14 @@ import { toRecipeQuery, toRecipesSearch } from './search';
 const route = getRouteApi('/_app/recipes');
 
 export function RecipesPage() {
-  return <FamilyGate>{(family) => <RecipesView family={family} />}</FamilyGate>;
+  // The curator's sections do not depend on the family (spec of W3, section 1): also next to «no family».
+  const before = <CatalogueDraftsSection />;
+  const after = <ArchivedRecipesSection />;
+  return <FamilyGate before={before} after={after}>{(family) => <RecipesView family={family} before={before} after={after} />}</FamilyGate>;
 }
 
-function RecipesView({ family }: { family: FamilyView }) {
+/** `before`: after the filters; `after`: at the end of the column (the curator's sections, W3). */
+function RecipesView({ family, before, after }: { family: FamilyView; before?: ReactNode; after?: ReactNode }) {
   const t = useT();
   const { locale } = useLocale();
   const search = route.useSearch();
@@ -46,6 +52,7 @@ function RecipesView({ family }: { family: FamilyView }) {
           <h1 className="page-title">{t('recipes.title')}</h1>
         </header>
         <RecipeFilters query={query} onChange={update} />
+        {before}
         {blocked && <QueryError error={results.error} onRetry={() => void results.refetch()} />}
         {!blocked && results.isPending && <Loading />}
         {items?.length === 0 && (
@@ -75,6 +82,7 @@ function RecipesView({ family }: { family: FamilyView }) {
             ))}
           </div>
         )}
+        {after}
       </div>
     </section>
   );
