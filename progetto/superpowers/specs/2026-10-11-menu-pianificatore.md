@@ -276,7 +276,9 @@ In locale: `wrangler dev --test-scheduled` e `curl
 ### 4.2 Smistamento ed elaborazione
 
 `runWeeklyJob(connectionString, now)` (rilievo 4, decisione del coordinatore), in tre
-passi separati:
+passi separati. `runWeeklyJobOn(sql, now, { families })` accetta un filtro facoltativo
+sulle famiglie, usato solo dai test: il database dei test contiene migliaia di famiglie
+di altri test, e il job orario le serve tutte.
 
 1. **Smistamento dei nuovi bersagli**, una transazione `app_job`: legge le famiglie
    (`id`, `time_zone`); per quelle con `isNextWeekDue(local)` e senza la settimana
@@ -336,8 +338,10 @@ minima in `server/src/pipeline.ts` con test):
 - `versionPart`, se c'è, si aggiunge in fondo alla versione dell'operazione (sezione
   5.1);
 - `OperationContext.now: Date` è l'istante della richiesta, fissato una volta dalla
-  pipeline (da `RequestContext.now?.()`, sostituibile nei test, altrimenti
-  `new Date()`): hook e gestore vedono la stessa ora.
+  pipeline (da `RequestContext.clock?.()`, sostituibile nei test, altrimenti
+  `new Date()`): hook e gestore vedono la stessa ora. L'orologio del contesto della
+  richiesta si chiama `clock` e non `now` perché oRPC non accetta che un campo cambi
+  tipo fra il contesto iniziale e quello del middleware.
 
 Le tre letture del menu registrano `ensureWeeks(tx, input.familyId, context.now)`:
 
@@ -348,6 +352,10 @@ Le tre letture del menu registrano `ensureWeeks(tx, input.familyId, context.now)
   riga di log `lazy_generation_failed` registra famiglia, settimana e codice d'errore, e
   la lettura prosegue senza quella settimana (la ritenta la lettura successiva, e il job
   per la settimana successiva);
+- la generazione sta nella transazione della lettura: se la lettura finisce con un
+  errore (per esempio `getWeek` di una settimana inesistente → `not_found`), la
+  transazione si annulla e con lei le settimane appena generate, che la lettura
+  successiva rigenera;
 - costo: la prima apertura dopo mercoledì sera aggiunge circa 25 ms di CPU per
   settimana generata; tutte le altre letture due query piccole.
 

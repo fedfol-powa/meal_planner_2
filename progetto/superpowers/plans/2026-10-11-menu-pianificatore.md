@@ -79,6 +79,20 @@ schemi di W6. Il Task 1 si consegna per primo in una PR piccola a parte (produtt
 
 ---
 
+## Note dell'implementazione
+
+Scostamenti nati in implementazione, con spec allineata:
+
+- Ordine dei task: per decisione del coordinatore (in attesa della PR #10 di W2), la parte del Task 9 senza generazione e la registrazione dell'area sono venute prima del Task 8; generazione pigra e Task 10 dopo il merge della PR #10.
+- `RequestContext.clock?: () => Date` invece di `now` (oRPC non accetta che `now` cambi tipo fra i due contesti); `OperationContext.now` resta l'istante fissato. `contextFor(keys, token, db, clock)`.
+- Test del server in `server/test/menu/` (`versions`, `generation`, `reads`, `mcp`, `job`, `week`), come `server/test/recipes/` di W6. La lista scritta a mano degli strumenti MCP del contratto vero non esiste: i tre strumenti del menu sono verificati in `menu/mcp.test.ts`; `channels.test.ts` elenca a mano solo il contratto di test (aggiunto `test_preparedView`).
+- `runWeeklyJobOn(sql, now, { families })`: filtro facoltativo per i test, perché il database dei test contiene migliaia di famiglie.
+- Apertura: una sola query ordinata al posto delle tre del piano, con lo stesso risultato nei cinque casi.
+- `getWeek` di una settimana inesistente annulla la transazione e quindi anche la generazione pigra fatta nel `prepare`; la prova «genera su `getWeek`» è in `menu/week.test.ts` su una settimana che esiste dopo la generazione.
+- Migrazione `abandoned` verificata con tutti i test pgTAP in una transazione annullata, senza `supabase db reset` del database locale condiviso; poi applicata a quel database con `psql` per i test del job (allarga solo il vocabolario degli stati).
+
+---
+
 ### Task 1: `mealRecipeVersions` (R1) in una PR piccola per W4
 
 Sei il **produttore** di `mealRecipeVersions` per la spesa (W4): il task si consegna da
