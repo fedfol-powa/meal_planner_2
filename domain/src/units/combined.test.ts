@@ -52,4 +52,13 @@ describe('combinedQuantitySchema', () => {
 		expect(combinedQuantitySchema.safeParse({ ...stored, counts: { cup: 1 } }).success).toBe(false);
 		expect(combinedQuantitySchema.safeParse({ ...stored, mass_g: -1 }).success).toBe(false);
 	});
+	it('rejects text keys that are not the normalised Italian text, or repeated', () => {
+		const base = { mass_g: null, volume_ml: null, counts: {}, to_taste: false };
+		const parses = (texts: unknown[]) => combinedQuantitySchema.safeParse({ ...base, texts }).success;
+		expect(parses([{ key: '2 mazzetti', text: bunchText }])).toBe(false);
+		expect(parses([{ key: '1 Mazzetto', text: bunchText }])).toBe(false);
+		expect(parses([{ key: '1 mazzetto', text: bunchText }, { key: '1 mazzetto', text: { 'it-IT': '1  Mazzetto', 'en-GB': '1 bunch' } }])).toBe(false);
+		const accented = { 'it-IT': 'Un pò di  Prezzemolo', 'en-GB': 'Some parsley' };
+		expect(combinedQuantitySchema.parse({ ...base, texts: [{ key: textKey(accented['it-IT']), text: accented }] }).texts[0]?.text).toEqual(accented);
+	});
 });

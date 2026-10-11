@@ -3,6 +3,10 @@ import { BASE_FACTOR, COUNTED_UNITS, isMassUnit, isVolumeUnit } from './codes.ts
 import { localizedSchema } from './locale.ts';
 import type { Quantity } from './quantity.ts';
 
+/** Comparison key of a non-numeric quantity: case, accents and spacing ignored. */
+export const textKey = (text: string): string =>
+	text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+
 /**
  * Sum of an ingredient's quantities, never rounded (spec section 6). Also the stored shape of
  * `shopping_list_checks.quantity_at_check`.
@@ -15,16 +19,17 @@ export const combinedQuantitySchema = z.object({
 	 * Non-numeric quantities in both languages as they were: a tick shows its old quantity in the
 	 * viewer's language even after the lines changed. `key` (normalised Italian) is what `exceeds` compares.
 	 */
-	texts: z.array(z.object({ key: z.string().min(1), text: localizedSchema })),
+	texts: z
+		.array(
+			z.object({ key: z.string().min(1), text: localizedSchema })
+				.refine((t) => t.key === textKey(t.text['it-IT']), { message: 'key_not_normalised', path: ['key'] })
+		)
+		.refine((texts) => new Set(texts.map((t) => t.key)).size === texts.length, { message: 'duplicate_key' }),
 	to_taste: z.boolean()
 });
 export type CombinedQuantity = z.infer<typeof combinedQuantitySchema>;
 
 export const emptyCombined = (): CombinedQuantity => ({ mass_g: null, volume_ml: null, counts: {}, texts: [], to_taste: false });
-
-/** Comparison key of a non-numeric quantity: case, accents and spacing ignored. */
-export const textKey = (text: string): string =>
-	text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
 
 export function addQuantity(c: CombinedQuantity, q: Quantity): CombinedQuantity {
 	if (q.kind === 'to_taste') return { ...c, to_taste: true };
