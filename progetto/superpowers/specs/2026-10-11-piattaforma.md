@@ -242,9 +242,9 @@ con lo schema zod dei dati:
 | `web_only` | 403 | `url` |
 | `internal` | 500 | |
 
-- Ogni operazione dichiara i propri con `.errors()`; quelli comuni (`unauthorized`,
-  `invalid`, `internal`, `forbidden` per i ruoli, `web_only` per le operazioni
-  riservate) si aggiungono dal costruttore.
+- Il costruttore aggiunge a ogni operazione i codici comuni (`unauthorized`,
+  `forbidden`, `invalid`, `web_only`, `internal`); ogni operazione dichiara con
+  `.errors()` solo i propri (`not_found`, `conflict`, `last_admin`…).
 - La validazione dell'input di oRPC (`BAD_REQUEST` con i dettagli zod) diventa
   `invalid` con i percorsi dei campi; ogni altro errore non previsto diventa
   `internal` senza dettagli, registrato nei log del Worker.
@@ -264,8 +264,8 @@ Nessuna tabella di chiavi di idempotenza:
   mai un'inversione (`setItemChecked(…, checked: true)`, non `toggle`), e portano
   anch'esse un `id` per riconoscere la richiesta;
 - i test di ciascuna operazione dell'ondata 2 ripetono la stessa richiesta e
-  verificano risultato e assenza di duplicati. Questa attività fornisce l'helper di
-  test che esegue due volte una chiamata e confronta gli esiti.
+  verificano risultato e assenza di duplicati; il test delle convenzioni (4.1) controlla
+  la presenza dell'`id`.
 
 ### 4.4 Letture versionate e risposta «invariato»
 
@@ -288,8 +288,10 @@ output: { unchanged: true; version: string }
   catalogo pubblicato (ricette, proiezioni, ingredienti). Un voto incrementa il
   contatore di tutte le famiglie dell'utente; le bozze non toccano il contatore del
   ricettario. Nessuna scrittura (operazione, job, import) può dimenticarsene.
-- **Versione restituita**: `f{family}.c{catalogue}.{locale}.{deploy}`, con i soli
-  contatori dichiarati in `reads`. `deploy` è l'id della versione del Worker (binding
+- **Versione restituita**: `f{familyId}:{family}.c{catalogue}.{locale}.{deploy}`, con
+  le sole parti dichiarate in `reads`. L'id della famiglia è nella versione perché i
+  contatori di famiglie diverse partono tutti da zero: una versione posseduta per una
+  famiglia non deve mai valere come «invariato» per un'altra. `deploy` è l'id della versione del Worker (binding
   `version_metadata` di Wrangler): una nuova pubblicazione invalida le copie, perché
   può cambiare il calcolo delle viste. `locale` copre il cambio di lingua.
 - **Middleware**: legge i contatori nella transazione (sotto RLS), compone la versione
@@ -361,7 +363,7 @@ Registrate dal coordinatore nel piano generale.
   locale scelto da W2, collegato come `app_server`, e `SUPABASE_URL` dell'Auth locale.
 - In locale Hyperdrive non fa da pool (prova dell'11 ottobre): le prove di concorrenza
   si fanno sul Worker pubblicato.
-- Variabili in `server/.dev.vars` (non versionato), con `server/.dev.vars.example`.
+- Variabili in `server/.env` (non versionato, come nella prova), con `server/.env.example`.
 
 **Produzione**
 
@@ -447,7 +449,7 @@ TypeScript, Vitest. Nessuna dipendenza nuova; niente `@cloudflare/vitest-pool-wo
 | Monorepo con npm workspaces (`domain`, `contract`, `server`, `web`) che esportano i sorgenti TypeScript, senza build intermedie | 1 (struttura) |
 | Rotte: RPC su `/api/rpc`, REST su `/api`, OpenAPI su `/api/openapi.json`; SPA dagli asset statici di Workers con fallback SPA e Worker eseguito per primo solo su `/api/*`, `/mcp`, `/.well-known/*` | 1 |
 | Risposta «invariato» nel contratto (`knownVersion` in input, output `{ unchanged: true, version }` o con `data`) al posto di HTTP 304 con `ETag` | 1 (letture dalla copia sul dispositivo) |
-| Contatori incrementati da trigger statement-level nel database; versione `f{family}.c{catalogue}.{locale}.{deploy}` con i soli contatori dichiarati dall'operazione (`reads`); bozze fuori dal contatore del ricettario; un voto incrementa tutte le famiglie dell'utente | 1, 2, 15 (voce Architettura) |
+| Contatori incrementati da trigger statement-level nel database; versione `f{familyId}:{family}.c{catalogue}.{locale}.{deploy}` con le sole parti dichiarate dall'operazione (`reads`); bozze fuori dal contatore del ricettario; un voto incrementa tutte le famiglie dell'utente | 1, 2, 15 (voce Architettura) |
 | Idempotenza con `id` generato dal client e operazioni offline a stato assoluto, senza tabella di chiavi | 1 (idempotenza), 6 |
 | Utenza tecnica `app_server` membro di `authenticated`, `anon` e `app_job`; ogni transazione sceglie il ruolo | 1 (query nel ruolo dell'utente), 4 |
 | Contesto: lingua da `profiles.locale`; revoca immediata con verifica della sessione del token (`app.session_is_active()`) a ogni richiesta | 1 (revoca immediata), 13 |
