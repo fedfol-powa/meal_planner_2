@@ -2445,7 +2445,8 @@ git commit -m "Import: pacchetto validato e rilancio con il catalogo esistente"
 **Interfacce:**
 - Consuma: `BundleResult`, `ImportBundle` (compito 11); `missingData`, `DraftTranslated`.
 - Produce: `renderReport(result, extras: { archivedCount: number }): string` (markdown
-  italiano), `renderReviewPage(bundle): string` (HTML autonomo).
+  italiano), `renderReviewPage(bundle, catalogue): string` (HTML autonomo; `catalogue` è il
+  catalogo completo per i nomi, dopo la review della PR #9).
 
 - [ ] **Passo 1: scrivere i test che falliscono**
 
@@ -2799,7 +2800,7 @@ Expected: FAIL, modulo `./import-recipes.ts` inesistente.
 // scripts/import/import-recipes.ts
 // Import of the origin recipe book (detail spec, section 4): writes out/bundle.json, out/report.md and
 // out/review.html. Reads ../meal_planner only; never writes to the database.
-// Usage: node scripts/import/import-recipes.ts [--existing <file.json>] [--today <YYYY-MM-DD>]
+// Usage: node scripts/import/import-recipes.ts --today <YYYY-MM-DD> [--existing <file.json>]
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -2996,3 +2997,24 @@ Expected: test e typecheck verdi, `SAME` (il file «before» è del compito 0, p
 Usare `superpowers:verification-before-completion` e riportare l'esito di ogni comando.
 
 - [ ] **Passo 3: push e PR** (fase 6 del protocollo), poi `STATO: PR_APERTA <url>`.
+
+---
+
+### Correzioni della review della PR #9
+
+Rilievi in `progetto/coordinamento/revisioni/w3-pr9.md`, decisioni in
+`progetto/coordinamento/messaggi/w3-03-review-pr9.md`. Il codice sopra resta la traccia
+dell'esecuzione; il comportamento attuale è questo:
+
+- **Campi della fonte vuoti:** `textOrNull` in `localized.ts`; `toPublished` e `cleanDraft`
+  portano a `null` `sourceUrl`, `bookId`, `bookPages` vuoti o di soli spazi;
+  `resolveReferences` non risolve un libro vuoto. Test in `source-fields.test.ts` con `''`,
+  spazi, `null` e chiave omessa, su proiezione, risoluzione e pianificatore, più un caso con
+  libro risolto fino a `toPlannerRecipe(id, document)` (firma a due argomenti).
+- **Numeri ambigui:** in `quantity.ts` un numero col punto seguito da tre cifre o con
+  entrambi i separatori diventa `text` con nota `ambiguous_number`, nel report.
+- **Pagina di revisione:** `renderReviewPage(bundle, catalogue)`; il comando passa il
+  catalogo completo dei YAML; la tabella finale elenca solo gli ingredienti da inserire.
+- **`--today` obbligatorio:** `runImport` si ferma senza data.
+- **Parole ignorate nelle varietà:** `VARIETY_FILLER_WORDS` esportato da
+  `domain/src/shopping/variety.ts` e importato da `domain/src/recipe/variety.ts`.

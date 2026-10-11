@@ -167,8 +167,11 @@ checkPublishable(document, lookup): ValidationIssue[]  // alla pubblicazione, co
 toPublished(document): RecipeDocument                  // restringe il tipo dopo controlli superati
 ```
 
-`toPublished` normalizza prima i campi assenti: `sourceUrl`, `bookId`, `bookPages`,
-varietà e preparazione assenti o vuote diventano `null`, `seasons` assente diventa `[]`.
+`toPublished` normalizza prima i campi assenti: `sourceUrl`, `bookId`, `bookPages`
+assenti, vuoti o di soli spazi (lo stesso criterio dei controlli), varietà e preparazione
+assenti o vuote diventano `null`, `seasons` assente diventa `[]`. Lo stesso fa
+`cleanDraft` per i campi della fonte, e `resolveReferences` non risolve un libro vuoto
+(review della PR #9).
 Invariante, provata nei test: un documento senza problemi di pubblicazione si converte
 sempre con `toPublished`.
 
@@ -251,8 +254,9 @@ ordine stabile. `attributes` è nuova e copre gli attributi del pianificatore.
 
 - `projectRecipe(document)` → `{ recipe: RecipeProjection, ingredients:
   RecipeIngredientProjection[] }`, con le colonne elencate nell'interfaccia per W2.
-- `toPlannerRecipe(id, document, bookId)` → `PlannerRecipe` del pianificatore:
-  `primaryIngredientId` dalla riga `isPrimary`, `ingredients` con `isOptional`.
+- `toPlannerRecipe(id, document)` → `PlannerRecipe` del pianificatore:
+  `primaryIngredientId` dalla riga `isPrimary`, `ingredients` con `isOptional`, `bookId`
+  dal documento (l'id del catalogo, dopo `resolveReferences`).
 - `projectDraftNames(draft)` → `{ name, description }` di una ricetta in bozza nuova,
   con stringa vuota per le lingue mancanti.
 - `resolveReferences(document, lookup)` → stesso documento con gli id del catalogo al
@@ -334,7 +338,7 @@ la decisione B `ingredient_translations` diventa colonne di `ingredients`.
 
 ### Comando e ingressi
 
-`node scripts/import/import-recipes.ts [--existing <file.json>] [--today <YYYY-MM-DD>]`
+`node scripts/import/import-recipes.ts --today <YYYY-MM-DD> [--existing <file.json>]`
 (lo script npm nella radice si aggiunge con W1, proprietario del `package.json` della radice).
 
 | Ingresso | Contenuto |
@@ -346,7 +350,7 @@ la decisione B `ingredient_translations` diventa colonne di `ingredients`.
 | `scripts/import/translations.en-GB.yaml` | nome e descrizione inglesi delle ricette, quantità a parole |
 | `scripts/import/unit-equivalences.yaml` | equivalenze di ambito `recipe` per ingrediente (tazze USA), con la fonte e la preparazione facoltativa |
 | `--existing` | facoltativo: `{ recipes: [origin_slug], ingredients: [slug], books: [slug] }` già presenti nel database |
-| `--today` | data dell'import (`YYYY-MM-DD` esistente), per lo storico; di default oggi; una data non valida ferma il comando prima di leggere i dati |
+| `--today` | **obbligatorio**: data dell'import (`YYYY-MM-DD` esistente), per lo storico; nessuna data predefinita, perché decide quali settimane sono concluse (coordinatore, review della PR #9); una data mancante o non valida ferma il comando prima di leggere i dati |
 
 **Approvazione legata al contenuto** (deciso dal coordinatore dopo la review). Ogni file
 YAML d'ingresso ha in testa la riga
@@ -395,8 +399,12 @@ lines:
 Un parser in `scripts/import/quantity.ts` legge il testo italiano dell'origine:
 
 - `q.b.`, `a piacere` → `to_taste`;
-- numero, frazione o decimale, seguito facoltativamente da un'unità nota e da «circa» →
-  `amount` (`300 g`, `1/2`, `3 cucchiai circa`); un numero da solo è `piece`;
+- numero, frazione o decimale con la virgola (`62,5`), seguito facoltativamente da
+  un'unità nota e da «circa» → `amount` (`300 g`, `1/2`, `3 cucchiai circa`); un numero da
+  solo è `piece`;
+- un numero con il punto seguito da esattamente tre cifre (`1.000`, `1.500`: uno o mille?)
+  o con entrambi i separatori (`1.000,5`) → `text`, segnalato nel report: l'import non
+  sceglie fra le due letture (review della PR #9);
   una nota finale tra parentesi resta solo nel testo della fonte, ma la nota si segnala;
 - unità: `g kg ml l oz`, `cup`/`cups` → `us_cup`, `cucchiaio/i` → `tbsp`,
   `cucchiaino/i` → `tsp`, `spicchio/i` → `clove`, `fetta/e` → `slice`, `pizzico/chi` →
@@ -407,7 +415,7 @@ Un parser in `scripts/import/quantity.ts` legge il testo italiano dell'origine:
   la cui preparazione coincide con quella della riga, o che non ne ha; altrimenti resta
   `us_cup` e la ricetta resta in bozza.
 
-Le quantità con «circa» e quelle con una nota tra parentesi entrano nel report, anche
+Le quantità con «circa», con un numero ambiguo e con una nota tra parentesi entrano nel report, anche
 quando il ripiego è `text`: per esempio il caso reale «145 g crudo (330 g cotto)», che
 resta testo ma va segnalato perché crudo e cotto danno quantità diverse.
 
@@ -506,7 +514,9 @@ In `scripts/import/out/`, rigenerabile e ignorata da Git (con un `.gitignore` in
   descrizione in italiano e inglese, e per riga testo della fonte → ingrediente (due
   lingue, «da mappare» per una riga irrisolta), varietà, preparazione, quantità letta,
   facoltativo, principale, problemi;
-  poi il catalogo degli ingredienti con reparto e dispensa. Pagina statica autonoma,
+  poi gli ingredienti da inserire nel catalogo con reparto e dispensa. I nomi degli
+  ingredienti delle righe vengono dal catalogo completo dei YAML, così in un rilancio
+  anche quelli già nel database compaiono nelle due lingue. Pagina statica autonoma,
   testi in italiano. Il coordinatore la mostra all'utente; le correzioni si riportano
   nei YAML.
 
@@ -627,4 +637,5 @@ adattarlo, senza cambiare il comportamento di `planner-report`.
 | Quantità e codici delle unità concordati con W4; `us_cup` solo in bozza; equivalenze di ambito `recipe` applicate in gestione o import | 6 |
 | Proprietà dei tipi: W4 possiede `Translated`, `LOCALES`, quantità completa, codici e schemi delle unità; W3 le varianti di bozza costruite sopra | 1, 2 |
 | `ingredientId` nullabile nel livello bozza (riga irrisolta); `toPublished` normalizza i campi assenti | 2, 8 |
-| Import: pacchetto JSON, report e pagina di revisione in `scripts/import/out/`; `--existing` per il rilancio, applicato prima delle validazioni sul contenuto delle schede; nessuna scrittura sul database; pubblicazione bloccata da `pendingReview` | 8, 11 |
+| Import: pacchetto JSON, report e pagina di revisione in `scripts/import/out/`; `--existing` per il rilancio, applicato prima delle validazioni sul contenuto delle schede; `--today` obbligatorio, senza data predefinita; numeri ambigui (`1.000`) mai interpretati; nessuna scrittura sul database; pubblicazione bloccata da `pendingReview` | 8, 11 |
+| Campi della fonte vuoti o di soli spazi uguali ai campi assenti: `null` nel documento pubblicato e nella bozza ripulita | 2, 8 |
