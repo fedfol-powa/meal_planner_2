@@ -16,7 +16,7 @@ fare; qui c'è come.
   tocchi server, database o MCP.
 - Documentazione di librerie e servizi con Context7, non a memoria.
 - Dipendenze al minimo: per ogni libreria nuova scrivi cosa sostituisce e cosa costa
-  farne a meno. L'utente le approva nella review del piano.
+  farne a meno. Le approva il coordinatore.
 
 ## Fasi
 
