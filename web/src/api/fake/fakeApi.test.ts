@@ -75,7 +75,7 @@ describe('fake api', () => {
   it('shows changes, notes and former members on meals', async () => {
     const week = data(await api().menu.getWeek({ familyId, weekStartsOn: '2026-10-05' }));
     const meals = week.days.flatMap((d) => d.meals);
-    expect(meals.find((m) => m.slotId === '2026-10-08-lunch')?.lastChange).toEqual({ userName: 'Anna', at: '2026-10-02T21:30' });
+    expect(meals.find((m) => m.slotId === '2026-10-08-lunch')?.lastChange).toEqual({ userName: 'Anna', at: '2026-10-02T21:30', actionId: null, undoable: false, slotIds: [] });
     expect(meals.find((m) => m.slotId === '2026-10-08-lunch')?.note).toBe('Doppia dose, avanza per venerdì');
     expect(meals.find((m) => m.slotId === '2026-10-07-lunch')?.lastChange?.userName).toBeNull();
   });

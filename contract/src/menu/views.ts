@@ -19,7 +19,18 @@ export const mealView = z.object({
 	rating: ratingSummaryView.nullable(),
 	canOpenRecipe: z.boolean(),
 	/** userName null: the author is no longer a member. */
-	lastChange: z.object({ userName: z.string().nullable(), at: localDateTimeSchema }).nullable(),
+	/** userName null: the author is no longer a member. actionId: the action that made the change (null before actions existed). */
+	lastChange: z
+		.object({
+			userName: z.string().nullable(),
+			at: localDateTimeSchema,
+			actionId: z.uuid().nullable(),
+			/** For the reader: their own action, still the last one of every slot it changed (meals.undo). */
+			undoable: z.boolean(),
+			/** Slots the action changed: two for a swap. */
+			slotIds: z.array(z.uuid()),
+		})
+		.nullable(),
 });
 
 export const dayView = z.object({ date: isoDateSchema, meals: z.array(mealView) });

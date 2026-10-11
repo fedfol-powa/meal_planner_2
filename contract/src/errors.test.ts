@@ -9,6 +9,10 @@ describe('catalogue errors', () => {
 		expect(() => notAllowedData.parse({ reason: 'other' })).toThrow();
 	});
 
+	it('not_allowed carries the reasons of the meal undo', () => {
+		for (const reason of ['not_own_change', 'changed_since', 'draft_closed']) expect(notAllowedData.parse({ reason })).toEqual({ reason });
+	});
+
 	it('tells the three conflicts apart', () => {
 		const at = '2026-10-11T10:00:00.000Z';
 		const by = crypto.randomUUID();
