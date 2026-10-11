@@ -1,0 +1,20 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "meal-planner-spike",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
+		// Publishable by design: it is shipped to the browser on the consent page.
+		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_ZN5AmAKDK-_xVuKSINnLnw_EZa3ns7f"
+	},
+	"observability": { "enabled": true },
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			// Spike Hyperdrive config, caching disabled (reads depend on the user via RLS).
+			"id": "80c841af586f49a2b9e3d9b633058ee7"
+		}
+	]
+}
