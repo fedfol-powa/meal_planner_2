@@ -16,6 +16,23 @@ export type AuthEventType =
   | 'PASSWORD_RECOVERY'
   | 'MFA_CHALLENGE_VERIFIED';
 export type AuthEvent = { type: 'SIGNED_OUT'; user: null } | { type: Exclude<AuthEventType, 'SIGNED_OUT'>; user: AuthUser };
+/** A consent request opened by an agent (OAuth server of Supabase Auth, spec section 13). */
+export type AgentAuthorization =
+  | {
+      kind: 'consent';
+      id: string;
+      /** Name the client registered with; not verified. */
+      clientName: string;
+      /** OAuth client id and registered return page, to tell same-named clients apart. */
+      clientId: string;
+      redirectUri: string;
+      /** Requested scopes (OIDC): data sent to the agent, not limits on what it can do. */
+      scopes: string[];
+    }
+  /** Grant already active: Supabase skips the consent and sends the agent its code. */
+  | { kind: 'redirect'; url: string };
+export type AuthorizationFailure = 'not_found' | 'network' | 'unknown';
+export type AuthorizationResult<T> = { ok: true; value: T } | { ok: false; reason: AuthorizationFailure };
 
 /** What the app needs from authentication; Supabase in real mode, a fixed demo user in fake mode. */
 export interface AuthBackend {
@@ -30,9 +47,23 @@ export interface AuthBackend {
   refresh(): Promise<RenewResult>;
   /** For the oRPC link (Authorization: Bearer), read at every request; null without a session. */
   getCredentials(): Promise<Credentials | null>;
+  /** The agent's consent request; not_found when missing, expired or already decided. */
+  getAuthorization(id: string): Promise<AuthorizationResult<AgentAuthorization>>;
+  /** Allows or refuses the request; the value is the agent's URL to go to (code or error). */
+  decideAuthorization(id: string, decision: 'approve' | 'deny'): Promise<AuthorizationResult<string>>;
 }
 
 export const DEMO_USER: AuthUser = { id: 'user-federico', email: 'federico@example.com' };
+
+/** Fake mode: a demo request, so the consent screen can be seen without Supabase. */
+export const DEMO_AUTHORIZATION: AgentAuthorization = {
+  kind: 'consent',
+  id: 'demo',
+  clientName: 'Claude Code',
+  clientId: '6a046a4a-3adc-4818-b1b1-47c5966d7fa7',
+  redirectUri: 'http://localhost:33418/callback',
+  scopes: ['openid', 'email', 'profile']
+};
 
 /** Fake mode (no VITE_SUPABASE_*): always signed in as the demo user, no sign-in page. */
 export function createFakeBackend(): AuthBackend {
@@ -43,6 +74,9 @@ export function createFakeBackend(): AuthBackend {
     signIn: async () => ({ ok: true }),
     signOut: async () => undefined,
     refresh: async () => ({ kind: 'ok', userId: DEMO_USER.id }),
-    getCredentials: async () => null
+    getCredentials: async () => null,
+    getAuthorization: async () => ({ ok: true, value: DEMO_AUTHORIZATION }),
+    // No agent waits in fake mode: back to the connected agents.
+    decideAuthorization: async () => ({ ok: true, value: '/profile/agents' })
   };
 }
