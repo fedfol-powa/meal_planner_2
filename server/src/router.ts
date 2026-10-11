@@ -1,5 +1,6 @@
 import { contract } from '@app/contract';
 import { createImplementer } from './pipeline.ts';
+import { ratingsRouter } from './recipes/router.ts';
 
 const os = createImplementer(contract);
 
@@ -12,4 +13,5 @@ export const router = os.router({
 			locale: context.locale,
 		})),
 	},
+	ratings: ratingsRouter(os),
 });
