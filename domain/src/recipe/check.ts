@@ -38,11 +38,11 @@ export function draftIssues(document: RecipeDraftDocument, lookup: CatalogueLook
 	if (!LOCALES.some((l) => filled(document.name[l]))) add('required', 'name');
 	checkLength(add, document.name, LIMITS.name, 'name');
 	checkLength(add, document.description, LIMITS.description, 'description');
-	if (document.sourceUrl) {
+	if (filled(document.sourceUrl)) {
 		const host = httpUrlHost(document.sourceUrl);
 		if (!host || (document.sourceType === 'youtube' && !YOUTUBE_HOSTS.has(host))) add('invalid_url', 'sourceUrl');
 	}
-	if (document.bookId && !lookup.hasBook(document.bookId)) add('unknown_book', 'bookId');
+	if (filled(document.bookId) && !lookup.hasBook(document.bookId)) add('unknown_book', 'bookId');
 	if ((document.bookPages?.length ?? 0) > LIMITS.bookPages) add('too_long', 'bookPages');
 	checkWholeNumber(add, document.durationMinutes, LIMITS.durationMinutes, 'durationMinutes');
 	checkWholeNumber(add, document.baseServings, LIMITS.baseServings, 'baseServings');

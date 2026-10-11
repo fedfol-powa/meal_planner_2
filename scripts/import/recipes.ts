@@ -60,9 +60,10 @@ export function buildRecipe(origin: OriginRecipe, attributes: RecipeAttributes |
 		const sourceText = `${line.nome}: ${line.quantita}`;
 		const mapping = inputs.lines.get(line.nome);
 		const optional = OPTIONAL.test(String(line.quantita));
+		const isPrimary = attributes?.primaryIngredient === slug(line.nome);
 		if (!mapping) {
 			findings.push({ kind: 'unmapped_line', detail: line.nome });
-			return { ingredientId: null, variety: null, preparation: null, quantity: lineQuantity(line.quantita, null, null, inputs, findings, sourceText), sourceText, isOptional: optional, isPrimary: false };
+			return { ingredientId: null, variety: null, preparation: null, quantity: lineQuantity(line.quantita, null, null, inputs, findings, sourceText), sourceText, isOptional: optional, isPrimary };
 		}
 		if (ALTERNATIVE.test(line.nome)) findings.push({ kind: 'alternative_in_name', detail: line.nome });
 		if (BOOK_PAGE.test(line.nome)) findings.push({ kind: 'book_dependency', detail: line.nome });
@@ -77,7 +78,7 @@ export function buildRecipe(origin: OriginRecipe, attributes: RecipeAttributes |
 			quantity: lineQuantity(line.quantita, mapping.ingredient, mapping.preparation?.['it-IT'] ?? null, inputs, findings, sourceText),
 			sourceText,
 			isOptional: mapping.optional || optional,
-			isPrimary: attributes?.primaryIngredient === slug(line.nome)
+			isPrimary
 		};
 	});
 

@@ -44,6 +44,14 @@ export function runImport(options: { root: string; originDirectory?: string; exi
 	};
 }
 
+/** One line for the console; files still to review block every publication (wave 2). */
+export function summaryOf(result: BundleResult): string {
+	const { recipes, ingredients, pendingReview } = result.bundle;
+	const publishable = recipes.filter((r) => r.status === 'publishable').length;
+	const pending = pendingReview.length ? ` ${pendingReview.length} input files pending review: nothing publishes until they are approved.` : '';
+	return `${recipes.length} recipes (${publishable} publishable), ${ingredients.length} ingredients, ${result.skipped.length} skipped.${pending} Files in scripts/import/out/.`;
+}
+
 const argument = (name: string) => {
 	const index = process.argv.indexOf(name);
 	return index >= 0 ? process.argv[index + 1] : undefined;
@@ -55,6 +63,5 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
 	const out = resolve(root, 'scripts/import/out');
 	mkdirSync(out, { recursive: true });
 	for (const [name, content] of Object.entries(files)) writeFileSync(resolve(out, name), content);
-	const publishable = result.bundle.recipes.filter((r) => r.status === 'publishable').length;
-	console.log(`${result.bundle.recipes.length} recipes (${publishable} publishable), ${result.bundle.ingredients.length} ingredients, ${result.skipped.length} skipped. Files in scripts/import/out/.`);
+	console.log(summaryOf(result));
 }

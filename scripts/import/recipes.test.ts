@@ -42,6 +42,10 @@ describe('buildRecipe', () => {
 		expect(checkDraft(built.document, lookup)).toEqual([]);
 		expect(publication(built)).toEqual(['required:ingredients.1.ingredientId']);
 	});
+	it('keeps the primary ingredient on an unresolved line', () => {
+		const built = buildRecipe(originRecipe({ ingredienti: [{ nome: 'Pasta corta', quantita: '320 g' }, { nome: "Tonno all'olio", quantita: 'q.b.' }] }), attributesFor({ primaryIngredient: 'tonno-all-olio' }), inputs);
+		expect(built.document.ingredients?.[1]).toMatchObject({ ingredientId: null, isPrimary: true });
+	});
 	it('keeps both lines when two map to the same ingredient and variety', () => {
 		const built = buildRecipe(originRecipe({ ingredienti: [{ nome: 'Pasta corta', quantita: '1 vaschetta da 250 g' }, { nome: 'Pasta corta', quantita: 'un piccolo pezzo' }] }), noPrimary, inputs);
 		expect(built.document.ingredients).toHaveLength(2);

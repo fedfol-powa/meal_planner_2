@@ -49,6 +49,9 @@ describe('checkDraft', () => {
 		expect(codes(doc([line({ ingredientId: null, sourceText: 'Zenzero fresco: 1 pezzo' })]))).toEqual([]);
 		expect(codes(doc([line({ ingredientId: 'pomodori', variety: { 'it-IT': 'tipo Roma' } }), line({ ingredientId: 'pomodori', variety: { 'it-IT': 'roma' } })]))).toEqual([]);
 	});
+	it('treats blank source fields as empty, not as wrong data', () => {
+		expect(codes({ schemaVersion: 1, name: { 'it-IT': 'Z' }, sourceType: 'home', sourceUrl: '   ', bookId: ' ' })).toEqual([]);
+	});
 	it('returns schema errors as invalid_value', () => {
 		expect(codes({ schemaVersion: 1, name: {}, mealType: 'brunch' })).toEqual(['invalid_value:mealType']);
 	});

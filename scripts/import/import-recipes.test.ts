@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { stringify } from 'yaml';
 import { afterEach, describe, expect, it } from 'vitest';
-import { runImport } from './import-recipes.ts';
+import { runImport, summaryOf } from './import-recipes.ts';
 
 const dirs: string[] = [];
 afterEach(() => dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })));
@@ -36,6 +36,11 @@ describe('import command', () => {
 		expect(result.skipped).toEqual(['vecchia']);
 		expect(result.bundle.recipes.map((r) => [r.origin.slug, r.status])).toEqual([['nuova', 'publishable']]);
 		expect(Object.keys(files).sort()).toEqual(['bundle.json', 'report.md', 'review.html']);
+	});
+	it('says in the summary which input files still need the review', () => {
+		const { root, origin, existingFile } = setup();
+		const { result } = runImport({ root, originDirectory: origin, existingFile, today: '2026-10-12' });
+		expect(summaryOf(result)).toContain('4 input files pending review');
 	});
 	it('stops on a primary ingredient error of a card that is not in the database', () => {
 		const { root, origin } = setup();
