@@ -98,6 +98,23 @@ describe.skipIf(!hasDatabase)('recipes.get', () => {
 		expect(again.unchanged).toBe(false);
 	});
 
+	it('opened from a meal, scales to its servings unless servings are asked; a meal of zero servings keeps the base', async () => {
+		const m = await t.member();
+		const tomato = await cat.ingredient('tomato', { 'it-IT': 'Pomodori', 'en-GB': 'Tomatoes' });
+		const recipeId = await cat.recipe({
+			name: { 'it-IT': 'Sugo', 'en-GB': 'Sauce' },
+			baseServings: 2,
+			lines: [{ ingredientId: tomato, quantity: { kind: 'amount', value: 200, unit: 'g' } }],
+		});
+		const forSix = await cat.meal(m.familyId, recipeId, day(2), 'lunch', 6);
+		const pastForThree = await cat.meal(m.familyId, recipeId, '2026-09-21', 'dinner', 3);
+		const skipped = await cat.meal(m.familyId, recipeId, day(3), 'dinner', 0);
+		expect(await get(m, { recipeId, slotId: forSix })).toMatchObject({ baseServings: 2, servings: 6, ingredients: [{ amount: '600 g' }] });
+		expect(await get(m, { recipeId, slotId: pastForThree })).toMatchObject({ servings: 3, ingredients: [{ amount: '300 g' }] });
+		expect(await get(m, { recipeId, slotId: forSix, servings: 1 })).toMatchObject({ servings: 1, ingredients: [{ amount: '100 g' }] });
+		expect(await get(m, { recipeId, slotId: skipped })).toMatchObject({ servings: 2, ingredients: [{ amount: '200 g' }] });
+	});
+
 	it('refuses a slot of another family or of another recipe', async () => {
 		const m = await t.member();
 		const other = await t.member();

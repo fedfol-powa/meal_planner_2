@@ -320,14 +320,17 @@ export function createFakeApi(options: FakeApiOptions): Api {
           .map(({ item }) => item);
         return respond({ items: query.reversed ? items.reverse() : items });
       },
-      // slotId is accepted and ignored: versions of past meals arrive with wave 2.
-      async get({ familyId, recipeId, servings }) {
+      // Like the Worker, a meal citing the recipe gives the default servings (zero servings: the base);
+      // versions of past meals are not simulated.
+      async get({ familyId, recipeId, servings, slotId }) {
         checkFamily(familyId);
         const recipe = published(recipeId);
         if (!recipe) throw new ApiError('not_found');
         const locale = options.getLocale();
         const base = recipe.baseServings;
-        const chosen = servings && Number.isInteger(servings) && servings > 0 && servings <= 50 ? servings : (base ?? 1);
+        const meal = slotId ? visibleWeeks().flatMap((w) => w.slots).find((s) => s.id === slotId && s.recipeId === recipeId) : undefined;
+        const fallback = meal && meal.servings > 0 ? meal.servings : (base ?? 1);
+        const chosen = servings && Number.isInteger(servings) && servings > 0 && servings <= 50 ? servings : fallback;
         return respond({
           recipe: summary(recipe, locale), status: 'published' as const, baseServings: base ?? chosen, servings: chosen,
           ingredients: lines(recipe, chosen, locale) ?? [], rating: ratingSummary(recipe.id),
