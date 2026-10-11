@@ -10,8 +10,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 piattaforma | W1 piattaforma | w1:p8 | fondamenta/piattaforma | .worktrees/piattaforma | Task 11 in corso (test sulle migrazioni reali e CI con database), poi merge di PR #5; task 10 rimandato | 11/10 |
 | W2 schema | W2 schema | w1:p9 | fondamenta/schema | .worktrees/schema | **Unito** (PR #4, 11/10); worker libero per l'ondata 2 | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | Spec e piano corretti e approvati; contesto pulito; implementazione dopo il merge di W4 (mandare messaggio di ripresa con via all implementazione) | 11/10 |
-| W4 unita-spesa | W4 unita-spesa | w1:pB | fondamenta/unita-spesa | .worktrees/unita-spesa | Aggiorna spec e piano per le equivalenze con preparazione; poi attesa del merge dello scheletro (PR #3) per implementare | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | Correzioni della seconda review, poi implementazione e PR (niente terza review di spec) | 11/10 |
+| W4 unita-spesa | W4 unita-spesa | w1:pB | fondamenta/unita-spesa | .worktrees/unita-spesa | Implementazione in corso (via dato alle 12:25), poi PR | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | Implementazione in corso, poi PR (niente terza review di spec) | 11/10 |
 
 ## Revisori attivi
 
