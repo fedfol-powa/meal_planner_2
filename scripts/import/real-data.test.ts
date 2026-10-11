@@ -33,4 +33,9 @@ describe.skipIf(!hasOrigin)('import of the real origin recipe book', () => {
 		for (const s of ['penne-baffo', 'pasta-zucca-salsiccia-robiola', 'pasta-crema-peperoni', 'lenticchie-comidista']) expect(bySlug.get(s)?.document.sourceType).toBe('web');
 		for (const s of ['pasta-tonno', 'lenticchie-comidista']) expect(result.bundle.family.triedUndated).toContain(s);
 	});
+	it('maps every origin line and translates every recipe', () => {
+		const unresolved = result.bundle.recipes.filter((r) => r.issues.some((i) => i.path[2] === 'ingredientId' && i.code === 'required')).map((r) => r.origin.slug);
+		expect(unresolved).toEqual([]);
+		for (const r of result.bundle.recipes) expect(r.issues.filter((i) => i.code === 'translation_missing')).toEqual([]);
+	});
 });

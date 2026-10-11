@@ -1,3 +1,1500 @@
 # Catalogo degli ingredienti dell'import: un prodotto generico per voce (spec di dettaglio, sezione 5).
 # Preparato dall'agente dalle righe d'origine; l'approvazione si scrive con approve.ts su indicazione dell'utente.
-ingredients: {}
+ingredients:
+  aceto:
+    name:
+      it-IT: Aceto
+      en-GB: Vinegar
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  acqua:
+    name:
+      it-IT: Acqua
+      en-GB: Water
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: other
+    pantry: true
+  aglio:
+    name:
+      it-IT: Aglio
+      en-GB: Garlic
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  aglio-in-polvere:
+    name:
+      it-IT: Aglio in polvere
+      en-GB: Garlic powder
+    synonyms:
+      it-IT: []
+      en-GB:
+        - granulated garlic
+    department: condiments
+    pantry: true
+  alici:
+    name:
+      it-IT: Acciughe
+      en-GB: Anchovies
+    synonyms:
+      it-IT:
+        - alici
+      en-GB:
+        - anchovy fillets
+    department: tinned
+    pantry: false
+  alloro:
+    name:
+      it-IT: Alloro
+      en-GB: Bay leaves
+    synonyms:
+      it-IT:
+        - lauro
+      en-GB:
+        - bay leaf
+    department: condiments
+    pantry: true
+  barbabietole:
+    name:
+      it-IT: Barbabietole
+      en-GB: Beetroot
+    synonyms:
+      it-IT:
+        - barbabietola rossa
+      en-GB:
+        - beets
+    department: produce
+    pantry: false
+  basilico:
+    name:
+      it-IT: Basilico
+      en-GB: Basil
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  bietole:
+    name:
+      it-IT: Bietole
+      en-GB: Chard
+    synonyms:
+      it-IT:
+        - bieta
+        - erbette
+      en-GB:
+        - Swiss chard
+    department: produce
+    pantry: false
+  branzino:
+    name:
+      it-IT: Branzino
+      en-GB: Sea bass
+    synonyms:
+      it-IT:
+        - spigola
+      en-GB: []
+    department: fish
+    pantry: false
+  bresaola:
+    name:
+      it-IT: Bresaola
+      en-GB: Bresaola
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  broccoli:
+    name:
+      it-IT: Broccoli
+      en-GB: Broccoli
+    synonyms:
+      it-IT:
+        - broccolo
+      en-GB: []
+    department: produce
+    pantry: false
+  brodo-vegetale:
+    name:
+      it-IT: Brodo vegetale
+      en-GB: Vegetable stock
+    synonyms:
+      it-IT:
+        - dado vegetale
+      en-GB:
+        - vegetable broth
+    department: condiments
+    pantry: false
+  burro:
+    name:
+      it-IT: Burro
+      en-GB: Butter
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  caciocavallo:
+    name:
+      it-IT: Caciocavallo
+      en-GB: Caciocavallo
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  cannella:
+    name:
+      it-IT: Cannella
+      en-GB: Cinnamon
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  carote:
+    name:
+      it-IT: Carote
+      en-GB: Carrots
+    synonyms:
+      it-IT:
+        - carota
+      en-GB:
+        - carrot
+    department: produce
+    pantry: false
+  cavallo:
+    name:
+      it-IT: Carne di cavallo
+      en-GB: Horse meat
+    synonyms:
+      it-IT:
+        - equina
+      en-GB: []
+    department: butcher
+    pantry: false
+  caviale-di-melanzane:
+    name:
+      it-IT: Caviale di melanzane
+      en-GB: Aubergine caviar
+    synonyms:
+      it-IT:
+        - crema di melanzane
+      en-GB:
+        - baba ganoush
+    department: other
+    pantry: false
+  cavolo-rosso:
+    name:
+      it-IT: Cavolo rosso
+      en-GB: Red cabbage
+    synonyms:
+      it-IT:
+        - cavolo cappuccio rosso
+      en-GB: []
+    department: produce
+    pantry: false
+  ceci:
+    name:
+      it-IT: Ceci
+      en-GB: Chickpeas
+    synonyms:
+      it-IT:
+        - ceci in scatola
+      en-GB:
+        - garbanzo beans
+    department: tinned
+    pantry: false
+  cheddar:
+    name:
+      it-IT: Cheddar
+      en-GB: Cheddar
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  cipolle:
+    name:
+      it-IT: Cipolle
+      en-GB: Onions
+    synonyms:
+      it-IT:
+        - cipolla
+      en-GB:
+        - onion
+    department: produce
+    pantry: false
+  cipollotti:
+    name:
+      it-IT: Cipollotti
+      en-GB: Spring onions
+    synonyms:
+      it-IT:
+        - cipollotto
+      en-GB:
+        - scallions
+        - spring onion
+    department: produce
+    pantry: false
+  concentrato-di-pomodoro:
+    name:
+      it-IT: Concentrato di pomodoro
+      en-GB: Tomato purée
+    synonyms:
+      it-IT: []
+      en-GB:
+        - tomato paste
+    department: tinned
+    pantry: false
+  coriandolo:
+    name:
+      it-IT: Coriandolo
+      en-GB: Coriander
+    synonyms:
+      it-IT:
+        - cilantro
+      en-GB:
+        - cilantro
+    department: produce
+    pantry: false
+  coriandolo-in-polvere:
+    name:
+      it-IT: Coriandolo in polvere
+      en-GB: Ground coriander
+    synonyms:
+      it-IT:
+        - coriandolo macinato
+      en-GB: []
+    department: condiments
+    pantry: true
+  corn-flakes:
+    name:
+      it-IT: Corn flakes
+      en-GB: Cornflakes
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  couscous:
+    name:
+      it-IT: Couscous
+      en-GB: Couscous
+    synonyms:
+      it-IT:
+        - cous cous
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  crema-di-mandorle:
+    name:
+      it-IT: Crema di mandorle
+      en-GB: Almond butter
+    synonyms:
+      it-IT:
+        - burro di mandorle
+      en-GB: []
+    department: condiments
+    pantry: false
+  cumino:
+    name:
+      it-IT: Cumino
+      en-GB: Cumin
+    synonyms:
+      it-IT: []
+      en-GB:
+        - ground cumin
+    department: condiments
+    pantry: true
+  curcuma:
+    name:
+      it-IT: Curcuma
+      en-GB: Turmeric
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  curry:
+    name:
+      it-IT: Curry
+      en-GB: Curry powder
+    synonyms:
+      it-IT:
+        - curry in polvere
+      en-GB: []
+    department: condiments
+    pantry: true
+  ditali:
+    name:
+      it-IT: Ditali
+      en-GB: Ditali
+    synonyms:
+      it-IT:
+        - ditalini
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  emmentaler:
+    name:
+      it-IT: Emmentaler
+      en-GB: Emmental
+    synonyms:
+      it-IT:
+        - emmental
+      en-GB:
+        - Emmentaler
+    department: chilled
+    pantry: false
+  erba-cipollina:
+    name:
+      it-IT: Erba cipollina
+      en-GB: Chives
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  erbazzone:
+    name:
+      it-IT: Erbazzone
+      en-GB: Erbazzone
+    synonyms:
+      it-IT: []
+      en-GB:
+        - chard pie
+    department: frozen
+    pantry: false
+  fagioli:
+    name:
+      it-IT: Fagioli
+      en-GB: Beans
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: tinned
+    pantry: false
+  farina:
+    name:
+      it-IT: Farina
+      en-GB: Flour
+    synonyms:
+      it-IT: []
+      en-GB:
+        - plain flour
+    department: pasta_grains
+    pantry: false
+  feta:
+    name:
+      it-IT: Feta
+      en-GB: Feta
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  funghi:
+    name:
+      it-IT: Funghi
+      en-GB: Mushrooms
+    synonyms:
+      it-IT:
+        - fungo
+      en-GB:
+        - mushroom
+    department: produce
+    pantry: false
+  fusilli:
+    name:
+      it-IT: Fusilli
+      en-GB: Fusilli
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  fusilloni:
+    name:
+      it-IT: Fusilloni
+      en-GB: Fusilloni
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  gamberi:
+    name:
+      it-IT: Gamberi
+      en-GB: Prawns
+    synonyms:
+      it-IT:
+        - gamberetti
+        - code di gambero
+      en-GB:
+        - shrimp
+    department: fish
+    pantry: false
+  garam-masala:
+    name:
+      it-IT: Garam masala
+      en-GB: Garam masala
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  germogli-di-soia:
+    name:
+      it-IT: Germogli di soia
+      en-GB: Bean sprouts
+    synonyms:
+      it-IT: []
+      en-GB:
+        - beansprouts
+    department: produce
+    pantry: false
+  guacamole:
+    name:
+      it-IT: Guacamole
+      en-GB: Guacamole
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  guanciale:
+    name:
+      it-IT: Guanciale
+      en-GB: Guanciale
+    synonyms:
+      it-IT: []
+      en-GB:
+        - cured pork cheek
+    department: chilled
+    pantry: false
+  hummus:
+    name:
+      it-IT: Hummus
+      en-GB: Houmous
+    synonyms:
+      it-IT: []
+      en-GB:
+        - hummus
+    department: chilled
+    pantry: false
+  insalata:
+    name:
+      it-IT: Insalata
+      en-GB: Salad leaves
+    synonyms:
+      it-IT: []
+      en-GB:
+        - lettuce
+    department: produce
+    pantry: false
+  kimchi:
+    name:
+      it-IT: Kimchi
+      en-GB: Kimchi
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: other
+    pantry: false
+  latte:
+    name:
+      it-IT: Latte
+      en-GB: Milk
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  lattuga:
+    name:
+      it-IT: Lattuga
+      en-GB: Lettuce
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  lenticchie:
+    name:
+      it-IT: Lenticchie
+      en-GB: Lentils
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  lime:
+    name:
+      it-IT: Lime
+      en-GB: Limes
+    synonyms:
+      it-IT: []
+      en-GB:
+        - lime
+    department: produce
+    pantry: false
+  limoni:
+    name:
+      it-IT: Limoni
+      en-GB: Lemons
+    synonyms:
+      it-IT:
+        - limone
+      en-GB:
+        - lemon
+    department: produce
+    pantry: false
+  maiale:
+    name:
+      it-IT: Maiale
+      en-GB: Pork
+    synonyms:
+      it-IT:
+        - carne di maiale
+      en-GB: []
+    department: butcher
+    pantry: false
+  maionese:
+    name:
+      it-IT: Maionese
+      en-GB: Mayonnaise
+    synonyms:
+      it-IT: []
+      en-GB:
+        - mayo
+    department: condiments
+    pantry: false
+  mais:
+    name:
+      it-IT: Mais
+      en-GB: Sweetcorn
+    synonyms:
+      it-IT:
+        - granturco
+      en-GB:
+        - corn
+    department: tinned
+    pantry: false
+  mandorle:
+    name:
+      it-IT: Mandorle
+      en-GB: Almonds
+    synonyms:
+      it-IT:
+        - mandorla
+      en-GB:
+        - almond
+    department: condiments
+    pantry: false
+  manzo:
+    name:
+      it-IT: Manzo
+      en-GB: Beef
+    synonyms:
+      it-IT:
+        - bovino
+        - vitellone
+      en-GB: []
+    department: butcher
+    pantry: false
+  melanzane:
+    name:
+      it-IT: Melanzane
+      en-GB: Aubergines
+    synonyms:
+      it-IT:
+        - melanzana
+      en-GB:
+        - aubergine
+        - eggplant
+    department: produce
+    pantry: false
+  menta:
+    name:
+      it-IT: Menta
+      en-GB: Mint
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  merluzzo:
+    name:
+      it-IT: Merluzzo
+      en-GB: Cod
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: fish
+    pantry: false
+  mezze-penne:
+    name:
+      it-IT: Mezze penne
+      en-GB: Mezze penne
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  miele:
+    name:
+      it-IT: Miele
+      en-GB: Honey
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: false
+  montasio:
+    name:
+      it-IT: Montasio
+      en-GB: Montasio
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  mozzarella:
+    name:
+      it-IT: Mozzarella
+      en-GB: Mozzarella
+    synonyms:
+      it-IT:
+        - mozzarelle
+      en-GB: []
+    department: chilled
+    pantry: false
+  noce-moscata:
+    name:
+      it-IT: Noce moscata
+      en-GB: Nutmeg
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  noci:
+    name:
+      it-IT: Noci
+      en-GB: Walnuts
+    synonyms:
+      it-IT:
+        - noce
+      en-GB:
+        - walnut
+    department: condiments
+    pantry: false
+  noodles:
+    name:
+      it-IT: Noodles
+      en-GB: Noodles
+    synonyms:
+      it-IT:
+        - spaghetti di riso
+        - tagliolini cinesi
+      en-GB:
+        - rice noodles
+    department: pasta_grains
+    pantry: false
+  olio-di-semi:
+    name:
+      it-IT: Olio di semi
+      en-GB: Seed oil
+    synonyms:
+      it-IT: []
+      en-GB:
+        - vegetable oil
+    department: condiments
+    pantry: true
+  olio-extravergine-di-oliva:
+    name:
+      it-IT: Olio extravergine d'oliva
+      en-GB: Extra virgin olive oil
+    synonyms:
+      it-IT:
+        - olio evo
+        - olio d'oliva
+      en-GB:
+        - olive oil
+    department: condiments
+    pantry: true
+  olive:
+    name:
+      it-IT: Olive
+      en-GB: Olives
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: tinned
+    pantry: false
+  orata:
+    name:
+      it-IT: Orata
+      en-GB: Sea bream
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: fish
+    pantry: false
+  orecchiette:
+    name:
+      it-IT: Orecchiette
+      en-GB: Orecchiette
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  paccheri:
+    name:
+      it-IT: Paccheri
+      en-GB: Paccheri
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  pane:
+    name:
+      it-IT: Pane
+      en-GB: Bread
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: bakery
+    pantry: false
+  pane-durum:
+    name:
+      it-IT: Pane durum
+      en-GB: Durum flatbread
+    synonyms:
+      it-IT:
+        - durum
+      en-GB:
+        - durum wrap
+    department: bakery
+    pantry: false
+  pane-libanese:
+    name:
+      it-IT: Pane libanese
+      en-GB: Lebanese flatbread
+    synonyms:
+      it-IT:
+        - pane arabo
+        - pita
+      en-GB:
+        - pitta
+    department: bakery
+    pantry: false
+  pangrattato:
+    name:
+      it-IT: Pangrattato
+      en-GB: Breadcrumbs
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: bakery
+    pantry: false
+  panini-per-hamburger:
+    name:
+      it-IT: Panini per hamburger
+      en-GB: Burger buns
+    synonyms:
+      it-IT: []
+      en-GB:
+        - hamburger buns
+    department: bakery
+    pantry: false
+  panna:
+    name:
+      it-IT: Panna
+      en-GB: Cream
+    synonyms:
+      it-IT:
+        - panna da cucina
+      en-GB:
+        - single cream
+    department: chilled
+    pantry: false
+  pappardelle:
+    name:
+      it-IT: Pappardelle
+      en-GB: Pappardelle
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  paprika:
+    name:
+      it-IT: Paprika
+      en-GB: Paprika
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  parmigiano:
+    name:
+      it-IT: Parmigiano
+      en-GB: Parmesan
+    synonyms:
+      it-IT:
+        - parmigiano reggiano
+        - grana
+      en-GB:
+        - Parmigiano Reggiano
+    department: chilled
+    pantry: false
+  passata-di-pomodoro:
+    name:
+      it-IT: Passata di pomodoro
+      en-GB: Passata
+    synonyms:
+      it-IT:
+        - passata
+      en-GB:
+        - sieved tomatoes
+    department: tinned
+    pantry: false
+  pasta:
+    name:
+      it-IT: Pasta
+      en-GB: Pasta
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  pasta-fresca:
+    name:
+      it-IT: Pasta fresca
+      en-GB: Fresh pasta
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  patate:
+    name:
+      it-IT: Patate
+      en-GB: Potatoes
+    synonyms:
+      it-IT:
+        - patata
+      en-GB:
+        - potato
+    department: produce
+    pantry: false
+  patate-dolci:
+    name:
+      it-IT: Patate dolci
+      en-GB: Sweet potatoes
+    synonyms:
+      it-IT:
+        - patata dolce
+        - patata americana
+      en-GB:
+        - sweet potato
+    department: produce
+    pantry: false
+  pecorino:
+    name:
+      it-IT: Pecorino
+      en-GB: Pecorino
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  penne:
+    name:
+      it-IT: Penne
+      en-GB: Penne
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  pepe:
+    name:
+      it-IT: Pepe
+      en-GB: Pepper
+    synonyms:
+      it-IT:
+        - pepe nero
+      en-GB:
+        - black pepper
+    department: condiments
+    pantry: true
+  peperoncino:
+    name:
+      it-IT: Peperoncino
+      en-GB: Chilli
+    synonyms:
+      it-IT:
+        - peperoncino fresco
+      en-GB:
+        - chili
+        - fresh chilli
+    department: produce
+    pantry: false
+  peperoncino-secco:
+    name:
+      it-IT: Peperoncino secco
+      en-GB: Dried chilli
+    synonyms:
+      it-IT:
+        - peperoncino in fiocchi
+        - peperoncino macinato
+      en-GB:
+        - chilli flakes
+    department: condiments
+    pantry: true
+  peperoni:
+    name:
+      it-IT: Peperoni
+      en-GB: Peppers
+    synonyms:
+      it-IT:
+        - peperone
+      en-GB:
+        - pepper
+        - bell pepper
+    department: produce
+    pantry: false
+  pesto:
+    name:
+      it-IT: Pesto
+      en-GB: Pesto
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  piadine:
+    name:
+      it-IT: Piadine
+      en-GB: Piadina flatbreads
+    synonyms:
+      it-IT:
+        - piadina
+      en-GB:
+        - piadina
+        - flatbreads
+    department: bakery
+    pantry: false
+  piselli:
+    name:
+      it-IT: Piselli
+      en-GB: Peas
+    synonyms:
+      it-IT:
+        - pisellini
+      en-GB:
+        - garden peas
+    department: frozen
+    pantry: false
+  pollo:
+    name:
+      it-IT: Pollo
+      en-GB: Chicken
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: butcher
+    pantry: false
+  pomodori:
+    name:
+      it-IT: Pomodori
+      en-GB: Tomatoes
+    synonyms:
+      it-IT:
+        - pomodoro
+        - pomodorini
+      en-GB:
+        - tomato
+        - cherry tomatoes
+    department: produce
+    pantry: false
+  pomodori-pelati:
+    name:
+      it-IT: Pomodori pelati
+      en-GB: Peeled plum tomatoes
+    synonyms:
+      it-IT:
+        - pelati
+      en-GB:
+        - tinned tomatoes
+    department: tinned
+    pantry: false
+  pomodori-secchi:
+    name:
+      it-IT: Pomodori secchi
+      en-GB: Sun-dried tomatoes
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: tinned
+    pantry: false
+  porri:
+    name:
+      it-IT: Porri
+      en-GB: Leeks
+    synonyms:
+      it-IT:
+        - porro
+      en-GB:
+        - leek
+    department: produce
+    pantry: false
+  prezzemolo:
+    name:
+      it-IT: Prezzemolo
+      en-GB: Parsley
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  prosciutto-cotto:
+    name:
+      it-IT: Prosciutto cotto
+      en-GB: Cooked ham
+    synonyms:
+      it-IT:
+        - cotto
+      en-GB:
+        - ham
+    department: chilled
+    pantry: false
+  radicchio:
+    name:
+      it-IT: Radicchio
+      en-GB: Radicchio
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  ravanelli:
+    name:
+      it-IT: Ravanelli
+      en-GB: Radishes
+    synonyms:
+      it-IT:
+        - ravanello
+      en-GB:
+        - radish
+    department: produce
+    pantry: false
+  ricotta:
+    name:
+      it-IT: Ricotta
+      en-GB: Ricotta
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  rigatoni:
+    name:
+      it-IT: Rigatoni
+      en-GB: Rigatoni
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  riso:
+    name:
+      it-IT: Riso
+      en-GB: Rice
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  robiola:
+    name:
+      it-IT: Robiola
+      en-GB: Robiola
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  rosmarino:
+    name:
+      it-IT: Rosmarino
+      en-GB: Rosemary
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  rucola:
+    name:
+      it-IT: Rucola
+      en-GB: Rocket
+    synonyms:
+      it-IT:
+        - rughetta
+      en-GB:
+        - arugula
+    department: produce
+    pantry: false
+  sale:
+    name:
+      it-IT: Sale
+      en-GB: Salt
+    synonyms:
+      it-IT:
+        - sale fino
+      en-GB: []
+    department: condiments
+    pantry: true
+  salsa-barbecue:
+    name:
+      it-IT: Salsa barbecue
+      en-GB: Barbecue sauce
+    synonyms:
+      it-IT:
+        - salsa bbq
+      en-GB:
+        - BBQ sauce
+    department: condiments
+    pantry: false
+  salsa-base-giapponese:
+    name:
+      it-IT: Salsa base giapponese
+      en-GB: Japanese base sauce
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: other
+    pantry: false
+  salsa-di-ostriche:
+    name:
+      it-IT: Salsa d'ostriche
+      en-GB: Oyster sauce
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: false
+  salsa-di-soia:
+    name:
+      it-IT: Salsa di soia
+      en-GB: Soy sauce
+    synonyms:
+      it-IT:
+        - soia
+      en-GB:
+        - soy
+    department: condiments
+    pantry: false
+  salsa-messicana:
+    name:
+      it-IT: Salsa messicana
+      en-GB: Mexican salsa
+    synonyms:
+      it-IT:
+        - salsa
+      en-GB:
+        - salsa
+    department: condiments
+    pantry: false
+  salsiccia:
+    name:
+      it-IT: Salsiccia
+      en-GB: Sausages
+    synonyms:
+      it-IT:
+        - salsicce
+      en-GB:
+        - sausage
+    department: butcher
+    pantry: false
+  salvia:
+    name:
+      it-IT: Salvia
+      en-GB: Sage
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  scalogno:
+    name:
+      it-IT: Scalogno
+      en-GB: Shallots
+    synonyms:
+      it-IT:
+        - scalogni
+      en-GB:
+        - shallot
+    department: produce
+    pantry: false
+  semi-di-sesamo:
+    name:
+      it-IT: Semi di sesamo
+      en-GB: Sesame seeds
+    synonyms:
+      it-IT:
+        - sesamo
+      en-GB:
+        - sesame
+    department: condiments
+    pantry: false
+  spaghettoni:
+    name:
+      it-IT: Spaghettoni
+      en-GB: Spaghettoni
+    synonyms:
+      it-IT:
+        - spaghetti
+      en-GB:
+        - spaghetti
+    department: pasta_grains
+    pantry: false
+  speck:
+    name:
+      it-IT: Speck
+      en-GB: Speck
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  spinaci:
+    name:
+      it-IT: Spinaci
+      en-GB: Spinach
+    synonyms:
+      it-IT:
+        - spinacini
+      en-GB:
+        - baby spinach
+    department: produce
+    pantry: false
+  straccetti-vegani:
+    name:
+      it-IT: Straccetti vegani
+      en-GB: Vegan strips
+    synonyms:
+      it-IT:
+        - straccetti vegetali
+      en-GB:
+        - plant-based strips
+    department: chilled
+    pantry: false
+  stracchino:
+    name:
+      it-IT: Stracchino
+      en-GB: Stracchino
+    synonyms:
+      it-IT:
+        - crescenza
+      en-GB: []
+    department: chilled
+    pantry: false
+  sugo-di-pesce:
+    name:
+      it-IT: Sugo di pesce
+      en-GB: Fish pasta sauce
+    synonyms:
+      it-IT:
+        - sugo allo scoglio
+      en-GB:
+        - seafood sauce
+    department: condiments
+    pantry: false
+  tabasco:
+    name:
+      it-IT: Tabasco
+      en-GB: Tabasco
+    synonyms:
+      it-IT:
+        - salsa piccante
+      en-GB:
+        - hot sauce
+    department: condiments
+    pantry: false
+  tacchino:
+    name:
+      it-IT: Tacchino
+      en-GB: Turkey
+    synonyms:
+      it-IT:
+        - fesa di tacchino
+      en-GB:
+        - turkey breast slices
+    department: chilled
+    pantry: false
+  tahina:
+    name:
+      it-IT: Tahina
+      en-GB: Tahini
+    synonyms:
+      it-IT:
+        - tahin
+      en-GB: []
+    department: condiments
+    pantry: false
+  timo:
+    name:
+      it-IT: Timo
+      en-GB: Thyme
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: produce
+    pantry: false
+  tofu:
+    name:
+      it-IT: Tofu
+      en-GB: Tofu
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: chilled
+    pantry: false
+  tonno:
+    name:
+      it-IT: Tonno
+      en-GB: Tuna
+    synonyms:
+      it-IT:
+        - tonno fresco
+      en-GB:
+        - fresh tuna
+    department: fish
+    pantry: false
+  tonno-in-scatola:
+    name:
+      it-IT: Tonno in scatola
+      en-GB: Tinned tuna
+    synonyms:
+      it-IT:
+        - tonno sott'olio
+      en-GB:
+        - canned tuna
+    department: tinned
+    pantry: false
+  tortillas:
+    name:
+      it-IT: Tortillas
+      en-GB: Tortillas
+    synonyms:
+      it-IT:
+        - tortilla
+      en-GB:
+        - wraps
+    department: bakery
+    pantry: false
+  trofie:
+    name:
+      it-IT: Trofie
+      en-GB: Trofie
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: pasta_grains
+    pantry: false
+  uova:
+    name:
+      it-IT: Uova
+      en-GB: Eggs
+    synonyms:
+      it-IT:
+        - uovo
+      en-GB:
+        - egg
+    department: chilled
+    pantry: false
+  uvetta:
+    name:
+      it-IT: Uvetta
+      en-GB: Raisins
+    synonyms:
+      it-IT:
+        - uva passa
+      en-GB:
+        - sultanas
+    department: condiments
+    pantry: false
+  vino:
+    name:
+      it-IT: Vino
+      en-GB: Wine
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: false
+  yogurt:
+    name:
+      it-IT: Yogurt
+      en-GB: Yoghurt
+    synonyms:
+      it-IT: []
+      en-GB:
+        - yogurt
+    department: chilled
+    pantry: false
+  zafferano:
+    name:
+      it-IT: Zafferano
+      en-GB: Saffron
+    synonyms:
+      it-IT: []
+      en-GB: []
+    department: condiments
+    pantry: true
+  zenzero:
+    name:
+      it-IT: Zenzero
+      en-GB: Ginger
+    synonyms:
+      it-IT: []
+      en-GB:
+        - root ginger
+    department: produce
+    pantry: false
+  zucca:
+    name:
+      it-IT: Zucca
+      en-GB: Squash
+    synonyms:
+      it-IT: []
+      en-GB:
+        - pumpkin
+        - butternut squash
+    department: produce
+    pantry: false
+  zucchine:
+    name:
+      it-IT: Zucchine
+      en-GB: Courgettes
+    synonyms:
+      it-IT:
+        - zucchina
+      en-GB:
+        - courgette
+        - zucchini
+    department: produce
+    pantry: false
