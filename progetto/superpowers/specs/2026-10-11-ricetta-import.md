@@ -38,6 +38,7 @@ del contratto e MCP (ondata 2), impostazioni della famiglia (restano in
     ammessa solo in bozza;
   - le equivalenze di ambito `recipe` (tazze USA) si applicano in gestione o
     nell'import: la riga pubblicata contiene la quantità convertita.
+- **W4, varietà** (`domain/src/shopping/variety.ts`): `varietyKey`.
 - **W4, reparti** (`domain/src/shopping/departments.ts`): `produce`, `butcher`, `fish`,
   `chilled`, `bakery`, `pasta_grains`, `tinned`, `frozen`, `condiments`, `other`.
 - **W2, schema**: usa la forma del documento per `recipe_versions.content` e
@@ -192,11 +193,12 @@ in una lingua (come nel prototipo), altrimenti `required` sul percorso `['name']
 
 ### Varietà
 
-Si porta dal prototipo (`prototype/src/lib/domain/ingredient-variety.ts`):
-`normalizeVariety`, `cleanVariety`, `lineKey` e i consigli (`varietyHints`). I consigli
-ricevono le varietà note di un ingrediente dal chiamante invece di leggere un database
-dimostrativo. La normalizzazione è la stessa che W4 usa per la spesa e che W2 salva in
-`variety_key`: W4 la importa da qui.
+La chiave normalizzata della varietà è `varietyKey` di W4
+(`domain/src/shopping/variety.ts`), la stessa della spesa e della colonna `variety_key`:
+si importa, non si duplica. Da `prototype/src/lib/domain/ingredient-variety.ts` si
+portano qui `cleanVariety`, `lineKey` (ingrediente più `varietyKey`) e i consigli
+(`varietyHints`), che ricevono le varietà note di un ingrediente dal chiamante invece di
+leggere un database dimostrativo.
 
 ### Riepilogo per le schede delle bozze
 
@@ -263,7 +265,7 @@ ricetta):
 | `position` | smallint | indice nella lista, da 0 |
 | `ingredient_id` | riferimento a `ingredients` | `ingredientId` |
 | `variety` | jsonb `{it-IT, en-GB}` null | `variety` |
-| `variety_key` | text, vuoto senza varietà | `normalizeVariety(variety['it-IT'])` |
+| `variety_key` | text, vuoto senza varietà | `varietyKey(variety['it-IT'])` di W4 |
 | `quantity_kind` | text (`amount`/`to_taste`/`text`) | `quantity.kind` |
 | `quantity` | numeric null | `quantity.value` |
 | `unit` | text null (codici di W4) | `quantity.unit` |
@@ -466,7 +468,7 @@ domain/src/recipe/
   localized.ts        Localized, LOCALES, schemi zod dei testi
   document.ts         recipeDraftSchema, publishedRecipeSchema, tipi, limiti
   ingredient.ts       ingrediente del catalogo (schema, tipo)
-  variety.ts          normalizzazione, lineKey, consigli
+  variety.ts          cleanVariety, lineKey, consigli (varietyKey da W4)
   issues.ts           IssueCode, ValidationIssue, missingData, conversione degli errori zod
   check.ts            checkDraft, checkPublishable, toPublished
   projection.ts       projectRecipe, toPlannerRecipe, resolveReferences
