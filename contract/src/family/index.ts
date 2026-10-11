@@ -1,6 +1,7 @@
 import { GROUP_MAX, knownNewSchema, mealRuleSchema, slotSettingSchema } from '@app/domain/family';
 import { FOOD_GROUPS, MEAL_TYPES } from '@app/domain/planner';
 import { z } from 'zod';
+import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
 import { measurementSystemSchema } from '../profile/index.ts';
@@ -9,6 +10,8 @@ import { familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './v
 export * from './views.ts';
 
 const family = z.object({ familyId: z.uuid() });
+/** Declared where a handler can answer not_found: clients and OpenAPI see it. */
+const notFound = { not_found: errorDefinitions.not_found };
 /** min ≤ max is checked by the handler: inputs stay plain objects for OpenAPI and MCP. */
 const groupBound = z.number().int().min(0).max(GROUP_MAX);
 /** Family administrators only; the answer is the updated view, not versioned. */
@@ -101,5 +104,30 @@ export const familyContract = {
 			summary: 'Weekly minimum and maximum of a food group (0-14, min not above max)',
 		})
 		.input(family.extend({ group: z.enum(FOOD_GROUPS), min: groupBound, max: groupBound }))
+		.output(settingsViewSchema),
+
+	setBookOwned: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/books/{bookId}',
+			summary: 'Mark a cookbook as owned or not: recipes from books the family does not own are never planned',
+		})
+		.errors(notFound)
+		.input(family.extend({ bookId: z.uuid(), owned: z.boolean() }))
+		.output(settingsViewSchema),
+	setIngredientRestriction: adminWrite()
+		.route({
+			method: 'PUT',
+			path: '/families/{familyId}/ingredients/{ingredientId}',
+			summary: 'Avoid an ingredient, limit it to a weekly maximum (1-7, only with limit), or clear the restriction with null',
+		})
+		.errors(notFound)
+		.input(
+			family.extend({
+				ingredientId: z.uuid(),
+				restriction: z.enum(['avoid', 'limit']).nullable(),
+				weeklyMax: z.number().int().min(1).max(7).nullable(),
+			}),
+		)
 		.output(settingsViewSchema),
 };

@@ -71,10 +71,47 @@ function settingsHandlers(os: Implementer) {
 	};
 }
 
+function catalogueHandlers(os: Implementer) {
+	return {
+		setBookOwned: os.family.setBookOwned.handler(async ({ context, input }) => {
+			const { tx } = context;
+			const [book] = await tx<{ archived: boolean }[]>`select archived_at is not null as archived from app.books where id = ${input.bookId}`;
+			// Unknown book: not_found either way; an archived one can still be dropped, not added.
+			if (!book || (input.owned && book.archived)) throw appError('not_found');
+			if (input.owned) {
+				await tx`insert into app.family_books (family_id, book_id) values (${input.familyId}, ${input.bookId}) on conflict do nothing`;
+			} else {
+				await tx`delete from app.family_books where family_id = ${input.familyId} and book_id = ${input.bookId}`;
+			}
+			return settingsView(tx, input.familyId, context.locale);
+		}),
+		setIngredientRestriction: os.family.setIngredientRestriction.handler(async ({ context, input }) => {
+			const { tx } = context;
+			if ((input.restriction === 'limit') !== (input.weeklyMax !== null)) {
+				throw appError('invalid', { issues: [{ path: ['weeklyMax'], code: 'weekly_max_with_limit_only' }] });
+			}
+			const [ingredient] = await tx<{ archived: boolean }[]>`
+				select archived_at is not null as archived from app.ingredients where id = ${input.ingredientId}`;
+			// Unknown ingredient: not_found; an archived one can still be cleared, not restricted.
+			if (!ingredient || (input.restriction !== null && ingredient.archived)) throw appError('not_found');
+			if (input.restriction === null) {
+				await tx`delete from app.family_ingredients where family_id = ${input.familyId} and ingredient_id = ${input.ingredientId}`;
+			} else {
+				await tx`
+					insert into app.family_ingredients (family_id, ingredient_id, restriction, weekly_max)
+					values (${input.familyId}, ${input.ingredientId}, ${input.restriction}, ${input.weeklyMax})
+					on conflict (family_id, ingredient_id) do update set restriction = excluded.restriction, weekly_max = excluded.weekly_max`;
+			}
+			return settingsView(tx, input.familyId, context.locale);
+		}),
+	};
+}
+
 export function familyRouter(os: Implementer) {
 	return {
 		...identityHandlers(os),
 		...settingsHandlers(os),
+		...catalogueHandlers(os),
 		get: os.family.get.handler(async ({ context, input }) => fresh(context, await familyView(context.tx, input.familyId, context.locale))),
 		getSettings: os.family.getSettings.handler(async ({ context, input }) =>
 			fresh(context, await settingsView(context.tx, input.familyId, context.locale)),
