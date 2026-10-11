@@ -10,6 +10,7 @@ import { createFakeBackend } from './auth/backend';
 import { createSupabaseBackend } from './auth/supabaseBackend';
 import { env } from './env';
 import { createBroadcastChannel } from './session/channel';
+import { registerServiceWorker } from './pwa/register';
 import type { CreateApi } from './session/SessionScope';
 
 const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supabase.publishableKey) : createFakeBackend();
@@ -21,3 +22,5 @@ createRoot(document.getElementById('root')!).render(
     <AppRoot backend={backend} store={createIndexedDbStore()} createApi={createApi} channel={createBroadcastChannel()} />
   </StrictMode>
 );
+
+registerServiceWorker();

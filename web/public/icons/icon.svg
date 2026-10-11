@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#067A46"/>
+  <circle cx="256" cy="256" r="150" fill="#FAF8F3"/>
+  <!-- Ring drawn with fills: ImageMagick's renderer drops strokes on unfilled shapes. -->
+  <circle cx="256" cy="256" r="106" fill="#067A46"/>
+  <circle cx="256" cy="256" r="94" fill="#FAF8F3"/>
+</svg>
