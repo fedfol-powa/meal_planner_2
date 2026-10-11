@@ -8,6 +8,7 @@ export const CONTRACT_ERROR_CODES = [
   'not_found',
   'invalid',
   'conflict',
+  'not_allowed',
   'last_admin',
   'last_app_admin',
   'sole_member',
