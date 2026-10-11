@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorOf } from '../support/actors.ts';
 import { hasDatabase } from '../support/db.ts';
 import { grams, seedPublishedRecipe, seedWeek } from '../support/shopping-fixtures.ts';
-import { catalogueActors, draftContent, type CatalogueActors } from './support.ts';
+import { catalogueActors, completeContent, draftContent, type CatalogueActors } from './support.ts';
 
 describe.skipIf(!hasDatabase)('catalogue drafts', () => {
 	let c: CatalogueActors;
@@ -139,6 +139,45 @@ describe.skipIf(!hasDatabase)('catalogue drafts', () => {
 		const next = await curator.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() });
 		expect(next.draftId).not.toBe(id);
 		expect((await curator.client.catalogue.startRevision({ recipeId, id })).draftId).toBe(id); // still the old creation
+	});
+
+	it('answers a repeated startRevision with the open revision it was given, whatever happened since', async () => {
+		const lucia = await c.curator();
+		const marco = await c.curator();
+		const ingredientId = await c.ingredient('Orzo');
+		const created = await lucia.client.catalogue.createDraft({ id: crypto.randomUUID(), content: completeContent('Orzotto', ingredientId) });
+		await lucia.client.catalogue.publish({ draftId: created.draftId });
+		const recipeId = created.recipeId;
+		const drafts = async () => (await db()`select count(*)::int as n from app.recipe_drafts where recipe_id = ${recipeId}`)[0]!.n;
+
+		// Discarded: Marco's request was answered with Lucia's revision A.
+		const a = await lucia.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() });
+		const toA = crypto.randomUUID();
+		expect((await marco.client.catalogue.startRevision({ recipeId, id: toA })).draftId).toBe(a.draftId);
+		expect(await db()`select draft_id, requested_by from app.recipe_draft_requests where id = ${toA}`).toEqual([{ draft_id: a.draftId, requested_by: marco.userId }]);
+		await lucia.client.catalogue.discardDraft({ draftId: a.draftId });
+		expect(await marco.client.catalogue.startRevision({ recipeId, id: toA })).toMatchObject({ draftId: a.draftId, outcome: 'discarded' });
+		expect(await drafts()).toBe(2); // the new one and A: nothing reopened
+
+		// A later revision B: the request still answers A.
+		const b = await lucia.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() });
+		expect(b.draftId).not.toBe(a.draftId);
+		const toB = crypto.randomUUID();
+		expect((await marco.client.catalogue.startRevision({ recipeId, id: toB })).draftId).toBe(b.draftId);
+		expect((await marco.client.catalogue.startRevision({ recipeId, id: toA })).draftId).toBe(a.draftId);
+
+		// Published: the request answers B, closed, and a later revision C does not change that.
+		await lucia.client.catalogue.publish({ draftId: b.draftId });
+		expect(await marco.client.catalogue.startRevision({ recipeId, id: toB })).toMatchObject({ draftId: b.draftId, outcome: 'published' });
+		const cRevision = await lucia.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() });
+		expect(await marco.client.catalogue.startRevision({ recipeId, id: toB })).toMatchObject({ draftId: b.draftId, outcome: 'published' });
+		expect(await drafts()).toBe(4);
+		expect(cRevision.outcome).toBeNull();
+
+		// The same request for another recipe is refused, as for a draft created by it.
+		const other = await lucia.client.catalogue.createDraft({ id: crypto.randomUUID(), content: completeContent('Altro orzo', ingredientId) });
+		await lucia.client.catalogue.publish({ draftId: other.draftId });
+		expect((await errorOf(marco.client.catalogue.startRevision({ recipeId: other.recipeId, id: toB }))).code).toBe('invalid');
 	});
 
 	it('discards a revision, and a new draft only when no meal cites it', async () => {

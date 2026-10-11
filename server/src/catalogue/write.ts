@@ -83,19 +83,29 @@ export async function createDraft(tx: Tx, actor: Actor, input: CreateDraftInput)
 	return { draftId: input.draftId, recipeId: recipe!.id, created: true };
 }
 
-/** Order of the spec (section 3): the creation already made, then the recipe, then the open revision. */
+/**
+ * Order of the spec (section 3): the request already answered (the draft it created, or the open
+ * revision it was given), then the recipe, then the open revision, recorded for this request.
+ */
 export async function startRevision(tx: Tx, actor: Actor, input: { recipeId: string; draftId: string }): Promise<{ draftId: string }> {
 	await lockCreations(tx);
-	const [same] = await tx<{ recipe_id: string }[]>`select recipe_id from app.recipe_drafts where id = ${input.draftId}`;
+	const [same] = await tx<{ id: string; recipe_id: string }[]>`
+		select d.id, d.recipe_id from app.recipe_drafts d where d.id = ${input.draftId}
+		union all
+		select d.id, d.recipe_id from app.recipe_draft_requests q join app.recipe_drafts d on d.id = q.draft_id where q.id = ${input.draftId}`;
 	if (same) {
 		if (same.recipe_id !== input.recipeId) throw appError('invalid', { issues: [{ path: ['id'], code: 'invalid_value' }] });
-		return { draftId: input.draftId };
+		return { draftId: same.id };
 	}
 	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for no key update`;
 	if (!recipe) throw appError('not_found');
 	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
 	const [open] = await tx<{ id: string }[]>`select id from app.recipe_drafts where recipe_id = ${input.recipeId} and closed_at is null`;
-	if (open) return { draftId: open.id };
+	if (open) {
+		await tx`insert into app.recipe_draft_requests (id, draft_id, requested_by, requested_at)
+			values (${input.draftId}, ${open.id}, ${actor.userId}, ${await writeInstant(tx)})`;
+		return { draftId: open.id };
+	}
 	const [current] = await tx<{ content: RecipeDraftDocument }[]>`
 		select content from app.recipe_versions where recipe_id = ${input.recipeId} and version = ${recipe.version}`;
 	if (!current) throw appError('not_found');
