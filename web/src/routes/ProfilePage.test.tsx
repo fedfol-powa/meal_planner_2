@@ -1,7 +1,8 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
+import type { ProfileView } from '../api/types';
 import { DEMO_USER } from '../auth/backend';
 import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
@@ -13,50 +14,45 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('profile', () => {
-  it('shows the person, the family and the future destinations as placeholders', async () => {
+  it('shows the person, the family shown with its pages, and no wave 3 rows', async () => {
     renderApp('/profile', { backend: createStubBackend(DEMO_USER, 'fake') });
     expect(await screen.findByRole('heading', { name: 'Federico' })).toBeTruthy();
     expect(screen.getByText('federico@example.com')).toBeTruthy();
-    expect(screen.getByText('Famiglia Folloni')).toBeTruthy();
-    expect((screen.getByRole('button', { name: /Membri e inviti/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole('heading', { name: 'Famiglia Folloni' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: /Membri.*3 membri/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Impostazioni della famiglia' })).toBeTruthy();
+    expect(await screen.findByRole('link', { name: /Non proporre più.*2 ricette/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Famiglia Folloni/, pressed: true })).toBeTruthy();
+    expect(screen.queryByText(/Crea un’altra famiglia/)).toBeNull();
+    expect(screen.queryByText(/inviti/i)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Esci' })).toBeNull();
   });
-  it('switches the whole app to English, recipe texts included', async () => {
-    renderApp('/profile');
-    fireEvent.click(await screen.findByLabelText('English'));
-    expect(await screen.findByRole('heading', { name: 'Account' })).toBeTruthy();
-    expect(document.documentElement.lang).toBe('en-GB');
-    fireEvent.click(screen.getByRole('link', { name: 'Recipes' }));
-    expect(await screen.findByRole('heading', { name: /Chicken stir-fry/ })).toBeTruthy();
+  it('opens the members page from the family card', async () => {
+    const { history } = renderApp('/profile');
+    fireEvent.click(await screen.findByRole('link', { name: /Membri/ }));
+    await waitFor(() => expect(history.location.pathname).toBe('/profile/family'));
+    expect(await screen.findByText('Federico (tu)')).toBeTruthy();
   });
-  it('keeps language and sign-out available when the profile cannot be read', async () => {
+  it('chooses the family shown on the server and marks it at the answer', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
-    api.profile.get = () => Promise.reject(new ApiError('unknown'));
-    const backend = createStubBackend(DEMO_USER, 'supabase');
-    renderApp('/profile', { backend, api });
-    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
-    expect(screen.getByText('federico@example.com')).toBeTruthy();
-    expect(screen.getByLabelText('English')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Esci' })).toBeTruthy();
-  });
-  it('signs out in real mode, clearing the session, and goes to the sign-in page', async () => {
-    const backend = createStubBackend(DEMO_USER, 'supabase');
-    const { history } = renderApp('/profile', { backend });
-    fireEvent.click(await screen.findByRole('button', { name: 'Esci' }));
-    await waitFor(() => expect(history.location.pathname).toBe('/login'));
-    expect(backend.signOutCalls).toBe(1);
-  });
-  it('does not carry a person\'s language choice over to the next one', async () => {
-    const backend = createStubBackend(DEMO_USER, 'supabase');
-    const { history } = renderApp('/profile', { backend });
-    fireEvent.click(await screen.findByLabelText('English'));
-    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
-    await waitFor(() => expect(history.location.pathname).toBe('/login'));
-    act(() => backend.setUser({ id: 'user-anna', email: 'anna@example.com' }));
-    // Back to the page requested before sign-in, in Anna's profile language (Italian in the fake client).
-    await waitFor(() => expect(history.location.pathname).toBe('/profile'));
-    expect(await screen.findByText('Lingua')).toBeTruthy();
-    expect(screen.queryByText('Language')).toBeNull();
+    const base = await api.profile.get({});
+    const other = { ...base.families[0]!, id: 'family-other', name: 'Casa al mare', role: 'member' as const };
+    let current = base.currentFamilyId;
+    const view = (): ProfileView => ({ ...base, families: [base.families[0]!, other], currentFamilyId: current });
+    let answer: () => void = () => {};
+    api.profile.get = async () => view();
+    api.profile.setCurrentFamily = vi.fn(({ familyId }: { familyId: string }) => new Promise<ProfileView>((resolve) => (answer = () => {
+      current = familyId;
+      resolve(view());
+    }))) as unknown as typeof api.profile.setCurrentFamily;
+    renderApp('/profile', { api });
+    const families = within((await screen.findByRole('heading', { name: 'Le tue famiglie' })).closest('section')!);
+    fireEvent.click(families.getByRole('button', { name: /Casa al mare/ }));
+    await waitFor(() => expect(api.profile.setCurrentFamily).toHaveBeenCalledWith({ familyId: 'family-other' }, expect.anything()));
+    // No optimistic update: still the old family until the answer.
+    expect(families.getByRole('button', { name: /Famiglia Folloni/, pressed: true })).toBeTruthy();
+    await act(async () => answer());
+    expect(await families.findByRole('button', { name: /Casa al mare/, pressed: true })).toBeTruthy();
   });
   it('hides the cached profile when a new read fails with an error other than network (second review, C8)', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
@@ -73,7 +69,7 @@ describe('profile', () => {
     expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
     expect(screen.queryByRole('heading', { name: 'Federico' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'federico@example.com' })).toBeTruthy();
-    expect(screen.getByLabelText('English')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Esci' })).toBeTruthy();
+    // Language and sign-out stay one tap away.
+    expect(screen.getByRole('link', { name: /Account e preferenze/ })).toBeTruthy();
   });
 });
