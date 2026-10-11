@@ -27,17 +27,24 @@ principale `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezio
 - Ogni operazione: `role: 'curator'`, `offline: false`, `mcp` presente; nessuna ha
   `familyId`; le creazioni hanno `creates: true` e un `id` uuid del client.
 - Letture versionate (`reads: ['catalogue']`): `listVersions`, `getVersion`,
-  `searchIngredients`, `listVarieties`, `listBooks`. Non versionate: `getGuide`,
+  `searchIngredients`, `getIngredient`, `listVarieties`, `listBooks`. Non versionate: `getGuide`,
   `overview`, `getDraft`, `checkDraft`, `checkVariety`.
 - Nessuna cancellazione fisica di ricette, bozze, versioni, ingredienti, libri.
 - Migrazioni solo nuove, con test pgTAP: `supabase/migrations/20261011180000_catalogue_citations.sql`.
-- File condivisi toccati in modo minimo: `contract/src/errors.ts`, `contract/src/contract.ts`,
-  `server/src/router.ts`, `server/src/messages.ts`; nel web rotte, `RecipesPage` (due
-  righe) e i dizionari degli errori.
+- File condivisi toccati in modo minimo. PR del server: `contract/src/errors.ts`,
+  `contract/src/contract.ts`, `server/src/router.ts`, `server/src/messages.ts`,
+  `supabase/tests/coverage_test.sql`, `web/src/api/errors.ts` e
+  `web/src/i18n/messages/errors.ts` (compatibilità con `not_allowed`). PR del web:
+  `SERVER_AREAS` in `web/src/api/types.ts`, client finto, rotte, corpo di `RecipesPage`.
 - Non modificare `server/src/recipes/views.ts` (W6) né `server/src/family/views.ts` (W2):
   si importano `ingredientLinesView`, `loadIngredientNamesById`, `loadBookTitlesById`,
   `foldText`.
-- Web solo dopo il cancello: merge della #17 (W5) e della PR web di W2 con `profile.get`.
+- Web solo dopo il cancello: merge della #17 (W5, già unita), della #18 (W2, `profile.get`)
+  e della #19 (W6, `RecipesPage` sui dati veri).
+- Istante delle scritture: `clock_timestamp()` letto nel database dopo i lucchetti
+  (`writeInstant(tx)`), mai `context.now`; `Actor` non porta un orologio.
+- Creazioni (`createDraft`, `startRevision`, `createIngredient`, `createBook`) serializzate
+  con `pg_advisory_xact_lock(hashtext('app.catalogue_create'))` (`lockCreations(tx)`).
 - Comandi: `npm run typecheck`, `npm test`, `npm test -w server`, `npm test -w contract`;
   database locale `PATH=/opt/podman/bin:$HOME/.local/bin:$PATH supabase db start`, poi
   `supabase test db`; i test del server con database girano con
@@ -98,7 +105,8 @@ principale `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`, sezio
 **Files:**
 - Modify: `contract/src/errors.ts`
 - Modify: `server/src/messages.ts`
-- Test: `contract/src/errors.test.ts` (nuovo)
+- Modify: `web/src/api/errors.ts` (`CONTRACT_ERROR_CODES`), `web/src/i18n/messages/errors.ts`
+- Test: `contract/src/errors.test.ts` (nuovo); i test esistenti `web/src/api/errors.test.ts` e `web/src/i18n/i18n.test.ts`
 
 **Interfaces:**
 - Produces: `conflictData` (unione `kind: 'draft' | 'version' | 'ingredient'`),
@@ -175,8 +183,25 @@ e il testo di `conflict` diventa: «Qualcun altro ha modificato questi dati nel 
 guarda chi e cosa ha cambiato prima di riprovare.» / «Someone else changed this data in the
 meantime: check who changed what before trying again.»
 
-- [ ] **Step 4: eseguire** `npm test -w contract && npm run typecheck` → PASS (il
-  `Record<ErrorCode, …>` di `messages.ts` obbliga a definire il testo).
+Nel web (compatibilità, senza schermate nuove): in `web/src/api/errors.ts` aggiungere
+`'not_allowed'` a `CONTRACT_ERROR_CODES` dopo `'conflict'` (il controllo `complete` non
+compila senza); in `web/src/i18n/messages/errors.ts`:
+
+```ts
+  'errors.not_allowed': 'Non si può fare nello stato attuale della ricetta.',
+```
+
+in `it` e
+
+```ts
+  'errors.not_allowed': 'This cannot be done in the recipe’s current state.',
+```
+
+in `en` (il `satisfies Record<keyof typeof it, string>` impone entrambe).
+
+- [ ] **Step 4: eseguire** `npm test -w contract && npm test -w web && npm run typecheck` → PASS
+  (il `Record<ErrorCode, …>` di `messages.ts` e il controllo `complete` del web obbligano a
+  definire il codice ovunque; il test delle traduzioni del web verifica `errors.not_allowed`).
 - [ ] **Step 5: commit** — `git commit -m "Contratto: conflitti con discriminante e codice not_allowed"`
 
 ---
@@ -186,6 +211,7 @@ meantime: check who changed what before trying again.»
 **Files:**
 - Create: `supabase/migrations/20261011180000_catalogue_citations.sql`
 - Create: `supabase/tests/catalogue_citations_test.sql`
+- Modify: `supabase/tests/coverage_test.sql` (elenco delle funzioni di `authenticated`)
 
 **Interfaces:**
 - Produces: `app.recipe_is_cited(p_recipe_id uuid) returns boolean` (curatori;
@@ -194,46 +220,46 @@ meantime: check who changed what before trying again.»
 
 - [ ] **Step 1: test pgTAP che fallisce**
 
-Prima di scriverlo leggere `supabase/tests/helpers/setup.psql` e `fixtures.psql` per i
-nomi degli utenti e delle famiglie (curatori `dario` e `gina`, famiglia `Rossi` con
-`bruno`): usare quelli. Struttura come `catalogue_test.sql`.
+Fixture condivise di `supabase/tests/helpers/fixtures.psql`: `dario` e `gina` curatori,
+membri di nessuna famiglia; `bruno` membro di `test-Rossi`, non curatore;
+`test-new-draft` citata dalla cena di lunedì 12 ottobre di `test-Rossi`;
+`test-old-minestrone` archiviata e citata da nessun pasto; `test-salt` ingrediente. Gli
+helper `tests.recipe` e `tests.ingredient` aggiungono da soli il prefisso `test-`.
 
 ```sql
+-- Citations of a recipe across families and the authors of ingredient changes (W3, wave 2).
 begin;
 \ir helpers/setup.psql
 \ir helpers/fixtures.psql
 select no_plan();
 
--- A recipe cited by a Rossi meal; dario is a curator and not a Rossi member.
 reset role;
-select tests.recipe('test-cited') as cited \gset
-insert into app.recipes (slug, name, description)
-	values ('test-uncited', '{"it-IT":"Mai citata","en-GB":"Never cited"}', '{"it-IT":"","en-GB":""}');
-select id as uncited from app.recipes where slug = 'test-uncited' \gset
-
 select tests.login('dario');
-select ok(app.recipe_is_cited(:'cited'::uuid), 'a meal of another family cites it');
-select ok(not app.recipe_is_cited(:'uncited'::uuid), 'no meal cites it');
+select ok(app.recipe_is_cited(tests.recipe('new-draft')), 'a meal of a family dario is not in cites the draft');
+select ok(not app.recipe_is_cited(tests.recipe('old-minestrone')), 'no meal cites the archived recipe');
 
+reset role;
 select tests.login('bruno');
-select throws_ok(format('select app.recipe_is_cited(%L)', :'cited'), '42501', null, 'non-curators are refused');
+select throws_ok(format('select app.recipe_is_cited(%L)', tests.recipe('new-draft')), '42501', null, 'members who are not curators are refused');
 
 reset role;
 select ok(not has_function_privilege('anon', 'app.recipe_is_cited(uuid)', 'execute'), 'anon cannot execute');
 select ok(not has_function_privilege('public', 'app.recipe_is_cited(uuid)', 'execute'), 'public cannot execute');
+select ok(has_function_privilege('authenticated', 'app.recipe_is_cited(uuid)', 'execute'), 'authenticated can execute');
 
 -- Revocation is immediate with the same claims.
 delete from app.user_roles where user_id = tests.uid('dario') and role = 'recipe_curator';
 select tests.login('dario');
-select throws_ok(format('select app.recipe_is_cited(%L)', :'cited'), '42501', null, 'revoked curator refused');
+select throws_ok(format('select app.recipe_is_cited(%L)', tests.recipe('new-draft')), '42501', null, 'a revoked curator is refused');
 reset role;
 insert into app.user_roles (user_id, role) values (tests.uid('dario'), 'recipe_curator');
 
--- Author names include who changed an ingredient.
+-- Author names include who changed an ingredient (gina has written nothing else in the fixtures).
 insert into app.ingredient_versions (ingredient_id, version, content, changed_by, channel)
-	values (tests.ingredient('test-pomodori'), 99, '{}', tests.uid('gina'), 'mcp');
+	values (tests.ingredient('salt'), 2, '{}', tests.uid('gina'), 'mcp');
 select tests.login('dario');
 select ok(exists (select 1 from app.catalogue_author_names() where user_id = tests.uid('gina')), 'ingredient authors are named to curators');
+reset role;
 select tests.login('bruno');
 select is((select count(*) from app.catalogue_author_names()), 0::bigint, 'nothing for non-curators');
 
@@ -241,10 +267,16 @@ select * from finish();
 rollback;
 ```
 
-Se `tests.recipe('test-cited')` non restituisce una ricetta citata da un pasto della
-fixture, creare il pasto con le funzioni di `setup.psql` (`tests.week`, inserimento in
-`app.meal_slots`) come in `meals_test.sql`; se `tests.ingredient('test-pomodori')` non
-esiste, usare uno degli ingredienti di `fixtures.psql`.
+Se `tests.login` richiede `reset role` prima di cambiare utente (come in
+`catalogue_test.sql`), il test lo fa già a ogni cambio.
+
+In `supabase/tests/coverage_test.sql` l'elenco delle funzioni di `authenticated` diventa:
+
+```sql
+	array['can_access_list', 'can_access_slot', 'can_access_week', 'catalogue_author_names', 'has_role', 'is_family_admin',
+		'is_localized_list', 'is_localized_text', 'is_member', 'meal_passed_at', 'recipe_is_cited', 'recipe_version_at',
+		'session_is_active', 'shares_family', 'unit_dimension'],
+```
 
 - [ ] **Step 2: eseguire** `supabase test db` → FAIL (funzione assente).
 
@@ -288,10 +320,10 @@ $$;
 (`create or replace` conserva i permessi: `revoke` a `public` e `grant` ad
 `authenticated` della migrazione di W2 restano validi; il test lo verifica.)
 
-- [ ] **Step 4: eseguire** `supabase db reset && supabase test db` → PASS, compreso
-  `coverage_test.sql` (se controlla che ogni funzione abbia `execute` revocato, la nuova
-  lo rispetta).
-- [ ] **Step 5: commit** — `git commit -m "Schema: citazioni di una ricetta e autori degli ingredienti per i curatori"`
+- [ ] **Step 4: eseguire** `supabase db reset && supabase test db` → PASS, compresi
+  `coverage_test.sql` (elenco aggiornato; `recipe_is_cited` fissa `search_path` vuoto come
+  vuole il controllo sulle funzioni `security definer`) e `catalogue_test.sql`.
+- [ ] **Step 5: commit** — `git add supabase/ && git commit -m "Schema: citazioni di una ricetta e autori degli ingredienti per i curatori"`
 
 ---
 
@@ -503,7 +535,7 @@ Nota sul test di `slugify` con 100 «x»: la lunghezza attesa è 60.
 
 **Interfaces:**
 - Consumes: `conflictData`, `notAllowedData`, `errorDefinitions` (Task 1).
-- Produces: `catalogueContract` con le 22 operazioni della spec, sezione 2; tipi
+- Produces: `catalogueContract` con le 23 operazioni della spec, sezione 2; tipi
   `DraftView`, `DraftSummaryView`, `ArchivedSummaryView`, `ConversionView`,
   `IngredientView`, `VersionListView`, `VersionDetailView`, `BookView`.
 
@@ -520,30 +552,33 @@ const ops = Object.entries(catalogueContract) as [string, { '~orpc': { meta: any
 
 describe('catalogue contract', () => {
 	it('passes the platform checks', () => {
-		expect(() => checkContract(contract)).not.toThrow();
+		// checkContract returns the problems found, it does not throw.
+		expect(checkContract(contract)).toEqual([]);
 	});
 	it('is for curators only, exposed to MCP, never offline, without familyId', () => {
 		expect(ops.map(([name]) => name).sort()).toEqual([
 			'checkDraft', 'checkVariety', 'createBook', 'createDraft', 'createIngredient', 'discardDraft', 'getDraft', 'getGuide',
-			'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'overview', 'publish', 'removeEquivalence', 'restoreVersion',
-			'saveDraft', 'searchIngredients', 'setArchived', 'setEquivalence', 'startRevision', 'updateIngredient',
+			'getIngredient', 'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'overview', 'publish', 'removeEquivalence',
+			'restoreVersion', 'saveDraft', 'searchIngredients', 'setArchived', 'setEquivalence', 'startRevision', 'updateIngredient',
 		]);
-		for (const [, o] of ops) {
-			expect(o['~orpc'].meta).toMatchObject({ role: 'curator', offline: false });
-			expect(o['~orpc'].meta.mcp).not.toBe(false);
-			expect(o['~orpc'].route.path.startsWith('/catalogue/')).toBe(true);
+		for (const [name, o] of ops) {
+			expect(o['~orpc'].meta, name).toMatchObject({ role: 'curator', offline: false });
+			expect(o['~orpc'].meta.mcp, name).not.toBe(false);
+			expect(o['~orpc'].route.path.startsWith('/catalogue/'), name).toBe(true);
+			const input = (o['~orpc'] as unknown as { inputSchema: { shape?: Record<string, unknown> } }).inputSchema;
+			expect(Object.keys(input.shape ?? {}), name).not.toContain('familyId');
 		}
 	});
 	it('versions only the reads that depend on the catalogue counter', () => {
 		const versioned = ops.filter(([, o]) => o['~orpc'].meta.reads).map(([n]) => n).sort();
-		expect(versioned).toEqual(['getVersion', 'listBooks', 'listVarieties', 'listVersions', 'searchIngredients']);
+		expect(versioned).toEqual(['getIngredient', 'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'searchIngredients']);
 	});
 });
 ```
 
-L'elenco atteso ha 22 nomi: `startRevision` è una creazione (`creates: true`) con `id`. Se
-`checkContract` vuole altro da `creates` (per esempio un `id` nel percorso), adeguarsi a
-`contract/src/check.ts`.
+L'elenco atteso ha 23 nomi; `startRevision` è una creazione (`creates: true`) con `id`.
+Prima di scrivere il test leggere in `contract/src/check.ts` dove oRPC tiene lo schema di
+input (`'~orpc'.inputSchema`) e usare lo stesso accesso.
 
 - [ ] **Step 2: eseguire** `npm test -w contract -- catalogue` → FAIL.
 
@@ -586,6 +621,7 @@ export const draftView = z.object({
 	currentVersion: z.number().int().min(0),
 	recipeStatus: z.enum(['draft', 'published', 'archived']),
 	issues: z.array(issueView), missing, conversions: z.array(conversionView),
+	outcome: z.enum(['published', 'discarded']).nullable(),
 	canDiscard: z.boolean(),
 	ingredientNames: z.record(z.string(), z.string()),
 	bookTitle: z.string().nullable(),
@@ -734,6 +770,11 @@ export const catalogueContract = {
 		.route({ method: 'GET', path: '/catalogue/ingredients', summary: 'Find catalogue ingredients by name, synonym or a variety already used, in your language (at least 2 letters). Search before creating one' })
 		.input(versionedInput(z.object({ text: z.string().trim().min(2).max(60) })))
 		.output(versionedOutput(z.object({ items: z.array(ingredientMatchView) }))),
+	getIngredient: versionedRead()
+		.route({ method: 'GET', path: '/catalogue/ingredients/{ingredientId}', summary: 'An ingredient with its version, names, synonyms, department, pantry flag and recipe equivalences (with their ids): read it before changing it' })
+		.errors(notFound)
+		.input(versionedInput(ingredientId))
+		.output(versionedOutput(ingredientView)),
 	listVarieties: versionedRead()
 		.route({ method: 'GET', path: '/catalogue/ingredients/{ingredientId}/varieties', summary: 'Varieties already written for an ingredient in published recipes, most used first: reuse their spelling' })
 		.errors(notFound)
@@ -754,12 +795,12 @@ export const catalogueContract = {
 		.input(ingredientId.extend({ baseVersion: revision, name: nameInput, synonyms: synonymsSchema, department: departmentSchema, isPantry: z.boolean() }))
 		.output(ingredientView),
 	setEquivalence: write()
-		.route({ method: 'PUT', path: '/catalogue/ingredients/{ingredientId}/equivalences', summary: 'Set how a US cup (or another unit) of this ingredient converts for recipes, with the source of the figure; replaces the one with the same unit kind and preparation' })
+		.route({ method: 'PUT', path: '/catalogue/ingredients/{ingredientId}/equivalences', summary: 'Set how a US cup (or another unit) of this ingredient converts for recipes, with the source of the figure; updates the one with the same unit kind and preparation, and repeating it changes nothing' })
 		.errors(notFound)
 		.input(ingredientId.extend({ fromUnit: unitCodeSchema, toUnit: unitCodeSchema, factor: z.number().positive(), preparation: z.string().trim().max(60).nullable().default(null), source: z.string().trim().min(1).max(200) }))
 		.output(ingredientView),
 	removeEquivalence: write()
-		.route({ method: 'DELETE', path: '/catalogue/ingredients/{ingredientId}/equivalences/{equivalenceId}', summary: 'Remove a recipe equivalence of an ingredient' })
+		.route({ method: 'DELETE', path: '/catalogue/ingredients/{ingredientId}/equivalences/{equivalenceId}', summary: 'Remove a recipe equivalence of an ingredient; removing one already gone is fine' })
 		.errors(notFound)
 		.input(ingredientId.extend({ equivalenceId: z.uuid() }))
 		.output(ingredientView),
@@ -1033,7 +1074,7 @@ export async function draftViewOf(tx: Tx, row: DraftRow, locale: Locale): Promis
 		createdBy: authorOf(authors, row.createdBy), createdAt: row.createdAt.toISOString(),
 		updatedBy: authorOf(authors, row.updatedBy), updatedAt: row.updatedAt.toISOString(),
 		baseVersion: row.baseVersion, currentVersion: row.recipeVersion, recipeStatus: row.recipeStatus,
-		issues, missing: missingData(issues), conversions,
+		issues, missing: missingData(issues), conversions, outcome: row.outcome,
 		canDiscard: row.closedAt === null && (row.kind === 'revision' || !(await isCited(tx, row.recipeId))),
 		ingredientNames: Object.fromEntries(ingredientIds.map((id) => [id, localText(names.get(id), locale)])),
 		bookTitle: row.content.bookId ? (titles.get(row.content.bookId) ?? null) : null,
@@ -1152,13 +1193,14 @@ In `server/src/router.ts`: `import { catalogueRouter } from './catalogue/router.
 
 **Interfaces:**
 - Consumes: Task 3 (`sameDocument`, `changedFields`, `slugify`, `uniqueSlug`), Task 5 (`loadDraftRow`, `loadLookup`, `draftViewOf`, `isCited`, `loadAuthors`).
-- Produces (`write.ts`):
-  - `type Channel = 'web' | 'mcp' | 'import'`; `interface Actor { userId: string; channel: Channel; now: Date }`
-  - `createDraft(tx, actor, { draftId, content, originSlug?, originType? }): Promise<{ draftId: string; recipeId: string }>`
+- Produces (`write.ts`, firme definitive della spec, sezione 1):
+  - `type Channel = 'web' | 'mcp' | 'import'`; `interface Actor { userId: string; channel: Channel }`; `actorOf(context: OperationContext): Actor`
+  - `CreateDraftInput`, `CreatedDraft { draftId; recipeId; created }`, `SaveDraftInput`, `SavedDraft { draftId; revision }`
+  - `createDraft(tx, actor, input: CreateDraftInput): Promise<CreatedDraft>`
   - `startRevision(tx, actor, { recipeId, draftId }): Promise<{ draftId: string }>`
-  - `saveDraft(tx, actor, { draftId, baseRevision, content, overwriteRevision? }): Promise<{ draftId: string; revision: number }>`
+  - `saveDraft(tx, actor, input: SaveDraftInput): Promise<SavedDraft>`
   - `discardDraft(tx, actor, { draftId }): Promise<{ draftId: string; recipeId: string; kind: 'new' | 'revision' }>`
-  - `actorOf(context: OperationContext): Actor`
+  - `lockCreations(tx): Promise<void>`; `writeInstant(tx): Promise<Date>`
 
 - [ ] **Step 1: test che falliscono**
 
@@ -1261,6 +1303,39 @@ describe.skipIf(!hasDatabase)('catalogue drafts', () => {
 		expect((await errorOf(curator.client.catalogue.startRevision({ recipeId: draftRecipe, id: crypto.randomUUID() }))).data).toEqual({ reason: 'not_published' });
 	});
 
+	it('creates once when the same id arrives twice at the same time', async () => {
+		const curator = await c.curator();
+		const id = crypto.randomUUID();
+		const [a, b] = await Promise.all([
+			curator.client.catalogue.createDraft({ id, content: draftContent('Parallela') }),
+			curator.client.catalogue.createDraft({ id, content: draftContent('Parallela') }),
+		]);
+		expect(a.recipeId).toBe(b.recipeId);
+		expect(await db()`select count(*)::int as n from app.recipe_drafts where id = ${id}`).toEqual([{ n: 1 }]);
+	});
+
+	it('gives different slugs to two new recipes with the same name created at the same time', async () => {
+		const curator = await c.curator();
+		const name = `Gemelle ${crypto.randomUUID().slice(0, 4)}`;
+		const [a, b] = await Promise.all([1, 2].map(() => curator.client.catalogue.createDraft({ id: crypto.randomUUID(), content: draftContent(name) })));
+		const slugs = await db()`select slug from app.recipes where id in (${a!.recipeId}, ${b!.recipeId}) order by slug`;
+		expect(new Set(slugs.map((r) => r.slug)).size).toBe(2);
+	});
+
+	it('answers a repeated startRevision after its draft was published or discarded', async () => {
+		const curator = await c.curator();
+		const ingredientId = await c.ingredient('Farro');
+		const { recipeId } = await seedPublishedRecipe(c.actors.db, { name: 'Farrotto', baseServings: 2, lines: [{ ingredientId, quantity: grams(160) }] });
+		const id = crypto.randomUUID();
+		const first = await curator.client.catalogue.startRevision({ recipeId, id });
+		await curator.client.catalogue.discardDraft({ draftId: first.draftId });
+		const repeat = await curator.client.catalogue.startRevision({ recipeId, id });
+		expect(repeat).toMatchObject({ draftId: id, outcome: 'discarded' });
+		const next = await curator.client.catalogue.startRevision({ recipeId, id: crypto.randomUUID() });
+		expect(next.draftId).not.toBe(id);
+		expect((await curator.client.catalogue.startRevision({ recipeId, id })).draftId).toBe(id); // still the old creation
+	});
+
 	it('discards a revision, and a new draft only when no meal cites it', async () => {
 		const curator = await c.curator();
 		const d = await curator.client.catalogue.createDraft({ id: crypto.randomUUID(), content: draftContent('Da scartare') });
@@ -1311,8 +1386,28 @@ import { isCited, loadAuthors, loadDraftRow, loadLookup } from './load.ts';
 import { slugify, uniqueSlug } from './slug.ts';
 
 export type Channel = 'web' | 'mcp' | 'import';
-export interface Actor { userId: string; channel: Channel; now: Date }
-export const actorOf = (context: OperationContext): Actor => ({ userId: context.userId, channel: context.channel, now: context.now });
+/** Who writes and through which channel; the instant comes from the database (writeInstant). */
+export interface Actor { userId: string; channel: Channel }
+export const actorOf = (context: OperationContext): Actor => ({ userId: context.userId, channel: context.channel });
+
+export interface CreateDraftInput { draftId: string; content: RecipeDraftDocument; originSlug?: string | null; originType?: string | null }
+export interface CreatedDraft { draftId: string; recipeId: string; created: boolean }
+export interface SaveDraftInput { draftId: string; baseRevision: number; content: RecipeDraftDocument; overwriteRevision?: number }
+export interface SavedDraft { draftId: string; revision: number }
+
+/**
+ * Creations of the catalogue wait for one another (few curators): the same id twice, or two
+ * names giving the same slug, never race into a unique violation.
+ */
+export async function lockCreations(tx: Tx): Promise<void> {
+	await tx`select pg_advisory_xact_lock(hashtext('app.catalogue_create'))`;
+}
+
+/** The instant of the writes, read after the locks: a wait never backdates a version (R1). */
+export async function writeInstant(tx: Tx): Promise<Date> {
+	const [row] = await tx<{ at: Date }[]>`select clock_timestamp() as at`;
+	return row!.at;
+}
 
 /** Trimmed, then checked as a draft: only wrong data is refused (spec section 8). */
 async function cleanAndCheck(tx: Tx, content: RecipeDraftDocument, path: string[] = ['content']): Promise<RecipeDraftDocument> {
@@ -1326,44 +1421,61 @@ async function cleanAndCheck(tx: Tx, content: RecipeDraftDocument, path: string[
 const recipeSlug = (tx: Tx, content: RecipeDraftDocument) =>
 	uniqueSlug(slugify(content.name?.['it-IT'] || content.name?.['en-GB'] || '', 'recipe'), async (s) => (await tx`select 1 from app.recipes where slug = ${s}`).length > 0);
 
-async function addSave(tx: Tx, actor: Actor, draftId: string, revision: number, content: RecipeDraftDocument) {
+async function addSave(tx: Tx, actor: Actor, at: Date, draftId: string, revision: number, content: RecipeDraftDocument) {
 	await tx`insert into app.recipe_draft_saves (draft_id, revision, content, saved_by, saved_at, channel)
-		values (${draftId}, ${revision}, ${tx.json(content as never)}, ${actor.userId}, ${actor.now}, ${actor.channel})`;
+		values (${draftId}, ${revision}, ${tx.json(content as never)}, ${actor.userId}, ${at}, ${actor.channel})`;
 }
 
-export async function createDraft(tx: Tx, actor: Actor, input: { draftId: string; content: RecipeDraftDocument; originSlug?: string | null; originType?: string | null }) {
-	const existing = await tx<{ recipe_id: string }[]>`select recipe_id from app.recipe_drafts where id = ${input.draftId}`;
-	if (existing[0]) return { draftId: input.draftId, recipeId: existing[0].recipe_id };
+export async function createDraft(tx: Tx, actor: Actor, input: CreateDraftInput): Promise<CreatedDraft> {
+	await lockCreations(tx);
+	const [same] = await tx<{ recipe_id: string }[]>`select recipe_id from app.recipe_drafts where id = ${input.draftId}`;
+	if (same) return { draftId: input.draftId, recipeId: same.recipe_id, created: false };
+	if (input.originSlug) {
+		const [known] = await tx<{ recipe_id: string; draft_id: string | null }[]>`
+			select r.id as recipe_id, (select d.id from app.recipe_drafts d where d.recipe_id = r.id order by d.created_at desc limit 1) as draft_id
+			from app.recipes r where r.origin_slug = ${input.originSlug}`;
+		if (known?.draft_id) return { draftId: known.draft_id, recipeId: known.recipe_id, created: false };
+		if (known) throw appError('invalid', { issues: [{ path: ['originSlug'], code: 'invalid_value' }] });
+	}
 	const content = await cleanAndCheck(tx, input.content);
 	const names = projectDraftNames(content);
+	const at = await writeInstant(tx);
 	const [{ id: recipeId }] = await tx<{ id: string }[]>`
 		insert into app.recipes (slug, origin_slug, origin_type, name, description, created_by, created_at, updated_by, updated_at)
 		values (${await recipeSlug(tx, content)}, ${input.originSlug ?? null}, ${input.originType ?? null}, ${tx.json(names.name)}, ${tx.json(names.description)},
-			${actor.userId}, ${actor.now}, ${actor.userId}, ${actor.now})
+			${actor.userId}, ${at}, ${actor.userId}, ${at})
 		returning id`;
 	await tx`insert into app.recipe_drafts (id, recipe_id, kind, content, revision, created_by, created_at, updated_by, updated_at)
-		values (${input.draftId}, ${recipeId}, 'new', ${tx.json(content as never)}, 1, ${actor.userId}, ${actor.now}, ${actor.userId}, ${actor.now})`;
-	await addSave(tx, actor, input.draftId, 1, content);
-	return { draftId: input.draftId, recipeId };
+		values (${input.draftId}, ${recipeId}, 'new', ${tx.json(content as never)}, 1, ${actor.userId}, ${at}, ${actor.userId}, ${at})`;
+	await addSave(tx, actor, at, input.draftId, 1, content);
+	return { draftId: input.draftId, recipeId, created: true };
 }
 
+/** Order of the spec (section 3): the creation already made, then the recipe, then the open revision. */
 export async function startRevision(tx: Tx, actor: Actor, input: { recipeId: string; draftId: string }) {
+	await lockCreations(tx);
+	const [same] = await tx<{ recipe_id: string }[]>`select recipe_id from app.recipe_drafts where id = ${input.draftId}`;
+	if (same) {
+		if (same.recipe_id !== input.recipeId) throw appError('invalid', { issues: [{ path: ['id'], code: 'invalid_value' }] });
+		return { draftId: input.draftId };
+	}
 	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
 	if (!recipe) throw appError('not_found');
+	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
 	const [open] = await tx<{ id: string }[]>`select id from app.recipe_drafts where recipe_id = ${input.recipeId} and closed_at is null`;
 	if (open) return { draftId: open.id };
-	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
 	const [current] = await tx<{ content: RecipeDraftDocument }[]>`
 		select content from app.recipe_versions where recipe_id = ${input.recipeId} and version = ${recipe.version}`;
 	if (!current) throw appError('not_found');
+	const at = await writeInstant(tx);
 	await tx`insert into app.recipe_drafts (id, recipe_id, kind, base_version, content, revision, created_by, created_at, updated_by, updated_at)
 		values (${input.draftId}, ${input.recipeId}, 'revision', ${recipe.version}, ${tx.json(current.content as never)}, 1,
-			${actor.userId}, ${actor.now}, ${actor.userId}, ${actor.now})`;
-	await addSave(tx, actor, input.draftId, 1, current.content);
+			${actor.userId}, ${at}, ${actor.userId}, ${at})`;
+	await addSave(tx, actor, at, input.draftId, 1, current.content);
 	return { draftId: input.draftId };
 }
 
-export async function saveDraft(tx: Tx, actor: Actor, input: { draftId: string; baseRevision: number; content: RecipeDraftDocument; overwriteRevision?: number }) {
+export async function saveDraft(tx: Tx, actor: Actor, input: SaveDraftInput): Promise<SavedDraft> {
 	const row = await loadDraftRow(tx, input.draftId, { lock: true });
 	if (!row) throw appError('not_found');
 	const content = await cleanAndCheck(tx, input.content);
@@ -1382,16 +1494,17 @@ export async function saveDraft(tx: Tx, actor: Actor, input: { draftId: string; 
 		});
 	}
 	const revision = row.revision + 1;
+	const at = await writeInstant(tx);
 	if (input.baseRevision < row.revision) {
 		await tx`update app.recipe_draft_saves set overwritten = true
 			where draft_id = ${row.id} and revision > ${input.baseRevision} and revision <= ${row.revision}`;
 	}
-	await tx`update app.recipe_drafts set content = ${tx.json(content as never)}, revision = ${revision}, updated_by = ${actor.userId}, updated_at = ${actor.now}
+	await tx`update app.recipe_drafts set content = ${tx.json(content as never)}, revision = ${revision}, updated_by = ${actor.userId}, updated_at = ${at}
 		where id = ${row.id}`;
-	await addSave(tx, actor, row.id, revision, content);
+	await addSave(tx, actor, at, row.id, revision, content);
 	if (row.kind === 'new') {
 		const names = projectDraftNames(content);
-		await tx`update app.recipes set name = ${tx.json(names.name)}, description = ${tx.json(names.description)}, updated_by = ${actor.userId}, updated_at = ${actor.now}
+		await tx`update app.recipes set name = ${tx.json(names.name)}, description = ${tx.json(names.description)}, updated_by = ${actor.userId}, updated_at = ${at}
 			where id = ${row.recipeId}`;
 	}
 	return { draftId: row.id, revision };
@@ -1404,7 +1517,8 @@ export async function discardDraft(tx: Tx, actor: Actor, input: { draftId: strin
 	if (row.outcome === 'discarded') return answer;
 	if (row.closedAt) throw appError('not_found');
 	if (row.kind === 'new' && (await isCited(tx, row.recipeId))) throw appError('not_allowed', { reason: 'cited_by_meals' });
-	await tx`update app.recipe_drafts set closed_at = ${actor.now}, closed_by = ${actor.userId}, outcome = 'discarded' where id = ${row.id}`;
+	const at = await writeInstant(tx);
+	await tx`update app.recipe_drafts set closed_at = ${at}, closed_by = ${actor.userId}, outcome = 'discarded' where id = ${row.id}`;
 	return answer;
 }
 ```
@@ -1419,9 +1533,15 @@ Note per l'implementatore:
   il successo con la base vecchia, Review Focus 1) ma dopo la pulizia, così due invii che
   differiscono solo per spazi sono la stessa cosa.
 - Il conflitto con due salvataggi concorrenti: il secondo attende il `for update` del
-  primo, poi vede `revision = 2` con la base 1 → `conflict`. Se Postgres.js con la stessa
-  connessione del pool impedisce la concorrenza reale nel test, il test usa due attori
-  (connessioni diverse tramite Hyperdrive finto): è già il caso con `rpcClient`.
+  primo, poi vede `revision = 2` con la base 1 → `conflict`. Ogni richiesta RPC del test
+  apre la propria connessione e transazione (`withDb`), quindi la concorrenza è reale; se
+  le due finissero in sequenza per caso, il test resta valido (una vince, l'altra ha il
+  conflitto).
+- Le due creazioni con lo stesso uuid in parallelo: la seconda attende il lucchetto
+  consultivo della prima e, dopo il suo commit, la ritrova con una lettura nuova (`read
+  committed`: ogni istruzione vede i commit precedenti). Lo stesso vale per lo slug.
+- `startRevision` con un uuid di una bozza chiusa risponde con quella bozza: la vista ha
+  `outcome` valorizzato, così il client capisce che va aperta una revisione nuova.
 
 Gestori nel router:
 
@@ -1461,8 +1581,8 @@ function draftHandlers(os: Implementer) {
 **Interfaces:**
 - Consumes: Task 5 (`publicationCheck`), Task 6 (`Actor`, `loadDraftRow`).
 - Produces:
-  - `recipe-writes.ts`: `writeVersion(tx, actor, { recipeId, document: RecipeDocument, restoredFrom: number | null }): Promise<number>` (proiezioni, righe, versione, riga di stato alla prima pubblicazione; restituisce la nuova versione); `versionConflict(tx, recipeId, version): Promise<never>`
-  - `write.ts`: `publishDraft(tx, actor, { draftId, confirmVersion? }): Promise<{ recipeId: string; version: number; conversions: Conversion[] }>`
+  - `recipe-writes.ts`: `writeVersion(tx, actor, { recipeId, document: RecipeDocument, restoredFrom: number | null, at: Date }): Promise<number>` (proiezioni, righe, versione, riga di stato alla prima pubblicazione; restituisce la nuova versione; la ricetta è già bloccata dal chiamante); `versionConflict(tx, recipeId, version): Promise<never>`
+  - `write.ts`: `PublishInput`, `Published { recipeId; version; publishedAt: Date; conversions }`, `publishDraft(tx, actor, input: PublishInput): Promise<Published>`
 
 - [ ] **Step 1: test che falliscono**
 
@@ -1559,6 +1679,33 @@ describe.skipIf(!hasDatabase)('catalogue publication', () => {
 		expect((await curator.client.catalogue.getDraft({ draftId: d.draftId })).issues).toContainEqual({ path: ['ingredients', 0, 'ingredientId'], code: 'unknown_ingredient' });
 	});
 
+	it('dates the version after the wait for the lock, as R1 reads it', async () => {
+		const curator = await c.curator();
+		const ingredientId = await c.ingredient('Ceci neri');
+		const d = await curator.client.catalogue.createDraft({ id: crypto.randomUUID(), content: completeContent('Hummus', ingredientId) });
+		await curator.client.catalogue.publish({ draftId: d.draftId });
+		const revision = await curator.client.catalogue.startRevision({ recipeId: d.recipeId, id: crypto.randomUUID() });
+		await curator.client.catalogue.saveDraft({ draftId: revision.draftId, baseRevision: 1, content: { ...revision.content, durationMinutes: 25 } });
+		// Another transaction holds the recipe, as a slow publication would.
+		let released!: Date;
+		const holder = db().begin(async (sql) => {
+			await sql`select 1 from app.recipes where id = ${d.recipeId} for update`;
+			await new Promise((resolve) => setTimeout(resolve, 400));
+			released = (await sql<{ at: Date }[]>`select clock_timestamp() as at`)[0]!.at;
+		});
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		const requested = new Date();
+		const publication = curator.client.catalogue.publish({ draftId: revision.draftId });
+		await holder;
+		expect((await publication).version).toBe(2);
+		const [v2] = await db()<{ published_at: Date }[]>`select published_at from app.recipe_versions where recipe_id = ${d.recipeId} and version = 2`;
+		expect(v2!.published_at.getTime()).toBeGreaterThanOrEqual(released.getTime());
+		// The real R1 resolver: a meal that became past while the publication waited keeps version 1.
+		const during = new Date((requested.getTime() + released.getTime()) / 2);
+		expect(await db()`select app.recipe_version_at(${d.recipeId}, ${during}) as v`).toEqual([{ v: 1 }]);
+		expect(await db()`select app.recipe_version_at(${d.recipeId}, ${v2!.published_at}) as v`).toEqual([{ v: 2 }]);
+	});
+
 	it('leaves nothing behind when a write fails halfway', async () => {
 		const curator = await c.curator();
 		const ingredientId = await c.ingredient('Orzo');
@@ -1597,7 +1744,7 @@ import { loadAuthors } from './load.ts';
 import type { Actor } from './write.ts';
 
 /** Projections, lines, the immutable version and the first status change, in the caller's transaction. */
-export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: string; document: RecipeDocument; restoredFrom: number | null }): Promise<number> {
+export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: string; document: RecipeDocument; restoredFrom: number | null; at: Date }): Promise<number> {
 	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
 	if (!recipe) throw appError('not_found');
 	const version = recipe.version + 1;
@@ -1609,7 +1756,7 @@ export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: stri
 		duration_minutes = ${p.durationMinutes}, base_servings = ${p.baseServings}, meal_type = ${p.mealType},
 		protein_group = ${p.proteinGroup}, is_fresh_fish = ${p.isFreshFish}, carbohydrate_group = ${p.carbohydrateGroup},
 		category = ${p.category}, has_vegetables = ${p.hasVegetables}, is_heavy = ${p.isHeavy}, seasons = ${p.seasons},
-		updated_by = ${actor.userId}, updated_at = ${actor.now}
+		updated_by = ${actor.userId}, updated_at = ${input.at}
 		where id = ${input.recipeId}`;
 	await tx`delete from app.recipe_ingredients where recipe_id = ${input.recipeId}`;
 	for (const l of ingredients) {
@@ -1620,10 +1767,10 @@ export async function writeVersion(tx: Tx, actor: Actor, input: { recipeId: stri
 				${l.isOptional}, ${l.isPrimary})`;
 	}
 	await tx`insert into app.recipe_versions (recipe_id, version, content, published_by, published_at, channel, restored_from)
-		values (${input.recipeId}, ${version}, ${tx.json(input.document as never)}, ${actor.userId}, ${actor.now}, ${actor.channel}, ${input.restoredFrom})`;
+		values (${input.recipeId}, ${version}, ${tx.json(input.document as never)}, ${actor.userId}, ${input.at}, ${actor.channel}, ${input.restoredFrom})`;
 	if (recipe.status === 'draft') {
 		await tx`insert into app.recipe_status_changes (recipe_id, status, changed_by, changed_at, channel)
-			values (${input.recipeId}, 'published', ${actor.userId}, ${actor.now}, ${actor.channel})`;
+			values (${input.recipeId}, 'published', ${actor.userId}, ${input.at}, ${actor.channel})`;
 	}
 	return version;
 }
@@ -1647,14 +1794,18 @@ scrivono come `null`, non `tx.json(null)`.
 In `write.ts`:
 
 ```ts
-export async function publishDraft(tx: Tx, actor: Actor, input: { draftId: string; confirmVersion?: number }) {
-	const row = await loadDraftRow(tx, input.draftId, { lock: true });
+export interface PublishInput { draftId: string; confirmVersion?: number }
+export interface Published { recipeId: string; version: number; publishedAt: Date; conversions: Conversion[] }
+
+export async function publishDraft(tx: Tx, actor: Actor, input: PublishInput): Promise<Published> {
+	const row = await loadDraftRow(tx, input.draftId, { lock: true }); // locks the draft and its recipe
 	if (!row) throw appError('not_found');
 	if (row.outcome === 'published') {
-		const [v] = await tx<{ version: number }[]>`select version from app.recipe_versions
+		// Repeat after a lost answer: the version written when the draft was closed (same instant).
+		const [v] = await tx<{ version: number; published_at: Date }[]>`select version, published_at from app.recipe_versions
 			where recipe_id = ${row.recipeId} and published_at = ${row.closedAt} and published_by is not distinct from ${row.closedBy}
 			order by version desc limit 1`;
-		if (v) return { recipeId: row.recipeId, version: v.version, conversions: [] };
+		if (v) return { recipeId: row.recipeId, version: v.version, publishedAt: v.published_at, conversions: [] };
 	}
 	if (row.closedAt) throw appError('not_found');
 	const { document, issues, conversions } = await publicationCheck(tx, row.content);
@@ -1662,9 +1813,10 @@ export async function publishDraft(tx: Tx, actor: Actor, input: { draftId: strin
 	if (row.kind === 'revision' && row.recipeVersion !== row.baseVersion && input.confirmVersion !== row.recipeVersion) {
 		await versionConflict(tx, row.recipeId, row.recipeVersion);
 	}
-	const version = await writeVersion(tx, actor, { recipeId: row.recipeId, document: toPublished(document), restoredFrom: null });
-	await tx`update app.recipe_drafts set closed_at = ${actor.now}, closed_by = ${actor.userId}, outcome = 'published' where id = ${row.id}`;
-	return { recipeId: row.recipeId, version, conversions };
+	const at = await writeInstant(tx); // after the locks: never earlier than the wait (R1)
+	const version = await writeVersion(tx, actor, { recipeId: row.recipeId, document: toPublished(document), restoredFrom: null, at });
+	await tx`update app.recipe_drafts set closed_at = ${at}, closed_by = ${actor.userId}, outcome = 'published' where id = ${row.id}`;
+	return { recipeId: row.recipeId, version, publishedAt: at, conversions };
 }
 ```
 
@@ -1687,7 +1839,10 @@ function publicationHandlers(os: Implementer) {
 			const { issues, conversions } = await publicationCheck(context.tx, row.content);
 			return { revision: row.revision, issues, missing: missingData(issues), conversions };
 		}),
-		publish: os.catalogue.publish.handler(({ context, input }) => publishDraft(context.tx, actorOf(context), input)),
+		publish: os.catalogue.publish.handler(async ({ context, input }) => {
+			const { recipeId, version, conversions } = await publishDraft(context.tx, actorOf(context), input);
+			return { recipeId, version, conversions };
+		}),
 	};
 }
 ```
@@ -1798,15 +1953,16 @@ export async function setArchived(tx: Tx, actor: Actor, input: { recipeId: strin
 	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
 	const wanted = input.archived ? 'archived' : 'published';
 	if (recipe.status !== wanted) {
-		await tx`update app.recipes set status = ${wanted}, archived_at = ${input.archived ? actor.now : null}, archived_by = ${input.archived ? actor.userId : null},
-			updated_by = ${actor.userId}, updated_at = ${actor.now} where id = ${input.recipeId}`;
+		const at = await writeInstant(tx);
+		await tx`update app.recipes set status = ${wanted}, archived_at = ${input.archived ? at : null}, archived_by = ${input.archived ? actor.userId : null},
+			updated_by = ${actor.userId}, updated_at = ${at} where id = ${input.recipeId}`;
 		await tx`insert into app.recipe_status_changes (recipe_id, status, changed_by, changed_at, channel)
-			values (${input.recipeId}, ${wanted}, ${actor.userId}, ${actor.now}, ${actor.channel})`;
+			values (${input.recipeId}, ${wanted}, ${actor.userId}, ${at}, ${actor.channel})`;
 	}
 	const [last] = await tx<{ changed_by: string | null; changed_at: Date }[]>`
 		select changed_by, changed_at from app.recipe_status_changes where recipe_id = ${input.recipeId} order by changed_at desc, id desc limit 1`;
 	const authors = await loadAuthors(tx);
-	return { recipeId: input.recipeId, status: wanted as 'published' | 'archived', changedBy: authorOf(authors, last?.changed_by ?? null), changedAt: (last?.changed_at ?? actor.now).toISOString() };
+	return { recipeId: input.recipeId, status: wanted as 'published' | 'archived', changedBy: authorOf(authors, last?.changed_by ?? null), changedAt: (last?.changed_at ?? (await writeInstant(tx))).toISOString() };
 }
 
 export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: string; version: number; confirmVersion: number }) {
@@ -1824,7 +1980,8 @@ export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: st
 	const document = chosen.content as RecipeDraftDocument;
 	const issues = checkPublishable(document, await loadLookup(tx, document));
 	if (issues.length) throw appError('invalid', { issues });
-	const version = await writeVersion(tx, actor, { recipeId: input.recipeId, document: toPublished(document), restoredFrom: input.version });
+	const at = await writeInstant(tx); // after the lock on the recipe (R1, as publishDraft)
+	const version = await writeVersion(tx, actor, { recipeId: input.recipeId, document: toPublished(document), restoredFrom: input.version, at });
 	return { recipeId: input.recipeId, version, restoredFrom: input.version };
 }
 ```
@@ -1880,14 +2037,14 @@ Gestori: `setArchived`, `restoreVersion` diretti; `listVersions` e `getVersion` 
 **Files:**
 - Create: `server/src/catalogue/ingredients.ts`
 - Modify: `server/src/catalogue/write.ts` (`createIngredient`, `createBook`), `server/src/catalogue/router.ts`
-- Test: `server/test/catalogue/ingredients.test.ts`
+- Test: `server/test/catalogue/ingredients.test.ts`, `server/test/catalogue/import-writes.test.ts`
 
 **Interfaces:**
-- Consumes: Task 3 (`slugify`, `uniqueSlug`, `changedFields`, `sameDocument`), Task 5 (`loadAuthors`).
+- Consumes: Task 3 (`slugify`, `uniqueSlug`, `changedFields`), Task 5 (`loadAuthors`, `localText`), Task 6 (`Actor`, `lockCreations`, `writeInstant`).
 - Produces:
-  - `ingredients.ts`: `ingredientViewOf(tx, ingredientId): Promise<IngredientView>`; `recordIngredientVersion(tx, actor, ingredientId): Promise<number>` (incrementa `ingredients.version` tranne alla creazione, scrive `ingredient_versions` con `ingredientVersionContent`); `updateIngredient`, `setEquivalence`, `removeEquivalence`, `searchCatalogueIngredients(tx, text, locale)`, `knownVarieties(tx, ingredientId)`, `varietyCheck(tx, ingredientId, text, locale)`, `listBooks(tx)`
+  - `ingredients.ts`: `ingredientViewOf(tx, ingredientId): Promise<IngredientView>`; `recordIngredientVersion(tx, actor, ingredientId, { bump: boolean; at: Date }): Promise<number>`; `updateIngredient`, `setEquivalence`, `removeEquivalence`, `searchCatalogueIngredients(tx, text, locale)`, `knownVarieties(tx, ingredientId)`, `varietyCheck(tx, ingredientId, text, locale)`, `listBooks(tx)`, `capitalise`, `cleanSynonyms`
   - `ingredientVersionContent` (zod)
-  - `write.ts`: `createIngredient(tx, actor, { ingredientId, name, department, isPantry, synonyms })`, `createBook(tx, actor, { bookId, title, slug? })`
+  - `write.ts` (firme definitive): `CreateIngredientInput`, `CreatedIngredient { ingredientId; slug; created }`, `createIngredient(tx, actor, input)`; `CreateBookInput`, `CreatedBook { bookId; slug; title; created }`, `createBook(tx, actor, input)`
 
 - [ ] **Step 1: test che falliscono**
 
@@ -1904,6 +2061,10 @@ describe.skipIf(!hasDatabase)('catalogue ingredients and books', () => {
 	beforeAll(async () => { c = await catalogueActors(); });
 	afterAll(() => c?.actors.close());
 	const db = () => c.actors.db.admin;
+	const data = <T,>(read: { unchanged: true } | { unchanged: false; data: T }): T => {
+		if (read.unchanged) throw new Error('expected data');
+		return read.data;
+	};
 
 	it('creates an ingredient once, capitalised, with its first history row', async () => {
 		const curator = await c.curator({ agent: true });
@@ -1916,6 +2077,27 @@ describe.skipIf(!hasDatabase)('catalogue ingredients and books', () => {
 			.toEqual([{ version: 1, channel: 'mcp', department: 'pasta_grains' }]);
 	});
 
+	it('creates once when the same id arrives twice at the same time', async () => {
+		const curator = await c.curator();
+		const input = { id: crypto.randomUUID(), name: { 'it-IT': 'Cavolo nero', 'en-GB': 'Cavolo nero' }, department: 'produce' as const, isPantry: false };
+		const [a, b] = await Promise.all([curator.client.catalogue.createIngredient(input), curator.client.catalogue.createIngredient(input)]);
+		expect(a).toEqual(b);
+		expect(await db()`select count(*)::int as n from app.ingredient_versions where ingredient_id = ${input.id}`).toEqual([{ n: 1 }]);
+	});
+
+	it('lets a new conversation search, read and change an ingredient without losing data', async () => {
+		const first = await c.curator();
+		const created = await first.client.catalogue.createIngredient({ id: crypto.randomUUID(), name: { 'it-IT': 'Scalogni', 'en-GB': null }, department: 'produce', isPantry: false, synonyms: { 'it-IT': ['scalogno'], 'en-GB': [] } });
+		await first.client.catalogue.setEquivalence({ ingredientId: created.ingredientId, fromUnit: 'us_cup', toUnit: 'g', factor: 160, preparation: null, source: 'USDA' });
+		const later = await c.curator({ agent: true }); // another session: knows only the name
+		const found = data(await later.client.catalogue.searchIngredients({ text: 'scalog' })).items[0]!;
+		const read = data(await later.client.catalogue.getIngredient({ ingredientId: found.ingredientId }));
+		expect(read).toMatchObject({ version: 2, synonyms: { 'it-IT': ['scalogno'], 'en-GB': [] }, equivalences: [expect.objectContaining({ factor: 160 })] });
+		const changed = await later.client.catalogue.updateIngredient({ ingredientId: read.ingredientId, baseVersion: read.version, name: { 'it-IT': read.name['it-IT'], 'en-GB': 'Shallots' }, synonyms: read.synonyms, department: read.department, isPantry: read.isPantry });
+		expect(changed).toMatchObject({ version: 3, name: { 'en-GB': 'Shallots' }, synonyms: read.synonyms, equivalences: read.equivalences });
+		expect((await errorOf(later.client.catalogue.getIngredient({ ingredientId: crypto.randomUUID() }))).code).toBe('not_found');
+	});
+
 	it('updates from the version read and reports a conflict with who and what', async () => {
 		const a = await c.curator();
 		const b = await c.curator();
@@ -1924,38 +2106,40 @@ describe.skipIf(!hasDatabase)('catalogue ingredients and books', () => {
 		expect(next.version).toBe(2);
 		const conflict = await errorOf(a.client.catalogue.updateIngredient({ ingredientId: view.ingredientId, baseVersion: 1, name: { 'it-IT': 'Porri', 'en-GB': null }, synonyms: view.synonyms, department: 'frozen', isPantry: false }));
 		expect(conflict.data).toMatchObject({ kind: 'ingredient', version: 2, by: b.userId, fields: ['name'] });
+		expect(conflict.data.byName).not.toBeNull(); // catalogue_author_names now covers ingredient_versions
 	});
 
-	it('sets and removes recipe equivalences, each a new ingredient version', async () => {
+	it('keeps equivalences idempotent: same id on repeat and on change, removal repeatable', async () => {
 		const curator = await c.curator();
 		const view = await curator.client.catalogue.createIngredient({ id: crypto.randomUUID(), name: { 'it-IT': 'Zucchero', 'en-GB': 'Sugar' }, department: 'other', isPantry: true });
-		const set = await curator.client.catalogue.setEquivalence({ ingredientId: view.ingredientId, fromUnit: 'us_cup', toUnit: 'g', factor: 200, preparation: null, source: 'USDA' });
+		const input = { ingredientId: view.ingredientId, fromUnit: 'us_cup' as const, toUnit: 'g' as const, factor: 200, preparation: null, source: 'USDA' };
+		const set = await curator.client.catalogue.setEquivalence(input);
 		expect(set.version).toBe(2);
-		const replaced = await curator.client.catalogue.setEquivalence({ ingredientId: view.ingredientId, fromUnit: 'us_cup', toUnit: 'g', factor: 198, preparation: null, source: 'King Arthur' });
-		expect(replaced.equivalences).toHaveLength(1);
-		expect(replaced.equivalences[0]).toMatchObject({ factor: 198, source: 'King Arthur' });
-		const removed = await curator.client.catalogue.removeEquivalence({ ingredientId: view.ingredientId, equivalenceId: replaced.equivalences[0]!.id });
+		const repeat = await curator.client.catalogue.setEquivalence(input);
+		expect(repeat).toEqual(set);
+		expect(await db()`select count(*)::int as n from app.ingredient_versions where ingredient_id = ${view.ingredientId}`).toEqual([{ n: 2 }]);
+		const changed = await curator.client.catalogue.setEquivalence({ ...input, factor: 198, source: 'King Arthur' });
+		expect(changed.version).toBe(3);
+		expect(changed.equivalences).toEqual([expect.objectContaining({ id: set.equivalences[0]!.id, factor: 198, source: 'King Arthur' })]);
+		const removed = await curator.client.catalogue.removeEquivalence({ ingredientId: view.ingredientId, equivalenceId: set.equivalences[0]!.id });
 		expect(removed).toMatchObject({ version: 4, equivalences: [] });
-		const blank = await errorOf(curator.client.catalogue.setEquivalence({ ingredientId: view.ingredientId, fromUnit: 'us_cup', toUnit: 'g', factor: 1, preparation: null, source: '   ' }));
+		expect(await curator.client.catalogue.removeEquivalence({ ingredientId: view.ingredientId, equivalenceId: set.equivalences[0]!.id })).toEqual(removed);
+		const blank = await errorOf(curator.client.catalogue.setEquivalence({ ...input, source: '   ' }));
 		expect(blank.code).toBe('invalid');
 	});
 
 	it('finds ingredients by name, synonym and variety, and lists varieties', async () => {
 		const curator = await c.curator();
 		const tomato = await curator.client.catalogue.createIngredient({ id: crypto.randomUUID(), name: { 'it-IT': 'Pomodori', 'en-GB': 'Tomatoes' }, department: 'produce', isPantry: false, synonyms: { 'it-IT': ['pelati'], 'en-GB': [] } });
-		await seedPublishedRecipe(c.actors.db, { name: 'Insalata', baseServings: 2, lines: [{ ingredientId: tomato.ingredientId, quantity: grams(300), variety: { 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' } }] });
+		const { recipeId } = await seedPublishedRecipe(c.actors.db, { name: 'Insalata', baseServings: 2, lines: [{ ingredientId: tomato.ingredientId, quantity: grams(300), variety: { 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' } }] });
+		// seedPublishedRecipe writes the version, not the projected lines: add the line as a publication would.
 		await db()`insert into app.recipe_ingredients (recipe_id, position, ingredient_id, variety, variety_key, quantity_kind, quantity, unit, source_text, is_optional, is_primary)
-			select id, 0, ${tomato.ingredientId}, ${db().json({ 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' })}, 'cuore di bue', 'amount', 300, 'g', 'x', false, false
-			from app.recipes where name->>'it-IT' = 'Insalata' order by created_at desc limit 1`;
-		const byVariety = await curator.client.catalogue.searchIngredients({ text: 'cuore' });
-		if (byVariety.unchanged) throw new Error('expected data');
-		expect(byVariety.data.items).toContainEqual(expect.objectContaining({ ingredientId: tomato.ingredientId, matched: 'variety' }));
-		const bySynonym = await curator.client.catalogue.searchIngredients({ text: 'pelati' });
-		if (bySynonym.unchanged) throw new Error('expected data');
-		expect(bySynonym.data.items[0]).toMatchObject({ ingredientId: tomato.ingredientId, matched: 'synonym' });
-		const varieties = await curator.client.catalogue.listVarieties({ ingredientId: tomato.ingredientId });
-		if (varieties.unchanged) throw new Error('expected data');
-		expect(varieties.data.varieties).toEqual([{ variety: { 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' }, uses: 1 }]);
+			values (${recipeId}, 0, ${tomato.ingredientId}, ${db().json({ 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' })}, 'cuore di bue', 'amount', 300, 'g', 'x', false, false)`;
+		expect(data(await curator.client.catalogue.searchIngredients({ text: 'cuore' })).items)
+			.toContainEqual(expect.objectContaining({ ingredientId: tomato.ingredientId, matched: 'variety' }));
+		expect(data(await curator.client.catalogue.searchIngredients({ text: 'pelati' })).items[0]).toMatchObject({ ingredientId: tomato.ingredientId, matched: 'synonym' });
+		expect(data(await curator.client.catalogue.listVarieties({ ingredientId: tomato.ingredientId })).varieties)
+			.toEqual([{ variety: { 'it-IT': 'cuore di bue', 'en-GB': 'oxheart' }, uses: 1 }]);
 		const hints = await curator.client.catalogue.checkVariety({ ingredientId: tomato.ingredientId, text: 'Pomodoro Cuore di bue', locale: 'it-IT' });
 		expect(hints.hints.length).toBeGreaterThan(0);
 	});
@@ -1966,16 +2150,55 @@ describe.skipIf(!hasDatabase)('catalogue ingredients and books', () => {
 		const book = await curator.client.catalogue.createBook({ id, title: 'Basta un wok' });
 		expect(await curator.client.catalogue.createBook({ id, title: 'Altro' })).toEqual(book);
 		expect(book.slug).toMatch(/^basta-un-wok/);
-		const list = await curator.client.catalogue.listBooks({});
-		if (list.unchanged) throw new Error('expected data');
-		expect(list.data.books).toContainEqual({ ...book, archived: false });
+		expect(data(await curator.client.catalogue.listBooks({})).books).toContainEqual({ ...book, archived: false });
 	});
 });
 ```
 
-Il test della ricerca per varietà usa `seedPublishedRecipe`, che oggi non scrive le righe
-di `recipe_ingredients`: per questo la riga si inserisce a mano subito dopo. Se nel
-frattempo la fixture scrive le righe, togliere l'inserimento.
+```ts
+// server/test/catalogue/import-writes.test.ts: write.ts as the production import will use it
+import { resolveReferences } from '@app/domain/recipe';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { withDb } from '../../src/db.ts';
+import { createBook, createDraft, createIngredient, type Actor } from '../../src/catalogue/write.ts';
+import { hasDatabase } from '../support/db.ts';
+import { catalogueActors, completeContent, type CatalogueActors } from './support.ts';
+
+describe.skipIf(!hasDatabase)('catalogue writes for the import', () => {
+	let c: CatalogueActors;
+	beforeAll(async () => { c = await catalogueActors(); });
+	afterAll(() => c?.actors.close());
+
+	it('keeps the import slugs and finds them again on a second run', async () => {
+		const curator = await c.curator();
+		const actor: Actor = { userId: curator.userId, channel: 'import' };
+		const slug = `olio-extravergine-di-oliva-${crypto.randomUUID().slice(0, 6)}`;
+		const run = (ids: { ingredient: string; book: string; draft: string }) =>
+			withDb(c.actors.db.appServerUrl, { kind: 'user', claims: { sub: curator.userId, session_id: curator.sessionId } as never }, async (tx) => {
+				const oil = await createIngredient(tx, actor, { ingredientId: ids.ingredient, slug, name: { 'it-IT': 'Olio extravergine d’oliva', 'en-GB': 'Extra virgin olive oil' }, department: 'condiments', isPantry: true });
+				const book = await createBook(tx, actor, { bookId: ids.book, slug: `${slug}-libro`, title: 'Il libro' });
+				const lookup = { ingredientId: (s: string) => (s === slug ? oil.ingredientId : undefined), bookId: (s: string) => (s === `${slug}-libro` ? book.bookId : undefined) };
+				const content = resolveReferences(completeContent('Bruschetta', slug), lookup);
+				const draft = await createDraft(tx, actor, { draftId: ids.draft, content, originSlug: slug, originType: 'casa' });
+				return { oil, book, draft };
+			});
+		const first = await run({ ingredient: crypto.randomUUID(), book: crypto.randomUUID(), draft: crypto.randomUUID() });
+		expect(first.oil).toMatchObject({ slug, created: true });
+		const second = await run({ ingredient: crypto.randomUUID(), book: crypto.randomUUID(), draft: crypto.randomUUID() });
+		expect(second.oil).toEqual({ ...first.oil, created: false });
+		expect(second.book).toEqual({ ...first.book, created: false });
+		expect(second.draft).toEqual({ ...first.draft, created: false });
+		const [row] = await c.actors.db.admin`select channel from app.recipe_draft_saves where draft_id = ${first.draft.draftId}`;
+		expect(row.channel).toBe('import');
+	});
+});
+```
+
+Prima di scrivere `import-writes.test.ts` leggere `server/src/db.ts` (`withDb`, forma dei
+`Claims`) e `server/test/support/context.ts`: se esiste un aiuto per aprire una
+transazione nel ruolo di un utente di prova, usare quello invece di `withDb` con i claim
+scritti a mano. `completeContent('Bruschetta', slug)` mette lo slug al posto dell'id:
+`resolveReferences` lo sostituisce con l'id restituito, come farà l'import.
 
 - [ ] **Step 2: eseguire** → FAIL.
 
@@ -1984,7 +2207,6 @@ frattempo la fixture scrive le righe, togliere l'inserimento.
 ```ts
 import type { IngredientView } from '@app/contract';
 import { varietyHints } from '@app/domain/recipe';
-import { varietyKey } from '@app/domain/shopping';
 import { preparationKey, unitEquivalenceSchema, type Locale } from '@app/domain/units';
 import { z } from 'zod';
 import type { Tx } from '../db.ts';
@@ -1994,7 +2216,7 @@ import { foldText } from '../family/views.ts';
 import { changedFields } from './fields.ts';
 import { loadAuthors } from './load.ts';
 import { localText } from './views.ts';
-import type { Actor } from './write.ts';
+import { writeInstant, type Actor } from './write.ts';
 
 export const ingredientVersionContent = z.object({
 	slug: z.string(), name: z.object({ 'it-IT': z.string(), 'en-GB': z.string() }),
@@ -2004,6 +2226,7 @@ export const ingredientVersionContent = z.object({
 });
 
 interface IngredientRow { id: string; slug: string; name: Record<Locale, string>; synonyms: Record<Locale, string[]>; department: string; is_pantry: boolean; version: number }
+interface EquivalenceRow { id: string; from_unit: string; to_unit: string; factor: string; scope: 'recipe' | 'shopping'; preparation: string | null; source: string }
 
 async function ingredientRow(tx: Tx, id: string, lock = false): Promise<IngredientRow> {
 	const rows = lock
@@ -2013,21 +2236,24 @@ async function ingredientRow(tx: Tx, id: string, lock = false): Promise<Ingredie
 	return rows[0];
 }
 
-const equivalencesOf = (tx: Tx, id: string) => tx<{ id: string; from_unit: string; to_unit: string; factor: string; scope: 'recipe' | 'shopping'; preparation: string | null; source: string }[]>`
-	select id, from_unit, to_unit, factor, scope, preparation, source from app.ingredient_unit_equivalences where ingredient_id = ${id} order by from_unit, preparation nulls first`;
+const equivalencesOf = (tx: Tx, id: string) => tx<EquivalenceRow[]>`
+	select id, from_unit, to_unit, factor, scope, preparation, source from app.ingredient_unit_equivalences
+	where ingredient_id = ${id} order by from_unit, preparation nulls first`;
 
 export async function ingredientViewOf(tx: Tx, id: string): Promise<IngredientView> {
 	const row = await ingredientRow(tx, id);
 	const eqs = (await equivalencesOf(tx, id)).filter((e) => e.scope === 'recipe');
-	return { ingredientId: row.id, slug: row.slug, name: { 'it-IT': row.name['it-IT'] ?? '', 'en-GB': row.name['en-GB'] ?? '' },
+	return {
+		ingredientId: row.id, slug: row.slug, name: { 'it-IT': row.name['it-IT'] ?? '', 'en-GB': row.name['en-GB'] ?? '' },
 		synonyms: { 'it-IT': row.synonyms['it-IT'] ?? [], 'en-GB': row.synonyms['en-GB'] ?? [] }, department: row.department as never,
 		isPantry: row.is_pantry, version: row.version,
-		equivalences: eqs.map((e) => ({ id: e.id, fromUnit: e.from_unit as never, toUnit: e.to_unit as never, factor: Number(e.factor), preparation: e.preparation, source: e.source })) };
+		equivalences: eqs.map((e) => ({ id: e.id, fromUnit: e.from_unit as never, toUnit: e.to_unit as never, factor: Number(e.factor), preparation: e.preparation, source: e.source })),
+	};
 }
 
-/** Writes the history row of the ingredient as it is now; `bump` raises its version first (every change but the creation). */
-export async function recordIngredientVersion(tx: Tx, actor: Actor, id: string, bump: boolean): Promise<number> {
-	if (bump) await tx`update app.ingredients set version = version + 1, updated_by = ${actor.userId}, updated_at = ${actor.now} where id = ${id}`;
+/** The history row of the ingredient as it is now; `bump` raises its version first (every change but the creation). */
+export async function recordIngredientVersion(tx: Tx, actor: Actor, id: string, options: { bump: boolean; at: Date }): Promise<number> {
+	if (options.bump) await tx`update app.ingredients set version = version + 1, updated_by = ${actor.userId}, updated_at = ${options.at} where id = ${id}`;
 	const row = await ingredientRow(tx, id);
 	const content = ingredientVersionContent.parse({
 		slug: row.slug, name: { 'it-IT': row.name['it-IT'] ?? '', 'en-GB': row.name['en-GB'] ?? '' },
@@ -2035,12 +2261,12 @@ export async function recordIngredientVersion(tx: Tx, actor: Actor, id: string, 
 		equivalences: (await equivalencesOf(tx, id)).map((e) => ({ fromUnit: e.from_unit, toUnit: e.to_unit, factor: Number(e.factor), scope: e.scope, preparation: e.preparation, source: e.source })),
 	});
 	await tx`insert into app.ingredient_versions (ingredient_id, version, content, changed_by, changed_at, channel)
-		values (${id}, ${row.version}, ${tx.json(content)}, ${actor.userId}, ${actor.now}, ${actor.channel})`;
+		values (${id}, ${row.version}, ${tx.json(content)}, ${actor.userId}, ${options.at}, ${actor.channel})`;
 	return row.version;
 }
 
 export const capitalise = (text: string) => { const t = text.trim(); return t.charAt(0).toLocaleUpperCase('it-IT') + t.slice(1); };
-export const cleanSynonyms = (s: Record<Locale, string[]> | undefined) => ({
+export const cleanSynonyms = (s: Partial<Record<Locale, string[]>> | undefined) => ({
 	'it-IT': [...new Set((s?.['it-IT'] ?? []).map((x) => x.trim()).filter(Boolean))],
 	'en-GB': [...new Set((s?.['en-GB'] ?? []).map((x) => x.trim()).filter(Boolean))],
 });
@@ -2049,8 +2275,7 @@ export async function updateIngredient(tx: Tx, actor: Actor, input: { ingredient
 	const row = await ingredientRow(tx, input.ingredientId, true);
 	const next = { name: { 'it-IT': capitalise(input.name['it-IT']), 'en-GB': input.name['en-GB']?.trim() ? capitalise(input.name['en-GB']) : '' }, synonyms: cleanSynonyms(input.synonyms), department: input.department, isPantry: input.isPantry };
 	const current = { name: row.name, synonyms: row.synonyms, department: row.department, isPantry: row.is_pantry };
-	const fields = changedFields(current, next);
-	if (fields.length === 0) return ingredientViewOf(tx, row.id);
+	if (changedFields(current, next).length === 0) return ingredientViewOf(tx, row.id); // nothing to change, also on a repeat
 	if (input.baseVersion !== row.version) {
 		const [last] = await tx<{ changed_by: string | null; changed_at: Date }[]>`
 			select changed_by, changed_at from app.ingredient_versions where ingredient_id = ${row.id} order by version desc limit 1`;
@@ -2058,48 +2283,59 @@ export async function updateIngredient(tx: Tx, actor: Actor, input: { ingredient
 			select content from app.ingredient_versions where ingredient_id = ${row.id} and version = ${input.baseVersion}`;
 		const authors = await loadAuthors(tx);
 		const from = base ? { name: base.content.name, synonyms: base.content.synonyms, department: base.content.department, isPantry: base.content.isPantry } : current;
-		throw appError('conflict', { kind: 'ingredient', version: row.version, by: last?.changed_by ?? null,
-			byName: last?.changed_by ? (authors.get(last.changed_by) ?? null) : null, at: (last?.changed_at ?? new Date(0)).toISOString(), fields: changedFields(from, current) });
+		throw appError('conflict', {
+			kind: 'ingredient', version: row.version, by: last?.changed_by ?? null,
+			byName: last?.changed_by ? (authors.get(last.changed_by) ?? null) : null, at: (last?.changed_at ?? new Date(0)).toISOString(), fields: changedFields(from, current),
+		});
 	}
+	const at = await writeInstant(tx);
 	await withInvalidOn(['name'], () => tx`update app.ingredients set name = ${tx.json(next.name)}, synonyms = ${tx.json(next.synonyms)}, department = ${next.department}, is_pantry = ${next.isPantry} where id = ${row.id}`);
-	await recordIngredientVersion(tx, actor, row.id, true);
+	await recordIngredientVersion(tx, actor, row.id, { bump: true, at });
 	return ingredientViewOf(tx, row.id);
 }
 
+/**
+ * Idempotent (spec section 3): identical values write nothing; other values update the row in
+ * place (to_unit, factor and source are the columns curators may update), keeping its id.
+ */
 export async function setEquivalence(tx: Tx, actor: Actor, input: { ingredientId: string; fromUnit: string; toUnit: string; factor: number; preparation: string | null; source: string }) {
 	await ingredientRow(tx, input.ingredientId, true);
 	const parsed = unitEquivalenceSchema.safeParse({ ingredientId: input.ingredientId, fromUnit: input.fromUnit, toUnit: input.toUnit, factor: input.factor, scope: 'recipe', preparation: preparationKey(input.preparation), source: input.source });
 	if (!parsed.success) throw appError('invalid', { issues: parsed.error.issues.map((i) => ({ path: i.path as (string | number)[], code: 'invalid_value' })) });
 	const eq = parsed.data;
+	const [existing] = await tx<EquivalenceRow[]>`
+		select id, from_unit, to_unit, factor, scope, preparation, source from app.ingredient_unit_equivalences
+		where ingredient_id = ${eq.ingredientId} and scope = 'recipe' and from_dimension = app.unit_dimension(${eq.fromUnit})
+			and preparation is not distinct from ${eq.preparation}`;
+	if (existing && existing.from_unit === eq.fromUnit && existing.to_unit === eq.toUnit && Number(existing.factor) === eq.factor && existing.source === eq.source) {
+		return ingredientViewOf(tx, input.ingredientId); // a repeat: same id, same version
+	}
+	const at = await writeInstant(tx);
 	await withInvalidOn(['fromUnit'], async () => {
-		const [existing] = await tx<{ id: string }[]>`select id from app.ingredient_unit_equivalences
-			where ingredient_id = ${eq.ingredientId} and scope = 'recipe' and from_dimension = app.unit_dimension(${eq.fromUnit}) and preparation is not distinct from ${eq.preparation}`;
-		if (existing) {
-			await tx`delete from app.ingredient_unit_equivalences where id = ${existing.id}`;
+		if (existing && existing.from_unit === eq.fromUnit) {
+			await tx`update app.ingredient_unit_equivalences set to_unit = ${eq.toUnit}, factor = ${eq.factor}, source = ${eq.source} where id = ${existing.id}`;
+		} else {
+			// Another unit of the same dimension (g → kg): from_unit cannot be updated, the row is replaced.
+			if (existing) await tx`delete from app.ingredient_unit_equivalences where id = ${existing.id}`;
+			await tx`insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation, source)
+				values (${eq.ingredientId}, ${eq.fromUnit}, ${eq.toUnit}, ${eq.factor}, 'recipe', ${eq.preparation}, ${eq.source})`;
 		}
-		await tx`insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation, source)
-			values (${eq.ingredientId}, ${eq.fromUnit}, ${eq.toUnit}, ${eq.factor}, 'recipe', ${eq.preparation}, ${eq.source})`;
 	});
-	await recordIngredientVersion(tx, actor, input.ingredientId, true);
+	await recordIngredientVersion(tx, actor, input.ingredientId, { bump: true, at });
 	return ingredientViewOf(tx, input.ingredientId);
 }
 
+/** Removing an equivalence already gone answers the current view: a repeat after a lost answer. */
 export async function removeEquivalence(tx: Tx, actor: Actor, input: { ingredientId: string; equivalenceId: string }) {
 	await ingredientRow(tx, input.ingredientId, true);
-	const removed = await tx`delete from app.ingredient_unit_equivalences where id = ${input.equivalenceId} and ingredient_id = ${input.ingredientId} and scope = 'recipe' returning id`;
-	if (removed.length === 0) throw appError('not_found');
-	await recordIngredientVersion(tx, actor, input.ingredientId, true);
+	const removed = await tx`delete from app.ingredient_unit_equivalences
+		where id = ${input.equivalenceId} and ingredient_id = ${input.ingredientId} and scope = 'recipe' returning id`;
+	if (removed.length > 0) await recordIngredientVersion(tx, actor, input.ingredientId, { bump: true, at: await writeInstant(tx) });
 	return ingredientViewOf(tx, input.ingredientId);
 }
 ```
 
-La sostituzione dell'equivalenza è cancellazione più inserimento: il permesso di `update`
-non comprende `from_unit` e `preparation`, e un'equivalenza è un fatto, non un'entità con
-storia propria (la storia è in `ingredient_versions`). Il codice di errore per `factor`
-non positivo o `source` vuota passa già dallo schema del contratto (`source: trim().min(1)`),
-quindi il test di `source` vuota vede la validazione della pipeline.
-
-Ricerca, varietà e libri (stesso file, `listBooks` e `createBook` in `write.ts` e qui):
+Ricerca, varietà e libri (stesso file):
 
 ```ts
 export async function searchCatalogueIngredients(tx: Tx, text: string, locale: Locale) {
@@ -2128,8 +2364,11 @@ export async function knownVarieties(tx: Tx, ingredientId: string) {
 	for (const r of rows) {
 		const g = groups.get(r.variety_key) ?? { spellings: new Map(), uses: 0 };
 		const key = JSON.stringify(r.variety);
-		const s = g.spellings.get(key) ?? { variety: r.variety, n: 0 };
-		s.n++; g.uses++; g.spellings.set(key, s); groups.set(r.variety_key, g);
+		const spelling = g.spellings.get(key) ?? { variety: r.variety, n: 0 };
+		spelling.n++;
+		g.uses++;
+		g.spellings.set(key, spelling);
+		groups.set(r.variety_key, g);
 	}
 	const varieties = [...groups.values()].map((g) => {
 		const top = [...g.spellings.values()].sort((a, b) => b.n - a.n)[0]!.variety;
@@ -2150,35 +2389,61 @@ export async function listBooks(tx: Tx) {
 }
 ```
 
-`varietyKey` non serve qui se si usa `variety_key` della colonna: togliere l'import se
-inutilizzato.
-
-In `write.ts`:
+In `write.ts` (firme definitive della spec, sezione 1):
 
 ```ts
-export async function createIngredient(tx: Tx, actor: Actor, input: { ingredientId: string; name: { 'it-IT': string; 'en-GB': string | null }; department: string; isPantry: boolean; synonyms?: Record<Locale, string[]> }) {
-	const existing = await tx`select 1 from app.ingredients where id = ${input.ingredientId}`;
-	if (existing.length) return { ingredientId: input.ingredientId };
+export interface CreateIngredientInput {
+	ingredientId: string;
+	slug?: string;
+	name: { 'it-IT': string; 'en-GB': string | null };
+	department: Department;
+	isPantry: boolean;
+	synonyms?: { 'it-IT': string[]; 'en-GB': string[] };
+}
+export interface CreatedIngredient { ingredientId: string; slug: string; created: boolean }
+export interface CreateBookInput { bookId: string; slug?: string; title: string }
+export interface CreatedBook { bookId: string; slug: string; title: string; created: boolean }
+
+/** Same uuid, or the same import slug: the ingredient already there (created: false), nothing written. */
+export async function createIngredient(tx: Tx, actor: Actor, input: CreateIngredientInput): Promise<CreatedIngredient> {
+	await lockCreations(tx);
+	const [existing] = await tx<{ id: string; slug: string }[]>`
+		select id, slug from app.ingredients where id = ${input.ingredientId} or slug = ${input.slug ?? null} order by (id = ${input.ingredientId}) desc limit 1`;
+	if (existing) return { ingredientId: existing.id, slug: existing.slug, created: false };
 	const name = { 'it-IT': capitalise(input.name['it-IT']), 'en-GB': input.name['en-GB']?.trim() ? capitalise(input.name['en-GB']) : '' };
-	const slug = await uniqueSlug(slugify(name['it-IT'], 'ingredient'), async (s) => (await tx`select 1 from app.ingredients where slug = ${s}`).length > 0);
+	const slug = input.slug ?? (await uniqueSlug(slugify(name['it-IT'], 'ingredient'), async (s) => (await tx`select 1 from app.ingredients where slug = ${s}`).length > 0));
+	const at = await writeInstant(tx);
 	await withInvalidOn(['name'], () => tx`insert into app.ingredients (id, slug, name, synonyms, department, is_pantry, version, created_by, created_at, updated_by, updated_at)
 		values (${input.ingredientId}, ${slug}, ${tx.json(name)}, ${tx.json(cleanSynonyms(input.synonyms))}, ${input.department}, ${input.isPantry}, 1,
-			${actor.userId}, ${actor.now}, ${actor.userId}, ${actor.now})`);
-	await recordIngredientVersion(tx, actor, input.ingredientId, false);
-	return { ingredientId: input.ingredientId };
+			${actor.userId}, ${at}, ${actor.userId}, ${at})`);
+	await recordIngredientVersion(tx, actor, input.ingredientId, { bump: false, at });
+	return { ingredientId: input.ingredientId, slug, created: true };
 }
 
-export async function createBook(tx: Tx, actor: Actor, input: { bookId: string; title: string; slug?: string }) {
-	const [existing] = await tx<{ id: string; slug: string; title: string }[]>`select id, slug, title from app.books where id = ${input.bookId}`;
-	if (existing) return { bookId: existing.id, slug: existing.slug, title: existing.title };
+export async function createBook(tx: Tx, actor: Actor, input: CreateBookInput): Promise<CreatedBook> {
+	await lockCreations(tx);
+	const [existing] = await tx<{ id: string; slug: string; title: string }[]>`
+		select id, slug, title from app.books where id = ${input.bookId} or slug = ${input.slug ?? null} order by (id = ${input.bookId}) desc limit 1`;
+	if (existing) return { bookId: existing.id, slug: existing.slug, title: existing.title, created: false };
 	const title = input.title.trim();
 	const slug = input.slug ?? (await uniqueSlug(slugify(title, 'book'), async (s) => (await tx`select 1 from app.books where slug = ${s}`).length > 0));
-	await tx`insert into app.books (id, slug, title, created_by, created_at) values (${input.bookId}, ${slug}, ${title}, ${actor.userId}, ${actor.now})`;
-	return { bookId: input.bookId, slug, title };
+	await tx`insert into app.books (id, slug, title, created_by, created_at) values (${input.bookId}, ${slug}, ${title}, ${actor.userId}, ${await writeInstant(tx)})`;
+	return { bookId: input.bookId, slug, title, created: true };
 }
 ```
 
-Gestori: `createIngredient` restituisce `ingredientViewOf(tx, id)`; letture versionate con
+(`Department` da `@app/domain/shopping`; `capitalise`, `cleanSynonyms`,
+`recordIngredientVersion` da `./ingredients.ts`: se l'import reciproco fra `write.ts` e
+`ingredients.ts` crea un ciclo di moduli, spostare `Actor`, `lockCreations` e
+`writeInstant` in `server/src/catalogue/actor.ts` e importarli da entrambi.) Lo slug
+passato dall'import si conserva com'è: deve già rispettare il vincolo kebab dello schema
+(`catalogueIngredientSchema` lo garantisce nel pacchetto); uno slug non valido arriva
+come `invalid` da `withInvalidOn`.
+
+Gestori: `createIngredient` chiama `createIngredient(tx, actorOf(context), { ingredientId:
+input.id, name, department, isPantry, synonyms })` e restituisce
+`ingredientViewOf(tx, ingredientId)`; `createBook` restituisce `{ bookId, slug, title }`;
+`getIngredient`, `searchIngredients`, `listVarieties`, `listBooks` con
 `fresh(context, ...)`.
 
 - [ ] **Step 4: eseguire** → PASS.
@@ -2209,7 +2474,7 @@ import { catalogueActors, completeContent, draftContent, type CatalogueActors } 
 describe('catalogue tools', () => {
 	it('exposes every operation, read-only only for reads', () => {
 		const tools = new Map(collectTools(contract).map((t) => [t.name, t.readOnly]));
-		for (const name of ['getGuide', 'overview', 'getDraft', 'checkDraft', 'listVersions', 'getVersion', 'searchIngredients', 'listVarieties', 'checkVariety', 'listBooks']) {
+		for (const name of ['getGuide', 'overview', 'getDraft', 'checkDraft', 'listVersions', 'getVersion', 'searchIngredients', 'getIngredient', 'listVarieties', 'checkVariety', 'listBooks']) {
 			expect(tools.get(`catalogue_${name}`)).toBe(true);
 		}
 		for (const name of ['createDraft', 'startRevision', 'saveDraft', 'publish', 'discardDraft', 'setArchived', 'restoreVersion', 'createIngredient', 'updateIngredient', 'setEquivalence', 'removeEquivalence', 'createBook']) {
@@ -2263,7 +2528,7 @@ Leggere `server/test/support/requests.ts` per la forma esatta di `toolBody` sugl
   se definito nella radice. Tutti verdi, nessun gestore provvisorio rimasto
   (`grep -n "Task [0-9]" server/src/catalogue/router.ts` vuoto).
 - [ ] **Step 4: commit** — `git commit -m "Gestione del ricettario: strumenti MCP e verifica"`
-- [ ] **Step 5: PR del server** — push e `gh pr create` (descrizione in italiano: cosa fa,
+- [ ] **Step 5: PR del server** (comprende la compatibilità del web con `not_allowed` del Task 1) — push e `gh pr create` (descrizione in italiano: cosa fa,
   come è stato verificato, sezioni 8 e 13 realizzate, file condivisi toccati, interfaccia
   `write.ts` per la messa in produzione), poi `STATO: PR_APERTA <url>`.
 
@@ -2271,50 +2536,99 @@ Leggere `server/test/support/requests.ts` per la forma esatta di `toolBody` sugl
 
 ### Task 11: web delle bozze (dopo il cancello)
 
-**Cancello:** merge della #17 (W5) e della PR web di W2 con `profile.get`. Prima di
-iniziare: `git fetch && git rebase origin/main`, poi leggere in `web/src/api/` come la #17
-espone il client reale (`useApi`, `queryKeys`, `readThrough`, mutazioni senza
-aggiornamento ottimistico), come W2 espone `globalRoles` (hook del profilo) e la struttura
-delle cartelle (`web/src/features/` o `web/src/routes/`). I nomi sotto (`useApi`,
-`useProfile`, `useT`) vanno allineati a quelli reali in questo primo passo, senza
-cambiare il comportamento.
+**Cancello:** merge della #17 (W5, già unita), della #18 (W2, `profile.get` con
+`globalRoles` al posto di `me.get`) e della #19 (W6, ricettario sui dati veri, che cambia
+`RecipesPage`). Prima di iniziare: `git fetch && git rebase origin/main`, poi leggere:
+- `web/src/api/types.ts` (`SERVER_AREAS`, `Api`, `ProvisionalApi`) e `clients.ts`
+  (`realClients`), con `clients.test.ts` come modello del test;
+- `web/src/api/fake/fakeApi.ts` (come le aree servite hanno il loro finto);
+- come la #18 espone il profilo (hook e chiave della query di `profile.get`, campo
+  `globalRoles`) e come la #19 ha lasciato `RecipesPage` e `RecipesView`;
+- `web/src/test/renderWithProviders.tsx` e `renderApp.tsx` (aiuti dei test).
+
+I nomi sotto che dipendono da quelle PR (`useProfile`, `profileKey`, `renderWithProviders`
+con un'API finta) si allineano a quelli reali in questo primo passo, senza cambiare il
+comportamento descritto.
 
 **Files:**
-- Create: `web/src/features/catalogue/queries.ts`, `CatalogueDraftsSection.tsx`, `ArchivedRecipesSection.tsx`, `DraftPage.tsx`, `catalogue.module.css`, test accanto
-- Create: `web/src/i18n/messages/catalogue.ts`; Modify: `web/src/i18n/messages/index.ts`, `web/src/i18n/messages/errors.ts` (`not_allowed`)
-- Modify: `web/src/router.tsx` (rotta `/recipes/drafts/$draftId`), `web/src/routes/RecipesPage.tsx` (due righe), API finta (`web/src/api/fake`) per l'area `catalogue`
+- Modify: `web/src/api/types.ts` (`SERVER_AREAS` con `'catalogue'`), `web/src/api/fake/fakeApi.ts` (area `catalogue` finta), `web/src/api/clients.test.ts`
+- Create: `web/src/features/catalogue/queries.ts`, `useIsCurator.ts`, `CatalogueDraftsSection.tsx`, `ArchivedRecipesSection.tsx`, `DraftPage.tsx`, `catalogue.module.css`, test accanto
+- Create: `web/src/i18n/messages/catalogue.ts`; Modify: `web/src/i18n/messages/index.ts`
+- Modify: `web/src/router.tsx` (rotta `/recipes/drafts/$draftId`), `web/src/routes/RecipesPage.tsx` (solo import e corpo di `RecipesPage`)
 
 **Interfaces:**
-- Consumes: `catalogue.overview`, `catalogue.getDraft`, `catalogue.setArchived` (contratto); `profile.get().globalRoles`.
-- Produces: `<CatalogueDraftsSection />`, `<ArchivedRecipesSection />`, rotta della bozza.
+- Consumes: `catalogue.overview`, `catalogue.getDraft`, `catalogue.setArchived` dal contratto (Task 4); `profile.get().globalRoles` (#18); `isBlocking`, `toApiError` (`web/src/api/errors.ts`).
+- Produces: `<CatalogueDraftsSection />`, `<ArchivedRecipesSection />`, rotta della bozza; `catalogue` in `SERVER_AREAS`.
 
-- [ ] **Step 1: test che falliscono** (Testing Library, con l'API finta della base)
+- [ ] **Step 1: test che falliscono**
+
+```ts
+// in web/src/api/clients.test.ts, nel describe 'clients by area'
+it('sends the catalogue reads and the archive switch to the Worker', async () => {
+	const { server, api } = setup();
+	const calls = () => server.fetch.mock.calls.map(([request]) => new URL((request as Request).url).pathname);
+	await api.catalogue.overview({}).catch(() => undefined);
+	await api.catalogue.getDraft({ draftId: crypto.randomUUID() }).catch(() => undefined);
+	await api.catalogue.setArchived({ recipeId: crypto.randomUUID(), archived: false }).catch(() => undefined);
+	expect(calls()).toEqual(['/api/rpc/catalogue/overview', '/api/rpc/catalogue/getDraft', '/api/rpc/catalogue/setArchived']);
+});
+```
+
+Leggere in `web/src/test/rpcServer.ts` come il server di prova risponde a una procedura
+sconosciuta e come registra le richieste: adeguare l'estrazione del percorso (la forma di
+`server.fetch.mock.calls` e il prefisso RPC) a quello reale.
 
 ```tsx
 // web/src/features/catalogue/CatalogueDraftsSection.test.tsx
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { renderWithApp } from '../../test/render';
+import { ApiError } from '../../api/errors';
+import { catalogueApi, renderCatalogue } from './test-support';
 import { CatalogueDraftsSection } from './CatalogueDraftsSection';
 
 const overview = {
-	drafts: [{ draftId: 'd1', recipeId: 'r1', kind: 'new', name: 'Zuppa di farro', createdBy: { userId: 'u1', name: 'Lucia' },
-		updatedBy: { userId: 'u1', name: 'Lucia' }, updatedAt: '2026-10-06T18:00:00.000Z', missing: ['baseServings', 'translation'] }],
+	drafts: [{ draftId: 'd1', recipeId: 'r1', kind: 'new' as const, name: 'Zuppa di farro', createdBy: { userId: 'u1', name: 'Lucia' },
+		updatedBy: { userId: 'u1', name: 'Lucia' }, updatedAt: '2026-10-06T18:00:00.000Z', missing: ['baseServings', 'translation'] as const }],
 	archived: [],
 };
 
 describe('CatalogueDraftsSection', () => {
 	it('shows draft cards to curators with what they miss', async () => {
-		renderWithApp(<CatalogueDraftsSection />, { roles: ['recipe_curator'], api: { catalogue: { overview: async () => overview } } });
+		renderCatalogue(<CatalogueDraftsSection />, { roles: ['recipe_curator'], api: catalogueApi({ overview: async () => overview }) });
 		expect(await screen.findByText('Zuppa di farro')).toBeInTheDocument();
 		expect(screen.getByText('Nuova')).toBeInTheDocument();
 		expect(screen.getByText(/Lucia · 6 ott/)).toBeInTheDocument();
 		expect(screen.getByText('Porzioni')).toBeInTheDocument();
 		expect(screen.getByText('Traduzione')).toBeInTheDocument();
 	});
+
 	it('renders nothing for members', () => {
-		const { container } = renderWithApp(<CatalogueDraftsSection />, { roles: [], api: { catalogue: { overview: async () => overview } } });
+		const { container } = renderCatalogue(<CatalogueDraftsSection />, { roles: [], api: catalogueApi({ overview: async () => overview }) });
 		expect(container).toBeEmptyDOMElement();
+	});
+
+	it('removes drafts already shown when the server refuses a later read', async () => {
+		let refuse = false;
+		const { refetchAll } = renderCatalogue(<CatalogueDraftsSection />, {
+			roles: ['recipe_curator'],
+			api: catalogueApi({ overview: async () => { if (refuse) throw new ApiError('forbidden'); return overview; } }),
+		});
+		expect(await screen.findByText('Zuppa di farro')).toBeInTheDocument();
+		refuse = true;
+		await refetchAll();
+		await waitFor(() => expect(screen.queryByText('Zuppa di farro')).not.toBeInTheDocument());
+	});
+
+	it('keeps drafts already shown when only the network fails', async () => {
+		let offline = false;
+		const { refetchAll } = renderCatalogue(<CatalogueDraftsSection />, {
+			roles: ['recipe_curator'],
+			api: catalogueApi({ overview: async () => { if (offline) throw new ApiError('network'); return overview; } }),
+		});
+		expect(await screen.findByText('Zuppa di farro')).toBeInTheDocument();
+		offline = true;
+		await refetchAll();
+		expect(screen.getByText('Zuppa di farro')).toBeInTheDocument();
 	});
 });
 ```
@@ -2323,15 +2637,17 @@ describe('CatalogueDraftsSection', () => {
 // web/src/features/catalogue/ArchivedRecipesSection.test.tsx
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithApp } from '../../test/render';
+import { catalogueApi, renderCatalogue } from './test-support';
 import { ArchivedRecipesSection } from './ArchivedRecipesSection';
 
 describe('ArchivedRecipesSection', () => {
 	it('brings a recipe back and shows the server answer, without optimistic changes', async () => {
 		let archived = [{ recipeId: 'r9', name: 'Erbazzone', archivedBy: { userId: 'u1', name: 'Lucia' }, archivedAt: '2026-10-05T10:00:00.000Z' }];
 		let release!: () => void;
-		const setArchived = vi.fn(() => new Promise((resolve) => { release = () => { archived = []; resolve({ recipeId: 'r9', status: 'published', changedBy: { userId: 'u1', name: 'Lucia' }, changedAt: '2026-10-11T10:00:00.000Z' }); }; }));
-		renderWithApp(<ArchivedRecipesSection />, { roles: ['recipe_curator'], api: { catalogue: { overview: async () => ({ drafts: [], archived }), setArchived } } });
+		const setArchived = vi.fn(() => new Promise((resolve) => {
+			release = () => { archived = []; resolve({ recipeId: 'r9', status: 'published', changedBy: { userId: 'u1', name: 'Lucia' }, changedAt: '2026-10-11T10:00:00.000Z' }); };
+		}));
+		renderCatalogue(<ArchivedRecipesSection />, { roles: ['recipe_curator'], api: catalogueApi({ overview: async () => ({ drafts: [], archived }), setArchived }) });
 		fireEvent.click(await screen.findByText('Archiviate'));
 		fireEvent.click(screen.getByRole('button', { name: 'Riporta nel ricettario' }));
 		expect(screen.getByText('Erbazzone')).toBeInTheDocument(); // still there while waiting
@@ -2342,73 +2658,126 @@ describe('ArchivedRecipesSection', () => {
 });
 ```
 
-`renderWithApp` è l'aiuto dei test della base (in `web/src/test/`): usare quello reale
-della #17 e adeguare le opzioni (`roles`, `api`).
+```tsx
+// web/src/routes/RecipesPage.catalogue.test.tsx
+import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { renderApp } from '../test/renderApp';
 
-- [ ] **Step 2: eseguire** `npm test -w web -- catalogue` → FAIL.
+describe('recipe book for a curator without a family', () => {
+	it('shows drafts and archived recipes next to the no-family notice', async () => {
+		renderApp('/recipes', { /* fake user with globalRoles ['recipe_curator'] and no family, as the #18 fake profile allows */ });
+		expect(await screen.findByText('Bozze')).toBeInTheDocument();
+		expect(screen.getByText('Archiviate')).toBeInTheDocument();
+	});
+});
+```
 
-- [ ] **Step 3: dizionario**
+`renderApp` con un utente finto curatore e senza famiglie: dopo la #18 il client finto del
+profilo deve permetterlo; se non ha un'opzione per i ruoli e le famiglie, aggiungerla al
+finto del profilo con la modifica minima (è il finto dell'area di W2: segnalarlo nella PR).
+Il commento nel test va sostituito dalle opzioni reali.
+
+`test-support.tsx` (accanto ai componenti) esporta `catalogueApi(overrides)`, un'`Api` finta
+con l'area `catalogue` sovrascritta e il profilo con i ruoli richiesti, e
+`renderCatalogue(ui, { roles, api })`, che usa `renderWithProviders` della base e
+restituisce anche `refetchAll()` (`queryClient.refetchQueries()` seguito dall'attesa delle
+query attive).
+
+- [ ] **Step 2: eseguire** `npm test -w web -- catalogue clients` → FAIL.
+
+- [ ] **Step 3: registrazione dell'area nel client**
+
+In `web/src/api/types.ts`: `export const SERVER_AREAS = [..., 'catalogue'] as const` (accanto
+alle aree già servite). Nel client finto (`fakeApi.ts`) l'area `catalogue` con `overview`,
+`getDraft` e `setArchived` sui dati dimostrativi (due bozze come nel prototipo, una ricetta
+archiviata), con la forma esatta delle viste del contratto (`DraftSummaryView`,
+`ArchivedSummaryView`, `DraftView`, tipi da `@app/contract` come le altre aree servite);
+le altre operazioni dell'area nel finto rispondono `ApiError('not_found')`, perché il web
+non le usa.
+
+- [ ] **Step 4: dizionario**
 
 ```ts
 // web/src/i18n/messages/catalogue.ts
-export const catalogueMessages = {
-	'it-IT': {
-		'catalogue.drafts': 'Bozze',
-		'catalogue.archived': 'Archiviate',
-		'catalogue.kind.new': 'Nuova',
-		'catalogue.kind.revision': 'Modifica',
-		'catalogue.restore': 'Riporta nel ricettario',
-		'catalogue.missing.names': 'Nomi',
-		'catalogue.missing.source': 'Fonte',
-		'catalogue.missing.details': 'Dettagli',
-		'catalogue.missing.attributes': 'Attributi',
-		'catalogue.missing.baseServings': 'Porzioni',
-		'catalogue.missing.ingredients': 'Ingredienti',
-		'catalogue.missing.translation': 'Traduzione',
-		'catalogue.missing.invalid': 'Dati da correggere',
-		'catalogue.draft.unresolved': 'da collegare',
-		'catalogue.draft.problems': 'Cosa manca per pubblicare',
-		'catalogue.draft.updated': 'Ultima modifica: {name}, {date}',
-		'catalogue.draft.formLater': 'Si modifica tramite l’agente: il modulo arriverà più avanti.',
-	},
-	'en-GB': {
-		'catalogue.drafts': 'Drafts',
-		'catalogue.archived': 'Archived',
-		'catalogue.kind.new': 'New',
-		'catalogue.kind.revision': 'Edit',
-		'catalogue.restore': 'Bring back to the recipe book',
-		'catalogue.missing.names': 'Names',
-		'catalogue.missing.source': 'Source',
-		'catalogue.missing.details': 'Details',
-		'catalogue.missing.attributes': 'Attributes',
-		'catalogue.missing.baseServings': 'Servings',
-		'catalogue.missing.ingredients': 'Ingredients',
-		'catalogue.missing.translation': 'Translation',
-		'catalogue.missing.invalid': 'Data to fix',
-		'catalogue.draft.unresolved': 'to be linked',
-		'catalogue.draft.problems': 'What is missing to publish',
-		'catalogue.draft.updated': 'Last change: {name}, {date}',
-		'catalogue.draft.formLater': 'Edit it through your agent: the form will come later.',
-	},
-} as const;
+export const it = {
+	'catalogue.drafts': 'Bozze',
+	'catalogue.archived': 'Archiviate',
+	'catalogue.kind.new': 'Nuova',
+	'catalogue.kind.revision': 'Modifica',
+	'catalogue.restore': 'Riporta nel ricettario',
+	'catalogue.missing.names': 'Nomi',
+	'catalogue.missing.source': 'Fonte',
+	'catalogue.missing.details': 'Dettagli',
+	'catalogue.missing.attributes': 'Attributi',
+	'catalogue.missing.baseServings': 'Porzioni',
+	'catalogue.missing.ingredients': 'Ingredienti',
+	'catalogue.missing.translation': 'Traduzione',
+	'catalogue.missing.invalid': 'Dati da correggere',
+	'catalogue.draft.unresolved': 'da collegare',
+	'catalogue.draft.problems': 'Cosa manca per pubblicare',
+	'catalogue.draft.updated': 'Ultima modifica: {name}, {date}',
+	'catalogue.draft.formLater': 'Si modifica tramite l’agente: il modulo arriverà più avanti.',
+	'catalogue.issue.required': 'Dato obbligatorio',
+	'catalogue.issue.translation_missing': 'Manca la traduzione',
+	'catalogue.issue.duplicate_ingredient': 'Ingrediente ripetuto',
+	'catalogue.issue.unit_not_publishable': 'Tazze senza conversione',
+	'catalogue.issue.unknown_ingredient': 'Ingrediente non nel catalogo',
+	'catalogue.issue.unknown_book': 'Libro non nel catalogo',
+	'catalogue.issue.not_applicable': 'Non pertinente al tipo di fonte',
+	'catalogue.issue.invalid_value': 'Valore non valido',
+	'catalogue.issue.too_long': 'Testo troppo lungo',
+	'catalogue.issue.invalid_url': 'Indirizzo non valido',
+	'catalogue.issue.not_positive_integer': 'Numero non valido',
+	'catalogue.issue.invalid_amount': 'Quantità non valida',
+	'catalogue.issue.multiple_primary': 'Più di un ingrediente principale',
+};
+
+export const en = {
+	'catalogue.drafts': 'Drafts',
+	'catalogue.archived': 'Archived',
+	'catalogue.kind.new': 'New',
+	'catalogue.kind.revision': 'Edit',
+	'catalogue.restore': 'Bring back to the recipe book',
+	'catalogue.missing.names': 'Names',
+	'catalogue.missing.source': 'Source',
+	'catalogue.missing.details': 'Details',
+	'catalogue.missing.attributes': 'Attributes',
+	'catalogue.missing.baseServings': 'Servings',
+	'catalogue.missing.ingredients': 'Ingredients',
+	'catalogue.missing.translation': 'Translation',
+	'catalogue.missing.invalid': 'Data to fix',
+	'catalogue.draft.unresolved': 'to be linked',
+	'catalogue.draft.problems': 'What is missing to publish',
+	'catalogue.draft.updated': 'Last change: {name}, {date}',
+	'catalogue.draft.formLater': 'Edit it through your agent: the form will come later.',
+	'catalogue.issue.required': 'Required',
+	'catalogue.issue.translation_missing': 'Translation missing',
+	'catalogue.issue.duplicate_ingredient': 'Ingredient repeated',
+	'catalogue.issue.unit_not_publishable': 'Cups without a conversion',
+	'catalogue.issue.unknown_ingredient': 'Ingredient not in the catalogue',
+	'catalogue.issue.unknown_book': 'Book not in the catalogue',
+	'catalogue.issue.not_applicable': 'Not relevant to the source type',
+	'catalogue.issue.invalid_value': 'Invalid value',
+	'catalogue.issue.too_long': 'Text too long',
+	'catalogue.issue.invalid_url': 'Invalid address',
+	'catalogue.issue.not_positive_integer': 'Invalid number',
+	'catalogue.issue.invalid_amount': 'Invalid amount',
+	'catalogue.issue.multiple_primary': 'More than one main ingredient',
+} satisfies Record<keyof typeof it, string>;
 ```
 
-Più i testi dei codici dei problemi (`catalogue.issue.required`, `.translation_missing`,
-`.duplicate_ingredient`, `.unit_not_publishable`, `.unknown_ingredient`, `.unknown_book`,
-`.not_applicable`, `.invalid_value`, `.too_long`, `.invalid_url`,
-`.not_positive_integer`, `.invalid_amount`, `.multiple_primary`) e, nei dizionari degli
-errori, `errors.not_allowed`: «Operazione non consentita nello stato attuale della
-ricetta.» / «This operation is not allowed in the recipe’s current state.». Registrare
-`catalogueMessages` in `messages/index.ts` come le altre aree. La forma (oggetto per
-lingua, interpolazione `{name}`) va allineata a quella dei dizionari esistenti
-(`recipes.ts`).
+Registrarlo in `web/src/i18n/messages/index.ts` come `errors.ts` e le altre aree
+(stessa forma `it`/`en`, interpolazione come in `recipes.ts`).
 
-- [ ] **Step 4: componenti**
+- [ ] **Step 5: query con la gestione dei rifiuti**
 
-```tsx
+```ts
 // web/src/features/catalogue/queries.ts
-import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useApi } from '../../api/ApiProvider';
+import { isBlocking, toApiError } from '../../api/errors';
 import { useLocale } from '../../i18n/LocaleProvider';
 
 export const catalogueKeys = {
@@ -2416,19 +2785,37 @@ export const catalogueKeys = {
 	draft: (draftId: string, locale: string) => ['catalogue', 'getDraft', { draftId, locale }] as const,
 };
 
-export function useOverviewQuery() {
-	const api = useApi();
-	const { locale } = useLocale();
-	return queryOptions({ queryKey: catalogueKeys.overview(locale), queryFn: () => api.catalogue.overview({}) });
+/**
+ * A catalogue read as the other screens do it: a stored copy stays only for a network error.
+ * A refusal (role revoked while the profile is still cached) drops every catalogue view and
+ * reads the profile again, so the sections disappear with their data.
+ */
+function useCatalogueQuery<T>(options: ReturnType<typeof queryOptions<T>>, enabled: boolean) {
+	const queryClient = useQueryClient();
+	const query = useQuery({ ...options, enabled });
+	const code = query.error ? toApiError(query.error).code : null;
+	useEffect(() => {
+		if (code !== 'forbidden') return;
+		queryClient.removeQueries({ queryKey: ['catalogue'] });
+		void queryClient.invalidateQueries({ queryKey: PROFILE_KEY_PREFIX });
+	}, [code, queryClient]);
+	const blocked = query.isError && isBlocking(query.error, query.data !== undefined);
+	return { query, data: blocked ? undefined : query.data, blocked };
 }
 
-export function useDraftQuery(draftId: string) {
+export function useOverview(enabled: boolean) {
 	const api = useApi();
 	const { locale } = useLocale();
-	return queryOptions({ queryKey: catalogueKeys.draft(draftId, locale), queryFn: () => api.catalogue.getDraft({ draftId }) });
+	return useCatalogueQuery(queryOptions({ queryKey: catalogueKeys.overview(locale), queryFn: () => api.catalogue.overview({}) }), enabled);
 }
 
-/** No optimistic update (W5 review): the overview is read again after the server answer; recipe lists go stale. */
+export function useDraft(draftId: string, enabled: boolean) {
+	const api = useApi();
+	const { locale } = useLocale();
+	return useCatalogueQuery(queryOptions({ queryKey: catalogueKeys.draft(draftId, locale), queryFn: () => api.catalogue.getDraft({ draftId }) }), enabled);
+}
+
+/** No optimistic update (W5 review): after the server answer the overview is read again and recipe lists go stale. */
 export function useBringBack() {
 	const api = useApi();
 	const queryClient = useQueryClient();
@@ -2442,31 +2829,37 @@ export function useBringBack() {
 }
 ```
 
+`PROFILE_KEY_PREFIX` è il prefisso della chiave della query di `profile.get` introdotta
+dalla #18 (per esempio `['profile', 'get']`): importarlo da dove la #18 lo definisce.
+`useIsCurator()` legge lo stesso profilo e restituisce
+`profile.globalRoles.includes('recipe_curator')`, `false` finché il profilo non è letto.
+
+- [ ] **Step 6: componenti**
+
 ```tsx
 // web/src/features/catalogue/CatalogueDraftsSection.tsx
 import { Link } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useIsCurator } from './useIsCurator';
-import { useOverviewQuery } from './queries';
 import { useT } from '../../i18n/LocaleProvider';
 import { shortDate } from '../../i18n/dates';
 import styles from './catalogue.module.css';
+import { useOverview } from './queries';
+import { useIsCurator } from './useIsCurator';
 
 export function CatalogueDraftsSection() {
 	const isCurator = useIsCurator();
 	const t = useT();
 	const [open, setOpen] = useState(true);
-	const overview = useQuery({ ...useOverviewQuery(), enabled: isCurator });
-	if (!isCurator || !overview.data || overview.data.drafts.length === 0) return null;
+	const { data } = useOverview(isCurator);
+	if (!isCurator || !data || data.drafts.length === 0) return null;
 	return (
-		<section className={styles.section}>
+		<section className={`page-column wide ${styles.section}`}>
 			<button type="button" className={styles.heading} aria-expanded={open} onClick={() => setOpen(!open)}>
-				{t('catalogue.drafts')} <span className={styles.count}>{overview.data.drafts.length}</span>
+				{t('catalogue.drafts')} <span className={styles.count}>{data.drafts.length}</span>
 			</button>
 			{open && (
 				<ul className={styles.cards}>
-					{overview.data.drafts.map((d) => (
+					{data.drafts.map((d) => (
 						<li key={d.draftId}>
 							<Link to="/recipes/drafts/$draftId" params={{ draftId: d.draftId }} className={styles.card}>
 								<span className={styles.kind}>{t(`catalogue.kind.${d.kind}`)}</span>
@@ -2483,46 +2876,65 @@ export function CatalogueDraftsSection() {
 }
 ```
 
-`useIsCurator()` legge `globalRoles` dal profilo di W2 (`profile.get`) e restituisce
-`globalRoles.includes('recipe_curator')`. `shortDate` è la funzione della base per «6 ott»
-in `web/src/i18n/dates.ts` (usare quella che esiste, con la lingua dell'utente). Classi e
-token CSS da `design/design.md` e dal `DraftList` del prototipo
-(`prototype/src/lib/components/DraftList.svelte`): carta, etichetta, titolo nel font delle
-schede, etichette brevi.
+`shortDate` è la funzione della base per «6 ott» in `web/src/i18n/dates.ts` (usare quella
+che esiste, con la lingua dell'utente). Classi e token CSS da `design/design.md` e dal
+`DraftList` del prototipo (`prototype/src/lib/components/DraftList.svelte`): carta,
+etichetta, titolo nel font delle schede, etichette brevi.
 
-`ArchivedRecipesSection` ha la stessa forma: sezione chiusa per default con
-`aria-expanded`, righe con nome, «Lucia · 5 ott» e il pulsante «Riporta nel ricettario»
-(`useBringBack`, disabilitato mentre la mutazione è in corso). `DraftPage` legge
-`useDraftQuery(draftId)`: titolo (`localText` di nome), descrizione, fonte (libro con
-`bookTitle` e pagine, indirizzo, «di casa»), durata, porzioni, attributi, elenco delle
-righe (nome da `ingredientNames` o «da collegare», varietà, testo della fonte), elenco
-dei problemi con `catalogue.issue.<code>` e il percorso reso leggibile (per esempio
-«Ingredienti, riga 1»), autore e ultima modifica, nota `catalogue.draft.formLater`. La
-pagina è solo per i curatori: per gli altri `NotFound`.
+`ArchivedRecipesSection` ha la stessa forma: `useOverview(isCurator)`, niente se non
+curatore, se i dati sono bloccati o se non ci sono archiviate; sezione chiusa per default
+con `aria-expanded`, righe con nome, «Lucia · 5 ott» e il pulsante «Riporta nel
+ricettario» (`useBringBack`, disabilitato mentre la mutazione è in corso).
 
-- [ ] **Step 5: registrazione**
+`DraftPage` legge `useDraft(draftId, isCurator)`: per un non curatore `NotFound`; con
+`blocked` mostra `QueryError` (che rende `errors.forbidden` dopo una revoca); con i dati:
+titolo (`localText` di nome), descrizione, fonte (libro con `bookTitle` e pagine,
+indirizzo, «di casa»), durata, porzioni, attributi, righe (nome da `ingredientNames` o
+`catalogue.draft.unresolved`, varietà, testo della fonte), elenco dei problemi con
+`catalogue.issue.<code>` e il percorso reso leggibile (per esempio «Ingredienti, riga 1»),
+autore e ultima modifica, nota `catalogue.draft.formLater`.
 
-In `web/src/routes/RecipesPage.tsx`: import dei due componenti; `<CatalogueDraftsSection />`
-prima dei filtri, `<ArchivedRecipesSection />` dopo l'elenco. In `web/src/router.tsx` la
-rotta `/recipes/drafts/$draftId` → `DraftPage`, accanto a `/recipes/$recipeId` (la
-statica `drafts` prima del parametro). Nell'API finta della base, l'area `catalogue` con
-dati demo (due bozze come nel prototipo, una archiviata).
+- [ ] **Step 7: montaggio e rotta**
 
-- [ ] **Step 6: eseguire** `npm test -w web && npm run typecheck && npm run build -w web` → PASS;
-  prova visiva con agent-browser sulla porta 8767 (curatore e membro), schermata del
-  ricettario con bozze e archiviate e della pagina della bozza.
-- [ ] **Step 7: commit e PR web** — `git commit -m "Web: bozze e ricette archiviate nel ricettario per i curatori"`; PR verso `main` dopo il merge della PR del server.
+```tsx
+// web/src/routes/RecipesPage.tsx: solo il corpo di RecipesPage cambia (RecipesView resta di W6)
+export function RecipesPage() {
+	return (
+		<>
+			<CatalogueDraftsSection />
+			<FamilyGate>{(family) => <RecipesView family={family} />}</FamilyGate>
+			<ArchivedRecipesSection />
+		</>
+	);
+}
+```
+
+Le sezioni stanno fuori da `FamilyGate` perché il ruolo di curatore non dipende dalla
+famiglia (spec, sezione 1). Se dopo la #19 `RecipesPage` ha un'altra forma, la regola resta:
+le due sezioni fuori dal cancello della famiglia, `RecipesView` invariato. Nel router la
+rotta `/recipes/drafts/$draftId` → `DraftPage`, accanto a `/recipes/$recipeId` (la statica
+`drafts` prima del parametro, come vuole TanStack Router).
+
+- [ ] **Step 8: eseguire** `npm test -w web && npm run typecheck && npm run build -w web` → PASS;
+  prova visiva con agent-browser sulla porta 8767 (curatore con famiglia, curatore senza
+  famiglia, membro): ricettario con bozze e archiviate e pagina della bozza.
+- [ ] **Step 9: commit e PR web** — `git commit -m "Web: bozze e ricette archiviate nel ricettario per i curatori"`; PR verso `main` dopo il merge della PR del server.
 
 ---
 
 ## Self-review
 
-- **Copertura della spec:** sezione 1 (interfacce) → attività 5-9 e 11; sezione 2
-  (contratto, errori) → 1 e 4; sezione 3 (server) → 5-9; guida → 5; sezione 4
-  (migrazione) → 2; sezione 5 (web) → 11; sezione 6 (test) → in ogni attività; sezione 7
-  (consegna) → 10 e 11.
-- **Tipi coerenti:** `Actor`/`actorOf`, `DraftRow`, `UnitEquivalenceRow`, `Conversion`,
-  `writeVersion`, `versionConflict`, `publicationCheck` (spostata in `check.ts` nel
-  Task 7) usati con gli stessi nomi.
-- **Review Focus:** ripetizioni (6, 7, 8, 9), concorrenza (6), ingrediente archiviato (7,
-  8), bozze importate parziali (5), revoca del ruolo (5): ciascuno ha il suo test.
+- **Copertura della spec:** sezione 1 (interfacce e firme di `write.ts`) → attività 6, 7 e 9;
+  sezione 2 (contratto, errori) → 1 e 4; sezione 3 (server, creazioni atomiche, istante
+  delle scritture, equivalenze idempotenti) → 5-9; guida → 5; sezione 4 (migrazione e
+  `coverage_test.sql`) → 2; sezione 5 (web: `SERVER_AREAS`, montaggio fuori da
+  `FamilyGate`, rifiuti) → 11; compatibilità del web con `not_allowed` → 1; sezione 6
+  (test) → in ogni attività; sezione 7 (consegna) → 10 e 11.
+- **Tipi coerenti:** `Actor` senza orologio, `actorOf`, `lockCreations`, `writeInstant`,
+  `CreatedDraft`, `SavedDraft`, `Published`, `CreatedIngredient`, `CreatedBook`,
+  `DraftRow`, `UnitEquivalenceRow`, `Conversion`, `writeVersion` (con `at`),
+  `versionConflict`, `publicationCheck` (in `check.ts` dal Task 7) usati con gli stessi
+  nomi.
+- **Review Focus:** ripetizioni (6, 7, 8, 9, con le creazioni concorrenti), concorrenza
+  (6, 9), ingrediente archiviato (7, 8), bozze importate parziali (5), revoca del ruolo
+  (5 sul server, 11 nel web): ciascuno ha il suo test.
