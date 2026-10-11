@@ -62,6 +62,8 @@ herdr pane read <pane> --source recent-unwrapped --lines 80
 herdr pane send-text <pane> "…"; herdr pane send-keys <pane> Enter
 ```
 
+**Messaggi lunghi (oltre 2-3 righe) in un file** `progetto/coordinamento/messaggi/<worker>-<nn>-<tema>.md`, e al worker si manda solo «Leggi <percorso> ed eseguilo»: con `send-text` i testi lunghi arrivano tagliati.
+
 **Prima di inviare testo leggi il pane**: se è aperto un menu di scelta, il testo finisce nel menu e l'Invio seleziona l'opzione evidenziata. Con un menu aperto rispondi solo con il numero dell'opzione e manda le informazioni dopo, a menu chiuso.
 
 Il brainstorming dei worker fa domande con l'interfaccia a scelta multipla: si

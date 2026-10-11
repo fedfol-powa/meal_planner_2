@@ -124,6 +124,11 @@ solo il coordinatore.
 - **Rischio da verificare prima del merge di W2:** l'integrazione GitHub di Supabase potrebbe applicare le migrazioni al progetto remoto al merge su `main`; W1 lo verifica nella configurazione prima che la PR dello schema venga unita.
 - **Ordine di implementazione dell'ondata 1 (11/10):** W3 implementa dopo il merge dello scheletro di W1 e del dominio di W4 (usa `UNIT_CODES`, `quantitySchema`, `applyRecipeEquivalence`, `varietyKey`, `DEPARTMENTS`); W2 allinea le colonne alla sezione «Interfaccia per W2» della spec di W3.
 - **Equivalenze (review W4, 11/10):** al massimo una equivalenza per (ingrediente, ambito, dimensione dell'unità di partenza); il dominio rifiuta configurazioni ambigue, lo schema lo garantisce con un vincolo. Soglie di presentazione scelte dopo l'arrotondamento (15,8 oz → 1 lb); cucchiai di misura e domestici dello stesso tipo sommati solo nella presentazione; la vista della spesa espone anche la quantità canonica per la spunta offline.
+- **Nome delle ricette in bozza (W2 ↔ W3, 11/10):** `recipes.name` e `recipes.description` valorizzati anche per le bozze nuove (import e server a ogni salvataggio), così i membri leggono il nome dei pasti senza accesso alle bozze, riservate ai curatori; le altre proiezioni restano vuote.
+- **Review di W3 (11/10):** righe dell'import irrisolte conservate nella bozza con `ingredientId: null` e bloccanti alla pubblicazione; duplicati nelle bozze come problemi di pubblicazione, non errori di salvataggio; approvazione dei YAML legata all'hash del contenuto.
+- **Equivalenze e preparazione (11/10):** un'equivalenza può avere una `preparation` facoltativa e si applica solo a righe con la stessa preparazione (la specifica vince sulla generica); unicità per (ingrediente, ambito, dimensione dell'unità di partenza, preparazione).
+- **Proprietà dei tipi condivisi (11/10):** W4 possiede `Localized`, `Quantity` completa, codici e schemi delle unità; W3 costruisce le varianti di bozza sopra, senza ridefinirle.
+- **Aperto per l'ondata 2:** dove conservare `triedUndated` (ricette provate senza data) e come lo usa il pianificatore.
 
 ## Registro delle decisioni del coordinamento
 
