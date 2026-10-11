@@ -19,6 +19,7 @@ import type { Env } from './env.ts';
 import { mapErrors, mapUnreadableRequest, normalizeError } from './errors.ts';
 import { buildMcpServer, collectTools } from './mcp.ts';
 import type { RequestContext } from './pipeline.ts';
+import { serveBringPage } from './shopping/bring-page.ts';
 import { loadSession } from './session.ts';
 import { supabaseAuthMetadata } from './well-known.ts';
 
@@ -134,6 +135,8 @@ export function createApp(options: AppOptions) {
 			const { matched, response } = await handler.handle(request, { prefix, context });
 			return matched ? response : notFound();
 		}
+		const bring = /^\/shopping-lists\/([^/]+)$/.exec(url.pathname);
+		if (bring) return serveBringPage(request, env, bring[1]!);
 		return env.ASSETS.fetch(request);
 	}
 
