@@ -1,4 +1,4 @@
-import { contract, type ProfileView } from '@app/contract';
+import { contract, type ProfileView, type RecipeDetailView, type RecipeListItemView } from '@app/contract';
 import { implement } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { vi } from 'vitest';
@@ -10,6 +10,22 @@ export const SERVER_PROFILE: ProfileView = {
   user: { id: WHOAMI.userId, displayName: 'Persona dal server', email: 'server@example.test', locale: 'it-IT', globalRoles: [] },
   families: [{ id: '3b7e8f00-1d2c-4e5f-8a9b-0c1d2e3f4a5b', name: 'Famiglia dal server', role: 'member', timeZone: 'Europe/Rome', measurementSystem: 'metric' }],
   currentFamilyId: '3b7e8f00-1d2c-4e5f-8a9b-0c1d2e3f4a5b'
+};
+
+/** A recipe only the server knows, in the family of SERVER_PROFILE. */
+export const SERVER_RECIPE: RecipeListItemView = {
+  recipe: {
+    id: '5d0c1e2f-3a4b-4c5d-9e6f-7a8b9c0d1e2f', name: 'Ricetta dal server', description: null, durationMinutes: 25,
+    sourceType: 'home', sourceUrl: null, bookTitle: null, bookPages: null, mealType: 'both', proteinGroup: 'legumes'
+  },
+  rating: { familyAverage: null, familyCount: 0, myStars: null },
+  baseServings: 4,
+  ingredients: [{ ingredientId: '6e1d2f3a-4b5c-4d6e-8f70-8b9cad0e1f2a', name: 'Ceci', amount: '400 g', preparation: null, optional: false }],
+  addedOn: '2026-09-01', lastEatenOn: null, upcoming: []
+};
+const serverDetail: RecipeDetailView = {
+  recipe: SERVER_RECIPE.recipe, status: 'published', baseServings: 4, servings: 4, ingredients: SERVER_RECIPE.ingredients,
+  rating: SERVER_RECIPE.rating, history: [], upcoming: []
 };
 
 /**
@@ -24,7 +40,9 @@ export function createRpcTestServer() {
   let answer: () => unknown = () => WHOAMI;
   const profileSeen: (string | null)[] = [];
   let profile: (authorization: string | null) => unknown = () => SERVER_PROFILE;
-  const os = implement({ session: contract.session, profile: contract.profile });
+  /** Calls of the recipe book, with their input as the Worker received it. */
+  const recipeCalls: { op: string; input: Record<string, unknown> }[] = [];
+  const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings });
   const router = os.router({
     session: {
       whoami: os.session.whoami.handler(async ({ context }) => {
@@ -40,6 +58,22 @@ export function createRpcTestServer() {
       }),
       update: os.profile.update.handler(() => SERVER_PROFILE),
       setCurrentFamily: os.profile.setCurrentFamily.handler(() => SERVER_PROFILE)
+    },
+    recipes: {
+      search: os.recipes.search.handler(({ input }) => {
+        recipeCalls.push({ op: 'recipes.search', input });
+        return { unchanged: false as const, version: 'v1', data: { items: [SERVER_RECIPE] } };
+      }),
+      get: os.recipes.get.handler(({ input }) => {
+        recipeCalls.push({ op: 'recipes.get', input });
+        return { unchanged: false as const, version: 'v1', data: serverDetail };
+      })
+    },
+    ratings: {
+      set: os.ratings.set.handler(({ input }) => {
+        recipeCalls.push({ op: 'ratings.set', input });
+        return { familyAverage: input.stars, familyCount: input.stars === null ? 0 : 1, myStars: input.stars };
+      })
     }
   });
   const handler = new RPCHandler(router);
@@ -60,6 +94,7 @@ export function createRpcTestServer() {
     answer: (next: () => unknown) => (answer = next),
     /** Authorization headers of the profile reads, in order. */
     profileSeen,
+    recipeCalls,
     answerProfile: (next: (authorization: string | null) => unknown) => (profile = next)
   };
 }
