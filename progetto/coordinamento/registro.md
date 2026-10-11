@@ -12,7 +12,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | PR #23 unita. Ora Task 11 (web delle bozze) su branch nuovo da main; a PR_APERTA review Codex. Il web dopo il merge della #23 | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 unita; libero | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Libero (PR #17 unita). Candidato per collegamento agenti o esportazione R2, che richiedono passi esterni dell'utente | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 unita; libero | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | prova/stack-reale | .worktrees/ricettario | Prova visiva di tutto il web sullo stack reale in locale, senza correzioni → messaggi/w6-prova-stack-reale.md, STATO: FATTO | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server). Ondata 1 completata.
@@ -46,7 +46,7 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
      che ogni PR passi da sola i controlli di main.
    - **W3:** implementazione della parte server di `catalogue`; review della PR quando la
      apre; il web dopo il merge della #21.
-   - **W5 e W6 liberi.** Attività restanti senza assegnatario: collegamento degli agenti
+   - **W2, W4, W5 liberi; W6 sulla prova dello stack reale.** Attività restanti senza assegnatario: collegamento degli agenti
      (serve confermare il server OAuth sul progetto di produzione, da verificare prima) ed
      esportazione notturna in R2 (serve un bucket e una chiave, e la conservazione da
      decidere con l'utente). Spiegate all'utente in modo semplice; lui ha detto di
