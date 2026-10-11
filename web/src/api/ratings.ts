@@ -1,5 +1,7 @@
 import { useMutation, type Query, type QueryClient } from '@tanstack/react-query';
+import { isOnline } from '../lib/connectivity';
 import { useSession } from '../session/SessionScope';
+import { ApiError } from './errors';
 import { familyOfKey, useQueryDeps, type Versioned } from './queries';
 import type { MealView, RatingSummary, RecipeDetailView, WeekView } from './types';
 
@@ -48,6 +50,8 @@ export function useRateRecipe(familyId: string) {
   return useMutation({
     meta: { familyId },
     mutationFn: async ({ recipeId, stars }: RateInput) => {
+      // offline: false in the contract: refused at once, before credentials are read (PR #19 review, finding 2).
+      if (!isOnline()) throw new ApiError('network');
       const token = session.track(`rating:${recipeId}`);
       const summary = await api.ratings.set({ familyId, recipeId, stars });
       return { summary, token };
