@@ -1,11 +1,12 @@
 import { persistQueryClientRestore } from '@tanstack/react-query-persist-client';
-import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useIsFetching, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
-import { meQuery, queryKeys, recipeQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
+import { meQuery, openingQuery, queryKeys, recipeQuery, searchQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
+import { useRateRecipe } from '../api/ratings';
 import type { Api, MeView, Read, RecipeDetailView, WeekView } from '../api/types';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import type { CreateApi } from './SessionScope';
@@ -368,7 +369,7 @@ describe('language of a read (PR review, C12)', () => {
     const backend = createStubBackend(A);
     const renewal = backend.holdRefresh();
     let refused = false;
-    const createApi: CreateApi = (user, locale) => {
+    const createApi: CreateApi = (user) => (locale) => {
       const base = createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 });
       const get = base.recipes.get;
       // The first read is refused: its renewal waits while the language changes.
@@ -401,6 +402,67 @@ describe('language of a read (PR review, C12)', () => {
       await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: env.buildVersion });
       expect(restored.getQueryData<Versioned<RecipeDetailView>>(italianKey)?.data.recipe.name).toBe(italian);
       expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, recipeId, 'en-GB'))?.data.recipe.name).toBe(english);
+    }, { timeout: 3000 });
+  });
+});
+
+describe('fake data shared by the languages (PR review, C13)', () => {
+  let rated: string | undefined;
+  let client: QueryClient | null = null;
+
+  /** The same rating as seen by the recipe card, the menu week and the recipe list. */
+  function RatingProbe() {
+    const deps = useQueryDeps();
+    client = deps.queryClient;
+    const opening = useQuery(openingQuery(deps, DEMO_FAMILY_ID));
+    const weekStartsOn = opening.data?.kind === 'day' ? opening.data.weekStartsOn : undefined;
+    const week = useQuery({ ...weekQuery(deps, DEMO_FAMILY_ID, weekStartsOn ?? ''), enabled: !!weekStartsOn });
+    const meal = week.data?.days.flatMap((d) => d.meals).find((m) => m.rating && m.recipe);
+    const recipeId = meal?.recipe?.id;
+    rated = recipeId;
+    const recipe = useQuery({ ...recipeQuery(deps, DEMO_FAMILY_ID, recipeId ?? ''), enabled: !!recipeId });
+    const list = useQuery(searchQuery(deps, DEMO_FAMILY_ID, {}));
+    const listed = list.data?.find((item) => item.recipe.id === recipeId);
+    const rate = useRateRecipe(DEMO_FAMILY_ID);
+    const choose = useChooseLocale();
+    const idle = useIsFetching() === 0 && !rate.isPending && recipe.isSuccess && list.isSuccess;
+    return (
+      <>
+        <p>{`${deps.locale} recipe=${recipe.data?.rating.myStars ?? '-'} week=${meal?.rating?.myStars ?? '-'} list=${listed?.rating.myStars ?? '-'}${idle ? ' idle' : ''}`}</p>
+        <button onClick={() => recipeId && rate.mutate({ recipeId, stars: 1 })}>one star</button>
+        <button onClick={() => recipeId && rate.mutate({ recipeId, stars: 5 })}>five stars</button>
+        <button onClick={() => choose('en-GB')}>english</button>
+        <button onClick={() => choose('it-IT')}>italian</button>
+      </>
+    );
+  }
+  const shows = (text: string) => screen.findByText(text, {}, { timeout: 3000 });
+
+  it('keeps a confirmed rating across languages, in every view, on disk and after reopening', async () => {
+    const { store } = renderSession(<RatingProbe />, { backend: createStubBackend(A) });
+    await screen.findByText(/^it-IT recipe=.* idle$/, {}, { timeout: 3000 });
+    fireEvent.click(screen.getByText('one star'));
+    await shows('it-IT recipe=1 week=1 list=1 idle');
+    fireEvent.click(screen.getByText('english'));
+    await shows('en-GB recipe=1 week=1 list=1 idle');
+    fireEvent.click(screen.getByText('italian'));
+    await shows('it-IT recipe=1 week=1 list=1 idle');
+    // A rating given in English holds in both languages after reading again.
+    fireEvent.click(screen.getByText('english'));
+    await shows('en-GB recipe=1 week=1 list=1 idle');
+    fireEvent.click(screen.getByText('five stars'));
+    await shows('en-GB recipe=5 week=5 list=5 idle');
+    await act(async () => client?.invalidateQueries());
+    await shows('en-GB recipe=5 week=5 list=5 idle');
+    fireEvent.click(screen.getByText('italian'));
+    await shows('it-IT recipe=5 week=5 list=5 idle');
+    // Stored copy and reopening: the same stars in both languages.
+    await waitFor(async () => {
+      const restored = createQueryClient();
+      await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: env.buildVersion });
+      for (const locale of ['it-IT', 'en-GB'] as const) {
+        expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, rated!, locale))?.data.rating.myStars).toBe(5);
+      }
     }, { timeout: 3000 });
   });
 });

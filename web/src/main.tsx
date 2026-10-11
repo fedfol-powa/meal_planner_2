@@ -4,7 +4,7 @@ import './design/tokens.css';
 import './design/fonts.css';
 import './design/global.css';
 import { AppRoot } from './App';
-import { createFakeApi } from './api/fake/fakeApi';
+import { fakeClients } from './api/fake/fakeApi';
 import { createIndexedDbStore } from './api/persister';
 import { createFakeBackend } from './auth/backend';
 import { createSupabaseBackend } from './auth/supabaseBackend';
@@ -15,7 +15,7 @@ import type { CreateApi } from './session/SessionScope';
 
 const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supabase.publishableKey) : createFakeBackend();
 // Until W1's server exists, data come from the fake client in both modes (spec "Accesso e modalità").
-const createApi: CreateApi = (user, locale) => createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 150 });
+const createApi: CreateApi = fakeClients({ latencyMs: 150 });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

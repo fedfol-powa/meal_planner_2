@@ -3,7 +3,7 @@ import type { Locale } from '../../i18n/translate';
 import { ApiError } from '../errors';
 import { setOnline } from '../../test/connectivity';
 import type { Read } from '../types';
-import { createFakeApi, DEMO_FAMILY_ID } from './fakeApi';
+import { createFakeApi, DEMO_FAMILY_ID, fakeClients } from './fakeApi';
 
 const data = <T,>(read: Read<T>): T => {
   if (read.unchanged) throw new Error('fake reads are never unchanged');
@@ -109,5 +109,23 @@ describe('fake api', () => {
     expect(me.user).toMatchObject({ id: 'u-1', email: 'giulia@example.com', displayName: 'Giulia' });
     expect(me.currentFamilyId).toBe(familyId);
     expect(me.families[0]).toMatchObject({ name: 'Famiglia Folloni', timeZone: 'Europe/Rome' });
+  });
+});
+
+describe('fake clients of one session (PR review, C13)', () => {
+  it('share ratings and versions while each answers in its own language', async () => {
+    const forLocale = fakeClients({ latencyMs: 0 })({ id: 'user-federico', email: 'federico@example.com' });
+    const italian = forLocale('it-IT');
+    const english = forLocale('en-GB');
+    const recipeId = 'bistecche-tonno-skottle';
+    await italian.ratings.set({ familyId, recipeId, stars: 1 });
+    const read = await english.recipes.get({ familyId, recipeId });
+    expect(data(read).rating.myStars).toBe(1);
+    expect(data(read).recipe.name).toBe('Skottle tuna steaks');
+    expect(read.unchanged ? '' : read.version).toContain('rev:2|lang:en-GB');
+    expect(data(await italian.recipes.get({ familyId, recipeId })).recipe.name).toBe('Bistecche di tonno allo skottle');
+    // Another session starts again from the demo data.
+    const other = fakeClients({ latencyMs: 0 })({ id: 'user-federico', email: 'federico@example.com' })('it-IT');
+    expect(data(await other.recipes.get({ familyId, recipeId })).rating.myStars).not.toBe(1);
   });
 });

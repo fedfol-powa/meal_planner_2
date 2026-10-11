@@ -37,6 +37,18 @@ export interface FakeApiOptions {
   getLocale: () => Locale;
   user?: { id: string; email: string };
   latencyMs?: number;
+  /** State shared with the clients of the other languages; a fresh one when missing. */
+  data?: FakeData;
+}
+
+/** What the fake backend remembers for one session: menus, recipes, ratings and the version counter. */
+export interface FakeData {
+  readonly user: { id: string; email: string } | undefined;
+  readonly weeks: DemoWeek[];
+  readonly recipes: DemoRecipe[];
+  readonly ratings: DemoRating[];
+  /** Grows at every rating: stands for the family counter of the real versions. */
+  revision: number;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -45,10 +57,9 @@ const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}
 // Descending order with missing values last.
 const desc = <T extends string | number>(a: T | null, b: T | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? 1 : -1);
 
-export function createFakeApi(options: FakeApiOptions): Api {
-  const now = () => localNow(DEMO_FAMILY.timeZone);
+export function createFakeData(user?: { id: string; email: string }): FakeData {
   // The demo week of 5 October 2026 becomes the current week, so there is always a menu for today.
-  const offset = daysBetween(DEMO_CURRENT_WEEK, mondayOf(now().slice(0, 10)));
+  const offset = daysBetween(DEMO_CURRENT_WEEK, mondayOf(localNow(DEMO_FAMILY.timeZone).slice(0, 10)));
   const weeks: DemoWeek[] = data.weeks.map((w) => ({
     startsOn: addDays(w.startsOn, offset),
     generatedAt: shiftTime(w.generatedAt, offset),
@@ -64,16 +75,32 @@ export function createFakeApi(options: FakeApiOptions): Api {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  const ratings: DemoRating[] = seedRatings(data.federicoRatings);
-  const userId = options.user?.id ?? DEMO_USER_ID;
+  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1 };
+}
+
+/**
+ * One fake backend per session, one client per language on top of it (PR review, C13): the
+ * language stays fixed per request, ratings and versions are the same in every language.
+ */
+export function fakeClients(options: { latencyMs?: number } = {}) {
+  return (user: { id: string; email: string } | null) => {
+    const shared = createFakeData(user ?? undefined);
+    return (locale: Locale) => createFakeApi({ getLocale: () => locale, data: shared, latencyMs: options.latencyMs });
+  };
+}
+
+export function createFakeApi(options: FakeApiOptions): Api {
+  const now = () => localNow(DEMO_FAMILY.timeZone);
+  const state = options.data ?? createFakeData(options.user);
+  const { weeks, recipes, ratings } = state;
+  const user = state.user;
+  const userId = user?.id ?? DEMO_USER_ID;
   const memberIds = new Set([...DEMO_PEOPLE.map((p) => p.id), userId]);
 
-  // Grows at every rating: stands for the family counter of the real versions.
-  let revision = 1;
   async function respond<T>(value: T): Promise<Read<T>> {
     if (options.latencyMs) await new Promise((resolve) => setTimeout(resolve, options.latencyMs));
     // Opaque and composite like W1's versions (family, counter, language, deploy); the web never parses it.
-    const version = `family:${DEMO_FAMILY.id}|rev:${revision}|lang:${options.getLocale()}|deploy:fake`;
+    const version = `family:${DEMO_FAMILY.id}|rev:${state.revision}|lang:${options.getLocale()}|deploy:fake`;
     return { unchanged: false, version, data: structuredClone(value) };
   }
   function checkFamily(familyId: string) {
@@ -136,7 +163,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
     me: {
       async get() {
         const person = DEMO_PEOPLE.find((p) => p.id === userId);
-        const email = options.user?.email ?? person?.email ?? '';
+        const email = user?.email ?? person?.email ?? '';
         const fromEmail = email.split('@')[0] ?? '';
         return respond({
           user: {
@@ -237,7 +264,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
           if (index !== -1) ratings.splice(index, 1);
         } else if (index === -1) ratings.push({ userId, recipeId, stars });
         else ratings[index]!.stars = stars;
-        revision += 1;
+        state.revision += 1;
         return ratingSummary(recipeId);
       }
     }

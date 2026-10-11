@@ -15,8 +15,11 @@ import type { SessionChannel } from './channel';
 import { readPreference, userScope, writePreference } from './localePreference';
 import { createSession, persisterOf, wrapApi, type Session } from './session';
 
-/** One client per language: a read keeps the language it started with, also when retried. */
-export type CreateApi = (user: AuthUser | null, locale: Locale) => Api;
+/**
+ * Called once per session, then once per language: the clients share what the session knows
+ * (PR review, C13), and a read keeps the language it started with, also when retried (C12).
+ */
+export type CreateApi = (user: AuthUser | null) => (locale: Locale) => Api;
 
 interface SessionContextValue {
   session: Session;
@@ -64,12 +67,13 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
   );
   // The data client depends on the user and the language; answers in a language no longer shown are dropped (PR review, C12).
   const clients = useMemo(() => {
+    const forLocale = session ? createApi(user) : null;
     const byLocale = new Map<Locale, Api>();
     return (current: Locale) => {
-      if (!session) return null;
+      if (!session || !forLocale) return null;
       let client = byLocale.get(current);
       if (!client) {
-        client = wrapApi(createApi(user, current), session, { locale: current, isCurrent: () => localeRef.current === current });
+        client = wrapApi(forLocale(current), session, { locale: current, isCurrent: () => localeRef.current === current });
         byLocale.set(current, client);
       }
       return client;

@@ -1,6 +1,6 @@
 import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { createFakeApi } from '../api/fake/fakeApi';
+import { fakeClients } from '../api/fake/fakeApi';
 import { createMemoryStore } from '../api/persister';
 import type { Api } from '../api/types';
 import type { AuthBackend } from '../auth/backend';
@@ -21,8 +21,8 @@ export function renderSession(
   const createApi: CreateApi =
     options.createApi ??
     (options.api
-      ? (user) => options.api!(user?.id ?? null)
-      : (user, locale) => createFakeApi({ getLocale: () => locale, user: user ?? undefined, latencyMs: 0 }));
+      ? (user) => () => options.api!(user?.id ?? null)
+      : fakeClients({ latencyMs: 0 }));
   const result = render(
     <LocaleProvider initial={options.locale ?? 'it-IT'}>
       <AuthProvider backend={options.backend}>
