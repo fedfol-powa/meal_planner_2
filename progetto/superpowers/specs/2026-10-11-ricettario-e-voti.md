@@ -16,7 +16,8 @@ dell'ondata 2.
   versioni correnti (sezione 1, «Regole comuni»).
 - **Scheda ricetta:** versione corrente, oppure quella mangiata in un pasto passato (R1),
   con porzioni scalate e quantità nel sistema di misura della famiglia, nella lingua
-  dell'utente; storico dei pasti della famiglia.
+  dell'utente; aperta da un pasto parte dalle porzioni di quel pasto; storico dei pasti
+  della famiglia.
 - **Voti:** stelline da 1 a 5 per membro, cambiabili e rimovibili; media dei membri
   attuali della famiglia; voto rifiutato offline.
 - **Viste condivise** con il Menu (W1): riepilogo della ricetta, riepilogo del voto,
@@ -330,8 +331,8 @@ sinonimi, media, `addedOn`, `lastEatenOn`, e restituisce l'elenco filtrato e ord
 input: versionedInput(z.object({
 	familyId: z.uuid(),
 	recipeId: z.uuid(),
-	servings: z.number().int().min(1).max(100).optional(), // default: porzioni di riferimento
-	slotId: z.uuid().optional(),                             // aperta da quel pasto (R1)
+	servings: z.number().int().min(1).max(100).optional(), // default: del pasto, se c'è, o di riferimento
+	slotId: z.uuid().optional(),                             // aperta da quel pasto (R1, porzioni)
 }))
 output: versionedOutput(z.object({
 	recipe: recipeSummaryView,
@@ -361,6 +362,13 @@ errors: not_found
 cache resta corretta: il contenuto cambia solo se la versione in vigore differisce dalla
 corrente, e una versione nuova fa crescere il contatore del ricettario. Nessun avviso di
 versione per i membri (deciso nel quinto giro; quello dei curatori è della «Gestione»).
+
+**Porzioni con `slotId`** (decisione dell'utente, 11 ottobre 2026, dopo la prova sullo
+stack reale): senza `servings` si scala alle porzioni del pasto, passato o futuro; un
+pasto con zero porzioni torna alle porzioni di riferimento, come nelle viste del Menu.
+`servings` esplicito vince sempre. `baseServings` resta quello della ricetta, per la
+riga «Dosi della fonte». Il contatore della famiglia cresce quando cambiano le porzioni
+di un pasto, quindi la copia in cache resta corretta.
 
 **Storico:** `history` sono gli ultimi 5 pasti passati della famiglia secondo l'ora del
 server, dal più recente per `passesAt`; `upcoming` tutti quelli non ancora passati. Il
@@ -459,7 +467,8 @@ rotte di W5); file condivisi toccati solo per registrare l'area.
 - **Scheda ricetta** (`RecipePage`): ordine approvato (titolo collegato alla fonte,
   voto, descrizione, durata e gruppo, fonte da libro o «di casa», porzioni con il
   selettore, porzioni di riferimento, ingredienti, storico). Ritorno al Menu o al
-  Ricettario come oggi; `slotId` dal pasto.
+  Ricettario come oggi; `slotId` dal pasto, che dà anche le porzioni iniziali del
+  selettore; `servings` nell'indirizzo, scelto con il selettore, vince.
 - **Ora sul dispositivo:** funzioni pure `lastEatenOn(view, now)`, `pastMeals(view, now)`
   (unione di `history` con gli `upcoming` passati, ultimi 5) e `resortByLastEaten` (solo
   con `sort = lastEaten`, quando un `upcoming` è passato dopo la lettura), più
@@ -511,7 +520,9 @@ rotte di W5); file condivisi toccati solo per registrare l'area.
   in elenco; bozza `not_found` anche per i curatori; R1 con un pasto passato e una
   versione successiva; versione storica dal libro A con la corrente dal libro B e con la
   corrente diventata fonte web; bozza citata con il solo nome italiano letta da un utente
-  inglese e descrizione nulla; `slotId` di un'altra famiglia → `not_found`; ex membro
+  inglese e descrizione nulla; `slotId` di un'altra famiglia → `not_found`; porzioni dal
+  pasto (futuro e passato), `servings` esplicito che vince e pasto a zero porzioni che
+  torna a quelle di riferimento; ex membro
   **rimosso davvero** dopo aver votato: il suo voto esce dalla media e il suo stesso JWT
   riceve `forbidden`; voto tolto; voto su bozza rifiutato; pranzo e cena dello stesso
   giorno nell'ordine giusto e taglio agli ultimi 5; quattro pasti futuri tutti
@@ -523,7 +534,8 @@ rotte di W5); file condivisi toccati solo per registrare l'area.
   con quattro pasti futuri e l'ora che avanza senza scritture mentre la lettura risponde
   «invariato»; `useMealClock` con timer finti; pagine con l'API finta nella forma reale
   di W6 (`{ items }`, `baseServings`, `upcoming`), cambio di famiglia, voto offline
-  rifiutato senza invio, scheda aperta con `slotId`; `IngredientList` con la
+  rifiutato senza invio, scheda aperta con `slotId` alle porzioni del pasto e con
+  `servings` nell'indirizzo; `IngredientList` con la
   preparazione in italiano e in inglese; prova visiva con agent-browser e sull'iPhone
   (porta 8767).
 
@@ -537,6 +549,8 @@ rotte di W5); file condivisi toccati solo per registrare l'area.
 - Ordinamento invertito con i valori mancanti sempre in fondo (sezione 14, primo giro).
 - Ricettario e scheda non offrono «non proporre più» né filtrano le esclusioni, come nel
   prototipo (sezione 5).
+- Scheda ricetta aperta da un pasto: porzioni iniziali del pasto, selettore invariato
+  (utente, 11 ottobre 2026; sezioni 5 e 14).
 
 ### Tecniche
 
