@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defaultPlannerSettings } from '../planner/index.ts';
-import { normalizeRules, resolveFamilySettings, sameRule, storedSettingsSchema } from './settings.ts';
+import { DEFAULT_WEIGHTS, defaultPlannerSettings } from '../planner/index.ts';
+import { normalizeRules, resolveFamilySettings, sameRule, storedSettingsSchema, WEIGHT_KEYS } from './settings.ts';
 
 describe('resolveFamilySettings', () => {
 	it('gives the defaults for an empty object', () => {
@@ -86,6 +86,17 @@ describe('storedSettingsSchema', () => {
 		expect(storedSettingsSchema.safeParse(slot({ servings: 0 })).success).toBe(true);
 		expect(storedSettingsSchema.safeParse(slot({ servings: 12, maxMinutes: 60, fixedText: 'x'.repeat(60) })).success).toBe(true);
 		expect(storedSettingsSchema.safeParse({ groupRanges: { fish: { min: 14, max: 14 } }, knownNew: { known: 14, new: 0, tolerance: 0 } }).success).toBe(true);
+	});
+
+	it('accepts only the known score weights, each optional', () => {
+		expect(storedSettingsSchema.safeParse({ weights: { liking: 5 } }).success).toBe(true);
+		expect(storedSettingsSchema.safeParse({ weights: {} }).success).toBe(true);
+		expect(storedSettingsSchema.safeParse({ weights: { likng: 5 } }).success).toBe(false);
+		expect(storedSettingsSchema.safeParse({ weights: { liking: 'high' } }).success).toBe(false);
+	});
+
+	it('names every weight of the planner', () => {
+		expect([...WEIGHT_KEYS].sort()).toEqual(Object.keys(DEFAULT_WEIGHTS).sort());
 	});
 
 	it('rejects out-of-range values', () => {

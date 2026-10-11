@@ -43,6 +43,9 @@ export const groupRangeSchema = z
 
 const dayKey = z.enum(['0', '1', '2', '3', '4', '5', '6']);
 
+/** The score weights of the planner (`ScoreWeights`), the only names a stored weight can have. */
+export const WEIGHT_KEYS = ['liking', 'recency', 'season', 'balance', 'similarity', 'vegetables', 'knownNew', 'limit', 'rules'] as const satisfies readonly (keyof ScoreWeights)[];
+
 /**
  * What `families.settings` holds: only the values the family chose, the rest comes from the
  * planner defaults. Meals are stored one by one (`slots.lunch."4"`), so concurrent changes to
@@ -54,7 +57,7 @@ export const storedSettingsSchema = z.object({
 	knownNew: knownNewSchema.optional(),
 	groupRanges: z.partialRecord(z.enum(FOOD_GROUPS), groupRangeSchema).optional(),
 	/** Never written by web or MCP; read only by the planner. */
-	weights: z.record(z.string(), z.number()).optional(),
+	weights: z.strictObject(Object.fromEntries(WEIGHT_KEYS.map((key) => [key, z.number().optional()])) as Record<(typeof WEIGHT_KEYS)[number], z.ZodOptional<z.ZodNumber>>).optional(),
 });
 export type StoredSettings = z.infer<typeof storedSettingsSchema>;
 
@@ -112,7 +115,7 @@ export function resolveFamilySettings(stored: unknown): PlannerSettings {
 		}
 	}
 	if (isObject(stored.weights)) {
-		for (const key of Object.keys(settings.weights) as (keyof ScoreWeights)[]) {
+		for (const key of WEIGHT_KEYS) {
 			const value = stored.weights[key];
 			if (typeof value === 'number' && Number.isFinite(value)) settings.weights[key] = value;
 		}
