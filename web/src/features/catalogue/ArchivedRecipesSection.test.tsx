@@ -49,4 +49,19 @@ describe('ArchivedRecipesSection', () => {
     await waitFor(() => expect(screen.queryByText('Erbazzone')).toBeNull());
     await waitFor(() => expect(queryClient().getQueriesData({ queryKey: ['catalogue'] }).filter(([, data]) => data !== undefined)).toEqual([]));
   });
+
+  it('says why a bring-back failed and lets the curator try again', async () => {
+    let fail = true;
+    const setArchived = vi.fn(async () => { if (fail) throw new ApiError('internal'); return brought; });
+    renderCatalogue(<ArchivedRecipesSection />, catalogueApi({ overview: async () => ({ drafts: [], archived: fail ? [erbazzone] : [] }), setArchived }));
+    fireEvent.click(await screen.findByRole('button', { name: /Archiviate/ }));
+    const button = screen.getByRole('button', { name: 'Riporta nel ricettario' });
+    fireEvent.click(button);
+    expect((await screen.findByRole('alert')).textContent).toBe('Il servizio ha avuto un problema: riprova tra poco.');
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    fail = false;
+    fireEvent.click(button);
+    await waitFor(() => expect(screen.queryByText('Erbazzone')).toBeNull());
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
 });

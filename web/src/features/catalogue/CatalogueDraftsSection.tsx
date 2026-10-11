@@ -1,19 +1,34 @@
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { toApiError } from '../../api/errors';
 import { Icon } from '../../components/Icon';
+import { QueryError } from '../../components/QueryError';
 import { formatInstantShort } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import styles from './catalogue.module.css';
 import { useIsCurator, useOverview } from './queries';
 
-/** «Bozze» of the recipe book, for curators only, as cards (prototype DraftList): open at first. */
+/**
+ * «Bozze» of the recipe book, for curators only, as cards (prototype DraftList): open at first.
+ * A failed overview is said here, once for both sections, so it never looks like an empty catalogue;
+ * a refusal is left to the revocation, which removes the sections.
+ */
 export function CatalogueDraftsSection() {
   const t = useT();
   const { locale } = useLocale();
   const isCurator = useIsCurator();
   const [open, setOpen] = useState(true);
-  const { data } = useOverview(isCurator);
-  if (!isCurator || !data || data.drafts.length === 0) return null;
+  const { query, data, blocked } = useOverview(isCurator);
+  if (!isCurator) return null;
+  if (blocked && toApiError(query.error).code !== 'forbidden') {
+    return (
+      <section className={styles.section} aria-labelledby="catalogue-drafts">
+        <h2 className={styles.heading} id="catalogue-drafts">{t('catalogue.drafts')}</h2>
+        <QueryError error={query.error} onRetry={() => void query.refetch()} />
+      </section>
+    );
+  }
+  if (!data || data.drafts.length === 0) return null;
   return (
     <section className={styles.section} aria-labelledby="catalogue-drafts">
       <h2 className={styles.heading} id="catalogue-drafts">

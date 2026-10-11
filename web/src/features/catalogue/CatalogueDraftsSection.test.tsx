@@ -65,4 +65,13 @@ describe('CatalogueDraftsSection', () => {
     await refetchAll();
     expect(screen.getByText('Zuppa di farro')).toBeTruthy();
   });
+
+  it('says when the overview cannot be read, instead of looking empty, and reads it again on request', async () => {
+    let fail = true;
+    renderCatalogue(<CatalogueDraftsSection />, catalogueApi({ overview: async () => { if (fail) throw new ApiError('internal'); return overview; } }));
+    expect(await screen.findByText('Il servizio ha avuto un problema: riprova tra poco.')).toBeTruthy();
+    fail = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByText('Zuppa di farro')).toBeTruthy();
+  });
 });
