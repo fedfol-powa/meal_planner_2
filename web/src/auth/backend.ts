@@ -2,6 +2,8 @@ export interface AuthUser { id: string; email: string }
 export type SessionCheck = { status: 'signedIn'; user: AuthUser } | { status: 'unverified'; user: AuthUser } | { status: 'signedOut' };
 export type SignInFailure = 'invalid_credentials' | 'network' | 'unknown';
 export type SignInResult = { ok: true } | { ok: false; reason: SignInFailure };
+/** Outcome of one renewal (W4's interface): `network` changes nothing, `rejected` ends the session. */
+export type RenewResult = { kind: 'ok'; userId: string } | { kind: 'rejected' } | { kind: 'network' };
 /** Supabase's own event kinds: a renewal of the same session must not look like a new sign-in. */
 export type AuthEventType =
   | 'INITIAL_SESSION'
@@ -22,8 +24,8 @@ export interface AuthBackend {
   signIn(email: string, password: string): Promise<SignInResult>;
   /** This device only; nothing stays stored even when the service cannot be reached. */
   signOut(): Promise<void>;
-  /** One renewal of the session; false when it was refused or impossible. */
-  refresh(): Promise<boolean>;
+  /** One renewal of the session; `userId` is the user of the renewed token. */
+  refresh(): Promise<RenewResult>;
   /** For the future oRPC link (Authorization: Bearer), read at every request. */
   getAccessToken(): Promise<string | null>;
 }
@@ -38,7 +40,7 @@ export function createFakeBackend(): AuthBackend {
     onChange: () => () => undefined,
     signIn: async () => ({ ok: true }),
     signOut: async () => undefined,
-    refresh: async () => true,
+    refresh: async () => ({ kind: 'ok', userId: DEMO_USER.id }),
     getAccessToken: async () => null
   };
 }

@@ -64,9 +64,15 @@ describe('supabase backend', () => {
     emit('SIGNED_OUT', null);
     expect(listener).toHaveBeenLastCalledWith({ type: 'SIGNED_OUT', user: null });
   });
-  it('renews the session once on request', async () => {
-    expect(await setup().backend.refresh()).toBe(true);
-    const refused = setup({ refreshSession: vi.fn(async () => ({ data: { session: null }, error: { status: 400 } })) });
-    expect(await refused.backend.refresh()).toBe(false);
+  it('renews the session once on request, telling refusal and missing network apart (second PR)', async () => {
+    const user = { id: 'u1', email: 'a@example.com' };
+    const ok = setup({ refreshSession: vi.fn(async () => ({ data: { session: { user } }, error: null })) });
+    expect(await ok.backend.refresh()).toEqual({ kind: 'ok', userId: 'u1' });
+    const refused = setup({ refreshSession: vi.fn(async () => ({ data: { session: null }, error: { name: 'AuthApiError', status: 400 } })) });
+    expect(await refused.backend.refresh()).toEqual({ kind: 'rejected' });
+    const empty = setup({ refreshSession: vi.fn(async () => ({ data: { session: null }, error: null })) });
+    expect(await empty.backend.refresh()).toEqual({ kind: 'rejected' });
+    const offline = setup({ refreshSession: vi.fn(async () => ({ data: { session: null }, error: new AuthRetryableFetchError('offline', 0) })) });
+    expect(await offline.backend.refresh()).toEqual({ kind: 'network' });
   });
 });

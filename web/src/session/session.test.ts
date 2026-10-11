@@ -3,7 +3,7 @@ import { ApiError } from '../api/errors';
 import { cacheKey, createMemoryStore, markRevoked, revokedKey } from '../api/persister';
 import { queryKeys } from '../api/queries';
 import { createMemoryHub } from '../test/memoryChannel';
-import { createSession, persisterOf } from './session';
+import { createSession, persisterOf, type RenewResult } from './session';
 import { readPreference, userScope, writePreference } from './localePreference';
 
 describe('session', () => {
@@ -47,11 +47,14 @@ const refused = () => new ApiError('unauthorized');
 /** A call refused once with unauthorized, then answered. */
 const refusedOnce = (value: string) => vi.fn().mockRejectedValueOnce(refused()).mockResolvedValue(value);
 
+const OK: RenewResult = { kind: 'ok', userId: 'a' };
+const REJECTED: RenewResult = { kind: 'rejected' };
+
 function withRenewal() {
-  let answer: (ok: boolean) => void = () => {};
-  const refresh = vi.fn(() => new Promise<boolean>((resolve) => (answer = resolve)));
+  let answer: (result: RenewResult) => void = () => {};
+  const refresh = vi.fn(() => new Promise<RenewResult>((resolve) => (answer = resolve)));
   const end = vi.fn();
-  return { refresh, end, renew: (ok: boolean) => answer(ok) };
+  return { refresh, end, renew: (ok: boolean | RenewResult) => answer(typeof ok === 'boolean' ? (ok ? OK : REJECTED) : ok) };
 }
 
 describe('unauthorized: one renewal per session (second review, C3)', () => {
@@ -68,14 +71,14 @@ describe('unauthorized: one renewal per session (second review, C3)', () => {
   });
   it('ends the session once when the repeated calls are refused again', async () => {
     const end = vi.fn();
-    const session = createSession('a', createMemoryStore(), { refresh: async () => true, end });
+    const session = createSession('a', createMemoryStore(), { refresh: async () => OK, end });
     const always = () => vi.fn().mockRejectedValue(refused());
     const results = await Promise.allSettled([session.call(always()), session.call(always())]);
     expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected']);
     expect(end).toHaveBeenCalledTimes(1);
   });
   it('repeats at once a call that started before a renewal that already succeeded', async () => {
-    const refresh = vi.fn(async () => true);
+    const refresh = vi.fn(async () => OK);
     const session = createSession('a', createMemoryStore(), { refresh, end: vi.fn() });
     let refuseOld: (error: unknown) => void = () => {};
     const old = vi.fn()
@@ -89,7 +92,7 @@ describe('unauthorized: one renewal per session (second review, C3)', () => {
   });
   it('ends the session once when the renewal fails', async () => {
     const end = vi.fn();
-    const session = createSession('a', createMemoryStore(), { refresh: async () => false, end });
+    const session = createSession('a', createMemoryStore(), { refresh: async () => REJECTED, end });
     const results = await Promise.allSettled([session.call(refusedOnce('x')), session.call(refusedOnce('y'))]);
     expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected']);
     expect(end).toHaveBeenCalledTimes(1);

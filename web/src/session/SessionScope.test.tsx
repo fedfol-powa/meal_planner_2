@@ -115,7 +115,7 @@ describe('access refused by the server', () => {
   });
   it('signs out when the renewal is refused', async () => {
     const backend = createStubBackend(A);
-    backend.refreshResult = false;
+    backend.refreshResult = { kind: 'rejected' };
     const { store } = renderSession(<Probe />, { backend, api: api(() => Promise.reject(new ApiError('unauthorized'))) });
     await screen.findByText('auth: signedOut');
     expect(backend.signOutCalls).toBe(1);
@@ -259,7 +259,7 @@ describe('renewals of a previous identity (second review, C3)', () => {
     await waitFor(() => expect(backend.refreshCalls).toBe(1));
     act(() => backend.setUser(B));
     await screen.findByText('name: B');
-    await act(async () => renew(ok));
+    await act(async () => renew(ok ? { kind: 'ok', userId: 'a' } : { kind: 'rejected' }));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(screen.getByText('name: B')).toBeTruthy();
     expect(screen.getByText('auth: signedIn')).toBeTruthy();
@@ -380,7 +380,7 @@ describe('language of a read (PR review, C12)', () => {
     await waitFor(() => expect(backend.refreshCalls).toBe(1));
     fireEvent.click(screen.getByText('english'));
     await screen.findByText(`recipe: ${english}`);
-    await act(async () => renewal(true));
+    await act(async () => renewal({ kind: 'ok', userId: 'a' }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     // The Italian read came back after the change: nothing of it is kept.
     const cached = client!.getQueryData<Versioned<RecipeDetailView>>(italianKey);

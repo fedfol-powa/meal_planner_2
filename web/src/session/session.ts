@@ -3,14 +3,17 @@ import { toApiError } from '../api/errors';
 import { clearRevoked, createPersister, createQueryClient, markRevoked, type KeyValueStore, type SessionPersister } from '../api/persister';
 import { familyOfKey, localeOfKey } from '../api/queries';
 import type { Api } from '../api/types';
+import type { RenewResult } from '../auth/backend';
+
+export type { RenewResult } from '../auth/backend';
 import type { SessionChannel } from './channel';
 import { clearPreference, userScope } from './localePreference';
 
 export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
 
 export interface SessionDeps {
-  /** One renewal of the sign-in session; false when refused or impossible. */
-  refresh?: () => Promise<boolean>;
+  /** One renewal of the sign-in session. */
+  refresh?: () => Promise<RenewResult>;
   /** Ends this session (sign-in page); called at most once, never once the session is closed. */
   end?: (session: Session) => void | Promise<void>;
   /** Tells the other tabs about revocations. */
@@ -76,9 +79,10 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
     if (epoch > startedAt) return Promise.resolve(true);
     // Nobody to renew, or already on the way out.
     if (!userId || ending) return Promise.resolve(false);
-    renewing ??= (deps.refresh ?? (async () => false))()
-      .catch(() => false)
-      .then((ok) => {
+    renewing ??= (deps.refresh ?? (async (): Promise<RenewResult> => ({ kind: 'rejected' })))()
+      .catch((): RenewResult => ({ kind: 'rejected' }))
+      .then((result) => {
+        const ok = result.kind === 'ok';
         renewing = null;
         if (closed) return false;
         if (ok) epoch += 1;
