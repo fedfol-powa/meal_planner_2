@@ -64,6 +64,24 @@ describe.skipIf(!hasDatabase)('catalogue reads', () => {
 		expect(drafts.find((d) => d.draftId === draft!.id)?.missing).toContain('invalid');
 	});
 
+	it('shows an imported draft whose references are not catalogue ids yet', async () => {
+		const curator = await c.curator();
+		const db = c.actors.db.admin;
+		const [row] = await db<{ id: string }[]>`
+			insert into app.recipes (slug, name, description) values (${'ref-' + crypto.randomUUID().slice(0, 8)},
+				${db.json({ 'it-IT': 'Con slug', 'en-GB': '' })}, ${db.json({ 'it-IT': '', 'en-GB': '' })}) returning id`;
+		const content = draftContent('Con slug', {
+			sourceType: 'book',
+			bookId: 'basta-un-wok',
+			ingredients: [{ ingredientId: 'olio', variety: null, preparation: null, quantity: { kind: 'to_taste' }, sourceText: 'olio', isOptional: false, isPrimary: false }],
+		});
+		const [draft] = await db<{ id: string }[]>`
+			insert into app.recipe_drafts (recipe_id, kind, content, revision) values (${row!.id}, 'new', ${db.json(content as never)}, 1) returning id`;
+		const view = await curator.client.catalogue.getDraft({ draftId: draft!.id });
+		expect(view.issues).toContainEqual({ path: ['ingredients', 0, 'ingredientId'], code: 'unknown_ingredient' });
+		expect(view).toMatchObject({ ingredientNames: {}, bookTitle: null });
+	});
+
 	it('answers not_found for an unknown draft', async () => {
 		const curator = await c.curator();
 		expect((await errorOf(curator.client.catalogue.getDraft({ draftId: crypto.randomUUID() }))).code).toBe('not_found');

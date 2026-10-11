@@ -1,6 +1,7 @@
 import type { ArchivedSummaryView, AuthorView, DraftSummaryView, DraftView, OverviewView, RecipeMatchView, VersionDetailView, VersionListView } from '@app/contract';
 import { checkPublishable, missingData, publishedRecipeSchema, type RecipeDraftDocument } from '@app/domain/recipe';
 import type { Locale } from '@app/domain/units';
+import { z } from 'zod';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
 import { foldText } from '../family/views.ts';
@@ -20,15 +21,18 @@ export function localText(text: Partial<Record<Locale, string | null>> | null | 
 	return pick(locale) || pick(other);
 }
 
+/** Catalogue ids only: an imported draft may still hold slugs, which the checks report as unknown. */
+const isId = (value: unknown): value is string => z.uuid().safeParse(value).success;
+
 const citedIngredients = (content: RecipeDraftDocument) =>
-	[...new Set((Array.isArray(content.ingredients) ? content.ingredients : []).map((l) => l?.ingredientId).filter((id): id is string => typeof id === 'string'))];
+	[...new Set((Array.isArray(content.ingredients) ? content.ingredients : []).map((l) => l?.ingredientId).filter(isId))];
 
 export async function draftViewOf(tx: Tx, row: DraftRow, locale: Locale): Promise<DraftView> {
 	const { issues, conversions } = await publicationCheck(tx, row.content);
 	const authors = await loadAuthors(tx);
 	const ingredientIds = citedIngredients(row.content);
 	const names = await loadIngredientNamesById(tx, ingredientIds);
-	const bookId = typeof row.content.bookId === 'string' ? row.content.bookId : null;
+	const bookId = isId(row.content.bookId) ? row.content.bookId : null;
 	const titles = await loadBookTitlesById(tx, [bookId]);
 	const canDiscard = row.closedAt === null && (row.kind === 'revision' || !(await isCited(tx, row.recipeId)));
 	return {

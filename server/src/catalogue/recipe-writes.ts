@@ -13,7 +13,7 @@ export async function writeVersion(
 	actor: Actor,
 	input: { recipeId: string; document: RecipeDocument; restoredFrom: number | null },
 ): Promise<{ version: number; at: Date }> {
-	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
+	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for no key update`;
 	if (!recipe) throw appError('not_found');
 	const version = recipe.version + 1;
 	const { recipe: p, ingredients } = projectRecipe(input.document);

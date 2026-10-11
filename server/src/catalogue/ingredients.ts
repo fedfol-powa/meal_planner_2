@@ -55,7 +55,7 @@ const synonymsOf = (row: IngredientRow) => ({ 'it-IT': row.synonyms['it-IT'] ?? 
 
 async function ingredientRow(tx: Tx, id: string, lock = false): Promise<IngredientRow> {
 	const rows = lock
-		? await tx<IngredientRow[]>`select id, slug, name, synonyms, department, is_pantry, version from app.ingredients where id = ${id} and archived_at is null for update`
+		? await tx<IngredientRow[]>`select id, slug, name, synonyms, department, is_pantry, version from app.ingredients where id = ${id} and archived_at is null for no key update`
 		: await tx<IngredientRow[]>`select id, slug, name, synonyms, department, is_pantry, version from app.ingredients where id = ${id} and archived_at is null`;
 	if (!rows[0]) throw appError('not_found');
 	return rows[0];

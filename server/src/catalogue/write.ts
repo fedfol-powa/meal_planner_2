@@ -91,7 +91,7 @@ export async function startRevision(tx: Tx, actor: Actor, input: { recipeId: str
 		if (same.recipe_id !== input.recipeId) throw appError('invalid', { issues: [{ path: ['id'], code: 'invalid_value' }] });
 		return { draftId: input.draftId };
 	}
-	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
+	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for no key update`;
 	if (!recipe) throw appError('not_found');
 	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
 	const [open] = await tx<{ id: string }[]>`select id from app.recipe_drafts where recipe_id = ${input.recipeId} and closed_at is null`;
@@ -196,7 +196,7 @@ export async function publishDraft(tx: Tx, actor: Actor, input: PublishInput): P
 
 /** Absolute state: «Annulla» after archiving and «Riporta nel ricettario» are the same call. */
 export async function setArchived(tx: Tx, actor: Actor, input: { recipeId: string; archived: boolean }) {
-	const [recipe] = await tx<{ status: string }[]>`select status from app.recipes where id = ${input.recipeId} for update`;
+	const [recipe] = await tx<{ status: string }[]>`select status from app.recipes where id = ${input.recipeId} for no key update`;
 	if (!recipe) throw appError('not_found');
 	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
 	const wanted: 'published' | 'archived' = input.archived ? 'archived' : 'published';
@@ -224,7 +224,7 @@ export async function setArchived(tx: Tx, actor: Actor, input: { recipeId: strin
  * lines, refused when it no longer passes today's checks or the recipe moved on since it was seen.
  */
 export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: string; version: number; confirmVersion: number }) {
-	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
+	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for no key update`;
 	if (!recipe || recipe.status === 'draft') throw appError('not_found');
 	const [current] = await tx<{ restored_from: number | null }[]>`
 		select restored_from from app.recipe_versions where recipe_id = ${input.recipeId} and version = ${recipe.version}`;

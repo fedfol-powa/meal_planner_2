@@ -49,7 +49,7 @@ export async function loadDraftRow(tx: Tx, draftId: string, options: { lock?: bo
 	const rows = options.lock
 		? await tx<DraftRecord[]>`
 			select d.*, r.status, r.version as recipe_version from app.recipe_drafts d join app.recipes r on r.id = d.recipe_id
-			where d.id = ${draftId} for update of d, r`
+			where d.id = ${draftId} for no key update of d, r`
 		: await tx<DraftRecord[]>`
 			select d.*, r.status, r.version as recipe_version from app.recipe_drafts d join app.recipes r on r.id = d.recipe_id
 			where d.id = ${draftId}`;
