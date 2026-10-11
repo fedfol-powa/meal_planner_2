@@ -10,7 +10,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 aperta; review Codex in corso; YAML dell'import da far approvare all'utente (scripts/import/out/review.html) | 11/10 13:25 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Spec e piano pronti; review Codex in corso | 11/10 13:30 |
 | W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6: corregge la regressione dei voti al cambio di lingua (messaggio w5-04), poi merge | 11/10 13:25 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
 
@@ -21,7 +21,9 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR9 ricetta | PR #9 (W3), worktree .worktrees/review-pr9 | R PR9 ricetta | w1:p11 | in corso → revisioni/w3-pr9.md |
+| R spesa spec | spec e piano della spesa (W4), nel worktree .worktrees/spesa | R spesa spec | w1:p12 | in corso → revisioni/w4-spesa-spec-piano.md |
+| R PR9 ricetta | PR #9 (W3), worktree .worktrees/review-pr9 | R spesa spec | spec e piano della spesa (W4), nel worktree .worktrees/spesa | R spesa spec | w1:p12 | in corso → revisioni/w4-spesa-spec-piano.md |
+| R PR9 ricetta | w1:p11 | in corso → revisioni/w3-pr9.md |
 
 ## Domande in sospeso
 
