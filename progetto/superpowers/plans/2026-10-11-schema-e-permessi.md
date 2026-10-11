@@ -1761,10 +1761,6 @@ select is(
 select matches(
 	tests.error_of(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi'))),
 	'^42501: ', 'the refusal is the row-level security one');
-reset role;
-select tests.become('app_job');
-select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi')),
-	'23514', null, 'the job keeps the date check on every family');
 
 -- Identity of weeks and slots is immutable: Anna, in Rossi and Bianchi, cannot move a
 -- meal or a week from one of her families to the other
@@ -2383,6 +2379,8 @@ select is(tests.affected(format($$update app.meal_slots set servings = 3 where w
 select throws_ok(format($$update app.meal_slots set week_id = %L$$, tests.week('Rossi')), '42501', null, 'job does not move meals');
 select throws_ok($$update app.weeks set starts_on = '2026-10-26'$$, '42501', null, 'job does not move weeks');
 select throws_ok($$insert into app.weeks (family_id, starts_on) values (tests.family('Bianchi'), '2026-10-19')$$, '23505', null, 'concurrent runs cannot duplicate a week');
+select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi')),
+	'23514', null, 'the job keeps the date check on every family');
 select throws_ok($$update app.families set settings = '{}'$$, '42501', null, 'job does not change families');
 select throws_ok($$delete from app.weeks$$, '42501', null, 'job does not delete weeks');
 

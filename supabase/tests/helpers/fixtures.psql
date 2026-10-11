@@ -105,3 +105,32 @@ begin
 		values (v_rossi, tests.recipe('pasta-al-pomodoro'), 'import');
 end;
 $$;
+
+-- Week of Monday 12 October 2026: Rossi with the pasta and the new draft, Verdi free.
+-- Slots have fixed ids, used by the tests:
+--   c0c0c0c0-0000-4000-8000-000000000001  Rossi, Monday lunch (pasta)
+--   c0c0c0c0-0000-4000-8000-000000000002  Rossi, Monday dinner (new draft)
+--   c0c0c0c0-0000-4000-8000-000000000003  Verdi, Monday lunch (pizza)
+do $$
+declare
+	v_rossi_week uuid;
+	v_verdi_week uuid;
+begin
+	insert into app.weeks (family_id, starts_on, generated_at)
+		values (tests.family('Rossi'), '2026-10-12', now()) returning id into v_rossi_week;
+	insert into app.weeks (family_id, starts_on)
+		values (tests.family('Verdi'), '2026-10-12') returning id into v_verdi_week;
+	insert into app.meal_slots (id, week_id, date, meal_type, recipe_id, servings) values
+		('c0c0c0c0-0000-4000-8000-000000000001', v_rossi_week, '2026-10-12', 'lunch', tests.recipe('pasta-al-pomodoro'), 2),
+		('c0c0c0c0-0000-4000-8000-000000000002', v_rossi_week, '2026-10-12', 'dinner', tests.recipe('new-draft'), 2);
+	insert into app.meal_slots (id, week_id, date, meal_type, free_text, servings)
+		values ('c0c0c0c0-0000-4000-8000-000000000003', v_verdi_week, '2026-10-12', 'lunch', 'Pizza', 3);
+	insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
+		values ('a1a1a1a1-0000-4000-8000-000000000001', 'c0c0c0c0-0000-4000-8000-000000000001', tests.uid('anna'), 'web', '{}', '{}');
+	insert into app.ratings (user_id, recipe_id, stars) values
+		(tests.uid('anna'), tests.recipe('pasta-al-pomodoro'), 5),
+		(tests.uid('bruno'), tests.recipe('pasta-al-pomodoro'), 3),
+		(tests.uid('carla'), tests.recipe('pasta-al-pomodoro'), 4),
+		(tests.uid('franco'), tests.recipe('pasta-al-pomodoro'), 1);
+end;
+$$;
