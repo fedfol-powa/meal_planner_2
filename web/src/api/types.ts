@@ -1,4 +1,11 @@
-import type { Contract } from '@app/contract';
+import type {
+  Contract,
+  RecipeDetailView as ContractRecipeDetailView,
+  IngredientLineView,
+  RatingSummaryView,
+  RecipeListItemView,
+  RecipeSummaryView
+} from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
 import type { Locale } from '../i18n/translate';
 import type { IsoDate, LocalDateTime, MealType } from '../lib/calendar';
@@ -8,15 +15,11 @@ export type SourceType = 'web' | 'youtube' | 'book' | 'home';
 export type ProteinGroup = 'fish' | 'white_meat' | 'red_meat' | 'cured_meat' | 'legumes' | 'eggs' | 'cheese' | 'vegetarian';
 export type FamilyRole = 'family_admin' | 'member';
 
-export interface RatingSummary { familyAverage: number | null; familyCount: number; myStars: number | null }
-/** recipeSummaryView of the contract (W6): a never-published recipe has only id, name and maybe a description. */
-export interface RecipeSummary {
-  id: string; name: string; description: string | null; durationMinutes: number | null;
-  sourceType: SourceType | null; sourceUrl: string | null; bookTitle: string | null; bookPages: string | null;
-  mealType: RecipeMealType | null; proteinGroup: ProteinGroup | null;
-}
+/** Recipe views of the contract (W6): a never-published recipe has only id, name and maybe a description. */
+export type RatingSummary = RatingSummaryView;
+export type RecipeSummary = RecipeSummaryView;
 /** Quantity already scaled, converted and written in the user's language (spec section 1, ready views). */
-export interface IngredientLine { ingredientId: string; name: string; amount: string; preparation: string | null; optional: boolean }
+export type IngredientLine = IngredientLineView;
 export interface MealView {
   slotId: string; date: IsoDate; mealType: MealType; kind: 'recipe' | 'free' | 'empty';
   recipe: RecipeSummary | null; freeText: string | null; servings: number;
@@ -35,11 +38,8 @@ export interface RecipeQuery {
   text?: string; mealType?: MealType; maxMinutes?: number; proteinGroup?: ProteinGroup; minStars?: number;
   sort?: RecipeSort; reversed?: boolean;
 }
-export interface RecipeListItem { recipe: RecipeSummary; rating: RatingSummary; servings: number; ingredients: IngredientLine[] }
-export interface RecipeDetailView {
-  recipe: RecipeSummary; baseServings: number | null; servings: number; ingredients: IngredientLine[];
-  rating: RatingSummary; history: { date: IsoDate; mealType: MealType }[];
-}
+export type RecipeListItem = RecipeListItemView;
+export type RecipeDetailView = ContractRecipeDetailView;
 export interface FamilyView { id: string; name: string; timeZone: string; role: FamilyRole }
 export interface MeView {
   user: { id: string; displayName: string; email: string; locale: Locale };
@@ -55,7 +55,7 @@ export interface FamilyInput extends ReadInput { familyId: string }
  * Areas of the contract read from the Worker (second PR). Each wave 2 producer adds its area here
  * when it is in the contract and served, removes it from ProvisionalApi and aligns the fake client.
  */
-export const SERVER_AREAS = ['session'] as const satisfies readonly (keyof Contract)[];
+export const SERVER_AREAS = ['session', 'recipes', 'ratings'] as const satisfies readonly (keyof Contract)[];
 export type ServerArea = (typeof SERVER_AREAS)[number];
 
 /** What the screens use: the contract's client for the server areas, the provisional areas otherwise. */
@@ -70,12 +70,6 @@ export interface ProvisionalApi {
     /** Days with a menu in a month (YYYY-MM), for the date picker. */
     getDates(input: FamilyInput & { month: string }): Promise<Read<IsoDate[]>>;
   };
-  recipes: {
-    search(input: FamilyInput & { query: RecipeQuery }): Promise<Read<RecipeListItem[]>>;
-    /** slotId: opened from that meal; wave 2 shows the version it was eaten with (spec R1). */
-    get(input: FamilyInput & { recipeId: string; servings?: number; slotId?: string }): Promise<Read<RecipeDetailView>>;
-  };
-  ratings: { set(input: { familyId: string; recipeId: string; stars: number | null }): Promise<RatingSummary> };
 }
 
 export const PROTEIN_GROUPS = ['fish', 'white_meat', 'red_meat', 'cured_meat', 'legumes', 'eggs', 'cheese', 'vegetarian'] as const satisfies readonly ProteinGroup[];

@@ -30,7 +30,7 @@ function RecipesView({ family }: { family: FamilyView }) {
   const update = (next: RecipeQuery) => void navigate({ search: toRecipesSearch(next), replace: true });
   // Cached recipes stay visible only when the device is offline (review, finding 2).
   const blocked = results.isError && isBlocking(results.error, !!results.data);
-  const items = blocked ? undefined : results.data;
+  const items = blocked ? undefined : results.data?.items;
 
   return (
     <section className="secondary-view app-view">
@@ -56,7 +56,7 @@ function RecipesView({ family }: { family: FamilyView }) {
                 kind="recipe"
                 recipe={item.recipe}
                 freeText={null}
-                servings={item.servings}
+                servings={item.baseServings}
                 ingredients={item.ingredients}
                 note={null}
                 rating={item.rating}

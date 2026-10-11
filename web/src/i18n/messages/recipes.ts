@@ -34,7 +34,8 @@ export const it = {
   'recipe.baseServings.other': 'Dosi della fonte per {count} porzioni',
   'recipe.history': 'Le ultime volte',
   'recipe.historyEmpty': 'Non l’avete ancora mangiata.',
-  'recipe.historyItem': '{day}, {meal}'
+  'recipe.historyItem': '{day}, {meal}',
+  'recipe.optional': 'facoltativo'
 };
 
 export const en = {
@@ -73,5 +74,6 @@ export const en = {
   'recipe.baseServings.other': 'Source quantities for {count} servings',
   'recipe.history': 'Last times',
   'recipe.historyEmpty': 'You have not had it yet.',
-  'recipe.historyItem': '{day}, {meal}'
+  'recipe.historyItem': '{day}, {meal}',
+  'recipe.optional': 'optional'
 } satisfies Record<keyof typeof it, string>;

@@ -1,6 +1,8 @@
 import type { IngredientLine } from '../api/types';
+import { useT } from '../i18n/LocaleProvider';
 
 export function IngredientList({ ingredients }: { ingredients: IngredientLine[] }) {
+  const t = useT();
   return (
     <ul className="ingredient-list">
       {ingredients.map((item, index) => (
@@ -9,6 +11,7 @@ export function IngredientList({ ingredients }: { ingredients: IngredientLine[] 
           <span>
             {item.name}
             {item.preparation && <span className="ingredient-preparation">, {item.preparation}</span>}
+            {item.optional && <span className="ingredient-preparation"> ({t('recipe.optional')})</span>}
           </span>
           <span className="ingredient-quantity">{item.amount}</span>
         </li>
