@@ -50,6 +50,10 @@ fare; qui c'è come.
   dalla tua proprietà; serve un'interfaccia con un'altra attività; devi creare o
   cambiare risorse esterne (Supabase, Cloudflare, GitHub oltre al tuo branch e alla PR).
 - `STATO: BLOCCATO` seguito dal motivo se non puoi proseguire.
+- **Ogni volta che ti fermi aspettando il coordinatore** (anche per una sezione del
+  design o una domanda del brainstorming) l'ultima riga del messaggio è una riga
+  `STATO:` (per esempio `STATO: DOMANDA sezione 2 del design`). Senza, l'ascoltatore
+  del coordinatore può non segnalarti e resti fermo.
 - Le regole di `AGENTS.md` valgono sempre: codice in inglese, documenti in italiano,
   testi per l'utente localizzabili in italiano e inglese britannico, ingredienti mai
   dedotti dal nome del piatto.
