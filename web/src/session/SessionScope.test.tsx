@@ -177,7 +177,8 @@ describe('language', () => {
     await screen.findByText('name: A');
     fireEvent.click(screen.getByText('english'));
     await screen.findByText('locale: en-GB');
-    expect(readPreference(userScope('a'))).toBe('en-GB');
+    // Saved in the profile: no temporary choice left on the device.
+    expect(readPreference(userScope('a'))).toBeNull();
     fireEvent.click(screen.getByText('out'));
     await screen.findByText('auth: signedOut');
     expect(readPreference(userScope('a'))).toBeNull();

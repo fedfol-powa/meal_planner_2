@@ -3,17 +3,19 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { ApiProvider } from '../api/ApiProvider';
 import { toApiError } from '../api/errors';
+import { runAreaMutation } from '../api/mutations';
 import { persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
 import { profileQuery } from '../api/profile';
 import { useQueryDeps } from '../api/queries';
-import type { Api } from '../api/types';
+import type { Api, ProfileView } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
 import { env } from '../env';
 import { useLocale } from '../i18n/LocaleProvider';
+import { isOnline } from '../lib/connectivity';
 import { initialLocale, type Locale } from '../i18n/translate';
 import type { SessionChannel } from './channel';
-import { readPreference, userScope, writePreference } from './localePreference';
+import { clearPreference, readPreference, userScope, writePreference } from './localePreference';
 import { createSession, persisterOf, wrapApi, type Session } from './session';
 
 /**
@@ -25,7 +27,10 @@ export type CreateApi = (user: AuthUser | null) => (locale: Locale) => Api;
 interface SessionContextValue {
   session: Session;
   signOut: () => Promise<void>;
-  chooseLocale: (locale: Locale) => void;
+  /** Saved in the profile when online; rejects with the error of the server when it refuses. */
+  chooseLocale: (locale: Locale) => Promise<void>;
+  /** The language shown now, also after this render: mutations check it when their answer arrives. */
+  currentLocale: () => Locale;
 }
 const SessionContext = createContext<SessionContextValue | null>(null);
 
@@ -140,17 +145,43 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     }
   }, [identity, backend.mode, setLocale]);
 
+  const currentLocale = useCallback(() => localeRef.current, []);
+  // Spec, Lingua: saved in the profile and applied at the answer; offline (or without network)
+  // the choice stays temporary on this device, as before.
   const chooseLocale = useCallback(
-    (next: Locale) => {
-      setLocale(next);
-      if (backend.mode === 'fake') writePreference('device', next);
-      else if (identity) writePreference(userScope(identity), next);
+    async (next: Locale) => {
+      const temporary = () => {
+        setLocale(next);
+        if (backend.mode === 'fake') writePreference('device', next);
+        else if (identity) writePreference(userScope(identity), next);
+      };
+      const client = clients(localeRef.current);
+      if (!identity || !session || !client || !isOnline()) return temporary();
+      try {
+        const saved = await runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
+          client.profile.update({ locale: next })
+        );
+        if (session.isClosed()) return;
+        // The language is the same in every copy of the profile: none of them may bring the old one back.
+        session.queryClient.setQueriesData<ProfileView>({ queryKey: ['profile', 'get'] }, (old) =>
+          old && old.user.id === saved.user.id ? { ...old, user: { ...old.user, locale: saved.user.locale } } : old
+        );
+        if (identity) clearPreference(userScope(identity));
+        if (backend.mode === 'fake') writePreference('device', saved.user.locale);
+        setLocale(saved.user.locale);
+      } catch (error) {
+        if (toApiError(error).code === 'network') return temporary();
+        throw error;
+      }
     },
-    [backend.mode, identity, setLocale]
+    [backend.mode, identity, session, clients, currentLocale, setLocale]
   );
 
   const signOut = useCallback(() => (session ? endRef.current(session) : Promise.resolve()), [session]);
-  const value = useMemo(() => (session ? { session, signOut, chooseLocale } : null), [session, signOut, chooseLocale]);
+  const value = useMemo(
+    () => (session ? { session, signOut, chooseLocale, currentLocale } : null),
+    [session, signOut, chooseLocale, currentLocale]
+  );
   if (!session || !api || !value) return null;
 
   const content = (
@@ -190,6 +221,7 @@ function useSessionContext(): SessionContextValue {
 export const useSession = () => useSessionContext().session;
 export const useSignOut = () => useSessionContext().signOut;
 export const useChooseLocale = () => useSessionContext().chooseLocale;
+export const useCurrentLocale = () => useSessionContext().currentLocale;
 
 /** Re-renders when the session changes state (revoked family, closing). */
 export function useSessionRevision(): number {
