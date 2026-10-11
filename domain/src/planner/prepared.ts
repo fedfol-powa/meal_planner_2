@@ -9,6 +9,9 @@ import type { IsoDate, MealType, PlannerInput, PlannerRecipe } from './types.ts'
  */
 export interface Prepared {
 	byId: ReadonlyMap<string, PlannerRecipe>;
+	/** Excluded recipes and owned books as sets: availability is checked for every candidate. */
+	excludedIds: ReadonlySet<string>;
+	ownedBookIds: ReadonlySet<string>;
 	/** Recipes used in the RECENT_DAYS before the week or planned in the RECENT_DAYS after it: never proposed. */
 	recentIds: ReadonlySet<string>;
 	/** Recipes cooked within KNOWN_WINDOW_WEEKS: "known" for the quota. */
@@ -42,6 +45,8 @@ export function prepared(input: PlannerInput): Prepared {
 	const nearUntil = addDays(weekEnd, 7);
 	const result: Prepared = {
 		byId,
+		excludedIds: new Set(input.exclusions),
+		ownedBookIds: new Set(input.ownedBookIds),
 		recentIds: new Set([
 			...before.filter((m) => m.date >= recentFrom).map((m) => m.recipeId),
 			...after.filter((m) => m.date <= soonUntil).map((m) => m.recipeId),

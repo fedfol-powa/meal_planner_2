@@ -1,7 +1,15 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
-import { createFakeApi } from '../api/fake/fakeApi';
+import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
+import type { Api, RatingSummary } from '../api/types';
+import { addDays } from '../lib/calendar';
+import { realClients } from '../api/clients';
+import { createRpcClient } from '../api/rpc';
+import { DEMO_USER } from '../auth/backend';
+import { setOnline } from '../test/connectivity';
+import { createRpcTestServer, SERVER_PROFILE, SERVER_RECIPE } from '../test/rpcServer';
+import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
 
 beforeEach(() => {
@@ -127,4 +135,159 @@ describe('menu', () => {
     renderApp('/menu', { api });
     expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
   });
+  it('asks the opening for the family local date, not the device one', async () => {
+    vi.setSystemTime(new Date('2026-10-08T22:30:00Z')); // 00:30 on Friday 9 October in Rome
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const getOpening = vi.spyOn(api.menu, 'getOpening');
+    renderApp('/menu', { api });
+    await screen.findByRole('link', { name: 'venerdì 9 ottobre' });
+    expect(getOpening).toHaveBeenCalledWith(expect.objectContaining({ today: '2026-10-09' }), expect.anything());
+  });
+  it.each([
+    ['it-IT', 'Nessuna ricetta adatta', 'giovedì 8 ottobre'],
+    ['en-GB', 'No suitable recipe', 'Thursday 8 October']
+  ] as const)('shows a generated week with no suitable recipe as empty meals, not as no menu (%s)', async (locale, title, day) => {
+    // The language of the screens comes from the profile.
+    const shared = createFakeData();
+    shared.profile.locale = locale;
+    const api = createFakeApi({ getLocale: () => locale, data: shared, latencyMs: 0 });
+    const days = Array.from({ length: 7 }, (_, i) => addDays('2026-10-05', i));
+    api.menu.getOpening = async () => ({ unchanged: false, version: 'o1', data: { kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' } });
+    api.menu.getWeek = async () => ({
+      unchanged: false,
+      version: 'w1',
+      data: {
+        startsOn: '2026-10-05',
+        days: days.map((date) => ({
+          date,
+          meals: (['lunch', 'dinner'] as const).map((mealType) => ({
+            slotId: crypto.randomUUID(), date, mealType, kind: 'empty' as const, recipe: null, freeText: null, servings: 2,
+            ingredients: null, note: null, rating: null, canOpenRecipe: false, lastChange: null
+          }))
+        }))
+      }
+    });
+    renderApp('/menu', { api, locale });
+    await screen.findByRole('link', { name: day });
+    expect(screen.getAllByRole('heading', { name: title }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Ancora nessun menu|No menu yet/)).toBeNull();
+  });
+  it('applies a rating given from the menu only after the server confirms it', async () => {
+    const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    let confirm: (value: RatingSummary) => void = () => {};
+    const set = vi.fn<Api['ratings']['set']>(() => new Promise<RatingSummary>((resolve) => (confirm = resolve)));
+    const api: Api = { ...base, ratings: { set } };
+    renderApp('/menu', { api });
+    await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+    const today = screen.getAllByRole('region').find((r) => r.id === 'day-2026-10-08') ?? document.getElementById('day-2026-10-08')!;
+    const toggle = within(today).getAllByRole('button', { name: /Voto della famiglia/ })[0]!;
+    fireEvent.click(toggle);
+    const star = within(today).getAllByLabelText(/^Dai 5 stelle a /)[0]!;
+    fireEvent.click(star);
+    expect(await screen.findByText('Invio del voto…')).toBeTruthy();
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ stars: 5 }), expect.anything());
+    expect(within(today).queryByText('3,0')).toBeNull();
+    await act(async () => confirm({ familyAverage: 3, familyCount: 9, myStars: 5 }));
+    await waitFor(() => expect(within(today).getAllByText('3,0').length).toBeGreaterThan(0));
+    expect(screen.queryByText('Invio del voto…')).toBeNull();
+  });
+
+  describe('offline after the day changed', () => {
+    afterEach(() => setOnline(true));
+    async function openThenGoOffline() {
+      const view = renderApp('/menu');
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      fireEvent.click(screen.getByRole('link', { name: 'Profilo' }));
+      await waitFor(() => expect(view.history.location.pathname).toBe('/profile'));
+      act(() => setOnline(false));
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z')); // Friday: a new opening, never read
+      return view;
+    }
+    it('opens on the new day from the weeks already saved', async () => {
+      await openThenGoOffline();
+      fireEvent.click(screen.getByRole('link', { name: 'Menu' }));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+      expect(screen.getByRole('region', { name: 'Pasti della settimana' })).toBeTruthy();
+    });
+    it('shows a requested day of a saved week', async () => {
+      const { history } = await openThenGoOffline();
+      act(() => history.push('/menu?day=2026-10-06'));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('martedì 6 ottobre'));
+    });
+  });
+
+  it('in real mode opens the family of the profile read from the Worker, with its local date', async () => {
+    vi.setSystemTime(new Date('2026-10-08T22:30:00Z')); // 00:30 on the 9th in Rome, the family's zone
+    const server = createRpcTestServer();
+    const backend = createStubBackend(DEMO_USER);
+    const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+    renderApp('/menu', { backend, createApi: realClients({ rpc, latencyMs: 0 }) });
+    // The test server answers no_weeks: the menu says so, from the server's answer.
+    expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
+    expect(server.openingSeen).toEqual([{ familyId: SERVER_PROFILE.currentFamilyId, today: '2026-10-09' }]);
+  });
+
+  describe('real client: vote, recipe card and recipe book with the menu', () => {
+    const FAMILY = SERVER_PROFILE.currentFamilyId!;
+    const SLOT = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
+    function realApp(path: string) {
+      const server = createRpcTestServer();
+      // On Thursday 8 October the menu opens on today; Wednesday's lunch, with the server's recipe, is past.
+      server.answerMenu({
+        opening: { kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' },
+        week: {
+          startsOn: '2026-10-05',
+          days: Array.from({ length: 7 }, (_, i) => {
+            const date = addDays('2026-10-05', i);
+            return {
+              date,
+              meals:
+                date === '2026-10-07'
+                  ? [{
+                      slotId: SLOT, date, mealType: 'lunch' as const, kind: 'recipe' as const, recipe: SERVER_RECIPE.recipe, freeText: null, servings: 4,
+                      ingredients: SERVER_RECIPE.ingredients, note: null, rating: SERVER_RECIPE.rating, canOpenRecipe: true, lastChange: null
+                    }]
+                  : []
+            };
+          })
+        }
+      });
+      const backend = createStubBackend(DEMO_USER);
+      const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+      return { server, ...renderApp(path, { backend, createApi: realClients({ rpc, latencyMs: 0 }) }) };
+    }
+    const noRevocation = () => expect(screen.queryByText(/Non hai accesso a questa famiglia/)).toBeNull();
+
+    it('rates a past meal through ratings.set on the Worker and shows the confirmed summary', async () => {
+      const { server } = realApp('/menu?day=2026-10-07');
+      await screen.findByRole('heading', { name: /Ricetta dal server/ });
+      fireEvent.click(screen.getByRole('button', { name: /Voto della famiglia/ }));
+      fireEvent.click(screen.getByLabelText('Dai 4 stelle a Ricetta dal server'));
+      await waitFor(() => expect(server.recipeCalls).toContainEqual({ op: 'ratings.set', input: { familyId: FAMILY, recipeId: SERVER_RECIPE.recipe.id, stars: 4 } }));
+      expect((await screen.findAllByText('4,0')).length).toBeGreaterThan(0);
+      noRevocation();
+    });
+
+    it('opens the recipe card of a past meal from the Worker, with the meal it was eaten at', async () => {
+      const { server, history } = realApp('/menu?day=2026-10-07');
+      await screen.findByRole('heading', { name: /Ricetta dal server/ });
+      fireEvent.click(screen.getByRole('link', { name: 'Scheda ricetta' }));
+      await waitFor(() => expect(history.location.pathname).toBe(`/recipes/${SERVER_RECIPE.recipe.id}`));
+      await waitFor(() => expect(server.recipeCalls.find((c) => c.op === 'recipes.get')?.input).toMatchObject({ familyId: FAMILY, recipeId: SERVER_RECIPE.recipe.id, slotId: SLOT }));
+      noRevocation();
+    });
+
+    it('goes from the recipe book to the menu and back with no false forbidden', async () => {
+      const { server, history } = realApp('/recipes');
+      expect(await screen.findByText('Ricetta dal server')).toBeTruthy();
+      fireEvent.click(screen.getByRole('link', { name: 'Menu' }));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
+      expect(server.openingSeen.map((o) => o.familyId)).toEqual([FAMILY]);
+      fireEvent.click(screen.getByRole('link', { name: 'Ricettario' }));
+      await waitFor(() => expect(history.location.pathname).toBe('/recipes'));
+      expect(await screen.findByText('Ricetta dal server')).toBeTruthy();
+      noRevocation();
+    });
+  });
+
 });

@@ -188,8 +188,8 @@
   {
    "id": "salsa-d-ostriche-facoltativa",
    "name": {
-    "it-IT": "Salsa d'ostriche (facoltativa)",
-    "en-GB": "Oyster sauce (optional)"
+    "it-IT": "Salsa d'ostriche",
+    "en-GB": "Oyster sauce"
    }
   },
   {
@@ -202,8 +202,8 @@
   {
    "id": "curry-in-polvere-facoltativo",
    "name": {
-    "it-IT": "Curry in polvere (facoltativo)",
-    "en-GB": "Curry powder (optional)"
+    "it-IT": "Curry in polvere",
+    "en-GB": "Curry powder"
    }
   },
   {
@@ -1147,8 +1147,8 @@
   {
    "id": "vino-bianco-o-fino-facoltativo",
    "name": {
-    "it-IT": "Vino bianco o fino (facoltativo)",
-    "en-GB": "White wine or fino sherry (optional)"
+    "it-IT": "Vino bianco o fino",
+    "en-GB": "White wine or fino sherry"
    }
   },
   {
@@ -1546,8 +1546,8 @@
   {
    "id": "prezzemolo-opzionale",
    "name": {
-    "it-IT": "Prezzemolo (opzionale)",
-    "en-GB": "Parsley (optional)"
+    "it-IT": "Prezzemolo",
+    "en-GB": "Parsley"
    }
   },
   {

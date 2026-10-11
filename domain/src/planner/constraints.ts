@@ -34,8 +34,9 @@ export function fitsSlot(recipe: PlannerRecipe, slot: SlotRef, rules: MealRule[]
 
 /** Exclusions, books the family does not own and avoided ingredients (optional lines allowed). */
 export function isAvailable(recipe: PlannerRecipe, input: PlannerInput): boolean {
-	if (input.exclusions.includes(recipe.id)) return false;
-	if (recipe.bookId !== null && !input.ownedBookIds.includes(recipe.bookId)) return false;
+	const { excludedIds, ownedBookIds } = prepared(input);
+	if (excludedIds.has(recipe.id)) return false;
+	if (recipe.bookId !== null && !ownedBookIds.has(recipe.bookId)) return false;
 	return !input.restrictions.some((r) => r.restriction === 'avoid' && uses(recipe, r.ingredientId));
 }
 

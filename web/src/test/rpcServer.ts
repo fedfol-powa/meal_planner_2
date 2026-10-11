@@ -1,6 +1,6 @@
-import { contract, type FamilyView, type ProfileView, type SettingsView } from '@app/contract';
+import { contract, type FamilyView, type OpeningView, type ProfileView, type RecipeDetailView, type RecipeListItemView, type SettingsView, type WeekView } from '@app/contract';
 import { resolveFamilySettings } from '@app/domain/family';
-import { implement } from '@orpc/server';
+import { implement, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { vi } from 'vitest';
 
@@ -41,12 +41,30 @@ export interface FamilyAnswers {
   setMeal: (input: { mealType: 'lunch' | 'dinner'; weekday: number; servings: number }) => unknown;
 }
 
+/** A recipe only the server knows, in the family of SERVER_PROFILE. */
+export const SERVER_RECIPE: RecipeListItemView = {
+  recipe: {
+    id: '5d0c1e2f-3a4b-4c5d-9e6f-7a8b9c0d1e2f', name: 'Ricetta dal server', description: null, durationMinutes: 25,
+    sourceType: 'home', sourceUrl: null, bookTitle: null, bookPages: null, mealType: 'both', proteinGroup: 'legumes'
+  },
+  rating: { familyAverage: null, familyCount: 0, myStars: null },
+  baseServings: 4,
+  ingredients: [{ ingredientId: '6e1d2f3a-4b5c-4d6e-8f70-8b9cad0e1f2a', name: 'Ceci', amount: '400 g', preparation: null, optional: false }],
+  addedOn: '2026-09-01', lastEatenOn: null, upcoming: []
+};
+const serverDetail: RecipeDetailView = {
+  recipe: SERVER_RECIPE.recipe, status: 'published', baseServings: 4, servings: 4, ingredients: SERVER_RECIPE.ingredients,
+  rating: SERVER_RECIPE.rating, history: [], upcoming: []
+};
+
 /**
  * A server of the contract in this process: the RPC handler of the Worker, without the Worker.
  * `answer` sets how `session.whoami` answers (a value, a thrown ORPCError, a pending promise),
- * `answerProfile` how `profile.get` answers, given the authorization header, `answerFamily` the
- * family reads and one family write (the area of W2, through the real link); the transport
- * honours the request signal like the browser's fetch.
+ * `answerProfile` how `profile.get` answers, given the authorization header; the menu answers
+ * `no_weeks` unless `answerMenu` gives an opening and a week, with the contract's validation of
+ * input and output, and records the family and date of each opening; `answerFamily` sets the
+ * family reads and one family write (the area of W2). The transport honours the request signal
+ * like the browser's fetch.
  */
 export function createRpcTestServer() {
   const seen: (string | null)[] = [];
@@ -67,12 +85,16 @@ export function createRpcTestServer() {
     }
   };
   const familyApi = { get: contract.family.get, getSettings: contract.family.getSettings, setMeal: contract.family.setMeal };
-  const os = implement({ session: contract.session, profile: contract.profile, family: familyApi });
   const seenBy = (operation: string, context: unknown) => {
     const authorization = (context as { authorization: string | null }).authorization;
     familySeen.push({ operation, authorization });
     return authorization;
   };
+  /** Calls of the recipe book, with their input as the Worker received it. */
+  const recipeCalls: { op: string; input: Record<string, unknown> }[] = [];
+  const openingSeen: { familyId: string; today?: string }[] = [];
+  let menuAnswer: { opening: OpeningView; week: WeekView | null } = { opening: { kind: 'no_weeks' }, week: null };
+  const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings, menu: contract.menu, family: familyApi });
   const router = os.router({
     session: {
       whoami: os.session.whoami.handler(async ({ context }) => {
@@ -88,6 +110,38 @@ export function createRpcTestServer() {
       }),
       update: os.profile.update.handler(() => SERVER_PROFILE),
       setCurrentFamily: os.profile.setCurrentFamily.handler(() => SERVER_PROFILE)
+    },
+    recipes: {
+      search: os.recipes.search.handler(({ input }) => {
+        recipeCalls.push({ op: 'recipes.search', input });
+        return { unchanged: false as const, version: 'v1', data: { items: [SERVER_RECIPE] } };
+      }),
+      get: os.recipes.get.handler(({ input }) => {
+        recipeCalls.push({ op: 'recipes.get', input });
+        return { unchanged: false as const, version: 'v1', data: serverDetail };
+      })
+    },
+    ratings: {
+      set: os.ratings.set.handler(({ input }) => {
+        recipeCalls.push({ op: 'ratings.set', input });
+        return { familyAverage: input.stars, familyCount: input.stars === null ? 0 : 1, myStars: input.stars };
+      })
+    },
+    menu: {
+      getOpening: os.menu.getOpening.handler(({ input }) => {
+        openingSeen.push({ familyId: input.familyId, today: input.today });
+        return { unchanged: false as const, version: 'opening-1', data: menuAnswer.opening };
+      }),
+      getWeek: os.menu.getWeek.handler(({ input }) => {
+        const week = menuAnswer.week;
+        if (!week || week.startsOn !== input.weekStartsOn) throw new ORPCError('not_found');
+        return { unchanged: false as const, version: 'week-1', data: week };
+      }),
+      getDates: os.menu.getDates.handler(({ input }) => ({
+        unchanged: false as const,
+        version: 'dates-1',
+        data: menuAnswer.week?.days.filter((d) => d.meals.length && d.date.startsWith(input.month)).map((d) => d.date) ?? []
+      }))
     },
     family: {
       get: os.family.get.handler(async ({ context }) => (await family.get(seenBy('get', context))) as never),
@@ -116,7 +170,11 @@ export function createRpcTestServer() {
     answer: (next: () => unknown) => (answer = next),
     /** Authorization headers of the profile reads, in order. */
     profileSeen,
+    recipeCalls,
+    /** Family and date of the menu openings, in order. */
+    openingSeen,
     answerProfile: (next: (authorization: string | null) => unknown) => (profile = next),
+    answerMenu: (next: { opening: OpeningView; week: WeekView | null }) => (menuAnswer = next),
     /** Family operations received, in order, with their authorization header. */
     familySeen,
     answerFamily: (next: Partial<FamilyAnswers>) => Object.assign(family, next)

@@ -227,3 +227,5 @@ solo il coordinatore.
 | 11 ottobre 2026 | Unita la PR #11 (spesa lato server: contratto, lettura, mutazioni idempotenti, esportazioni, pagina Bring!, MCP, W4) dopo quattro review |
 | 11 ottobre 2026 | L'utente sceglie per la gestione MCP del ricettario la conferma del curatore affidata alle sole istruzioni dell'agente, con pubblicazione dell'ultima revisione |
 | 11 ottobre 2026 | Unita la PR #17 (client oRPC reale e agganci di sessione per la coda della spesa, W5) dopo tre review; via alle parti web di W1, W2, W4, W6 |
+| 11 ottobre 2026 | Unita la PR #18 (profilo al posto di `me` nel web, W2) dopo due review |
+| 11 ottobre 2026 | Unita la PR #19 (ricettario web, W6) con un rilievo residuo che dipende dal menu reale: lo chiude la #20, unita subito dopo; nessuna pubblicazione nel frattempo |
