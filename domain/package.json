@@ -1,0 +1,12 @@
+{
+	"name": "@app/domain",
+	"private": true,
+	"type": "module",
+	"exports": {
+		"./planner": "./src/planner/index.ts"
+	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc -p tsconfig.json"
+	}
+}
