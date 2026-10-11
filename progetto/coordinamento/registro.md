@@ -7,19 +7,16 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 piattaforma | W1 piattaforma | w1:p8 | fondamenta/piattaforma | .worktrees/piattaforma | PR #5 corretta, CI verde (task 11 fatto, task 10 rimandato); **merge in attesa del permesso dell'utente** (bloccato dalla modalità auto) | 11/10 |
-| W2 schema | W2 schema | w1:p9 | fondamenta/schema | .worktrees/schema | PR #4 unita; ora su `fondamenta/schema-fonte`: PR #8 aperta (fonte obbligatoria nelle equivalenze, messaggio w2-04); review Codex in corso | 11/10 |
+| W1 piattaforma | W1 piattaforma | w1:p8 | fondamenta/piattaforma | .worktrees/piattaforma | **Unito** (PR #5, 11/10, 13:15); task 10 (passi di produzione) rimandato alla prima pubblicazione; worker libero per l'ondata 2 | 11/10 |
+| W2 schema | W2 schema | w1:p9 | fondamenta/schema | .worktrees/schema | PR #4 unita; ora su `fondamenta/schema-fonte`: PR #8 (fonte obbligatoria nelle equivalenze): correzione del check sugli spazi Unicode in corso (messaggio w2-05), poi merge | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | Spec e piano corretti e approvati; contesto pulito; implementazione dopo il merge di W4 (mandare messaggio di ripresa con via all implementazione) | 11/10 |
-| W4 unita-spesa | W4 unita-spesa | w1:pB | fondamenta/unita-spesa | .worktrees/unita-spesa | PR #7 aperta (12:55); review Codex in corso | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6 aperta (CI verde, anteprima http://192.168.178.64:8767/); review Codex in corso | 11/10 |
+| W4 unita-spesa | W4 unita-spesa | w1:pB | fondamenta/unita-spesa | .worktrees/unita-spesa | Correzioni della review della PR #7 in corso (messaggio w4-03, dopo /clear) | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | Correzioni della review della PR #6 in corso (verdetto «da rifare» su 3 punti; messaggio w5-03, dopo /clear) | 11/10 |
 
 ## Revisori attivi
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR8 fonte | PR #8 (W2), worktree .worktrees/review-pr8 | R PR8 fonte | w1:pT | in corso → revisioni/w2-pr8.md |
-| R PR7 unita | PR #7 (W4), worktree .worktrees/review-pr7 | R PR7 unita | w1:pS | in corso → revisioni/w4-pr7.md |
-| R PR6 web | PR #6 (W5), worktree .worktrees/review-pr6 | R PR6 web | w1:pR | in corso → revisioni/w5-pr6.md |
 
 ## Domande in sospeso
 
@@ -36,10 +33,9 @@ Aggiornato l'11 ottobre 2026, 13:05.
 
 1. Dopo un `/clear`: `progetto/coordinamento/attendi.py --stato`, gestire i «DA GESTIRE»,
    poi `attendi.py` in background (vedi README). Mai chiudere un turno senza attesa attiva.
-2. **PR #5 (W1):** pronta da unire, ma `gh pr merge` è stato negato dalla modalità auto:
-   serve che l'utente unisca a mano o aggiunga il permesso. Poi W1 resta libero (task 10,
-   passi di produzione, solo prima della prima pubblicazione).
-3. **PR #6 (W5)**, **PR #7 (W4)**, **PR #8 (W2):** review Codex in corso; ai rapporti
+2. **PR #5 (W1):** unita. Permesso `Bash(gh pr merge *)` aggiunto in
+   `.claude/settings.local.json` su richiesta dell'utente. W1 libero.
+3. **PR #8 (W2):** review Codex in corso. **PR #7 (W4)** e **PR #6 (W5):** correzioni in corso; a `PR_CORRETTA` nuova review Codex breve sul diff delle correzioni (per la #6 una completa sui tre punti), poi merge; ai rapporti
    passare i rilievi al worker con un file in `messaggi/`, oppure unire se senza rilievi.
    Prima di correggere, `/clear` al worker e messaggio di ripresa.
 4. **W3:** dopo il merge di PR #7 (e di PR #5) messaggio di ripresa: brief, protocollo,
