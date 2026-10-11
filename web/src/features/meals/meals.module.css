@@ -34,3 +34,17 @@
 .rows li + li { border-top: 1px solid var(--rule); }
 .rows button { display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; }
 .rows button:disabled, .card > button:disabled { cursor: progress; }
+
+/* Swap list, free meal and note (prototype SwapPicker.svelte and MealEditor.svelte). */
+.swapList { margin: 0; padding: 0; list-style: none; }
+.swapList li + li { border-top: 1px solid var(--rule); }
+.swapList button { display: grid; gap: 2px; width: 100%; min-height: 56px; padding: 8px 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; }
+.when { color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.035em; text-transform: uppercase; }
+.free { color: var(--green); font-family: var(--text-font); }
+.buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin: 16px 0 4px; }
+.field { display: grid; gap: 6px; margin: 8px 0; font-size: 0.875rem; font-weight: 700; }
+.field input, .field textarea { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 1rem/1.4 var(--text-font); resize: vertical; }
+.field input:focus-visible, .field textarea:focus-visible { outline: 3px solid var(--green); outline-offset: 1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0; }
+.chip { min-height: 44px; padding: 8px 14px; border: 1px solid var(--free-border); border-radius: 8px; background: var(--free-surface); color: var(--ink); font: 400 0.875rem/1.3 var(--text-font); cursor: pointer; }
+.chip[aria-pressed='true'] { border-color: var(--green); color: var(--green); font-weight: 700; }
