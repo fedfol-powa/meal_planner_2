@@ -769,7 +769,13 @@ select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, f
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('pasta'), 'cup', 'g', 100, 'recipe')$$, '23502', null, 'unknown from unit');
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('pasta'), 'us_cup', 'grams', 100, 'recipe')$$, '23514', null, 'unknown to unit');
 select is(app.unit_dimension('uk_pint'), 'volume', 'British pint is a volume');
-select is(app.unit_dimension('tbsp'), 'spoon', 'spoons are their own dimension');
+select is(app.unit_dimension('lb'), 'mass', 'every mass unit is mass');
+select is(app.unit_dimension('tbsp'), 'tbsp', 'tbsp is a dimension of its own');
+select is(app.unit_dimension('clove'), 'clove', 'each counted unit is a dimension of its own');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'piece', 'g', 120, 'shopping')$$, 'piece next to a mass equivalence');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'slice', 'g', 20, 'shopping')$$, 'slice next to piece');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'tbsp', 'g', 15, 'shopping')$$, 'tbsp on its own');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('tomatoes'), 'tsp', 'g', 5, 'shopping')$$, 'tsp apart from tbsp');
 select throws_ok($$insert into app.recipe_drafts (recipe_id, kind, content, revision) values (tests.recipe('new-draft'), 'revision', '{}', 1)$$, '23505', null, 'one draft per recipe');
 
 -- Deleting an author keeps the catalogue
@@ -829,16 +835,16 @@ create table app.ingredient_versions (
 	primary key (ingredient_id, version)
 );
 
--- Dimension of a unit code, as in domain/src/units/codes.ts (W4). A new unit code
--- needs a migration updating this function. Unknown codes give null.
+-- Dimension of a unit code for the equivalence constraint (W4): every mass unit is
+-- 'mass', every volume unit is 'volume'; tbsp, tsp, each counted unit and us_cup are
+-- each a dimension of their own. Codes as in domain/src/units/codes.ts: a new unit
+-- code needs a migration updating this function. Unknown codes give null.
 create function app.unit_dimension(p_unit text)
 returns text language sql immutable set search_path = '' as $$
 	select case
 		when p_unit in ('g', 'kg', 'oz', 'lb') then 'mass'
 		when p_unit in ('ml', 'l', 'uk_fl_oz', 'uk_pint') then 'volume'
-		when p_unit in ('tbsp', 'tsp') then 'spoon'
-		when p_unit in ('piece', 'clove', 'slice', 'pinch', 'sprig', 'bunch', 'leaf') then 'count'
-		when p_unit = 'us_cup' then 'us_cup'
+		when p_unit in ('tbsp', 'tsp', 'piece', 'clove', 'slice', 'pinch', 'sprig', 'bunch', 'leaf', 'us_cup') then p_unit
 	end;
 $$;
 grant execute on function app.unit_dimension(text) to authenticated, app_job;
