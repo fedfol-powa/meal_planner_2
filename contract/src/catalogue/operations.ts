@@ -7,6 +7,8 @@ import {
 	bookView,
 	checkView,
 	departmentSchema,
+	draftSavesView,
+	draftSaveView,
 	draftView,
 	ingredientMatchView,
 	ingredientView,
@@ -63,6 +65,26 @@ export const catalogueContract = {
 		.errors(notFound)
 		.input(draftId)
 		.output(draftView),
+	listDraftSaves: read()
+		.route({
+			method: 'GET',
+			path: '/catalogue/drafts/{draftId}/saves',
+			summary:
+				'Every save of a draft, open or closed, newest first, with who saved it, when and whether another save overwrote it: find work lost to an overwrite here',
+		})
+		.errors(notFound)
+		.input(draftId)
+		.output(draftSavesView),
+	getDraftSave: read()
+		.route({
+			method: 'GET',
+			path: '/catalogue/drafts/{draftId}/saves/{revision}',
+			summary:
+				'The content of one save of a draft. To recover it, show it to the curator and save it again with catalogue_saveDraft (an open draft) or catalogue_startRevision then catalogue_saveDraft (a closed revision)',
+		})
+		.errors(notFound)
+		.input(draftId.extend({ revision: z.coerce.number().int().min(1) }))
+		.output(draftSaveView),
 	createDraft: create()
 		.route({
 			method: 'POST',

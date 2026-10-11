@@ -1,4 +1,4 @@
-import type { ArchivedSummaryView, AuthorView, DraftSummaryView, DraftView, OverviewView, RecipeMatchView, VersionDetailView, VersionListView } from '@app/contract';
+import type { ArchivedSummaryView, AuthorView, DraftSavesView, DraftSaveView, DraftSummaryView, DraftView, OverviewView, RecipeMatchView, VersionDetailView, VersionListView } from '@app/contract';
 import { checkPublishable, missingData, publishedRecipeSchema, type RecipeDraftDocument } from '@app/domain/recipe';
 import type { Locale } from '@app/domain/units';
 import { z } from 'zod';
@@ -7,7 +7,7 @@ import { appError } from '../errors.ts';
 import { foldText } from '../family/views.ts';
 import { ingredientLinesView, loadBookTitlesById, loadIngredientNamesById, summaryOf } from '../recipes/views.ts';
 import { publicationCheck } from './check.ts';
-import { isCited, loadAuthors, loadLookup, type DraftRow } from './load.ts';
+import { isCited, loadAuthors, loadLookup, parseContent, type DraftRow } from './load.ts';
 
 export const authorOf = (authors: Map<string, string>, userId: string | null): AuthorView => ({
 	userId,
@@ -56,6 +56,44 @@ export async function draftViewOf(tx: Tx, row: DraftRow, locale: Locale): Promis
 		ingredientNames: Object.fromEntries(ingredientIds.filter((id) => names.has(id)).map((id) => [id, localText(names.get(id), locale)])),
 		bookTitle: bookId ? (titles.get(bookId) ?? null) : null,
 	};
+}
+
+interface SaveRecord {
+	revision: number;
+	content: unknown;
+	saved_by: string | null;
+	saved_at: Date;
+	channel: 'web' | 'mcp' | 'import';
+	overwritten: boolean;
+}
+const saveSummaryOf = (authors: Map<string, string>, s: SaveRecord) => ({
+	revision: s.revision,
+	savedBy: authorOf(authors, s.saved_by),
+	savedAt: s.saved_at.toISOString(),
+	channel: s.channel,
+	overwritten: s.overwritten,
+});
+
+/** The saves of a draft, open or closed, newest first: where an overwritten save is found again. */
+export async function draftSaves(tx: Tx, row: DraftRow): Promise<DraftSavesView> {
+	const saves = await tx<SaveRecord[]>`
+		select revision, saved_by, saved_at, channel, overwritten from app.recipe_draft_saves where draft_id = ${row.id} order by revision desc`;
+	const authors = await loadAuthors(tx);
+	return {
+		draftId: row.id,
+		recipeId: row.recipeId,
+		kind: row.kind,
+		revision: row.revision,
+		outcome: row.outcome,
+		saves: saves.map((s) => saveSummaryOf(authors, s)),
+	};
+}
+
+export async function draftSave(tx: Tx, draftId: string, revision: number): Promise<DraftSaveView> {
+	const [save] = await tx<SaveRecord[]>`
+		select revision, content, saved_by, saved_at, channel, overwritten from app.recipe_draft_saves where draft_id = ${draftId} and revision = ${revision}`;
+	if (!save) throw appError('not_found');
+	return { draftId, ...saveSummaryOf(await loadAuthors(tx), save), content: parseContent(save.content) };
 }
 
 /** Open drafts, most recent first, and archived recipes by name: the curator's sections of the recipe book. */

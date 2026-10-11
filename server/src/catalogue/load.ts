@@ -39,7 +39,7 @@ interface DraftRecord {
 }
 
 /** A stored draft may come from the import or an older server: kept as it is, its problems come from the checks. */
-const parseContent = (content: unknown): RecipeDraftDocument => {
+export const parseContent = (content: unknown): RecipeDraftDocument => {
 	const parsed = recipeDraftSchema.safeParse(content);
 	return parsed.success ? parsed.data : (content as RecipeDraftDocument);
 };

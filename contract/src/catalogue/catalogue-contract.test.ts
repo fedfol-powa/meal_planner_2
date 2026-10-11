@@ -15,8 +15,8 @@ describe('catalogue contract', () => {
 
 	it('is for curators only, exposed to MCP, never offline, without familyId', () => {
 		expect(ops.map(([name]) => name).sort()).toEqual([
-			'checkDraft', 'checkVariety', 'createBook', 'createDraft', 'createIngredient', 'discardDraft', 'getDraft', 'getGuide',
-			'getIngredient', 'getVersion', 'listBooks', 'listVarieties', 'listVersions', 'overview', 'publish', 'removeEquivalence',
+			'checkDraft', 'checkVariety', 'createBook', 'createDraft', 'createIngredient', 'discardDraft', 'getDraft', 'getDraftSave', 'getGuide',
+			'getIngredient', 'getVersion', 'listBooks', 'listDraftSaves', 'listVarieties', 'listVersions', 'overview', 'publish', 'removeEquivalence',
 			'restoreVersion', 'saveDraft', 'searchIngredients', 'searchRecipes', 'setArchived', 'setEquivalence', 'startRevision',
 			'updateIngredient',
 		]);

@@ -61,6 +61,29 @@ export const draftView = z.object({
 	ingredientNames: z.record(z.string(), z.string()),
 	bookTitle: z.string().nullable(),
 });
+/** One save of a draft, overwritten ones included (spec section 8: an overwritten save stays recoverable). */
+export const draftSaveSummaryView = z.object({
+	revision: z.number().int().min(1),
+	savedBy: authorView,
+	savedAt: instant,
+	channel: z.enum(['web', 'mcp', 'import']),
+	overwritten: z.boolean(),
+});
+export const draftSavesView = z.object({
+	draftId: z.uuid(),
+	recipeId: z.uuid(),
+	kind: draftKind,
+	/** The latest revision. */
+	revision: z.number().int().min(1),
+	outcome: z.enum(['published', 'discarded']).nullable(),
+	/** Newest first. */
+	saves: z.array(draftSaveSummaryView),
+});
+export const draftSaveView = draftSaveSummaryView.extend({
+	draftId: z.uuid(),
+	/** As saved, like draftView.content. */
+	content: recipeDraftSchema.or(z.record(z.string(), z.unknown())),
+});
 export const checkView = z.object({ revision: z.number().int().min(1), issues: z.array(issueView), missing, conversions: z.array(conversionView) });
 export const publishedView = z.object({ recipeId: z.uuid(), version: z.number().int().min(1), conversions: z.array(conversionView) });
 
@@ -149,6 +172,8 @@ export type ArchivedSummaryView = z.infer<typeof archivedSummaryView>;
 export type OverviewView = z.infer<typeof overviewView>;
 export type ConversionView = z.infer<typeof conversionView>;
 export type CheckView = z.infer<typeof checkView>;
+export type DraftSavesView = z.infer<typeof draftSavesView>;
+export type DraftSaveView = z.infer<typeof draftSaveView>;
 export type RecipeMatchView = z.infer<typeof recipeMatchView>;
 export type StatusView = z.infer<typeof statusView>;
 export type IngredientView = z.infer<typeof ingredientView>;

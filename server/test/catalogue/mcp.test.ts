@@ -6,7 +6,7 @@ import { hasDatabase } from '../support/db.ts';
 import { mcp, toolBody } from '../support/requests.ts';
 import { catalogueActors, completeContent, draftContent, type CatalogueActors } from './support.ts';
 
-const reads = ['getGuide', 'overview', 'getDraft', 'checkDraft', 'searchRecipes', 'listVersions', 'getVersion', 'searchIngredients', 'getIngredient', 'listVarieties', 'checkVariety', 'listBooks'];
+const reads = ['getGuide', 'overview', 'getDraft', 'listDraftSaves', 'getDraftSave', 'checkDraft', 'searchRecipes', 'listVersions', 'getVersion', 'searchIngredients', 'getIngredient', 'listVarieties', 'checkVariety', 'listBooks'];
 const writes = ['createDraft', 'startRevision', 'saveDraft', 'publish', 'discardDraft', 'setArchived', 'restoreVersion', 'createIngredient', 'updateIngredient', 'setEquivalence', 'removeEquivalence', 'createBook'];
 
 describe('catalogue tools', () => {
@@ -55,6 +55,33 @@ describe.skipIf(!hasDatabase)('catalogue over MCP', () => {
 		expect(toolBody(invalid)).toMatchObject({ code: 'invalid', message: messages.invalid['it-IT'] });
 		const notAllowed = await call(a.token, 'catalogue_startRevision', { recipeId: d.recipeId, id: crypto.randomUUID() });
 		expect(toolBody(notAllowed)).toMatchObject({ code: 'not_allowed', message: messages.not_allowed['it-IT'], data: { reason: 'not_published' } });
+	});
+
+	it('recovers an overwritten save from a new conversation, through the usual save', async () => {
+		const lucia = await c.curator({ agent: true });
+		const marco = await c.curator();
+		const d = toolBody(await call(lucia.token, 'catalogue_createDraft', { id: crypto.randomUUID(), content: draftContent('Ribollita') }));
+		await marco.client.catalogue.saveDraft({ draftId: d.draftId, baseRevision: 1, content: draftContent('Ribollita', { durationMinutes: 150 }) });
+		await call(lucia.token, 'catalogue_saveDraft', { draftId: d.draftId, baseRevision: 1, content: draftContent('Ribollita toscana'), overwriteRevision: 2 });
+
+		// Another agent, knowing only the draft (catalogue_overview lists it).
+		const agent = await c.curator({ agent: true });
+		const listed = toolBody(await call(agent.token, 'catalogue_listDraftSaves', { draftId: d.draftId }));
+		expect(listed).toMatchObject({ draftId: d.draftId, revision: 3, outcome: null });
+		expect(listed.saves.map((s: { revision: number; overwritten: boolean }) => [s.revision, s.overwritten])).toEqual([[3, false], [2, true], [1, false]]);
+		expect(listed.saves[1]).toMatchObject({ savedBy: { userId: marco.userId }, channel: 'web' });
+		const save = toolBody(await call(agent.token, 'catalogue_getDraftSave', { draftId: d.draftId, revision: 2 }));
+		expect(save).toMatchObject({ draftId: d.draftId, revision: 2, overwritten: true, content: { durationMinutes: 150 } });
+		const recovered = toolBody(await call(agent.token, 'catalogue_saveDraft', { draftId: d.draftId, baseRevision: listed.revision, content: save.content }));
+		expect(recovered).toMatchObject({ revision: 4, content: { durationMinutes: 150, name: { 'it-IT': 'Ribollita' } } });
+
+		// Closed drafts keep their saves; a missing revision or draft is not_found.
+		await call(agent.token, 'catalogue_discardDraft', { draftId: d.draftId });
+		expect(toolBody(await call(agent.token, 'catalogue_listDraftSaves', { draftId: d.draftId }))).toMatchObject({ outcome: 'discarded', revision: 4 });
+		expect(toolBody(await call(agent.token, 'catalogue_getDraftSave', { draftId: d.draftId, revision: 9 }))).toMatchObject({ code: 'not_found' });
+		expect(toolBody(await call(agent.token, 'catalogue_listDraftSaves', { draftId: crypto.randomUUID() }))).toMatchObject({ code: 'not_found' });
+		const member = await c.actors.user({ agent: true });
+		expect(toolBody(await call(member.token, 'catalogue_getDraftSave', { draftId: d.draftId, revision: 2 }))).toMatchObject({ code: 'forbidden' });
 	});
 
 	it('refuses a member agent', async () => {

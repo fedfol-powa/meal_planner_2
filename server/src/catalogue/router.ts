@@ -14,7 +14,7 @@ import {
 	varietyCheck,
 } from './ingredients.ts';
 import { loadDraftRow } from './load.ts';
-import { draftViewOf, overview, searchCatalogueRecipes, versionDetail, versionList } from './views.ts';
+import { draftSave, draftSaves, draftViewOf, overview, searchCatalogueRecipes, versionDetail, versionList } from './views.ts';
 import {
 	actorOf,
 	createBook,
@@ -39,6 +39,12 @@ export function catalogueRouter(os: Implementer) {
 		getGuide: os.catalogue.getGuide.handler(() => ({ guide: CURATOR_GUIDE })),
 		overview: os.catalogue.overview.handler(({ context }) => overview(context.tx, context.locale)),
 		getDraft: os.catalogue.getDraft.handler(({ context, input }) => draftView(context, input.draftId)),
+		listDraftSaves: os.catalogue.listDraftSaves.handler(async ({ context, input }) => {
+			const row = await loadDraftRow(context.tx, input.draftId);
+			if (!row) throw appError('not_found');
+			return draftSaves(context.tx, row);
+		}),
+		getDraftSave: os.catalogue.getDraftSave.handler(({ context, input }) => draftSave(context.tx, input.draftId, input.revision)),
 		createDraft: os.catalogue.createDraft.handler(async ({ context, input }) => {
 			const { draftId } = await createDraft(context.tx, actorOf(context), { draftId: input.id, content: input.content });
 			return draftView(context, draftId);
