@@ -1,3 +1,5 @@
+import type { CatalogueLookup } from './check.ts';
+
 export const publishedExample = {
 	schemaVersion: 1,
 	name: { 'it-IT': 'Pasta al tonno', 'en-GB': 'Tuna pasta' },
@@ -37,3 +39,10 @@ export const publishedExample = {
 		}
 	]
 } as const;
+
+/** Catalogue seen by the checks in the tests. */
+export const lookup: CatalogueLookup = {
+	hasIngredient: (id) => ['pasta-corta', 'tonno', 'pomodori'].includes(id),
+	ingredientHasEnglishName: (id) => id !== 'pomodori',
+	hasBook: (id) => id === 'basta-un-wok'
+};

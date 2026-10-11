@@ -1,0 +1,67 @@
+import { LOCALES } from '../units/index.ts';
+import { LIMITS, recipeDraftSchema, type RecipeDraftDocument } from './document.ts';
+import { issuesFromZod, type IssueCode, type IssuePath, type ValidationIssue } from './issues.ts';
+import { filled, type DraftTranslated } from './localized.ts';
+
+// Shared recipe checks (spec section 8): the same rules for MCP, the curators' form and the import.
+
+/** Catalogue facts the checks need, given by the caller so that domain/ stays pure. */
+export interface CatalogueLookup {
+	hasIngredient(id: string): boolean;
+	ingredientHasEnglishName(id: string): boolean;
+	hasBook(id: string): boolean;
+}
+
+export type Add = (code: IssueCode, ...path: IssuePath) => void;
+
+/** Host of an http(s) address, lower case; null otherwise. No URL global: domain/ has no DOM or Node types. */
+export function httpUrlHost(value: string): string | null {
+	const match = /^https?:\/\/([a-z0-9.-]+)(?::\d+)?(?:[/?#][^\s]*)?$/i.exec(value.trim());
+	return match ? match[1].toLowerCase() : null;
+}
+
+const YOUTUBE_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be']);
+
+function checkLength(add: Add, value: DraftTranslated | null | undefined, max: number, ...path: IssuePath) {
+	for (const locale of LOCALES) if ((value?.[locale]?.length ?? 0) > max) add('too_long', ...path, locale);
+}
+
+function checkWholeNumber(add: Add, value: number | null | undefined, max: number, field: string) {
+	if (value != null && !(Number.isInteger(value) && value > 0 && value <= max)) add('not_positive_integer', field);
+}
+
+/** Wrong data in what is present; also the base of the publication check. */
+export function draftIssues(document: RecipeDraftDocument, lookup: CatalogueLookup): ValidationIssue[] {
+	const issues: ValidationIssue[] = [];
+	const add: Add = (code, ...path) => issues.push({ code, path });
+	if (!LOCALES.some((l) => filled(document.name[l]))) add('required', 'name');
+	checkLength(add, document.name, LIMITS.name, 'name');
+	checkLength(add, document.description, LIMITS.description, 'description');
+	if (document.sourceUrl) {
+		const host = httpUrlHost(document.sourceUrl);
+		if (!host || (document.sourceType === 'youtube' && !YOUTUBE_HOSTS.has(host))) add('invalid_url', 'sourceUrl');
+	}
+	if (document.bookId && !lookup.hasBook(document.bookId)) add('unknown_book', 'bookId');
+	if ((document.bookPages?.length ?? 0) > LIMITS.bookPages) add('too_long', 'bookPages');
+	checkWholeNumber(add, document.durationMinutes, LIMITS.durationMinutes, 'durationMinutes');
+	checkWholeNumber(add, document.baseServings, LIMITS.baseServings, 'baseServings');
+
+	let primaries = 0;
+	(document.ingredients ?? []).forEach((line, index) => {
+		if (line.ingredientId !== null && !lookup.hasIngredient(line.ingredientId)) add('unknown_ingredient', 'ingredients', index, 'ingredientId');
+		if (line.isPrimary && ++primaries > 1) add('multiple_primary', 'ingredients', index, 'isPrimary');
+		const q = line.quantity;
+		if (q.kind === 'amount' && q.value !== null && !(Number.isFinite(q.value) && q.value > 0)) add('invalid_amount', 'ingredients', index, 'quantity', 'value');
+		if (q.kind === 'text') checkLength(add, q.text, LIMITS.quantityText, 'ingredients', index, 'quantity', 'text');
+		checkLength(add, line.variety, LIMITS.variety, 'ingredients', index, 'variety');
+		checkLength(add, line.preparation, LIMITS.preparation, 'ingredients', index, 'preparation');
+		if (line.sourceText.length > LIMITS.sourceText) add('too_long', 'ingredients', index, 'sourceText');
+	});
+	return issues;
+}
+
+/** Saving a draft (spec section 8): refuses wrong data, accepts what is still missing. */
+export function checkDraft(input: unknown, lookup: CatalogueLookup): ValidationIssue[] {
+	const parsed = recipeDraftSchema.safeParse(input);
+	return parsed.success ? draftIssues(parsed.data, lookup) : issuesFromZod(parsed.error);
+}
