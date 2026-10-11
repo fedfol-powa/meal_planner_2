@@ -1,7 +1,9 @@
 # App web di base (W5, ondata 1)
 
 Creato: 11 ottobre 2026
-Stato: spec di dettaglio, brainstorming concluso con il coordinatore l'11 ottobre 2026.
+Stato: spec di dettaglio, brainstorming concluso con il coordinatore l'11 ottobre 2026;
+corretta l'11 ottobre dopo la review (`progetto/coordinamento/revisioni/w5-spec-piano.md`)
+con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`).
 Branch `fondamenta/web`, proprietà `web/`.
 
 Estende e rispetta la specifica principale
@@ -17,7 +19,10 @@ La base dell'app React su cui l'ondata 2 aggiunge le funzioni vere. Riuscita:
 - su iPhone, installata come PWA, Menu, Ricettario e Profilo sono coerenti con il
   riferimento approvato, in italiano e in inglese britannico;
 - l'ondata 2 sostituisce il client finto con il client oRPC senza toccare le schermate;
-- il componente voto prova lo schema delle mutazioni che aggiornano la copia locale.
+- il voto prova lo schema delle mutazioni: invio, risultato del server applicato alla
+  copia locale, nessun dato non confermato salvato sul dispositivo;
+- sessione, copia sul dispositivo e PWA reggono uscite, cambi d'utente, accessi revocati,
+  assenza di rete e aggiornamenti dell'app.
 
 ## Perimetro
 
@@ -30,7 +35,12 @@ La base dell'app React su cui l'ondata 2 aggiunge le funzioni vere. Riuscita:
 - Menu e Ricettario in sola lettura completi nella resa, Profilo come elenco con
   destinazioni segnaposto, voto funzionante su dati finti;
 - login con email e password di Supabase; modalità finta senza variabili d'ambiente;
-- cache persistita di TanStack Query in IndexedDB (proposta; integrazione vera con W1).
+- cache persistita di TanStack Query in IndexedDB, legata alla sessione.
+
+Il client oRPC vero **non** è in questa consegna: dopo il merge di W1 una seconda PR
+piccola «client reale» aggiunge adattatore oRPC, conversione degli errori, token, proxy
+di Vite e gestione di `unauthorized` dal server, pianificata allora. Qui si fissa solo
+l'interfaccia `Api` che quel client implementerà.
 
 **Fuori** (ondata 2 o 3): revisione dei pasti (matita, foglio dal basso, avviso
 «Annulla»), Spesa e coda offline, pagine del Profilo, famiglia e impostazioni, bozze e
@@ -44,16 +54,19 @@ funzione che li usa.
 ```
 web/
 ├── index.html, vite.config.ts, tsconfig.json, package.json
-├── public/            manifest.webmanifest, icone, sw.js
+├── public/            manifest.webmanifest, icone
 ├── scripts/           sync-assets.mjs, build-fake-data.mjs
 └── src/
     ├── main.tsx       avvio: QueryClient persistito, contesti, router, service worker
     ├── design/        tokens.css, fonts.css, global.css
     ├── i18n/          LocaleProvider, useT(), dizionari per area, formattatori Intl
-    ├── api/           types.ts, client.ts, queries.ts, persister.ts, fake/
-    ├── auth/          sessione Supabase o utente finto, pagina di ingresso, guardia
+    ├── api/           types.ts, queries.ts, ratings.ts, persister.ts, fake/
+    ├── auth/          backend Supabase o finto, stato dell'accesso, pagina di ingresso
+    ├── session/       sessione: QueryClient e copia per utente, chiusura, lingua
+    ├── lib/           calendario, connettività
     ├── components/    componenti condivisi con moduli CSS
-    └── routes/        rotte definite in codice, una cartella per vista
+    ├── routes/        rotte definite in codice, una cartella per vista
+    └── pwa/           service worker: regole, installazione, registrazione
 ```
 
 `web/` è il workspace npm `@app/web` dello scheletro di W1 (PR #3): dipendenze installate
@@ -92,27 +105,38 @@ si validano con funzioni `validateSearch` nostre.
 | `/login` | Pagina di ingresso, senza navbar |
 | `/menu?day=` | Menu sul giorno scelto, o sul giorno di apertura |
 | `/recipes?q=&meal=&time=&group=&rating=&sort=&dir=` | Ricettario con ricerca, filtri e ordinamento |
-| `/recipes/$recipeId?servings=&from=&day=` | Scheda ricetta; `from=menu&day=` per tornare al giorno |
+| `/recipes/$recipeId?servings=&from=&day=&slot=` | Scheda ricetta; `from=menu&day=&slot=` quando è aperta da un pasto |
 | `/profile` | Profilo |
 
 Senza sessione ogni rotta tranne `/login` rimanda a `/login`, conservando la
-destinazione; dopo l'accesso si torna lì. Una rotta sconosciuta mostra «Contenuto non
-trovato» con il collegamento al Menu.
+destinazione (solo percorsi locali); dopo l'accesso si torna lì. Una rotta sconosciuta
+mostra «Contenuto non trovato» con il collegamento al Menu.
+
+**Riferimento al pasto (rilievo 11).** La scheda aperta da un pasto conserva l'id dello
+slot in `?slot=`, nell'input `recipes.get({ slotId })` e nella chiave della query. Oggi
+il client finto lo ignora; nell'ondata 2 il server lo usa per mostrare la versione con
+cui il pasto passato è stato mangiato e le ricette archiviate citate dai pasti
+(specifica, sezioni 5 e 8, R1).
 
 ## Design
 
 - **Token** da `design/design.md` come variabili CSS in `src/design/tokens.css`
   (valori uguali a `prototype/src/lib/design/tokens.css`), font locali con
   `font-display: swap` e `font-synthesis: none`, stili di base in `global.css`.
+- **Catena delle altezze** (rilievo 8): `html`, `body` e `#root` hanno un'altezza
+  definita (`body` a `100dvh` con `overflow: hidden`, `#root` al 100%), così `.shell`
+  occupa lo schermo e scorrono solo i contenitori previsti (colonne dei giorni, viste
+  secondarie, pagina di ingresso). La navbar resta sempre visibile.
 - **Moduli CSS** di Vite per componente; nessun framework CSS.
-- **Font e foto** copiati da `design/assets` in `web/public/` da `scripts/sync-assets.mjs`
-  prima di `dev` e `build`, ignorati da Git (come nel prototipo, senza duplicati versionati).
+- **Font e foto** copiati da `design/assets` in `web/public/assets/` da
+  `scripts/sync-assets.mjs` prima di `dev` e `build`, ignorati da Git.
 - **Icone** SVG lineari in un componente `Icon` con un insieme chiuso di nomi, presi da
   `IconLibrary.svelte`; sempre con nome accessibile.
 - **Componenti** (React, dal prototipo): `BottomNav`, `Icon`, `RecipeCard` (un solo
   componente per pasti e ricettario, con le forme con foto, senza foto, pasto libero e
   slot vuoto), `RatingStars`, `DaySelector`, `DatePicker`, `IngredientList`,
-  `RecipeFilters`, `PageHeader`, `StateNotice`, `OfflineBanner`, `ServingsStepper`.
+  `RecipeFilters`, `PageHeader`, `StateNotice`, `QueryError`, `FamilyGate`,
+  `OfflineBanner`, `ServingsStepper`.
 - **Controlli** da almeno 44 px, focus visibile, semantica nativa o ARIA, navbar che
   rispetta l'area sicura dell'iPhone.
 
@@ -124,11 +148,16 @@ Come il percorso 1 approvato (`design/percorsi.md`, giro 1; `design/design.md`).
 
 - **Apertura:** il giorno in `?day=` se ha un menu; altrimenti oggi se ha pasti, poi il
   primo giorno futuro con pasti; senza settimane «Ancora nessun menu» con il testo per i
-  membri (la generazione arriva nell'ondata 2).
+  membri (la generazione arriva nell'ondata 2). Un `?day=` malformato o di una settimana
+  inesistente riporta al giorno di apertura.
 - **Barra** sopra il selettore: mese del giorno scelto in Agrandir Tight; a destra le
   icone calendario e borsa. Mese e calendario aprono `DatePicker`, un mese navigabile in
   cui sono attivi solo i giorni con menu. La borsa è visibile ma disattivata, con nome
   accessibile, finché la Spesa non esiste.
+- **Calendario e focus** (rilievo 13): apertura e chiusura passano da un solo percorso
+  che ricorda il controllo che l'ha aperto (mese o icona); alla scelta di un giorno, con
+  Escape o con un tocco fuori, il focus torna a quel controllo. Il focus iniziale va al
+  giorno scelto una sola volta per apertura: una rilettura dei dati non lo sposta.
 - **Selettore dei giorni** a tutta larghezza, bordo scuro e raggio 8 px, giorno attivo
   scuro con testo bianco; sincronizzato con le colonne.
 - **Colonne dei giorni** a scorrimento orizzontale nativo con aggancio; dentro il giorno
@@ -139,12 +168,14 @@ Come il percorso 1 approvato (`design/percorsi.md`, giro 1; `design/design.md`).
   completo nel `title` e per i lettori di schermo). Pasto libero su fondo e bordo dei
   pasti liberi; slot vuoto «Nessuna ricetta adatta». Nota e ultima modifica («Cambiato
   da Anna, giovedì 21:30», «ex membro») quando presenti.
-- **Footer a icone:** scheda ricetta, voto con la media, ingredienti con il numero. Voto
-  e ingredienti si aprono sotto il footer, uno alla volta. Niente matita.
+- **Footer a icone:** scheda ricetta (con il riferimento allo slot), voto con la media,
+  ingredienti con il numero. Voto e ingredienti si aprono sotto il footer, uno alla
+  volta. Niente matita.
 - **Pasto passato** calcolato sul dispositivo, nel fuso orario della famiglia: pranzo
   passato dalle 15:30, cena dalle 23:00 (specifica, sezione 5). Serve solo dove cambia
   qualcosa nella resa; non c'è un'etichetta «Passato».
-- **Navbar:** un tocco su Menu con il Menu già aperto porta al giorno di apertura.
+- **Navbar:** un tocco su Menu con il Menu già aperto porta al giorno di apertura; da
+  un'altra vista il Menu torna sul giorno scelto prima.
 
 ### Ricettario
 
@@ -164,22 +195,24 @@ Come il percorso 2 approvato.
 
 ### Scheda ricetta
 
-Foto 16:9 quando c'è; titolo collegato alla fonte; voto in riga; descrizione; durata;
-porzioni con `ServingsStepper` (− e + da 44 px, valore in `?servings=`); ingredienti
-scalati; ultime volte in cui la famiglia l'ha mangiata, se presenti. La freccia
-«indietro» porta al giorno del Menu se `from=menu`, altrimenti al Ricettario con i
-filtri di prima.
+Foto 16:9 quando c'è; titolo collegato alla fonte web; sotto il titolo la riga della
+fonte quando non è un sito (rilievo 12): «Libro: titolo, pp. pagine», «Ricetta di
+casa», «Video YouTube»; voto in riga; descrizione; durata; porzioni con
+`ServingsStepper` (− e + da 44 px, valore in `?servings=`); ingredienti scalati; ultime
+volte in cui la famiglia l'ha mangiata, se presenti. La freccia «indietro» porta al
+giorno del Menu se `from=menu`, altrimenti al Ricettario con i filtri di prima.
 
 ### Profilo
 
 Nome in Agrandir Tight 28 px ed email; `settings-card` con righe da 52 px:
 
-- **Famiglia:** nome della famiglia mostrata; righe segnaposto disattivate (Membri e
-  inviti, Impostazioni, Non proporre più).
+- **Famiglia:** nome della famiglia mostrata e ruolo; righe segnaposto disattivate
+  (Membri e inviti, Impostazioni, Non proporre più).
 - **Account:** lingua con due scelte (Italiano, English) che cambia subito l'interfaccia
-  (in modalità finta la scelta vive sul dispositivo; il salvataggio sul profilo arriva
-  con l'operazione dell'ondata 2); «Esci», solo in modalità vera (in modalità finta
-  non c'è login).
+  (vedi «Lingua»); «Esci», solo in modalità vera.
+- La scheda Account resta sempre disponibile (rilievo 9): anche se la lettura del
+  profilo fallisce o la persona non ha famiglie, lingua ed «Esci» funzionano; al posto
+  del nome compare l'email della sessione.
 - Le righe dei ruoli (gestione del ricettario, collegamento degli agenti,
   amministrazione) non compaiono: arrivano con le loro funzioni.
 
@@ -204,11 +237,22 @@ Nessuna libreria (deciso con il coordinatore l'11 ottobre 2026).
   suffisso `.one` e `.other`, scelte da `t` quando c'è il parametro `count`.
 - Date, numeri e medie con `Intl`, riusando i formattatori del prototipo
   (`prototype/src/lib/i18n/dates.ts`) e i loro test.
-- Lingua iniziale: prima del login quella del browser (`en-GB` se la lingua del browser
-  è inglese, altrimenti `it-IT`); dopo il login quella del profilo. L'attributo `lang`
-  del documento segue la lingua.
+- L'attributo `lang` del documento segue la lingua.
 - I testi delle ricette arrivano già localizzati nelle viste (sezione 1): il web non li
-  traduce.
+  traduce. Le chiavi delle query comprendono la lingua, così una risposta nella lingua
+  precedente (anche se arriva dopo il cambio) non si mostra mai nella nuova.
+
+**Quale lingua vale** (rilievo 10, decisione del coordinatore):
+
+| Situazione | Lingua |
+|---|---|
+| Modalità finta | Preferenza del dispositivo (chiave `locale:device`), altrimenti quella del browser |
+| Modalità vera, nessuna sessione | Lingua del browser (`en-GB` se inglese, altrimenti `it-IT`) |
+| Modalità vera, con sessione | A ogni cambio d'identità la lingua del profilo (`me.user.locale`); la scelta nel Profilo è temporanea per quell'utente (chiave `locale:user:<id>`), mai globale, e si cancella con la chiusura della sessione |
+
+Il salvataggio della lingua sul profilo arriva con l'operazione dell'ondata 2. Il client
+finto localizza leggendo la lingua corrente dal web; il server di W1 localizza dal
+profilo: con il client reale la scelta nel Profilo dovrà passare da quell'operazione.
 
 ## Dati e client
 
@@ -225,8 +269,8 @@ direttamente:
 | `menu.getOpening` | `familyId` | `{ kind: 'no_weeks' }` o giorno e settimana di apertura |
 | `menu.getWeek` | `familyId`, `weekStartsOn` | `WeekView` |
 | `menu.getDates` | `familyId`, `month` | giorni con menu nel mese |
-| `recipes.search` | `familyId`, `query`, `filters`, `sort` | elenco di `RecipeCardView` |
-| `recipes.get` | `familyId`, `recipeId`, `servings?` | `RecipeDetailView` |
+| `recipes.search` | `familyId`, `query`, `filters`, `sort` | elenco di ricette con voto e ingredienti |
+| `recipes.get` | `familyId`, `recipeId`, `servings?`, `slotId?` | `RecipeDetailView` |
 | `ratings.set` | `familyId`, `recipeId`, `stars` (1-5 o `null`) | `RatingSummary` |
 
 - Le viste sono già pronte: testi nella lingua dell'utente, quantità scalate e
@@ -236,23 +280,24 @@ direttamente:
 - **Errori a codici:** il client lancia `ApiError` con `code` (`forbidden`, `not_found`,
   `invalid`, `conflict`, `unauthorized`, `network`…) e dati facoltativi; il web li
   traduce con `errors.<code>`.
-- **«Invariato» nel contratto** (decisione di W1 riportata dal coordinatore): le letture
-  ricevono `knownVersion` facoltativo e restituiscono `{ unchanged: true, version }`
-  oppure `{ unchanged: false, version, data }`. Lo strato delle query lo gestisce in
-  modo trasparente: passa la versione posseduta e, se `unchanged`, restituisce la vista
-  già in cache. Le schermate ricevono solo `data`. Il client finto restituisce sempre
-  `unchanged: false`.
-- **Token di sessione:** il client vero riceve `getAccessToken()`, che legge la sessione
-  corrente di `supabase-js` a ogni richiesta, e lo mette in `Authorization: Bearer`.
+- **«Invariato» nel contratto** (decisione di W1): le letture ricevono `knownVersion`
+  facoltativo e restituiscono `{ unchanged: true, version }` oppure
+  `{ unchanged: false, version, data }`. **La versione è una stringa opaca** (rilievo 3):
+  il web non la interpreta né la confronta, la conserva e la rimanda. Lo strato delle
+  query la gestisce in modo trasparente: passa la versione posseduta e, se `unchanged`,
+  restituisce la vista già in cache. Le schermate ricevono solo `data`. Il client finto
+  restituisce sempre `unchanged: false` con una versione composta realistica.
+- **Token di sessione:** il backend di accesso espone `getAccessToken()`, letto a ogni
+  richiesta dal futuro client reale (`Authorization: Bearer`).
 - **Build:** `vite build` produce `web/dist`; il Worker di W1 la serve come asset
-  statici con ripiego su `index.html` per le rotte della SPA (girato a W1).
+  statici con ripiego su `index.html` per le rotte della SPA.
 
 ### Query
 
 `web/src/api/queries.ts` contiene le `queryOptions` scritte a mano, con chiavi
-`[area, operazione, input]`, e la funzione che avvolge le letture con `knownVersion`.
-Niente `@orpc/tanstack-query` per ora: l'integrazione ufficiale si valuta nell'ondata 2
-(specifica, sezione 15, «da verificare»).
+`[area, operazione, input]` in cui l'input comprende `familyId` e la lingua, e la
+funzione che avvolge le letture con `knownVersion`. Niente `@orpc/tanstack-query` per
+ora: l'integrazione ufficiale si valuta nell'ondata 2 (specifica, sezione 15).
 
 ### Client finto
 
@@ -261,91 +306,148 @@ Niente `@orpc/tanstack-query` per ora: l'integrazione ufficiale si valuta nell'o
 - **Dati:** `scripts/build-fake-data.mjs` legge in sola lettura
   `prototype/src/lib/demo-data/generated.json` (ricette e ingredienti verificati di
   `../meal_planner`, testi inglesi dimostrativi, settimane, voti di Federico) e scrive
-  `web/src/api/fake/demo-data.json`, versionato, con le sole ricette pubblicate e i campi
-  usati. Persone, famiglia e voti di Anna e Tom come nel `seed.ts` del prototipo.
+  `web/src/api/fake/demo-data.json`, versionato. Persone, famiglia e voti di Anna e Tom
+  come nel `seed.ts` del prototipo.
 - **Date:** le settimane demo si spostano di settimane intere in modo che la settimana
-  del 5 ottobre 2026 diventi la settimana corrente; così l'app ha sempre un menu di
-  oggi. Quella del 12 ottobre diventa la successiva.
+  del 5 ottobre 2026 diventi la settimana corrente.
 - **Porzioni:** scalatura lineare semplice, dichiarata nel codice come finta; quella vera
   la scrive W4 in `domain/`. Unità nel sistema metrico.
-- **Voti:** in memoria per la sessione; la media si ricalcola come nel prototipo.
+- **Connettività** (rilievo 14): come un trasporto vero, il client finto rifiuta ogni
+  chiamata con `network` quando il dispositivo è offline (`navigator.onLine`, lo stesso
+  meccanismo del banner offline).
 
 ### Voto: schema delle mutazioni
 
-`useRateRecipe()` è una `useMutation` che:
+Semplificato dal coordinatore dopo la review (rilievi 4, 5, 6, 14): **nessun
+aggiornamento ottimistico**, quindi nessun dato non confermato entra nella cache né
+nella copia sul dispositivo.
 
-1. in `onMutate` aggiorna in modo ottimistico il `RatingSummary` della ricetta in tutte
-   le viste in cache che la contengono (settimane, ricerche, scheda), salvando lo stato
-   precedente;
-2. in `onSuccess` applica il `RatingSummary` restituito dal server, senza rileggere;
-3. in `onError` ripristina lo stato precedente e mostra l'errore tradotto vicino alle
-   stelle.
+1. Il voto si invia; le stelle mostrano lo stato di invio («Invio del voto…», stelle
+   non modificabili) finché non arriva la risposta.
+2. Alla risposta, il `RatingSummary` del server si applica alle viste in cache **della
+   stessa famiglia** che contengono la ricetta: settimane del Menu e schede ricetta.
+3. Le liste del Ricettario della stessa famiglia, la cui appartenenza o ordine può
+   dipendere dal voto, si marcano scadute e si rileggono quando sono mostrate.
+4. Per la stessa ricetta vale solo la risposta dell'ultima richiesta; le risposte
+   arrivate dopo la chiusura della sessione o un cambio d'utente si scartano.
+5. Errore: le stelle restano al valore confermato e compare l'errore tradotto. Offline il
+   voto fallisce subito con `network`, senza coda e senza invio alla riconnessione.
 
-È il modello per le mutazioni dell'ondata 2: «le proprie modifiche aggiornano la copia
-locale senza rileggere» (sezione 1).
+È il modello per le mutazioni dell'ondata 2.
 
-### Cache persistita (proposta)
+### Cache persistita
 
 - `PersistQueryClientProvider` con un persister su IndexedDB scritto a mano dietro
-  un'interfaccia minima (`getItem`, `setItem`, `removeItem`); i test usano una
+  un'interfaccia minima (`get`, `set`, `delete`, `keys`); i test usano una
   implementazione in memoria della stessa interfaccia.
-- Un database, una chiave per utente (`query-cache:<userId>`); all'uscita la cache in
-  memoria si svuota e la copia dell'utente si cancella.
+- Una chiave per utente (`query-cache:<userId>`). Le scritture di un persister passano
+  in coda: dopo la chiusura il persister non scrive più e la cancellazione avviene dopo
+  le scritture già partite, così nulla ripopola la copia cancellata.
+- All'avvio e a ogni cambio d'identità si cancellano le copie di ogni altro utente.
 - `buster` uguale alla versione della build; `maxAge` 7 giorni, `gcTime` uguale.
-- Si salvano solo le query riuscite; nessuna mutazione persistita (la coda offline è
-  della Spesa, ondata 2).
+- Si salvano solo le query riuscite; nessuna mutazione.
 - Rilettura al ritorno in primo piano e alla riconnessione (`refetchOnWindowFocus`,
   `refetchOnReconnect`); `staleTime` 0, così all'apertura si mostra la copia e si
   verifica la versione.
 
-## Accesso e modalità
+## Accesso e sessione
 
 - **Modalità vera:** con `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` l'app crea
-  il client di Supabase e usa `signInWithPassword`; la sessione la conserva la libreria.
-  Per lo sviluppo si usa lo stack locale (`supabase start`, valori da `supabase status`),
-  la cui configurazione appartiene a W1. Finché il server di W1 non c'è, anche in
-  modalità vera i dati arrivano dal client finto, con l'utente del login.
+  il client di Supabase (chiave di archiviazione propria `cosasimangia-auth`) e usa
+  `signInWithPassword`; la sessione la conserva e rinnova la libreria. Per lo sviluppo si
+  usa lo stack locale (`supabase start`, valori da `supabase status`), la cui
+  configurazione appartiene a W1. Finché il client reale non c'è, anche in modalità vera
+  i dati arrivano dal client finto, con l'utente del login.
 - **Modalità finta:** senza le variabili, utente demo Federico nella Famiglia Folloni,
   nessun login.
-- `AuthProvider` espone `session`, `user`, `signIn`, `signOut`; `signOut` svuota la cache
-  e cancella la copia persistita prima di tornare a `/login`.
+
+**Chiusura della sessione** (rilievo 1, decisione del coordinatore). Una sola procedura,
+usata da «Esci», dall'evento `SIGNED_OUT` arrivato da un'altra scheda o dalla libreria e
+da ogni cambio d'utente:
+
+1. la sessione chiusa diventa inerte: le richieste pendenti si annullano e le loro
+   risposte, come quelle delle mutazioni, si scartano;
+2. si svuota la cache in memoria, si chiude il persister e si cancella la copia
+   persistita dell'utente, dopo le scritture già partite;
+3. si cancella la scelta temporanea di lingua di quell'utente;
+4. per «Esci»: `signOut({ scope: 'local' })`, cioè solo questo dispositivo. Se Supabase
+   restituisce un errore (per esempio rete assente) la pulizia locale avviene comunque:
+   la libreria toglie la sessione salvata anche in quel caso, e il backend lo verifica
+   cancellando la propria chiave se fosse rimasta.
+
+**Accesso rifiutato dal server** (rilievo 2):
+
+- `unauthorized`: un tentativo di rinnovo della sessione e una nuova lettura; se il
+  rinnovo fallisce o il rifiuto si ripete, chiusura della sessione e pagina di ingresso.
+  Il client finto non lo produce mai; il meccanismo si prova con un client di test e
+  riceverà il caso reale con il client oRPC.
+- `forbidden` su una lettura di famiglia: le viste di quella famiglia si tolgono dalla
+  memoria e dalla copia persistita, la famiglia è segnata come revocata per la sessione
+  e le schermate mostrano «Non hai accesso a questa famiglia», senza dati; il profilo si
+  rilegge.
+- Nessuna schermata mostra dati in cache accanto a un errore diverso da `network`.
+
+**Offline senza poter verificare la sessione.** Se all'avvio il rinnovo del token non
+riesce per mancanza di rete, la sessione salvata vale come «non verificata»: la copia sul
+dispositivo si mostra in sola consultazione (banner offline). Alla riconnessione si
+rinnova la sessione; se il rinnovo è rifiutato, si chiude la sessione come sopra.
 
 ## PWA e service worker
 
 - `public/manifest.webmanifest` con nome «Cosa si mangia», `display: standalone`, colori
   del fondo crema e icone 192 e 512 px più l'icona Apple 180 px; meta tag Apple in
   `index.html`, `viewport-fit=cover` per l'area sicura.
-- `public/sw.js` scritto a mano, circa 50 righe:
-  - **navigazioni:** prima la rete, poi `index.html` dalla cache;
-  - **`/assets/*`** (con hash, immutabili): dalla cache dopo il primo uso;
-  - **`/api/*`** e ogni altra richiesta: mai intercettate;
-  - nome della cache con la versione della build, vecchie cache cancellate
-    all'attivazione; il nuovo service worker si attiva alla riapertura dell'app, senza
-    avviso di aggiornamento.
-- Registrato solo nella build di produzione. Le regole stanno in un modulo puro
-  importabile dai test.
-- Il bundle non si divide per rotta: offline sono disponibili tutte le schermate già
-  caricate una volta.
+- Service worker scritto a mano, costruito da Vite come seconda entrata (`/sw.js`), con
+  la logica in un modulo testabile (cache e rete passate come dipendenze):
+  - **installazione** (rilievo 7): scarica l'elenco della shell generato dalla build
+    (`precache.json`: `index.html`, JavaScript e CSS con hash, font) e lo mette tutto in
+    una cache nuova legata alla versione. Se un file non arriva, l'installazione fallisce,
+    la cache parziale si cancella e resta in servizio la versione precedente;
+  - **attivazione:** solo quando la nuova cache è completa si cancellano le vecchie; il
+    nuovo service worker prende il controllo alla riapertura dell'app, senza avvisi;
+  - **navigazioni:** prima la rete (aggiornando `index.html` in cache), poi la shell in
+    cache;
+  - **`/assets/*`:** dalla cache, poi dalla rete (le foto entrano in cache al primo uso);
+  - **rotte del server** (`/api`, `/mcp`, `/internal`, `/shopping-lists`,
+    `/.well-known`, `/openapi.json`) e ogni altra origine o metodo: mai intercettate.
+- Registrato solo nella build di produzione e solo in contesto sicuro: la prima apertura
+  offline è possibile dalla seconda visita, dopo che l'installazione è completa.
 
 ## Errori e stati
 
-- Errore di rotta con `errorComponent`: messaggio tradotto dal codice e «Riprova».
-- `OfflineBanner` da `navigator.onLine` e dagli eventi `online`/`offline`: «Sei offline:
-  puoi consultare i dati già caricati». Il voto offline fallisce con l'errore tradotto.
+- Ogni lettura distingue **caricamento**, **errore** e **dati** (rilievo 9). Gli errori
+  mostrano il messaggio tradotto con «Riprova», che ripete la lettura fallita.
+- `FamilyGate` davanti a Menu, Ricettario e scheda ricetta: caricamento del profilo,
+  errore del profilo con «Riprova», nessuna famiglia («Non fai parte di nessuna
+  famiglia», anche quando la famiglia mostrata non c'è più) e famiglia revocata.
+- `OfflineBanner` dalla connettività (`navigator.onLine` ed eventi `online`/`offline`):
+  «Sei offline: puoi consultare i dati già caricati».
+- Errori di rete con dati già in cache: si mostrano i dati (sola consultazione).
 - Caricamenti con un semplice indicatore accessibile, senza scheletri decorativi.
 - Stati vuoti: nessun menu, giorno senza pasti, nessun risultato, ricetta senza foto o
   descrizione.
 
 ## Verifiche
 
-- **Test Vitest:** dizionari (stesse chiavi, nessun testo vuoto, plurali), formattatori,
-  gestione di «invariato», persister, regole del service worker, pasto passato, giorno
-  di apertura, spostamento delle date demo, client finto (ricerca, filtri, voti); con
-  Testing Library: `RatingStars` con aggiornamento ottimistico e ripristino su errore,
-  `DaySelector`, `RecipeFilters`, pagina di ingresso, guardia delle rotte.
-- `tsc --noEmit` e `vite build` senza errori.
+- **Test Vitest** sui comportamenti critici indicati dalla review: uscita con errore di
+  rete, `SIGNED_OUT` esterno, cambio A→B, richiesta e scrittura persistita pendenti
+  durante l'uscita, riapertura dopo ciascuno; `unauthorized` con rinnovo riuscito e
+  fallito; `forbidden` con cache popolata, anche dopo ricarica; versione composta
+  attraverso query, client e risposta, anche `unchanged`; voto confermato applicato solo
+  alla stessa famiglia, liste rilette, risposte fuori ordine, risposta dopo l'uscita,
+  voto offline senza invio alla riconnessione; lingua A inglese → uscita → B italiano,
+  riapertura con preferenza preesistente, risposte nella lingua precedente; profilo che
+  fallisce, nessuna famiglia, famiglia scomparsa, «Riprova»; riferimento allo slot; fonte
+  da libro; focus del calendario; service worker: prima visita → riapertura offline,
+  aggiornamento A→B → riapertura offline, installazione interrotta.
+- Dizionari, formattatori, calendario, client finto, componenti con Testing Library.
+- `tsc` e `vite build` senza errori, anche dalla radice (`npm test`, `npm run typecheck`).
 - **Prova nel browser** con agent-browser a 320, 390 e 1440 px, in italiano e inglese,
-  confrontata con `design/index.html` e gli screenshot `design/references/hellofresh/preview-*`.
+  confrontata con `design/index.html` e gli screenshot
+  `design/references/hellofresh/preview-*`; Ricettario lungo e Menu con ingredienti
+  aperti a 320 e 390 px (navbar visibile, fine del contenuto raggiungibile); prova da
+  tastiera e con VoiceOver del calendario e delle stelle; apertura offline e
+  aggiornamento della build su `localhost`.
 - **iPhone:** `npm run preview:lan` su porta 8767 per resa e installazione come PWA.
   Sulla rete locale l'indirizzo è `http`, e senza contesto sicuro il browser non
   registra il service worker: l'apertura offline si prova sul Mac con `localhost` e su
@@ -355,11 +457,13 @@ locale senza rileggere» (sezione 1).
 
 | Con | Cosa | Stato |
 |---|---|---|
-| W1 | Forma di `Api` e client oRPC, `getAccessToken()`, build in `web/dist` servita come asset con ripiego su `index.html` | Accettata dal coordinatore, girata a W1 |
-| W1 | «Invariato» nel contratto con `knownVersion` | Deciso da W1 |
+| W1 | Forma di `Api`, `getAccessToken()`, build in `web/dist` servita come asset con ripiego su `index.html` | Accettata dal coordinatore, girata a W1 |
+| W1 | «Invariato» nel contratto con `knownVersion`; versione stringa opaca | Deciso da W1 |
+| W1 | Client oRPC reale, errori, token, proxy di Vite, `unauthorized` | Seconda PR di W5 dopo il merge di W1, pianificata allora |
 | W1 | Configurazione degli ambienti e variabili `VITE_SUPABASE_*` per lo stack locale | Da concordare tramite il coordinatore |
 | W1 | `web/` come workspace `@app/web`, script `test` e `typecheck` eseguiti dalla CI | Scheletro unito su `main` (PR #3) |
 | W4 | Scalatura e conversione vere delle quantità (il client finto le simula) | Ondata 2 |
+| Ondata 2 | Salvataggio della lingua sul profilo; versioni storiche dei pasti tramite `slotId` | Ondata 2 |
 
 ## Decisioni da riportare nella specifica
 
@@ -367,31 +471,49 @@ locale senza rileggere» (sezione 1).
 
 - Accesso del traguardo A solo con email e password di Supabase, senza «password
   dimenticata» nell'app; link via email e Google nell'ondata 3 (sezioni 7 e 14).
+- «Esci» chiude la sessione solo su questo dispositivo e cancella i dati salvati
+  dell'utente anche se il servizio non risponde (sezione 7).
+- Offline con sessione non verificabile: la copia sul dispositivo resta consultabile;
+  alla riconnessione un rinnovo rifiutato chiude la sessione (sezioni 1 e 7).
+- Accesso revocato a una famiglia: i suoi dati spariscono subito dal dispositivo
+  (sezioni 1 e 7).
+- Lingua: profilo a ogni accesso; prima del login quella del browser; la scelta nel
+  Profilo è per utente e, fino all'operazione di salvataggio, temporanea (sezione 12;
+  chiude in parte la voce «Lingue» della sezione 15 per l'impostazione iniziale).
 - Nella prima base dell'app la borsa della spesa è visibile ma disattivata e il Profilo
-  mostra le destinazioni future come segnaposto (sezione 14; temporaneo, fino all'ondata 2).
+  mostra le destinazioni future come segnaposto (sezione 14; temporaneo, fino
+  all'ondata 2).
+- La prima apertura offline dell'app installata è garantita dalla seconda visita
+  (sezione 1).
 
 **Tecniche:**
 
 - Localizzazione del web senza librerie: dizionari TypeScript tipati divisi per area,
-  `useT()`, plurali con `Intl.PluralRules`, date e numeri con `Intl`; lingua iniziale
-  dal browser prima del login (sezioni 1 e 12; chiude in parte la voce «Lingue» della
-  sezione 15 per l'impostazione iniziale della lingua).
+  `useT()`, plurali con `Intl.PluralRules`, date e numeri con `Intl`; lingua nelle chiavi
+  delle query (sezioni 1 e 12).
 - Rotte TanStack Router definite in codice, senza plugin delle rotte basate su file;
   stili in CSS puro con token e moduli CSS (sezione 1).
-- Service worker scritto a mano senza `vite-plugin-pwa`: navigazioni dalla rete con
-  ripiego su `index.html`, `/assets/*` dalla cache, `/api/*` mai intercettate,
+- Service worker scritto a mano senza `vite-plugin-pwa`: shell completa installata da
+  un elenco generato dalla build, vecchie cache cancellate solo a nuova cache completa,
+  navigazioni dalla rete con ripiego sulla shell, rotte del server mai intercettate,
   attivazione alla riapertura (sezione 1).
 - Cache persistita con `@tanstack/react-query-persist-client` e persister IndexedDB
-  scritto a mano, una copia per utente cancellata all'uscita, `buster` sulla versione
-  della build, `maxAge` 7 giorni (sezione 1, letture dalla copia sul dispositivo).
+  scritto a mano con scritture in coda, una copia per utente legata alla sessione e
+  cancellata a ogni chiusura, `buster` sulla versione della build, `maxAge` 7 giorni
+  (sezione 1, letture dalla copia sul dispositivo).
 - «Invariato» espresso nel contratto (`knownVersion`, `{ unchanged, version, data }`)
-  al posto di HTTP 304 con `ETag`, gestito in modo trasparente dallo strato delle query
-  del web (sezione 1; decisione di W1).
+  con versione stringa opaca, al posto di HTTP 304 con `ETag`, gestito in modo
+  trasparente dallo strato delle query del web (sezione 1; decisione di W1).
+- Mutazioni senza aggiornamento ottimistico: risultato del server applicato alle viste
+  della stessa famiglia, liste derivate rilette, ultima risposta per oggetto, risposte
+  di sessioni chiuse scartate, nessuna coda offline fuori dalla Spesa (sezione 1).
+- Una sola procedura di chiusura della sessione; `unauthorized` con un rinnovo e poi
+  login; `forbidden` con rimozione delle viste dell'ambito (sezione 1).
 - Query del web con `queryOptions` scritte a mano; `@orpc/tanstack-query` da valutare
   nell'ondata 2 (sezioni 1 e 15).
-- Mutazioni con aggiornamento ottimistico delle viste in cache, risposta applicata senza
-  rileggere e ripristino su errore, provate con il voto (sezione 1).
+- Riferimento allo slot nella scheda aperta da un pasto, per le versioni storiche
+  (sezioni 5 e 8, R1).
 - Test del web con Vitest, Testing Library e jsdom; prova visiva con agent-browser e
   iPhone, senza Playwright (sezione 9).
 - Modalità finta del web senza variabili di Supabase, con client finto che implementa
-  la stessa interfaccia del client vero (sezione 1).
+  la stessa interfaccia del client vero e simula l'assenza di rete (sezione 1).

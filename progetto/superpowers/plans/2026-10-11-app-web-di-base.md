@@ -2,9 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+Corretto l'11 ottobre 2026 dopo la review (`progetto/coordinamento/revisioni/w5-spec-piano.md`) con le decisioni del coordinatore (`progetto/coordinamento/messaggi/w5-01-review.md`): voto senza aggiornamento ottimistico, chiusura della sessione unica, accessi rifiutati, versioni stringa, PWA con shell completa, lingua per identità, riferimento allo slot.
+
 **Goal:** Costruire in `web/` la base React dell'app (SPA, PWA, design, lingue, login, Menu, Ricettario e Profilo con dati finti) su cui l'ondata 2 aggiunge le funzioni vere.
 
-**Architecture:** SPA Vite con rotte TanStack Router definite in codice e dati TanStack Query letti attraverso un'interfaccia `Api` con la stessa forma del futuro client oRPC. Per ora la implementa un client finto alimentato dai dati demo del prototipo. Lo strato delle query gestisce in modo trasparente la risposta «invariato» del contratto. La cache è persistita per utente in IndexedDB. Il service worker è scritto a mano e costruito da Vite come seconda entrata.
+**Architecture:** SPA Vite con rotte TanStack Router definite in codice e dati TanStack Query letti attraverso un'interfaccia `Api` con la stessa forma del futuro client oRPC. Per ora la implementa un client finto alimentato dai dati demo del prototipo. Una sessione per utente possiede `QueryClient`, copia persistita in IndexedDB e scelta di lingua, e si chiude con una sola procedura (uscita, uscita da un'altra scheda, cambio d'utente, rifiuto del server). Lo strato delle query gestisce in modo trasparente la risposta «invariato» del contratto, con versioni stringa opache. Il service worker è scritto a mano: la logica è un modulo testabile, la shell completa viene installata da un elenco generato dalla build.
 
 **Tech Stack:** React 19, Vite 8 con `@vitejs/plugin-react`, TanStack Router 1, TanStack Query 5 con `@tanstack/react-query-persist-client`, `@supabase/supabase-js` 2, TypeScript 6, Vitest 4.1 (come la radice), Testing Library per React, jsdom. Node 26. `web/` è il workspace npm `@app/web` dello scheletro di W1 (PR #3).
 
@@ -12,37 +14,45 @@
 
 ## Global Constraints
 
-- Lavorare solo in `web/` (proprietà di W5); non toccare la radice, `prototype/`, `design/` né altre directory, che si leggono soltanto.
+- Lavorare solo in `web/` (proprietà di W5), più `package-lock.json` della radice per le dipendenze; non toccare `prototype/`, `design/` né altre directory, che si leggono soltanto.
 - Codice, nomi di file, commenti e test in inglese; ogni testo per l'utente passa da `useT()` con chiavi presenti in `it-IT` e `en-GB`.
 - Dipendenze di esecuzione solo: `react`, `react-dom`, `@tanstack/react-router`, `@tanstack/react-query`, `@tanstack/react-query-persist-client`, `@supabase/supabase-js`. Di sviluppo solo: `vite`, `@vitejs/plugin-react`, `@types/react`, `@types/react-dom`, `@testing-library/react`, `@testing-library/dom`, `jsdom` (`typescript` e `vitest` dalla radice). Nessun'altra senza passare dal coordinatore.
 - Versioni verificate l'11 ottobre 2026 (`npm view`): react 19.3, @tanstack/react-router 1.170, @tanstack/react-query 5.104, @supabase/supabase-js 2.117, vite 8.3, @vitejs/plugin-react 6.1, @testing-library/react 16.3, jsdom 30.1. Vitest e TypeScript sono quelli della radice (`vitest ^4.1.11`, `typescript ^6.0.3`): non se ne installa una seconda versione.
-- Workspace npm: le dipendenze si installano dalla radice con `npm install -w web …` (un solo `package-lock.json`, alla radice); `web/package.json` deve avere gli script `test` e `typecheck` veri, perché la radice e la CI li lanciano con `--if-present`.
+- Workspace npm: le dipendenze si installano dalla radice con `npm install -w web …` (un solo `package-lock.json`); `web/package.json` ha gli script `test` e `typecheck` veri, perché la radice e la CI li lanciano con `--if-present`.
+- `web/tsconfig.json` estende `tsconfig.base.json` (`verbatimModuleSyntax`, `erasableSyntaxOnly`): tipi importati con `import type` o `type` in linea, niente `enum` né proprietà nei parametri dei costruttori.
 - Prima di usare un'API di una libreria non mostrata in questo piano, consultarla con Context7 (`/tanstack/router`, `/tanstack/query`, `/supabase/supabase-js`, `/vitejs/vite`).
 - Token e componenti di `design/design.md`: fondo `#FAF8F3`, testo `#232323`, verde `#067A46`, Agrandir per i titoli dei piatti, Agrandir Tight per le sezioni, Roboto per il corpo; controlli da almeno 44 px; schede senza raggio con ombra `0 1px 3px rgb(0 0 0 / 10%)`; pulsanti con raggio 8 px.
 - Il pasto è passato dalle 15:30 (pranzo) e dalle 23:00 (cena), ora locale della famiglia.
+- Versioni delle letture: `string` opaca, mai interpretata né convertita.
+- Nessun aggiornamento ottimistico e nessuna coda di mutazioni: in cache e su disco solo dati confermati dal server.
+- Nessuna schermata mostra dati in cache accanto a un errore diverso da `network`.
 - Porta della prova su iPhone: 8767.
 - Commit piccoli con messaggio in italiano e la riga `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Ingredienti mai dedotti dal nome del piatto: il client finto usa solo quelli dei dati demo.
+- Il client oRPC vero non fa parte di questo piano (seconda PR dopo il merge di W1).
 
 ## Review Focus
 
-- Due persone sullo stesso telefono: dopo l'uscita di A e l'ingresso di B, B non deve vedere nulla di A, né in memoria né da IndexedDB (test nel Task 8).
-- `?day=` scritto a mano, malformato o di una settimana che non esiste: il Menu apre il giorno di apertura senza errori (test nel Task 13).
-- Voto che fallisce (offline, server che rifiuta): le stelle e la media tornano ovunque al valore di prima e compare l'errore tradotto (test nel Task 11).
-- Cambio di lingua: tutta l'interfaccia e i testi delle ricette passano all'altra lingua e cambia l'attributo `lang` del documento (test nel Task 16).
-- Copia salvata illeggibile o di una build precedente: l'app parte comunque, a cache vuota (test nel Task 7).
+Rilievi della review e loro test (i più probabili a colpire chi usa l'app):
+
+- Telefono condiviso: uscita con errore di rete, uscita da un'altra scheda, cambio A→B, richiesta e scrittura su disco pendenti durante l'uscita, riapertura: nulla di A riappare (Task 8 e 9).
+- Accesso rifiutato dal server con cache popolata: `unauthorized` con un rinnovo e poi login; `forbidden` toglie i dati della famiglia da memoria e disco, anche dopo ricarica (Task 9).
+- Voto: risultato applicato solo alla stessa famiglia, liste del Ricettario rilette, risposte fuori ordine, risposta dopo l'uscita, voto offline senza invio alla riconnessione (Task 12).
+- Lingua: A inglese → uscita → B con profilo italiano; preferenza preesistente sul dispositivo; risposta nella lingua precedente arrivata dopo il cambio (Task 9 e 17).
+- PWA: prima visita → riapertura offline; aggiornamento A→B → riapertura offline; installazione interrotta (Task 18). Profilo che fallisce, nessuna famiglia, «Riprova» (Task 10). Altezze dei contenitori a 320 e 390 px (Task 19, nel browser).
+- Altri rilievi coperti: versione composta attraverso query, client e risposta (Task 6), riferimento allo slot (Task 13, 14 e 16), fonte da libro (Task 16), focus del calendario (Task 14).
 
 ## Mappa dei file
 
 ```
 web/
-├── .gitignore                    dist/, public/assets/ (copiati), node_modules/
-├── README.md                     comandi e modalità
+├── .gitignore                    public/assets/ (copiati da design/)
+├── README.md                     comandi, modalità, limiti
 ├── index.html                    meta PWA e Apple, viewport-fit=cover
-├── package.json, tsconfig.json, vite.config.ts
+├── package.json, tsconfig.json, vite.config.ts (con il plugin che genera precache.json)
 ├── public/
 │   ├── manifest.webmanifest
-│   └── icons/                    icon-192.png, icon-512.png, apple-touch-icon.png, icon.svg
+│   └── icons/                    icon.svg, icon-192.png, icon-512.png, apple-touch-icon.png
 ├── scripts/
 │   ├── sync-assets.mjs           font e foto da ../design/assets in public/assets
 │   ├── build-fake-data.mjs       dati demo ridotti dal prototipo
@@ -50,28 +60,29 @@ web/
 └── src/
     ├── main.tsx                  avvio e registrazione del service worker
     ├── App.tsx                   AppRoot: provider e router, usato anche dai test
-    ├── env.ts                    lettura di VITE_SUPABASE_* e versione della build
-    ├── vite-env.d.ts             tipi di import.meta.env e __BUILD_VERSION__
+    ├── env.ts, vite-env.d.ts     variabili VITE_SUPABASE_*, versione della build
     ├── design/                   tokens.css, fonts.css, global.css
-    ├── lib/calendar.ts           date ISO, settimane, pasto passato, ora locale
+    ├── lib/                      calendar.ts, connectivity.ts
     ├── i18n/                     messages/*.ts, translate.ts, dates.ts, text.ts, LocaleProvider.tsx
     ├── api/
     │   ├── types.ts              viste, input, Read<T>, Api
-    │   ├── errors.ts             ApiError e codici
+    │   ├── errors.ts             ApiError, codici, isBlocking
     │   ├── ApiProvider.tsx       contesto React di Api
-    │   ├── queries.ts            readThrough, Versioned, queryOptions
-    │   ├── ratings.ts            useRateRecipe e aggiornamento delle viste
-    │   ├── persister.ts          KeyValueStore, IndexedDB, memoria, createPersister
+    │   ├── queries.ts            readThrough, Versioned, chiavi con lingua, queryOptions
+    │   ├── ratings.ts            useRateRecipe e applicazione del risultato
+    │   ├── persister.ts          KeyValueStore, IndexedDB, memoria, persister in coda
     │   └── fake/                 demo-data.json, seed.ts, quantity.ts, fakeApi.ts
     ├── auth/                     backend.ts, supabaseBackend.ts, AuthProvider.tsx, LoginPage.tsx
-    ├── session/SessionScope.tsx  QueryClient e persister per utente, useSignOut
+    ├── session/                  SessionScope.tsx, session.ts, localePreference.ts, useFamily.ts
     ├── router.tsx                albero delle rotte, guardia, layout
-    ├── components/               Icon, BottomNav, StateNotice, PageHeader, OfflineBanner,
-    │                             RatingStars, RecipeCard, IngredientList, DaySelector,
-    │                             DatePicker, RecipeFilters, ServingsStepper
-    ├── routes/                   MenuPage, RecipesPage, RecipePage, ProfilePage, NotFound, RouteError
-    ├── pwa/                      sw-rules.ts, sw.ts, register.ts
-    └── test/                     setup.ts, renderApp.tsx
+    ├── components/               Icon, BottomNav, StateNotice, QueryError, FamilyGate, PageHeader,
+    │                             OfflineBanner, Loading, RatingStars, RecipeCard, IngredientList,
+    │                             DaySelector, DatePicker, RecipeFilters, ServingsStepper
+    ├── routes/                   MenuPage, RecipesPage, RecipePage, ProfilePage, AppLayout,
+    │                             NotFound, RouteError, search.ts, menu/
+    ├── pwa/                      sw-rules.ts, precache.ts, sw-core.ts, sw.ts, register.ts
+    └── test/                     setup.ts, connectivity.ts, stubBackend.ts, renderApp.tsx,
+                                  renderWithProviders.tsx
 ```
 
 ---
@@ -174,7 +185,7 @@ export default defineConfig({
   }
 });
 ```
-Nota: finché `src/pwa/sw.ts` non esiste (Task 17), creare un file provvisorio `web/src/pwa/sw.ts` con il solo commento `// Service worker: written in task 17.` così la build funziona.
+Nota: finché `src/pwa/sw.ts` non esiste (Task 18), creare un file provvisorio `web/src/pwa/sw.ts` con il solo commento `// Service worker: written in task 18.` così la build funziona.
 
 `web/index.html`:
 ```html
@@ -256,6 +267,9 @@ console.log('Assets synced to public/assets');
 - aggiungere in fondo:
 ```css
 /* Web app additions (W5). */
+/* Height chain for the React mount point: only the intended containers scroll (review, finding 8). */
+html { height: 100%; }
+#root { height: 100%; }
 .field input[type='password'] { min-height: 44px; padding: 8px 12px; border: 1px solid var(--ink); border-radius: 8px; background: var(--paper); color: var(--ink); font: 400 1rem/1.5 var(--text-font); }
 .recipe-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .loading { margin: 24px 0; color: var(--muted); }
@@ -291,14 +305,14 @@ Expected: FAIL, `Failed to resolve import "./App"`. (Vitest usa `web/vite.config
 
 - [ ] **Step 6: App provvisoria e avvio**
 
-`web/src/App.tsx` (lo sostituisce il Task 9):
+`web/src/App.tsx` (lo sostituisce il Task 10):
 ```tsx
 export function App() {
   return <p>Cosa si mangia</p>;
 }
 ```
 
-`web/src/main.tsx` (lo completano i Task 9 e 17):
+`web/src/main.tsx` (lo completano i Task 10 e 18):
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -468,8 +482,8 @@ git commit -m "Web: date di calendario, pasto passato e ora locale della famigli
   - `initialLocale(languages: readonly string[]): Locale`
   - `formatDayShort`, `formatDayNumber`, `formatDayLong`, `formatDayMonth`, `formatMonthYear`, `formatChangeTime`, `formatAverage` (firma `(locale: Locale, value) => string`)
   - `truncate(text: string, max: number): string`
-  - `<LocaleProvider initial: Locale>`; `useLocale(): { locale: Locale; setLocale(l: Locale, options?: { remember?: boolean }): void; hasDeviceChoice: boolean }`; `useT(): (key: MessageKey, params?: MessageParams) => string`; `useProfileLocale(profileLocale: Locale | undefined): void`
-  - chiave di `localStorage`: `'locale'`
+  - `<LocaleProvider initial: Locale>`; `useLocale(): { locale: Locale; setLocale(l: Locale): void }`; `useT(): (key: MessageKey, params?: MessageParams) => string`
+  - il provider tiene solo la lingua corrente e l'attributo `lang`: quale lingua vale (dispositivo, browser, profilo, scelta per utente) lo decide la sessione nel Task 9
 
 - [ ] **Step 1: Dizionari**
 
@@ -489,6 +503,8 @@ export const it = {
   'common.retry': 'Riprova',
   'common.loading': 'Caricamento…',
   'common.soon': 'In arrivo',
+  'family.none.title': 'Non fai parte di nessuna famiglia',
+  'family.none.body': 'Chiedi a un amministratore della famiglia di invitarti.',
   'offline.banner': 'Sei offline: puoi consultare i dati già caricati.',
   'notFound.title': 'Contenuto non trovato',
   'notFound.action': 'Vai al menu'
@@ -506,6 +522,8 @@ export const en = {
   'common.retry': 'Try again',
   'common.loading': 'Loading…',
   'common.soon': 'Coming soon',
+  'family.none.title': 'You are not in a family',
+  'family.none.body': 'Ask a family administrator to invite you.',
   'offline.banner': 'You are offline: you can browse what is already loaded.',
   'notFound.title': 'Not found',
   'notFound.action': 'Go to the menu'
@@ -550,6 +568,7 @@ export const it = {
   'rating.votes.other': '{count} voti',
   'rating.none': 'Nessun voto',
   'rating.mine': 'Il tuo voto',
+  'rating.sending': 'Invio del voto…',
   'rating.give': 'Dai {stars} stelle a {recipe}',
   'rating.removeStars': 'Il tuo voto: {stars} stelle. Tocca di nuovo per toglierlo',
   'rating.averageLabel': 'Media della famiglia: {value}, {votes}'
@@ -591,6 +610,7 @@ export const en = {
   'rating.votes.other': '{count} votes',
   'rating.none': 'No ratings',
   'rating.mine': 'Your rating',
+  'rating.sending': 'Sending your rating…',
   'rating.give': 'Give {recipe} {stars} stars',
   'rating.removeStars': 'Your rating: {stars} stars. Tap again to remove it',
   'rating.averageLabel': 'Family average: {value}, {votes}'
@@ -850,39 +870,28 @@ describe('dates and numbers', () => {
 `web/src/i18n/LocaleProvider.test.tsx`:
 ```tsx
 import { act, render, screen } from '@testing-library/react';
-import { beforeEach, expect, it } from 'vitest';
+import { expect, it } from 'vitest';
 import { LocaleProvider, useLocale, useT } from './LocaleProvider';
 
 function Probe() {
   const t = useT();
-  const { setLocale, hasDeviceChoice } = useLocale();
+  const { setLocale } = useLocale();
   return (
     <>
       <p>{t('nav.recipes')}</p>
-      <p>{hasDeviceChoice ? 'chosen' : 'default'}</p>
       <button onClick={() => setLocale('en-GB')}>en</button>
     </>
   );
 }
 
-beforeEach(() => localStorage.clear());
-
-it('switches language, remembers it on the device and sets the document language', () => {
+it('switches language and sets the document language, without storing anything', () => {
   render(<LocaleProvider initial="it-IT"><Probe /></LocaleProvider>);
   expect(screen.getByText('Ricettario')).toBeTruthy();
-  expect(screen.getByText('default')).toBeTruthy();
   expect(document.documentElement.lang).toBe('it');
   act(() => screen.getByText('en').click());
   expect(screen.getByText('Recipes')).toBeTruthy();
-  expect(screen.getByText('chosen')).toBeTruthy();
   expect(document.documentElement.lang).toBe('en-GB');
-  expect(localStorage.getItem('locale')).toBe('en-GB');
-});
-
-it('starts from the stored choice', () => {
-  localStorage.setItem('locale', 'en-GB');
-  render(<LocaleProvider initial="it-IT"><Probe /></LocaleProvider>);
-  expect(screen.getByText('Recipes')).toBeTruthy();
+  expect(localStorage.length).toBe(0);
 });
 ```
 
@@ -939,51 +948,24 @@ export function truncate(text: string, max: number): string {
 `web/src/i18n/LocaleProvider.tsx`:
 ```tsx
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { LOCALES, translate, type Locale, type MessageKey, type MessageParams } from './translate';
-
-const STORAGE_KEY = 'locale';
-
-// Storage may be unavailable (private mode): the choice then lasts only for the session.
-function readStored(): Locale | null {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return LOCALES.includes(value as Locale) ? (value as Locale) : null;
-  } catch {
-    return null;
-  }
-}
+import { translate, type Locale, type MessageKey, type MessageParams } from './translate';
 
 interface LocaleContextValue {
   locale: Locale;
-  /** remember: false applies the profile language without making it a device choice. */
-  setLocale: (locale: Locale, options?: { remember?: boolean }) => void;
-  /** True when this device chose a language; it then wins over the profile (spec, Profilo). */
-  hasDeviceChoice: boolean;
+  /** Which language applies (device, browser, profile, per-user choice) is decided by the session. */
+  setLocale: (locale: Locale) => void;
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ initial, children }: { initial: Locale; children: ReactNode }) {
-  const [stored, setStored] = useState<Locale | null>(readStored);
-  const [fallback, setFallback] = useState<Locale>(initial);
-  const locale = stored ?? fallback;
-
-  const setLocale = useCallback((next: Locale, options?: { remember?: boolean }) => {
-    setFallback(next);
-    if (options?.remember === false) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Not persisted; still applied for this session.
-    }
-    setStored(next);
-  }, []);
+  const [locale, setLocale] = useState<Locale>(initial);
 
   useEffect(() => {
     document.documentElement.lang = locale === 'it-IT' ? 'it' : 'en-GB';
   }, [locale]);
 
-  const value = useMemo(() => ({ locale, setLocale, hasDeviceChoice: stored !== null }), [locale, setLocale, stored]);
+  const value = useMemo(() => ({ locale, setLocale }), [locale]);
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
@@ -996,14 +978,6 @@ export function useLocale(): LocaleContextValue {
 export function useT() {
   const { locale } = useLocale();
   return useCallback((key: MessageKey, params?: MessageParams) => translate(locale, key, params), [locale]);
-}
-
-/** Profile language from the server, applied only if this device made no choice. */
-export function useProfileLocale(profileLocale: Locale | undefined) {
-  const { hasDeviceChoice, locale, setLocale } = useLocale();
-  useEffect(() => {
-    if (profileLocale && !hasDeviceChoice && profileLocale !== locale) setLocale(profileLocale, { remember: false });
-  }, [profileLocale, hasDeviceChoice, locale, setLocale]);
 }
 ```
 
@@ -1075,9 +1049,9 @@ export interface MeView {
   families: FamilyView[]; currentFamilyId: string | null;
 }
 
-/** «Invariato» in the contract (decided by W1): reads take knownVersion and may answer unchanged. */
-export type Read<T> = { unchanged: true; version: number } | { unchanged: false; version: number; data: T };
-export interface ReadInput { knownVersion?: number }
+/** «Invariato» in the contract (decided by W1). The version is an opaque string: kept and sent back, never parsed. */
+export type Read<T> = { unchanged: true; version: string } | { unchanged: false; version: string; data: T };
+export interface ReadInput { knownVersion?: string }
 export interface FamilyInput extends ReadInput { familyId: string }
 
 /** Same shape as the future oRPC client (nested by area). Names align with wave 2's contract. */
@@ -1091,7 +1065,8 @@ export interface Api {
   };
   recipes: {
     search(input: FamilyInput & { query: RecipeQuery }): Promise<Read<RecipeListItem[]>>;
-    get(input: FamilyInput & { recipeId: string; servings?: number }): Promise<Read<RecipeDetailView>>;
+    /** slotId: opened from that meal; wave 2 shows the version it was eaten with (spec R1). */
+    get(input: FamilyInput & { recipeId: string; servings?: number; slotId?: string }): Promise<Read<RecipeDetailView>>;
   };
   ratings: { set(input: { familyId: string; recipeId: string; stars: number | null }): Promise<RatingSummary> };
 }
@@ -1104,6 +1079,8 @@ export type ApiErrorCode = 'forbidden' | 'not_found' | 'invalid' | 'conflict' | 
 export class ApiError extends Error { readonly code: ApiErrorCode; readonly data?: unknown; constructor(code: ApiErrorCode, data?: unknown) }
 export function toApiError(error: unknown): ApiError;
 export function errorKey(error: unknown): MessageKey; // 'errors.<code>'
+/** True when a screen must show the error instead of cached data: anything but a network error with data. */
+export function isBlocking(error: unknown, hasData: boolean): boolean;
 ```
 
 - Produces (da `src/api/ApiProvider.tsx`): `<ApiProvider api={Api}>`, `useApi(): Api`.
@@ -1112,7 +1089,7 @@ export function errorKey(error: unknown): MessageKey; // 'errors.<code>'
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { ApiError, errorKey, toApiError } from './errors';
+import { ApiError, errorKey, isBlocking, toApiError } from './errors';
 
 describe('api errors', () => {
   it('keeps API errors and wraps everything else', () => {
@@ -1124,6 +1101,11 @@ describe('api errors', () => {
   it('maps codes to message keys', () => {
     expect(errorKey(new ApiError('forbidden'))).toBe('errors.forbidden');
     expect(errorKey(new Error('x'))).toBe('errors.unknown');
+  });
+  it('lets only network errors keep cached data on screen', () => {
+    expect(isBlocking(new ApiError('network'), true)).toBe(false);
+    expect(isBlocking(new ApiError('network'), false)).toBe(true);
+    expect(isBlocking(new ApiError('forbidden'), true)).toBe(true);
   });
 });
 ```
@@ -1168,6 +1150,11 @@ export function toApiError(error: unknown): ApiError {
 export function errorKey(error: unknown): MessageKey {
   return `errors.${toApiError(error).code}`;
 }
+
+/** Offline, the stored copy stays readable; any other error hides it (review, finding 2). */
+export function isBlocking(error: unknown, hasData: boolean): boolean {
+  return toApiError(error).code !== 'network' || !hasData;
+}
 ```
 
 `web/src/api/ApiProvider.tsx`:
@@ -1203,18 +1190,61 @@ git commit -m "Web: viste provvisorie, errori a codici e interfaccia Api con la 
 
 ---
 
-### Task 5: Dati demo e client finto
+### Task 5: Connettività, dati demo e client finto
 
 **Files:**
-- Create: `web/scripts/build-fake-data.mjs`, `web/src/api/fake/demo-data.json` (generato), `web/src/api/fake/seed.ts`, `web/src/api/fake/quantity.ts`, `web/src/api/fake/fakeApi.ts`
+- Create: `web/src/lib/connectivity.ts`, `web/src/test/connectivity.ts`, `web/scripts/build-fake-data.mjs`, `web/src/api/fake/demo-data.json` (generato), `web/src/api/fake/seed.ts`, `web/src/api/fake/quantity.ts`, `web/src/api/fake/fakeApi.ts`
 - Test: `web/src/api/fake/quantity.test.ts`, `web/src/api/fake/fakeApi.test.ts`
 
 **Interfaces:**
 - Consumes: tipi di `src/api/types.ts`; `ApiError`; funzioni di `src/lib/calendar.ts`; `translate`, `Locale`.
 - Produces:
+  - `isOnline(): boolean`, `subscribeConnectivity(onChange: () => void): () => void` (da `src/lib/connectivity.ts`)
+  - `setOnline(online: boolean): void` per i test (da `src/test/connectivity.ts`)
   - `createFakeApi(options: FakeApiOptions): Api` con `interface FakeApiOptions { getLocale: () => Locale; user?: { id: string; email: string }; latencyMs?: number }`
   - `DEMO_FAMILY_ID = 'family-main'`, `DEMO_USER_ID = 'user-federico'`
   - `formatAmount(quantity: Quantity, sourceText: string, text: Translated | null, locale: Locale): string`, `scaleQuantity(quantity: Quantity, factor: number): Quantity`
+
+- [ ] **Step 0: Connettività**
+
+Un solo meccanismo per banner offline, client finto e test (review, rilievo 14).
+
+`web/src/lib/connectivity.ts`:
+```ts
+/** The device's view of the network; the fake client and the offline banner both read it. */
+export function isOnline(): boolean {
+  return typeof navigator === 'undefined' || navigator.onLine;
+}
+
+export function subscribeConnectivity(onChange: () => void): () => void {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+```
+
+`web/src/test/connectivity.ts`:
+```ts
+/** Puts jsdom on- or offline and fires the event, as the browser does. */
+export function setOnline(online: boolean): void {
+  Object.defineProperty(window.navigator, 'onLine', { configurable: true, get: () => online });
+  window.dispatchEvent(new Event(online ? 'online' : 'offline'));
+}
+```
+
+`web/src/test/setup.ts`, aggiungere:
+```ts
+import { beforeEach } from 'vitest';
+import { setOnline } from './connectivity';
+
+beforeEach(() => {
+  localStorage.clear();
+  setOnline(true);
+});
+```
 
 - [ ] **Step 1: Script dei dati demo e generazione**
 
@@ -1383,7 +1413,9 @@ export function formatAmount(quantity: Quantity, sourceText: string, text: Trans
 ```ts
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Locale } from '../../i18n/translate';
+import { isOnline } from '../../lib/connectivity';
 import { ApiError } from '../errors';
+import { setOnline } from '../../test/connectivity';
 import type { Read } from '../types';
 import { createFakeApi, DEMO_FAMILY_ID } from './fakeApi';
 
@@ -1462,6 +1494,29 @@ describe('fake api', () => {
     expect(removed.myStars).toBeNull();
     expect(removed.familyCount).toBe(rated.familyCount - 1);
     await expect(client.ratings.set({ familyId, recipeId, stars: 6 })).rejects.toEqual(new ApiError('invalid'));
+  });
+  it('fails every call while the device is offline, like a real transport', async () => {
+    const client = api();
+    setOnline(false);
+    await expect(client.menu.getOpening({ familyId })).rejects.toEqual(new ApiError('network'));
+    await expect(client.ratings.set({ familyId, recipeId: 'wok-pollo-peperoni-riso-basmati', stars: 4 })).rejects.toEqual(new ApiError('network'));
+    setOnline(true);
+    expect((await client.ratings.set({ familyId, recipeId: 'wok-pollo-peperoni-riso-basmati', stars: 4 })).myStars).toBe(4);
+  });
+  it('answers with opaque composite versions that change with the data and the language', async () => {
+    const client = api();
+    const first = await client.menu.getWeek({ familyId, weekStartsOn: '2026-10-05' });
+    expect(typeof first.version).toBe('string');
+    await client.ratings.set({ familyId, recipeId: 'wok-pollo-peperoni-riso-basmati', stars: 2 });
+    const second = await client.menu.getWeek({ familyId, weekStartsOn: '2026-10-05', knownVersion: first.version });
+    expect(second.version).not.toBe(first.version);
+    locale = 'en-GB';
+    const english = await client.menu.getWeek({ familyId, weekStartsOn: '2026-10-05' });
+    expect(english.version).not.toBe(second.version);
+  });
+  it('accepts the meal reference when a recipe is opened from a meal', async () => {
+    const detail = data(await api().recipes.get({ familyId, recipeId: 'wok-pollo-peperoni-riso-basmati', slotId: '2026-10-05-dinner' }));
+    expect(detail.recipe.id).toBe('wok-pollo-peperoni-riso-basmati');
   });
   it('returns the signed-in user and the demo family', async () => {
     const me = data(await createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, user: { id: 'u-1', email: 'giulia@example.com' } }).me.get({}));
@@ -1550,9 +1605,13 @@ export function createFakeApi(options: FakeApiOptions): Api {
   const userId = options.user?.id ?? DEMO_USER_ID;
   const memberIds = new Set([...DEMO_PEOPLE.map((p) => p.id), userId]);
 
+  // Grows at every rating: stands for the family counter of the real versions.
+  let revision = 1;
   async function respond<T>(value: T): Promise<Read<T>> {
     if (options.latencyMs) await new Promise((resolve) => setTimeout(resolve, options.latencyMs));
-    return { unchanged: false, version: 1, data: structuredClone(value) };
+    // Opaque and composite like W1's versions (family, counter, language, deploy); the web never parses it.
+    const version = `family:${DEMO_FAMILY.id}|rev:${revision}|lang:${options.getLocale()}|deploy:fake`;
+    return { unchanged: false, version, data: structuredClone(value) };
   }
   function checkFamily(familyId: string) {
     if (familyId !== DEMO_FAMILY.id) throw new ApiError('forbidden');
@@ -1610,7 +1669,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
     return [localized(recipe.name, locale), localized(recipe.description, locale), ...names].some((t) => normalize(t).includes(needle));
   }
 
-  return {
+  const api: Api = {
     me: {
       async get() {
         const person = DEMO_PEOPLE.find((p) => p.id === userId);
@@ -1689,6 +1748,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
           .map(({ item }) => item);
         return respond(query.reversed ? items.reverse() : items);
       },
+      // slotId is accepted and ignored: versions of past meals arrive with wave 2.
       async get({ familyId, recipeId, servings }) {
         checkFamily(familyId);
         const recipe = published(recipeId);
@@ -1714,10 +1774,24 @@ export function createFakeApi(options: FakeApiOptions): Api {
           if (index !== -1) ratings.splice(index, 1);
         } else if (index === -1) ratings.push({ userId, recipeId, stars });
         else ratings[index]!.stars = stars;
+        revision += 1;
         return ratingSummary(recipeId);
       }
     }
   };
+  return withTransport(api);
+}
+
+/** Every method fails with `network` while the device is offline, before touching any data. */
+function withTransport(api: Api): Api {
+  const wrap = <T extends object>(area: T): T =>
+    Object.fromEntries(
+      Object.entries(area).map(([name, method]) => [
+        name,
+        (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
+      ])
+    ) as T;
+  return { me: wrap(api.me), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
 }
 ```
 
@@ -1729,65 +1803,91 @@ Expected: PASS; nessun errore di tipi. Se un'aspettativa sui dati (per esempio l
 - [ ] **Step 10: Commit**
 
 ```bash
-git add web/scripts/build-fake-data.mjs web/src/api/fake
+git add web/scripts/build-fake-data.mjs web/src/api/fake web/src/lib/connectivity.ts web/src/test
 git commit -m "Web: client finto con i dati demo del prototipo, spostati sulla settimana corrente"
 ```
 
 ---
 
-### Task 6: Query con «invariato» trasparente
+### Task 6: Query con «invariato» trasparente e lingua nelle chiavi
 
 **Files:**
 - Create: `web/src/api/queries.ts`
 - Test: `web/src/api/queries.test.ts`
 
 **Interfaces:**
-- Consumes: `Api`, `Read<T>`, viste da `src/api/types.ts`; `toApiError`; `useApi`.
+- Consumes: `Api`, `Read<T>`, viste da `src/api/types.ts`; `useApi`; `useLocale`, `Locale`.
 - Produces:
-  - `interface Versioned<T> { version: number; data: T }`
-  - `readThrough<T>(queryClient: QueryClient, queryKey: QueryKey, read: (knownVersion?: number) => Promise<Read<T>>): Promise<Versioned<T>>`
-  - `interface QueryDeps { api: Api; queryClient: QueryClient }`, `useQueryDeps(): QueryDeps`
-  - `queryKeys`: `me()`, `opening(familyId)`, `week(familyId, weekStartsOn)`, `dates(familyId, month)`, `search(familyId, query)`, `recipe(familyId, recipeId, servings?)`; prefissi `RATED_PREFIXES = [['menu','getWeek'], ['recipes','search'], ['recipes','get']]`
-  - `meQuery(deps)`, `openingQuery(deps, familyId)`, `weekQuery(deps, familyId, weekStartsOn)`, `datesQuery(deps, familyId, month)`, `searchQuery(deps, familyId, query)`, `recipeQuery(deps, familyId, recipeId, servings?)`: `queryOptions` con dati in cache `Versioned<T>` e `select` che restituisce `T`
+  - `interface Versioned<T> { version: string; data: T }`
+  - `readThrough<T>(queryClient: QueryClient, queryKey: QueryKey, read: (knownVersion?: string) => Promise<Read<T>>): Promise<Versioned<T>>`
+  - `interface QueryDeps { api: Api; queryClient: QueryClient; locale: Locale }`, `useQueryDeps(): QueryDeps`
+  - `queryKeys`: `me(locale)`, `opening(familyId, locale)`, `week(familyId, weekStartsOn, locale)`, `dates(familyId, month, locale)`, `search(familyId, query, locale)`, `recipe(familyId, recipeId, locale, servings?, slotId?)`; la forma è sempre `[area, operazione, { familyId?, …, locale }]`
+  - `familyOfKey(queryKey: QueryKey): string | null`
+  - `meQuery(deps)`, `openingQuery(deps, familyId)`, `weekQuery(deps, familyId, weekStartsOn)`, `datesQuery(deps, familyId, month)`, `searchQuery(deps, familyId, query)`, `recipeQuery(deps, familyId, recipeId, servings?, slotId?)`: `queryOptions` con dati in cache `Versioned<T>` e `select` che restituisce `T`
+
+La lingua è nelle chiavi (spec, Localizzazione): una risposta nella lingua precedente, anche se arriva dopo il cambio, finisce sotto la sua chiave e non si mostra mai nella nuova lingua.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
 ```ts
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
-import { readThrough, type Versioned } from './queries';
-import type { Read } from './types';
+import { familyOfKey, queryKeys, readThrough, weekQuery, type Versioned } from './queries';
+import type { Api, Read, WeekView } from './types';
 
-const key = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05' }] as const;
+const key = queryKeys.week('f', '2026-10-05', 'it-IT');
+// A realistic version from W1: family, counters, language and deploy, opaque to the web.
+const V1 = 'family:f|counter:12|catalogue:40|lang:it-IT|deploy:2026-10-11T10:00Z';
 
 describe('readThrough', () => {
   it('reads without a version when nothing is cached', async () => {
-    const client = new QueryClient();
-    const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: false, version: 3, data: 'week' }));
-    expect(await readThrough(client, key, read)).toEqual({ version: 3, data: 'week' });
+    const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: false, version: V1, data: 'week' }));
+    expect(await readThrough(new QueryClient(), key, read)).toEqual({ version: V1, data: 'week' });
     expect(read).toHaveBeenCalledWith(undefined);
   });
-  it('sends the cached version and keeps the cached view when unchanged', async () => {
+  it('sends the cached version back as is and keeps the cached view when unchanged', async () => {
     const client = new QueryClient();
-    const cached: Versioned<string> = { version: 3, data: 'week' };
+    const cached: Versioned<string> = { version: V1, data: 'week' };
     client.setQueryData(key, cached);
-    const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: true, version: 3 }));
+    const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: true, version: V1 }));
     expect(await readThrough(client, key, read)).toBe(cached);
-    expect(read).toHaveBeenCalledWith(3);
+    expect(read).toHaveBeenCalledWith(V1);
   });
   it('takes the new view when it changed', async () => {
     const client = new QueryClient();
-    client.setQueryData(key, { version: 3, data: 'old' });
-    const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: false, version: 4, data: 'new' }));
-    expect(await readThrough(client, key, read)).toEqual({ version: 4, data: 'new' });
+    client.setQueryData(key, { version: V1, data: 'old' });
+    const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: false, version: `${V1}+1`, data: 'new' }));
+    expect(await readThrough(client, key, read)).toEqual({ version: `${V1}+1`, data: 'new' });
   });
   it('reads again without a version if the server answers unchanged but the cache is gone', async () => {
-    const client = new QueryClient();
     const read = vi.fn()
-      .mockResolvedValueOnce({ unchanged: true, version: 3 })
-      .mockResolvedValueOnce({ unchanged: false, version: 3, data: 'week' });
-    expect(await readThrough(client, key, read)).toEqual({ version: 3, data: 'week' });
+      .mockResolvedValueOnce({ unchanged: true, version: V1 })
+      .mockResolvedValueOnce({ unchanged: false, version: V1, data: 'week' });
+    expect(await readThrough(new QueryClient(), key, read)).toEqual({ version: V1, data: 'week' });
     expect(read).toHaveBeenNthCalledWith(2, undefined);
+  });
+});
+
+describe('query options', () => {
+  it('carries the composite version from client to cache and back, unchanged included', async () => {
+    const view = { startsOn: '2026-10-05', days: [] } as WeekView;
+    const getWeek = vi.fn()
+      .mockResolvedValueOnce({ unchanged: false, version: V1, data: view })
+      .mockResolvedValueOnce({ unchanged: true, version: V1 });
+    const api = { menu: { getWeek } } as unknown as Api;
+    const queryClient = new QueryClient();
+    const options = weekQuery({ api, queryClient, locale: 'it-IT' }, 'f', '2026-10-05');
+    await queryClient.fetchQuery(options);
+    await queryClient.fetchQuery({ ...options, staleTime: 0 });
+    expect(getWeek).toHaveBeenNthCalledWith(1, { familyId: 'f', weekStartsOn: '2026-10-05', knownVersion: undefined });
+    expect(getWeek).toHaveBeenNthCalledWith(2, { familyId: 'f', weekStartsOn: '2026-10-05', knownVersion: V1 });
+    expect(queryClient.getQueryData<Versioned<WeekView>>(options.queryKey)).toEqual({ version: V1, data: view });
+  });
+  it('keeps languages and families apart in the keys', () => {
+    expect(queryKeys.week('f', '2026-10-05', 'it-IT')).not.toEqual(queryKeys.week('f', '2026-10-05', 'en-GB'));
+    expect(familyOfKey(queryKeys.search('f2', {}, 'en-GB'))).toBe('f2');
+    expect(familyOfKey(queryKeys.me('it-IT'))).toBeNull();
+    expect(queryKeys.recipe('f', 'r', 'it-IT', 2, 'slot-1')[2]).toEqual({ familyId: 'f', recipeId: 'r', locale: 'it-IT', servings: 2, slotId: 'slot-1' });
   });
 });
 ```
@@ -1801,18 +1901,20 @@ Expected: FAIL, `Failed to resolve import "./queries"`.
 
 ```ts
 import { queryOptions, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
+import { useLocale } from '../i18n/LocaleProvider';
+import type { Locale } from '../i18n/translate';
 import type { IsoDate } from '../lib/calendar';
 import { useApi } from './ApiProvider';
 import type { Api, Read, RecipeQuery } from './types';
 
-/** What the cache keeps: the view and its version, sent back as knownVersion. */
-export interface Versioned<T> { version: number; data: T }
+/** What the cache keeps: the view and its opaque version, sent back as knownVersion. */
+export interface Versioned<T> { version: string; data: T }
 
 /** Wraps a read so screens never see «unchanged» (contract decided by W1). */
 export async function readThrough<T>(
   queryClient: QueryClient,
   queryKey: QueryKey,
-  read: (knownVersion?: number) => Promise<Read<T>>
+  read: (knownVersion?: string) => Promise<Read<T>>
 ): Promise<Versioned<T>> {
   const cached = queryClient.getQueryData<Versioned<T>>(queryKey);
   const result = await read(cached?.version);
@@ -1824,54 +1926,64 @@ export async function readThrough<T>(
   return { version: fresh.version, data: fresh.data };
 }
 
-export interface QueryDeps { api: Api; queryClient: QueryClient }
+export interface QueryDeps { api: Api; queryClient: QueryClient; locale: Locale }
 
 export function useQueryDeps(): QueryDeps {
-  return { api: useApi(), queryClient: useQueryClient() };
+  return { api: useApi(), queryClient: useQueryClient(), locale: useLocale().locale };
 }
 
 export const queryKeys = {
-  me: () => ['me', 'get'] as const,
-  opening: (familyId: string) => ['menu', 'getOpening', { familyId }] as const,
-  week: (familyId: string, weekStartsOn: IsoDate) => ['menu', 'getWeek', { familyId, weekStartsOn }] as const,
-  dates: (familyId: string, month: string) => ['menu', 'getDates', { familyId, month }] as const,
-  search: (familyId: string, query: RecipeQuery) => ['recipes', 'search', { familyId, query }] as const,
-  recipe: (familyId: string, recipeId: string, servings?: number) => ['recipes', 'get', { familyId, recipeId, servings }] as const
+  me: (locale: Locale) => ['me', 'get', { locale }] as const,
+  opening: (familyId: string, locale: Locale) => ['menu', 'getOpening', { familyId, locale }] as const,
+  week: (familyId: string, weekStartsOn: IsoDate, locale: Locale) => ['menu', 'getWeek', { familyId, weekStartsOn, locale }] as const,
+  dates: (familyId: string, month: string, locale: Locale) => ['menu', 'getDates', { familyId, month, locale }] as const,
+  search: (familyId: string, query: RecipeQuery, locale: Locale) => ['recipes', 'search', { familyId, query, locale }] as const,
+  recipe: (familyId: string, recipeId: string, locale: Locale, servings?: number, slotId?: string) =>
+    ['recipes', 'get', { familyId, recipeId, locale, servings, slotId }] as const
 };
 
-/** Views that contain ratings, patched in place by the rating mutation. */
-export const RATED_PREFIXES = [['menu', 'getWeek'], ['recipes', 'search'], ['recipes', 'get']] as const;
+/** The family a cached view belongs to, if any: ratings and revocations act per family. */
+export function familyOfKey(queryKey: QueryKey): string | null {
+  const input = queryKey[2];
+  if (typeof input !== 'object' || input === null || !('familyId' in input)) return null;
+  const familyId = (input as { familyId: unknown }).familyId;
+  return typeof familyId === 'string' ? familyId : null;
+}
 
 const select = <T,>(value: Versioned<T>) => value.data;
 
-export function meQuery({ api, queryClient }: QueryDeps) {
-  const queryKey = queryKeys.me();
+export function meQuery({ api, queryClient, locale }: QueryDeps) {
+  const queryKey = queryKeys.me(locale);
   return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.me.get({ knownVersion })), select });
 }
 
-export function openingQuery({ api, queryClient }: QueryDeps, familyId: string) {
-  const queryKey = queryKeys.opening(familyId);
+export function openingQuery({ api, queryClient, locale }: QueryDeps, familyId: string) {
+  const queryKey = queryKeys.opening(familyId, locale);
   return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.menu.getOpening({ familyId, knownVersion })), select });
 }
 
-export function weekQuery({ api, queryClient }: QueryDeps, familyId: string, weekStartsOn: IsoDate) {
-  const queryKey = queryKeys.week(familyId, weekStartsOn);
+export function weekQuery({ api, queryClient, locale }: QueryDeps, familyId: string, weekStartsOn: IsoDate) {
+  const queryKey = queryKeys.week(familyId, weekStartsOn, locale);
   return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.menu.getWeek({ familyId, weekStartsOn, knownVersion })), select });
 }
 
-export function datesQuery({ api, queryClient }: QueryDeps, familyId: string, month: string) {
-  const queryKey = queryKeys.dates(familyId, month);
+export function datesQuery({ api, queryClient, locale }: QueryDeps, familyId: string, month: string) {
+  const queryKey = queryKeys.dates(familyId, month, locale);
   return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.menu.getDates({ familyId, month, knownVersion })), select });
 }
 
-export function searchQuery({ api, queryClient }: QueryDeps, familyId: string, query: RecipeQuery) {
-  const queryKey = queryKeys.search(familyId, query);
+export function searchQuery({ api, queryClient, locale }: QueryDeps, familyId: string, query: RecipeQuery) {
+  const queryKey = queryKeys.search(familyId, query, locale);
   return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.recipes.search({ familyId, query, knownVersion })), select });
 }
 
-export function recipeQuery({ api, queryClient }: QueryDeps, familyId: string, recipeId: string, servings?: number) {
-  const queryKey = queryKeys.recipe(familyId, recipeId, servings);
-  return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.recipes.get({ familyId, recipeId, servings, knownVersion })), select });
+export function recipeQuery({ api, queryClient, locale }: QueryDeps, familyId: string, recipeId: string, servings?: number, slotId?: string) {
+  const queryKey = queryKeys.recipe(familyId, recipeId, locale, servings, slotId);
+  return queryOptions({
+    queryKey,
+    queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.recipes.get({ familyId, recipeId, servings, slotId, knownVersion })),
+    select
+  });
 }
 ```
 
@@ -1884,12 +1996,12 @@ Expected: PASS; nessun errore di tipi.
 
 ```bash
 git add web/src/api/queries.ts web/src/api/queries.test.ts
-git commit -m "Web: query con versione posseduta e risposta «invariato» trasparente"
+git commit -m "Web: query con versione opaca, risposta «invariato» trasparente e lingua nelle chiavi"
 ```
 
 ---
 
-### Task 7: Cache persistita
+### Task 7: Cache persistita con scritture in coda
 
 **Files:**
 - Create: `web/src/api/persister.ts`
@@ -1898,13 +2010,15 @@ git commit -m "Web: query con versione posseduta e risposta «invariato» traspa
 **Interfaces:**
 - Consumes: `toApiError`.
 - Produces:
-  - `interface KeyValueStore { get(key: string): Promise<unknown>; set(key: string, value: unknown): Promise<void>; delete(key: string): Promise<void> }`
+  - `interface KeyValueStore { get(key: string): Promise<unknown>; set(key: string, value: unknown): Promise<void>; delete(key: string): Promise<void>; keys(): Promise<string[]> }`
   - `createMemoryStore(): KeyValueStore & { entries: Map<string, unknown> }`
   - `createIndexedDbStore(dbName?: string): KeyValueStore`
-  - `cacheKey(userId: string): string` → `query-cache:<userId>`
-  - `createPersister(store: KeyValueStore, userId: string): Persister`
+  - `CACHE_PREFIX = 'query-cache:'`, `cacheKey(userId: string): string`
+  - `interface SessionPersister extends Persister { close(): Promise<void> }`
+  - `createPersister(store: KeyValueStore, userId: string): SessionPersister`
+  - `purgeOtherCopies(store: KeyValueStore, keepUserId: string | null): Promise<void>`
   - `PERSIST_MAX_AGE: number` (7 giorni in ms)
-  - `createQueryClient(): QueryClient`
+  - `createQueryClient(handlers?: { onError?: (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void }): QueryClient`
   - `persistOptions(persister: Persister, buster: string): Omit<PersistQueryClientOptions, 'queryClient'>`
 
 - [ ] **Step 1: Scrivi i test che falliscono**
@@ -1912,18 +2026,30 @@ git commit -m "Web: query con versione posseduta e risposta «invariato» traspa
 ```ts
 import { QueryClient } from '@tanstack/react-query';
 import { persistQueryClientRestore, persistQueryClientSave } from '@tanstack/react-query-persist-client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
-import { cacheKey, createMemoryStore, createPersister, createQueryClient, persistOptions } from './persister';
+import { cacheKey, createMemoryStore, createPersister, createQueryClient, persistOptions, purgeOtherCopies, type KeyValueStore } from './persister';
 
-const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05' }];
+const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
+const options = (buster: string) => persistOptions(createPersister(createMemoryStore(), 'x'), buster).dehydrateOptions;
 
 async function saved(store = createMemoryStore(), buster = 'build-1') {
   const persister = createPersister(store, 'user-a');
   const client = createQueryClient();
-  client.setQueryData(week, { version: 1, data: 'week' });
-  await persistQueryClientSave({ queryClient: client, persister, buster, dehydrateOptions: persistOptions(persister, buster).dehydrateOptions });
+  client.setQueryData(week, { version: 'v1', data: 'week' });
+  await persistQueryClientSave({ queryClient: client, persister, buster, dehydrateOptions: options(buster) });
   return { store, persister };
+}
+
+/** A store whose writes wait until released, to reproduce writes still running during sign-out. */
+function slowStore() {
+  const inner = createMemoryStore();
+  const pending: (() => void)[] = [];
+  const store: KeyValueStore = {
+    ...inner,
+    set: (key, value) => new Promise<void>((resolve) => pending.push(() => void inner.set(key, value).then(resolve)))
+  };
+  return { store, entries: inner.entries, pending, release: () => pending.splice(0).forEach((run) => run()) };
 }
 
 describe('persister', () => {
@@ -1932,7 +2058,7 @@ describe('persister', () => {
     expect([...store.entries.keys()]).toEqual([cacheKey('user-a')]);
     const restored = createQueryClient();
     await persistQueryClientRestore({ queryClient: restored, persister, buster: 'build-1' });
-    expect(restored.getQueryData(week)).toEqual({ version: 1, data: 'week' });
+    expect(restored.getQueryData(week)).toEqual({ version: 'v1', data: 'week' });
   });
   it('discards a copy made by another build', async () => {
     const { persister } = await saved();
@@ -1943,32 +2069,61 @@ describe('persister', () => {
   it('treats an unreadable copy as empty and removes it', async () => {
     const store = createMemoryStore();
     store.entries.set(cacheKey('user-a'), 'not a cache');
-    const persister = createPersister(store, 'user-a');
-    expect(await persister.restoreClient()).toBeUndefined();
+    expect(await createPersister(store, 'user-a').restoreClient()).toBeUndefined();
     expect(store.entries.has(cacheKey('user-a'))).toBe(false);
   });
   it('survives a store that fails', async () => {
-    const broken = { get: () => Promise.reject(new Error('blocked')), set: () => Promise.reject(new Error('blocked')), delete: () => Promise.reject(new Error('blocked')) };
-    const persister = createPersister(broken, 'user-a');
+    const fail = () => Promise.reject(new Error('blocked'));
+    const persister = createPersister({ get: fail, set: fail, delete: fail, keys: fail }, 'user-a');
     expect(await persister.restoreClient()).toBeUndefined();
     await expect(persister.persistClient({ timestamp: 1, buster: '', clientState: { queries: [], mutations: [] } })).resolves.toBeUndefined();
-    await expect(persister.removeClient()).resolves.toBeUndefined();
+    await expect(persister.close()).resolves.toBeUndefined();
+  });
+  it('deletes the copy after a write still running at close, and writes nothing afterwards', async () => {
+    const { store, entries, pending, release } = slowStore();
+    const persister = createPersister(store, 'user-a');
+    const client = { timestamp: 1, buster: 'b', clientState: { queries: [], mutations: [] } };
+    const writing = persister.persistClient(client);
+    // The write has reached the store and is still running when the session closes.
+    await vi.waitFor(() => expect(pending.length).toBe(1));
+    const closing = persister.close();
+    await persister.persistClient(client);
+    release();
+    await Promise.all([writing, closing]);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(entries.has(cacheKey('user-a'))).toBe(false);
+    expect(await persister.restoreClient()).toBeUndefined();
+  });
+  it('removes the copies of every other user', async () => {
+    const store = createMemoryStore();
+    store.entries.set(cacheKey('a'), {});
+    store.entries.set(cacheKey('b'), {});
+    store.entries.set('unrelated', 1);
+    await purgeOtherCopies(store, 'b');
+    expect([...store.entries.keys()].sort()).toEqual([cacheKey('b'), 'unrelated']);
+    await purgeOtherCopies(store, null);
+    expect([...store.entries.keys()]).toEqual(['unrelated']);
   });
   it('keeps only successful queries', async () => {
     const store = createMemoryStore();
     const persister = createPersister(store, 'user-a');
     const client = createQueryClient();
-    client.setQueryData(week, { version: 1, data: 'week' });
+    client.setQueryData(week, { version: 'v1', data: 'week' });
     await client.fetchQuery({ queryKey: ['broken'], queryFn: () => Promise.reject(new ApiError('not_found')) }).catch(() => undefined);
-    await persistQueryClientSave({ queryClient: client, persister, buster: 'b', dehydrateOptions: persistOptions(persister, 'b').dehydrateOptions });
+    await persistQueryClientSave({ queryClient: client, persister, buster: 'b', dehydrateOptions: options('b') });
     const entry = store.entries.get(cacheKey('user-a')) as { clientState: { queries: { queryKey: unknown }[] } };
     expect(entry.clientState.queries.map((q) => q.queryKey)).toEqual([week]);
   });
-  it('retries only network errors, at most twice', () => {
-    const retry = createQueryClient().getDefaultOptions().queries?.retry as (count: number, error: unknown) => boolean;
+  it('retries only network errors and reports every error with its family', async () => {
+    const onError = vi.fn();
+    const client = createQueryClient({ onError });
+    const retry = client.getDefaultOptions().queries?.retry as (count: number, error: unknown) => boolean;
     expect(retry(0, new ApiError('network'))).toBe(true);
     expect(retry(2, new ApiError('network'))).toBe(false);
     expect(retry(0, new ApiError('not_found'))).toBe(false);
+    await client.fetchQuery({ queryKey: week, queryFn: () => Promise.reject(new ApiError('forbidden')) }).catch(() => undefined);
+    expect(onError).toHaveBeenCalledWith(new ApiError('forbidden'), { queryKey: week, familyId: 'f' });
   });
 });
 ```
@@ -1981,21 +2136,24 @@ Expected: FAIL, `Failed to resolve import "./persister"`.
 - [ ] **Step 3: Implementa**
 
 ```ts
-import { QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, type QueryKey } from '@tanstack/react-query';
 import type { PersistedClient, Persister, PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
 import { toApiError } from './errors';
+import { familyOfKey } from './queries';
 
 /** Minimal storage used by the persister: IndexedDB in the app, memory in tests. */
 export interface KeyValueStore {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
   delete(key: string): Promise<void>;
+  keys(): Promise<string[]>;
 }
 
 export const PERSIST_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+export const CACHE_PREFIX = 'query-cache:';
 
 export function cacheKey(userId: string): string {
-  return `query-cache:${userId}`;
+  return `${CACHE_PREFIX}${userId}`;
 }
 
 export function createMemoryStore(): KeyValueStore & { entries: Map<string, unknown> } {
@@ -2004,7 +2162,8 @@ export function createMemoryStore(): KeyValueStore & { entries: Map<string, unkn
     entries,
     get: async (key) => structuredClone(entries.get(key)),
     set: async (key, value) => void entries.set(key, structuredClone(value)),
-    delete: async (key) => void entries.delete(key)
+    delete: async (key) => void entries.delete(key),
+    keys: async () => [...entries.keys()]
   };
 }
 
@@ -2030,7 +2189,8 @@ export function createIndexedDbStore(dbName = 'cosasimangia'): KeyValueStore {
   return {
     get: (key) => run('readonly', (s) => s.get(key)),
     set: async (key, value) => void (await run('readwrite', (s) => s.put(value, key))),
-    delete: async (key) => void (await run('readwrite', (s) => s.delete(key)))
+    delete: async (key) => void (await run('readwrite', (s) => s.delete(key))),
+    keys: async () => (await run('readonly', (s) => s.getAllKeys())).map(String)
   };
 }
 
@@ -2040,28 +2200,65 @@ const isPersistedClient = (value: unknown): value is PersistedClient =>
   typeof (value as PersistedClient).buster === 'string' &&
   typeof (value as PersistedClient).clientState === 'object';
 
+export interface SessionPersister extends Persister {
+  /** Stops writing and deletes the copy once the writes already running are done. */
+  close(): Promise<void>;
+}
+
 /** Storage errors never break the app: the cache is only a faster start (spec, cache persistita). */
-export function createPersister(store: KeyValueStore, userId: string): Persister {
+export function createPersister(store: KeyValueStore, userId: string): SessionPersister {
   const key = cacheKey(userId);
+  let closed = false;
+  // Operations run one after the other, so a delete never races a write that started earlier.
+  let queue: Promise<void> = Promise.resolve();
+  const enqueue = (operation: () => Promise<unknown>) => {
+    queue = queue.then(operation).then(() => undefined, () => undefined);
+    return queue;
+  };
   return {
-    async persistClient(client) {
-      await store.set(key, client).catch(() => undefined);
+    persistClient(client) {
+      return closed ? Promise.resolve() : enqueue(async () => {
+        if (!closed) await store.set(key, client);
+      });
     },
     async restoreClient() {
+      if (closed) return undefined;
       const value = await store.get(key).catch(() => undefined);
       if (value === undefined) return undefined;
       if (isPersistedClient(value)) return value;
-      await store.delete(key).catch(() => undefined);
+      await enqueue(() => store.delete(key));
       return undefined;
     },
-    async removeClient() {
-      await store.delete(key).catch(() => undefined);
+    removeClient() {
+      return enqueue(() => store.delete(key));
+    },
+    close() {
+      closed = true;
+      return enqueue(() => store.delete(key));
     }
   };
 }
 
-export function createQueryClient(): QueryClient {
+/** Deletes every user's copy but the one kept (at start and at each change of identity). */
+export async function purgeOtherCopies(store: KeyValueStore, keepUserId: string | null): Promise<void> {
+  const keep = keepUserId ? cacheKey(keepUserId) : null;
+  const keys = await store.keys().catch(() => [] as string[]);
+  await Promise.all(keys.filter((k) => k.startsWith(CACHE_PREFIX) && k !== keep).map((k) => store.delete(k).catch(() => undefined)));
+}
+
+type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
+
+export function createQueryClient(handlers: { onError?: ErrorHandler } = {}): QueryClient {
+  const report: ErrorHandler = (error, scope) => handlers.onError?.(error, scope);
   return new QueryClient({
+    // One place sees every failure: the session turns unauthorized and forbidden into actions.
+    queryCache: new QueryCache({ onError: (error, query) => report(error, { queryKey: query.queryKey, familyId: familyOfKey(query.queryKey) ?? undefined }) }),
+    mutationCache: new MutationCache({
+      onError: (error, _variables, _result, mutation) => {
+        const familyId = mutation.options.meta?.familyId;
+        report(error, { familyId: typeof familyId === 'string' ? familyId : undefined });
+      }
+    }),
     defaultOptions: {
       queries: {
         gcTime: PERSIST_MAX_AGE,
@@ -2071,6 +2268,7 @@ export function createQueryClient(): QueryClient {
         refetchOnReconnect: true,
         retry: (count, error) => toApiError(error).code === 'network' && count < 2
       },
+      // No queue: offline a mutation fails at once (spec, voto).
       mutations: { networkMode: 'always' }
     }
   });
@@ -2083,7 +2281,6 @@ export function persistOptions(persister: Persister, buster: string): Omit<Persi
     maxAge: PERSIST_MAX_AGE,
     dehydrateOptions: {
       shouldDehydrateQuery: (query) => query.state.status === 'success',
-      // No queued mutations yet: the offline queue belongs to the shopping list (wave 2).
       shouldDehydrateMutation: () => false
     }
   };
@@ -2093,114 +2290,164 @@ export function persistOptions(persister: Persister, buster: string): Omit<Persi
 - [ ] **Step 4: Verifica che passino**
 
 Run: `cd web && npx vitest run src/api/persister.test.ts && npm run typecheck`
-Expected: PASS (6 test). Se `persistQueryClientRestore` e `persistQueryClientSave` non sono esportati da `@tanstack/react-query-persist-client`, importarli da `@tanstack/query-persist-client-core` (dipendenza già installata con il pacchetto React) solo nei test, dopo averlo verificato con Context7.
+Expected: PASS (8 test). Verificare con Context7 (`/tanstack/query`, «MutationCache onError parameters») l'ordine dei parametri di `MutationCache.onError` in 5.104 (`error, variables, onMutateResult, mutation`) e adattarlo se diverso. Se `persistQueryClientRestore` e `persistQueryClientSave` non sono esportati da `@tanstack/react-query-persist-client`, importarli nei soli test da `@tanstack/query-persist-client-core`, che il pacchetto React installa già.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add web/src/api/persister.ts web/src/api/persister.test.ts
-git commit -m "Web: cache persistita in IndexedDB, una copia per utente con scadenza e versione della build"
+git commit -m "Web: cache persistita per utente con scritture in coda, chiusura e pulizia delle altre copie"
 ```
 
 ---
 
-### Task 8: Accesso e sessione per utente
+### Task 8: Backend di accesso e stato dell'accesso
 
 **Files:**
-- Create: `web/src/auth/backend.ts`, `web/src/auth/supabaseBackend.ts`, `web/src/auth/AuthProvider.tsx`, `web/src/session/SessionScope.tsx`, `web/src/test/stubBackend.ts`
-- Test: `web/src/auth/supabaseBackend.test.ts`, `web/src/session/SessionScope.test.tsx`
+- Create: `web/src/auth/backend.ts`, `web/src/auth/supabaseBackend.ts`, `web/src/auth/AuthProvider.tsx`, `web/src/test/stubBackend.ts`
+- Test: `web/src/auth/supabaseBackend.test.ts`, `web/src/auth/AuthProvider.test.tsx`
 
 **Interfaces:**
-- Consumes: `KeyValueStore`, `createPersister`, `createQueryClient`, `persistOptions`, `cacheKey` (Task 7); `ApiProvider`, `Api` (Task 4); `useLocale`, `Locale` (Task 3); `env.buildVersion` (Task 1).
+- Consumes: `subscribeConnectivity` (Task 5).
 - Produces:
   - `interface AuthUser { id: string; email: string }`
+  - `type SessionCheck = { status: 'signedIn'; user: AuthUser } | { status: 'unverified'; user: AuthUser } | { status: 'signedOut' }`
   - `type SignInFailure = 'invalid_credentials' | 'network' | 'unknown'`; `type SignInResult = { ok: true } | { ok: false; reason: SignInFailure }`
-  - `interface AuthBackend { readonly mode: 'fake' | 'supabase'; getUser(): Promise<AuthUser | null>; onChange(listener: (user: AuthUser | null) => void): () => void; signIn(email: string, password: string): Promise<SignInResult>; signOut(): Promise<void>; getAccessToken(): Promise<string | null> }`
+  - `interface AuthBackend { readonly mode: 'fake' | 'supabase'; check(): Promise<SessionCheck>; onChange(listener: (user: AuthUser | null) => void): () => void; signIn(email: string, password: string): Promise<SignInResult>; signOut(): Promise<void>; refresh(): Promise<boolean>; getAccessToken(): Promise<string | null> }`
   - `DEMO_USER: AuthUser` (`{ id: 'user-federico', email: 'federico@example.com' }`), `createFakeBackend(): AuthBackend`
-  - `createSupabaseBackend(url: string, publishableKey: string): AuthBackend`, `signInFailure(error: { code?: string; status?: number; name?: string }): SignInFailure`
-  - `type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: AuthUser }`; `<AuthProvider backend>`; `useAuth(): { state: AuthState; backend: AuthBackend }`
-  - `type CreateApi = (user: AuthUser | null, getLocale: () => Locale) => Api`; `<SessionScope store createApi>`; `useSignOut(): () => Promise<void>`
-  - `createStubBackend(initial: AuthUser | null, mode?: 'fake' | 'supabase'): AuthBackend & { setUser(user: AuthUser | null): void; nextSignIn: SignInResult; signOutCalls: number }`
+  - `AUTH_STORAGE_KEY = 'cosasimangia-auth'`; `createSupabaseBackend(url: string, publishableKey: string, deps?: { auth?: AuthClient; storage?: Pick<Storage, 'getItem' | 'removeItem'> }): AuthBackend`; `signInFailure(error: { code?: string; status?: number; name?: string }): SignInFailure`
+  - `type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: AuthUser; verified: boolean }`; `<AuthProvider backend>`; `useAuth(): { state: AuthState; backend: AuthBackend; markSignedOut(): void }`
+  - `createStubBackend(initial: AuthUser | null, mode?: 'fake' | 'supabase')` con `setUser(user)`, `setCheck(check)`, `nextSignIn`, `signOutCalls`, `signOutError`, `refreshResult`, `refreshCalls`
+
+Comportamenti di Supabase verificati con Context7 (`/supabase/supabase-js`, 11 ottobre 2026): `signOut` toglie la sessione salvata anche quando il server non risponde e restituisce comunque l'errore; un rinnovo fallito per la rete conserva il token salvato ma `getSession` restituisce `session: null` con un `AuthRetryableFetchError`; un rinnovo rifiutato con token scaduto toglie la sessione ed emette `SIGNED_OUT`.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
 `web/src/auth/supabaseBackend.test.ts`:
 ```ts
-import { expect, it } from 'vitest';
-import { signInFailure } from './supabaseBackend';
+import { AuthRetryableFetchError } from '@supabase/supabase-js';
+import { describe, expect, it, vi } from 'vitest';
+import { AUTH_STORAGE_KEY, createSupabaseBackend, signInFailure, type AuthClient } from './supabaseBackend';
 
-it('maps Supabase sign-in errors to our reasons', () => {
-  expect(signInFailure({ code: 'invalid_credentials', status: 400 })).toBe('invalid_credentials');
-  expect(signInFailure({ status: 400 })).toBe('invalid_credentials');
-  expect(signInFailure({ name: 'AuthRetryableFetchError', status: 0 })).toBe('network');
-  expect(signInFailure({ status: 500 })).toBe('unknown');
+type Listener = (event: string, session: { user: { id: string; email?: string } } | null) => void;
+
+function setup(overrides: Partial<Record<keyof AuthClient, unknown>> = {}) {
+  let listener: Listener = () => {};
+  const auth = {
+    getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+    onAuthStateChange: vi.fn((callback: Listener) => {
+      listener = callback;
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    }),
+    signInWithPassword: vi.fn(async () => ({ error: null })),
+    signOut: vi.fn(async () => ({ error: null })),
+    refreshSession: vi.fn(async () => ({ data: { session: {} }, error: null })),
+    ...overrides
+  };
+  const stored = new Map<string, string>();
+  const storage = { getItem: (k: string) => stored.get(k) ?? null, removeItem: (k: string) => void stored.delete(k) };
+  const backend = createSupabaseBackend('http://127.0.0.1:54321', 'key', { auth: auth as unknown as AuthClient, storage });
+  return { auth, stored, backend, emit: (event: string, session: Parameters<Listener>[1]) => listener(event, session) };
+}
+
+describe('supabase backend', () => {
+  it('maps sign-in errors to our reasons', () => {
+    expect(signInFailure({ code: 'invalid_credentials', status: 400 })).toBe('invalid_credentials');
+    expect(signInFailure({ status: 400 })).toBe('invalid_credentials');
+    expect(signInFailure({ name: 'AuthRetryableFetchError', status: 0 })).toBe('network');
+    expect(signInFailure({ status: 500 })).toBe('unknown');
+  });
+  it('signs out of this device only and leaves nothing stored even when the service fails', async () => {
+    const { auth, stored, backend } = setup({ signOut: vi.fn(async () => ({ error: new AuthRetryableFetchError('offline', 0) })) });
+    stored.set(AUTH_STORAGE_KEY, '{}');
+    stored.set(`${AUTH_STORAGE_KEY}-code-verifier`, 'x');
+    await expect(backend.signOut()).resolves.toBeUndefined();
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(stored.size).toBe(0);
+  });
+  it('tells a verified session, an unverifiable one and no session apart', async () => {
+    const user = { id: 'u1', email: 'anna@example.com' };
+    const signedIn = setup({ getSession: vi.fn(async () => ({ data: { session: { user } }, error: null })) });
+    expect(await signedIn.backend.check()).toEqual({ status: 'signedIn', user });
+    const offline = setup({ getSession: vi.fn(async () => ({ data: { session: null }, error: new AuthRetryableFetchError('offline', 0) })) });
+    offline.stored.set(AUTH_STORAGE_KEY, JSON.stringify({ user }));
+    expect(await offline.backend.check()).toEqual({ status: 'unverified', user });
+    const refused = setup({ getSession: vi.fn(async () => ({ data: { session: null }, error: { name: 'AuthApiError', status: 400 } })) });
+    refused.stored.set(AUTH_STORAGE_KEY, JSON.stringify({ user }));
+    expect(await refused.backend.check()).toEqual({ status: 'signedOut' });
+    expect(await setup().backend.check()).toEqual({ status: 'signedOut' });
+  });
+  it('reports sign-outs and new tokens, ignoring empty initial events', () => {
+    const { backend, emit } = setup();
+    const listener = vi.fn();
+    backend.onChange(listener);
+    emit('INITIAL_SESSION', null);
+    expect(listener).not.toHaveBeenCalled();
+    emit('TOKEN_REFRESHED', { user: { id: 'u1', email: 'a@example.com' } });
+    expect(listener).toHaveBeenLastCalledWith({ id: 'u1', email: 'a@example.com' });
+    emit('SIGNED_OUT', null);
+    expect(listener).toHaveBeenLastCalledWith(null);
+  });
+  it('renews the session once on request', async () => {
+    expect(await setup().backend.refresh()).toBe(true);
+    const refused = setup({ refreshSession: vi.fn(async () => ({ data: { session: null }, error: { status: 400 } })) });
+    expect(await refused.backend.refresh()).toBe(false);
+  });
 });
 ```
 
-`web/src/session/SessionScope.test.tsx` (Review Focus: due persone sullo stesso telefono):
+`web/src/auth/AuthProvider.test.tsx`:
 ```tsx
-import { useQuery } from '@tanstack/react-query';
-import { act, render, screen, waitFor } from '@testing-library/react';
-import { expect, it } from 'vitest';
-import { meQuery, useQueryDeps } from '../api/queries';
-import { cacheKey, createMemoryStore } from '../api/persister';
-import type { Api } from '../api/types';
-import { AuthProvider } from '../auth/AuthProvider';
-import { LocaleProvider } from '../i18n/LocaleProvider';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { setOnline } from '../test/connectivity';
 import { createStubBackend } from '../test/stubBackend';
-import { SessionScope, useSignOut, type CreateApi } from './SessionScope';
+import { AuthProvider, useAuth } from './AuthProvider';
 
 function Probe() {
-  const me = useQuery(meQuery(useQueryDeps()));
-  const signOut = useSignOut();
-  return (
-    <>
-      <p>name: {me.data?.user.displayName ?? '-'}</p>
-      <button onClick={() => void signOut()}>out</button>
-    </>
-  );
+  const { state, markSignedOut } = useAuth();
+  const text = state.status === 'signedIn' ? `in:${state.user.id}:${state.verified ? 'verified' : 'unverified'}` : state.status;
+  return <><p>{text}</p><button onClick={markSignedOut}>out</button></>;
 }
 
-const createApi: CreateApi = (user) =>
-  ({
-    me: {
-      get: async () => ({
-        unchanged: false,
-        version: 1,
-        data: { user: { id: user?.id ?? 'anon', displayName: user ? user.id.toUpperCase() : 'ANON', email: '', locale: 'it-IT' }, families: [], currentFamilyId: null }
-      })
-    }
-  }) as unknown as Api;
+const anna = { id: 'anna', email: 'anna@example.com' };
 
-it('never shows the previous user data after signing out on the same device', async () => {
-  const store = createMemoryStore();
-  const backend = createStubBackend({ id: 'a', email: 'a@example.com' }, 'supabase');
-  render(
-    <LocaleProvider initial="it-IT">
-      <AuthProvider backend={backend}>
-        <SessionScope store={store} createApi={createApi}>
-          <Probe />
-        </SessionScope>
-      </AuthProvider>
-    </LocaleProvider>
-  );
-  await screen.findByText('name: A');
-  await waitFor(() => expect(store.entries.has(cacheKey('a'))).toBe(true));
-
-  act(() => screen.getByText('out').click());
-  await waitFor(() => expect(backend.signOutCalls).toBe(1));
-  expect(store.entries.has(cacheKey('a'))).toBe(false);
-
-  act(() => backend.setUser({ id: 'b', email: 'b@example.com' }));
-  await screen.findByText('name: B');
-  expect(screen.queryByText('name: A')).toBeNull();
-  await waitFor(() => expect([...store.entries.keys()]).toEqual([cacheKey('b')]));
+describe('auth state', () => {
+  it('keeps an unverifiable session for reading and checks it again when the network is back', async () => {
+    const backend = createStubBackend(null);
+    backend.setCheck({ status: 'unverified', user: anna });
+    render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    expect(await screen.findByText('in:anna:unverified')).toBeTruthy();
+    backend.setCheck({ status: 'signedIn', user: anna });
+    act(() => setOnline(true));
+    expect(await screen.findByText('in:anna:verified')).toBeTruthy();
+  });
+  it('ends an unverifiable session when the renewal is refused after reconnecting', async () => {
+    const backend = createStubBackend(null);
+    backend.setCheck({ status: 'unverified', user: anna });
+    render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    await screen.findByText('in:anna:unverified');
+    backend.setCheck({ status: 'signedOut' });
+    act(() => setOnline(true));
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+  });
+  it('follows sign-outs from elsewhere and forced local sign-outs', async () => {
+    const backend = createStubBackend(anna);
+    render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    await screen.findByText('in:anna:verified');
+    act(() => backend.setUser(null));
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+    act(() => backend.setUser(anna));
+    await screen.findByText('in:anna:verified');
+    act(() => screen.getByText('out').click());
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+  });
 });
 ```
 
 - [ ] **Step 2: Verifica che falliscano**
 
-Run: `cd web && npx vitest run src/auth src/session`
+Run: `cd web && npx vitest run src/auth`
 Expected: FAIL, import non risolti.
 
 - [ ] **Step 3: Implementa i backend**
@@ -2208,17 +2455,22 @@ Expected: FAIL, import non risolti.
 `web/src/auth/backend.ts`:
 ```ts
 export interface AuthUser { id: string; email: string }
+export type SessionCheck = { status: 'signedIn'; user: AuthUser } | { status: 'unverified'; user: AuthUser } | { status: 'signedOut' };
 export type SignInFailure = 'invalid_credentials' | 'network' | 'unknown';
 export type SignInResult = { ok: true } | { ok: false; reason: SignInFailure };
 
 /** What the app needs from authentication; Supabase in real mode, a fixed demo user in fake mode. */
 export interface AuthBackend {
   readonly mode: 'fake' | 'supabase';
-  getUser(): Promise<AuthUser | null>;
+  /** unverified: offline with a session that cannot be renewed now (read-only use of the stored copy). */
+  check(): Promise<SessionCheck>;
   onChange(listener: (user: AuthUser | null) => void): () => void;
   signIn(email: string, password: string): Promise<SignInResult>;
+  /** This device only; nothing stays stored even when the service cannot be reached. */
   signOut(): Promise<void>;
-  /** For the oRPC link (Authorization: Bearer), read at every request. */
+  /** One renewal of the session; false when it was refused or impossible. */
+  refresh(): Promise<boolean>;
+  /** For the future oRPC link (Authorization: Bearer), read at every request. */
   getAccessToken(): Promise<string | null>;
 }
 
@@ -2228,10 +2480,11 @@ export const DEMO_USER: AuthUser = { id: 'user-federico', email: 'federico@examp
 export function createFakeBackend(): AuthBackend {
   return {
     mode: 'fake',
-    getUser: async () => DEMO_USER,
+    check: async () => ({ status: 'signedIn', user: DEMO_USER }),
     onChange: () => () => undefined,
     signIn: async () => ({ ok: true }),
     signOut: async () => undefined,
+    refresh: async () => true,
     getAccessToken: async () => null
   };
 }
@@ -2239,8 +2492,11 @@ export function createFakeBackend(): AuthBackend {
 
 `web/src/auth/supabaseBackend.ts`:
 ```ts
-import { createClient } from '@supabase/supabase-js';
+import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
 import type { AuthBackend, AuthUser, SignInFailure } from './backend';
+
+export const AUTH_STORAGE_KEY = 'cosasimangia-auth';
+export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession'>;
 
 export function signInFailure(error: { code?: string; status?: number; name?: string }): SignInFailure {
   if (error.code === 'invalid_credentials' || error.status === 400) return 'invalid_credentials';
@@ -2251,53 +2507,99 @@ export function signInFailure(error: { code?: string; status?: number; name?: st
 const toUser = (user: { id: string; email?: string } | null | undefined): AuthUser | null =>
   user ? { id: user.id, email: user.email ?? '' } : null;
 
-/** Email and password only (spec: link and Google come in wave 3). The library keeps and refreshes the session. */
-export function createSupabaseBackend(url: string, publishableKey: string): AuthBackend {
-  const client = createClient(url, publishableKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
-  });
+/** Email and password only (spec: link and Google come in wave 3). The library keeps and renews the session. */
+export function createSupabaseBackend(
+  url: string,
+  publishableKey: string,
+  deps: { auth?: AuthClient; storage?: Pick<Storage, 'getItem' | 'removeItem'> } = {}
+): AuthBackend {
+  const storage = deps.storage ?? window.localStorage;
+  const auth: AuthClient =
+    deps.auth ??
+    createClient(url, publishableKey, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY }
+    }).auth;
+
+  // Offline with an expired token the library keeps the stored session but reports no session.
+  const storedUser = (): AuthUser | null => {
+    try {
+      const raw = storage.getItem(AUTH_STORAGE_KEY);
+      return raw ? toUser((JSON.parse(raw) as { user?: { id: string; email?: string } }).user) : null;
+    } catch {
+      return null;
+    }
+  };
+
   return {
     mode: 'supabase',
-    async getUser() {
-      const { data } = await client.auth.getSession();
-      return toUser(data.session?.user);
+    async check() {
+      const { data, error } = await auth.getSession();
+      const user = toUser(data.session?.user);
+      if (user) return { status: 'signedIn', user };
+      const stored = error && isAuthRetryableFetchError(error) ? storedUser() : null;
+      return stored ? { status: 'unverified', user: stored } : { status: 'signedOut' };
     },
     onChange(listener) {
       // No Supabase calls inside the callback: the library holds a lock while it runs.
-      const { data } = client.auth.onAuthStateChange((_event, session) => listener(toUser(session?.user)));
+      const { data } = auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT') listener(null);
+        else if (session) listener(toUser(session.user));
+      });
       return () => data.subscription.unsubscribe();
     },
     async signIn(email, password) {
-      const { error } = await client.auth.signInWithPassword({ email, password });
+      const { error } = await auth.signInWithPassword({ email, password });
       return error ? { ok: false, reason: signInFailure(error) } : { ok: true };
     },
     async signOut() {
-      await client.auth.signOut();
+      const { error } = await auth.signOut({ scope: 'local' });
+      // The library removes the stored session even when it returns an error; make sure of it.
+      if (error) {
+        for (const key of [AUTH_STORAGE_KEY, `${AUTH_STORAGE_KEY}-code-verifier`, `${AUTH_STORAGE_KEY}-user`]) {
+          try {
+            storage.removeItem(key);
+          } catch {
+            // Storage unavailable: nothing was stored there either.
+          }
+        }
+      }
+    },
+    async refresh() {
+      const { data, error } = await auth.refreshSession();
+      return !error && !!data.session;
     },
     async getAccessToken() {
-      const { data } = await client.auth.getSession();
+      const { data } = await auth.getSession();
       return data.session?.access_token ?? null;
     }
   };
 }
 ```
+Verificare con Context7 che `isAuthRetryableFetchError` e `AuthRetryableFetchError` siano esportati da `@supabase/supabase-js` 2.117 (riesportano `@supabase/auth-js`); in caso contrario confrontare `error.name === 'AuthRetryableFetchError'`.
 
 `web/src/test/stubBackend.ts`:
 ```ts
-import type { AuthBackend, AuthUser, SignInResult } from '../auth/backend';
+import type { AuthBackend, AuthUser, SessionCheck, SignInResult } from '../auth/backend';
 
+/** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
 export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supabase' = 'supabase') {
-  let user = initial;
+  let current: SessionCheck = initial ? { status: 'signedIn', user: initial } : { status: 'signedOut' };
   const listeners = new Set<(user: AuthUser | null) => void>();
   const backend = {
     mode,
     nextSignIn: { ok: true } as SignInResult,
     signOutCalls: 0,
-    setUser(next: AuthUser | null) {
-      user = next;
-      listeners.forEach((listener) => listener(next));
+    signOutError: null as Error | null,
+    refreshResult: true,
+    refreshCalls: 0,
+    setUser(user: AuthUser | null) {
+      current = user ? { status: 'signedIn', user } : { status: 'signedOut' };
+      listeners.forEach((listener) => listener(user));
     },
-    getUser: async () => user,
+    setCheck(next: SessionCheck) {
+      current = next;
+    },
+    check: async () => current,
     onChange(listener: (user: AuthUser | null) => void) {
       listeners.add(listener);
       return () => void listeners.delete(listener);
@@ -2308,158 +2610,724 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
     },
     async signOut() {
       backend.signOutCalls += 1;
+      if (backend.signOutError) throw backend.signOutError;
       backend.setUser(null);
     },
-    getAccessToken: async () => (user ? 'token' : null)
+    async refresh() {
+      backend.refreshCalls += 1;
+      return backend.refreshResult;
+    },
+    getAccessToken: async () => (current.status === 'signedOut' ? null : 'token')
   } satisfies AuthBackend & Record<string, unknown>;
   return backend;
 }
 ```
 
-- [ ] **Step 4: Implementa provider e sessione**
+- [ ] **Step 4: Implementa lo stato dell'accesso**
 
 `web/src/auth/AuthProvider.tsx`:
 ```tsx
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { AuthBackend, AuthUser } from './backend';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { subscribeConnectivity } from '../lib/connectivity';
+import type { AuthBackend, AuthUser, SessionCheck } from './backend';
 
-export type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: AuthUser };
+export type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: AuthUser; verified: boolean };
 
-const AuthContext = createContext<{ state: AuthState; backend: AuthBackend } | null>(null);
+interface AuthContextValue { state: AuthState; backend: AuthBackend; markSignedOut: () => void }
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-const toState = (user: AuthUser | null): AuthState => (user ? { status: 'signedIn', user } : { status: 'signedOut' });
+const fromCheck = (check: SessionCheck): AuthState =>
+  check.status === 'signedOut' ? { status: 'signedOut' } : { status: 'signedIn', user: check.user, verified: check.status === 'signedIn' };
 
 export function AuthProvider({ backend, children }: { backend: AuthBackend; children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  // Token refreshes repeat the same user: keep the state object so nothing re-renders.
+  const apply = useCallback(
+    (next: AuthState) =>
+      setState((previous) =>
+        previous.status === 'signedIn' && next.status === 'signedIn' && previous.user.id === next.user.id && previous.verified === next.verified ? previous : next
+      ),
+    []
+  );
 
   useEffect(() => {
     let active = true;
-    // Token refreshes repeat the same user: keep the state object so nothing re-renders.
-    const apply = (user: AuthUser | null) =>
-      setState((previous) =>
-        previous.status === 'signedIn' && user && previous.user.id === user.id ? previous : toState(user)
-      );
-    backend.getUser().then((user) => active && apply(user));
-    const unsubscribe = backend.onChange(apply);
+    void backend.check().then((check) => active && apply(fromCheck(check)));
+    const unsubscribe = backend.onChange((user) => apply(user ? { status: 'signedIn', user, verified: true } : { status: 'signedOut' }));
     return () => {
       active = false;
       unsubscribe();
     };
-  }, [backend]);
+  }, [backend, apply]);
 
-  const value = useMemo(() => ({ state, backend }), [state, backend]);
+  // An unverified session is checked again when the network comes back; a refusal ends it.
+  const unverified = state.status === 'signedIn' && !state.verified;
+  useEffect(() => {
+    if (!unverified) return;
+    return subscribeConnectivity(() => {
+      if (navigator.onLine) void backend.check().then((check) => apply(fromCheck(check)));
+    });
+  }, [unverified, backend, apply]);
+
+  const markSignedOut = useCallback(() => apply({ status: 'signedOut' }), [apply]);
+  const value = useMemo(() => ({ state, backend, markSignedOut }), [state, backend, markSignedOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const value = useContext(AuthContext);
   if (!value) throw new Error('useAuth outside AuthProvider');
   return value;
 }
 ```
 
-`web/src/session/SessionScope.tsx`:
-```tsx
-import { QueryClientProvider } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { ApiProvider } from '../api/ApiProvider';
-import { createPersister, createQueryClient, persistOptions, type KeyValueStore } from '../api/persister';
-import type { Api } from '../api/types';
-import type { AuthUser } from '../auth/backend';
-import { useAuth } from '../auth/AuthProvider';
-import { env } from '../env';
-import { useLocale } from '../i18n/LocaleProvider';
-import type { Locale } from '../i18n/translate';
-
-export type CreateApi = (user: AuthUser | null, getLocale: () => Locale) => Api;
-
-const SignOutContext = createContext<(() => Promise<void>) | null>(null);
-
-/** One QueryClient and one persisted copy per user: nothing leaks to the next person (spec, cache persistita). */
-export function SessionScope({ store, createApi, children }: { store: KeyValueStore; createApi: CreateApi; children: ReactNode }) {
-  const { state, backend } = useAuth();
-  const user = state.status === 'signedIn' ? state.user : null;
-  const userId = user?.id ?? null;
-  const { locale } = useLocale();
-  const localeRef = useRef(locale);
-  localeRef.current = locale;
-
-  const session = useMemo(
-    () => ({ queryClient: createQueryClient(), persister: userId ? createPersister(store, userId) : null }),
-    [userId, store]
-  );
-  // The client depends on the user only; the language is read at each call.
-  const api = useMemo(() => createApi(user, () => localeRef.current), [userId, createApi]);
-
-  // Views are localised by the server: a new language means new data.
-  const shownLocale = useRef(locale);
-  useEffect(() => {
-    if (shownLocale.current === locale) return;
-    shownLocale.current = locale;
-    void session.queryClient.invalidateQueries();
-  }, [locale, session]);
-
-  const signOut = useCallback(async () => {
-    session.queryClient.clear();
-    await session.persister?.removeClient();
-    await backend.signOut();
-  }, [session, backend]);
-
-  const content = (
-    <ApiProvider api={api}>
-      <SignOutContext.Provider value={signOut}>{children}</SignOutContext.Provider>
-    </ApiProvider>
-  );
-  if (!session.persister) return <QueryClientProvider client={session.queryClient}>{content}</QueryClientProvider>;
-  return (
-    <PersistQueryClientProvider key={userId} client={session.queryClient} persistOptions={persistOptions(session.persister, env.buildVersion)}>
-      {content}
-    </PersistQueryClientProvider>
-  );
-}
-
-export function useSignOut(): () => Promise<void> {
-  const signOut = useContext(SignOutContext);
-  if (!signOut) throw new Error('useSignOut outside SessionScope');
-  return signOut;
-}
-```
 - [ ] **Step 5: Verifica che passino**
 
-Run: `cd web && npx vitest run src/auth src/session && npm run typecheck`
+Run: `cd web && npx vitest run src/auth && npm run typecheck`
 Expected: PASS; nessun errore di tipi.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add web/src/auth web/src/session web/src/test/stubBackend.ts
-git commit -m "Web: accesso con Supabase o utente demo e sessione con cache separata per utente"
+git add web/src/auth web/src/test/stubBackend.ts
+git commit -m "Web: accesso con Supabase o utente demo, uscita locale sicura e sessione non verificabile offline"
 ```
 
 ---
 
-### Task 9: Rotte, guardia, layout e componenti di base
+### Task 9: Sessione per utente: chiusura, rifiuti del server e lingua
 
 **Files:**
-- Create: `web/src/routes/search.ts`, `web/src/router.tsx`, `web/src/routes/AppLayout.tsx`, `web/src/routes/NotFound.tsx`, `web/src/routes/RouteError.tsx`, `web/src/routes/menu/lastDay.ts`, `web/src/session/useFamily.ts`, `web/src/components/Icon.tsx`, `web/src/components/BottomNav.tsx`, `web/src/components/StateNotice.tsx`, `web/src/components/PageHeader.tsx`, `web/src/components/OfflineBanner.tsx`, `web/src/components/Loading.tsx`, segnaposto `web/src/routes/MenuPage.tsx`, `RecipesPage.tsx`, `RecipePage.tsx`, `ProfilePage.tsx`, `web/src/auth/LoginPage.tsx` (segnaposto), `web/src/test/renderApp.tsx`, `web/src/test/renderWithProviders.tsx`
-- Modify: `web/src/App.tsx` (sostituito), `web/src/main.tsx`, `web/src/design/global.css` (in fondo), `web/src/test/setup.ts`
-- Delete: `web/src/App.test.tsx`
-- Test: `web/src/routes/search.test.ts`, `web/src/router.test.tsx`
+- Create: `web/src/session/session.ts`, `web/src/session/localePreference.ts`, `web/src/session/SessionScope.tsx`, `web/src/test/sessionHarness.tsx`
+- Test: `web/src/session/session.test.ts`, `web/src/session/SessionScope.test.tsx`
 
 **Interfaces:**
-- Consumes: tutto dai Task 2-8.
+- Consumes: `createQueryClient`, `createPersister`, `persistOptions`, `purgeOtherCopies`, `cacheKey`, `KeyValueStore` (Task 7); `familyOfKey`, `meQuery`, `useQueryDeps` (Task 6); `toApiError`; `ApiProvider`, `Api`; `useAuth`, `AuthUser` (Task 8); `useLocale`, `initialLocale`, `LOCALES`, `Locale` (Task 3); `env.buildVersion`.
 - Produces:
-  - da `src/routes/search.ts`: `MenuSearch { day?: IsoDate }`, `RecipesSearch { q?: string; meal?: MealType; time?: number; group?: ProteinGroup; rating?: number; sort?: 'rating' | 'added' | 'lastEaten'; dir?: 'reverse' }`, `RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate }`, `LoginSearch { redirect?: string }`; `validateMenuSearch`, `validateRecipesSearch`, `validateRecipeSearch`, `validateLoginSearch` (tutte `(raw: Record<string, unknown>) => …Search`); `toRecipeQuery(search: RecipesSearch): RecipeQuery`; `toRecipesSearch(query: RecipeQuery): RecipesSearch`
+  - `interface Session { readonly userId: string | null; readonly queryClient: QueryClient; isClosed(): boolean; close(): Promise<void>; revoke(familyId: string): void; isRevoked(familyId: string): boolean; subscribe(listener: () => void): () => void; revision(): number; track(key: string): number; isLatest(key: string, token: number): boolean; setErrorHandler(handler: ErrorHandler): void }`; `createSession(userId: string | null, store: KeyValueStore): Session`; `persisterOf(session): SessionPersister | null`
+  - `type PreferenceScope = 'device' | \`user:${string}\``; `userScope(id)`, `readPreference(scope)`, `writePreference(scope, locale)`, `clearPreference(scope)`
+  - `type CreateApi = (user: AuthUser | null, getLocale: () => Locale) => Api`; `<SessionScope store createApi>`
+  - `useSession(): Session`, `useSessionRevision(): number`, `useSignOut(): () => Promise<void>`, `useChooseLocale(): (locale: Locale) => void`
+  - `renderSession(ui, options)` (test): monta `LocaleProvider`, `AuthProvider`, `SessionScope` con backend, negozio e client dati
+
+**Chiusura della sessione** (spec, Accesso e sessione; review, rilievo 1): `close()` rende la sessione inerte (le risposte arrivate dopo si scartano), annulla le richieste, svuota cache e mutazioni, chiude il persister (che cancella la copia dopo le scritture già partite) e cancella la scelta di lingua dell'utente. La usano «Esci», l'evento di uscita da un'altra scheda e ogni cambio d'utente. `SessionScope` la chiama quando la sessione mostrata cambia, mai nella pulizia di un effetto, così lo `StrictMode` di sviluppo non chiude una sessione viva.
+
+- [ ] **Step 1: Scrivi i test dell'oggetto sessione che falliscono**
+
+`web/src/session/session.test.ts`:
+```ts
+import { describe, expect, it } from 'vitest';
+import { cacheKey, createMemoryStore } from '../api/persister';
+import { queryKeys } from '../api/queries';
+import { createSession, persisterOf } from './session';
+import { readPreference, userScope, writePreference } from './localePreference';
+
+describe('session', () => {
+  it('closes once: clears the cache, deletes the stored copy and the language choice', async () => {
+    const store = createMemoryStore();
+    store.entries.set(cacheKey('a'), { timestamp: 1, buster: '', clientState: { queries: [], mutations: [] } });
+    writePreference(userScope('a'), 'en-GB');
+    const session = createSession('a', store);
+    session.queryClient.setQueryData(queryKeys.me('it-IT'), { version: 'v', data: 'me' });
+    await session.close();
+    await session.close();
+    expect(session.isClosed()).toBe(true);
+    expect(session.queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(store.entries.has(cacheKey('a'))).toBe(false);
+    expect(readPreference(userScope('a'))).toBeNull();
+    expect(await persisterOf(session)?.restoreClient()).toBeUndefined();
+  });
+  it('revokes a family: its views leave the cache, the others stay', () => {
+    const session = createSession('a', createMemoryStore());
+    session.queryClient.setQueryData(queryKeys.week('f1', '2026-10-05', 'it-IT'), { version: 'v', data: 1 });
+    session.queryClient.setQueryData(queryKeys.week('f2', '2026-10-05', 'it-IT'), { version: 'v', data: 2 });
+    const before = session.revision();
+    session.revoke('f1');
+    expect(session.isRevoked('f1')).toBe(true);
+    expect(session.revision()).toBeGreaterThan(before);
+    expect(session.queryClient.getQueryData(queryKeys.week('f1', '2026-10-05', 'it-IT'))).toBeUndefined();
+    expect(session.queryClient.getQueryData(queryKeys.week('f2', '2026-10-05', 'it-IT'))).toBeDefined();
+  });
+  it('remembers only the latest request per object', () => {
+    const session = createSession('a', createMemoryStore());
+    const first = session.track('rating:r1');
+    const second = session.track('rating:r1');
+    const other = session.track('rating:r2');
+    expect(session.isLatest('rating:r1', first)).toBe(false);
+    expect(session.isLatest('rating:r1', second)).toBe(true);
+    expect(session.isLatest('rating:r2', other)).toBe(true);
+  });
+});
+```
+
+- [ ] **Step 2: Verifica che falliscano**
+
+Run: `cd web && npx vitest run src/session/session.test.ts`
+Expected: FAIL, import non risolti.
+
+- [ ] **Step 3: Implementa sessione e preferenze di lingua**
+
+`web/src/session/localePreference.ts`:
+```ts
+import { LOCALES, type Locale } from '../i18n/translate';
+
+/** device: fake mode only. user:<id>: temporary choice of a signed-in person until the profile can be saved. */
+export type PreferenceScope = 'device' | `user:${string}`;
+
+export const userScope = (id: string): PreferenceScope => `user:${id}`;
+const keyOf = (scope: PreferenceScope) => `locale:${scope}`;
+
+// Storage may be unavailable (private mode): the choice then lasts only for the page.
+export function readPreference(scope: PreferenceScope): Locale | null {
+  try {
+    const value = localStorage.getItem(keyOf(scope));
+    return LOCALES.includes(value as Locale) ? (value as Locale) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writePreference(scope: PreferenceScope, locale: Locale): void {
+  try {
+    localStorage.setItem(keyOf(scope), locale);
+  } catch {
+    // Not stored; still applied.
+  }
+}
+
+export function clearPreference(scope: PreferenceScope): void {
+  try {
+    localStorage.removeItem(keyOf(scope));
+  } catch {
+    // Nothing stored.
+  }
+}
+```
+
+`web/src/session/session.ts`:
+```ts
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
+import { createPersister, createQueryClient, type KeyValueStore, type SessionPersister } from '../api/persister';
+import { familyOfKey } from '../api/queries';
+import { clearPreference, userScope } from './localePreference';
+
+export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
+
+export interface Session {
+  readonly userId: string | null;
+  readonly queryClient: QueryClient;
+  isClosed(): boolean;
+  close(): Promise<void>;
+  revoke(familyId: string): void;
+  isRevoked(familyId: string): boolean;
+  subscribe(listener: () => void): () => void;
+  revision(): number;
+  track(key: string): number;
+  isLatest(key: string, token: number): boolean;
+  setErrorHandler(handler: ErrorHandler): void;
+}
+
+const persisters = new WeakMap<Session, SessionPersister>();
+
+export function persisterOf(session: Session): SessionPersister | null {
+  return persisters.get(session) ?? null;
+}
+
+/** Everything one signed-in person has on this device; closing it leaves nothing behind. */
+export function createSession(userId: string | null, store: KeyValueStore): Session {
+  let closed = false;
+  let handler: ErrorHandler = () => {};
+  let rev = 0;
+  const revoked = new Set<string>();
+  const listeners = new Set<() => void>();
+  const requests = new Map<string, number>();
+  const queryClient = createQueryClient({ onError: (error, scope) => !closed && handler(error, scope) });
+  const persister = userId ? createPersister(store, userId) : null;
+  const changed = () => {
+    rev += 1;
+    listeners.forEach((listener) => listener());
+  };
+
+  const session: Session = {
+    userId,
+    queryClient,
+    isClosed: () => closed,
+    async close() {
+      if (closed) return;
+      closed = true;
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      queryClient.getMutationCache().clear();
+      if (userId) clearPreference(userScope(userId));
+      await persister?.close();
+      changed();
+    },
+    revoke(familyId) {
+      revoked.add(familyId);
+      queryClient.removeQueries({ predicate: (query) => familyOfKey(query.queryKey) === familyId });
+      changed();
+    },
+    isRevoked: (familyId) => revoked.has(familyId),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+    revision: () => rev,
+    track(key) {
+      const token = (requests.get(key) ?? 0) + 1;
+      requests.set(key, token);
+      return token;
+    },
+    isLatest: (key, token) => requests.get(key) === token,
+    setErrorHandler(next) {
+      handler = next;
+    }
+  };
+  if (persister) persisters.set(session, persister);
+  return session;
+}
+```
+
+- [ ] **Step 4: Verifica che passino**
+
+Run: `cd web && npx vitest run src/session/session.test.ts`
+Expected: PASS.
+
+- [ ] **Step 5: Scrivi i test della sessione nell'app che falliscono**
+
+`web/src/test/sessionHarness.tsx`:
+```tsx
+import { render } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { createFakeApi } from '../api/fake/fakeApi';
+import { createMemoryStore, type KeyValueStore } from '../api/persister';
+import type { Api } from '../api/types';
+import type { AuthBackend } from '../auth/backend';
+import { AuthProvider } from '../auth/AuthProvider';
+import { LocaleProvider } from '../i18n/LocaleProvider';
+import type { Locale } from '../i18n/translate';
+import { SessionScope, type CreateApi } from '../session/SessionScope';
+
+export function renderSession(ui: ReactNode, options: { backend: AuthBackend; store?: KeyValueStore; api?: (user: string | null) => Api; locale?: Locale }) {
+  const store = options.store ?? createMemoryStore();
+  const createApi: CreateApi = options.api
+    ? (user) => options.api!(user?.id ?? null)
+    : (user, getLocale) => createFakeApi({ getLocale, user: user ?? undefined, latencyMs: 0 });
+  const result = render(
+    <LocaleProvider initial={options.locale ?? 'it-IT'}>
+      <AuthProvider backend={options.backend}>
+        <SessionScope store={store} createApi={createApi}>{ui}</SessionScope>
+      </AuthProvider>
+    </LocaleProvider>
+  );
+  return { ...result, store };
+}
+```
+
+`web/src/session/SessionScope.test.tsx`:
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { ApiError } from '../api/errors';
+import { createFakeApi } from '../api/fake/fakeApi';
+import { cacheKey, createMemoryStore } from '../api/persister';
+import { meQuery, useQueryDeps, weekQuery } from '../api/queries';
+import type { Api, MeView, Read, WeekView } from '../api/types';
+import { useAuth } from '../auth/AuthProvider';
+import { useLocale } from '../i18n/LocaleProvider';
+import { createStubBackend } from '../test/stubBackend';
+import { renderSession } from '../test/sessionHarness';
+import { readPreference, userScope, writePreference } from './localePreference';
+import { useChooseLocale, useSession, useSessionRevision, useSignOut } from './SessionScope';
+
+const A = { id: 'a', email: 'a@example.com' };
+const B = { id: 'b', email: 'b@example.com' };
+
+const meOf = (id: string | null, locale: 'it-IT' | 'en-GB' = 'it-IT'): Read<MeView> => ({
+  unchanged: false,
+  version: `me:${id}`,
+  data: { user: { id: id ?? 'anon', displayName: (id ?? 'anon').toUpperCase(), email: '', locale }, families: [], currentFamilyId: null }
+});
+
+/** Fake data client whose profile read can be replaced per user. */
+function api(me: (id: string | null) => Promise<Read<MeView>>) {
+  return (id: string | null) => {
+    const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    return { ...base, me: { get: () => me(id) } } as Api;
+  };
+}
+
+function Probe() {
+  const { state } = useAuth();
+  const me = useQuery({ ...meQuery(useQueryDeps()), enabled: state.status === 'signedIn' });
+  const signOut = useSignOut();
+  const choose = useChooseLocale();
+  const { locale } = useLocale();
+  return (
+    <>
+      <p>auth: {state.status}</p>
+      <p>name: {me.data?.user.displayName ?? '-'}</p>
+      <p>locale: {locale}</p>
+      <button onClick={() => void signOut()}>out</button>
+      <button onClick={() => choose('en-GB')}>english</button>
+    </>
+  );
+}
+
+describe('closing the session', () => {
+  it('cleans up locally on sign-out even when the service fails, and nothing comes back on reopening', async () => {
+    const backend = createStubBackend(A);
+    backend.signOutError = new Error('offline');
+    const { store, unmount } = renderSession(<Probe />, { backend, api: api(async (id) => meOf(id)) });
+    await screen.findByText('name: A');
+    await waitFor(() => expect(store.entries.has(cacheKey('a'))).toBe(true));
+    fireEvent.click(screen.getByText('out'));
+    await screen.findByText('auth: signedOut');
+    expect(store.entries.has(cacheKey('a'))).toBe(false);
+    unmount();
+    // Reopen as A without network: no stored copy to restore.
+    const reopened = createStubBackend(A);
+    renderSession(<Probe />, { backend: reopened, store, api: api(() => new Promise(() => {})) });
+    await screen.findByText('auth: signedIn');
+    expect(screen.getByText('name: -')).toBeTruthy();
+  });
+  it('closes the session when another tab signs out', async () => {
+    const backend = createStubBackend(A);
+    const { store } = renderSession(<Probe />, { backend, api: api(async (id) => meOf(id)) });
+    await screen.findByText('name: A');
+    await waitFor(() => expect(store.entries.has(cacheKey('a'))).toBe(true));
+    act(() => backend.setUser(null));
+    await waitFor(() => expect(store.entries.has(cacheKey('a'))).toBe(false));
+    expect(screen.queryByText('name: A')).toBeNull();
+  });
+  it('drops answers still pending when the user changes and keeps only the new user on disk', async () => {
+    let releaseA: (value: Read<MeView>) => void = () => {};
+    const backend = createStubBackend(A);
+    const { store } = renderSession(<Probe />, {
+      backend,
+      api: api((id) => (id === 'a' ? new Promise((resolve) => (releaseA = resolve)) : Promise.resolve(meOf(id))))
+    });
+    await screen.findByText('auth: signedIn');
+    act(() => backend.setUser(B));
+    await screen.findByText('name: B');
+    await act(async () => releaseA(meOf('a')));
+    expect(screen.queryByText('name: A')).toBeNull();
+    await waitFor(() => expect([...store.entries.keys()]).toEqual([cacheKey('b')]));
+  });
+  it('removes copies of other users when it starts', async () => {
+    const store = createMemoryStore();
+    store.entries.set(cacheKey('old'), {});
+    renderSession(<Probe />, { backend: createStubBackend(B), store, api: api(async (id) => meOf(id)) });
+    await screen.findByText('name: B');
+    await waitFor(() => expect(store.entries.has(cacheKey('old'))).toBe(false));
+  });
+});
+
+describe('access refused by the server', () => {
+  it('renews the session once on unauthorized and reads again', async () => {
+    const backend = createStubBackend(A);
+    let calls = 0;
+    renderSession(<Probe />, { backend, api: api(async (id) => (calls++ === 0 ? Promise.reject(new ApiError('unauthorized')) : meOf(id))) });
+    await screen.findByText('name: A');
+    expect(backend.refreshCalls).toBe(1);
+    expect(backend.signOutCalls).toBe(0);
+  });
+  it('signs out when the renewal is refused', async () => {
+    const backend = createStubBackend(A);
+    backend.refreshResult = false;
+    const { store } = renderSession(<Probe />, { backend, api: api(() => Promise.reject(new ApiError('unauthorized'))) });
+    await screen.findByText('auth: signedOut');
+    expect(backend.signOutCalls).toBe(1);
+    expect(store.entries.has(cacheKey('a'))).toBe(false);
+  });
+  it('signs out when the server refuses again after a renewal', async () => {
+    const backend = createStubBackend(A);
+    renderSession(<Probe />, { backend, api: api(() => Promise.reject(new ApiError('unauthorized'))) });
+    await screen.findByText('auth: signedOut');
+    expect(backend.refreshCalls).toBe(1);
+  });
+  it('removes a forbidden family from memory and disk, also after reopening', async () => {
+    const week = { startsOn: '2026-10-05', days: [] } as WeekView;
+    let refuse = false;
+    const familyApi = (id: string | null) => {
+      const base = api(async () => meOf(id))(id);
+      return { ...base, menu: { ...base.menu, getWeek: async () => (refuse ? Promise.reject(new ApiError('forbidden')) : { unchanged: false as const, version: 'w1', data: week }) } };
+    };
+    function WeekProbe({ enabled = true }: { enabled?: boolean }) {
+      const session = useSession();
+      useSessionRevision();
+      // Like the real screens behind FamilyGate: no reads for a revoked family.
+      const query = useQuery({ ...weekQuery(useQueryDeps(), 'f', '2026-10-05'), enabled: enabled && !session.isRevoked('f') });
+      return (
+        <>
+          <p>week: {query.data ? 'shown' : 'none'}</p>
+          <p>{session.isRevoked('f') ? 'revoked' : 'allowed'}</p>
+          <button onClick={() => void query.refetch()}>reload</button>
+        </>
+      );
+    }
+    const backend = createStubBackend(A);
+    const { store, unmount } = renderSession(<WeekProbe />, { backend, api: familyApi });
+    await screen.findByText('week: shown');
+    await waitFor(() => expect(JSON.stringify(store.entries.get(cacheKey('a')) ?? '')).toContain('getWeek'));
+    refuse = true;
+    fireEvent.click(screen.getByText('reload'));
+    await screen.findByText('revoked');
+    expect(screen.getByText('week: none')).toBeTruthy();
+    await waitFor(() => expect(JSON.stringify(store.entries.get(cacheKey('a')) ?? '')).not.toContain('getWeek'));
+    unmount();
+    renderSession(<WeekProbe enabled={false} />, { backend: createStubBackend(A), store, api: familyApi });
+    await screen.findByText('allowed');
+    expect(screen.getByText('week: none')).toBeTruthy();
+  });
+});
+
+describe('language', () => {
+  it('applies the profile language at each identity, forgetting the previous person\'s choice', async () => {
+    const backend = createStubBackend(A);
+    renderSession(<Probe />, { backend, api: api(async (id) => meOf(id, 'it-IT')) });
+    await screen.findByText('name: A');
+    fireEvent.click(screen.getByText('english'));
+    await screen.findByText('locale: en-GB');
+    expect(readPreference(userScope('a'))).toBe('en-GB');
+    fireEvent.click(screen.getByText('out'));
+    await screen.findByText('auth: signedOut');
+    expect(readPreference(userScope('a'))).toBeNull();
+    act(() => backend.setUser(B));
+    await screen.findByText('name: B');
+    await screen.findByText('locale: it-IT');
+  });
+  it('ignores a device preference when a real profile exists, and uses it in fake mode', async () => {
+    writePreference('device', 'en-GB');
+    const real = renderSession(<Probe />, { backend: createStubBackend(B), api: api(async (id) => meOf(id, 'it-IT')) });
+    await screen.findByText('name: B');
+    await screen.findByText('locale: it-IT');
+    real.unmount();
+    renderSession(<Probe />, { backend: createStubBackend(B, 'fake'), api: api(async (id) => meOf(id, 'it-IT')) });
+    await screen.findByText('locale: en-GB');
+  });
+  it('never shows an answer in the previous language after a switch', async () => {
+    let releaseItalian: (value: Read<WeekView>) => void = () => {};
+    const weekIn = (label: string) => ({ startsOn: label, days: [] }) as WeekView;
+    // Fake mode: no profile language to re-apply after the switch.
+    const backend = createStubBackend(A, 'fake');
+    function LanguageProbe() {
+      const { setLocale } = useLocale();
+      const week = useQuery(weekQuery(useQueryDeps(), 'f', '2026-10-05'));
+      return <><p>week: {week.data?.startsOn ?? '-'}</p><button onClick={() => setLocale('en-GB')}>switch</button></>;
+    }
+    renderSession(<LanguageProbe />, {
+      backend,
+      locale: 'it-IT',
+      api: (id) => {
+        const base = api(async () => meOf(id))(id);
+        let call = 0;
+        return { ...base, menu: { ...base.menu, getWeek: () => (call++ === 0 ? new Promise((resolve) => (releaseItalian = resolve)) : Promise.resolve({ unchanged: false as const, version: 'en', data: weekIn('english') })) } };
+      }
+    });
+    await screen.findByText('week: -');
+    fireEvent.click(screen.getByText('switch'));
+    await screen.findByText('week: english');
+    await act(async () => releaseItalian({ unchanged: false, version: 'it', data: weekIn('italiano') }));
+    expect(screen.queryByText('week: italiano')).toBeNull();
+  });
+});
+```
+Nota sul test «never shows…»: `renderSession` crea il client dati una volta per utente, quindi il contatore `call` vale per tutta la sessione.
+
+- [ ] **Step 6: Verifica che falliscano**
+
+Run: `cd web && npx vitest run src/session/SessionScope.test.tsx`
+Expected: FAIL, `Failed to resolve import "./SessionScope"`.
+
+- [ ] **Step 7: Implementa `SessionScope`**
+
+`web/src/session/SessionScope.tsx`:
+```tsx
+import { QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore, type ReactNode } from 'react';
+import { ApiProvider } from '../api/ApiProvider';
+import { toApiError } from '../api/errors';
+import { persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
+import { meQuery, useQueryDeps } from '../api/queries';
+import type { Api } from '../api/types';
+import { useAuth } from '../auth/AuthProvider';
+import type { AuthUser } from '../auth/backend';
+import { env } from '../env';
+import { useLocale } from '../i18n/LocaleProvider';
+import { initialLocale, type Locale } from '../i18n/translate';
+import { readPreference, userScope, writePreference } from './localePreference';
+import { createSession, persisterOf, type Session } from './session';
+
+export type CreateApi = (user: AuthUser | null, getLocale: () => Locale) => Api;
+
+interface SessionContextValue {
+  session: Session;
+  signOut: () => Promise<void>;
+  chooseLocale: (locale: Locale) => void;
+}
+const SessionContext = createContext<SessionContextValue | null>(null);
+
+export function SessionScope({ store, createApi, children }: { store: KeyValueStore; createApi: CreateApi; children: ReactNode }) {
+  const { state, backend, markSignedOut } = useAuth();
+  const user = state.status === 'signedIn' ? state.user : null;
+  const userId = user?.id ?? null;
+  const { locale, setLocale } = useLocale();
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+
+  const session = useMemo(() => createSession(userId, store), [userId, store]);
+  // The data client depends on the user only; the language is read at each call.
+  const api = useMemo(() => createApi(user, () => localeRef.current), [userId, createApi]);
+
+  // One closing procedure for sign-out, sign-out elsewhere and change of user. Never in an
+  // effect cleanup: StrictMode re-runs effects and would close a live session.
+  const shown = useRef<Session | null>(null);
+  useEffect(() => {
+    const previous = shown.current;
+    shown.current = session;
+    if (previous && previous !== session) void previous.close();
+    void purgeOtherCopies(store, userId);
+  }, [session, store, userId]);
+
+  const signOut = useCallback(async () => {
+    await session.close();
+    try {
+      await backend.signOut();
+    } catch {
+      // Local data are already gone; the session is over on this device anyway.
+    }
+    markSignedOut();
+  }, [session, backend, markSignedOut]);
+
+  // Refusals from the server: unauthorized → one renewal, then sign-in; forbidden → drop the family.
+  useEffect(() => {
+    let recovering = false;
+    const recover = async () => {
+      if (recovering) return void signOut();
+      recovering = true;
+      const renewed = await backend.refresh().catch(() => false);
+      if (!renewed || session.isClosed()) return void signOut();
+      await session.queryClient.refetchQueries({ type: 'active' });
+      recovering = false;
+    };
+    session.setErrorHandler((error, scope) => {
+      const code = toApiError(error).code;
+      if (code === 'unauthorized') void recover();
+      if (code === 'forbidden' && scope.familyId) {
+        session.revoke(scope.familyId);
+        void session.queryClient.invalidateQueries({ queryKey: ['me'] });
+      }
+    });
+  }, [session, backend, signOut]);
+
+  // Which language applies (spec, Lingua): device in fake mode, browser without a session,
+  // otherwise the person's temporary choice or, once read, the profile language.
+  useEffect(() => {
+    if (backend.mode === 'fake') {
+      const device = readPreference('device');
+      if (device) setLocale(device);
+    } else if (!userId) {
+      setLocale(initialLocale(navigator.languages));
+    } else {
+      const chosen = readPreference(userScope(userId));
+      if (chosen) setLocale(chosen);
+    }
+  }, [userId, backend.mode, setLocale]);
+
+  const chooseLocale = useCallback(
+    (next: Locale) => {
+      setLocale(next);
+      if (backend.mode === 'fake') writePreference('device', next);
+      else if (userId) writePreference(userScope(userId), next);
+    },
+    [backend.mode, userId, setLocale]
+  );
+
+  const value = useMemo(() => ({ session, signOut, chooseLocale }), [session, signOut, chooseLocale]);
+  const content = (
+    <ApiProvider api={api}>
+      <SessionContext.Provider value={value}>
+        {backend.mode === 'supabase' && userId && <ProfileLocale userId={userId} />}
+        {children}
+      </SessionContext.Provider>
+    </ApiProvider>
+  );
+  const persister = persisterOf(session);
+  if (!persister) return <QueryClientProvider client={session.queryClient}>{content}</QueryClientProvider>;
+  return (
+    <PersistQueryClientProvider key={userId} client={session.queryClient} persistOptions={persistOptions(persister, env.buildVersion)}>
+      {content}
+    </PersistQueryClientProvider>
+  );
+}
+
+/** At each identity the profile language applies, unless this person chose another one meanwhile. */
+function ProfileLocale({ userId }: { userId: string }) {
+  const me = useQuery(meQuery(useQueryDeps()));
+  const { setLocale } = useLocale();
+  const profileLocale = me.data?.user.id === userId ? me.data.user.locale : undefined;
+  useEffect(() => {
+    if (profileLocale && !readPreference(userScope(userId))) setLocale(profileLocale);
+  }, [profileLocale, userId, setLocale]);
+  return null;
+}
+
+function useSessionContext(): SessionContextValue {
+  const value = useContext(SessionContext);
+  if (!value) throw new Error('session hooks outside SessionScope');
+  return value;
+}
+
+export const useSession = () => useSessionContext().session;
+export const useSignOut = () => useSessionContext().signOut;
+export const useChooseLocale = () => useSessionContext().chooseLocale;
+
+/** Re-renders when the session changes state (revoked family, closing). */
+export function useSessionRevision(): number {
+  const session = useSession();
+  return useSyncExternalStore(session.subscribe, session.revision, session.revision);
+}
+```
+
+- [ ] **Step 8: Verifica che passino**
+
+Run: `cd web && npx vitest run src/session && npm run typecheck`
+Expected: PASS. Se il test «drops answers still pending» trova `name: A` per un istante, controllare che `Probe` legga la query dal `QueryClient` della nuova sessione (`useQueryDeps` dentro `SessionScope`) e non da quello vecchio.
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add web/src/session web/src/test/sessionHarness.tsx
+git commit -m "Web: sessione per utente con chiusura unica, rifiuti del server gestiti e lingua per identità"
+```
+
+---
+
+### Task 10: Rotte, guardia, layout, stato della famiglia e componenti di base
+
+**Files:**
+- Create: `web/src/routes/search.ts`, `web/src/router.tsx`, `web/src/routes/AppLayout.tsx`, `web/src/routes/NotFound.tsx`, `web/src/routes/RouteError.tsx`, `web/src/routes/menu/lastDay.ts`, `web/src/session/useFamily.ts`, `web/src/components/Icon.tsx`, `web/src/components/BottomNav.tsx`, `web/src/components/StateNotice.tsx`, `web/src/components/PageHeader.tsx`, `web/src/components/OfflineBanner.tsx`, `web/src/components/Loading.tsx`, `web/src/components/QueryError.tsx`, `web/src/components/FamilyGate.tsx`, segnaposto `web/src/routes/MenuPage.tsx`, `RecipesPage.tsx`, `RecipePage.tsx`, `ProfilePage.tsx`, `web/src/auth/LoginPage.tsx` (segnaposto), `web/src/test/renderApp.tsx`, `web/src/test/renderWithProviders.tsx`, `web/src/test/browserLanguages.ts`
+- Modify: `web/src/App.tsx` (sostituito), `web/src/main.tsx`, `web/src/design/global.css` (in fondo), `web/src/test/setup.ts`
+- Delete: `web/src/App.test.tsx`
+- Test: `web/src/routes/search.test.ts`, `web/src/router.test.tsx`, `web/src/components/FamilyGate.test.tsx`
+
+**Interfaces:**
+- Consumes: tutto dai Task 2-9.
+- Produces:
+  - da `src/routes/search.ts`: `MenuSearch { day?: IsoDate }`, `RecipesSearch { q?: string; meal?: MealType; time?: number; group?: ProteinGroup; rating?: number; sort?: 'rating' | 'added' | 'lastEaten'; dir?: 'reverse' }`, `RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate; slot?: string }`, `LoginSearch { redirect?: string }`; `validateMenuSearch`, `validateRecipesSearch`, `validateRecipeSearch`, `validateLoginSearch` (tutte `(raw: Record<string, unknown>) => …Search`); `toRecipeQuery(search: RecipesSearch): RecipeQuery`; `toRecipesSearch(query: RecipeQuery): RecipesSearch`
   - id delle rotte per `getRouteApi`: `'/login'`, `'/_app/menu'`, `'/_app/recipes'`, `'/_app/recipes/$recipeId'`, `'/_app/profile'`
   - `createAppRouter(history?: RouterHistory)`; `interface RouterContext { auth: AuthState }`
   - `<AppRoot backend store createApi history? initialLocale?>` da `src/App.tsx`
-  - `useFamily(): { me: UseQueryResult<MeView>; family: FamilyView | null }`
+  - `type FamilyState = { status: 'loading' } | { status: 'error'; error: unknown; retry: () => void } | { status: 'none' } | { status: 'revoked' } | { status: 'ready'; family: FamilyView; me: MeView }`; `useFamily(): FamilyState`; `useMe()`: la query del profilo
+  - `<FamilyGate>{(family: FamilyView) => ReactNode}</FamilyGate>`; `<QueryError error onRetry>`
   - `rememberMenuDay(day: IsoDate | undefined): void`, `rememberedMenuDay(): IsoDate | undefined`
   - `type IconName = 'arrow' | 'clock' | 'calendar' | 'book' | 'bag' | 'user' | 'star' | 'chevron-left' | 'chevron-right' | 'recipe' | 'list' | 'filter' | 'sort' | 'users' | 'gear' | 'ban'`; `<Icon name className?>`
   - `<StateNotice title body? children?>`, `<PageHeader back={ReactNode} title={ReactNode} titleId?>`, `<OfflineBanner>`, `<Loading>`, `<BottomNav>`
   - `renderApp(path: string, options?: { backend?: AuthBackend; api?: Api; locale?: Locale; store?: KeyValueStore }): RenderResult & { history: RouterHistory }`
-  - `renderWithProviders(ui: ReactNode, options?: { api?: Api; queryClient?: QueryClient; locale?: Locale }): RenderResult & { queryClient: QueryClient }`
+  - `renderWithProviders(ui: ReactNode, options?: { api?: Api; locale?: Locale; backend?: AuthBackend }): RenderResult & { queryClient(): QueryClient; session(): Session }` (con la stessa sessione dell'app)
 
 - [ ] **Step 1: Scrivi i test dei parametri che falliscono**
 
@@ -2485,8 +3353,9 @@ describe('search params', () => {
     expect(toRecipesSearch(toRecipeQuery(search))).toEqual(search);
   });
   it('validates the recipe page', () => {
-    expect(validateRecipeSearch({ servings: '3', from: 'menu', day: '2026-10-06' })).toEqual({ servings: 3, from: 'menu', day: '2026-10-06' });
-    expect(validateRecipeSearch({ servings: 0, from: 'elsewhere', day: 'x' })).toEqual({});
+    expect(validateRecipeSearch({ servings: '3', from: 'menu', day: '2026-10-06', slot: '2026-10-06-dinner' }))
+      .toEqual({ servings: 3, from: 'menu', day: '2026-10-06', slot: '2026-10-06-dinner' });
+    expect(validateRecipeSearch({ servings: 0, from: 'elsewhere', day: 'x', slot: '<script>' })).toEqual({});
     expect(validateRecipeSearch({ servings: 51 })).toEqual({});
   });
   it('accepts only local redirects after sign-in', () => {
@@ -2516,7 +3385,7 @@ export interface RecipesSearch {
   q?: string; meal?: MealType; time?: number; group?: ProteinGroup; rating?: number;
   sort?: 'rating' | 'added' | 'lastEaten'; dir?: 'reverse';
 }
-export interface RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate }
+export interface RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate; slot?: string }
 export interface LoginSearch { redirect?: string }
 
 const SORTS = ['rating', 'added', 'lastEaten'] as const;
@@ -2552,7 +3421,9 @@ export function validateRecipeSearch(raw: Record<string, unknown>): RecipeSearch
   return compact({
     servings: positiveInt(raw.servings, 50),
     from: oneOf(['menu', 'recipes'] as const, raw.from),
-    day: isIsoDate(raw.day) ? raw.day : undefined
+    day: isIsoDate(raw.day) ? raw.day : undefined,
+    // Meal the recipe was opened from: the hook for past versions (spec R1, wave 2).
+    slot: typeof raw.slot === 'string' && /^[\w-]{1,80}$/.test(raw.slot) ? raw.slot : undefined
   });
 }
 
@@ -2697,18 +3568,10 @@ export function PageHeader({ back, title, titleId }: { back: ReactNode; title: R
 ```tsx
 import { useSyncExternalStore } from 'react';
 import { useT } from '../i18n/LocaleProvider';
-
-function subscribe(onChange: () => void) {
-  window.addEventListener('online', onChange);
-  window.addEventListener('offline', onChange);
-  return () => {
-    window.removeEventListener('online', onChange);
-    window.removeEventListener('offline', onChange);
-  };
-}
+import { isOnline, subscribeConnectivity } from '../lib/connectivity';
 
 export function useOnline(): boolean {
-  return useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
+  return useSyncExternalStore(subscribeConnectivity, isOnline, () => true);
 }
 
 export function OfflineBanner() {
@@ -2724,6 +3587,23 @@ import { useT } from '../i18n/LocaleProvider';
 export function Loading() {
   const t = useT();
   return <p className="loading" role="status">{t('common.loading')}</p>;
+}
+```
+
+`web/src/components/QueryError.tsx`:
+```tsx
+import { errorKey } from '../api/errors';
+import { useT } from '../i18n/LocaleProvider';
+import { StateNotice } from './StateNotice';
+
+/** A failed read with a way out: «Riprova» repeats it (review, finding 9). */
+export function QueryError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  const t = useT();
+  return (
+    <StateNotice title={t(errorKey(error))}>
+      <button type="button" className="text-button" onClick={onRetry}>{t('common.retry')}</button>
+    </StateNotice>
+  );
 }
 ```
 
@@ -2785,26 +3665,73 @@ Verificare con Context7 (`/tanstack/router`, «Link active state aria-current»)
 `web/src/session/useFamily.ts`:
 ```ts
 import { useQuery } from '@tanstack/react-query';
+import { isBlocking } from '../api/errors';
 import { meQuery, useQueryDeps } from '../api/queries';
+import type { FamilyView, MeView } from '../api/types';
+import { useSession, useSessionRevision } from './SessionScope';
 
-/** The signed-in person and the family shown (one per session for now). */
-export function useFamily() {
-  const me = useQuery(meQuery(useQueryDeps()));
-  const family = me.data?.families.find((f) => f.id === me.data?.currentFamilyId) ?? null;
-  return { me, family };
+export type FamilyState =
+  | { status: 'loading' }
+  | { status: 'error'; error: unknown; retry: () => void }
+  | { status: 'none' }
+  | { status: 'revoked' }
+  | { status: 'ready'; family: FamilyView; me: MeView };
+
+export function useMe() {
+  return useQuery(meQuery(useQueryDeps()));
+}
+
+/** Loading, error, no family, revoked family or ready: screens never wait forever (review, finding 9). */
+export function useFamily(): FamilyState {
+  const me = useMe();
+  const session = useSession();
+  useSessionRevision();
+  if (me.isError && isBlocking(me.error, !!me.data)) return { status: 'error', error: me.error, retry: () => void me.refetch() };
+  if (!me.data) return { status: 'loading' };
+  const family = me.data.families.find((f) => f.id === me.data.currentFamilyId);
+  if (!family) return { status: 'none' };
+  if (session.isRevoked(family.id)) return { status: 'revoked' };
+  return { status: 'ready', family, me: me.data };
 }
 ```
 
-Segnaposto (li sostituiscono i Task 10, 13, 14, 15 e 16). `web/src/routes/MenuPage.tsx`:
+`web/src/components/FamilyGate.tsx`:
 ```tsx
+import type { ReactNode } from 'react';
+import type { FamilyView } from '../api/types';
+import { useT } from '../i18n/LocaleProvider';
+import { useFamily } from '../session/useFamily';
+import { Loading } from './Loading';
+import { QueryError } from './QueryError';
+import { StateNotice } from './StateNotice';
+
+/** In front of every family screen: its reads start only with a family that is still allowed. */
+export function FamilyGate({ children }: { children: (family: FamilyView) => ReactNode }) {
+  const t = useT();
+  const state = useFamily();
+  if (state.status === 'ready') return <>{children(state.family)}</>;
+  return (
+    <section className="secondary-view app-view">
+      {state.status === 'loading' && <Loading />}
+      {state.status === 'error' && <QueryError error={state.error} onRetry={state.retry} />}
+      {state.status === 'none' && <StateNotice title={t('family.none.title')} body={t('family.none.body')} />}
+      {state.status === 'revoked' && <StateNotice title={t('errors.forbidden')} />}
+    </section>
+  );
+}
+```
+
+Segnaposto (li sostituiscono i Task 11, 14, 15, 16 e 17). `web/src/routes/MenuPage.tsx`:
+```tsx
+import { FamilyGate } from '../components/FamilyGate';
 import { useT } from '../i18n/LocaleProvider';
 
 export function MenuPage() {
   const t = useT();
-  return <section className="secondary-view app-view"><h1 className="page-title">{t('nav.menu')}</h1></section>;
+  return <FamilyGate>{() => <section className="secondary-view app-view"><h1 className="page-title">{t('nav.menu')}</h1></section>}</FamilyGate>;
 }
 ```
-Uguali, con `RecipesPage`/`nav.recipes`, `RecipePage`/`recipes.title`, `ProfilePage`/`nav.profile`, e `web/src/auth/LoginPage.tsx` con `LoginPage`/`auth.title` e `<main className="entry-page">` al posto di `<section …>`.
+Uguali, con `RecipesPage`/`nav.recipes` e `RecipePage`/`recipes.title`. Senza `FamilyGate`: `ProfilePage`/`nav.profile` (il Profilo funziona anche senza famiglia) e `web/src/auth/LoginPage.tsx` con `LoginPage`/`auth.title` e `<main className="entry-page">` al posto di `<section …>`.
 
 `web/src/routes/NotFound.tsx`:
 ```tsx
@@ -2853,13 +3780,10 @@ export function RouteError({ error, reset }: ErrorComponentProps) {
 import { Outlet } from '@tanstack/react-router';
 import { BottomNav } from '../components/BottomNav';
 import { OfflineBanner } from '../components/OfflineBanner';
-import { useProfileLocale, useT } from '../i18n/LocaleProvider';
-import { useFamily } from '../session/useFamily';
+import { useT } from '../i18n/LocaleProvider';
 
 export function AppLayout() {
   const t = useT();
-  const { me } = useFamily();
-  useProfileLocale(me.data?.user.locale);
   return (
     <div className="shell">
       <a className="skip-link" href="#app-content">{t('skip')}</a>
@@ -3045,64 +3969,132 @@ export function renderApp(path: string, options: { backend?: AuthBackend; api?: 
 
 `web/src/test/renderWithProviders.tsx`:
 ```tsx
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from '@tanstack/react-router';
-import { render } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { ApiProvider } from '../api/ApiProvider';
 import { createFakeApi } from '../api/fake/fakeApi';
 import type { Api } from '../api/types';
-import { LocaleProvider } from '../i18n/LocaleProvider';
+import { DEMO_USER, type AuthBackend } from '../auth/backend';
 import type { Locale } from '../i18n/translate';
+import type { Session } from '../session/session';
+import { useSession } from '../session/SessionScope';
+import { renderSession } from './sessionHarness';
+import { createStubBackend } from './stubBackend';
 
-/** A single component with every provider and a minimal router (for links). */
-export function renderWithProviders(ui: ReactNode, options: { api?: Api; queryClient?: QueryClient; locale?: Locale } = {}) {
+/** One component inside the real session stack and a minimal router (for links). */
+export function renderWithProviders(ui: ReactNode, options: { api?: Api; locale?: Locale; backend?: AuthBackend } = {}) {
   const locale = options.locale ?? 'it-IT';
-  const queryClient = options.queryClient ?? new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const api = options.api ?? createFakeApi({ getLocale: () => locale, latencyMs: 0 });
+  let client: QueryClient | null = null;
+  let current: Session | null = null;
+  function Capture() {
+    client = useQueryClient();
+    current = useSession();
+    return null;
+  }
   const router = createRouter({
-    routeTree: createRootRoute({ component: () => <>{ui}</> }),
+    routeTree: createRootRoute({ component: () => <><Capture />{ui}</> }),
     history: createMemoryHistory({ initialEntries: ['/'] })
   });
-  const result = render(
-    <LocaleProvider initial={locale}>
-      <QueryClientProvider client={queryClient}>
-        <ApiProvider api={api}>
-          <RouterProvider router={router} />
-        </ApiProvider>
-      </QueryClientProvider>
-    </LocaleProvider>
-  );
-  return { ...result, queryClient };
+  const result = renderSession(<RouterProvider router={router} />, {
+    backend: options.backend ?? createStubBackend(DEMO_USER, 'fake'),
+    api: () => api,
+    locale
+  });
+  return {
+    ...result,
+    queryClient: () => client ?? (() => { throw new Error('not rendered yet'); })(),
+    session: () => current ?? (() => { throw new Error('not rendered yet'); })()
+  };
 }
 ```
 
-`web/src/test/setup.ts`, aggiungere:
+`web/src/test/browserLanguages.ts`:
 ```ts
-import { beforeEach } from 'vitest';
+/** Browser languages, read before sign-in (jsdom says en-US by default). */
+export function setBrowserLanguages(languages: string[]): void {
+  Object.defineProperty(window.navigator, 'languages', { configurable: true, get: () => languages });
+}
+```
 
-// jsdom has no layout: scrolling is a no-op, and each test starts with a clean device.
+`web/src/test/setup.ts` diventa (versione completa):
+```ts
+import { cleanup } from '@testing-library/react';
+import { afterEach, beforeEach } from 'vitest';
+import { rememberMenuDay } from '../routes/menu/lastDay';
+import { setBrowserLanguages } from './browserLanguages';
+import { setOnline } from './connectivity';
+
+// jsdom has no layout: scrolling is a no-op.
 Element.prototype.scrollIntoView = function scrollIntoView() {};
-beforeEach(() => localStorage.clear());
+
+// Each test starts with a clean Italian device: storage, network, languages, remembered menu day.
+beforeEach(() => {
+  localStorage.clear();
+  setOnline(true);
+  setBrowserLanguages(['it-IT', 'it']);
+  rememberMenuDay(undefined);
+});
+afterEach(() => cleanup());
 ```
 
 Cancellare `web/src/App.test.tsx`, ormai superato.
 
-- [ ] **Step 10: Verifica che passino**
+- [ ] **Step 10: Test dello stato della famiglia**
+
+`web/src/components/FamilyGate.test.tsx` (review, rilievo 9):
+```tsx
+import { fireEvent, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { ApiError } from '../api/errors';
+import { createFakeApi } from '../api/fake/fakeApi';
+import type { Api, MeView } from '../api/types';
+import { renderApp } from '../test/renderApp';
+
+function withMe(get: () => Promise<MeView>): Api {
+  const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+  return { ...base, me: { get: async () => ({ unchanged: false, version: 'me', data: await get() }) } };
+}
+const me = (patch: Partial<MeView>): MeView => ({
+  user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT' },
+  families: [{ id: 'family-main', name: 'Famiglia Folloni', timeZone: 'Europe/Rome', role: 'family_admin' }],
+  currentFamilyId: 'family-main',
+  ...patch
+});
+
+describe('family state', () => {
+  it('shows the error with a retry that works', async () => {
+    let calls = 0;
+    renderApp('/recipes', { api: withMe(async () => (calls++ === 0 ? Promise.reject(new ApiError('unknown')) : me({}))) });
+    fireEvent.click(await screen.findByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByRole('heading', { name: 'Ricettario' })).toBeTruthy();
+  });
+  it('says when the person has no family', async () => {
+    renderApp('/menu', { api: withMe(async () => me({ families: [], currentFamilyId: null })) });
+    expect(await screen.findByText('Non fai parte di nessuna famiglia')).toBeTruthy();
+  });
+  it('treats a vanished current family as no family', async () => {
+    renderApp('/menu', { api: withMe(async () => me({ currentFamilyId: 'family-gone' })) });
+    expect(await screen.findByText('Non fai parte di nessuna famiglia')).toBeTruthy();
+  });
+});
+```
+
+- [ ] **Step 11: Verifica che passino**
 
 Run: `cd web && npx vitest run && npm run typecheck`
 Expected: PASS di tutti i test; nessun errore di tipi.
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
 git add -A web/
-git commit -m "Web: rotte con guardia di accesso, navbar a icone, errori e pagina non trovata"
+git commit -m "Web: rotte con guardia di accesso, navbar a icone, stato della famiglia, errori e pagina non trovata"
 ```
 
 ---
 
-### Task 10: Pagina di ingresso
+### Task 11: Pagina di ingresso
 
 **Files:**
 - Modify: `web/src/auth/LoginPage.tsx` (sostituisce il segnaposto), `web/src/design/global.css` (in fondo)
@@ -3117,6 +4109,7 @@ git commit -m "Web: rotte con guardia di accesso, navbar a icone, errori e pagin
 ```tsx
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { setBrowserLanguages } from '../test/browserLanguages';
 import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
 
@@ -3146,7 +4139,8 @@ describe('sign-in page', () => {
     await waitFor(() => expect(history.location.pathname).toBe('/recipes'));
   });
   it('speaks English when the browser does', async () => {
-    renderApp('/login', { backend: createStubBackend(null), locale: 'en-GB' });
+    setBrowserLanguages(['en-GB']);
+    renderApp('/login', { backend: createStubBackend(null) });
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeTruthy();
     expect(screen.getByLabelText('Password')).toBeTruthy();
   });
@@ -3233,19 +4227,20 @@ git commit -m "Web: pagina di ingresso con email e password ed errori tradotti"
 
 ---
 
-### Task 11: Stelline e mutazione del voto
+### Task 12: Stelline e voto senza aggiornamento ottimistico
 
 **Files:**
 - Create: `web/src/api/ratings.ts`, `web/src/components/RatingStars.tsx`, `web/src/components/RatingStars.module.css`
 - Test: `web/src/api/ratings.test.ts`, `web/src/components/RatingStars.test.tsx`
 
 **Interfaces:**
-- Consumes: `RATED_PREFIXES`, `Versioned`, `useQueryDeps` (Task 6); `errorKey`; viste; `formatAverage`; `Icon`.
+- Consumes: `familyOfKey`, `useQueryDeps`, `Versioned` (Task 6); `useSession` (Task 9); `errorKey`; viste; `formatAverage`; `Icon`.
 - Produces:
-  - `optimisticRating(current: RatingSummary, stars: number | null): RatingSummary`
-  - `patchRatings(queryClient: QueryClient, recipeId: string, summary: RatingSummary): void`
-  - `interface RateInput { recipeId: string; stars: number | null; current: RatingSummary }`; `useRateRecipe(familyId: string)` (una `useMutation`)
+  - `applyRating(queryClient: QueryClient, familyId: string, recipeId: string, summary: RatingSummary): void`
+  - `interface RateInput { recipeId: string; stars: number | null }`; `useRateRecipe(familyId: string)` (una `useMutation` con `meta: { familyId }`)
   - `<RatingStars summary recipeId recipeName familyId>`
+
+Schema deciso dal coordinatore dopo la review (rilievi 4, 5, 6, 14): il voto si invia e si mostra lo stato di invio; alla risposta il risultato del server si applica alle settimane e alle schede ricetta **della stessa famiglia** che contengono la ricetta; le liste del Ricettario della famiglia si marcano scadute (si rileggono quando sono mostrate, subito se lo sono già); per la stessa ricetta vale solo l'ultima richiesta; le risposte arrivate a sessione chiusa si scartano; offline il voto fallisce subito. In cache e su disco entrano solo dati confermati.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
@@ -3254,87 +4249,147 @@ git commit -m "Web: pagina di ingresso con email e password ed errori tradotti"
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import { queryKeys, type Versioned } from './queries';
-import { optimisticRating, patchRatings } from './ratings';
-import type { RecipeListItem, WeekView } from './types';
+import { applyRating } from './ratings';
+import type { MealView, RatingSummary, RecipeDetailView, RecipeListItem, WeekView } from './types';
 
-describe('optimistic rating', () => {
-  it('adds, changes and removes the own stars in the average', () => {
-    expect(optimisticRating({ familyAverage: 4, familyCount: 2, myStars: null }, 1)).toEqual({ familyAverage: 3, familyCount: 3, myStars: 1 });
-    expect(optimisticRating({ familyAverage: 4, familyCount: 2, myStars: 5 }, 1)).toEqual({ familyAverage: 2, familyCount: 2, myStars: 1 });
-    expect(optimisticRating({ familyAverage: 5, familyCount: 1, myStars: 5 }, null)).toEqual({ familyAverage: null, familyCount: 0, myStars: null });
-  });
-  it('patches every cached view that shows the recipe', () => {
+const none: RatingSummary = { familyAverage: null, familyCount: 0, myStars: null };
+const confirmed: RatingSummary = { familyAverage: 2, familyCount: 1, myStars: 2 };
+const weekWith = (rating: RatingSummary): Versioned<WeekView> => ({
+  version: 'v',
+  data: { startsOn: '2026-10-05', days: [{ date: '2026-10-05', meals: [{ recipe: { id: 'r1' }, rating } as MealView] }] }
+});
+const ratingIn = (client: QueryClient, key: readonly unknown[]) =>
+  client.getQueryData<Versioned<WeekView>>(key)?.data.days[0]?.meals[0]?.rating;
+
+describe('applyRating', () => {
+  it('updates the views of the same family only and marks its lists as stale', () => {
     const client = new QueryClient();
-    const summary = { familyAverage: 2, familyCount: 1, myStars: 2 };
-    const recipe = { id: 'r1' } as RecipeListItem['recipe'];
-    const week: Versioned<WeekView> = { version: 1, data: { startsOn: '2026-10-05', days: [{ date: '2026-10-05', meals: [{ recipe, rating: { familyAverage: null, familyCount: 0, myStars: null } } as WeekView['days'][number]['meals'][number]] }] } };
-    const list: Versioned<RecipeListItem[]> = { version: 1, data: [{ recipe, rating: { familyAverage: null, familyCount: 0, myStars: null }, servings: 2, ingredients: [] }] };
-    client.setQueryData(queryKeys.week('f', '2026-10-05'), week);
-    client.setQueryData(queryKeys.search('f', {}), list);
-    patchRatings(client, 'r1', summary);
-    expect(client.getQueryData<Versioned<WeekView>>(queryKeys.week('f', '2026-10-05'))?.data.days[0]?.meals[0]?.rating).toEqual(summary);
-    expect(client.getQueryData<Versioned<RecipeListItem[]>>(queryKeys.search('f', {}))?.data[0]?.rating).toEqual(summary);
+    const mine = queryKeys.week('f1', '2026-10-05', 'it-IT');
+    const other = queryKeys.week('f2', '2026-10-05', 'it-IT');
+    const detail = queryKeys.recipe('f1', 'r1', 'it-IT');
+    const list = queryKeys.search('f1', { minStars: 3 }, 'it-IT');
+    const otherList = queryKeys.search('f2', {}, 'it-IT');
+    client.setQueryData(mine, weekWith(none));
+    client.setQueryData(other, weekWith({ familyAverage: 5, familyCount: 3, myStars: null }));
+    client.setQueryData<Versioned<RecipeDetailView>>(detail, { version: 'v', data: { recipe: { id: 'r1' }, rating: none } as RecipeDetailView });
+    client.setQueryData<Versioned<RecipeListItem[]>>(list, { version: 'v', data: [] });
+    client.setQueryData<Versioned<RecipeListItem[]>>(otherList, { version: 'v', data: [] });
+    applyRating(client, 'f1', 'r1', confirmed);
+    expect(ratingIn(client, mine)).toEqual(confirmed);
+    expect(ratingIn(client, other)).toEqual({ familyAverage: 5, familyCount: 3, myStars: null });
+    expect(client.getQueryData<Versioned<RecipeDetailView>>(detail)?.data.rating).toEqual(confirmed);
+    expect(client.getQueryState(list)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(otherList)?.isInvalidated).toBe(false);
   });
 });
 ```
 
-`web/src/components/RatingStars.test.tsx` (Review Focus: voto che fallisce):
+`web/src/components/RatingStars.test.tsx`:
 ```tsx
-import { QueryClient, useQuery } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { queryKeys, type Versioned } from '../api/queries';
-import type { Api, RatingSummary, RecipeListItem } from '../api/types';
+import type { Api, MealView, RatingSummary, WeekView } from '../api/types';
+import { setOnline } from '../test/connectivity';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { RatingStars } from './RatingStars';
 
 const start: RatingSummary = { familyAverage: 4, familyCount: 2, myStars: null };
-const listKey = queryKeys.search('f', {});
-const list = (rating: RatingSummary): Versioned<RecipeListItem[]> => ({
-  version: 1,
-  data: [{ recipe: { id: 'r1', name: 'Pasta' } as RecipeListItem['recipe'], rating, servings: 2, ingredients: [] }]
+const weekKey = queryKeys.week('family-main', '2026-10-05', 'it-IT');
+const weekWith = (rating: RatingSummary): Versioned<WeekView> => ({
+  version: 'v',
+  data: { startsOn: '2026-10-05', days: [{ date: '2026-10-05', meals: [{ recipe: { id: 'wok', name: 'Wok' }, rating } as MealView] }] }
 });
 
+/** Reads the rating from the cached week, as the menu card does. */
 function Harness() {
-  const rating = useQuery({ queryKey: listKey, queryFn: () => new Promise<never>(() => {}), staleTime: Infinity, select: (v: Versioned<RecipeListItem[]>) => v.data[0]!.rating });
-  return rating.data ? <RatingStars summary={rating.data} recipeId="r1" recipeName="Pasta" familyId="f" /> : null;
+  const rating = useQuery({
+    queryKey: weekKey,
+    queryFn: () => new Promise<never>(() => {}),
+    staleTime: Infinity,
+    select: (v: Versioned<WeekView>) => v.data.days[0]!.meals[0]!.rating
+  });
+  return rating.data ? <RatingStars summary={rating.data} recipeId="wok" recipeName="Wok" familyId="family-main" /> : null;
 }
 
-function setup(set: Api['ratings']['set'], rating = start) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  queryClient.setQueryData(listKey, list(rating));
-  const api = { ...createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 }), ratings: { set } };
-  renderWithProviders(<Harness />, { api, queryClient });
-  return queryClient;
+async function setup(set?: Api['ratings']['set'], rating = start) {
+  const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+  const api = set ? { ...base, ratings: { set } } : base;
+  const spy = vi.spyOn(api.ratings, 'set');
+  const view = renderWithProviders(<Harness />, { api });
+  // The session stack mounts asynchronously: wait for its QueryClient, then seed the confirmed week.
+  const client = await waitFor(() => view.queryClient());
+  act(() => client.setQueryData(weekKey, weekWith(rating)));
+  return { ...view, spy };
 }
-
-const cached = (client: QueryClient) => client.getQueryData<Versioned<RecipeListItem[]>>(listKey)?.data[0]?.rating;
+const cached = (view: Awaited<ReturnType<typeof setup>>) => view.queryClient().getQueryData<Versioned<WeekView>>(weekKey)?.data.days[0]?.meals[0]?.rating;
 
 describe('RatingStars', () => {
-  it('updates the copy at once, then applies the server answer without reading again', async () => {
+  it('shows the sending state and then the confirmed result, never an unconfirmed one', async () => {
     let resolve: (value: RatingSummary) => void = () => {};
-    const set = vi.fn(() => new Promise<RatingSummary>((r) => (resolve = r)));
-    const client = setup(set);
-    fireEvent.click(await screen.findByLabelText('Dai 4 stelle a Pasta'));
-    await waitFor(() => expect(cached(client)).toEqual({ familyAverage: 4, familyCount: 3, myStars: 4 }));
-    expect(set).toHaveBeenCalledWith({ familyId: 'f', recipeId: 'r1', stars: 4 });
-    resolve({ familyAverage: 4.5, familyCount: 3, myStars: 4 });
-    await waitFor(() => expect(cached(client)).toEqual({ familyAverage: 4.5, familyCount: 3, myStars: 4 }));
+    const view = await setup(vi.fn(() => new Promise<RatingSummary>((r) => (resolve = r))));
+    fireEvent.click(await screen.findByLabelText('Dai 4 stelle a Wok'));
+    expect(await screen.findByText('Invio del voto…')).toBeTruthy();
+    expect(cached(view)).toEqual(start);
+    await act(async () => resolve({ familyAverage: 4.5, familyCount: 3, myStars: 4 }));
+    await waitFor(() => expect(cached(view)).toEqual({ familyAverage: 4.5, familyCount: 3, myStars: 4 }));
     expect(screen.getByText('4,5')).toBeTruthy();
+    expect(screen.queryByText('Invio del voto…')).toBeNull();
   });
-  it('puts everything back and explains the error when the rating fails', async () => {
-    const client = setup(vi.fn(() => Promise.reject(new ApiError('network'))));
-    fireEvent.click(await screen.findByLabelText('Dai 2 stelle a Pasta'));
+  it('keeps the confirmed value and explains the error when the rating fails', async () => {
+    const view = await setup(vi.fn(() => Promise.reject(new Error('boom'))));
+    fireEvent.click(await screen.findByLabelText('Dai 2 stelle a Wok'));
+    expect((await screen.findByRole('alert')).textContent).toBe('Qualcosa non ha funzionato: riprova.');
+    expect(cached(view)).toEqual(start);
+  });
+  it('fails at once offline through the real connectivity path, and sends nothing when back online', async () => {
+    const view = await setup();
+    await screen.findByLabelText('Dai 3 stelle a Wok');
+    act(() => setOnline(false));
+    fireEvent.click(screen.getByLabelText('Dai 3 stelle a Wok'));
     expect((await screen.findByRole('alert')).textContent).toBe('Sei offline o il servizio non risponde: riprova quando torni in linea.');
-    expect(cached(client)).toEqual(start);
+    act(() => setOnline(true));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(view.spy).toHaveBeenCalledTimes(1);
+    expect(cached(view)).toEqual(start);
+  });
+  it('applies only the answer to the latest request for the same recipe', async () => {
+    const pending: ((value: RatingSummary) => void)[] = [];
+    const view = await setup(vi.fn(() => new Promise<RatingSummary>((r) => pending.push(r))));
+    const session = view.session();
+    // Two requests for the same recipe (for example card and recipe page): the first answers last.
+    const first = session.track('rating:wok');
+    const second = session.track('rating:wok');
+    expect(session.isLatest('rating:wok', first)).toBe(false);
+    expect(session.isLatest('rating:wok', second)).toBe(true);
+    fireEvent.click(await screen.findByLabelText('Dai 5 stelle a Wok'));
+    await waitFor(() => expect(pending).toHaveLength(1));
+    // A newer request on the same recipe starts while this one is pending.
+    session.track('rating:wok');
+    await act(async () => pending[0]!({ familyAverage: 5, familyCount: 3, myStars: 5 }));
+    expect(cached(view)).toEqual(start);
+  });
+  it('drops an answer that arrives after the session is closed', async () => {
+    let resolve: (value: RatingSummary) => void = () => {};
+    const view = await setup(vi.fn(() => new Promise<RatingSummary>((r) => (resolve = r))));
+    fireEvent.click(await screen.findByLabelText('Dai 4 stelle a Wok'));
+    const session = view.session();
+    const client = view.queryClient();
+    await act(async () => {
+      await session.close();
+      // Even if something cached the week again, a late answer of a closed session must not touch it.
+      client.setQueryData(weekKey, weekWith(start));
+      resolve({ familyAverage: 4.5, familyCount: 3, myStars: 4 });
+    });
+    expect(client.getQueryData<Versioned<WeekView>>(weekKey)?.data.days[0]?.meals[0]?.rating).toEqual(start);
   });
   it('removes the rating when the chosen star is tapped again', async () => {
     const set = vi.fn(async () => ({ familyAverage: 4, familyCount: 1, myStars: null }));
-    setup(set, { familyAverage: 4, familyCount: 2, myStars: 4 });
+    await setup(set, { familyAverage: 4, familyCount: 2, myStars: 4 });
     fireEvent.click(await screen.findByLabelText('Il tuo voto: 4 stelle. Tocca di nuovo per toglierlo'));
-    await waitFor(() => expect(set).toHaveBeenCalledWith({ familyId: 'f', recipeId: 'r1', stars: null }));
+    await waitFor(() => expect(set).toHaveBeenCalledWith({ familyId: 'family-main', recipeId: 'wok', stars: null }));
   });
 });
 ```
@@ -3344,61 +4399,51 @@ describe('RatingStars', () => {
 Run: `cd web && npx vitest run src/api/ratings.test.ts src/components/RatingStars.test.tsx`
 Expected: FAIL, import non risolti.
 
-- [ ] **Step 3: Implementa la mutazione**
+- [ ] **Step 3: Implementa il voto**
 
 `web/src/api/ratings.ts`:
 ```ts
-import { useMutation, type QueryClient, type QueryKey } from '@tanstack/react-query';
-import { RATED_PREFIXES, useQueryDeps, type Versioned } from './queries';
-import type { MealView, RatingSummary, RecipeDetailView, RecipeListItem, WeekView } from './types';
+import { useMutation, type Query, type QueryClient } from '@tanstack/react-query';
+import { useSession } from '../session/SessionScope';
+import { familyOfKey, useQueryDeps, type Versioned } from './queries';
+import type { MealView, RatingSummary, RecipeDetailView, WeekView } from './types';
 
-export function optimisticRating(current: RatingSummary, stars: number | null): RatingSummary {
-  let total = (current.familyAverage ?? 0) * current.familyCount;
-  let count = current.familyCount;
-  if (current.myStars !== null) {
-    total -= current.myStars;
-    count -= 1;
-  }
-  if (stars !== null) {
-    total += stars;
-    count += 1;
-  }
-  return { familyAverage: count > 0 ? total / count : null, familyCount: count, myStars: stars };
-}
+const ofFamily = (familyId: string) => (query: Query) => familyOfKey(query.queryKey) === familyId;
 
 const patchMeal = (meal: MealView, recipeId: string, summary: RatingSummary): MealView =>
   meal.recipe?.id === recipeId && meal.rating ? { ...meal, rating: summary } : meal;
 
-/** Own changes update the copy on the device without reading again (spec section 1). */
-export function patchRatings(queryClient: QueryClient, recipeId: string, summary: RatingSummary): void {
-  queryClient.setQueriesData<Versioned<WeekView>>({ queryKey: ['menu', 'getWeek'] }, (old) =>
+/**
+ * The server's answer reaches the views of the same family that show the recipe; lists whose
+ * membership or order depend on ratings are read again instead of being patched (spec, voto).
+ */
+export function applyRating(queryClient: QueryClient, familyId: string, recipeId: string, summary: RatingSummary): void {
+  queryClient.setQueriesData<Versioned<WeekView>>({ queryKey: ['menu', 'getWeek'], predicate: ofFamily(familyId) }, (old) =>
     old && { ...old, data: { ...old.data, days: old.data.days.map((d) => ({ ...d, meals: d.meals.map((m) => patchMeal(m, recipeId, summary)) })) } }
   );
-  queryClient.setQueriesData<Versioned<RecipeListItem[]>>({ queryKey: ['recipes', 'search'] }, (old) =>
-    old && { ...old, data: old.data.map((item) => (item.recipe.id === recipeId ? { ...item, rating: summary } : item)) }
-  );
-  queryClient.setQueriesData<Versioned<RecipeDetailView>>({ queryKey: ['recipes', 'get'] }, (old) =>
+  queryClient.setQueriesData<Versioned<RecipeDetailView>>({ queryKey: ['recipes', 'get'], predicate: ofFamily(familyId) }, (old) =>
     old && old.data.recipe.id === recipeId ? { ...old, data: { ...old.data, rating: summary } } : old
   );
+  void queryClient.invalidateQueries({ queryKey: ['recipes', 'search'], predicate: ofFamily(familyId) });
 }
 
-export interface RateInput { recipeId: string; stars: number | null; current: RatingSummary }
+export interface RateInput { recipeId: string; stars: number | null }
 
-/** The model for wave 2 mutations: optimistic patch, server answer applied, rollback on error. */
+/** The model for wave 2 mutations: send, show the pending state, apply only confirmed and current answers. */
 export function useRateRecipe(familyId: string) {
   const { api, queryClient } = useQueryDeps();
+  const session = useSession();
   return useMutation({
-    mutationFn: ({ recipeId, stars }: RateInput) => api.ratings.set({ familyId, recipeId, stars }),
-    onMutate: async ({ recipeId, stars, current }) => {
-      await Promise.all(RATED_PREFIXES.map((prefix) => queryClient.cancelQueries({ queryKey: [...prefix] })));
-      const snapshot: [QueryKey, unknown][] = RATED_PREFIXES.flatMap((prefix) => queryClient.getQueriesData({ queryKey: [...prefix] }));
-      patchRatings(queryClient, recipeId, optimisticRating(current, stars));
-      return { snapshot };
+    meta: { familyId },
+    mutationFn: async ({ recipeId, stars }: RateInput) => {
+      const token = session.track(`rating:${recipeId}`);
+      const summary = await api.ratings.set({ familyId, recipeId, stars });
+      return { summary, token };
     },
-    onError: (_error, _input, result) => {
-      result?.snapshot.forEach(([key, data]) => queryClient.setQueryData(key, data));
-    },
-    onSuccess: (summary, { recipeId }) => patchRatings(queryClient, recipeId, summary)
+    onSuccess: ({ summary, token }, { recipeId }) => {
+      if (session.isClosed() || !session.isLatest(`rating:${recipeId}`, token)) return;
+      applyRating(queryClient, familyId, recipeId, summary);
+    }
   });
 }
 ```
@@ -3425,7 +4470,7 @@ export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) 
   const name = useId();
   const rate = useRateRecipe(familyId);
   const average = summary.familyAverage === null ? null : formatAverage(locale, summary.familyAverage);
-  const choose = (value: number) => rate.mutate({ recipeId, stars: summary.myStars === value ? null : value, current: summary });
+  const choose = (value: number) => rate.mutate({ recipeId, stars: summary.myStars === value ? null : value });
 
   return (
     <div className={styles.rating}>
@@ -3443,7 +4488,7 @@ export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) 
             </>
           )}
         </p>
-        <fieldset className={styles.stars}>
+        <fieldset className={styles.stars} disabled={rate.isPending} aria-busy={rate.isPending}>
           <legend className="visually-hidden">{t('rating.mine')}</legend>
           {[1, 2, 3, 4, 5].map((value) => (
             <label key={value} className={styles.star} data-filled={summary.myStars !== null && value <= summary.myStars}>
@@ -3456,6 +4501,7 @@ export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) 
           ))}
         </fieldset>
       </div>
+      {rate.isPending && <p className="meta-line" role="status">{t('rating.sending')}</p>}
       {rate.isError && <p className="meta-line" role="alert">{t(errorKey(rate.error))}</p>}
     </div>
   );
@@ -3475,30 +4521,31 @@ export function RatingStars({ summary, recipeId, recipeName, familyId }: Props) 
 .star :global(.icon) { width: 26px; height: 26px; }
 .star[data-filled='true'] :global(.icon) { fill: var(--green); stroke: var(--green); }
 .star:has(input:focus-visible) { outline: 3px solid var(--green); outline-offset: -3px; border-radius: 8px; }
+.stars:disabled .star { opacity: 0.5; cursor: progress; }
 ```
 
 - [ ] **Step 5: Verifica che passino**
 
 Run: `cd web && npx vitest run src/api/ratings.test.ts src/components/RatingStars.test.tsx && npm run typecheck`
-Expected: PASS. Se il terzo argomento di `onError` in TanStack Query 5.104 non è il risultato di `onMutate`, verificarlo con Context7 (`/tanstack/query`, «useMutation onMutate onError context») e adattare la firma.
+Expected: PASS. Verificare con Context7 (`/tanstack/query`) che `setQueriesData` e `invalidateQueries` accettino `predicate` nei filtri in 5.104.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add web/src/api/ratings.ts web/src/api/ratings.test.ts web/src/components/RatingStars.*
-git commit -m "Web: stelline con aggiornamento ottimistico della copia locale e ripristino sugli errori"
+git commit -m "Web: voto inviato e confermato dal server, applicato alla sola famiglia, senza dati non confermati"
 ```
 
 ---
 
-### Task 12: Scheda del pasto e della ricetta
+### Task 13: Scheda del pasto e della ricetta
 
 **Files:**
 - Create: `web/src/components/source.ts`, `web/src/components/IngredientList.tsx`, `web/src/components/RecipeCard.tsx`, `web/src/components/RecipeCard.module.css`
 - Test: `web/src/components/source.test.ts`, `web/src/components/RecipeCard.test.tsx`
 
 **Interfaces:**
-- Consumes: viste; `RecipeSearch`; `RatingStars`; `Icon`; `truncate`, `formatAverage`, `formatChangeTime`.
+- Consumes: viste; `RecipeSearch` (con `slot`); `RatingStars`; `Icon`; `truncate`, `formatAverage`, `formatChangeTime`.
 - Produces:
   - `safeSourceUrl(url: string | null): string | null` (solo `http:` e `https:`)
   - `sourceLine(recipe: RecipeSummary, t: (key: MessageKey, params?: MessageParams) => string): string | null`
@@ -3551,7 +4598,7 @@ const base: RecipeCardProps = {
   cardKey: 's1', label: 'Pranzo', kind: 'recipe', recipe, freeText: null, servings: 4,
   ingredients: [{ ingredientId: 'pasta', name: 'Spaghetti', amount: '320 g', optional: false }, { ingredientId: 'pasta', name: 'Spaghetti', amount: '10 g', optional: false }],
   note: null, rating: { familyAverage: 4, familyCount: 2, myStars: null }, lastChange: null,
-  detailSearch: { from: 'menu', day: '2026-10-08' }, familyId: 'family-main'
+  detailSearch: { from: 'menu', day: '2026-10-08', slot: '2026-10-08-lunch' }, familyId: 'family-main'
 };
 
 describe('RecipeCard', () => {
@@ -3563,7 +4610,7 @@ describe('RecipeCard', () => {
     expect(screen.getByTitle('ricette.giallozafferano.it')).toBeTruthy();
     expect(screen.getByText('ricette.giallozaffera…')).toBeTruthy();
     expect(screen.getByText(/4 porzioni/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Scheda ricetta' }).getAttribute('href')).toBe('/recipes/r1?from=menu&day=2026-10-08');
+    expect(screen.getByRole('link', { name: 'Scheda ricetta' }).getAttribute('href')).toBe('/recipes/r1?from=menu&day=2026-10-08&slot=2026-10-08-lunch');
   });
   it('opens rating and ingredients one at a time', async () => {
     renderWithProviders(<RecipeCard {...base} />);
@@ -3822,7 +4869,7 @@ git commit -m "Web: scheda unica per pasti e ricette, con fonte, voto e ingredie
 
 ---
 
-### Task 13: Menu
+### Task 14: Menu
 
 **Files:**
 - Create: `web/src/routes/menu/selection.ts`, `web/src/components/DaySelector.tsx`, `web/src/components/DatePicker.tsx`, `web/src/components/DatePicker.module.css`, `web/src/routes/MenuPage.module.css`
@@ -3830,11 +4877,11 @@ git commit -m "Web: scheda unica per pasti e ricette, con fonte, voto e ingredie
 - Test: `web/src/routes/menu/selection.test.ts`, `web/src/routes/MenuPage.test.tsx`
 
 **Interfaces:**
-- Consumes: `openingQuery`, `weekQuery`, `datesQuery`, `useQueryDeps`; `useFamily`; `RecipeCard`; `StateNotice`, `Loading`, `Icon`; `rememberMenuDay`; calendario; formattatori.
+- Consumes: `openingQuery`, `weekQuery`, `datesQuery`, `useQueryDeps`; `FamilyGate`, `QueryError`; `isBlocking`, `toApiError`; `RecipeCard`; `StateNotice`, `Loading`, `Icon`; `rememberMenuDay`; calendario; formattatori.
 - Produces:
   - `pickSelected(days: IsoDate[], requested?: IsoDate, opening?: IsoDate): IsoDate | null`
   - `addMonths(month: string, delta: number): string` (in `selection.ts`, mese `YYYY-MM`)
-  - `<DaySelector dates selected onSelect>`; `<DatePicker familyId selected open onOpenChange onSelect>`; `MenuPage`
+  - `<DaySelector dates selected onSelect>`; `<DatePicker familyId selected open onToggle onClose onSelect>` con `onToggle(opener: HTMLElement)`: chi apre il calendario lo passa, e a ogni chiusura il focus torna lì; `MenuPage`
 
 - [ ] **Step 1: Scrivi i test della selezione che falliscono**
 
@@ -3890,6 +4937,7 @@ Expected: PASS.
 ```tsx
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { renderApp } from '../test/renderApp';
 
@@ -3958,6 +5006,58 @@ describe('menu', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Menu' }));
     await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('martedì 6 ottobre'));
   });
+  it('links each meal to its recipe with the meal reference', async () => {
+    renderApp('/menu');
+    await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+    const details = screen.getAllByRole('link', { name: 'Scheda ricetta' }).map((a) => a.getAttribute('href') ?? '');
+    expect(details.length).toBeGreaterThan(0);
+    expect(details.every((href) => /from=menu&day=\d{4}-\d{2}-\d{2}&slot=\d{4}-\d{2}-\d{2}-(lunch|dinner)/.test(href))).toBe(true);
+  });
+  it('offers to retry a week that failed to load', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const getWeek = api.menu.getWeek;
+    let calls = 0;
+    api.menu.getWeek = (input) => (calls++ === 0 ? Promise.reject(new ApiError('unknown')) : getWeek(input));
+    renderApp('/menu', { api });
+    fireEvent.click(await screen.findByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByRole('link', { name: 'giovedì 8 ottobre' })).toBeTruthy();
+  });
+  it('gives focus back to the calendar icon after choosing a day or pressing Escape', async () => {
+    renderApp('/menu');
+    const icon = await screen.findByRole('button', { name: 'Scegli un giorno' });
+    icon.focus();
+    fireEvent.click(icon);
+    const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'martedì 6 ottobre' }));
+    await waitFor(() => expect(document.activeElement).toBe(icon));
+    fireEvent.click(icon);
+    await screen.findByRole('dialog', { name: 'Scegli un giorno' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(icon);
+  });
+  it('gives focus back to the month when the calendar was opened from it', async () => {
+    renderApp('/menu');
+    fireEvent.click(await screen.findByRole('button', { name: 'ottobre 2026' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
+    await waitFor(() => expect((within(dialog).getByRole('button', { name: 'lunedì 5 ottobre' }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'lunedì 5 ottobre' }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'ottobre 2026' })));
+  });
+  it('does not steal focus from the month arrows when the days are read again', async () => {
+    renderApp('/menu');
+    fireEvent.click(await screen.findByRole('button', { name: 'Scegli un giorno' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
+    await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mese successivo' }));
+    const previous = within(dialog).getByRole('button', { name: 'Mese precedente' });
+    previous.focus();
+    fireEvent.click(previous);
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'giovedì 8 ottobre' })).toBeTruthy());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.activeElement).toBe(previous);
+  });
   it('says when the family has no menu yet', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
     api.menu.getOpening = async () => ({ unchanged: false, version: 1, data: { kind: 'no_weeks' } });
@@ -3966,16 +5066,6 @@ describe('menu', () => {
   });
 });
 ```
-`web/src/test/setup.ts`: `rememberMenuDay` è stato di modulo, quindi ogni test riparte senza giorno ricordato. Sostituire il `beforeEach` del Task 9 con:
-```ts
-import { rememberMenuDay } from '../routes/menu/lastDay';
-
-beforeEach(() => {
-  localStorage.clear();
-  rememberMenuDay(undefined);
-});
-```
-
 - [ ] **Step 4: Verifica che falliscano**
 
 Run: `cd web && npx vitest run src/routes/MenuPage.test.tsx`
@@ -4014,7 +5104,7 @@ export function DaySelector({ dates, selected, onSelect }: { dates: IsoDate[]; s
 }
 ```
 
-`web/src/components/DatePicker.tsx` (da `prototype/src/lib/components/DatePicker.svelte`):
+`web/src/components/DatePicker.tsx` (da `prototype/src/lib/components/DatePicker.svelte`; focus secondo il rilievo 13):
 ```tsx
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
@@ -4030,12 +5120,15 @@ interface Props {
   familyId: string;
   selected: IsoDate;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** Opens or closes from a toggle (this icon or the month): the opener gets focus back on closing. */
+  onToggle: (opener: HTMLElement) => void;
+  /** The only way to close: choice, Escape or a tap outside. */
+  onClose: () => void;
   onSelect: (date: IsoDate) => void;
 }
 
 /** A browsable month where only days with a menu can be chosen (round 1). */
-export function DatePicker({ familyId, selected, open, onOpenChange, onSelect }: Props) {
+export function DatePicker({ familyId, selected, open, onToggle, onClose, onSelect }: Props) {
   const t = useT();
   const { locale } = useLocale();
   const [browsed, setBrowsed] = useState<string | null>(null);
@@ -4043,26 +5136,29 @@ export function DatePicker({ familyId, selected, open, onOpenChange, onSelect }:
   const dates = useQuery({ ...datesQuery(useQueryDeps(), familyId, month), enabled: open });
   const available = new Set(dates.data ?? []);
   const panel = useRef<HTMLDivElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
+  const focusedThisOpening = useRef(false);
 
   useEffect(() => {
-    if (open) setBrowsed(null);
+    if (!open) return;
+    setBrowsed(null);
+    focusedThisOpening.current = false;
   }, [open]);
 
+  // Initial focus on the chosen day, once per opening: later reads (other months) never move it.
   useEffect(() => {
-    if (open && dates.data) panel.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]:not(:disabled)')?.focus();
+    if (!open || focusedThisOpening.current || !dates.data) return;
+    focusedThisOpening.current = true;
+    panel.current?.querySelector<HTMLButtonElement>('button[aria-pressed="true"]:not(:disabled)')?.focus();
   }, [open, dates.data]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      onOpenChange(false);
-      toggle.current?.focus();
+      if (event.key === 'Escape') onClose();
     };
     const onClick = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!panel.current?.contains(target) && !toggle.current?.contains(target) && !target.closest?.('[data-date-picker-toggle]')) onOpenChange(false);
+      if (!panel.current?.contains(target) && !target.closest?.('[data-date-picker-toggle]')) onClose();
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('click', onClick);
@@ -4070,7 +5166,7 @@ export function DatePicker({ familyId, selected, open, onOpenChange, onSelect }:
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('click', onClick);
     };
-  }, [open, onOpenChange]);
+  }, [open, onClose]);
 
   // Six Monday-first weeks from the Monday on or before the 1st.
   const start = mondayOf(`${month}-01`);
@@ -4081,7 +5177,7 @@ export function DatePicker({ familyId, selected, open, onOpenChange, onSelect }:
 
   return (
     <div className={styles.picker}>
-      <button ref={toggle} type="button" className={styles.toggle} aria-expanded={open} aria-label={t('menu.pickDate')} onClick={() => onOpenChange(!open)}>
+      <button type="button" className={styles.toggle} data-date-picker-toggle aria-expanded={open} aria-label={t('menu.pickDate')} onClick={(e) => onToggle(e.currentTarget)}>
         <Icon name="calendar" />
       </button>
       {open && (
@@ -4108,7 +5204,7 @@ export function DatePicker({ familyId, selected, open, onOpenChange, onSelect }:
                   disabled={!available.has(date)}
                   onClick={() => {
                     onSelect(date);
-                    onOpenChange(false);
+                    onClose();
                   }}
                 >
                   {Number(date.slice(8, 10))}
@@ -4133,19 +5229,21 @@ export function DatePicker({ familyId, selected, open, onOpenChange, onSelect }:
 ```tsx
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { errorKey, toApiError } from '../api/errors';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { isBlocking, toApiError } from '../api/errors';
 import { openingQuery, useQueryDeps, weekQuery } from '../api/queries';
+import type { FamilyView } from '../api/types';
 import { DatePicker } from '../components/DatePicker';
 import { DaySelector } from '../components/DaySelector';
+import { FamilyGate } from '../components/FamilyGate';
 import { Icon } from '../components/Icon';
 import { Loading } from '../components/Loading';
+import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { StateNotice } from '../components/StateNotice';
 import { formatDayLong, formatMonthYear } from '../i18n/dates';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { isMealPast, localNow, mondayOf, type IsoDate } from '../lib/calendar';
-import { useFamily } from '../session/useFamily';
 import { rememberMenuDay } from './menu/lastDay';
 import { pickSelected } from './menu/selection';
 import styles from './MenuPage.module.css';
@@ -4153,23 +5251,40 @@ import styles from './MenuPage.module.css';
 const route = getRouteApi('/_app/menu');
 
 export function MenuPage() {
+  return <FamilyGate>{(family) => <MenuView family={family} />}</FamilyGate>;
+}
+
+const notice = (content: ReactNode) => <section className="secondary-view app-view">{content}</section>;
+
+function MenuView({ family }: { family: FamilyView }) {
   const t = useT();
   const { locale } = useLocale();
   const deps = useQueryDeps();
-  const { me, family } = useFamily();
   const { day: requested } = route.useSearch();
   const navigate = route.useNavigate();
-  const familyId = family?.id ?? '';
+  const familyId = family.id;
 
-  const opening = useQuery({ ...openingQuery(deps, familyId), enabled: !!family });
+  const opening = useQuery(openingQuery(deps, familyId));
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
-  const week = useQuery({ ...weekQuery(deps, familyId, weekStart ?? ''), enabled: !!family && !!weekStart, retry: false });
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const week = useQuery({ ...weekQuery(deps, familyId, weekStart ?? ''), enabled: !!weekStart, retry: false });
   const track = useRef<HTMLDivElement>(null);
   // Day the track is already moving to (smooth tap or user scroll): no instant jump over it.
   const settling = useRef<IsoDate | null>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // One path to open and close the calendar, remembering who opened it (review, finding 13).
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const opener = useRef<HTMLElement | null>(null);
+  const closePicker = useCallback(() => {
+    setPickerOpen(false);
+    opener.current?.focus();
+  }, []);
+  const togglePicker = (element: HTMLElement) => {
+    if (pickerOpen) return closePicker();
+    opener.current = element;
+    setPickerOpen(true);
+  };
 
   const days = week.data?.days.map((d) => d.date) ?? [];
   const selected = pickSelected(days, requested, openingDay?.date);
@@ -4215,25 +5330,22 @@ export function MenuPage() {
     }, 120);
   }
 
-  if (me.isError) return <section className="secondary-view app-view"><StateNotice title={t(errorKey(me.error))} /></section>;
-  if (!family || opening.isPending) return <section className="secondary-view app-view"><Loading /></section>;
-  if (opening.isError) return <section className="secondary-view app-view"><StateNotice title={t(errorKey(opening.error))} /></section>;
-  if (opening.data.kind === 'no_weeks') {
-    return <section className="secondary-view app-view"><StateNotice title={t('menu.noWeeks.title')} body={t('menu.noWeeks.body')} /></section>;
-  }
-  if (week.isError && !weekMissing) return <section className="secondary-view app-view"><StateNotice title={t(errorKey(week.error))} /></section>;
-  if (!week.data || !selected) return <section className="secondary-view app-view"><Loading /></section>;
+  if (opening.isError && isBlocking(opening.error, !!opening.data)) return notice(<QueryError error={opening.error} onRetry={() => void opening.refetch()} />);
+  if (!opening.data) return notice(<Loading />);
+  if (opening.data.kind === 'no_weeks') return notice(<StateNotice title={t('menu.noWeeks.title')} body={t('menu.noWeeks.body')} />);
+  if (week.isError && !weekMissing && isBlocking(week.error, !!week.data)) return notice(<QueryError error={week.error} onRetry={() => void week.refetch()} />);
+  if (!week.data || !selected) return notice(<Loading />);
 
   const now = localNow(family.timeZone);
   return (
     <section className="calendar app-view" aria-label={t('nav.menu')}>
       <nav className="day-navigation" aria-label={t('menu.days')}>
         <div className={styles.toolbar}>
-          <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={() => setPickerOpen(!pickerOpen)}>
+          <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
             {formatMonthYear(locale, selected)}
           </button>
           <div className={styles.actions}>
-            <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onOpenChange={setPickerOpen} onSelect={select} />
+            <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onToggle={togglePicker} onClose={closePicker} onSelect={select} />
             <button type="button" className={styles.action} aria-label={t('menu.shopping')} disabled>
               <Icon name="bag" />
             </button>
@@ -4259,7 +5371,7 @@ export function MenuPage() {
                 note={meal.note}
                 rating={meal.rating}
                 lastChange={meal.lastChange}
-                detailSearch={meal.recipe && meal.canOpenRecipe ? { from: 'menu', day: meal.date } : null}
+                detailSearch={meal.recipe && meal.canOpenRecipe ? { from: 'menu', day: meal.date, slot: meal.slotId } : null}
                 familyId={familyId}
                 isPast={isMealPast(meal.date, meal.mealType, now)}
               />
@@ -4292,12 +5404,12 @@ Expected: PASS. Se un test sui dati demo non trova il testo atteso (nota di Anna
 
 ```bash
 git add web/src
-git commit -m "Web: Menu con apertura sul giorno, selettore dei giorni, calendario e schede dei pasti"
+git commit -m "Web: Menu con apertura sul giorno, selettore dei giorni, calendario accessibile e schede dei pasti"
 ```
 
 ---
 
-### Task 14: Ricettario
+### Task 15: Ricettario
 
 **Files:**
 - Create: `web/src/components/RecipeFilters.tsx`, `web/src/components/RecipeFilters.module.css`
@@ -4305,14 +5417,17 @@ git commit -m "Web: Menu con apertura sul giorno, selettore dei giorni, calendar
 - Test: `web/src/routes/RecipesPage.test.tsx`
 
 **Interfaces:**
-- Consumes: `searchQuery`, `useFamily`, `RecipeCard`, `toRecipeQuery`, `toRecipesSearch`, `PROTEIN_GROUPS`.
+- Consumes: `searchQuery`, `FamilyGate`, `QueryError`, `isBlocking`, `RecipeCard`, `toRecipeQuery`, `toRecipesSearch`, `PROTEIN_GROUPS`.
 - Produces: `<RecipeFilters query onChange>` con `query: RecipeQuery`, `onChange: (query: RecipeQuery) => void`; `RecipesPage`.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
 ```tsx
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/errors';
+import { createFakeApi } from '../api/fake/fakeApi';
+import { setOnline } from '../test/connectivity';
 import { renderApp } from '../test/renderApp';
 
 const WOK = 'Wok di pollo con peperoni, carote e zucchine; riso basmati';
@@ -4348,6 +5463,25 @@ describe('recipes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Azzera filtri' }));
     await waitFor(() => expect(history.location.search).toBe(''));
     expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
+  });
+  it('shows the error instead of cached recipes when a read is refused, with a retry', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const search = api.recipes.search;
+    let calls = 0;
+    api.recipes.search = (input) => (calls++ === 0 ? Promise.reject(new ApiError('unknown')) : search(input));
+    renderApp('/recipes', { api });
+    fireEvent.click(await screen.findByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByRole('heading', { name: new RegExp(WOK.slice(0, 20)) })).toBeTruthy();
+  });
+  it('keeps cached recipes readable offline', async () => {
+    renderApp('/recipes');
+    await screen.findByRole('heading', { name: new RegExp(WOK.slice(0, 20)) });
+    act(() => setOnline(false));
+    // Returning to the app re-checks the data; offline the read pauses and the copy stays.
+    act(() => void window.dispatchEvent(new Event('focus')));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.getByRole('heading', { name: new RegExp(WOK.slice(0, 20)) })).toBeTruthy();
+    expect(screen.getByText('Sei offline: puoi consultare i dati già caricati.')).toBeTruthy();
   });
   it('reads sorting from the address', async () => {
     renderApp('/recipes?sort=rating&dir=reverse');
@@ -4461,28 +5595,34 @@ export function RecipeFilters({ query, onChange }: { query: RecipeQuery; onChang
 ```tsx
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { errorKey } from '../api/errors';
+import { isBlocking } from '../api/errors';
 import { searchQuery, useQueryDeps } from '../api/queries';
-import type { RecipeQuery } from '../api/types';
+import type { FamilyView, RecipeQuery } from '../api/types';
+import { FamilyGate } from '../components/FamilyGate';
 import { Loading } from '../components/Loading';
+import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { RecipeFilters } from '../components/RecipeFilters';
 import { StateNotice } from '../components/StateNotice';
 import { useT } from '../i18n/LocaleProvider';
-import { useFamily } from '../session/useFamily';
 import { toRecipeQuery, toRecipesSearch } from './search';
 
 const route = getRouteApi('/_app/recipes');
 
 export function RecipesPage() {
+  return <FamilyGate>{(family) => <RecipesView family={family} />}</FamilyGate>;
+}
+
+function RecipesView({ family }: { family: FamilyView }) {
   const t = useT();
-  const { family } = useFamily();
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const query = toRecipeQuery(search);
-  const familyId = family?.id ?? '';
-  const results = useQuery({ ...searchQuery(useQueryDeps(), familyId, query), enabled: !!family, placeholderData: keepPreviousData });
+  const results = useQuery({ ...searchQuery(useQueryDeps(), family.id, query), placeholderData: keepPreviousData });
   const update = (next: RecipeQuery) => void navigate({ search: toRecipesSearch(next), replace: true });
+  // Cached recipes stay visible only when the device is offline (review, finding 2).
+  const blocked = results.isError && isBlocking(results.error, !!results.data);
+  const items = blocked ? undefined : results.data;
 
   return (
     <section className="secondary-view app-view">
@@ -4491,16 +5631,16 @@ export function RecipesPage() {
           <h1 className="page-title">{t('recipes.title')}</h1>
         </header>
         <RecipeFilters query={query} onChange={update} />
-        {results.isError && <StateNotice title={t(errorKey(results.error))} />}
-        {results.isPending && <Loading />}
-        {results.data?.length === 0 && (
+        {blocked && <QueryError error={results.error} onRetry={() => void results.refetch()} />}
+        {!blocked && results.isPending && <Loading />}
+        {items?.length === 0 && (
           <StateNotice title={t('recipes.noResults.title')} body={t('recipes.noResults.body')}>
             <button type="button" className="text-button" onClick={() => update({})}>{t('recipes.reset')}</button>
           </StateNotice>
         )}
-        {!!results.data?.length && (
+        {!!items?.length && (
           <div className="recipe-grid">
-            {results.data.map((item) => (
+            {items.map((item) => (
               <RecipeCard
                 key={item.recipe.id}
                 cardKey={item.recipe.id}
@@ -4514,7 +5654,7 @@ export function RecipesPage() {
                 rating={item.rating}
                 lastChange={null}
                 detailSearch={{ from: 'recipes' }}
-                familyId={familyId}
+                familyId={family.id}
               />
             ))}
           </div>
@@ -4524,6 +5664,7 @@ export function RecipesPage() {
   );
 }
 ```
+
 `web/src/design/global.css`, in fondo (il Ricettario usa la griglia larga, non la colonna da 720 px delle pagine secondarie):
 ```css
 .page-column.wide { max-width: 1200px; }
@@ -4543,7 +5684,7 @@ git commit -m "Web: Ricettario con ricerca, filtri e ordinamento nell'indirizzo"
 
 ---
 
-### Task 15: Scheda ricetta
+### Task 16: Scheda ricetta
 
 **Files:**
 - Create: `web/src/components/ServingsStepper.tsx`, `web/src/routes/RecipePage.module.css`
@@ -4551,7 +5692,7 @@ git commit -m "Web: Ricettario con ricerca, filtri e ordinamento nell'indirizzo"
 - Test: `web/src/routes/RecipePage.test.tsx`
 
 **Interfaces:**
-- Consumes: `recipeQuery`, `useFamily`, `RatingStars`, `IngredientList`, `PageHeader`, `safeSourceUrl`, `formatDayLong`, `RecipeSearch`.
+- Consumes: `recipeQuery`, `FamilyGate`, `QueryError`, `isBlocking`, `RatingStars`, `IngredientList`, `PageHeader`, `safeSourceUrl`, `sourceLine`, `formatDayLong`, `RecipeSearch` (con `slot`).
 - Produces: `<ServingsStepper value min? max? onChange>`; `RecipePage`.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
@@ -4559,6 +5700,7 @@ git commit -m "Web: Ricettario con ricerca, filtri e ordinamento nell'indirizzo"
 ```tsx
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createFakeApi } from '../api/fake/fakeApi';
 import { renderApp } from '../test/renderApp';
 
 const WOK = 'wok-pollo-peperoni-riso-basmati';
@@ -4594,6 +5736,17 @@ describe('recipe page', () => {
   it('lists the last times the family had it', async () => {
     renderApp('/recipes/omelette-spinaci-montasio');
     expect(await screen.findByText('lunedì 21 settembre, Cena')).toBeTruthy();
+  });
+  it('names the book and its pages under the title', async () => {
+    renderApp('/recipes/burrito-vegan');
+    expect(await screen.findByText(/^Libro: .+, pp\. 110-111$/)).toBeTruthy();
+  });
+  it('passes the meal reference to the read when opened from a meal', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const get = vi.spyOn(api.recipes, 'get');
+    renderApp(`/recipes/${WOK}?from=menu&day=2026-10-05&slot=2026-10-05-dinner`, { api });
+    await screen.findByRole('link', { name: /Wok di pollo/ });
+    expect(get).toHaveBeenCalledWith(expect.objectContaining({ recipeId: WOK, slotId: '2026-10-05-dinner' }));
   });
   it('says when a recipe does not exist', async () => {
     renderApp('/recipes/nope');
@@ -4640,33 +5793,38 @@ export function ServingsStepper({ value, min = 1, max = 50, onChange }: { value:
 ```tsx
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useRouter } from '@tanstack/react-router';
-import { errorKey } from '../api/errors';
+import type { ReactNode } from 'react';
+import { isBlocking } from '../api/errors';
 import { recipeQuery, useQueryDeps } from '../api/queries';
+import type { FamilyView } from '../api/types';
+import { FamilyGate } from '../components/FamilyGate';
 import { Icon } from '../components/Icon';
 import { IngredientList } from '../components/IngredientList';
 import { Loading } from '../components/Loading';
 import { PageHeader } from '../components/PageHeader';
+import { QueryError } from '../components/QueryError';
 import { RatingStars } from '../components/RatingStars';
 import { ServingsStepper } from '../components/ServingsStepper';
-import { safeSourceUrl } from '../components/source';
-import { StateNotice } from '../components/StateNotice';
+import { safeSourceUrl, sourceLine } from '../components/source';
 import { formatDayLong } from '../i18n/dates';
 import { useLocale, useT } from '../i18n/LocaleProvider';
-import { useFamily } from '../session/useFamily';
 import styles from './RecipePage.module.css';
 
 const route = getRouteApi('/_app/recipes/$recipeId');
 
 export function RecipePage() {
+  return <FamilyGate>{(family) => <RecipeView family={family} />}</FamilyGate>;
+}
+
+function RecipeView({ family }: { family: FamilyView }) {
   const t = useT();
   const { locale } = useLocale();
   const router = useRouter();
-  const { family } = useFamily();
   const { recipeId } = route.useParams();
   const search = route.useSearch();
   const navigate = route.useNavigate();
-  const familyId = family?.id ?? '';
-  const detail = useQuery({ ...recipeQuery(useQueryDeps(), familyId, recipeId, search.servings), enabled: !!family, placeholderData: keepPreviousData });
+  // The meal reference travels with the read: wave 2 shows the version that meal was eaten with.
+  const detail = useQuery({ ...recipeQuery(useQueryDeps(), family.id, recipeId, search.servings, search.slot), placeholderData: keepPreviousData });
 
   // Back to the menu day, or to the catalogue with its filters (history) when we came from there.
   const back =
@@ -4688,19 +5846,24 @@ export function RecipePage() {
         <Icon name="chevron-left" />{t('nav.recipes')}
       </Link>
     );
+  const page = (content: ReactNode) => (
+    <section className="secondary-view app-view"><div className="page-column">{content}</div></section>
+  );
 
-  if (detail.isError) {
-    return <section className="secondary-view app-view"><div className="page-column"><header className="page-header">{back}</header><StateNotice title={t(errorKey(detail.error))} /></div></section>;
+  if (detail.isError && isBlocking(detail.error, !!detail.data)) {
+    return page(<><header className="page-header">{back}</header><QueryError error={detail.error} onRetry={() => void detail.refetch()} /></>);
   }
-  if (!detail.data) return <section className="secondary-view app-view"><Loading /></section>;
+  if (!detail.data) return page(<Loading />);
 
   const { recipe, rating, servings, baseServings, ingredients, history } = detail.data;
   const sourceUrl = safeSourceUrl(recipe.sourceUrl);
+  // Books, home recipes and videos are named under the title (review, finding 12).
+  const source = recipe.sourceType === 'web' ? null : sourceLine(recipe, t);
   return (
     <section className="secondary-view app-view">
       <article className="page-column">
         {recipe.photo && <img className={styles.photo} src={recipe.photo} alt="" />}
-        {/* The title is always the link to the source (spec section 14). */}
+        {/* The title is always the link to the source when there is one (spec section 14). */}
         <PageHeader
           back={back}
           title={
@@ -4713,7 +5876,8 @@ export function RecipePage() {
             )
           }
         />
-        <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={familyId} />
+        {source && <p className="meal-source">{source}</p>}
+        <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={family.id} />
         {recipe.description && <p className="description">{recipe.description}</p>}
         {recipe.durationMinutes && <p className="meal-meta"><Icon name="clock" />{t('meal.minutes', { count: recipe.durationMinutes })}</p>}
         <section className={styles.section} aria-labelledby="ingredients-title">
@@ -4739,6 +5903,7 @@ export function RecipePage() {
   );
 }
 ```
+
 `web/src/routes/RecipePage.module.css`:
 ```css
 .photo { display: block; width: calc(100% + 32px); margin: 0 -16px; aspect-ratio: 16 / 9; object-fit: cover; }
@@ -4761,7 +5926,7 @@ git commit -m "Web: scheda ricetta con fonte, voto, porzioni, ingredienti e ulti
 
 ---
 
-### Task 16: Profilo e lingua
+### Task 17: Profilo e lingua
 
 **Files:**
 - Create: `web/src/routes/ProfilePage.module.css`
@@ -4769,15 +5934,19 @@ git commit -m "Web: scheda ricetta con fonte, voto, porzioni, ingredienti e ulti
 - Test: `web/src/routes/ProfilePage.test.tsx`
 
 **Interfaces:**
-- Consumes: `useFamily`, `useAuth`, `useSignOut`, `useLocale`, `LOCALES`, `Icon`.
+- Consumes: `useMe`, `useFamily` (Task 10); `useAuth`; `useSignOut`, `useChooseLocale` (Task 9); `useLocale`, `LOCALES`; `QueryError`, `Icon`.
 - Produces: `ProfilePage`.
+
+La scheda Account (lingua ed «Esci») è sempre disponibile, anche se la lettura del profilo fallisce o la persona non ha famiglie (review, rilievo 9). La lingua scelta qui passa da `useChooseLocale`: preferenza del dispositivo in modalità finta, scelta temporanea dell'utente in modalità vera (Task 9).
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
-`web/src/routes/ProfilePage.test.tsx` (Review Focus: cambio di lingua):
+`web/src/routes/ProfilePage.test.tsx`:
 ```tsx
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/errors';
+import { createFakeApi } from '../api/fake/fakeApi';
 import { DEMO_USER } from '../auth/backend';
 import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
@@ -4805,12 +5974,34 @@ describe('profile', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Recipes' }));
     expect(await screen.findByRole('heading', { name: /Chicken stir-fry/ })).toBeTruthy();
   });
+  it('keeps language and sign-out available when the profile cannot be read', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    api.me.get = () => Promise.reject(new ApiError('unknown'));
+    const backend = createStubBackend(DEMO_USER, 'supabase');
+    renderApp('/profile', { backend, api });
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    expect(screen.getByText('federico@example.com')).toBeTruthy();
+    expect(screen.getByLabelText('English')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Esci' })).toBeTruthy();
+  });
   it('signs out in real mode, clearing the session, and goes to the sign-in page', async () => {
     const backend = createStubBackend(DEMO_USER, 'supabase');
     const { history } = renderApp('/profile', { backend });
     fireEvent.click(await screen.findByRole('button', { name: 'Esci' }));
     await waitFor(() => expect(history.location.pathname).toBe('/login'));
     expect(backend.signOutCalls).toBe(1);
+  });
+  it('does not carry a person\'s language choice over to the next one', async () => {
+    const backend = createStubBackend(DEMO_USER, 'supabase');
+    const { history } = renderApp('/profile', { backend });
+    fireEvent.click(await screen.findByLabelText('English'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/login'));
+    act(() => backend.setUser({ id: 'user-anna', email: 'anna@example.com' }));
+    // Back to the page requested before sign-in, in Anna's profile language (Italian in the fake client).
+    await waitFor(() => expect(history.location.pathname).toBe('/profile'));
+    expect(await screen.findByText('Lingua')).toBeTruthy();
+    expect(screen.queryByText('Language')).toBeNull();
   });
 });
 ```
@@ -4824,13 +6015,15 @@ Expected: FAIL, il segnaposto non mostra il nome.
 
 `web/src/routes/ProfilePage.tsx`:
 ```tsx
+import { isBlocking } from '../api/errors';
 import { useAuth } from '../auth/AuthProvider';
 import { Icon, type IconName } from '../components/Icon';
 import { Loading } from '../components/Loading';
+import { QueryError } from '../components/QueryError';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../i18n/translate';
-import { useFamily } from '../session/useFamily';
-import { useSignOut } from '../session/SessionScope';
+import { useChooseLocale, useSignOut } from '../session/SessionScope';
+import { useFamily, useMe } from '../session/useFamily';
 import styles from './ProfilePage.module.css';
 
 // Destinations that arrive with wave 2 (spec, Profilo): visible, disabled.
@@ -4842,25 +6035,30 @@ const PLACEHOLDERS: { icon: IconName; label: MessageKey }[] = [
 
 export function ProfilePage() {
   const t = useT();
-  const { locale, setLocale } = useLocale();
-  const { backend } = useAuth();
+  const { locale } = useLocale();
+  const chooseLocale = useChooseLocale();
+  const { state, backend } = useAuth();
   const signOut = useSignOut();
-  const { me, family } = useFamily();
-  if (!me.data) return <section className="secondary-view app-view"><Loading /></section>;
+  const me = useMe();
+  const family = useFamily();
+  const email = me.data?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
+  const meBlocked = me.isError && isBlocking(me.error, !!me.data);
 
   return (
     <section className="secondary-view app-view">
       <div className="page-column">
         <header className={styles.header}>
-          <h1 className={styles.name}>{me.data.user.displayName}</h1>
-          <p className={styles.email}>{me.data.user.email}</p>
+          <h1 className={styles.name}>{me.data?.user.displayName ?? email}</h1>
+          {me.data && <p className={styles.email}>{email}</p>}
         </header>
-        {family && (
+        {meBlocked && <QueryError error={me.error} onRetry={() => void me.refetch()} />}
+        {!meBlocked && !me.data && <Loading />}
+        {family.status === 'ready' && (
           <section className="settings-card" aria-labelledby="family-title">
             <h2 id="family-title">{t('profile.family')}</h2>
             <ul className="row-list">
               <li>
-                <span className="row-main">{family.name}<small>{t(`profile.role.${family.role}`)}</small></span>
+                <span className="row-main">{family.family.name}<small>{t(`profile.role.${family.family.role}`)}</small></span>
               </li>
               {PLACEHOLDERS.map((row) => (
                 <li key={row.label}>
@@ -4873,13 +6071,14 @@ export function ProfilePage() {
             </ul>
           </section>
         )}
+        {/* Always available: language and sign-out must work even without a profile or a family. */}
         <section className="settings-card" aria-labelledby="account-title">
           <h2 id="account-title">{t('profile.account')}</h2>
           <fieldset className={styles.language}>
             <legend className={styles.legend}>{t('profile.language')}</legend>
             {LOCALES.map((option) => (
               <label key={option} className="choice">
-                <input type="radio" name="locale" checked={locale === option} onChange={() => setLocale(option)} />
+                <input type="radio" name="locale" checked={locale === option} onChange={() => chooseLocale(option)} />
                 {t(`profile.language.${option}`)}
               </label>
             ))}
@@ -4893,6 +6092,7 @@ export function ProfilePage() {
   );
 }
 ```
+Quando la lettura del profilo fallisce, il titolo mostra l'email della sessione; il test «keeps language…» la trova nel titolo.
 
 `web/src/routes/ProfilePage.module.css`:
 ```css
@@ -4917,27 +6117,30 @@ Expected: PASS.
 
 ```bash
 git add web/src
-git commit -m "Web: Profilo con famiglia, destinazioni future, lingua e uscita"
+git commit -m "Web: Profilo con famiglia, destinazioni future, lingua per identità e uscita sempre disponibili"
 ```
 
 ---
 
-### Task 17: PWA e service worker
+### Task 18: PWA e service worker
 
 **Files:**
-- Create: `web/src/pwa/sw-rules.ts`, `web/src/pwa/register.ts`, `web/public/manifest.webmanifest`, `web/public/icons/icon.svg`, `web/scripts/make-icons.sh`, `web/public/icons/icon-192.png`, `web/public/icons/icon-512.png`, `web/public/icons/apple-touch-icon.png`
-- Modify: `web/src/pwa/sw.ts` (sostituisce il segnaposto), `web/src/main.tsx`
-- Test: `web/src/pwa/sw-rules.test.ts`
+- Create: `web/src/pwa/sw-rules.ts`, `web/src/pwa/precache.ts`, `web/src/pwa/sw-core.ts`, `web/src/pwa/register.ts`, `web/public/manifest.webmanifest`, `web/public/icons/icon.svg`, `web/scripts/make-icons.sh`, `web/public/icons/icon-192.png`, `web/public/icons/icon-512.png`, `web/public/icons/apple-touch-icon.png`
+- Modify: `web/src/pwa/sw.ts` (sostituisce il segnaposto), `web/vite.config.ts`, `web/src/main.tsx`
+- Test: `web/src/pwa/sw-rules.test.ts`, `web/src/pwa/precache.test.ts`, `web/src/pwa/sw-core.test.ts`
 
 **Interfaces:**
 - Produces:
-  - `type Strategy = 'shell' | 'asset' | 'passthrough'`
-  - `strategyFor(request: { url: string; method: string; mode: string; origin: string }): Strategy`
-  - `cacheName(version: string): string`, `staleCaches(names: string[], version: string): string[]`, `SHELL_URL = '/index.html'`, `SERVER_PREFIXES`
+  - `type Strategy = 'shell' | 'asset' | 'passthrough'`; `strategyFor(request: { url: string; method: string; mode: string; origin: string }): Strategy`; `cacheName(version)`, `staleCaches(names, version)`, `SHELL_URL = '/index.html'`, `PRECACHE_URL = '/precache.json'`, `SERVER_PREFIXES`
+  - `precacheList(bundleFiles: string[], fontFiles: string[]): string[]`
+  - `interface WorkerDeps { caches: CachesLike; fetch: (input: RequestInfo, init?: RequestInit) => Promise<Response>; version: string; origin: string }`; `install(deps)`, `activate(deps)`, `respond(info: { url; method; mode }, target: RequestInfo, deps): Promise<Response>`
   - `registerServiceWorker(): void`
+
+Ciclo deciso dal coordinatore (review, rilievo 7): l'installazione mette in cache la shell completa (HTML, JavaScript e CSS con hash, font) elencata dalla build in `precache.json`; se un file manca l'installazione fallisce, la cache parziale si cancella e resta la versione precedente; le vecchie cache si cancellano solo all'attivazione, cioè a nuova cache completa. La logica sta in `sw-core.ts` con cache e rete come dipendenze, così i tre scenari si provano in Node.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
+`web/src/pwa/sw-rules.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import { cacheName, staleCaches, strategyFor } from './sw-rules';
@@ -4962,8 +6165,8 @@ describe('service worker rules', () => {
     expect(strategyFor(req('/shopping-lists/abc', 'navigate'))).toBe('passthrough');
     expect(strategyFor(req('/internal/jobs/weekly', 'navigate'))).toBe('passthrough');
     expect(strategyFor(req('/sw.js'))).toBe('passthrough');
+    expect(strategyFor(req('/precache.json'))).toBe('passthrough');
     expect(strategyFor(req('/assets/x.js', 'cors', 'GET', 'https://cdn.example'))).toBe('passthrough');
-    expect(strategyFor(req('/manifest.webmanifest'))).toBe('passthrough');
   });
   it('names caches by build and finds the old ones', () => {
     expect(cacheName('2026-10-11T10:00:00.000Z')).toBe('cosasimangia-2026-10-11T10:00:00.000Z');
@@ -4972,20 +6175,140 @@ describe('service worker rules', () => {
 });
 ```
 
+`web/src/pwa/precache.test.ts`:
+```ts
+import { expect, it } from 'vitest';
+import { precacheList } from './precache';
+
+it('lists the shell: index, hashed scripts and styles, fonts; never the worker or the list itself', () => {
+  expect(precacheList(['index.html', 'assets/index-a1.js', 'assets/index-b2.css', 'sw.js', 'precache.json', 'assets/logo-c3.svg', '.vite/manifest.json'], ['roboto-regular.woff2']))
+    .toEqual(['/index.html', '/assets/index-a1.js', '/assets/index-b2.css', '/assets/fonts/roboto-regular.woff2']);
+});
+```
+
+`web/src/pwa/sw-core.test.ts`:
+```ts
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import { activate, install, respond, type CacheLike, type CachesLike, type WorkerDeps } from './sw-core';
+
+const origin = 'https://app.example';
+const url = (path: string) => `${origin}${path}`;
+
+/** In-memory Cache Storage keyed by URL, enough for the worker's needs. */
+function memoryCaches(): CachesLike & { names(): string[] } {
+  const stores = new Map<string, Map<string, Response>>();
+  const keyOf = (request: RequestInfo) => new URL(typeof request === 'string' ? request : request.url, origin).href;
+  const open = async (name: string): Promise<CacheLike> => {
+    const store = stores.get(name) ?? new Map<string, Response>();
+    stores.set(name, store);
+    return {
+      match: async (request) => store.get(keyOf(request))?.clone(),
+      put: async (request, response) => void store.set(keyOf(request), response)
+    };
+  };
+  return {
+    open,
+    keys: async () => [...stores.keys()],
+    delete: async (name) => stores.delete(name),
+    match: async (request) => {
+      for (const store of stores.values()) {
+        const found = store.get(keyOf(request));
+        if (found) return found.clone();
+      }
+      return undefined;
+    },
+    names: () => [...stores.keys()]
+  };
+}
+
+/** A deployed build on the network; `offline` and `failing` simulate trouble. */
+function network(build: Record<string, string>) {
+  const state = { offline: false, failing: new Set<string>() };
+  const fetch = async (input: RequestInfo) => {
+    const path = new URL(typeof input === 'string' ? input : input.url, origin).pathname;
+    if (state.offline) throw new TypeError('Failed to fetch');
+    if (state.failing.has(path)) return new Response('error', { status: 500 });
+    const body = build[path];
+    return body === undefined ? new Response('missing', { status: 404 }) : new Response(body);
+  };
+  return { fetch, state };
+}
+
+const buildA = { '/precache.json': JSON.stringify(['/index.html', '/assets/a.js']), '/index.html': 'index A', '/assets/a.js': 'script A' };
+const buildB = { '/precache.json': JSON.stringify(['/index.html', '/assets/b.js']), '/index.html': 'index B', '/assets/b.js': 'script B' };
+const navigate = (path: string) => ({ url: url(path), method: 'GET', mode: 'navigate' });
+const asset = (path: string) => ({ url: url(path), method: 'GET', mode: 'cors' });
+const text = async (response: Response) => response.text();
+
+describe('service worker lifecycle', () => {
+  it('opens offline after the first visit: shell and its assets are all installed', async () => {
+    const caches = memoryCaches();
+    const net = network(buildA);
+    const deps: WorkerDeps = { caches, fetch: net.fetch, version: 'A', origin };
+    await install(deps);
+    await activate(deps);
+    net.state.offline = true;
+    expect(await text(await respond(navigate('/menu'), url('/menu'), deps))).toBe('index A');
+    expect(await text(await respond(asset('/assets/a.js'), url('/assets/a.js'), deps))).toBe('script A');
+  });
+  it('updates A→B keeping A until B is complete, then opens offline on B', async () => {
+    const caches = memoryCaches();
+    const netA = network(buildA);
+    const depsA: WorkerDeps = { caches, fetch: netA.fetch, version: 'A', origin };
+    await install(depsA);
+    await activate(depsA);
+    const netB = network(buildB);
+    const depsB: WorkerDeps = { caches, fetch: netB.fetch, version: 'B', origin };
+    await install(depsB);
+    // B waits for the app to be reopened: A still serves with its own cache.
+    expect(caches.names().sort()).toEqual(['cosasimangia-A', 'cosasimangia-B']);
+    await activate(depsB);
+    expect(caches.names()).toEqual(['cosasimangia-B']);
+    netB.state.offline = true;
+    expect(await text(await respond(navigate('/recipes'), url('/recipes'), depsB))).toBe('index B');
+    expect(await text(await respond(asset('/assets/b.js'), url('/assets/b.js'), depsB))).toBe('script B');
+  });
+  it('keeps A in service when the install of B is interrupted', async () => {
+    const caches = memoryCaches();
+    const netA = network(buildA);
+    const depsA: WorkerDeps = { caches, fetch: netA.fetch, version: 'A', origin };
+    await install(depsA);
+    await activate(depsA);
+    const netB = network(buildB);
+    netB.state.failing.add('/assets/b.js');
+    await expect(install({ caches, fetch: netB.fetch, version: 'B', origin })).rejects.toThrow();
+    expect(caches.names()).toEqual(['cosasimangia-A']);
+    netA.state.offline = true;
+    expect(await text(await respond(navigate('/menu'), url('/menu'), depsA))).toBe('index A');
+    expect(await text(await respond(asset('/assets/a.js'), url('/assets/a.js'), depsA))).toBe('script A');
+  });
+  it('refreshes the cached shell from the network while online', async () => {
+    const caches = memoryCaches();
+    const net = network(buildA);
+    const deps: WorkerDeps = { caches, fetch: net.fetch, version: 'A', origin };
+    await install(deps);
+    await activate(deps);
+    expect(await text(await respond(navigate('/menu'), url('/menu'), deps))).toBe('index A');
+  });
+});
+```
+
 - [ ] **Step 2: Verifica che falliscano**
 
 Run: `cd web && npx vitest run src/pwa`
-Expected: FAIL, `Failed to resolve import "./sw-rules"`.
+Expected: FAIL, import non risolti.
 
-- [ ] **Step 3: Regole e service worker**
+- [ ] **Step 3: Regole, elenco della shell e logica del service worker**
 
 `web/src/pwa/sw-rules.ts`:
 ```ts
 export type Strategy = 'shell' | 'asset' | 'passthrough';
 
 /** Routes answered by the Worker, never by the app shell (spec section 1, routes table). */
-export const SERVER_PREFIXES = ['/api', '/mcp', '/internal', '/shopping-lists', '/.well-known', '/openapi.json', '/sw.js'];
+export const SERVER_PREFIXES = ['/api', '/mcp', '/internal', '/shopping-lists', '/.well-known', '/openapi.json', '/sw.js', '/precache.json'];
 export const SHELL_URL = '/index.html';
+export const PRECACHE_URL = '/precache.json';
 const PREFIX = 'cosasimangia-';
 
 export function strategyFor(request: { url: string; method: string; mode: string; origin: string }): Strategy {
@@ -5004,9 +6327,93 @@ export const staleCaches = (names: string[], version: string) =>
   names.filter((name) => name.startsWith(PREFIX) && name !== cacheName(version));
 ```
 
+`web/src/pwa/precache.ts`:
+```ts
+/** The shell the worker installs: index, hashed scripts and styles, fonts (not the photos, cached on use). */
+export function precacheList(bundleFiles: string[], fontFiles: string[]): string[] {
+  const bundle = bundleFiles.filter((file) => file.startsWith('assets/') && /\.(js|css)$/.test(file)).map((file) => `/${file}`);
+  const fonts = fontFiles.filter((file) => file.endsWith('.woff2')).map((file) => `/assets/fonts/${file}`);
+  return ['/index.html', ...bundle, ...fonts];
+}
+```
+
+`web/src/pwa/sw-core.ts`:
+```ts
+import { cacheName, PRECACHE_URL, SHELL_URL, staleCaches, strategyFor } from './sw-rules';
+
+export interface CacheLike {
+  match(request: RequestInfo): Promise<Response | undefined>;
+  put(request: RequestInfo, response: Response): Promise<void>;
+}
+export interface CachesLike {
+  open(name: string): Promise<CacheLike>;
+  keys(): Promise<string[]>;
+  delete(name: string): Promise<boolean>;
+  match(request: RequestInfo): Promise<Response | undefined>;
+}
+export interface WorkerDeps {
+  caches: CachesLike;
+  fetch: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
+  version: string;
+  origin: string;
+}
+
+/** All or nothing: a missing file fails the install, the partial cache goes and the previous version stays. */
+export async function install({ caches, fetch, version }: WorkerDeps): Promise<void> {
+  const name = cacheName(version);
+  try {
+    const listing = await fetch(PRECACHE_URL, { cache: 'no-store' });
+    if (!listing.ok) throw new Error(`precache list: ${listing.status}`);
+    const urls = (await listing.json()) as string[];
+    const responses = await Promise.all(
+      urls.map(async (url) => {
+        const response = await fetch(url, { cache: 'reload' });
+        if (!response.ok) throw new Error(`precache ${url}: ${response.status}`);
+        return [url, response] as const;
+      })
+    );
+    const cache = await caches.open(name);
+    for (const [url, response] of responses) await cache.put(url, response);
+  } catch (error) {
+    await caches.delete(name);
+    throw error;
+  }
+}
+
+/** Runs only after a complete install: now the older versions can go. */
+export async function activate({ caches, version }: WorkerDeps): Promise<void> {
+  const names = await caches.keys();
+  await Promise.all(staleCaches(names, version).map((name) => caches.delete(name)));
+}
+
+export async function respond(info: { url: string; method: string; mode: string }, target: RequestInfo, deps: WorkerDeps): Promise<Response> {
+  const { caches, fetch, version, origin } = deps;
+  const cache = await caches.open(cacheName(version));
+  const strategy = strategyFor({ ...info, origin });
+  if (strategy === 'shell') {
+    try {
+      const response = await fetch(target);
+      if (response.ok) await cache.put(SHELL_URL, response.clone());
+      return response;
+    } catch {
+      return (await cache.match(SHELL_URL)) ?? Response.error();
+    }
+  }
+  if (strategy === 'asset') {
+    const cached = (await cache.match(info.url)) ?? (await caches.match(info.url));
+    if (cached) return cached;
+    const response = await fetch(target);
+    if (response.ok) await cache.put(info.url, response.clone());
+    return response;
+  }
+  return fetch(target);
+}
+```
+
 `web/src/pwa/sw.ts`:
 ```ts
-import { cacheName, SHELL_URL, staleCaches, strategyFor } from './sw-rules';
+import { activate, install, respond, type WorkerDeps } from './sw-core';
+import { strategyFor } from './sw-rules';
 
 // Built by Vite as a second entry (/sw.js). Minimal local types: the project compiles with the DOM library only.
 interface ExtendableEventLike extends Event { waitUntil(promise: Promise<unknown>): void }
@@ -5018,45 +6425,21 @@ interface WorkerScope {
 }
 
 const worker = self as unknown as WorkerScope;
-const CACHE = cacheName(__BUILD_VERSION__);
+const deps: WorkerDeps = { caches, fetch: (input, init) => fetch(input, init), version: __BUILD_VERSION__, origin: worker.location.origin };
 
-// No skipWaiting: a new version takes over when the app is reopened (spec, PWA).
-worker.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.add(SHELL_URL)));
-});
-
-worker.addEventListener('activate', (event) => {
-  event.waitUntil(caches.keys().then((names) => Promise.all(staleCaches(names, __BUILD_VERSION__).map((name) => caches.delete(name)))));
-});
-
+// No skipWaiting: a new version takes over when the app is reopened, with its cache already complete.
+worker.addEventListener('install', (event) => event.waitUntil(install(deps)));
+worker.addEventListener('activate', (event) => event.waitUntil(activate(deps)));
 worker.addEventListener('fetch', (event) => {
-  const strategy = strategyFor({ url: event.request.url, method: event.request.method, mode: event.request.mode, origin: worker.location.origin });
-  if (strategy === 'shell') event.respondWith(shell(event.request));
-  if (strategy === 'asset') event.respondWith(asset(event.request));
+  const info = { url: event.request.url, method: event.request.method, mode: event.request.mode };
+  if (strategyFor({ ...info, origin: deps.origin }) === 'passthrough') return;
+  event.respondWith(respond(info, event.request, deps));
 });
-
-async function shell(request: Request): Promise<Response> {
-  try {
-    const response = await fetch(request);
-    if (response.ok) await (await caches.open(CACHE)).put(SHELL_URL, response.clone());
-    return response;
-  } catch {
-    return (await caches.match(SHELL_URL)) ?? Response.error();
-  }
-}
-
-async function asset(request: Request): Promise<Response> {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) await (await caches.open(CACHE)).put(request, response.clone());
-  return response;
-}
 ```
 
 `web/src/pwa/register.ts`:
 ```ts
-/** Production only: in development Vite serves unbundled modules the worker must not cache. */
+/** Production only, and only where the browser allows it (HTTPS or localhost). */
 export function registerServiceWorker(): void {
   if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
   window.addEventListener('load', () => {
@@ -5067,7 +6450,54 @@ export function registerServiceWorker(): void {
 
 `web/src/main.tsx`: aggiungere `import { registerServiceWorker } from './pwa/register';` e, dopo `createRoot(...).render(...)`, la riga `registerServiceWorker();`.
 
-- [ ] **Step 4: Manifest e icone**
+- [ ] **Step 4: `precache.json` generato dalla build**
+
+`web/vite.config.ts`, versione completa:
+```ts
+import react from '@vitejs/plugin-react';
+import { readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import type { Plugin } from 'vite';
+import { defineConfig } from 'vitest/config';
+import { precacheList } from './src/pwa/precache';
+
+// One value per build: cache names of the service worker and buster of the persisted query cache.
+const buildVersion = new Date().toISOString();
+const fontsDir = fileURLToPath(new URL('./public/assets/fonts', import.meta.url));
+
+/** Emits /precache.json: the shell the service worker installs as a whole (review, finding 7). */
+function precacheManifest(): Plugin {
+  return {
+    name: 'precache-manifest',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const fonts = readdirSync(fontsDir);
+      this.emitFile({ type: 'asset', fileName: 'precache.json', source: JSON.stringify(precacheList(Object.keys(bundle), fonts)) });
+    }
+  };
+}
+
+export default defineConfig({
+  plugins: [react(), precacheManifest()],
+  define: { __BUILD_VERSION__: JSON.stringify(buildVersion) },
+  server: { port: 5174 },
+  build: {
+    rollupOptions: {
+      // The service worker is a second entry, emitted at the root as /sw.js.
+      input: { main: 'index.html', sw: 'src/pwa/sw.ts' },
+      output: { entryFileNames: (chunk) => (chunk.name === 'sw' ? 'sw.js' : 'assets/[name]-[hash].js') }
+    }
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}']
+  }
+});
+```
+`index.html` non passa da `generateBundle` come chiave `assets/…`, ma `precacheList` lo mette sempre in testa. Verificare con Context7 (`/vitejs/vite`, «plugin generateBundle emitFile») che in Vite 8 l'hook e `emitFile` funzionino così.
+
+- [ ] **Step 5: Manifest e icone**
 
 `web/public/manifest.webmanifest`:
 ```json
@@ -5110,21 +6540,21 @@ magick -background none -density 384 icon.svg -resize 180x180 apple-touch-icon.p
 Run: `cd web && sh scripts/make-icons.sh && file public/icons/*.png`
 Expected: tre PNG con le dimensioni 192, 512 e 180. Aprire `public/icons/icon-512.png` con Read per controllare la resa.
 
-- [ ] **Step 5: Verifica test, build e service worker autonomo**
+- [ ] **Step 6: Verifica test, build e service worker autonomo**
 
-Run: `cd web && npx vitest run src/pwa && npm run build && grep -c "^import" dist/sw.js; ls dist/manifest.webmanifest dist/icons`
-Expected: PASS; build senza errori; `grep` stampa `0` (il service worker non importa altri moduli); manifest e icone in `dist/`. Se `dist/sw.js` contiene `import` (perché il bundler ha messo `sw-rules` in un pezzo condiviso), costruire il service worker con una seconda build dedicata: script `"build:sw": "vite build --config vite.sw.config.ts"` con `build.lib` su `src/pwa/sw.ts`, formato `iife`, `outDir: 'dist'`, `emptyOutDir: false`, nome file `sw.js` (verificare le opzioni con Context7 su `/vitejs/vite`), togliere `sw` dagli input di `vite.config.ts` e aggiungere `&& npm run build:sw` allo script `build`.
+Run: `cd web && npx vitest run src/pwa && npm run build && grep -c "^import" dist/sw.js; cat dist/precache.json; ls dist/manifest.webmanifest dist/icons`
+Expected: PASS; build senza errori; `grep` stampa `0` (il service worker non importa altri moduli); `precache.json` elenca `/index.html`, i file `/assets/*.js` e `/assets/*.css` e i quattro font; manifest e icone in `dist/`. Se `dist/sw.js` contiene `import` (il bundler ha messo codice condiviso in un pezzo a parte), costruire il service worker con una seconda build dedicata: script `"build:sw": "vite build --config vite.sw.config.ts"` con `build.lib` su `src/pwa/sw.ts`, formato `iife`, `outDir: 'dist'`, `emptyOutDir: false`, nome file `sw.js` (opzioni verificate con Context7 su `/vitejs/vite`), togliere `sw` dagli input di `vite.config.ts` e aggiungere `&& npm run build:sw` allo script `build`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add web/
-git commit -m "Web: PWA installabile con manifest, icone e service worker scritto a mano"
+git commit -m "Web: PWA installabile con shell completa in cache, aggiornamenti sicuri e icone"
 ```
 
 ---
 
-### Task 18: README e verifiche finali
+### Task 19: README e verifiche finali
 
 **Files:**
 - Create: `web/README.md`
@@ -5156,8 +6586,17 @@ linguaggio visivo in `../design/design.md`.
 
 - **Finta** (nessuna variabile): utente demo Federico nella Famiglia Folloni, nessun accesso.
 - **Vera**: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (per lo sviluppo, dallo
-  stack locale: `supabase status`). Accesso con email e password; finché il server non
-  c'è, i dati arrivano comunque dal client finto.
+  stack locale: `supabase status`). Accesso con email e password; finché il client oRPC
+  non c'è (seconda PR, dopo W1), i dati arrivano comunque dal client finto.
+
+## Sessione e dati sul dispositivo
+
+Una sessione per persona: cache in memoria, copia in IndexedDB (`query-cache:<id>`) e
+scelta temporanea della lingua. «Esci», l'uscita da un'altra scheda e ogni cambio
+d'utente chiudono la sessione con la stessa procedura e cancellano tutto; all'avvio si
+cancellano le copie di chiunque altro. `unauthorized` dal server: un rinnovo, poi
+l'ingresso; `forbidden`: i dati di quella famiglia spariscono. Il voto non è ottimistico:
+in cache entra solo quello che il server ha confermato.
 
 Il service worker si registra solo nella build e solo in un contesto sicuro
 (`localhost` o HTTPS): sulla rete locale in `http` l'iPhone installa l'app ma non la
@@ -5178,11 +6617,17 @@ Expected: tutti i test PASS, nessun errore di tipi, build riuscita. Riportare il
 
 - [ ] **Step 3: Prova nel browser**
 
+Oltre ai controlli qui sotto, i punti della review che jsdom non può verificare:
+- **altezze** (rilievo 8): Ricettario lungo e Menu con gli ingredienti aperti a 320 e 390 px: navbar sempre visibile, fine del contenuto raggiungibile, scorrimento solo nei contenitori previsti (colonne dei giorni, viste secondarie);
+- **tastiera e VoiceOver** (rilievo 13): calendario aperto dal mese e dall'icona, scelta con Invio, Escape, frecce del mese; stelle del voto con Tab e spazio; con VoiceOver su macOS (Safari) i nomi letti sono quelli dei test;
+- **aggiornamento della PWA** (rilievo 7) su `localhost`: build A, apertura, chiusura, rete disattivata e riapertura (si apre); build B con un testo cambiato, riapertura online e poi offline (si apre B, la cache di A è sparita in DevTools → Application → Cache Storage).
+
+
 Con la skill `agent-browser`, su `npm run preview -- --port 8767` (build di produzione, `localhost`):
 - `/menu`, `/recipes`, `/recipes/wok-pollo-peperoni-riso-basmati`, `/profile` a 320, 390 e 1440 px, in italiano e (dal Profilo) in inglese; screenshot nello scratchpad;
 - confronto con `design/index.html` aperto alla stessa larghezza e con `design/references/hellofresh/preview-mobile.png`: fondo crema, font, banner 3:1, selettore dei giorni, navbar a icone;
 - nessuno scorrimento orizzontale della pagina, titoli lunghi che vanno a capo, fonte troncata;
-- offline: dopo il primo caricamento, rete disattivata (se agent-browser non lo consente, con chrome-devtools MCP `emulate` offline), ricarica di `/menu`: l'app si apre con i dati in cache e il banner offline.
+- offline: dopo la seconda visita (installazione completa), rete disattivata (se agent-browser non lo consente, con chrome-devtools MCP `emulate` offline), ricarica di `/menu`: l'app si apre con i dati in cache e il banner offline; un voto offline mostra l'errore e non parte alla riconnessione.
 - pagina di ingresso: `VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_PUBLISHABLE_KEY=placeholder npm run dev` e apertura di `/login` a 390 px (credenziali errate → messaggio di rete o di credenziali). Se lo stack locale di Supabase è attivo, accesso vero con un utente di prova.
 
 Annotare nella PR ciò che non torna rispetto al riferimento.
@@ -5196,5 +6641,5 @@ Scrivere al coordinatore l'indirizzo, chiedendo la prova su iPhone di resa e ins
 
 ```bash
 git add web/README.md
-git commit -m "Web: README con comandi, modalità e limiti del service worker sulla rete locale"
+git commit -m "Web: README con comandi, modalità, sessione e limiti del service worker sulla rete locale"
 ```
