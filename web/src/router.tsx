@@ -12,6 +12,8 @@ import { SettingsPage } from './routes/profile/SettingsPage';
 import { RecipePage } from './routes/RecipePage';
 import { RecipesPage } from './routes/RecipesPage';
 import { RouteError } from './routes/RouteError';
+import { AuthorizePage } from './features/agents/AuthorizePage';
+import { validateAuthorizeSearch } from './features/agents/search';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
@@ -30,6 +32,17 @@ const loginRoute = createRoute({
     if (context.auth.status === 'signedIn') throw redirect({ href: search.redirect ?? '/menu', replace: true });
   },
   component: LoginPage
+});
+
+// Agent consent (spec section 13): no navbar; signing in first comes back here, also after «Cambia account».
+const authorizeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/authorize',
+  validateSearch: validateAuthorizeSearch,
+  beforeLoad: ({ context, location }) => {
+    if (context.auth.status === 'signedOut') throw redirect({ to: '/login', search: { redirect: location.href }, replace: true });
+  },
+  component: AuthorizePage
 });
 
 // Pathless layout: every view behind sign-in, with the navbar.
@@ -63,6 +76,7 @@ const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shop
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  authorizeRoute,
   appRoute.addChildren([indexRoute, menuRoute, recipesRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, shoppingRoute])
 ]);
 
