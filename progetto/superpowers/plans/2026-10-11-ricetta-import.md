@@ -994,7 +994,7 @@ git commit -m "Ricetta: controllo di pubblicazione con regole per fonte e attrib
 - Consuma: `RecipeDocument`, `RecipeDraftDocument`; `PlannerRecipe` del pianificatore;
   `varietyKey`; `DEPARTMENTS`.
 - Produce: `RecipeProjection`, `RecipeIngredientProjection`,
-  `projectRecipe(document)`, `toPlannerRecipe(id, document)`, `ReferenceLookup`,
+  `projectRecipe(document)`, `projectDraftNames(draft)`, `toPlannerRecipe(id, document)`, `ReferenceLookup`,
   `resolveReferences(document, lookup)`; `catalogueIngredientSchema`,
   `CatalogueIngredient`; `index.ts` che esporta tutto il modulo.
 
@@ -1005,7 +1005,7 @@ git commit -m "Ricetta: controllo di pubblicazione con regole per fonte e attrib
 import { describe, expect, it } from 'vitest';
 import { publishedRecipeSchema } from './document.ts';
 import { publishedExample } from './test-fixtures.ts';
-import { projectRecipe, resolveReferences, toPlannerRecipe } from './projection.ts';
+import { projectDraftNames, projectRecipe, resolveReferences, toPlannerRecipe } from './projection.ts';
 
 const doc = publishedRecipeSchema.parse({
 	...publishedExample,
@@ -1026,6 +1026,9 @@ describe('projections', () => {
 		expect(ingredients[0]).toMatchObject({ quantityKind: 'amount', quantity: 320, unit: 'g', quantityText: null, varietyKey: '' });
 		expect(ingredients[1]).toMatchObject({ quantityKind: 'to_taste', quantity: null, unit: null, isPrimary: true });
 		expect(ingredients[2]).toMatchObject({ quantityKind: 'text', quantity: null, unit: null, quantityText: { 'it-IT': '1 vaschetta', 'en-GB': '1 punnet' }, varietyKey: 'roma', isOptional: true });
+	});
+	it('fills name and description of a new draft, empty where a language is missing', () => {
+		expect(projectDraftNames({ schemaVersion: 1, name: { 'it-IT': ' Zuppa ' } })).toEqual({ name: { 'it-IT': 'Zuppa', 'en-GB': '' }, description: { 'it-IT': '', 'en-GB': '' } });
 	});
 	it('gives the planner what it reads', () => {
 		expect(toPlannerRecipe('r1', doc)).toEqual({
@@ -1079,7 +1082,7 @@ import type { PlannerRecipe } from '../planner/index.ts';
 import { varietyKey } from '../shopping/variety.ts';
 import type { UnitCode } from '../units/index.ts';
 import type { RecipeDocument, RecipeDraftDocument } from './document.ts';
-import type { Localized } from './localized.ts';
+import type { DraftLocalized, Localized } from './localized.ts';
 
 // Projections of the current published version (spec section 2): columns of recipes and rows of
 // recipe_ingredients, recomputed in the transaction that publishes or restores. camelCase here, snake_case
@@ -1125,6 +1128,15 @@ export function projectRecipe(d: RecipeDocument): { recipe: RecipeProjection; in
 			isPrimary: line.isPrimary
 		}))
 	};
+}
+
+/**
+ * Name and description of a recipe never published, written to recipes at every save of its draft so that
+ * members see the name of the meals citing it (coordinator, 11 October 2026).
+ */
+export function projectDraftNames(d: RecipeDraftDocument): { name: Localized; description: Localized } {
+	const full = (v: DraftLocalized | null | undefined): Localized => ({ 'it-IT': v?.['it-IT']?.trim() ?? '', 'en-GB': v?.['en-GB']?.trim() ?? '' });
+	return { name: full(d.name), description: full(d.description) };
 }
 
 /** What the planner reads (domain/src/planner/types.ts), from a published document. */

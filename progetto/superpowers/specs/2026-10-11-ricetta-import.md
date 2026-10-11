@@ -212,6 +212,8 @@ ordine stabile. `attributes` è nuova e copre gli attributi del pianificatore.
   RecipeIngredientProjection[] }`, con le colonne elencate nell'interfaccia per W2.
 - `toPlannerRecipe(id, document, bookId)` → `PlannerRecipe` del pianificatore:
   `primaryIngredientId` dalla riga `isPrimary`, `ingredients` con `isOptional`.
+- `projectDraftNames(draft)` → `{ name, description }` di una ricetta in bozza nuova,
+  con stringa vuota per le lingue mancanti.
 - `resolveReferences(document, lookup)` → stesso documento con gli id del catalogo al
   posto degli slug (per l'import).
 
@@ -247,8 +249,12 @@ ripristino):
 | `is_heavy` | boolean | `isHeavy` |
 | `seasons` | text[] | `seasons` |
 
-Per una ricetta mai pubblicata (stato `draft`) le colonne di proiezione restano vuote:
-nome e descrizione si leggono dalla bozza `new`, anche per i pasti che la citano.
+Per una ricetta mai pubblicata (stato `draft`, bozza `new`) `name` e `description` si
+riempiono comunque dal documento della bozza: li scrive l'import e il server a ogni
+salvataggio della bozza, così i membri vedono il nome dei pasti che la citano senza
+leggere le bozze (deciso dal coordinatore l'11 ottobre 2026). Una lingua ancora mancante
+vale stringa vuota. Le altre colonne di proiezione restano vuote fino alla
+pubblicazione. Funzione: `projectDraftNames(draft)` → `{ name, description }`.
 
 **Identità d'origine** su `recipes`, fuori dal documento perché sopravvive alle
 modifiche: `origin_slug` text null, unico (lo slug della scheda in `ricette.yaml`), e
@@ -535,6 +541,6 @@ adattarlo, senza cambiare il comportamento di `planner-report`.
 | Documento ricetta v1 (`schemaVersion`), campi della fonte piatti, metadati fuori dal documento; schema zod strutturale più controlli a codici con percorsi | 2, 8 |
 | Codici degli esiti di validazione (tabella in sezione 2 di questa spec) | 1 (errori a codici), 8 |
 | Colonne di proiezione e identità d'origine (`origin_slug`, `origin_type`) su `recipes`; colonne di `recipe_ingredients` con `position`, `variety_key`, `quantity_kind`, `quantity_text` | 2 |
-| Per una ricetta mai pubblicata le colonne di proiezione restano vuote; nome e descrizione dalla bozza | 2 |
+| Per una ricetta in bozza nuova `name` e `description` di `recipes` si riempiono dal documento della bozza (import e ogni salvataggio); le altre colonne di proiezione restano vuote fino alla pubblicazione | 2, 8 |
 | Quantità e codici delle unità concordati con W4; `us_cup` solo in bozza; equivalenze di ambito `recipe` applicate in gestione o import | 6 |
 | Import: pacchetto JSON, report e pagina di revisione in `scripts/import/out/`; `--existing` per il rilancio; nessuna scrittura sul database; pubblicazione bloccata da `pendingReview` | 8, 11 |
