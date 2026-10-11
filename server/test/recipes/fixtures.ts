@@ -86,28 +86,31 @@ export function catalogueFixture(db: TestDatabase): CatalogueFixture {
 		)[0].id;
 		// A fixture that W3 would refuse fails here, not in the code under test.
 		const d = publishedRecipeSchema.parse(documentOf(r, salt));
-		await admin`
-			update app.recipes set status = 'published', version = ${version},
-				name = ${admin.json(d.name)}, description = ${admin.json(d.description)}, source_type = ${d.sourceType},
-				source_url = ${d.sourceUrl}, book_id = ${d.bookId}, book_pages = ${d.bookPages},
-				duration_minutes = ${d.durationMinutes}, base_servings = ${d.baseServings}, protein_group = ${d.proteinGroup},
-				is_fresh_fish = false, carbohydrate_group = 'pasta', has_vegetables = true, category = 'pan',
-				meal_type = ${d.mealType}, is_heavy = false
-			where id = ${recipeId}`;
-		await admin`delete from app.recipe_ingredients where recipe_id = ${recipeId}`;
-		for (const [position, line] of d.ingredients.entries()) {
-			const q = line.quantity;
-			await admin`
-				insert into app.recipe_ingredients (recipe_id, position, ingredient_id, variety, variety_key,
-					quantity_kind, quantity, unit, quantity_text, source_text, preparation, is_optional)
-				values (${recipeId}, ${position}, ${line.ingredientId}, ${line.variety ? admin.json(line.variety) : null},
-					${line.variety?.['it-IT'].toLowerCase() ?? ''}, ${q.kind}, ${q.kind === 'amount' ? q.value : null},
-					${q.kind === 'amount' ? q.unit : null}, ${q.kind === 'text' ? admin.json(q.text) : null},
-					${line.sourceText}, ${line.preparation ? admin.json(line.preparation) : null}, ${line.isOptional})`;
-		}
-		await admin`
-			insert into app.recipe_versions (recipe_id, version, content, published_at, channel)
-			values (${recipeId}, ${version}, ${admin.json(d)}, ${r.createdAt ?? new Date()}, 'import')`;
+		// One transaction, like a real publication: projection and version appear together.
+		await admin.begin(async (sql) => {
+			await sql`
+				update app.recipes set status = 'published', version = ${version},
+					name = ${sql.json(d.name)}, description = ${sql.json(d.description)}, source_type = ${d.sourceType},
+					source_url = ${d.sourceUrl}, book_id = ${d.bookId}, book_pages = ${d.bookPages},
+					duration_minutes = ${d.durationMinutes}, base_servings = ${d.baseServings}, protein_group = ${d.proteinGroup},
+					is_fresh_fish = false, carbohydrate_group = 'pasta', has_vegetables = true, category = 'pan',
+					meal_type = ${d.mealType}, is_heavy = false
+				where id = ${recipeId}`;
+			await sql`delete from app.recipe_ingredients where recipe_id = ${recipeId}`;
+			for (const [position, line] of d.ingredients.entries()) {
+				const q = line.quantity;
+				await sql`
+					insert into app.recipe_ingredients (recipe_id, position, ingredient_id, variety, variety_key,
+						quantity_kind, quantity, unit, quantity_text, source_text, preparation, is_optional)
+					values (${recipeId}, ${position}, ${line.ingredientId}, ${line.variety ? sql.json(line.variety) : null},
+						${line.variety?.['it-IT'].toLowerCase() ?? ''}, ${q.kind}, ${q.kind === 'amount' ? q.value : null},
+						${q.kind === 'amount' ? q.unit : null}, ${q.kind === 'text' ? sql.json(q.text) : null},
+						${line.sourceText}, ${line.preparation ? sql.json(line.preparation) : null}, ${line.isOptional})`;
+			}
+			await sql`
+				insert into app.recipe_versions (recipe_id, version, content, published_at, channel)
+				values (${recipeId}, ${version}, ${sql.json(d)}, ${r.createdAt ?? new Date()}, 'import')`;
+		});
 	}
 
 	return {
