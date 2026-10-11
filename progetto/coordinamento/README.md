@@ -13,7 +13,7 @@ generale, non nella conversazione.
 3. `progetto/coordinamento/protocollo-worker.md`: cosa sanno e fanno i worker.
 4. I brief in `progetto/coordinamento/brief/`.
 
-Poi `herdr pane list` e `herdr tab list --workspace w1`: gli id dei pane cambiano,
+Poi `progetto/coordinamento/attendi.py --stato`, `herdr pane list` e `herdr tab list --workspace w1`: gli id dei pane cambiano,
 si riconoscono dall'etichetta della tab (`W1 piattaforma`…) e dal `cwd` del worktree.
 
 ## Regole del coordinatore
@@ -48,11 +48,24 @@ si riconoscono dall'etichetta della tab (`W1 piattaforma`…) e dal `cwd` del wo
 
 ## Attesa degli eventi
 
-`progetto/coordinamento/attendi.sh <pane dei worker…> -- <pane dei revisori…>`, lanciato
-in background: termina quando un worker passa da «working» a fermo (stampa pane e stato)
-o quando un revisore Codex stampa `REVISORE_FINITO`. Poi si legge il pane con
-`herdr pane read <pane> --source recent-unwrapped --lines 80` e si rilancia l'attesa.
-Prima di lanciarla, togliere i worker fermi in attesa (non si sveglierebbero).
+`progetto/coordinamento/attendi.py`, lanciato in background e senza argomenti: trova da
+solo worker (tab «W…») e revisori (tab «R …») dalle etichette delle tab e termina
+stampando `<pane> <etichetta> | <evento>` quando:
+
+- un worker è fermo con un'ultima riga `STATO:` non ancora segnata come vista, anche se
+  si era fermato prima che l'attesa partisse;
+- un worker passa da «working» a fermo, anche senza `STATO:` (per esempio aspetta la CI);
+- un revisore ha stampato `REVISORE_FINITO` non ancora segnato come visto.
+
+Dopo aver gestito un evento: `attendi.py --visto <pane>` (salva pane e riga in
+`visti.txt`), poi si rilancia l'attesa. `attendi.py --stato` mostra tutti i pane con lo
+stato e l'ultimo evento, marcato «visto» o «DA GESTIRE».
+
+**Regole:** non chiudere mai un turno senza un'attesa in esecuzione; dopo un `/clear`
+lanciare per prima cosa `attendi.py --stato` e gestire ogni «DA GESTIRE». Uno stato che
+aspetta l'utente si segna come visto e si annota in `registro.md` fra le domande in
+sospeso. Si legge il pane con
+`herdr pane read <pane> --source recent-unwrapped --lines 80`.
 
 ## Comandi utili
 

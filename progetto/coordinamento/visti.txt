@@ -1,0 +1,4 @@
+w1:pB	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/7
+w1:pC	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/6
+w1:p8	STATO: PR_CORRETTA — https://github.com/fedfol-powa/meal_planner_2/pull/5, CI check passed in 2m10s.
+w1:p9	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/8
