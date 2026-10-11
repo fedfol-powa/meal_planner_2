@@ -6,6 +6,7 @@ import { createApp } from '../src/app.ts';
 import { router } from '../src/router.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
 import { mcp, rest, rpcClient, testEnv } from './support/requests.ts';
+import { testContract, testRouter } from './support/test-contract.ts';
 
 const userId = '11111111-1111-4111-8111-111111111111';
 let keys: TestKeys;
@@ -31,6 +32,19 @@ describe('routes', () => {
 			const response = await rest(app, testEnv(), 'POST', path, undefined, {});
 			expect(response.status).toBe(404);
 			expect(await response.json()).toMatchObject({ code: 'not_found' });
+		}
+	});
+
+	it('answers a malformed request body with invalid on RPC and REST', async () => {
+		const testApp = createApp({ contract: testContract, router: testRouter, keys: () => keys.keys, resourceName: 'test' });
+		for (const path of ['/api/rpc/test/member', '/api/test/member']) {
+			const response = await testApp.fetch(
+				new Request(`https://app.test${path}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{not json' }),
+				testEnv(),
+			);
+			expect(response.status, path).toBe(400);
+			const body: any = await response.json();
+			expect(body.json ?? body, path).toMatchObject({ code: 'invalid', status: 400, data: { issues: [] } });
 		}
 	});
 

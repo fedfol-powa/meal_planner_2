@@ -59,6 +59,20 @@ export async function mapErrors<T>(options: {
 	}
 }
 
+/**
+ * Interceptor for whole requests. Errors of the call are already contract codes
+ * (`mapErrors`); anything else comes from a body oRPC could not read, which it would
+ * answer as `BAD_REQUEST`: it becomes `invalid`. Nothing about the body is logged.
+ */
+export async function mapUnreadableRequest<T>(options: { next: () => Promise<T> }): Promise<T> {
+	try {
+		return await options.next();
+	} catch (error) {
+		if (error instanceof ORPCError && isErrorCode(error.code)) throw error;
+		throw appError('invalid', { issues: [] });
+	}
+}
+
 export function toolErrorBody(
 	error: unknown,
 	locale: Locale,

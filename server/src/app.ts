@@ -16,7 +16,7 @@ import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
 import { bearerToken, KeySourceError, remoteKeySource, verifyAccessToken, type Claims, type KeySource } from './auth.ts';
 import { withDb } from './db.ts';
 import type { Env } from './env.ts';
-import { mapErrors, normalizeError } from './errors.ts';
+import { mapErrors, mapUnreadableRequest, normalizeError } from './errors.ts';
 import { buildMcpServer, collectTools } from './mcp.ts';
 import type { RequestContext } from './pipeline.ts';
 import { loadSession } from './session.ts';
@@ -36,8 +36,9 @@ const notFound = () => Response.json({ code: 'not_found', status: 404, message: 
 const OAUTH_METADATA_PATHS = new Set(['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server']);
 
 export function createApp(options: AppOptions) {
-	const rpcHandler = new RPCHandler(options.router, { clientInterceptors: [mapErrors] });
-	const openApiHandler = new OpenAPIHandler(options.router, { clientInterceptors: [mapErrors] });
+	const handlerOptions = { interceptors: [mapUnreadableRequest], clientInterceptors: [mapErrors] };
+	const rpcHandler = new RPCHandler(options.router, handlerOptions);
+	const openApiHandler = new OpenAPIHandler(options.router, handlerOptions);
 	const openApiGenerator = new OpenAPIGenerator({ schemaConverters: [new ZodToJsonSchemaConverter()] });
 	const tools = collectTools(options.contract);
 	const keySources = new Map<string, KeySource>();
