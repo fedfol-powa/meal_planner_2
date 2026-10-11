@@ -18,6 +18,19 @@ vi.mock('../../src/menu/plan.ts', async (original) => {
 	};
 });
 
+// The job's status writes: these families' abandoned and failed saves fail.
+const savesFailing = vi.hoisted(() => new Set<string>());
+vi.mock('../../src/menu/job-status.ts', async (original) => {
+	const actual = await original<typeof import('../../src/menu/job-status.ts')>();
+	const guard = (familyId: string) => {
+		if (savesFailing.has(familyId)) throw Object.assign(new Error('deadlock detected'), { code: '40P01' });
+	};
+	return {
+		markAbandoned: async (...args: Parameters<typeof actual.markAbandoned>) => (guard(args[1]), actual.markAbandoned(...args)),
+		markFailed: async (...args: Parameters<typeof actual.markFailed>) => (guard(args[1]), actual.markFailed(...args)),
+	};
+});
+
 /** Each run serves only the families of its test: the shared test database holds many more. */
 describe.skipIf(!hasDatabase)('weekly job', () => {
 	let db: TestDatabase;
@@ -140,4 +153,36 @@ describe.skipIf(!hasDatabase)('weekly job', () => {
 		expect((await db.admin`select 1 from app.weeks where family_id = ${familyId}`).length).toBe(2);
 		await holder.end();
 	});
+
+	it('keeps serving the other families when saving abandoned or failed fails, and leaves those jobs recoverable', async () => {
+		const abandoning = await db.createFamily([]);
+		const failingSave = await db.createFamily([]);
+		const healthy = await db.createFamily([]);
+		await db.admin`insert into app.weekly_jobs (family_id, target_week) values (${abandoning}, '2026-12-28'), (${failingSave}, '2027-01-11')`;
+		failing.add(failingSave);
+		savesFailing.add(abandoning);
+		savesFailing.add(failingSave);
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const logs = vi.spyOn(console, 'log').mockImplementation(() => {});
+		// Wednesday 13 January 2027, 20:30 in Rome: the job of 28 December is over, the one of 11 January
+		// is open, and next week (18 January) is due for all three; jobs run by week, so the healthy
+		// family's new job comes after both failures.
+		const result = await runWeeklyJobOn(sql, new Date('2027-01-13T19:30:00Z'), { families: [abandoning, failingSave, healthy] });
+		expect(await jobRow(healthy, '2027-01-18')).toMatchObject({ status: 'done' });
+		expect(await hasWeek(healthy, '2027-01-18')).toBe(true);
+		expect(await jobRow(abandoning, '2026-12-28')).toMatchObject({ status: 'pending', attempts: 0 }); // the next run abandons it
+		expect(await jobRow(failingSave, '2027-01-11')).toMatchObject({ status: 'pending', attempts: 0 }); // the next run retries it
+		expect(events(errors)).toContainEqual({ event: 'weekly_job_status_failed', familyId: abandoning, weekStart: '2026-12-28', status: 'abandoned', code: '40P01' });
+		expect(events(errors)).toContainEqual({ event: 'weekly_job_status_failed', familyId: failingSave, weekStart: '2027-01-11', status: 'failed', code: '40P01' });
+		expect(events(errors).some((e) => e.event === 'weekly_job_abandoned' && e.familyId === abandoning)).toBe(false);
+		expect(result.generated).toBeGreaterThanOrEqual(2); // the healthy family and the abandoning one's new week
+		errors.mockRestore();
+		logs.mockRestore();
+		savesFailing.clear();
+		failing.delete(failingSave);
+		await runWeeklyJobOn(sql, new Date('2027-01-13T20:30:00Z'), { families: [abandoning, failingSave] });
+		expect(await jobRow(abandoning, '2026-12-28')).toMatchObject({ status: 'abandoned' });
+		expect(await jobRow(failingSave, '2027-01-11')).toMatchObject({ status: 'done' });
+	});
+
 });

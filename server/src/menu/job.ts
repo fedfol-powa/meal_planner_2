@@ -3,6 +3,7 @@ import postgres from 'postgres';
 import { withDbOn } from '../db.ts';
 import { logEvent } from '../log.ts';
 import { errorCode, generateWeek } from './generation.ts';
+import { markAbandoned, markFailed } from './job-status.ts';
 import { localIn } from './time.ts';
 
 interface OpenJob {
@@ -42,17 +43,20 @@ export async function runWeeklyJobOn(sql: postgres.Sql, now: Date, options: Week
 		where j.status in ('pending', 'failed') and (${families}::text is null or j.family_id = any(string_to_array(${families}, ',')::uuid[]))
 		order by j.target_week, j.family_id`);
 
-	// 3. One job at a time, each in its own transactions.
+	// 3. One job at a time, each in its own transactions. Nothing one job does, its status writes
+	// included, stops the others: a job whose status could not be saved stays open for the next run.
 	const result = { generated: 0, failed: 0, abandoned: 0 };
 	for (const { familyId, targetWeek, timeZone } of open) {
 		const local = localIn(familyId, timeZone, now);
 		const target = catchUpTarget(local, targetWeek);
 		if (!target) {
-			const [row] = await job((tx) => tx<{ attempts: number }[]>`
-				update app.weekly_jobs set status = 'abandoned', updated_at = now()
-				where family_id = ${familyId} and target_week = ${targetWeek} returning attempts`);
-			logEvent('weekly_job_abandoned', { familyId, weekStart: targetWeek, attempts: row?.attempts ?? null }, 'error');
-			result.abandoned++;
+			try {
+				const attempts = await markAbandoned(sql, familyId, targetWeek);
+				logEvent('weekly_job_abandoned', { familyId, weekStart: targetWeek, attempts }, 'error');
+				result.abandoned++;
+			} catch (error) {
+				logEvent('weekly_job_status_failed', { familyId, weekStart: targetWeek, status: 'abandoned', code: errorCode(error) }, 'error');
+			}
 			continue;
 		}
 		try {
@@ -64,12 +68,13 @@ export async function runWeeklyJobOn(sql: postgres.Sql, now: Date, options: Week
 		} catch (error) {
 			result.failed++;
 			const code = errorCode(error).slice(0, 500);
-			const [row] = await job((tx) => tx<{ attempts: number }[]>`
-				update app.weekly_jobs set status = 'failed', attempts = attempts + 1, error = ${code}, updated_at = now()
-				where family_id = ${familyId} and target_week = ${targetWeek} returning attempts`);
-			const attempts = row?.attempts ?? null;
-			logEvent('weekly_job_failed', { familyId, weekStart: targetWeek, attempts, code });
-			if (isJobOverdue(local, targetWeek)) logEvent('weekly_job_overdue', { familyId, weekStart: targetWeek, attempts });
+			try {
+				const attempts = await markFailed(sql, familyId, targetWeek, code);
+				logEvent('weekly_job_failed', { familyId, weekStart: targetWeek, attempts, code });
+				if (isJobOverdue(local, targetWeek)) logEvent('weekly_job_overdue', { familyId, weekStart: targetWeek, attempts });
+			} catch (saveError) {
+				logEvent('weekly_job_status_failed', { familyId, weekStart: targetWeek, status: 'failed', code: errorCode(saveError) }, 'error');
+			}
 		}
 	}
 	return result;
