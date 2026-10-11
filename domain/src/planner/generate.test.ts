@@ -37,6 +37,21 @@ describe('generateWeek', () => {
 		expect(hardViolations(week, input)).toEqual([]);
 	});
 
+	it('plans only from the given meal on, and the whole week without it', () => {
+		const input = baseInput({ from: { date: '2026-10-14', mealType: 'dinner' } });
+		const week = generateWeek(input);
+		expect(week.slots[0]).toMatchObject({ date: '2026-10-14', mealType: 'dinner' });
+		expect(week.slots.every((s) => s.date > '2026-10-14' || (s.date === '2026-10-14' && s.mealType === 'dinner'))).toBe(true);
+		expect(week.slots).toHaveLength(9);
+		expect(hardViolations(week, input)).toEqual([]);
+		expect(generateWeek(baseInput()).slots).toHaveLength(14);
+	});
+
+	it('rejects a first meal outside the week', () => {
+		expect(() => generateWeek(baseInput({ from: { date: '2026-10-19', mealType: 'lunch' } }))).toThrow(RangeError);
+		expect(() => generateWeek(baseInput({ from: { date: '2026-10-11', mealType: 'dinner' } }))).toThrow(RangeError);
+	});
+
 	it('uses low-rated recipes when nothing else fits', () => {
 		const catalogue = syntheticCatalogue();
 		const input = baseInput({ familyScores: Object.fromEntries(catalogue.map((r) => [r.id, 1])) });

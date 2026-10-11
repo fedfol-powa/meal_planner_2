@@ -103,6 +103,12 @@ export interface PastMeal {
  * Everything the planner reads. `recipes` is the catalogue visible to the family without books:
  * published and not archived; the planner itself drops excluded recipes and books not owned.
  */
+/** A meal of the calendar: a day and lunch or dinner. */
+export interface PlannerSlotRef {
+	date: IsoDate;
+	mealType: MealType;
+}
+
 export interface PlannerInput {
 	familyId: string;
 	/** Monday of the week to generate. */
@@ -118,6 +124,8 @@ export interface PlannerInput {
 	globalScores: Record<string, number>;
 	/** Past meals of previous weeks, oldest first. */
 	history: PastMeal[];
+	/** First meal to plan: earlier meals of the week get no slot (current week generated halfway). */
+	from?: PlannerSlotRef;
 }
 
 export type SlotContent = { kind: 'recipe'; recipeId: string } | { kind: 'free'; text: string } | { kind: 'no_match' };

@@ -1,4 +1,4 @@
-import { addDays, weekdayOf } from './calendar.ts';
+import { addDays, mealIndex, weekdayOf } from './calendar.ts';
 import { dishKindsOf, uses } from './groups.ts';
 import { prepared } from './prepared.ts';
 import { LOW_SCORE, RECENT_DAYS } from './settings.ts';
@@ -70,6 +70,12 @@ export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: P
 	return liked.length > 0 ? liked : valid;
 }
 
+/** A meal of the week gets a slot: planned in the diners matrix and not before `input.from`. */
+export function isPlannedSlot(input: PlannerInput, date: IsoDate, mealType: MealType): boolean {
+	if (slotSettingOf(input.settings, date, mealType).servings === 0) return false;
+	return !input.from || mealIndex(date, mealType) >= mealIndex(input.from.date, input.from.mealType);
+}
+
 /** Every broken hard constraint of a generated week, as readable lines; empty when the week is valid. */
 export function hardViolations(week: PlannedWeek, input: PlannerInput): string[] {
 	const problems: string[] = [];
@@ -79,7 +85,7 @@ export function hardViolations(week: PlannedWeek, input: PlannerInput): string[]
 		for (const mealType of MEAL_TYPES) {
 			const date = addDays(input.weekStart, day);
 			const setting = slotSettingOf(input.settings, date, mealType);
-			if (setting.servings === 0) continue;
+			if (!isPlannedSlot(input, date, mealType)) continue;
 			expected++;
 			const key = `${date} ${mealType}`;
 			const slot = week.slots.find((s) => s.date === date && s.mealType === mealType);

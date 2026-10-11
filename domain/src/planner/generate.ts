@@ -1,19 +1,22 @@
 import { addDays } from './calendar.ts';
-import { candidatesFor, slotRefOf, slotSettingOf } from './constraints.ts';
+import { candidatesFor, isPlannedSlot, slotRefOf, slotSettingOf } from './constraints.ts';
 import { compareIds, createRandom, seedFrom, weightedPick } from './random.ts';
 import { repairWeek, withSortedCatalogue } from './repair.ts';
 import { buildContext, scoreCandidate, type Placed } from './score.ts';
 import { TOP_K } from './settings.ts';
 import { MEAL_TYPES, type PlannedSlot, type PlannedWeek, type PlannerInput } from './types.ts';
 
-/** Step 1: the week's slots from the diners matrix, with servings and fixed free meals. */
+/** Step 1: the week's slots from the diners matrix, with servings and fixed free meals; none before `input.from`. */
 export function plannedSlots(input: PlannerInput): PlannedSlot[] {
+	if (input.from && (input.from.date < input.weekStart || input.from.date > addDays(input.weekStart, 6))) {
+		throw new RangeError(`first meal ${input.from.date} outside the week of ${input.weekStart}`);
+	}
 	const slots: PlannedSlot[] = [];
 	for (let day = 0; day < 7; day++) {
 		for (const mealType of MEAL_TYPES) {
 			const date = addDays(input.weekStart, day);
+			if (!isPlannedSlot(input, date, mealType)) continue;
 			const setting = slotSettingOf(input.settings, date, mealType);
-			if (setting.servings === 0) continue;
 			const content: PlannedSlot['content'] = setting.fixedText !== null ? { kind: 'free', text: setting.fixedText } : { kind: 'no_match' };
 			slots.push({ date, mealType, servings: setting.servings, content });
 		}
