@@ -1222,8 +1222,12 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   con una fonte.
 - **Arrotondamenti metrici della base approvata**, da verificare nel prototipo insieme
   alla nuova pipeline di calcolo: grammi alla decina (a 5 g sotto i 50 g), ml come i
-  grammi, pezzi e spicchi al mezzo superiore, cucchiai e cucchiaini al mezzo. La regola
-  si applica alla presentazione, non ai valori intermedi da sommare.
+  grammi, cucchiai e cucchiaini al mezzo. Unità contate scalate (decise dall'utente l'11
+  ottobre 2026): spicchi, pizzichi, rametti, foglie, mazzi e fette all'intero superiore
+  («5 spicchi», non «4½»); pezzi al mezzo superiore nella ricetta e nel pasto, perché
+  molte ricette usano mezze cipolle o mezzi peperoni. Alle porzioni della fonte le unità
+  contate restano come sono scritte. La regola si applica alla presentazione, non ai
+  valori intermedi da sommare.
 - **Codici delle unità** (ondata 1): massa `g`, `kg`, `oz`, `lb`; volume `ml`, `l`,
   `uk_fl_oz`, `uk_pint`; unità domestiche `tbsp`, `tsp`; conteggi `piece`, `clove`,
   `slice`, `pinch`, `sprig`, `bunch`, `leaf`; `us_cup` solo nelle bozze. Etichette
@@ -1267,9 +1271,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
      pescheria, banco frigo e latticini, pane, pasta riso e cereali, scatolame e
      conserve, surgelati, condimenti e dispensa, altro);
   8. si presentano le quantità nel sistema della famiglia e i testi nella lingua di chi
-     guarda; `piece`, `bunch` e `slice` si arrotondano per eccesso all'intero,
-     ignorando un avanzo di 0,1 dovuto alle conversioni (½ peperone → 1, 2,06 limoni →
-     2), `clove`, `sprig`, `leaf` e `pinch` al mezzo. Ricetta, scheda del pasto e
+     guarda; tutte le unità contate (tranne cucchiai, cucchiaini e tazze) si
+     arrotondano per eccesso all'intero; solo `piece` ignora un avanzo di 0,1 dovuto alle
+     conversioni (½ peperone → 1, 2,06 limoni → 2). Ricetta, scheda del pasto e
      provenienza delle voci restano nelle unità della ricetta.
 - **Tazze USA delle fonti americane**: si convertono solo con un'equivalenza verificata
   per l'ingrediente, conservando il testo della fonte: il conteggio dato dalla fonte se
