@@ -1,3 +1,4 @@
+import { createFakeAgents, createFakeAgentsData, type FakeAgent } from './fakeAgents';
 import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Department } from '@app/domain/shopping';
 import type { Locale } from '../../i18n/translate';
@@ -56,6 +57,8 @@ export interface FakeData {
   readonly profile: { displayName?: string; locale?: Locale };
   /** The demo family's name, units, time zone, settings and exclusions. */
   readonly family: FakeFamilyData;
+  /** Agents connected to the account (Profile › Connect an agent). */
+  readonly agents: FakeAgent[];
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -90,7 +93,7 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData() };
+  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData(), agents: createFakeAgentsData() };
 }
 
 /**
@@ -339,6 +342,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         });
       }
     },
+    agents: createFakeAgents(state.agents, options.latencyMs),
     shopping: createFakeShopping({
       familyId: DEMO_FAMILY.id, userId, getLocale: options.getLocale, latencyMs: options.latencyMs,
       ingredients: data.ingredients, recipes, data: state,
@@ -372,5 +376,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping) };
+  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), agents: wrap(api.agents) };
 }

@@ -1,0 +1,19 @@
+/* web/src/features/agents/AgentsPage.module.css — round 6, design.md tokens */
+.copy { display: flex; align-items: center; gap: 8px; margin: 8px 0 12px; }
+.copy code { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font: 0.8125rem/1.5 ui-monospace, 'SF Mono', Menlo, monospace; white-space: pre; overflow-x: auto; user-select: all; }
+.copy button { flex: none; }
+.accordion details { border-top: 1px solid var(--rule); }
+.accordion details:last-child { border-bottom: 1px solid var(--rule); }
+.accordion summary { display: flex; align-items: center; justify-content: space-between; min-height: 48px; font-weight: 700; cursor: pointer; list-style: none; }
+.accordion summary::-webkit-details-marker { display: none; }
+.accordion summary svg { transition: transform 0.15s; }
+.accordion details[open] summary svg { transform: rotate(90deg); }
+.accordion details[open] { padding-bottom: 12px; }
+.steps { margin: 0; padding-left: 20px; }
+.steps li { margin: 0 0 8px; }
+.note { margin: 4px 0 0; color: var(--muted); font-size: 0.8125rem; }
+.examples { margin: 4px 0 12px; padding-left: 20px; }
+.examples li { margin: 4px 0; }
+.subheading { margin: 16px 0 4px; font-size: 1rem; }
+.agent { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; overflow-wrap: anywhere; }
+.sheetActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
