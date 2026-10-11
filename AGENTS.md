@@ -54,7 +54,8 @@ della decisione di prodotto, non una fonte parallela di requisiti.
 ## Stato
 
 - Base approvata il 29 settembre 2026; il 3 ottobre la specifica è stata aggiornata
-  con internazionalizzazione, MCP, curatela, catalogo nel database e amministrazione globale.
+  con internazionalizzazione, MCP, gestione del ricettario, catalogo nel database e
+  amministrazione globale.
 - Linguaggio visivo approvato il 4 ottobre 2026: guida e riferimento in `design/`,
   da usare quando inizierà il lavoro sul prototipo.
 - **Prossimo artefatto: prototipo dell'app nel repository**, da concordare e rivedere
@@ -64,11 +65,11 @@ della decisione di prodotto, non una fonte parallela di requisiti.
   architettura del prototipo: **leggi `design/percorsi.md`** prima di lavorare al
   prototipo e aggiornalo a ogni cambio di stato. Il primo giro (Fondamenta, Menu,
   Ricettario e voti), il secondo (Revisione dei pasti), il terzo (Spesa) e il quarto
-  (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Curatela) e
-  il sesto (MCP e Amministrazione dell'app) il 7 ottobre: tutti i percorsi sono stati
-  rivisti. L'8 ottobre 2026 è stata verificata l'architettura (React, contratto delle
-  operazioni, specifica sezione 1) e scelto l'hosting (Cloudflare Workers, Supabase
-  gratuito, Resend); resta la revisione dei piani.
+  (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Gestione del
+  ricettario) e il sesto (MCP e Amministrazione dell'app) il 7 ottobre: tutti i percorsi
+  sono stati rivisti. L'8 ottobre 2026 è stata verificata l'architettura (React,
+  contratto delle operazioni, specifica sezione 1) e scelto l'hosting (Cloudflare
+  Workers, Supabase gratuito, Resend); resta la revisione dei piani.
   Il prototipo è in `prototype/`
   (istruzioni nel suo README).
 - Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:

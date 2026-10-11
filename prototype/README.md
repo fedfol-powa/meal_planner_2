@@ -56,7 +56,7 @@ chiede l'accesso (schermata di autorizzazione) e gli inviti all'app demo.
 `src/lib/i18n` testi it-IT/en-GB · `src/lib/operations` operazioni simulate
 (revisione dei pasti in `revision.ts`, suggerimenti simulati in `suggestions.ts`,
 spesa in `shopping.ts` e liste salvate in `shopping-lists.ts`, famiglia e account in
-`family.ts`, `invitations.ts`, `onboarding.ts`, `account.ts`; curatela in
+`family.ts`, `invitations.ts`, `onboarding.ts`, `account.ts`; gestione del ricettario in
 `curation.ts`, con la validazione condivisa in `src/lib/domain/recipe-validation.ts`;
 dal giro 6 amministrazione in `admin.ts`, `app-invitations.ts`, `catalogue-backup.ts`,
 agenti in `agents.ts` e passaggi dei client in `src/lib/mcp-clients.ts`) ·

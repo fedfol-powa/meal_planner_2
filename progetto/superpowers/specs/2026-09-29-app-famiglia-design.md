@@ -1,9 +1,7 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 8 ottobre 2026 (nome dell'app «Cosa si mangia» e dominio
-`cosasimangia.qunidi.it`; hosting su
-Cloudflare Workers con Supabase gratuito e Resend; letture dalla copia sul dispositivo)
+Ultimo aggiornamento: 11 ottobre 2026 («gestione del ricettario» al posto di «curatela»)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -289,11 +287,11 @@ pubblicare una ricetta importata dal vecchio progetto. Le indicazioni esplicite 
 "q.b." restano ammesse.
 
 Il lavoro incompleto può essere **salvato come bozza** e ripreso in seguito. Le bozze
-sono visibili anche in una sezione dell'app dedicata alla curatela e non vengono proposte
-nei menu né usate per la spesa finché non sono pubblicate. Sono condivise e modificabili
-da tutti i curatori, mostrando autore e ultima modifica. Se due curatori salvano la
-stessa bozza, chi arriva secondo viene avvisato e sceglie quale versione tenere: nessuno
-sovrascrive il lavoro dell'altro senza saperlo.
+sono visibili anche in una sezione dell'app dedicata alla gestione del ricettario e non
+vengono proposte nei menu né usate per la spesa finché non sono pubblicate. Sono
+condivise e modificabili da tutti i curatori, mostrando autore e ultima modifica. Se due
+curatori salvano la stessa bozza, chi arriva secondo viene avvisato e sceglie quale
+versione tenere: nessuno sovrascrive il lavoro dell'altro senza saperlo.
 
 Ogni ingrediente di una ricetta è un prodotto del catalogo (Pomodori, Uva) e può avere
 una **varietà** scritta liberamente, solo quando cambia cosa si compra («Roma», «gialla
@@ -305,8 +303,8 @@ può compilare una ricetta, salvare o modificare una bozza e pubblicarla; se man
 dati, la pubblicazione non avviene e il modulo mostra cosa correggere. Questo percorso
 non usa AI: il sistema controlla i dati inseriti. Il percorso consigliato resta quello
 con il proprio agente via MCP. Il caricamento da file non è previsto per ora. La
-consultazione delle bozze nell'app resta prevista già nel percorso iniziale di curatela
-MCP.
+consultazione delle bozze nell'app resta prevista già nel percorso iniziale di gestione
+del ricettario tramite MCP.
 
 Ogni curatore può modificare **tutto il ricettario**, anche le ricette inserite da altri.
 Una modifica nasce come bozza collegata alla ricetta: le famiglie continuano a vedere la
@@ -818,8 +816,8 @@ curatore, con le 52 ricette pubblicabili del progetto d'origine e le sue regole,
 violazioni dei vincoli rigidi né pasti senza ricetta, con gruppi sempre negli intervalli
 e venerdì pesce sempre presente; settimane giudicate credibili dall'utente. Con 52
 ricette la quota note/nuove non si rispetta (dopo tre settimane le nuove scendono a 0-2
-su 12): servono circa 25-30 ricette in più, lavoro della curatela. Non esprimibile con
-i modelli di regola la regola d'origine «niente skottle il lunedì sera».
+su 12): servono circa 25-30 ricette in più, lavoro di gestione del ricettario. Non
+esprimibile con i modelli di regola la regola d'origine «niente skottle il lunedì sera».
 
 Il seme casuale è derivato da famiglia e settimana: a parità di ingresso la settimana è la
 stessa, e quindi testabile. Il perché di una scelta non viene salvato né mostrato: non è un
@@ -1216,9 +1214,9 @@ della loro assenza da un file YAML.
    Un errore non deve lasciare una ricetta parzialmente inserita nel catalogo.
 
 **Bozze persistenti confermate:** una bozza ammette informazioni incomplete e sopravvive
-alla conversazione con l'agente. È consultabile nella sezione di curatela dell'app e
-recuperabile tramite MCP. Dal 6 ottobre 2026 la sezione di curatela per la
-consultazione è in testa al ricettario: una sezione "Bozze" collassabile, visibile
+alla conversazione con l'agente. È consultabile nella sezione dell'app per la gestione
+del ricettario e recuperabile tramite MCP. Dal 6 ottobre 2026 la sezione per consultare
+le bozze è in testa al ricettario: una sezione "Bozze" collassabile, visibile
 solo ai curatori, con una scheda per bozza (Nuova o Modifica, nome, chi l'ha salvata e
 quando, dati che mancano per pubblicare); le ricette archiviate sono in fondo al
 ricettario, in una sezione chiusa (quinto giro). Un pasto passato che usa una
@@ -1276,14 +1274,15 @@ senza pubblicare direttamente nel catalogo.
 
 Il percorso manuale, inclusa la modifica web delle bozze, viene
 implementato dopo le altre funzionalità (M6). La sezione web per consultare le bozze e
-il lavoro guidato tramite MCP restano parte della curatela iniziale. Una stessa bozza
-deve poter passare da MCP al modulo manuale e viceversa, senza creare copie distinte.
+il lavoro guidato tramite MCP restano parte del percorso iniziale di gestione del
+ricettario. Una stessa bozza deve poter passare da MCP al modulo manuale e viceversa,
+senza creare copie distinte.
 
 **Ingredienti e fonti:** solo dati verificati sulla fonte o forniti dal curatore,
 trascritti per `base_servings`, mai dedotti dal nome del piatto. Un validatore strutturale
 non prova la correttezza della trascrizione: la provenienza e le verifiche devono far
-parte del percorso di curatela. Ingredienti equivalenti si collegano alla stessa entità
-canonica, anche se i nomi sono in lingue diverse.
+parte del percorso di gestione del ricettario. Ingredienti equivalenti si collegano alla
+stessa entità canonica, anche se i nomi sono in lingue diverse.
 
 **Ingredienti e varietà, decisi nel quinto giro del prototipo:**
 
@@ -1443,10 +1442,10 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   controllo dei conflitti; atomicità della pubblicazione;
   import con i casi presi dal ricettario attuale e nessuna sovrascrittura dei contributi
   già presenti. Cambi di codice ed esportazioni non devono sostituire il catalogo.
-- **Curatela manuale (M6)**: creazione, modifica di bozze anche altrui, pubblicazione
-  rifiutata finché mancano dati e riuscita dopo la correzione, con gli stessi vincoli di
-  MCP; nessuna chiamata a servizi AI; ripresa della stessa bozza fra web e MCP e
-  gestione dei conflitti fra curatori.
+- **Gestione manuale del ricettario (M6)**: creazione, modifica di bozze anche altrui,
+  pubblicazione rifiutata finché mancano dati e riuscita dopo la correzione, con gli
+  stessi vincoli di MCP; nessuna chiamata a servizi AI; ripresa della stessa bozza fra
+  web e MCP e risoluzione dei conflitti fra curatori.
 - **Recupero del catalogo**: ripristino di una singola ricetta e dell'intero catalogo a
   una data rispettivamente da curatori e amministratori dell'app, con rifiuto delle
   operazioni non autorizzate; ricostruzione esatta del catalogo a una data dallo
@@ -1487,7 +1486,7 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   completamento richiede autenticazione, permessi validi e conferma nella pagina web.
 - **End to end** (Playwright): iscrizione, creazione della famiglia, invito, modifica di uno
   slot, voto, generazione della lista con pagina Bring!, cambio lingua e unità,
-  collegamento MCP e operazioni di curatela e amministrazione.
+  collegamento MCP e operazioni di gestione del ricettario e amministrazione.
 
 ### 10. Fasi di rilascio
 
@@ -1502,26 +1501,28 @@ scritto. M1b non è ancora stato scritto. La nuova ripartizione di M1 sarà defi
 il prototipo; la tabella seguente è il percorso di riferimento precedente alla verifica
 dell'architettura. **Punto aperto dall'8 ottobre 2026** (sezione 15): le fasi vanno
 ripensate alla luce della nuova architettura e della challenge del piano (esperimenti
-iniziali su pianificatore e accesso MCP, dipendenza fra curatela e pubblicazione del
-ricettario importato, ampiezza di M1, collocazione di amministrazione, inviti all'app e
-ripristino dell'intero catalogo). Fino ad allora la tabella non è un piano confermato.
+iniziali su pianificatore e accesso MCP, dipendenza fra gestione del ricettario e
+pubblicazione delle ricette importate, ampiezza di M1, collocazione di amministrazione,
+inviti all'app e ripristino dell'intero catalogo). Fino ad allora la tabella non è un
+piano confermato.
 
 | Fase | Contenuto | Risultato |
 |---|---|---|
 | **P0 Prototipo e revisione** | Prototipo nel repository, review dei flussi e delle superfici, riesame funzionale e architetturale, consolidamento della specifica e dei nuovi piani | Un'esperienza concordata guida l'implementazione |
-| **M1 Fondamenta** | Schema e RLS, Auth, famiglie e inviti, catalogo nel database, import e revisione, dati iniziali di Federico, preferenze di lingua e unità, ruoli globali, accesso MCP e relativa guida. Ripartizione di curatela e amministrazione da precisare nel nuovo piano | Si entra e si consulta il ricettario e la propria famiglia; i percorsi autorizzati sono disponibili anche via MCP |
+| **M1 Fondamenta** | Schema e RLS, Auth, famiglie e inviti, catalogo nel database, import e revisione, dati iniziali di Federico, preferenze di lingua e unità, ruoli globali, accesso MCP e relativa guida. Ripartizione della gestione del ricettario e dell'amministrazione da precisare nel nuovo piano | Si entra e si consulta il ricettario e la propria famiglia; i percorsi autorizzati sono disponibili anche via MCP |
 | **M2 Modifica e voti** | Azioni sugli slot, suggerimenti, annullamento, ultima modifica, stelline e media, esclusioni, creazione manuale di una settimana, con equivalenti MCP | La famiglia pianifica a mano dall'app o dall'agente |
 | **M3 Pianificatore** | Algoritmo, report di qualità, job del mercoledì, generazione su richiesta anche via MCP. Poi, come esperimento separato, giudice AI opzionale | La bozza arriva da sola; il giudice si accende solo se vince la valutazione |
 | **M4 Lista della spesa** | Lista della settimana, consolidamento, conversioni ed equivalenze, spunte condivise e offline, PDF, condivisione, Bring!, esportazioni MCP | Si prepara e si fa la spesa nella lingua personale e nelle unità della famiglia |
 | **M5 Apertura** | Wizard, avvio a freddo, privacy, SMTP, limiti di frequenza | Altre famiglie possono iscriversi |
-| **M6 Curatela manuale — ultima priorità** | Modulo web senza AI per creare, modificare e pubblicare ricette, comprese le bozze condivise, con gli stessi controlli di MCP | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
+| **M6 Gestione manuale del ricettario — ultima priorità** | Modulo web senza AI per creare, modificare e pubblicare ricette, comprese le bozze condivise, con gli stessi controlli di MCP | I curatori possono completare il lavoro manualmente nell'app, usando gli stessi dati e controlli di MCP |
 
 Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
 rispetta dalla sua prima versione, con l'eccezione esplicita dell'eliminazione delle
 famiglie, per cui MCP restituisce il link all'app. La collocazione delle attività nella roadmap non
 rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
 La priorità finale di M6 riguarda il modulo manuale, non la
-consultazione delle bozze nell'app, richiesta insieme alla curatela tramite MCP.
+consultazione delle bozze nell'app, richiesta insieme alla gestione del ricettario
+tramite MCP.
 
 ### 11. Convivenza con il progetto di origine
 
@@ -1558,8 +1559,8 @@ dell'esperienza tradotta. Il nome dell'app, «Cosa si mangia», non si traduce.
 
 Le stringhe dell'interfaccia possono vivere nel codice; le traduzioni del catalogo
 seguono le ricette nel database autorevole. È proposta una preparazione e revisione
-delle traduzioni durante la curatela, anche con l'aiuto dell'agente, anziché tradurre
-nuovamente ogni volta che si apre una ricetta.
+delle traduzioni durante la gestione del ricettario, anche con l'aiuto dell'agente,
+anziché tradurre nuovamente ogni volta che si apre una ricetta.
 
 **Pubblicazione bilingue confermata:** i testi richiesti di una ricetta devono essere
 disponibili sia in italiano sia in inglese britannico prima della pubblicazione.
@@ -1623,7 +1624,7 @@ implicite alla copertura delle operazioni.
 | Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
 | Spesa | Leggere la lista di una settimana, spuntare voci, aggiungere voci libere, ottenere PDF, testo e collegamento Bring! |
 | Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
-| Curatela | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa gestione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
+| Gestione del ricettario | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa gestione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
 | Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo a una data; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
@@ -1669,16 +1670,16 @@ giro del prototipo, `/profile/agents`):
 - descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
 
 Ordine deciso nel sesto giro: indirizzo del servizio con «Copia»; i quattro client a
-fisarmonica (scelta nella review rispetto alle schede), ciascuno con passaggi numerati
-e comandi da copiare; accesso; esempi da chiedere all'agente (per i curatori anche il
-flusso di curatela e le istruzioni sugli ingredienti servite all'agente); nota
-sull'eliminazione delle famiglie; in fondo «Agenti collegati» con client, data del
+fisarmonica (scelta nella review rispetto alle schede), ciascuno con passaggi numerati e
+comandi da copiare; accesso; esempi da chiedere all'agente (per i curatori anche il
+flusso di gestione del ricettario e le istruzioni sugli ingredienti servite all'agente);
+nota sull'eliminazione delle famiglie; in fondo «Agenti collegati» con client, data del
 collegamento, ultimo uso e «Scollega». Scollegare revoca l'accesso; la conferma spiega
 anche come togliere il servizio dal client. Nel prototipo i comandi di Claude Code
-(`claude mcp add --transport http`, accesso da `/mcp`) e di Codex (`codex mcp add
-<nome> --url`, `codex mcp login`) e i passaggi di Claude Desktop (connettore
-personalizzato) sono verificati con la documentazione del 7 ottobre 2026; quelli di
-ChatGPT no. Restano esempi da verificare prima del rilascio.
+(`claude mcp add --transport http`, accesso da `/mcp`) e di Codex (`codex mcp add <nome>
+--url`, `codex mcp login`) e i passaggi di Claude Desktop (connettore personalizzato)
+sono verificati con la documentazione del 7 ottobre 2026; quelli di ChatGPT no. Restano
+esempi da verificare prima del rilascio.
 
 **Schermata di autorizzazione** (sesto giro, `/authorize`, simulata): aperta dall'agente
 nel browser, richiede l'accesso all'app; mostra il client, l'account in uso con «Non
@@ -1707,7 +1708,7 @@ restano registrate in questa specifica; il documento dei percorsi descrive come 
 attraversano nelle schermate e vi rimanda.
 
 - ordine: Fondamenta, Menu, Ricettario e voti, Revisione dei pasti, Spesa, Famiglia e
-  account, Curatela, MCP, Amministrazione dell'app;
+  account, Gestione del ricettario, MCP, Amministrazione dell'app;
 - primo giro: Fondamenta, Menu, Ricettario e voti insieme, con una tappa intermedia
   dopo Fondamenta e Menu; i giri successivi si compongono alla fine di ogni review;
 - prototipo SvelteKit autonomo eseguito nel browser, con dati demo in `localStorage`,
@@ -1744,14 +1745,14 @@ fissi e tempi per pasto, regole a modelli, ingredienti, libri, unità, «Avanzat
 dell'account su pagine dedicate con conferma a pulsante. Le azioni irreversibili usano
 un pulsante rosso. Dettagli in `design/percorsi.md`.
 
-**Quinto giro approvato il 7 ottobre 2026:** Curatela. Bozze in testa al ricettario a
-schede e archiviate in fondo; «+» per una ricetta nuova; menu «…» nella scheda ricetta
-per i curatori (modifica tramite bozza di revisione, versioni, archiviazione); modulo
-manuale a pagina unica con «Salva bozza» e «Pubblica» in un passo, problemi in cima e
-accanto ai campi, avviso di conflitto fra curatori e richiesta di salvare uscendo;
-varietà degli ingredienti in testo libero con consigli; versione precedente aperta
-com'era con «Ripristina»; versione dei pasti passati (R1). Il percorso consigliato per
-la curatela resta MCP. Dettagli in `design/percorsi.md`.
+**Quinto giro approvato il 7 ottobre 2026:** Gestione del ricettario. Bozze in testa al
+ricettario a schede e archiviate in fondo; «+» per una ricetta nuova; menu «…» nella
+scheda ricetta per i curatori (modifica tramite bozza di revisione, versioni,
+archiviazione); modulo manuale a pagina unica con «Salva bozza» e «Pubblica» in un
+passo, problemi in cima e accanto ai campi, avviso di conflitto fra curatori e richiesta
+di salvare uscendo; varietà degli ingredienti in testo libero con consigli; versione
+precedente aperta com'era con «Ripristina»; versione dei pasti passati (R1). Il percorso
+consigliato per la gestione del ricettario resta MCP. Dettagli in `design/percorsi.md`.
 
 **Sesto giro approvato il 7 ottobre 2026:** MCP e Amministrazione dell'app, senza
 agente simulato. «Collega un agente» nel Profilo con indirizzo, client a fisarmonica,
@@ -1787,8 +1788,8 @@ senza header introduttivo o footer decorativo. I giorni restano in colonne da
 scorrere lateralmente, con selettore superiore sincronizzato; il giorno attivo è
 scuro con testo bianco. Nessuna ripetizione del numero del giorno o contatori nel
 contenuto. Dal 6 ottobre 2026 la navbar inferiore mostra Menu, Ricettario e una voce
-per famiglia, account, cambio di famiglia e funzioni dei ruoli (curatela,
-amministrazione, istruzioni MCP), con etichetta «Profilo» / «Profile» (rinominata
+per famiglia, account, cambio di famiglia e funzioni dei ruoli (gestione del
+ricettario, amministrazione, istruzioni MCP), con etichetta «Profilo» / «Profile» (rinominata
 nella review del quarto giro); la Spesa esce dalla navbar e si apre dal Menu (terzo giro). Sopra il
 selettore dei giorni una barra con il mese e le icone di azione (calendario e borsa
 della spesa); la scheda del pasto ha un footer a icone
@@ -1861,7 +1862,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Misure | Elenco dei codici, unità domestiche ambigue, fattori verificati, arrotondamenti imperiali e comportamento su quantità piccole. Già decisi nel terzo giro: tazze USA solo con equivalenze per ingrediente, pezzi interi nella spesa, conversioni di acquisto (succo di limone in limoni) | Sezione 6 |
 | MCP | Verifica dei quattro client scelti con il server OAuth 2.1 di Supabase (comandi d'esempio nel sesto giro, ChatGPT da verificare), raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
-| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimento del pianificatore con i dati reali svolto l'8 ottobre (esito nella sezione 3), da fare quello sull'accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla curatela MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
+| Implementazione | **Fasi di rilascio da ripensare** con la nuova architettura (sezione 10): esperimento del pianificatore con i dati reali svolto l'8 ottobre (esito nella sezione 3), da fare quello sull'accesso OAuth MCP, import bilingue preparato nel repository per non far dipendere il ricettario dalla gestione tramite MCP o dal modulo manuale, ampiezza di M1, MCP introdotto per aree, collocazione di amministrazione, inviti all'app e ripristino dell'intero catalogo; nuovi confini di M1a/M1b, flusso Git e configurazione dell'integrazione Supabase. Stack deciso l'8 ottobre (sezione 1) | Sezioni 1 e 10 |
 | Architettura | Libreria del contratto delle operazioni: oRPC (contratto separato, RPC e OpenAPI dallo stesso router, integrazione con TanStack Query; da verificare la stabilità della versione) oppure contratto zod con Hono e `zod-openapi`, eventualmente dopo una prova. Hono è da confermare insieme a questa scelta: con zod e `zod-openapi` definisce rotte e OpenAPI ed è necessario; con oRPC, che serve da solo RPC e OpenAPI, resterebbe solo lo smistamento delle rotte, i passaggi comuni (token, contesto, errori) e il supporto ai test, ed è da valutare se toglierlo. Da verificare: libreria del contratto e SDK MCP sul runtime Workers, query del server nel ruolo dell'utente con RLS tramite Hyperdrive e accesso tipizzato (per esempio Drizzle), coda offline con le mutazioni persistite di TanStack Query, cosa fa crescere i contatori di versione delle letture | Sezione 1 |
 | Hosting e costi | Disponibilità del server OAuth 2.1 di Supabase sul piano gratuito; pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare | Sezioni 1, 4, 7 e 8 |
 | Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
@@ -1898,6 +1899,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 8 ottobre 2026, esperimento del pianificatore (M0) | Generazione della settimana in `domain/src/planner/` provata su 20 settimane con le 52 ricette pubblicabili d'origine: nessuna violazione, settimane credibili per l'utente. Confermati i vocabolari degli attributi delle ricette e la loro classificazione; il lunedì vale per il pesce di pescheria (nuovo attributo e nuovo modello di regola), il pesce in scatola è ammesso; pranzi feriali entro 30 minuti come default delle famiglie nuove; una ricetta non cucinata da 8 settimane torna «nuova» per la quota; peso della somiglianza più alto e riparazione che, a parità di regole sistemate, sceglie la settimana con il punteggio complessivo migliore (gradimento, stagione, somiglianza); il report mostra voti e pasti fuori stagione (15 su 240). Il ricettario attuale è troppo piccolo per la quota note/nuove |
 | 8 ottobre 2026, revisione dell'esperimento del pianificatore | Applicate le osservazioni della revisione indipendente: confronto degli identificativi indipendente dalla lingua del sistema, catalogo ordinato all'ingresso, spinta nella prima scelta verso le regole «almeno un gruppo in un giorno» (la riparazione cambia 31 piatti in 20 settimane invece di 41), storico e catalogo preparati una volta per settimana (costo che non cresce più con lo storico: dopo tre anni circa 16 ms invece di 121), lettura delle durate più prudente («e mezza» e trattino lungo), tempi in ore letti correttamente, controllo dei tipi di `domain/` senza Node. Peso della stagione confermato a 1. Workers sul piano a pagamento da 5 $ al mese. Validazione dei giorni dello storico rimandata all'import |
 | 6 ottobre 2026, primo giro del prototipo approvato | Barra con mese e icone sopra i giorni; schede con footer a icone, foto 3:1 e fonte troncata sulla riga del tempo; stesso componente nel ricettario; voto in riga; scheda ricetta con titolo collegato alla fonte; filtri richiudibili con ordinamento invertibile e senza stagione; quantità non numeriche tradotte e obbligatorie per pubblicare; etichetta «Tu» confermata; bozze in testa al ricettario solo per i curatori; navbar con sole icone |
+| 11 ottobre 2026, gestione del ricettario | «Gestione del ricettario» (o «gestione») sostituisce «curatela» nei documenti vivi e nell'interfaccia italiana del prototipo («Gestione del ricettario» nel Profilo). Il ruolo resta «curatore», il codice in inglese resta `curation`; piani chiusi e righe precedenti di questo registro invariati |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

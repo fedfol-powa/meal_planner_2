@@ -1,11 +1,11 @@
 # Percorsi del prototipo di Cosa si mangia
 
 Creato: 6 ottobre 2026
-Ultimo aggiornamento: 8 ottobre 2026
+Ultimo aggiornamento: 11 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
-(Curatela) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre; tutti i
-percorsi sono stati rivisti.
+(Gestione del ricettario) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre;
+tutti i percorsi sono stati rivisti.
 
 Questo documento è la guida dei flussi da seguire durante la prototipazione e poi
 nello sviluppo dell'app, come [design.md](design.md) lo è per il linguaggio visivo.
@@ -61,7 +61,7 @@ insufficienti, offline) si costruiscono dentro ogni percorso.
 | 3 | Revisione dei pasti | Azioni sugli slot, suggerimenti, ultima modifica, annullamento | 2 | Approvato il 6 ottobre 2026 |
 | 4 | Spesa | Lista della settimana, consolidamento, esclusioni, esportazioni, unità, offline | 3 | Approvato il 6 ottobre 2026 |
 | 5 | Famiglia e account | Wizard, prima generazione, membri e inviti (R2), impostazioni, preferenze, eliminazione della famiglia e cancellazione dell'account | 4 | Approvato il 6 ottobre 2026 |
-| 6 | Curatela | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | Approvato il 7 ottobre 2026 |
+| 6 | Gestione del ricettario | Bozze, modifica di ricette altrui, versioni e ripristino (R1), percorso manuale rappresentato | 5 | Approvato il 7 ottobre 2026 |
 | 7 | MCP | Pagina di collegamento per i client, autorizzazione nel browser, agenti collegati, rimando all'app per l'eliminazione delle famiglie (niente conversazioni simulate, deciso il 7 ottobre 2026) | 6 | Approvato il 7 ottobre 2026 |
 | 8 | Amministrazione dell'app | Utenti, ruoli, inviti, cancellazione, ripristino del catalogo | 6 | Approvato il 7 ottobre 2026 |
 
@@ -244,7 +244,7 @@ e 17, rilievo R3) e in `design.md`:
 ### Fuori dal giro
 
 Azioni di modifica dei pasti, suggerimenti, avvisi e conflitti; Spesa; impostazioni e
-famiglia; curatela.
+famiglia; gestione del ricettario.
 
 ### Domande della preparazione, chiuse il 6 ottobre 2026
 
@@ -273,7 +273,7 @@ nella specifica (sezioni 2, 4, 5, 8, 12 e 14) e in `design.md`.
   con titolo collegato alla fonte, voto in riga, porzioni e storico; voto con media e
   stelle sulla stessa riga.
 - **Rinviati:** azioni di revisione dei pasti e conflitti (percorso 3), ingresso della
-  spesa (percorso 4), curatela delle bozze (percorso 6), ricerca bilingue, ricalcolo
+  spesa (percorso 4), gestione delle bozze (percorso 6), ricerca bilingue, ricalcolo
   delle quantità non numeriche.
 - **Problemi minori ancora aperti dalla review del codice:** scorrimento animato
   annullato al tocco di un giorno, messaggio d'errore del voto sempre "offline",
@@ -836,7 +836,7 @@ I default proposti (ingressi, «Salva bozza» esplicito, verifica prima di
   versione attuale. La scheda del pasto nel Menu non ha segni.
 - **Archiviazione** con «Annulla» nell'avviso; la scheda di una ricetta archiviata ha
   l'etichetta «Archiviata» per i curatori.
-- **Profilo:** sezione «Curatela del ricettario» con «Bozze e ricette archiviate» e
+- **Profilo:** sezione «Gestione del ricettario» con «Bozze e ricette archiviate» e
   «Nuova ricetta» (al posto del segnaposto).
 - Gli avvisi in basso salgono sopra la barra dei pulsanti del modulo; uscendo con
   modifiche non salvate si sceglie fra salvare, uscire o restare.
@@ -1016,9 +1016,9 @@ piano del giro, approvato il 7 ottobre 2026.
   personalizzato». I passaggi di ChatGPT non sono verificati e la pagina lo dice. Ogni
   client ha la nota «esempio da verificare prima del rilascio».
 - **Pagina di collegamento:** senza paragrafo introduttivo (tolto nella prova dell’utente); indirizzo, client, accesso, esempi (per i curatori anche
-  il flusso di curatela e le istruzioni sugli ingredienti servite all'agente), nota
-  sull'eliminazione delle famiglie e, in fondo, gli agenti collegati. «Scollega» spiega
-  anche come togliere il servizio dal client.
+  il flusso di gestione del ricettario e le istruzioni sugli ingredienti servite
+  all'agente), nota sull'eliminazione delle famiglie e, in fondo, gli agenti collegati.
+  «Scollega» spiega anche come togliere il servizio dal client.
 - **Autorizzazione:** stesso stile delle pagine d'invito; elenca cosa l'agente potrà
   fare secondo i ruoli dell'utente e cosa no (eliminare famiglie, vedere le
   credenziali). Riautorizzare lo stesso client sostituisce l'accesso precedente.
