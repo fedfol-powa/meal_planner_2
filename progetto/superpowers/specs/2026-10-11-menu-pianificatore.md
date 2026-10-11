@@ -247,7 +247,18 @@ quindi per lui gli slot con una ricetta mai pubblicata non compaiono: il job non
 questa funzione.
 
 Un pasto con versione null mostra solo nome e descrizione (sezione 5.3) e non entra
-nella spesa (W4). Nel registro generale il campo si chiama `version` (numero di
+nella spesa (W4).
+
+Per le letture versionate che mostrano le versioni R1 (Menu, spesa), lo stesso file
+esporta il numero dei pasti passati, calcolato con lo stesso istante:
+
+```ts
+/** Meals of one week (every slot) already past at the instant, null for the transaction's now(). */
+export function mealPassedCount(tx: Tx, familyId: string, weekId: string, at?: Date | null): Promise<number>
+```
+
+Chi lo usa passa lo stesso `at` a `mealRecipeVersionsAt` e a `mealPassedCount` (in una
+richiesta, `context.now`) e mette il numero nella versione dell'operazione (sezione 5.3). Nel registro generale il campo si chiama `version` (numero di
 versione), non `versionId`.
 
 ## 4. Job del mercoledì
@@ -300,7 +311,13 @@ di altri test, e il job orario le serve tutte.
      `status = 'failed'`, `attempts + 1`, `error` (codice o nome dell'errore, al massimo
      500 caratteri, mai messaggi, dati o segreti) e `updated_at`; si registra
      `weekly_job_failed` e, se `isJobOverdue(local, target_week)`, anche
-     `weekly_job_overdue`; si passa al job successivo.
+     `weekly_job_overdue`; si passa al job successivo;
+   - anche i salvataggi di `abandoned` e `failed` sono protetti (review della PR #15):
+     se falliscono si registra `weekly_job_status_failed` (livello errore, con famiglia,
+     settimana, stato e codice dell'errore), la riga resta com'era, quindi aperta e
+     ripresa dall'esecuzione successiva, e si passa al job successivo. Nessun errore di un
+     job ferma gli altri. I due salvataggi stanno in `server/src/menu/job-status.ts`, il
+     punto che i test sostituiscono per iniettare l'errore.
 
 Lo stato `running` dello schema non si usa: la generazione e il suo esito stanno in una
 sola transazione, quindi un'esecuzione interrotta lascia la riga com'era e la successiva
@@ -469,10 +486,24 @@ righe diverse; un pasto con 0 porzioni mostra le righe alle porzioni di riferime
 ricetta (regola di W6) e la sua chiave conserva lo 0.
 
 Le ricette archiviate restano visibili e votabili dai pasti che le usano (specifica,
-sezione 5). L'output di `getWeek` e `getDates` non dipende dall'ora oltre alla
-generazione: il passaggio di un pasto a «passato» non cambia la versione mostrata se nel
-frattempo il ricettario non è cambiato, e quando il ricettario cambia cresce il suo
-contatore.
+sezione 5).
+
+**R1 e cache** (review della PR #15, decisione del coordinatore, vale anche per la
+spesa). L'output di `getWeek` dipende dall'ora: quando un pasto passa (15:30, 23:00) la
+sua versione diventa quella in vigore in quel momento, che può differire dalla corrente
+se una pubblicazione è arrivata dopo. Una lettura iniziata un istante prima della soglia
+può aver letto il contatore del ricettario già cresciuto e mostrato la versione corrente:
+senza altro, la lettura successiva risponderebbe «invariato». Per questo:
+
+- la vista usa un solo istante, quello fissato della richiesta (`context.now`), sia per
+  la scelta R1 (`mealRecipeVersionsAt(tx, familyId, weekId, context.now)`) sia per la
+  versione;
+- il `prepare` di `getWeek` aggiunge alla versione `p<n>`, con
+  `n = mealPassedCount(tx, familyId, weekId, context.now)`: i pasti della settimana
+  (tutti gli slot) già passati in quell'istante. Al passaggio di un pasto `n` cresce e la
+  lettura risponde con la vista nuova.
+
+`getDates` non dipende dall'ora oltre alla generazione (giorni con slot).
 
 ## 6. Interfaccia con W6
 
