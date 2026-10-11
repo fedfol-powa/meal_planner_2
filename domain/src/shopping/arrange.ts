@@ -105,7 +105,7 @@ function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, s
 			date: s.date,
 			mealType: s.mealType,
 			recipeName: s.recipeName[locale],
-			quantity: formatQuantity(s.quantity, system, locale)
+			quantity: formatQuantity(s.quantity, system, locale, s.scaled ? 'scaled' : 'recipe')
 		}))
 	};
 }

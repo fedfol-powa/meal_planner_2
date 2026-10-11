@@ -13,6 +13,12 @@ describe('fake quantities', () => {
     expect(formatAmount({ kind: 'amount', value: 2, unit: 'piece' }, '2', null, 'en-GB')).toBe('2');
     expect(formatAmount({ kind: 'amount', value: 0.1, unit: 'piece' }, '', null, 'en-GB')).toBe('¼');
   });
+  it('writes scaled cloves, pinches and slices whole and pieces in halves, like the domain (option 1)', () => {
+    expect(formatAmount({ kind: 'amount', value: 4.5, unit: 'clove' }, '', null, 'it-IT', true)).toBe('5 spicchi');
+    expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'pinch' }, '', null, 'it-IT', true)).toBe('1 pizzico');
+    expect(formatAmount({ kind: 'amount', value: 1 / 3, unit: 'piece' }, '', null, 'it-IT', true)).toBe('½');
+    expect(formatAmount({ kind: 'amount', value: 0.5, unit: 'tsp' }, '', null, 'it-IT', true)).toBe('½ cucchiaino');
+  });
   it('shows to-taste and text quantities in the user language', () => {
     expect(formatAmount({ kind: 'to_taste' }, 'q.b.', null, 'en-GB')).toBe('to taste');
     const text = { 'it-IT': '1 mazzetto', 'en-GB': '1 bunch' };

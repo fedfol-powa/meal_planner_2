@@ -175,7 +175,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
     return recipe.ingredients.map((line) => ({
       ingredientId: line.ingredientId,
       name: localized(data.ingredients.find((i) => i.id === line.ingredientId)?.name ?? { 'it-IT': line.ingredientId, 'en-GB': null }, locale),
-      amount: formatAmount(scaleQuantity(line.quantity, factor), line.sourceText, line.text, locale),
+      amount: formatAmount(scaleQuantity(line.quantity, factor), line.sourceText, line.text, locale, factor !== 1),
       preparation: null,
       optional: line.isOptional
     }));

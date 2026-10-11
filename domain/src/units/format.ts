@@ -27,11 +27,14 @@ export function formatAmount({ value, unit }: PresentedAmount, locale: Locale): 
 	return label ? `${number} ${label}` : number;
 }
 
-/** One recipe line, as in recipes, meal cards and item sources (halves kept). */
-export function formatQuantity(q: Quantity, system: MeasurementSystem, locale: Locale): string {
+/**
+ * One recipe line, as in recipes, meal cards and item sources: `scaled` when the servings differ
+ * from the source's (whole cloves, halves of pieces), `recipe` at the source's servings.
+ */
+export function formatQuantity(q: Quantity, system: MeasurementSystem, locale: Locale, rounding: 'recipe' | 'scaled' = 'recipe'): string {
 	if (q.kind === 'to_taste') return TO_TASTE[locale];
 	if (q.kind === 'text') return q.text[locale];
-	return formatAmount(presentAmount(q.value, q.unit, system), locale);
+	return formatAmount(presentAmount(q.value, q.unit, system, rounding), locale);
 }
 
 export interface FormatOptions {

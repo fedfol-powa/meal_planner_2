@@ -16,6 +16,13 @@ describe('formatQuantity', () => {
 		expect(formatQuantity(amount(1.5, 'kg'), 'metric', 'it-IT')).toBe('1,5 kg');
 		expect(formatQuantity(amount(1.5, 'kg'), 'metric', 'en-GB')).toBe('1.5 kg');
 	});
+	it('writes scaled cloves as whole ones and keeps halves of pieces (option 1)', () => {
+		expect(formatQuantity(amount(4.5, 'clove'), 'metric', 'it-IT', 'scaled')).toBe('5 spicchi');
+		expect(formatQuantity(amount(4.5, 'clove'), 'metric', 'en-GB', 'scaled')).toBe('5 cloves');
+		expect(formatQuantity(amount(1 / 3, 'piece'), 'metric', 'it-IT', 'scaled')).toBe('½');
+		expect(formatQuantity(amount(0.5, 'tsp'), 'metric', 'it-IT', 'scaled')).toBe('½ cucchiaino');
+	});
+
 	it('writes halves and quarters of counted units, with singular and plural labels', () => {
 		expect(formatQuantity(amount(1 / 3, 'clove'), 'metric', 'it-IT')).toBe('½ spicchio');
 		expect(formatQuantity(amount(1.2, 'clove'), 'metric', 'it-IT')).toBe('1½ spicchi');
@@ -59,7 +66,7 @@ describe('formatCombined', () => {
 	it('rounds pieces up to whole ones only for shopping', () => {
 		const c = combine(amount(0.5, 'piece'), amount(1.25, 'clove'));
 		expect(formatCombined(c, { system: 'metric', locale: 'it-IT' })).toBe('½ + 1½ spicchi');
-		expect(formatCombined(c, { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('1 + 1½ spicchi');
+		expect(formatCombined(c, { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('1 + 2 spicchi');
 		expect(formatCombined(combine(amount(2.06, 'piece')), { system: 'metric', locale: 'it-IT', rounding: 'shopping' })).toBe('2');
 	});
 	it('shows measuring spoons and household spoons of the same kind as one sum, in UK imperial only', () => {

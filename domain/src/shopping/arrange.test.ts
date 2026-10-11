@@ -164,3 +164,28 @@ describe('order of the items (PR #24 review)', () => {
 		expect(names(all, 'en-GB').excluded).toEqual(english);
 	});
 });
+
+describe('counted units in the list (user decision, option 1)', () => {
+	const pantryless = new Map<string, ShoppingIngredient>([
+		['garlic', { name: t('Aglio', 'Garlic'), department: 'produce', isPantry: false }],
+		['onion', { name: t('Cipolla', 'Onion'), department: 'produce', isPantry: false }]
+	]);
+	const meal = (slotId: string, servings: number) => ({ slotId, date: '2026-10-12', mealType: 'lunch' as const, servings, recipe: { id: 'r', name: t('Ricetta', 'Recipe'), baseServings: 4, lines: [
+		line('garlic', amount(3, 'clove')), line('onion', amount(0.5, 'piece'))
+	] } });
+	const arranged = (servings: number) =>
+		arrangeShoppingList(consolidateShoppingList({ meals: [meal('s1', servings)], ingredients: pantryless, equivalences: [], avoided: new Set() }), { checks: [], addedBack: [], system: 'metric', locale: 'it-IT' });
+
+	it('buys whole cloves and pieces; sources scaled show whole cloves and halves of pieces', () => {
+		const list = arranged(6);
+		expect(view(list, 'garlic~')).toMatchObject({ quantity: '5 spicchi', sources: [{ quantity: '5 spicchi' }] });
+		expect(view(list, 'onion~')).toMatchObject({ quantity: '1', sources: [{ quantity: '1' }] });
+		expect(view(arranged(3), 'onion~').sources[0].quantity).toBe('½');
+	});
+
+	it('shows sources at the servings of the recipe as written', () => {
+		const list = arranged(4);
+		expect(view(list, 'garlic~').sources[0].quantity).toBe('3 spicchi');
+		expect(view(list, 'onion~').sources[0].quantity).toBe('½');
+	});
+});

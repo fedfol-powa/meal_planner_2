@@ -59,10 +59,40 @@ describe('counted units', () => {
 		expect(presentCount(2.2, 'piece', 'shopping')).toEqual({ value: 3, unit: 'piece' });
 		expect(presentCount(0.05, 'piece', 'shopping')).toEqual({ value: 1, unit: 'piece' });
 		expect(presentCount(0.3, 'bunch', 'shopping')).toEqual({ value: 1, unit: 'bunch' });
-		expect(presentCount(1.25, 'clove', 'shopping')).toEqual({ value: 1.5, unit: 'clove' });
+		expect(presentCount(1.25, 'clove', 'shopping')).toEqual({ value: 2, unit: 'clove' });
 		expect(presentCount(1.09, 'piece', 'shopping')).toEqual({ value: 1, unit: 'piece' });
 		expect(presentCount(1.1, 'piece', 'shopping')).toEqual({ value: 1, unit: 'piece' });
 		expect(presentCount(1.11, 'piece', 'shopping')).toEqual({ value: 2, unit: 'piece' });
+	});
+});
+
+describe('counted units scaled from the source (user decision, option 1)', () => {
+	it('rounds cloves, pinches, sprigs, leaves, bunches and slices up to whole ones', () => {
+		expect(presentCount(4.5, 'clove', 'scaled')).toEqual({ value: 5, unit: 'clove' });
+		expect(presentCount(4.3, 'clove', 'scaled')).toEqual({ value: 5, unit: 'clove' });
+		expect(presentCount(0.5, 'pinch', 'scaled')).toEqual({ value: 1, unit: 'pinch' });
+		expect(presentCount(1.5, 'sprig', 'scaled')).toEqual({ value: 2, unit: 'sprig' });
+		expect(presentCount(2.25, 'leaf', 'scaled')).toEqual({ value: 3, unit: 'leaf' });
+		expect(presentCount(0.3, 'bunch', 'scaled')).toEqual({ value: 1, unit: 'bunch' });
+		expect(presentCount(2.2, 'slice', 'scaled')).toEqual({ value: 3, unit: 'slice' });
+		expect(presentCount(3, 'clove', 'scaled')).toEqual({ value: 3, unit: 'clove' });
+	});
+	it('keeps halves of pieces and spoons', () => {
+		expect(presentCount(1 / 3, 'piece', 'scaled')).toEqual({ value: 0.5, unit: 'piece' });
+		expect(presentCount(2.25, 'piece', 'scaled')).toEqual({ value: 2.5, unit: 'piece' });
+		expect(presentCount(0.3, 'tsp', 'scaled')).toEqual({ value: 0.5, unit: 'tsp' });
+		expect(presentCount(1.2, 'tbsp', 'scaled')).toEqual({ value: 1, unit: 'tbsp' });
+	});
+	it('leaves the source servings as written in recipes', () => {
+		expect(presentCount(0.5, 'clove', 'recipe')).toEqual({ value: 0.5, unit: 'clove' });
+		expect(presentCount(0.5, 'piece', 'recipe')).toEqual({ value: 0.5, unit: 'piece' });
+	});
+	it('buys every counted unit but spoons whole in the shopping list', () => {
+		expect(presentCount(4.5, 'clove', 'shopping')).toEqual({ value: 5, unit: 'clove' });
+		expect(presentCount(0.5, 'pinch', 'shopping')).toEqual({ value: 1, unit: 'pinch' });
+		expect(presentCount(1.5, 'sprig', 'shopping')).toEqual({ value: 2, unit: 'sprig' });
+		expect(presentCount(0.5, 'leaf', 'shopping')).toEqual({ value: 1, unit: 'leaf' });
+		expect(presentCount(0.5, 'tsp', 'shopping')).toEqual({ value: 0.5, unit: 'tsp' });
 	});
 });
 
