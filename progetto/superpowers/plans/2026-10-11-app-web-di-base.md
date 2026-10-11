@@ -6730,8 +6730,9 @@ Context7 (`/dinwwwh/orpc`): `createORPCClient`, `RPCLink` con `url`, `headers` a
   `call` su sessione chiusa → `SessionClosedError` e `run` mai eseguita; chiusura
   durante il rinnovo dentro `call` → `SessionClosedError` senza ripetizione; `network`
   dentro `call` → `ApiError('network')` e sessione aperta; `onClose` attesi dopo
-  `persister.close()` nell'ordine di registrazione, anche se uno rifiuta, e
-  disiscrizione; `onRevoke` per `revoke` locale e con `announce: false`, mai a sessione
+  `persister.close()` nell'ordine di registrazione e tutti completati prima che
+  `close()` si risolva, anche se uno rifiuta in modo asincrono **o lancia in modo
+  sincrono** (gli agganci successivi vengono comunque eseguiti), e disiscrizione; `onRevoke` per `revoke` locale e con `announce: false`, mai a sessione
   chiusa, errore di un aggancio che non ferma gli altri; `store` e `channel`.
 - [ ] Codice:
   - `SessionDeps.refresh?: () => Promise<RenewResult>`; `end` restituisce la promessa
@@ -6742,8 +6743,10 @@ Context7 (`/dinwwwh/orpc`): `createORPCClient`, `RPCLink` con `url`, `headers` a
   - `call`: `if (closed) throw new SessionClosedError()` all'inizio e prima della
     ripetizione; esito `network` → `throw new ApiError('network')`; esito `rejected` →
     `throw new SessionClosedError()`;
-  - `close()`: dopo `persister?.close()`, `await Promise.allSettled([...closeHooks].map((hook) => hook()))`,
-    poi `changed()`;
+  - `close()`: dopo `persister?.close()`,
+    `await Promise.allSettled([...closeHooks].map((hook) => Promise.resolve().then(hook)))`
+    (ogni invocazione dentro una promessa, così un'eccezione sincrona non interrompe il
+    `map`), poi `changed()`;
   - `revoke()`: dopo le operazioni attuali, ogni aggancio in `try`, promessa con
     `.catch(() => undefined)`, non attesa;
   - `store` e `channel: deps.channel ?? null` come proprietà.
@@ -6782,13 +6785,16 @@ Context7 (`/dinwwwh/orpc`): `createORPCClient`, `RPCLink` con `url`, `headers` a
 **File:** `web/src/api/rpc.ts`, `web/src/api/rpc.test.ts`.
 
 - [ ] Test con un server del contratto nello stesso processo: `implement(contract)` di
-  `@orpc/server` con `session.whoami` che restituisce l'header ricevuto o lancia
+  `@orpc/server` con `session.whoami` che registra in uno spy gli header ricevuti
+  (`authorization`) e restituisce un oggetto conforme al contratto
+  (`{ userId: <uuid>, channel: 'web', clientId: null, locale: 'it-IT' }`), oppure lancia
   l'errore scelto dal test, `RPCHandler` di `@orpc/server/fetch` con prefisso
   `/api/rpc`, passato a `RPCLink` come `fetch`. Casi: token letto a ogni richiesta
   (cambia fra due chiamate); nessun header senza token; `ORPCError('forbidden')` →
   `ApiError('forbidden')`; `ORPCError('invalid', {data})` → codice e dati; codice fuori
   contratto e risposta 502 in testo → `unknown`; `fetch` che rifiuta con `TypeError` →
-  `network`; `AbortError` → stesso errore.
+  `network`; chiamata diretta con `{ signal }` annullato → il `fetch` del link riceve il
+  segnale annullato e l'errore d'annullamento passa invariato.
 - [ ] `createRpcClient({ getAccessToken, fetch? }): ContractRouterClient<Contract>`:
 
   ```ts
@@ -6817,7 +6823,9 @@ test.
 
 - [ ] Test: `wrapApi` su un client che è un `Proxy` senza chiavi (come quello di oRPC)
   passa da `session.call` con `familyId` dall'input e scarta le risposte nella lingua
-  superata; un `unauthorized` del server di test del Task 25 rinnova una volta e ripete.
+  superata; inoltra **tutti gli argomenti** (`input` e le opzioni del client, compreso
+  `signal`), anche nella ripetizione dopo un rinnovo; annullamento attraverso `wrapApi`
+  sul client oRPC del Task 25: il `fetch` del link riceve il segnale annullato; un `unauthorized` del server di test del Task 25 rinnova una volta e ripete.
   `realClients({ backend, rpc })` (in `clients.ts`): `session.whoami` va al client oRPC,
   `menu.getWeek` al client finto con l'utente del login; `fakeClients` risponde anche a
   `session.whoami` con l'utente demo.
@@ -6825,8 +6833,9 @@ test.
   `ProvisionalApi` (le aree di oggi); `Api = ContractRouterClient<Pick<Contract,
   ServerArea>> & ProvisionalApi`. `session.whoami` nel client finto.
 - [ ] `wrapApi` con `Proxy` ricorsivo: `get` restituisce l'avvolgimento del figlio,
-  `apply` chiama `session.call(() => target(input), familyIdOf(input))` e lo scarto di
-  C12; le chiavi non stringa (`Symbol`, `then`) restituite come sono, perché un `Proxy`
+  `apply` riceve `...args` e chiama `session.call(() => target(...args),
+  familyIdOf(args[0]))` (la stessa funzione serve la ripetizione dopo il rinnovo, quindi
+  con gli stessi argomenti, `signal` compreso) e lo scarto di C12; le chiavi non stringa (`Symbol`, `then`) restituite come sono, perché un `Proxy`
   non sembri una promessa.
 - [ ] `realClients`: `(user) => { const fake = fakeClients()(user); return (locale) =>
   compose(SERVER_AREAS, rpc, fake(locale)); }`; `main.tsx` usa `realClients` con
