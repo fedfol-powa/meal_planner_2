@@ -1,6 +1,7 @@
 import { checkContract } from '@app/contract';
 import { call, ORPCError } from '@orpc/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { KeySourceError } from '../src/auth.ts';
 import { mapErrors } from '../src/errors.ts';
 import type { RequestContext } from '../src/pipeline.ts';
 import { router } from '../src/router.ts';
@@ -65,6 +66,22 @@ describe('request path without database', () => {
 		];
 		for (const token of tokens) {
 			expect((await errorOf(call(router.session.whoami, {}, options(contextFor(keys, token))))).code).toBe('unauthorized');
+		}
+	});
+
+	it('turns a key source outage into internal, not unauthorized', async () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const context = contextFor(keys, await keys.sign({ sub: userId }));
+			context.verify = async () => {
+				throw new KeySourceError('JWKS unavailable: 503');
+			};
+			const error = await errorOf(call(router.session.whoami, {}, options(context)));
+			expect(error.code).toBe('internal');
+			expect(error.status).toBe(500);
+			expect(JSON.stringify(log.mock.calls)).toContain('KeySourceError');
+		} finally {
+			log.mockRestore();
 		}
 	});
 

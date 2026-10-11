@@ -24,7 +24,17 @@ export function channelOf(claims: Claims): Channel {
 
 export type KeySource = (forceRefresh: boolean) => Promise<JSONWebKeySet>;
 
+/** The signing keys could not be read: an infrastructure outage, never the token's fault. */
+export class KeySourceError extends Error {
+	override name = 'KeySourceError';
+}
+
 const KEYS_TTL_MS = 10 * 60 * 1000;
+/** Unknown `kid`s cannot make every request refetch: one forced refetch per interval. */
+const FORCED_REFRESH_INTERVAL_MS = 60 * 1000;
+const FETCH_TIMEOUT_MS = 5000;
+
+const keySetSchema = z.looseObject({ keys: z.array(z.looseObject({})) });
 
 /**
  * Public signing keys of the Supabase project. Only resolved data is shared across
@@ -33,14 +43,33 @@ const KEYS_TTL_MS = 10 * 60 * 1000;
  */
 export function remoteKeySource(supabaseUrl: string): KeySource {
 	let cached: { keys: JSONWebKeySet; fetchedAt: number } | undefined;
+	let forcedAt: number | undefined;
 	return async (forceRefresh) => {
-		if (!forceRefresh && cached && Date.now() - cached.fetchedAt < KEYS_TTL_MS) return cached.keys;
-		const response = await fetch(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
-		if (!response.ok) throw new Error(`JWKS unavailable: ${response.status}`);
-		const keys = (await response.json()) as JSONWebKeySet;
+		if (forceRefresh) {
+			// Within the interval the cached keys stand: a still unknown `kid` is refused.
+			if (cached && forcedAt !== undefined && Date.now() - forcedAt < FORCED_REFRESH_INTERVAL_MS) return cached.keys;
+			forcedAt = Date.now();
+		} else if (cached && Date.now() - cached.fetchedAt < KEYS_TTL_MS) {
+			return cached.keys;
+		}
+		const keys = await fetchKeySet(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
 		cached = { keys, fetchedAt: Date.now() };
 		return keys;
 	};
+}
+
+async function fetchKeySet(url: string): Promise<JSONWebKeySet> {
+	let body: unknown;
+	try {
+		const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+		if (!response.ok) throw new KeySourceError(`JWKS unavailable: ${response.status}`);
+		body = await response.json();
+	} catch (error) {
+		throw error instanceof KeySourceError ? error : new KeySourceError('JWKS unavailable', { cause: error });
+	}
+	const parsed = keySetSchema.safeParse(body);
+	if (!parsed.success) throw new KeySourceError('JWKS is not a key set');
+	return parsed.data as JSONWebKeySet;
 }
 
 export async function verifyAccessToken(token: string, options: { issuer: string; keys: KeySource }): Promise<Claims> {
@@ -51,6 +80,7 @@ export async function verifyAccessToken(token: string, options: { issuer: string
 	const { payload } = await jwtVerify(token, createLocalJWKSet(keys), {
 		issuer: options.issuer,
 		audience: 'authenticated',
+		algorithms: ['ES256', 'RS256'],
 		requiredClaims: ['exp', 'sub', 'session_id'],
 	});
 	const claims = claimsSchema.safeParse(payload);

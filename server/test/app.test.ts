@@ -91,15 +91,27 @@ describe('authentication on every channel, without reaching the database', () =>
 		}
 	});
 
-	it('MCP: signing keys that cannot be fetched refuse the token (401)', async () => {
+	it('signing keys that cannot be fetched are a logged server error, not a 401, on every channel', async () => {
 		const remote = createApp({ contract, router, resourceName: 'Cosa si mangia (test)' });
+		const token = await keys.sign({ sub: userId, client_id: 'codex' });
 		const original = globalThis.fetch;
 		globalThis.fetch = (async () => new Response('down', { status: 503 })) as typeof fetch;
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
 		try {
-			const result = await mcp(remote, testEnv(), await keys.sign({ sub: userId, client_id: 'codex' }), 'tools/list');
-			expect(result.status).toBe(401);
+			const viaMcp = await mcp(remote, testEnv(), token, 'tools/list');
+			expect(viaMcp.status).toBe(500);
+			expect(viaMcp.headers.get('www-authenticate')).toBeNull();
+			const client = rpcClient<ContractRouterClient<Contract>>(remote, testEnv(), token);
+			await expect(client.session.whoami({})).rejects.toMatchObject({ code: 'internal', status: 500 });
+			const viaRest = await rest(remote, testEnv(), 'GET', '/api/session/whoami', token);
+			expect(viaRest.status).toBe(500);
+			expect(await viaRest.json()).toMatchObject({ code: 'internal' });
+			const lines = log.mock.calls.map((args) => args.join(' '));
+			expect(lines.filter((line) => line.includes('unexpected_error') && line.includes('KeySourceError'))).toHaveLength(3);
+			expect(lines.join('\n')).not.toContain(token);
 		} finally {
 			globalThis.fetch = original;
+			log.mockRestore();
 		}
 	});
 });

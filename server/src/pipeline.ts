@@ -1,7 +1,7 @@
 import type { Locale, OperationMeta } from '@app/contract';
 import type { AnyContractRouter } from '@orpc/contract';
 import { implement, type RouterImplementer } from '@orpc/server';
-import { channelOf, type Channel, type Claims } from './auth.ts';
+import { channelOf, KeySourceError, type Channel, type Claims } from './auth.ts';
 import { withDb, type Tx } from './db.ts';
 import type { Env } from './env.ts';
 import { appError } from './errors.ts';
@@ -51,7 +51,9 @@ async function authenticate(context: RequestContext): Promise<Claims> {
 	if (!context.token) throw appError('unauthorized');
 	try {
 		return await context.verify(context.token);
-	} catch {
+	} catch (error) {
+		// Unreadable signing keys are an outage, not a bad token: they become `internal`.
+		if (error instanceof KeySourceError) throw error;
 		throw appError('unauthorized');
 	}
 }

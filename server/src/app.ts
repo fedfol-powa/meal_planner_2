@@ -13,7 +13,7 @@ import { OpenAPIHandler } from '@orpc/openapi/fetch';
 import { ORPCError, type AnyRouter } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
-import { bearerToken, remoteKeySource, verifyAccessToken, type Claims, type KeySource } from './auth.ts';
+import { bearerToken, KeySourceError, remoteKeySource, verifyAccessToken, type Claims, type KeySource } from './auth.ts';
 import { withDb } from './db.ts';
 import type { Env } from './env.ts';
 import { mapErrors, normalizeError } from './errors.ts';
@@ -78,7 +78,9 @@ export function createApp(options: AppOptions) {
 					let claims: Claims;
 					try {
 						claims = await context.verify(token);
-					} catch {
+					} catch (error) {
+						// Unreadable signing keys: logged and answered 500, like a database failure below.
+						if (error instanceof KeySourceError) throw normalizeError(error, { requestId, path: ['mcp'] });
 						throw new OAuthError(OAuthErrorCode.InvalidToken, 'The access token is not valid');
 					}
 					try {
