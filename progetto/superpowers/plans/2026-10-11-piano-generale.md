@@ -168,3 +168,4 @@ solo il coordinatore.
 | 11 ottobre 2026 | Ondata 2 avviata in parallelo alla chiusura dell'ondata 1, su richiesta dell'utente: sei worker (i revisori Codex non contano); W1 menu e pianificatore, W6 ricettario e voti, W2 profilo e famiglia; regole comuni in `progetto/coordinamento/brief/ondata2-comune.md` |
 | 11 ottobre 2026 | Unita la PR #8 (fonte obbligatoria e non vuota nelle equivalenze, come il trim di JavaScript; 449 test pgTAP) |
 | 11 ottobre 2026 | Unita la PR #7 (dominio unità e spesa) dopo due review; W3 passa all'implementazione; W4 avviato sull'attività Spesa dell'ondata 2 |
+| 11 ottobre 2026 | L'utente approva i quattro YAML dell'import (tagli di carne come varietà, «Sale e pepe» solo sale, cotti/precotti come preparazione, peperoncino secco per «1 pizzico», preparazioni del libro come prodotti in `other`, 4 traduzioni en-GB scritte da W3) |
