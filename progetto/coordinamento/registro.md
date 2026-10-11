@@ -9,7 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 |---|---|---|---|---|---|---|
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Spec e piano approvati; contesto azzerato; implementa la PR server (area meals); poi la PR web | 11/10 |
-| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Seconda review: 4 correzioni; a SPEC_PIANO_APPROVATI: /clear e implementazione | 11/10 |
+| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Spec e piano approvati; contesto azzerato; implementazione fino a PR_APERTA | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | — | .worktrees/ricettario-mcp | PR #26 unita: gestione del ricettario completa (server e web). Contesto azzerato; libero | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Spec e piano approvati (due review); contesto azzerato; implementazione in corso fino a PR_APERTA | 11/10 |
