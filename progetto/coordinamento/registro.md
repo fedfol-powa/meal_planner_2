@@ -7,7 +7,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Brainstorming della revisione dei pasti (brief/w1-revisione-pasti.md) | 11/10 |
+| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Spec e piano pronti (area meals, due PR: server poi web); review Codex in corso | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Brainstorming con prova della revoca in locale (brief/w2-collegamento-agenti.md); passi esterni sulla produzione all'utente | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #24 unita (specifica aggiornata); libero | 11/10 |
@@ -21,6 +21,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
+| Codex | spec e piano di W1 revisione dei pasti | R W1 spec | w1:p2D | in corso → revisioni/w1-revisione-pasti-spec-piano.md |
 
 ## Domande in sospeso
 
