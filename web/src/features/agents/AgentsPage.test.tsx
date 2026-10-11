@@ -36,6 +36,18 @@ describe('«Collega un agente»', () => {
     expect(await within(address).findByRole('button', { name: 'Copiato' })).toBeTruthy();
   });
 
+  it('without the clipboard: never «Copiato», the text is selected and the page says to copy it by hand', async () => {
+    const writeText = vi.fn(async () => Promise.reject(new Error('denied')));
+    Object.assign(navigator, { clipboard: { writeText } });
+    renderApp('/profile/agents');
+    const value = `${window.location.origin}/mcp`;
+    const address = (await screen.findByText(value)).closest('div')!;
+    fireEvent.click(within(address).getByRole('button', { name: 'Copia' }));
+    expect(await screen.findByText('Non è stato possibile copiare: il testo è selezionato, copialo tu.')).toBeTruthy();
+    expect(within(address).queryByRole('button', { name: 'Copiato' })).toBeNull();
+    expect(getSelection()?.toString()).toBe(value);
+  });
+
   it('lists the connected agents and disconnects one after confirmation, then reads the list again', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
     const disconnect = vi.spyOn(api.agents, 'disconnect');
