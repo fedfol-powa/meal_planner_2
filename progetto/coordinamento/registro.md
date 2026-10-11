@@ -10,9 +10,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Brainstorming della revisione dei pasti (brief/w1-revisione-pasti.md) | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Brainstorming con prova della revoca in locale (brief/w2-collegamento-agenti.md); passi esterni sulla produzione all'utente | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 unita; libero | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | correzioni/nomi-varieta | .worktrees/spesa | Problema 2 della prova: nomi «Nome (varietà)» nella spesa e in Bring!; a PR_APERTA review | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Brainstorming dell'esportazione notturna (brief/w5-esportazione-r2.md), ultime 7 copie; bucket all'utente | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | prova/stack-reale | .worktrees/ricettario | Prova visiva di tutto il web sullo stack reale in locale, senza correzioni → messaggi/w6-prova-stack-reale.md, STATO: FATTO | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | correzioni/prova-stack-reale | .worktrees/ricettario | Prova sullo stack reale fatta (messaggi/w6-prova-stack-reale.md). Corregge 1 (bloccante: shell del service worker dopo il redirect 307 degli asset), 4, 5, 6; a PR_APERTA review | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server). Ondata 1 completata.
@@ -27,6 +27,8 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 - Decise dall'utente l'11/10 (commit d0c02ca): permesso `Bash(herdr pane run *)`, produzione `lronuqvtjdhfyychnscr`, 7 copie in R2, i tre conflitti del consolidamento come proposto.
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
+
+- **Da chiedere all'utente (prova di W6):** porzioni della scheda aperta da un pasto (oggi quelle della fonte, non del pasto); scalatura delle unità contate («4½ spicchi»).
 
 ## Prossima azione del coordinatore
 
@@ -47,7 +49,7 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
      che ogni PR passi da sola i controlli di main.
    - **W3:** implementazione della parte server di `catalogue`; review della PR quando la
      apre; il web dopo il merge della #21.
-   - **W4 libero; W6 sulla prova dello stack reale; W2 collegamento degli agenti, W5 esportazione in R2.** Attività restanti senza assegnatario: collegamento degli agenti
+   - **W6 e W4 sulle correzioni della prova sullo stack reale; W2 collegamento degli agenti, W5 esportazione in R2.** Attività restanti senza assegnatario: collegamento degli agenti
      (serve confermare il server OAuth sul progetto di produzione, da verificare prima) ed
      esportazione notturna in R2 (serve un bucket e una chiave, e la conservazione da
      decidere con l'utente). Spiegate all'utente in modo semplice; lui ha detto di

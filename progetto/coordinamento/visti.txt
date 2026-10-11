@@ -122,3 +122,6 @@ w1:p28	REVISORE_FINITO
 w1:pY	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/21 #6729ca02
 w1:pA	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/23 #f6041fa4
 w1:pA	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/23 #79fc242a
+w1:pC	STATO: DOMANDA 1: cosa comprende «l'intero database»? #cd418433
+w1:pC	STATO: DOMANDA 2: cifratura (la mia proposta di opzione minima adeguata) #6b9e3eaa
+w1:pX	STATO: FATTO #0f727b09
