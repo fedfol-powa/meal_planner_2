@@ -35,7 +35,9 @@ function MenuView({ family }: { family: FamilyView }) {
   const navigate = route.useNavigate();
   const familyId = family.id;
 
-  const opening = useQuery(openingQuery(deps, familyId));
+  // The family's local date, sent with the opening: the server validates it and answers for that day.
+  const today = localNow(family.timeZone).slice(0, 10);
+  const opening = useQuery(openingQuery(deps, familyId, today));
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
   const week = useQuery({ ...weekQuery(deps, familyId, weekStart ?? ''), enabled: !!weekStart, retry: false });

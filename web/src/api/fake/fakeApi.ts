@@ -232,11 +232,11 @@ export function createFakeApi(options: FakeApiOptions): Api {
       }
     },
     menu: {
-      async getOpening({ familyId }) {
+      async getOpening({ familyId, today: requested }) {
         checkFamily(familyId);
         const visible = visibleWeeks();
         if (visible.length === 0) return respond<OpeningView>({ kind: 'no_weeks' });
-        const today = now().slice(0, 10);
+        const today = requested ?? now().slice(0, 10);
         const next = visible
           .flatMap((w) => w.slots.filter((s) => s.recipeId || s.freeText).map((s) => ({ date: s.date, weekStartsOn: w.startsOn })))
           .filter((d) => d.date >= today)

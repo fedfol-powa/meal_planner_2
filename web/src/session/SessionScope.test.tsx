@@ -19,6 +19,7 @@ import type { CreateApi } from './SessionScope';
 import type { SessionMessage } from './channel';
 import { useAuth } from '../auth/AuthProvider';
 import { useLocale } from '../i18n/LocaleProvider';
+import { localNow } from '../lib/calendar';
 import { createMemoryHub } from '../test/memoryChannel';
 import { setOnline } from '../test/connectivity';
 import { createStubBackend } from '../test/stubBackend';
@@ -454,7 +455,7 @@ describe('fake data shared by the languages (PR review, C13)', () => {
   function RatingProbe() {
     const deps = useQueryDeps();
     client = deps.queryClient;
-    const opening = useQuery(openingQuery(deps, DEMO_FAMILY_ID));
+    const opening = useQuery(openingQuery(deps, DEMO_FAMILY_ID, localNow('Europe/Rome').slice(0, 10)));
     const weekStartsOn = opening.data?.kind === 'day' ? opening.data.weekStartsOn : undefined;
     const week = useQuery({ ...weekQuery(deps, DEMO_FAMILY_ID, weekStartsOn ?? ''), enabled: !!weekStartsOn });
     const meal = week.data?.days.flatMap((d) => d.meals).find((m) => m.rating && m.recipe);

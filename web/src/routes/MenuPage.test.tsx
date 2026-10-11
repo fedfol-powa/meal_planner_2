@@ -1,7 +1,9 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
-import { createFakeApi } from '../api/fake/fakeApi';
+import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
+import type { Api, RatingSummary } from '../api/types';
+import { addDays } from '../lib/calendar';
 import { renderApp } from '../test/renderApp';
 
 beforeEach(() => {
@@ -127,4 +129,61 @@ describe('menu', () => {
     renderApp('/menu', { api });
     expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
   });
+  it('asks the opening for the family local date, not the device one', async () => {
+    vi.setSystemTime(new Date('2026-10-08T22:30:00Z')); // 00:30 on Friday 9 October in Rome
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const getOpening = vi.spyOn(api.menu, 'getOpening');
+    renderApp('/menu', { api });
+    await screen.findByRole('link', { name: 'venerdì 9 ottobre' });
+    expect(getOpening).toHaveBeenCalledWith(expect.objectContaining({ today: '2026-10-09' }), expect.anything());
+  });
+  it.each([
+    ['it-IT', 'Nessuna ricetta adatta', 'giovedì 8 ottobre'],
+    ['en-GB', 'No suitable recipe', 'Thursday 8 October']
+  ] as const)('shows a generated week with no suitable recipe as empty meals, not as no menu (%s)', async (locale, title, day) => {
+    // The language of the screens comes from the profile.
+    const shared = createFakeData();
+    shared.profile.locale = locale;
+    const api = createFakeApi({ getLocale: () => locale, data: shared, latencyMs: 0 });
+    const days = Array.from({ length: 7 }, (_, i) => addDays('2026-10-05', i));
+    api.menu.getOpening = async () => ({ unchanged: false, version: 'o1', data: { kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' } });
+    api.menu.getWeek = async () => ({
+      unchanged: false,
+      version: 'w1',
+      data: {
+        startsOn: '2026-10-05',
+        days: days.map((date) => ({
+          date,
+          meals: (['lunch', 'dinner'] as const).map((mealType) => ({
+            slotId: crypto.randomUUID(), date, mealType, kind: 'empty' as const, recipe: null, freeText: null, servings: 2,
+            ingredients: null, note: null, rating: null, canOpenRecipe: false, lastChange: null
+          }))
+        }))
+      }
+    });
+    renderApp('/menu', { api, locale });
+    await screen.findByRole('link', { name: day });
+    expect(screen.getAllByRole('heading', { name: title }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Ancora nessun menu|No menu yet/)).toBeNull();
+  });
+  it('applies a rating given from the menu only after the server confirms it', async () => {
+    const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    let confirm: (value: RatingSummary) => void = () => {};
+    const set = vi.fn<Api['ratings']['set']>(() => new Promise<RatingSummary>((resolve) => (confirm = resolve)));
+    const api: Api = { ...base, ratings: { set } };
+    renderApp('/menu', { api });
+    await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+    const today = screen.getAllByRole('region').find((r) => r.id === 'day-2026-10-08') ?? document.getElementById('day-2026-10-08')!;
+    const toggle = within(today).getAllByRole('button', { name: /Voto della famiglia/ })[0]!;
+    fireEvent.click(toggle);
+    const star = within(today).getAllByLabelText(/^Dai 5 stelle a /)[0]!;
+    fireEvent.click(star);
+    expect(await screen.findByText('Invio del voto…')).toBeTruthy();
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ stars: 5 }), expect.anything());
+    expect(within(today).queryByText('3,0')).toBeNull();
+    await act(async () => confirm({ familyAverage: 3, familyCount: 9, myStars: 5 }));
+    await waitFor(() => expect(within(today).getAllByText('3,0').length).toBeGreaterThan(0));
+    expect(screen.queryByText('Invio del voto…')).toBeNull();
+  });
+
 });

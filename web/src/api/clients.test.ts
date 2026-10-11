@@ -22,9 +22,13 @@ describe('clients by area (second PR)', () => {
     const { server, api } = setup();
     expect(await api.session.whoami({})).toEqual(WHOAMI);
     expect(server.fetch).toHaveBeenCalledTimes(1);
-    const week = await api.menu.getOpening({ familyId: DEMO_FAMILY_ID });
-    expect(week.unchanged).toBe(false);
+    // Recipes are still provisional: the fake client answers, nothing reaches the Worker.
+    const list = await api.recipes.search({ familyId: DEMO_FAMILY_ID, query: {} });
+    expect(list.unchanged).toBe(false);
     expect(server.fetch).toHaveBeenCalledTimes(1);
+    // The menu is served (W1): its reads go to the Worker.
+    await api.menu.getOpening({ familyId: DEMO_FAMILY_ID }).catch(() => undefined);
+    expect(server.fetch).toHaveBeenCalledTimes(2);
   });
   it('in fake mode answers the server areas too, with the demo user', async () => {
     const api = fakeClients({ latencyMs: 0 })(user)('en-GB');
