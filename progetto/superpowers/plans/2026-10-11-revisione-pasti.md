@@ -1545,12 +1545,63 @@ with `implement({... meals: contract.meals })`, default answers built from `menu
 `getSuggestions` returns `SERVER_RECIPE.recipe` with its rating), record every call in
 `mealCalls`, and let tests override each handler with `answerMeals({ undo: () => { throw new ORPCError('not_allowed', { data: { reason: 'changed_since' } }) } })`.
 
+Add a shared harness for the real-client tests of the area:
+
+```tsx
+// web/src/features/meals/testApp.tsx
+import { addDays } from '../../lib/calendar';
+import { realClients } from '../../api/clients';
+import { createRpcClient } from '../../api/rpc';
+import { DEMO_USER } from '../../auth/backend';
+import { createRpcTestServer, SERVER_RECIPE } from '../../test/rpcServer';
+import { createStubBackend } from '../../test/stubBackend';
+import { renderApp } from '../../test/renderApp';
+
+export const LUNCH = '7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d';
+export const DINNER = '8b2c3d4e-5f6a-4b7c-9d8e-0f1a2b3c4d5e';
+export const NEXT_LUNCH = '9c3d4e5f-6a7b-4c8d-8e9f-1a2b3c4d5e6f';
+
+const meal = (slotId: string, date: string, mealType: 'lunch' | 'dinner', free: string | null) => ({
+  slotId, date, mealType, kind: free ? ('free' as const) : ('recipe' as const), recipe: free ? null : SERVER_RECIPE.recipe,
+  freeText: free, servings: 4, ingredients: free ? null : SERVER_RECIPE.ingredients, note: null,
+  rating: free ? null : SERVER_RECIPE.rating, canOpenRecipe: !free, lastChange: null
+});
+
+/** Two weeks from the server: Thursday 8 October with a recipe lunch and a free dinner, Monday 12 with a lunch. */
+export function realMealsApp(path = '/menu') {
+  const server = createRpcTestServer();
+  const week = (startsOn: string, meals: ReturnType<typeof meal>[]) => ({
+    startsOn,
+    days: Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(startsOn, i);
+      return { date, meals: meals.filter((m) => m.date === date) };
+    })
+  });
+  server.answerMenu({
+    opening: { kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' },
+    weeks: [
+      week('2026-10-05', [meal(LUNCH, '2026-10-08', 'lunch', null), meal(DINNER, '2026-10-08', 'dinner', 'Pizza')]),
+      week('2026-10-12', [meal(NEXT_LUNCH, '2026-10-12', 'lunch', null)])
+    ]
+  });
+  const backend = createStubBackend(DEMO_USER);
+  const rpc = createRpcClient({ getCredentials: () => backend.getCredentials(), fetch: server.fetch });
+  return { server, ...renderApp(path, { backend, createApi: realClients({ rpc, latencyMs: 0 }) }) };
+}
+```
+
+`answerMenu` accepts `weeks` (several weeks, answered by `weekStartsOn`) besides the existing
+single `week`: extend it in `rpcServer.ts` without changing the existing callers. The
+default `meals` handlers of the test server apply each write to the stored week and answer
+`{ week, changeIds }` with the request's ids (`[input.id]`, or `[input.id, input.otherId]` for a
+swap); `undo` restores the stored copy taken before the change.
+
 - [ ] **Step 6: Run** `npm run typecheck && npm test -w web` — Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add web/src/api web/src/features/meals/queries.ts web/src/test/rpcServer.ts
+git add web/src/api web/src/features/meals/queries.ts web/src/features/meals/testApp.tsx web/src/test/rpcServer.ts
 git commit -m "Web: area meals nel client vero e in quello finto"
 ```
 
@@ -2045,17 +2096,24 @@ describe('change recipe', () => {
     expect(await screen.findByText(dish!)).toBeTruthy();
   });
 
-  it('searches the recipe book with the filters', async () => {
-    // Uses the real client against createRpcTestServer: picks SERVER_RECIPE from recipes.search
-    // and checks mealCalls contains meals.setRecipe with its id.
+  it('searches the recipe book and puts the result in the meal', async () => {
+    const { server } = realMealsApp();
+    const card = await screen.findByRole('article', { name: /Pizza/ });
+    fireEvent.click(within(card).getByRole('button', { name: /Modifica/ }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Cambia ricetta' }));
+    const sheet = await screen.findByRole('dialog');
+    fireEvent.change(within(sheet).getByRole('searchbox'), { target: { value: 'ricetta' } });
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Ricetta dal server' }));
+    await waitFor(() => expect(server.mealCalls.find((c) => c.op === 'meals.setRecipe')?.input).toMatchObject({ slotId: DINNER, recipeId: SERVER_RECIPE.recipe.id }));
+    expect(server.recipeCalls.find((c) => c.op === 'recipes.search')?.input).toMatchObject({ query: { text: 'ricetta' } });
   });
 });
 ```
 
-Write the fourth test with `createRpcTestServer`, `realClients` and `createStubBackend` as in
-`web/src/routes/MenuPage.test.tsx` (real-client tests there): type in the search field,
-choose «Ricetta dal server», then expect
-`server.mealCalls.find((c) => c.op === 'meals.setRecipe')?.input.recipeId === SERVER_RECIPE.recipe.id`.
+Imports: `realMealsApp`, `DINNER` from `./testApp`, `SERVER_RECIPE` from
+`../../test/rpcServer`, plus the Testing Library and Vitest helpers of Task 10's test (same
+fake timers). The search field's role is the one `RecipeFilters` renders (`searchbox` for an
+`input type="search"`; check it).
 
 - [ ] **Step 2: Run** `npm test -w web -- RecipePicker` — Expected: FAIL.
 
@@ -2377,25 +2435,68 @@ git commit -m "Web: scambio, pasto libero con proposte rapide e nota"
 ```tsx
 // web/src/features/meals/UndoToast.test.tsx
 describe('undo', () => {
+  const openServings = async () => {
+    const card = await screen.findByRole('article', { name: /Ricetta dal server/ });
+    fireEvent.click(within(card).getByRole('button', { name: /Modifica/ }));
+    fireEvent.click(within(card).getByRole('button', { name: /più porzioni/i }));
+    await act(() => vi.advanceTimersByTimeAsync(800));
+    return card;
+  };
+
   it('offers «Annulla» for 6 seconds and restores the meal', async () => {
-    // change servings (Task 10 flow), then click «Annulla» within 6 s: servings back; after 6 s the toast is gone.
+    const { server } = realMealsApp();
+    const card = await openServings();
+    const undo = await screen.findByRole('button', { name: 'Annulla' });
+    const change = server.mealCalls.find((c) => c.op === 'meals.setServings')!.input.id;
+    fireEvent.click(undo);
+    await waitFor(() => expect(server.mealCalls.find((c) => c.op === 'meals.undo')?.input).toMatchObject({ changeIds: [change] }));
+    await waitFor(() => expect(within(card).getByText(/4 porzioni/)).toBeTruthy());
+    await openServings();
+    await screen.findByRole('button', { name: 'Annulla' });
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(screen.queryByRole('button', { name: 'Annulla' })).toBeNull();
   });
+
   it('a refused undo says it can no longer be undone and reads the week again', async () => {
-    // real client against createRpcTestServer with answerMeals({ undo: () => { throw new ORPCError('not_allowed', { status: 409, data: { reason: 'changed_since' } }) } }):
-    // expect «Non si può più annullare: il pasto è stato cambiato.» and a new menu.getWeek call.
+    const { server } = realMealsApp();
+    server.answerMeals({ undo: () => { throw new ORPCError('not_allowed', { status: 409, data: { reason: 'changed_since' } }); } });
+    await openServings();
+    const reads = server.weekReads.length;
+    fireEvent.click(await screen.findByRole('button', { name: 'Annulla' }));
+    expect(await screen.findByText('Non si può più annullare: il pasto è stato cambiato.')).toBeTruthy();
+    await waitFor(() => expect(server.weekReads.length).toBeGreaterThan(reads));
   });
-  it('after switching to English or to another week the undo still targets the meal’s week', async () => {
-    // change a meal of week A, navigate to week B (?day= of the next week) before clicking «Annulla»;
-    // the undo request carries the change ids and the week A cache is the one updated.
+
+  it('after moving to another week the undo still targets the meal’s week', async () => {
+    const { server, history } = realMealsApp();
+    await openServings();
+    await act(() => history.push('/menu?day=2026-10-12'));
+    await screen.findByRole('link', { name: 'lunedì 12 ottobre' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Annulla' }));
+    await waitFor(() => expect(server.mealCalls.some((c) => c.op === 'meals.undo')).toBe(true));
+    await act(() => history.push('/menu?day=2026-10-08'));
+    const card = await screen.findByRole('article', { name: /Ricetta dal server/ });
+    await waitFor(() => expect(within(card).getByText(/4 porzioni/)).toBeTruthy());
   });
+
   it('no toast when nothing changed (changeIds empty)', async () => {
-    // answerMeals({ setNote: (input) => ({ week, changeIds: [] }) }): no «Annulla».
+    const { server } = realMealsApp();
+    server.answerMeals({ setNote: () => ({ week: server.currentWeek('2026-10-05'), changeIds: [] }) });
+    const card = await screen.findByRole('article', { name: /Ricetta dal server/ });
+    fireEvent.click(within(card).getByRole('button', { name: /Modifica/ }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Nota' }));
+    fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: 'Salva' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Annulla' })).toBeNull();
   });
 });
 ```
 
-Write each body with `vi.advanceTimersByTimeAsync(6000)` for the timeout and the real-client
-harness of `MenuPage.test.tsx` for the server answers; assert on `server.mealCalls`.
+The test server exposes `weekReads` (every `menu.getWeek` input) and `currentWeek(startsOn)`
+(the stored week) besides `mealCalls` and `answerMeals`: add them in Task 8's `rpcServer.ts`
+changes if they are not there yet. Imports: `realMealsApp` from `./testApp`, `ORPCError` from
+`@orpc/server`, the timers setup of Task 10.
+
 
 - [ ] **Step 2: Run** `npm test -w web -- UndoToast` — Expected: FAIL.
 
