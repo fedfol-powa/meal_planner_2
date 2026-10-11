@@ -5,6 +5,7 @@ import { agentsContract } from './agents/index.ts';
 import { catalogueContract } from './catalogue/index.ts';
 import { familyContract } from './family/index.ts';
 import { profileContract } from './profile/index.ts';
+import { mealsContract } from './meals/index.ts';
 import { menuContract } from './menu/operations.ts';
 import { ratingsContract } from './recipes/ratings.ts';
 import { recipesContract } from './recipes/recipes.ts';
@@ -29,6 +30,7 @@ export const contract = {
 	profile: profileContract,
 	family: familyContract,
 	menu: menuContract,
+	meals: mealsContract,
 	catalogue: catalogueContract,
 	agents: agentsContract,
 	...shoppingContract,

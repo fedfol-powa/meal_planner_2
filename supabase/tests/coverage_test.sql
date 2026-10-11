@@ -38,7 +38,7 @@ select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE') order by 1),
 	array['can_access_list', 'can_access_slot', 'can_access_week', 'catalogue_author_names', 'connected_agents', 'has_role', 'is_family_admin',
-		'is_localized_list', 'is_localized_text', 'is_member', 'meal_passed_at', 'recipe_is_cited', 'recipe_version_at',
+		'is_localized_list', 'is_localized_text', 'is_member', 'meal_action_restores_closed_draft', 'meal_passed_at', 'recipe_is_cited', 'recipe_version_at',
 		'session_is_active', 'shares_family', 'unit_dimension'],
 	'authenticated executes only authorisation and pure functions');
 select is(
@@ -46,6 +46,10 @@ select is(
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_job', p.oid, 'EXECUTE') order by 1),
 	array['is_localized_list', 'is_localized_text', 'meal_passed_at', 'recipe_version_at', 'unit_dimension'],
 	'app_job executes only pure functions');
+select is(
+	array(select p.proname::text collate "C" from pg_proc p
+		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_backup', p.oid, 'EXECUTE') order by 1),
+	array['backup_auth_rows'], 'app_backup executes only the export of the users');
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_server', p.oid, 'EXECUTE') order by 1),

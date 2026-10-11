@@ -17,6 +17,12 @@ interface SlotRow {
 	changedAt: string | null;
 	/** null when the author is not (or no longer) a member. */
 	authorName: string | null;
+	/** The last action that changed the slot, with its author and the slots it changed. */
+	actionId: string | null;
+	actorId: string | null;
+	/** Every slot the action changed still has it as last action. */
+	stillLast: boolean;
+	changedSlotIds: string[];
 }
 
 /**
@@ -31,12 +37,21 @@ export async function weekViewOf(context: OperationContext, familyId: string, we
 		select s.id, s.date::text as date, s.meal_type as "mealType", s.recipe_id as "recipeId", s.free_text as "freeText",
 			s.servings, s.note,
 			case when s.updated_by is not null then to_char(s.updated_at at time zone f.time_zone, 'YYYY-MM-DD"T"HH24:MI') end as "changedAt",
-			case when m.user_id is not null then p.display_name end as "authorName"
+			case when m.user_id is not null then p.display_name end as "authorName",
+			s.last_action_id as "actionId",
+			a.actor_id as "actorId",
+			-- jsonb, not an array: the client runs without fetch_types and would get array text.
+			coalesce((select jsonb_agg(c.meal_slot_id order by c.meal_slot_id) from app.meal_changes c where c.action_id = s.last_action_id), '[]') as "changedSlotIds",
+			not exists (
+				select 1 from app.meal_changes c join app.meal_slots o on o.id = c.meal_slot_id
+				where c.action_id = s.last_action_id and o.last_action_id is distinct from s.last_action_id
+			) as "stillLast"
 		from app.meal_slots s
 		join app.weeks w on w.id = s.week_id
 		join app.families f on f.id = w.family_id
 		left join app.family_members m on m.family_id = w.family_id and m.user_id = s.updated_by
 		left join app.profiles p on p.user_id = s.updated_by
+		left join app.meal_actions a on a.id = s.last_action_id
 		where s.week_id = ${week.id}
 		order by s.date, s.meal_type desc`;
 	const versions = new Map((await mealRecipeVersionsAt(tx, familyId, week.id, context.now)).map((v) => [v.slotId, v]));
@@ -62,7 +77,15 @@ export async function weekViewOf(context: OperationContext, familyId: string, we
 			note: slot.note,
 			rating: view?.rating ?? null,
 			canOpenRecipe: view !== undefined && view.status !== 'draft',
-			lastChange: slot.changedAt ? { userName: slot.authorName, at: slot.changedAt } : null,
+			lastChange: slot.changedAt
+				? {
+						userName: slot.authorName,
+						at: slot.changedAt,
+						actionId: slot.actionId,
+						undoable: slot.actionId !== null && slot.actorId === context.userId && slot.stillLast,
+						slotIds: slot.actionId ? slot.changedSlotIds : [],
+					}
+				: null,
 		};
 	});
 	return {

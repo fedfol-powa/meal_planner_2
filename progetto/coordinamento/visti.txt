@@ -145,3 +145,9 @@ w1:pX	STATO: DOMANDA #808b5a99
 w1:pX	STATO: DOMANDA #760dd85d
 w1:pX	STATO: DOMANDA #93acac5d
 w1:pC	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/30 #fba51312
+w1:pW	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/29 #b7a3ef30
+w1:pY	STATO: IN_CORSO (CI della PR #31 in esecuzione) #1508ae72
+w1:pY	STATO: IN_CORSO (CI della PR #31 in esecuzione) #1508ae72
+w1:pY	STATO: IN_CORSO (CI della PR #31 in esecuzione) #1508ae72
+w1:pC	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/30 #58e8ac6e
+w1:pX	STATO: SPEC_PIANO_PRONTI #0b7b3a27

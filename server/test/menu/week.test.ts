@@ -84,9 +84,26 @@ describe.skipIf(!hasDatabase)('menu.getWeek', () => {
 		expect(on(meals, '2026-01-14')).toMatchObject({ kind: 'free', freeText: 'Pizza', recipe: null, ingredients: null, rating: null });
 		expect(on(meals, '2026-01-14', 'dinner')).toMatchObject({ kind: 'empty', recipe: null, freeText: null, ingredients: null });
 		expect(week.data.days[2].meals.map((m: any) => m.mealType)).toEqual(['lunch', 'dinner']);
-		expect(on(meals, '2026-01-15').lastChange).toEqual({ userName: null, at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/) });
-		expect(on(meals, '2026-01-16').lastChange.userName).toEqual(expect.any(String));
+		expect(on(meals, '2026-01-15').lastChange).toEqual({
+			userName: null, at: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/), actionId: null, undoable: false, slotIds: [],
+		});
+		expect(on(meals, '2026-01-16').lastChange).toMatchObject({ userName: expect.any(String), actionId: null, undoable: false });
 		expect(on(meals, '2026-01-12', 'dinner').lastChange).toBeNull();
+	});
+
+	it('shows the last action and whether the reader can undo it', async () => {
+		// Owner writes as the server would: action, change row, slot pointer.
+		const fx = menuFixtures(db);
+		const weekId = await fx.insertWeek(familyId, '2026-02-02');
+		const slotId = await fx.insertSlot(weekId, { date: '2026-02-02', mealType: 'lunch', freeText: 'Pizza' });
+		const actionId = crypto.randomUUID();
+		await db.admin`insert into app.meal_actions (id, week_id, actor_id, channel, kind, slot_ids) values (${actionId}, ${weekId}, ${reader.userId}, 'web', 'set_note', array[${slotId}]::uuid[])`;
+		await db.admin`insert into app.meal_changes (meal_slot_id, actor_id, channel, before, after, action_id) values (${slotId}, ${reader.userId}, 'web', '{}', '{}', ${actionId})`;
+		await db.admin`update app.meal_slots set note = 'x', updated_by = ${reader.userId}, updated_at = now(), last_action_id = ${actionId} where id = ${slotId}`;
+		const mine = mealsOf(await read({ familyId, weekStartsOn: '2026-02-02' }));
+		expect(on(mine, '2026-02-02').lastChange).toMatchObject({ actionId, undoable: true, slotIds: [slotId] });
+		const theirs = mealsOf(await readAs(englishReader, { familyId, weekStartsOn: '2026-02-02' }));
+		expect(on(theirs, '2026-02-02').lastChange).toMatchObject({ actionId, undoable: false, slotIds: [slotId] });
 	});
 
 	it('builds one RecipeRef per meal with its servings: different servings, different lines; zero servings at the reference servings', async () => {

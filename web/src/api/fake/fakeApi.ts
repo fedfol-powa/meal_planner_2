@@ -212,7 +212,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
       ingredients: recipe ? lines(recipe, slot.servings, locale) : null, note: slot.note,
       rating: recipe && isPublished ? ratingSummary(recipe.id) : null,
       canOpenRecipe: isPublished,
-      lastChange: slot.updatedBy && slot.updatedAt ? { userName: author, at: slot.updatedAt } : null
+      lastChange: slot.updatedBy && slot.updatedAt ? { userName: author, at: slot.updatedAt, actionId: null, undoable: false, slotIds: [] } : null
     };
   }
   function matches(recipe: DemoRecipe, locale: Locale, needle: string) {

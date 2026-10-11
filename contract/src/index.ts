@@ -1,6 +1,7 @@
 export { checkContract } from './check.ts';
 export { contract, type Contract } from './contract.ts';
 export { commonErrors, errorCodes, errorDefinitions, isErrorCode, type ErrorCode } from './errors.ts';
+export { idSchema } from './id.ts';
 export { localeSchema, locales, type Locale } from './locale.ts';
 export { op, type OperationMeta, type Role, type VersionScope } from './op.ts';
 export { isVersionedOutput, versionedInput, versionedOutput } from './versioned.ts';
@@ -9,6 +10,7 @@ export * from './profile/index.ts';
 export * from './family/index.ts';
 export { menuContract } from './menu/operations.ts';
 export { localDateTimeSchema, type MealView, type OpeningView, type WeekView } from './menu/views.ts';
+export * from './meals/index.ts';
 export * from './shopping/index.ts';
 export * from './catalogue/index.ts';
 export * from './agents/index.ts';

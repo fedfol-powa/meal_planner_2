@@ -4,7 +4,7 @@ import type { Claims } from './auth.ts';
 export type Tx = postgres.TransactionSql;
 
 /** Who a transaction acts as. The technical user `app_server` sees nothing by itself. */
-export type DbIdentity = { kind: 'user'; claims: Claims } | { kind: 'anon' } | { kind: 'job' };
+export type DbIdentity = { kind: 'user'; claims: Claims } | { kind: 'anon' } | { kind: 'job' } | { kind: 'backup' };
 
 /**
  * Runs `fn` in a transaction under the chosen role. `set local` and the `true` flag of
@@ -23,6 +23,11 @@ export async function withDbOn<T>(sql: postgres.Sql, identity: DbIdentity, fn: (
 				break;
 			case 'job':
 				await tx`set local role app_job`;
+				break;
+			case 'backup':
+				// Nightly export: one consistent snapshot of every table, nothing written.
+				await tx`set transaction isolation level repeatable read, read only`;
+				await tx`set local role app_backup`;
 				break;
 		}
 		return fn(tx);

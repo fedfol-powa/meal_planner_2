@@ -20,6 +20,12 @@ export async function loadPlannerInput(tx: Tx, familyId: string, target: Generat
 		select r.id, v.content
 		from app.recipes r join app.recipe_versions v on v.recipe_id = r.id and v.version = r.version
 		where r.status = 'published'`;
+	// Archived recipes cited by the family's meals: neighbours, history and limits, never candidates.
+	const fixed = await tx<{ id: string; content: RecipeDocument }[]>`
+		select r.id, v.content
+		from app.recipes r join app.recipe_versions v on v.recipe_id = r.id and v.version = r.version
+		where r.status = 'archived'
+			and exists (select 1 from app.meal_slots s join app.weeks w on w.id = s.week_id where s.recipe_id = r.id and w.family_id = ${familyId})`;
 	const books = await tx<{ bookId: string }[]>`select book_id as "bookId" from app.family_books where family_id = ${familyId}`;
 	const exclusions = await tx<{ recipeId: string }[]>`select recipe_id as "recipeId" from app.recipe_exclusions where family_id = ${familyId}`;
 	const restrictions = await tx<IngredientRestriction[]>`
@@ -39,6 +45,7 @@ export async function loadPlannerInput(tx: Tx, familyId: string, target: Generat
 		weekStart: target.weekStart,
 		settings: resolveFamilySettings(family.settings),
 		recipes: recipes.map((r) => toPlannerRecipe(r.id, r.content)),
+		fixedRecipes: fixed.map((r) => toPlannerRecipe(r.id, r.content)),
 		ownedBookIds: books.map((b) => b.bookId),
 		exclusions: exclusions.map((e) => e.recipeId),
 		restrictions: [...restrictions],
