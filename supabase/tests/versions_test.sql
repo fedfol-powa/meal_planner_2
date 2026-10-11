@@ -122,6 +122,27 @@ select is(tests.family_version('Rossi'), :rossi::bigint + 1, 'shopping bumps');
 delete from app.family_members where user_id = tests.uid('carla');
 select is(tests.family_version('Bianchi'), :bianchi::bigint + 1, 'membership bumps');
 
+-- Deleting a former member who is only in the change log: the foreign key clears the
+-- actor, and the family sees a new version
+begin;
+select tests.create_user('mario');
+insert into app.family_members (family_id, user_id, role) values (tests.family('Rossi'), tests.uid('mario'), 'member');
+commit;
+begin;
+select tests.login('mario');
+insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
+	values ('a1a1a1a1-0000-4000-8000-0000000000aa', 'c0c0c0c0-0000-4000-8000-000000000001', tests.uid('mario'), 'web', '{}', '{}');
+commit;
+begin;
+delete from app.family_members where user_id = tests.uid('mario');
+commit;
+select tests.family_version('Rossi') as rossi, tests.uid('mario') as mario_id \gset
+begin;
+delete from auth.users where id = :'mario_id';
+commit;
+select is((select actor_id from app.meal_changes where id = 'a1a1a1a1-0000-4000-8000-0000000000aa'), null::uuid, 'actor cleared, change kept');
+select is(tests.family_version('Rossi'), :rossi::bigint + 1, 'clearing the actor bumps the family');
+
 -- Deleting a family cascades through every trigger
 select lives_ok($$delete from app.families where name = 'test-Verdi'$$, 'family deletion with every trigger');
 

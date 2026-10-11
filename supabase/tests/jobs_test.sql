@@ -44,6 +44,8 @@ select throws_ok($$update app.weeks set starts_on = '2026-10-26'$$, '42501', nul
 select throws_ok($$insert into app.weeks (family_id, starts_on) values (tests.family('Bianchi'), '2026-10-19')$$, '23505', null, 'concurrent runs cannot duplicate a week');
 select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi')),
 	'23514', null, 'the job keeps the date check on every family');
+select lives_ok(format($$insert into app.meal_slots (week_id, date, meal_type, recipe_id, servings) values (%L, '2026-10-13', 'lunch', %L, 2)$$, tests.week('Verdi'), tests.recipe('new-draft')),
+	'the import path links a draft to a meal');
 select throws_ok($$update app.families set settings = '{}'$$, '42501', null, 'job does not change families');
 select throws_ok($$delete from app.weeks$$, '42501', null, 'job does not delete weeks');
 

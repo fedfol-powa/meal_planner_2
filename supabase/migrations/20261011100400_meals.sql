@@ -124,7 +124,40 @@ returns integer language sql stable set search_path = '' as $$
 	where recipe_id = p_recipe_id;
 $$;
 
-revoke execute on function app.check_meal_slot_date(), app.can_access_week(uuid), app.can_access_slot(uuid),
+-- A never-published recipe reaches a meal only through the import (app_job or the
+-- owner): users cannot link a draft they could not read, which would open it to
+-- their family. The one exception is a draft already cited by another slot of the
+-- same family (a swap of imported history). Fires only for authenticated (WHEN of
+-- the triggers) and only on weeks the user can access: other weeks fail on the
+-- policy as before.
+create function app.check_meal_slot_recipe()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+	if app.can_access_week(new.week_id)
+		and exists (select 1 from app.recipes r where r.id = new.recipe_id and r.status = 'draft')
+		and not exists (
+			select 1 from app.meal_slots s join app.weeks w on w.id = s.week_id
+			where s.recipe_id = new.recipe_id and s.id <> new.id
+				and w.family_id = (select family_id from app.weeks where id = new.week_id)
+		)
+	then
+		raise exception 'recipe % cannot be linked to a meal', new.recipe_id using errcode = '42501';
+	end if;
+	return new;
+end;
+$$;
+
+create trigger meal_slots_check_recipe_insert
+	before insert on app.meal_slots
+	for each row when (current_user = 'authenticated' and new.recipe_id is not null)
+	execute function app.check_meal_slot_recipe();
+create trigger meal_slots_check_recipe_update
+	before update of recipe_id on app.meal_slots
+	for each row when (current_user = 'authenticated' and new.recipe_id is not null
+		and new.recipe_id is distinct from old.recipe_id)
+	execute function app.check_meal_slot_recipe();
+
+revoke execute on function app.check_meal_slot_date(), app.check_meal_slot_recipe(), app.can_access_week(uuid), app.can_access_slot(uuid),
 	app.week_family_id(uuid), app.slot_family_id(uuid), app.meal_passed_at(date, text, text),
 	app.recipe_version_at(uuid, timestamptz) from public;
 grant execute on function app.can_access_week(uuid), app.can_access_slot(uuid) to authenticated;

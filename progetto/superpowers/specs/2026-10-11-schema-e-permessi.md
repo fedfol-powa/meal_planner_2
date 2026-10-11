@@ -146,6 +146,22 @@ Punti aperti decisi dal coordinatore:
    diventa «al massimo un incremento per transazione; una scrittura senza effetti può
    farlo crescere comunque (invalidazione in più, mai dati sbagliati)».
 
+## Decisioni dopo la review della PR (11 ottobre 2026)
+
+Rilievi di `progetto/coordinamento/revisioni/w2-pr4.md`, decisioni in
+`progetto/coordinamento/messaggi/w2-03-review-pr4.md`:
+
+1. **Bozze collegate ai pasti**: un utente (`authenticated`) non può collegare a un pasto,
+   né inserendolo né cambiandone `recipe_id`, una ricetta in bozza: altrimenti
+   `recipes_read_cited_draft` gliela renderebbe leggibile. Le bozze arrivano ai pasti solo
+   dall'import (`app_job` o proprietario). Unica eccezione: una bozza già citata da un
+   altro slot della stessa famiglia (scambio nello storico importato). Porzioni e note
+   degli slot che la citano restano modificabili. Trigger `BEFORE` limitati a
+   `authenticated` e alle settimane accessibili.
+2. **Autore cancellato nello storico**: quando la chiave esterna azzera
+   `meal_changes.actor_id` cresce il contatore della famiglia (trigger
+   `after update of actor_id`; gli utenti non aggiornano il registro).
+
 ## Struttura di `supabase/`
 
 ```
@@ -340,8 +356,8 @@ scelta fra specifica e generica è del dominio.
 | Tabella | Colonne e vincoli |
 |---|---|
 | `weeks` | `id`; `family_id` on delete cascade; `starts_on` lunedì; univoche (`family_id`, `starts_on`) e (`id`, `family_id`); `generated_at` |
-| `meal_slots` | `id`; `week_id` on delete cascade; `date` dentro la settimana (trigger all'inserimento, con i permessi di chi inserisce: non legge settimane non autorizzate; settimana e data sono poi immutabili); `meal_type` `lunch`/`dinner`; univoca (`week_id`, `date`, `meal_type`); `recipe_id` → `recipes` on delete restrict; `free_text`; non entrambi; `servings` ≥ 0; `note` al massimo 200 caratteri; `updated_by` (null = app), `updated_at` |
-| `meal_changes` | `id` (dal client); `meal_slot_id` on delete cascade; `actor_id`; `channel`; `before`, `after` jsonb; `undoes`; `created_at`; univoca (`id`, `meal_slot_id`); chiave esterna (`undoes`, `meal_slot_id`) → (`id`, `meal_slot_id`) on delete cascade: si annulla solo una modifica dello stesso slot; solo aggiunte |
+| `meal_slots` | `id`; `week_id` on delete cascade; `date` dentro la settimana (trigger all'inserimento, con i permessi di chi inserisce: non legge settimane non autorizzate; settimana e data sono poi immutabili); `meal_type` `lunch`/`dinner`; univoca (`week_id`, `date`, `meal_type`); `recipe_id` → `recipes` on delete restrict, una ricetta in bozza solo dall'import (trigger: gli utenti non la collegano, salvo che la famiglia la citi già); `free_text`; non entrambi; `servings` ≥ 0; `note` al massimo 200 caratteri; `updated_by` (null = app), `updated_at` |
+| `meal_changes` | `id` (dal client); l'azzeramento di `actor_id` alla cancellazione di un utente fa crescere il contatore della famiglia; `meal_slot_id` on delete cascade; `actor_id`; `channel`; `before`, `after` jsonb; `undoes`; `created_at`; univoca (`id`, `meal_slot_id`); chiave esterna (`undoes`, `meal_slot_id`) → (`id`, `meal_slot_id`) on delete cascade: si annulla solo una modifica dello stesso slot; solo aggiunte |
 | `ratings` | PK (`user_id`, `recipe_id`); `user_id` on delete cascade; `stars` 1-5; `updated_at`; non su ricette in bozza (policy) |
 
 Viste:
@@ -445,7 +461,7 @@ Permessi di `authenticated` (lettura e scrittura filtrate dalle policy; per gli
 | `recipe_exclusions` | membri | membri | — | membri |
 | `family_tried_recipes` | membri | amministratori | — | amministratori |
 | `weeks` | membri | membri | membri: `generated_at` | — |
-| `meal_slots` | membri | membri | membri: `recipe_id`, `free_text`, `servings`, `note`, `updated_by`, `updated_at` | — |
+| `meal_slots` | membri | membri (senza collegare ricette in bozza) | membri: `recipe_id`, `free_text`, `servings`, `note`, `updated_by`, `updated_at` | — |
 | `meal_changes` | membri | membri, con `actor_id = auth.uid()` | — | — |
 | `ratings` | propri o di chi condivide una famiglia | propri, non su bozze | propri: `stars`, `updated_at` | propri |
 | `shopping_lists` | membri | membri | membri: `updated_by`, `updated_at` | — |
@@ -527,6 +543,11 @@ Copertura:
   curatore revocato no;
 - controllo della data dello slot con settimana propria, altrui e inesistente e data
   esterna: i due casi non autorizzati danno lo stesso errore;
+- bozze collegate a un pasto da un membro, da un curatore membro e da un ex membro in
+  un'altra famiglia, in inserimento e in modifica: rifiutate; scambio con una bozza già
+  citata e modifica di porzioni e note permessi; l'import le collega;
+- autore presente solo nello storico, cancellato dopo l'uscita: autore azzerato, modifica
+  conservata, contatore della famiglia cresciuto;
 - `undoes` fra slot diversi e fra famiglie rifiutato; cancellazione di una famiglia con
   una catena di annullamenti verificata prima;
 - Anna non sposta un pasto né una settimana fra le sue due famiglie; la bozza citata
@@ -658,5 +679,7 @@ migrazioni (richiesta della review).
 - Nomi degli autori del ricettario leggibili dai curatori con
   `app.catalogue_author_names()` (solo id e nome), senza aprire i profili (sezioni 2 e 8).
 - Bozze chiuse immutabili tranne l'azzeramento degli autori cancellati (sezioni 2 e 8).
+- Le ricette in bozza arrivano ai pasti solo dall'import; gli utenti non le collegano
+  (sezioni 2, 5 e 8).
 - Ambiente locale: CLI di Supabase su Podman, test pgTAP isolati dal seed (sezione 9).
 - Tabelle dell'ondata 3 rimandate (sezione 15).

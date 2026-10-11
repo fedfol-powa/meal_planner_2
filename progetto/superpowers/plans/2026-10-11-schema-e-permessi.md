@@ -1781,6 +1781,32 @@ delete from app.weeks where id = 'b1b1b1b1-0000-4000-8000-000000000001';
 select tests.login('anna');
 select is(tests.affected($$update app.meal_slots set recipe_id = null, free_text = 'Pizza', note = 'swap' where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$), 1::bigint, 'a swap updates the contents');
 
+-- Drafts reach meals only through the import: a member cannot link a draft and so
+-- gain read access to it
+reset role;
+select tests.login('franco');
+select is((select count(*) from app.recipes where id = tests.recipe('new-draft')), 0::bigint, 'Franco cannot read the Rossi draft');
+select throws_ok(format($$update app.meal_slots set recipe_id = %L, free_text = null where id = 'c0c0c0c0-0000-4000-8000-000000000003'$$, tests.recipe('new-draft')),
+	'42501', null, 'a draft cannot be linked to an existing meal');
+select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, recipe_id, servings) values (%L, '2026-10-13', 'dinner', %L, 2)$$, tests.week('Verdi'), tests.recipe('new-draft')),
+	'42501', null, 'nor to a new meal');
+select is((select count(*) from app.recipes where id = tests.recipe('new-draft')), 0::bigint, 'the draft stays hidden');
+select is(tests.affected(format($$update app.meal_slots set recipe_id = %L, free_text = null where id = 'c0c0c0c0-0000-4000-8000-000000000003'$$, tests.recipe('pasta-al-pomodoro'))), 1::bigint, 'a published recipe can be linked');
+-- A curator member cannot link a draft either, though he reads it
+reset role;
+insert into app.family_members (family_id, user_id, role) values (tests.family('Verdi'), tests.uid('dario'), 'member');
+select tests.login('dario');
+select throws_ok(format($$update app.meal_slots set recipe_id = %L where id = 'c0c0c0c0-0000-4000-8000-000000000003'$$, tests.recipe('new-draft')),
+	'42501', null, 'not even a curator links a draft to a meal');
+reset role;
+delete from app.family_members where family_id = tests.family('Verdi') and user_id = tests.uid('dario');
+-- Within Rossi, which already cites the draft: a swap of imported history works, and
+-- servings and notes of the slot citing it stay editable
+select tests.login('bruno');
+select is(tests.affected(format($$update app.meal_slots set recipe_id = %L, free_text = null where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$, tests.recipe('new-draft'))), 1::bigint, 'swap with a draft already cited by the family');
+select is(tests.affected($$update app.meal_slots set servings = 4, note = 'leftovers' where id = 'c0c0c0c0-0000-4000-8000-000000000002'$$), 1::bigint, 'the slot citing the draft stays editable');
+select is(tests.affected(format($$update app.meal_slots set recipe_id = %L, free_text = null where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$, tests.recipe('pasta-al-pomodoro'))), 1::bigint, 'swap back');
+
 -- Change log
 reset role;
 select tests.login('bruno');
@@ -1844,6 +1870,17 @@ set local role authenticated;
 select ok(not app.can_access_week(tests.week('Rossi')), 'after removal, same token');
 select is((select count(*) from app.meal_slots), 0::bigint, 'no meals after removal');
 select is((select count(*) from app.recipes where id = tests.recipe('new-draft')), 0::bigint, 'the cited draft is hidden after removal');
+-- The former member, now in Verdi, cannot bring the draft back with a cached id
+reset role;
+insert into app.family_members (family_id, user_id, role) values (tests.family('Verdi'), tests.uid('bruno'), 'member');
+set local role authenticated;
+select throws_ok(format($$update app.meal_slots set recipe_id = %L, free_text = null where id = 'c0c0c0c0-0000-4000-8000-000000000003'$$, tests.recipe('new-draft')),
+	'42501', null, 'former member: no draft on an update');
+select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, recipe_id, servings) values (%L, '2026-10-14', 'dinner', %L, 2)$$, tests.week('Verdi'), tests.recipe('new-draft')),
+	'42501', null, 'former member: no draft on an insert');
+select is((select count(*) from app.recipes where id = tests.recipe('new-draft')), 0::bigint, 'the draft stays hidden from the former member');
+reset role;
+delete from app.family_members where family_id = tests.family('Verdi') and user_id = tests.uid('bruno');
 
 -- Integrity, as owner
 reset role;
@@ -2013,7 +2050,40 @@ returns integer language sql stable set search_path = '' as $$
 	where recipe_id = p_recipe_id;
 $$;
 
-revoke execute on function app.check_meal_slot_date(), app.can_access_week(uuid), app.can_access_slot(uuid),
+-- A never-published recipe reaches a meal only through the import (app_job or the
+-- owner): users cannot link a draft they could not read, which would open it to
+-- their family. The one exception is a draft already cited by another slot of the
+-- same family (a swap of imported history). Fires only for authenticated (WHEN of
+-- the triggers) and only on weeks the user can access: other weeks fail on the
+-- policy as before.
+create function app.check_meal_slot_recipe()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+	if app.can_access_week(new.week_id)
+		and exists (select 1 from app.recipes r where r.id = new.recipe_id and r.status = 'draft')
+		and not exists (
+			select 1 from app.meal_slots s join app.weeks w on w.id = s.week_id
+			where s.recipe_id = new.recipe_id and s.id <> new.id
+				and w.family_id = (select family_id from app.weeks where id = new.week_id)
+		)
+	then
+		raise exception 'recipe % cannot be linked to a meal', new.recipe_id using errcode = '42501';
+	end if;
+	return new;
+end;
+$$;
+
+create trigger meal_slots_check_recipe_insert
+	before insert on app.meal_slots
+	for each row when (current_user = 'authenticated' and new.recipe_id is not null)
+	execute function app.check_meal_slot_recipe();
+create trigger meal_slots_check_recipe_update
+	before update of recipe_id on app.meal_slots
+	for each row when (current_user = 'authenticated' and new.recipe_id is not null
+		and new.recipe_id is distinct from old.recipe_id)
+	execute function app.check_meal_slot_recipe();
+
+revoke execute on function app.check_meal_slot_date(), app.check_meal_slot_recipe(), app.can_access_week(uuid), app.can_access_slot(uuid),
 	app.week_family_id(uuid), app.slot_family_id(uuid), app.meal_passed_at(date, text, text),
 	app.recipe_version_at(uuid, timestamptz) from public;
 grant execute on function app.can_access_week(uuid), app.can_access_slot(uuid) to authenticated;
@@ -2382,6 +2452,8 @@ select throws_ok($$update app.weeks set starts_on = '2026-10-26'$$, '42501', nul
 select throws_ok($$insert into app.weeks (family_id, starts_on) values (tests.family('Bianchi'), '2026-10-19')$$, '23505', null, 'concurrent runs cannot duplicate a week');
 select throws_ok(format($$insert into app.meal_slots (week_id, date, meal_type, servings) values (%L, '2026-11-30', 'lunch', 2)$$, tests.week('Verdi')),
 	'23514', null, 'the job keeps the date check on every family');
+select lives_ok(format($$insert into app.meal_slots (week_id, date, meal_type, recipe_id, servings) values (%L, '2026-10-13', 'lunch', %L, 2)$$, tests.week('Verdi'), tests.recipe('new-draft')),
+	'the import path links a draft to a meal');
 select throws_ok($$update app.families set settings = '{}'$$, '42501', null, 'job does not change families');
 select throws_ok($$delete from app.weeks$$, '42501', null, 'job does not delete weeks');
 
@@ -2609,6 +2681,27 @@ select is(tests.family_version('Rossi'), :rossi::bigint + 1, 'shopping bumps');
 delete from app.family_members where user_id = tests.uid('carla');
 select is(tests.family_version('Bianchi'), :bianchi::bigint + 1, 'membership bumps');
 
+-- Deleting a former member who is only in the change log: the foreign key clears the
+-- actor, and the family sees a new version
+begin;
+select tests.create_user('mario');
+insert into app.family_members (family_id, user_id, role) values (tests.family('Rossi'), tests.uid('mario'), 'member');
+commit;
+begin;
+select tests.login('mario');
+insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
+	values ('a1a1a1a1-0000-4000-8000-0000000000aa', 'c0c0c0c0-0000-4000-8000-000000000001', tests.uid('mario'), 'web', '{}', '{}');
+commit;
+begin;
+delete from app.family_members where user_id = tests.uid('mario');
+commit;
+select tests.family_version('Rossi') as rossi, tests.uid('mario') as mario_id \gset
+begin;
+delete from auth.users where id = :'mario_id';
+commit;
+select is((select actor_id from app.meal_changes where id = 'a1a1a1a1-0000-4000-8000-0000000000aa'), null::uuid, 'actor cleared, change kept');
+select is(tests.family_version('Rossi'), :rossi::bigint + 1, 'clearing the actor bumps the family');
+
 -- Deleting a family cascades through every trigger
 select lives_ok($$delete from app.families where name = 'test-Verdi'$$, 'family deletion with every trigger');
 
@@ -2752,6 +2845,9 @@ create trigger weeks_version after insert or update or delete on app.weeks
 create trigger meal_slots_version after insert or update or delete on app.meal_slots
 	for each row execute function app.touch_family_version();
 create trigger meal_changes_version after insert on app.meal_changes
+	for each row execute function app.touch_family_version();
+-- Users cannot update the log: this fires when deleting a user clears the actor.
+create trigger meal_changes_actor_version after update of actor_id on app.meal_changes
 	for each row execute function app.touch_family_version();
 create trigger shopping_lists_version after insert or update or delete on app.shopping_lists
 	for each row execute function app.touch_family_version();

@@ -119,6 +119,9 @@ create trigger meal_slots_version after insert or update or delete on app.meal_s
 	for each row execute function app.touch_family_version();
 create trigger meal_changes_version after insert on app.meal_changes
 	for each row execute function app.touch_family_version();
+-- Users cannot update the log: this fires when deleting a user clears the actor.
+create trigger meal_changes_actor_version after update of actor_id on app.meal_changes
+	for each row execute function app.touch_family_version();
 create trigger shopping_lists_version after insert or update or delete on app.shopping_lists
 	for each row execute function app.touch_family_version();
 create trigger shopping_list_checks_version after insert or update or delete on app.shopping_list_checks
