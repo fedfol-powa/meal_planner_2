@@ -48,8 +48,8 @@ export function createSupabaseBackend(
     onChange(listener) {
       // No Supabase calls inside the callback: the library holds a lock while it runs.
       const { data } = auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_OUT') listener(null);
-        else if (session) listener(toUser(session.user));
+        if (event === 'SIGNED_OUT') listener({ type: 'SIGNED_OUT', user: null });
+        else if (session) listener({ type: event, user: { id: session.user.id, email: session.user.email ?? '' } });
       });
       return () => data.subscription.unsubscribe();
     },

@@ -50,16 +50,19 @@ describe('supabase backend', () => {
     expect(await refused.backend.check()).toEqual({ status: 'signedOut' });
     expect(await setup().backend.check()).toEqual({ status: 'signedOut' });
   });
-  it('reports sign-outs and new tokens, ignoring empty initial events', () => {
+  it('reports sign-ins, sign-outs and new tokens with their kind, ignoring empty initial events', () => {
     const { backend, emit } = setup();
     const listener = vi.fn();
     backend.onChange(listener);
     emit('INITIAL_SESSION', null);
     expect(listener).not.toHaveBeenCalled();
-    emit('TOKEN_REFRESHED', { user: { id: 'u1', email: 'a@example.com' } });
-    expect(listener).toHaveBeenLastCalledWith({ id: 'u1', email: 'a@example.com' });
+    const user = { id: 'u1', email: 'a@example.com' };
+    emit('SIGNED_IN', { user });
+    expect(listener).toHaveBeenLastCalledWith({ type: 'SIGNED_IN', user });
+    emit('TOKEN_REFRESHED', { user });
+    expect(listener).toHaveBeenLastCalledWith({ type: 'TOKEN_REFRESHED', user });
     emit('SIGNED_OUT', null);
-    expect(listener).toHaveBeenLastCalledWith(null);
+    expect(listener).toHaveBeenLastCalledWith({ type: 'SIGNED_OUT', user: null });
   });
   it('renews the session once on request', async () => {
     expect(await setup().backend.refresh()).toBe(true);

@@ -106,3 +106,39 @@ describe('identity events (second review, C2)', () => {
     expect(backend.signOutCalls).toBe(1);
   });
 });
+
+describe('closing generation (PR review, C10)', () => {
+  it('ignores a token refresh of the closing user and always ends with the backend sign-out', async () => {
+    const backend = createStubBackend(anna);
+    const { unmount } = render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    await screen.findByText('in:anna:verified');
+    let finishCleanup: () => void = () => {};
+    let done: Promise<void> = Promise.resolve();
+    act(() => {
+      done = auth!.signOut('anna', () => new Promise<void>((resolve) => (finishCleanup = resolve)));
+    });
+    expect(screen.getByText('signedOut')).toBeTruthy();
+    act(() => backend.emit('TOKEN_REFRESHED', anna));
+    act(() => backend.emit('SIGNED_IN', anna));
+    expect(screen.getByText('signedOut')).toBeTruthy();
+    await act(async () => {
+      finishCleanup();
+      await done;
+    });
+    expect(screen.getByText('signedOut')).toBeTruthy();
+    expect(backend.signOutCalls).toBe(1);
+    unmount();
+    // Reopening finds no session to restore.
+    render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    expect(await screen.findByText('signedOut')).toBeTruthy();
+  });
+  it('accepts a new sign-in of the same user once the closing is over', async () => {
+    const backend = createStubBackend(anna);
+    render(<AuthProvider backend={backend}><Probe /></AuthProvider>);
+    await screen.findByText('in:anna:verified');
+    await act(async () => auth!.signOut('anna', async () => undefined));
+    expect(screen.getByText('signedOut')).toBeTruthy();
+    act(() => backend.emit('SIGNED_IN', anna));
+    expect(await screen.findByText('in:anna:verified')).toBeTruthy();
+  });
+});

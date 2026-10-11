@@ -1,4 +1,4 @@
-import type { AuthBackend, AuthUser, SessionCheck, SignInResult } from '../auth/backend';
+import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, SessionCheck, SignInResult } from '../auth/backend';
 
 export interface StubBackend extends AuthBackend {
   nextSignIn: SignInResult;
@@ -6,7 +6,11 @@ export interface StubBackend extends AuthBackend {
   signOutError: Error | null;
   refreshResult: boolean;
   refreshCalls: number;
+  /** A sign-in (user) or a sign-out (null), as Supabase reports them. */
   setUser(user: AuthUser | null): void;
+  /** Any event without changing the session, e.g. a token refresh of the current user. */
+  emit(type: Exclude<AuthEventType, 'SIGNED_OUT'>, user: AuthUser): void;
+  emit(type: 'SIGNED_OUT', user: null): void;
   setCheck(next: SessionCheck): void;
   /** The next check() waits until the returned function answers it (identity not known yet). */
   holdCheck(): (check: SessionCheck) => void;
@@ -17,7 +21,8 @@ export interface StubBackend extends AuthBackend {
 /** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
 export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supabase' = 'supabase'): StubBackend {
   let current: SessionCheck = initial ? { status: 'signedIn', user: initial } : { status: 'signedOut' };
-  const listeners = new Set<(user: AuthUser | null) => void>();
+  const listeners = new Set<(event: AuthEvent) => void>();
+  const send = (event: AuthEvent) => listeners.forEach((listener) => listener(event));
   let heldCheck: Promise<SessionCheck> | null = null;
   let heldRefresh: Promise<boolean> | null = null;
   const backend: StubBackend = {
@@ -29,7 +34,10 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
     refreshCalls: 0,
     setUser(user) {
       current = user ? { status: 'signedIn', user } : { status: 'signedOut' };
-      listeners.forEach((listener) => listener(user));
+      send(user ? { type: 'SIGNED_IN', user } : { type: 'SIGNED_OUT', user: null });
+    },
+    emit(type: AuthEventType, user: AuthUser | null) {
+      send({ type, user } as AuthEvent);
     },
     setCheck(next) {
       current = next;

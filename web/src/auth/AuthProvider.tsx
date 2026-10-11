@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { subscribeConnectivity } from '../lib/connectivity';
-import type { AuthBackend, AuthUser, SessionCheck } from './backend';
+import type { AuthBackend, AuthEvent, AuthUser, SessionCheck } from './backend';
 
 /** loading: identity not known yet, nothing may be closed or deleted (second review, C1). */
 export type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: AuthUser; verified: boolean };
@@ -31,6 +31,8 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
   const stateRef = useRef(state);
   // Identity events are numbered: a check that started before a newer event is dropped (second review, C2).
   const events = useRef(0);
+  // The user whose «Esci» is in progress: their generation is closing, nothing of it may reopen it (PR review, C10).
+  const closing = useRef<string | null>(null);
 
   const commit = useCallback((next: AuthState) => {
     events.current += 1;
@@ -53,7 +55,11 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
   useEffect(() => {
     let active = true;
     runCheck(() => active);
-    const unsubscribe = backend.onChange((user) => commit(user ? { status: 'signedIn', user, verified: true } : { status: 'signedOut' }));
+    const unsubscribe = backend.onChange((event: AuthEvent) => {
+      // Renewals and repeats of the closing session are not sign-ins; another user is.
+      if (event.user && event.user.id === closing.current) return;
+      commit(event.user ? { status: 'signedIn', user: event.user, verified: true } : { status: 'signedOut' });
+    });
     return () => {
       active = false;
       unsubscribe();
@@ -72,14 +78,17 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
   const signOut = useCallback(
     async (userId: string, cleanup: () => Promise<void>) => {
       if (currentUser(stateRef.current) !== userId) return;
+      closing.current = userId;
       commit({ status: 'signedOut' });
-      await cleanup().catch(() => undefined);
-      // Someone else signed in meanwhile (another tab): their session is not ours to end.
-      if (stateRef.current.status !== 'signedOut') return;
       try {
+        await cleanup().catch(() => undefined);
+        // Someone else signed in meanwhile (another tab): their session is not ours to end.
+        if (stateRef.current.status !== 'signedOut') return;
         await backend.signOut();
       } catch {
         // Local data are already gone; the session is over on this device anyway.
+      } finally {
+        if (closing.current === userId) closing.current = null;
       }
     },
     [backend, commit]

@@ -2,13 +2,23 @@ export interface AuthUser { id: string; email: string }
 export type SessionCheck = { status: 'signedIn'; user: AuthUser } | { status: 'unverified'; user: AuthUser } | { status: 'signedOut' };
 export type SignInFailure = 'invalid_credentials' | 'network' | 'unknown';
 export type SignInResult = { ok: true } | { ok: false; reason: SignInFailure };
+/** Supabase's own event kinds: a renewal of the same session must not look like a new sign-in. */
+export type AuthEventType =
+  | 'INITIAL_SESSION'
+  | 'SIGNED_IN'
+  | 'SIGNED_OUT'
+  | 'TOKEN_REFRESHED'
+  | 'USER_UPDATED'
+  | 'PASSWORD_RECOVERY'
+  | 'MFA_CHALLENGE_VERIFIED';
+export type AuthEvent = { type: 'SIGNED_OUT'; user: null } | { type: Exclude<AuthEventType, 'SIGNED_OUT'>; user: AuthUser };
 
 /** What the app needs from authentication; Supabase in real mode, a fixed demo user in fake mode. */
 export interface AuthBackend {
   readonly mode: 'fake' | 'supabase';
   /** unverified: offline with a session that cannot be renewed now (read-only use of the stored copy). */
   check(): Promise<SessionCheck>;
-  onChange(listener: (user: AuthUser | null) => void): () => void;
+  onChange(listener: (event: AuthEvent) => void): () => void;
   signIn(email: string, password: string): Promise<SignInResult>;
   /** This device only; nothing stays stored even when the service cannot be reached. */
   signOut(): Promise<void>;
