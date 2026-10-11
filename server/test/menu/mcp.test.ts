@@ -23,6 +23,8 @@ describe.skipIf(!hasDatabase)('menu reads on MCP', () => {
 		keys = await createTestKeys();
 		app = createApp({ contract, router, keys: () => keys.keys, resourceName: 'test' });
 		user = await db.createUser();
+		const fx = menuFixtures(db);
+		for (let i = 0; i < 20; i++) await fx.publishRecipe();
 	});
 	afterEach(() => vi.useRealTimers());
 	afterAll(() => db?.close());
@@ -34,6 +36,16 @@ describe.skipIf(!hasDatabase)('menu reads on MCP', () => {
 		const menu = list.body.result.tools.filter((t: any) => t.name.startsWith('menu_'));
 		expect(menu.map((t: any) => t.name).sort()).toEqual(['menu_getDates', 'menu_getOpening', 'menu_getWeek']);
 		expect(menu.every((t: any) => t.annotations?.readOnlyHint === true)).toBe(true);
+	});
+
+	it('generates the first week on tools/call', async () => {
+		const familyId = await memberFamily();
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date('2026-10-12T08:00:00Z'));
+		const first = toolBody(await callTool('menu_getOpening', { familyId }));
+		expect(first).toMatchObject({ unchanged: false, data: { kind: 'day', date: '2026-10-12', weekStartsOn: '2026-10-12' } });
+		const [{ weeks }] = await db.admin<{ weeks: number }[]>`select count(*)::int as weeks from app.weeks where family_id = ${familyId}`;
+		expect(weeks).toBe(1);
 	});
 
 	it('changes the opening with the day on tools/call, even with the version of the day before', async () => {

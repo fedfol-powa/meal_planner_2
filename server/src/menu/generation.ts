@@ -1,8 +1,10 @@
 import { resolveFamilySettings } from '@app/domain/family';
-import { addDays, type GenerationTarget, type IngredientRestriction, type PastMeal, type PlannerInput } from '@app/domain/planner';
+import { addDays, generationTargets, mondayOf, type GenerationTarget, type IngredientRestriction, type PastMeal, type PlannerInput } from '@app/domain/planner';
 import { toPlannerRecipe, type RecipeDocument } from '@app/domain/recipe';
 import type { Tx } from '../db.ts';
+import { logEvent } from '../log.ts';
 import { planWeek } from './plan.ts';
+import { familyNow } from './time.ts';
 
 /** Serialises the generations of one family until the end of the transaction (spec section 2, concurrency). */
 export async function lockFamilyWeeks(tx: Tx, familyId: string): Promise<void> {
@@ -66,6 +68,23 @@ export async function generateWeek(tx: Tx, familyId: string, target: GenerationT
 	}));
 	if (rows.length > 0) await tx`insert into app.meal_slots ${tx(rows, 'week_id', 'date', 'meal_type', 'recipe_id', 'free_text', 'servings')}`;
 	return true;
+}
+
+/** Lazy generation (spec section 4.4): lock first, then each target in a savepoint; failures logged, never thrown. */
+export async function ensureWeeks(tx: Tx, familyId: string, now: Date): Promise<void> {
+	await lockFamilyWeeks(tx, familyId);
+	const { local } = await familyNow(tx, familyId, now);
+	const current = mondayOf(local.date);
+	const existing = await tx<{ startsOn: string }[]>`
+		select starts_on::text as "startsOn" from app.weeks
+		where family_id = ${familyId} and starts_on in (${current}, ${addDays(current, 7)})`;
+	for (const target of generationTargets(local, existing.map((w) => w.startsOn))) {
+		try {
+			await tx.savepoint((sp) => generateWeek(sp, familyId, target));
+		} catch (error) {
+			logEvent('lazy_generation_failed', { familyId, weekStart: target.weekStart, code: errorCode(error) });
+		}
+	}
 }
 
 /** Postgres code or error class, never the message. */
