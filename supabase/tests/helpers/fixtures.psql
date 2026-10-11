@@ -1,0 +1,154 @@
+-- Shared test data, extended task by task. Runs as postgres, before any login.
+\ir cleanup.psql
+
+-- People: Anna (Rossi admin, Bianchi member), Bruno (Rossi), Carla (Bianchi admin),
+-- Dario (curator, no family), Elena (app admin, no family), Franco (Verdi admin),
+-- Gina (curator, no family: shares nothing with Dario).
+do $$
+begin
+	perform tests.create_user('anna');
+	perform tests.create_user('bruno');
+	perform tests.create_user('carla');
+	perform tests.create_user('dario');
+	perform tests.create_user('elena');
+	perform tests.create_user('franco', 'en-GB');
+	perform tests.create_user('gina');
+	insert into app.user_roles (user_id, role) values
+		(tests.uid('dario'), 'recipe_curator'),
+		(tests.uid('elena'), 'app_admin'),
+		(tests.uid('gina'), 'recipe_curator');
+end;
+$$;
+
+-- Catalogue: one published recipe with two versions, one archived, one new draft.
+do $$
+declare
+	v_book uuid;
+	v_pasta uuid;
+	v_tomatoes uuid;
+	v_salt uuid;
+	v_recipe uuid;
+	v_draft_recipe uuid;
+	v_draft uuid;
+begin
+	insert into app.books (slug, title) values ('test-cucchiaio', 'Il cucchiaio d''argento') returning id into v_book;
+	insert into app.ingredients (slug, name, department) values
+		('test-pasta', '{"it-IT": "Pasta", "en-GB": "Pasta"}', 'pasta_grains') returning id into v_pasta;
+	insert into app.ingredients (slug, name, synonyms, department) values
+		('test-tomatoes', '{"it-IT": "Pomodori", "en-GB": "Tomatoes"}', '{"it-IT": ["pomodoro"], "en-GB": ["tomato"]}', 'produce')
+		returning id into v_tomatoes;
+	insert into app.ingredients (slug, name, department, is_pantry) values
+		('test-salt', '{"it-IT": "Sale", "en-GB": "Salt"}', 'condiments', true) returning id into v_salt;
+	insert into app.ingredient_versions (ingredient_id, version, content, changed_by, channel)
+		values (v_pasta, 1, '{}', tests.uid('dario'), 'import');
+
+	insert into app.recipes (
+		slug, status, version, name, description, source_type, duration_minutes, base_servings,
+		protein_group, is_fresh_fish, carbohydrate_group, has_vegetables, category, meal_type, is_heavy
+	) values (
+		'test-pasta-al-pomodoro', 'published', 2,
+		'{"it-IT": "Pasta al pomodoro", "en-GB": "Tomato pasta"}',
+		'{"it-IT": "Classica", "en-GB": "A classic"}',
+		'home', 20, 2, 'vegetarian', false, 'pasta', true, 'pan', 'both', false
+	) returning id into v_recipe;
+	insert into app.recipe_ingredients (recipe_id, position, ingredient_id, quantity_kind, quantity, unit, source_text, is_primary) values
+		(v_recipe, 0, v_pasta, 'amount', 200, 'g', 'Pasta: 200 g', true),
+		(v_recipe, 1, v_tomatoes, 'amount', 400, 'g', 'Pomodori: 400 g', false),
+		(v_recipe, 2, v_salt, 'to_taste', null, null, 'Sale: q.b.', false);
+	insert into app.recipe_versions (recipe_id, version, content, published_by, published_at, channel) values
+		(v_recipe, 1, '{}', tests.uid('dario'), '2026-10-01 10:00+02', 'import'),
+		(v_recipe, 2, '{}', tests.uid('dario'), '2026-10-10 10:00+02', 'mcp');
+	insert into app.recipe_status_changes (recipe_id, status, changed_by, channel)
+		values (v_recipe, 'published', tests.uid('dario'), 'import');
+
+	insert into app.recipes (
+		slug, status, version, name, description, source_type, book_id, book_pages, duration_minutes, base_servings,
+		protein_group, is_fresh_fish, carbohydrate_group, has_vegetables, category, meal_type, is_heavy, archived_at
+	) values (
+		'test-old-minestrone', 'archived', 1,
+		'{"it-IT": "Minestrone", "en-GB": "Minestrone"}', '{"it-IT": "Di verdure", "en-GB": "Vegetable soup"}',
+		'book', v_book, '120', 60, 4, 'legumes', false, 'none', true, 'soup', 'dinner', false, now()
+	);
+
+	insert into app.recipes (slug, name) values
+		('test-new-draft', '{"it-IT": "Bozza nuova", "en-GB": null}') returning id into v_draft_recipe;
+	insert into app.recipe_drafts (recipe_id, kind, content, revision, created_by, updated_by)
+		values (v_draft_recipe, 'new', '{}', 1, tests.uid('dario'), tests.uid('dario')) returning id into v_draft;
+	insert into app.recipe_draft_saves (draft_id, revision, content, saved_by, channel)
+		values (v_draft, 1, '{}', tests.uid('dario'), 'mcp');
+end;
+$$;
+
+-- Families: test-Rossi (Anna admin, Bruno), test-Bianchi (Carla admin, Anna), test-Verdi (Franco admin).
+do $$
+declare
+	v_rossi uuid;
+	v_bianchi uuid;
+	v_verdi uuid;
+begin
+	insert into app.families (name) values ('test-Rossi') returning id into v_rossi;
+	insert into app.families (name, measurement_system, time_zone) values ('test-Bianchi', 'uk_imperial', 'Europe/London')
+		returning id into v_bianchi;
+	insert into app.families (name) values ('test-Verdi') returning id into v_verdi;
+	insert into app.family_members (family_id, user_id, role) values
+		(v_rossi, tests.uid('anna'), 'family_admin'),
+		(v_rossi, tests.uid('bruno'), 'member'),
+		(v_bianchi, tests.uid('carla'), 'family_admin'),
+		(v_bianchi, tests.uid('anna'), 'member'),
+		(v_verdi, tests.uid('franco'), 'family_admin');
+	insert into app.family_books (family_id, book_id) values (v_rossi, (select id from app.books where slug = 'test-cucchiaio'));
+	insert into app.family_ingredients (family_id, ingredient_id, restriction)
+		values (v_rossi, tests.ingredient('tomatoes'), 'avoid');
+	insert into app.recipe_exclusions (family_id, recipe_id, created_by)
+		values (v_verdi, tests.recipe('old-minestrone'), tests.uid('franco'));
+	insert into app.family_tried_recipes (family_id, recipe_id, source)
+		values (v_rossi, tests.recipe('pasta-al-pomodoro'), 'import');
+end;
+$$;
+
+-- Week of Monday 12 October 2026: Rossi with the pasta and the new draft, Verdi free.
+-- Slots have fixed ids, used by the tests:
+--   c0c0c0c0-0000-4000-8000-000000000001  Rossi, Monday lunch (pasta)
+--   c0c0c0c0-0000-4000-8000-000000000002  Rossi, Monday dinner (new draft)
+--   c0c0c0c0-0000-4000-8000-000000000003  Verdi, Monday lunch (pizza)
+do $$
+declare
+	v_rossi_week uuid;
+	v_verdi_week uuid;
+begin
+	insert into app.weeks (family_id, starts_on, generated_at)
+		values (tests.family('Rossi'), '2026-10-12', now()) returning id into v_rossi_week;
+	insert into app.weeks (family_id, starts_on)
+		values (tests.family('Verdi'), '2026-10-12') returning id into v_verdi_week;
+	insert into app.meal_slots (id, week_id, date, meal_type, recipe_id, servings) values
+		('c0c0c0c0-0000-4000-8000-000000000001', v_rossi_week, '2026-10-12', 'lunch', tests.recipe('pasta-al-pomodoro'), 2),
+		('c0c0c0c0-0000-4000-8000-000000000002', v_rossi_week, '2026-10-12', 'dinner', tests.recipe('new-draft'), 2);
+	insert into app.meal_slots (id, week_id, date, meal_type, free_text, servings)
+		values ('c0c0c0c0-0000-4000-8000-000000000003', v_verdi_week, '2026-10-12', 'lunch', 'Pizza', 3);
+	insert into app.meal_changes (id, meal_slot_id, actor_id, channel, before, after)
+		values ('a1a1a1a1-0000-4000-8000-000000000001', 'c0c0c0c0-0000-4000-8000-000000000001', tests.uid('anna'), 'web', '{}', '{}');
+	insert into app.ratings (user_id, recipe_id, stars) values
+		(tests.uid('anna'), tests.recipe('pasta-al-pomodoro'), 5),
+		(tests.uid('bruno'), tests.recipe('pasta-al-pomodoro'), 3),
+		(tests.uid('carla'), tests.recipe('pasta-al-pomodoro'), 4),
+		(tests.uid('franco'), tests.recipe('pasta-al-pomodoro'), 1);
+end;
+$$;
+
+-- Rossi shopping list for the week of 12 October, two temporary lists for Bring!.
+do $$
+declare
+	v_list uuid;
+begin
+	insert into app.shopping_lists (family_id, week_id, updated_by)
+		values (tests.family('Rossi'), tests.week('Rossi'), tests.uid('anna'))
+		returning id into v_list;
+	insert into app.shopping_list_checks (shopping_list_id, ingredient_id, variety_key, quantity_at_check, checked_by)
+		values (v_list, tests.ingredient('tomatoes'), '', '{"mass_g": 400}', tests.uid('anna'));
+	insert into app.shopping_list_items (shopping_list_id, text, created_by)
+		values (v_list, 'Caffè', tests.uid('bruno'));
+	insert into app.temporary_lists (token, family_id, items, created_by, expires_at) values
+		('test-valid-token', tests.family('Rossi'), '["400 g Pomodori"]', tests.uid('anna'), now() + interval '30 minutes'),
+		('test-expired-token', tests.family('Rossi'), '["1 Caffè"]', tests.uid('anna'), now() - interval '1 minute');
+end;
+$$;
