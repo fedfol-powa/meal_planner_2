@@ -300,6 +300,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Produces: `scaleQuantity(q: Quantity, servings: number, baseServings: number): Quantity`;
   `EquivalenceScope`, `UnitEquivalence`, `unitEquivalenceSchema`,
   `applyRecipeEquivalence(q: Quantity, eq: UnitEquivalence): Amount`,
+  `assertUnambiguousEquivalences(equivalences: readonly UnitEquivalence[]): void`,
   `toPurchaseUnit(q: Quantity, equivalences: readonly UnitEquivalence[]): Quantity`
   (il chiamante passa solo le equivalenze dell'ingrediente).
 
@@ -333,7 +334,7 @@ describe('scaleQuantity', () => {
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { applyRecipeEquivalence, toPurchaseUnit, unitEquivalenceSchema, type UnitEquivalence } from './equivalence.ts';
+import { applyRecipeEquivalence, assertUnambiguousEquivalences, toPurchaseUnit, unitEquivalenceSchema, type UnitEquivalence } from './equivalence.ts';
 
 const cheddar: UnitEquivalence = {
 	ingredientId: 'cheddar', fromUnit: 'us_cup', toUnit: 'g', factor: 113, scope: 'recipe',
@@ -371,6 +372,29 @@ describe('toPurchaseUnit', () => {
 	});
 });
 
+describe('ambiguous equivalences', () => {
+	// Synthetic factors: two conversions from the same dimension that disagree.
+	const perGram: UnitEquivalence = { ingredientId: 'x', fromUnit: 'g', toUnit: 'piece', factor: 0.01, scope: 'shopping', source: 'synthetic' };
+	const perKilo: UnitEquivalence = { ...perGram, fromUnit: 'kg', factor: 20 };
+	it('are refused whatever their order', () => {
+		expect(() => toPurchaseUnit({ kind: 'amount', value: 100, unit: 'g' }, [perGram, perKilo])).toThrow(/Ambiguous/);
+		expect(() => toPurchaseUnit({ kind: 'amount', value: 100, unit: 'g' }, [perKilo, perGram])).toThrow(/Ambiguous/);
+		expect(() => assertUnambiguousEquivalences([perKilo, perGram])).toThrow(/Ambiguous/);
+	});
+	it('are fine across dimensions, scopes, counted codes and ingredients', () => {
+		expect(() =>
+			assertUnambiguousEquivalences([
+				perGram,
+				{ ...perGram, fromUnit: 'ml' },
+				{ ...perGram, fromUnit: 'kg', scope: 'recipe' },
+				{ ...perGram, fromUnit: 'bunch' },
+				{ ...perGram, fromUnit: 'slice' },
+				{ ...perGram, ingredientId: 'y', fromUnit: 'kg' }
+			])
+		).not.toThrow();
+	});
+});
+
 describe('unitEquivalenceSchema', () => {
 	it('requires a positive factor and a source', () => {
 		expect(unitEquivalenceSchema.parse(cheddar)).toEqual(cheddar);
@@ -403,7 +427,7 @@ export function scaleQuantity(q: Quantity, servings: number, baseServings: numbe
 
 ```ts
 import { z } from 'zod';
-import { BASE_FACTOR, UNIT_DIMENSION, type MeasuredUnit, type UnitCode } from './codes.ts';
+import { BASE_FACTOR, UNIT_DIMENSION, isMassUnit, isVolumeUnit, type MeasuredUnit, type UnitCode } from './codes.ts';
 import { unitCodeSchema, type Amount, type Quantity } from './quantity.ts';
 
 /** `recipe`: applied when curating or importing (US cups); `shopping`: how the ingredient is bought. */
@@ -428,6 +452,22 @@ export function applyRecipeEquivalence(q: Quantity, eq: UnitEquivalence): Amount
 	return { kind: 'amount', value: q.value * eq.factor, unit: eq.toUnit };
 }
 
+/** Masses and volumes convert within their dimension; spoons, counts and cups only per code. */
+const sourceKey = (unit: UnitCode): string => (isMassUnit(unit) || isVolumeUnit(unit) ? UNIT_DIMENSION[unit] : unit);
+
+/**
+ * At most one equivalence per ingredient, scope and source dimension (agreed with the schema,
+ * which enforces it too): otherwise the result would depend on the order of the array.
+ */
+export function assertUnambiguousEquivalences(equivalences: readonly UnitEquivalence[]): void {
+	const seen = new Set<string>();
+	for (const eq of equivalences) {
+		const key = `${eq.ingredientId}|${eq.scope}|${sourceKey(eq.fromUnit)}`;
+		if (seen.has(key)) throw new Error(`Ambiguous ${eq.scope} equivalences for ${eq.ingredientId} from ${sourceKey(eq.fromUnit)}`);
+		seen.add(key);
+	}
+}
+
 /** How many `from` units one `unit` is, when both measure the same thing; null otherwise. */
 function ratio(unit: UnitCode, from: UnitCode): number | null {
 	if (unit === from) return 1;
@@ -440,6 +480,7 @@ function ratio(unit: UnitCode, from: UnitCode): number | null {
  * `equivalences` are those of the line's ingredient; recipe-scope ones are ignored.
  */
 export function toPurchaseUnit(q: Quantity, equivalences: readonly UnitEquivalence[]): Quantity {
+	assertUnambiguousEquivalences(equivalences);
 	if (q.kind !== 'amount') return q;
 	for (const eq of equivalences) {
 		if (eq.scope !== 'shopping') continue;
@@ -473,11 +514,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Test: `domain/src/units/combined.test.ts`
 
 **Interfaces:**
-- Consumes: `Quantity`, `COUNTED_UNITS`, `CountedUnit`, `BASE_FACTOR`, `isMassUnit`, `isVolumeUnit`.
+- Consumes: `Quantity`, `translatedTextSchema`, `COUNTED_UNITS`, `CountedUnit`, `BASE_FACTOR`, `isMassUnit`, `isVolumeUnit`.
 - Produces: `CombinedQuantity` (`mass_g: number | null`, `volume_ml: number | null`,
-  `counts: Partial<Record<CountedUnit, number>>`, `texts: string[]`, `to_taste: boolean`),
-  `combinedQuantitySchema`, `emptyCombined()`, `addQuantity(c, q): CombinedQuantity`,
-  `exceeds(now, before): boolean`.
+  `counts: Partial<Record<CountedUnit, number>>`, `texts: { key: string; text: Translated }[]`,
+  `to_taste: boolean`), `combinedQuantitySchema`, `textKey(text: string): string`,
+  `emptyCombined()`, `addQuantity(c, q): CombinedQuantity`, `exceeds(now, before): boolean`.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
@@ -485,12 +526,13 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { addQuantity, combinedQuantitySchema, emptyCombined, exceeds, type CombinedQuantity } from './combined.ts';
+import { addQuantity, combinedQuantitySchema, emptyCombined, exceeds, textKey, type CombinedQuantity } from './combined.ts';
 import type { Quantity } from './quantity.ts';
 import type { UnitCode } from './codes.ts';
 
 const amount = (value: number, unit: UnitCode): Quantity => ({ kind: 'amount', value, unit });
-const bunch: Quantity = { kind: 'text', text: { 'it-IT': '1 mazzetto', 'en-GB': '1 bunch' } };
+const bunchText = { 'it-IT': '1 mazzetto', 'en-GB': '1 bunch' };
+const bunch: Quantity = { kind: 'text', text: bunchText };
 const combine = (...quantities: Quantity[]): CombinedQuantity => quantities.reduce(addQuantity, emptyCombined());
 
 describe('addQuantity', () => {
@@ -504,9 +546,10 @@ describe('addQuantity', () => {
 		expect(c.counts).toEqual({ clove: 4.5, tbsp: 2, piece: 1 });
 		expect(c.volume_ml).toBe(30);
 	});
-	it('keeps texts once by their Italian key and notes to taste', () => {
-		const c = combine(bunch, { kind: 'to_taste' }, bunch);
-		expect(c.texts).toEqual(['1 mazzetto']);
+	it('keeps texts once by their normalised Italian key, with both languages, and notes to taste', () => {
+		const c = combine(bunch, { kind: 'to_taste' }, bunch, { kind: 'text', text: { 'it-IT': '1  Mazzetto', 'en-GB': '1 Bunch' } });
+		expect(c.texts).toEqual([{ key: '1 mazzetto', text: bunchText }]);
+		expect(textKey(' 1 Mazzétto ')).toBe('1 mazzetto');
 		expect(c.to_taste).toBe(true);
 		expect(c.mass_g).toBeNull();
 	});
@@ -530,8 +573,9 @@ describe('exceeds', () => {
 
 describe('combinedQuantitySchema', () => {
 	it('round-trips the stored shape and rejects unknown codes', () => {
-		const stored = { mass_g: 340, volume_ml: null, counts: { piece: 2, tbsp: 1.5 }, texts: ['1 mazzetto'], to_taste: true };
+		const stored = { mass_g: 340, volume_ml: null, counts: { piece: 2, tbsp: 1.5 }, texts: [{ key: '1 mazzetto', text: bunchText }], to_taste: true };
 		expect(combinedQuantitySchema.parse(stored)).toEqual(stored);
+		expect(combinedQuantitySchema.safeParse({ ...stored, texts: ['1 mazzetto'] }).success).toBe(false);
 		expect(combinedQuantitySchema.safeParse({ ...stored, counts: { cup: 1 } }).success).toBe(false);
 		expect(combinedQuantitySchema.safeParse({ ...stored, mass_g: -1 }).success).toBe(false);
 	});
@@ -550,7 +594,7 @@ Expected: FAIL, `./combined.ts` non trovato.
 ```ts
 import { z } from 'zod';
 import { BASE_FACTOR, COUNTED_UNITS, isMassUnit, isVolumeUnit } from './codes.ts';
-import type { Quantity } from './quantity.ts';
+import { translatedTextSchema, type Quantity } from './quantity.ts';
 
 /**
  * Sum of an ingredient's quantities, never rounded (spec section 6). Also the stored shape of
@@ -560,19 +604,26 @@ export const combinedQuantitySchema = z.object({
 	mass_g: z.number().nonnegative().nullable(),
 	volume_ml: z.number().nonnegative().nullable(),
 	counts: z.partialRecord(z.enum(COUNTED_UNITS), z.number().nonnegative()),
-	/** Italian wording of non-numeric quantities, the key of their translations. */
-	texts: z.array(z.string()),
+	/**
+	 * Non-numeric quantities in both languages as they were: a tick shows its old quantity in the
+	 * viewer's language even after the lines changed. `key` (normalised Italian) is what `exceeds` compares.
+	 */
+	texts: z.array(z.object({ key: z.string().min(1), text: translatedTextSchema })),
 	to_taste: z.boolean()
 });
 export type CombinedQuantity = z.infer<typeof combinedQuantitySchema>;
 
 export const emptyCombined = (): CombinedQuantity => ({ mass_g: null, volume_ml: null, counts: {}, texts: [], to_taste: false });
 
+/** Comparison key of a non-numeric quantity: case, accents and spacing ignored. */
+export const textKey = (text: string): string =>
+	text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+
 export function addQuantity(c: CombinedQuantity, q: Quantity): CombinedQuantity {
 	if (q.kind === 'to_taste') return { ...c, to_taste: true };
 	if (q.kind === 'text') {
-		const key = q.text['it-IT'];
-		return c.texts.includes(key) ? c : { ...c, texts: [...c.texts, key] };
+		const key = textKey(q.text['it-IT']);
+		return c.texts.some((t) => t.key === key) ? c : { ...c, texts: [...c.texts, { key, text: q.text }] };
 	}
 	const { value, unit } = q;
 	if (isMassUnit(unit)) return { ...c, mass_g: (c.mass_g ?? 0) + value * BASE_FACTOR[unit] };
@@ -589,7 +640,7 @@ export function exceeds(now: CombinedQuantity, before: CombinedQuantity): boolea
 		grew(now.mass_g, before.mass_g) ||
 		grew(now.volume_ml, before.volume_ml) ||
 		COUNTED_UNITS.some((unit) => grew(now.counts[unit], before.counts[unit])) ||
-		now.texts.some((text) => !before.texts.includes(text)) ||
+		now.texts.some((t) => !before.texts.some((b) => b.key === t.key)) ||
 		(now.to_taste && !before.to_taste)
 	);
 }
@@ -691,6 +742,33 @@ describe('counted units', () => {
 		expect(presentCount(0.05, 'piece', 'shopping')).toEqual({ value: 1, unit: 'piece' });
 		expect(presentCount(0.3, 'bunch', 'shopping')).toEqual({ value: 1, unit: 'bunch' });
 		expect(presentCount(1.25, 'clove', 'shopping')).toEqual({ value: 1.5, unit: 'clove' });
+		expect(presentCount(1.09, 'piece', 'shopping')).toEqual({ value: 1, unit: 'piece' });
+		expect(presentCount(1.1, 'piece', 'shopping')).toEqual({ value: 1, unit: 'piece' });
+		expect(presentCount(1.11, 'piece', 'shopping')).toEqual({ value: 2, unit: 'piece' });
+	});
+});
+
+describe('thresholds: below, at and above each one (the unit is chosen after rounding)', () => {
+	const OZ = 28.349523125;
+	const FL_OZ = 28.4130625;
+	it.each([
+		[4.4, 'metric', 4, 'g'], [5, 'metric', 5, 'g'],
+		[49, 'metric', 50, 'g'], [50, 'metric', 50, 'g'], [54, 'metric', 50, 'g'], [55, 'metric', 60, 'g'],
+		[994, 'metric', 990, 'g'], [995, 'metric', 1, 'kg'], [1005, 'metric', 1, 'kg'],
+		[14, 'uk_imperial', 15, 'g'], [OZ / 2, 'uk_imperial', 0.5, 'oz'], [20, 'uk_imperial', 0.5, 'oz'],
+		[3.7 * OZ, 'uk_imperial', 3.5, 'oz'], [4 * OZ, 'uk_imperial', 4, 'oz'], [4.3 * OZ, 'uk_imperial', 4, 'oz'],
+		[15.4 * OZ, 'uk_imperial', 15, 'oz'], [15.6 * OZ, 'uk_imperial', 1, 'lb'], [16 * OZ, 'uk_imperial', 1, 'lb'], [17 * OZ, 'uk_imperial', 1, 'lb']
+	] as const)('mass %d g in %s → %d %s', (grams, system, value, unit) => {
+		expect(presentMass(grams, system)).toEqual({ value, unit });
+	});
+	it.each([
+		[994, 'metric', 990, 'ml'], [995, 'metric', 1, 'l'], [1005, 'metric', 1, 'l'],
+		[14, 'uk_imperial', 3, 'tsp'], [15, 'uk_imperial', 1, 'tbsp'], [16, 'uk_imperial', 1, 'tbsp'],
+		[44, 'uk_imperial', 3, 'tbsp'], [45, 'uk_imperial', 3, 'tbsp'], [46, 'uk_imperial', 1.5, 'uk_fl_oz'],
+		[3.9 * FL_OZ, 'uk_imperial', 4, 'uk_fl_oz'], [4 * FL_OZ, 'uk_imperial', 4, 'uk_fl_oz'], [4.3 * FL_OZ, 'uk_imperial', 4, 'uk_fl_oz'],
+		[19.4 * FL_OZ, 'uk_imperial', 19, 'uk_fl_oz'], [19.6 * FL_OZ, 'uk_imperial', 1, 'uk_pint'], [20 * FL_OZ, 'uk_imperial', 1, 'uk_pint'], [21 * FL_OZ, 'uk_imperial', 1, 'uk_pint']
+	] as const)('volume %d ml in %s → %d %s', (millilitres, system, value, unit) => {
+		expect(presentVolume(millilitres, system)).toEqual({ value, unit });
 	});
 });
 
@@ -777,7 +855,8 @@ export function presentVolume(millilitres: number, system: MeasurementSystem): P
 }
 
 export function presentCount(value: number, unit: CountedUnit, rounding: CountRounding): PresentedAmount {
-	if (rounding === 'shopping' && BOUGHT_WHOLE.has(unit)) return { value: Math.max(1, Math.ceil(value - PIECE_TOLERANCE)), unit };
+	// Up to 0.1 left over is ignored, 0.1 included (1.1 → 1): the epsilon absorbs 1.1 - 0.1 = 1.0000000000000002.
+	if (rounding === 'shopping' && BOUGHT_WHOLE.has(unit)) return { value: Math.max(1, Math.ceil(value - PIECE_TOLERANCE - 1e-9)), unit };
 	switch (unit) {
 		case 'tbsp':
 		case 'tsp':
@@ -825,7 +904,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Produces: `UNIT_LABELS: Record<Locale, Record<UnitCode, [string, string]>>`,
   `TO_TASTE: Translated`, `formatAmount(amount: PresentedAmount, locale): string`,
   `formatQuantity(q: Quantity, system, locale): string`,
-  `FormatOptions` (`system`, `locale`, `rounding?`, `texts?: Readonly<Record<string, Translated>>`),
+  `FormatOptions` (`system`, `locale`, `rounding?`),
   `formatCombined(c: CombinedQuantity, options: FormatOptions): string`; `units/index.ts` riesporta tutto.
 
 - [ ] **Step 1: Scrivi i test che falliscono**
@@ -884,12 +963,8 @@ describe('formatCombined', () => {
 	});
 	it('lists incompatible parts in a fixed order: mass, volume, counted units, texts, to taste', () => {
 		const c = combine(amount(2, 'piece'), amount(100, 'ml'), { kind: 'to_taste' }, skeins, amount(50, 'g'));
-		const texts = { '3 matasse': skeinsText };
-		expect(formatCombined(c, { system: 'metric', locale: 'it-IT', texts })).toBe('50 g + 100 ml + 2 + 3 matasse + q.b.');
-		expect(formatCombined(c, { system: 'metric', locale: 'en-GB', texts })).toBe('50 g + 100 ml + 2 + 3 nests + to taste');
-	});
-	it('falls back to the Italian key when a text has no translation', () => {
-		expect(formatCombined(combine(skeins), { system: 'metric', locale: 'en-GB' })).toBe('3 matasse');
+		expect(formatCombined(c, { system: 'metric', locale: 'it-IT' })).toBe('50 g + 100 ml + 2 + 3 matasse + q.b.');
+		expect(formatCombined(c, { system: 'metric', locale: 'en-GB' })).toBe('50 g + 100 ml + 2 + 3 nests + to taste');
 	});
 	it('presents the sum in UK imperial', () => {
 		expect(formatCombined(combine(amount(400, 'g'), amount(400, 'g')), { system: 'uk_imperial', locale: 'en-GB' })).toBe('1¾ lb');
@@ -959,7 +1034,7 @@ export const TO_TASTE: Translated = { 'it-IT': 'q.b.', 'en-GB': 'to taste' };
 import { COUNTED_UNITS, ML_PER_UK_TBSP, ML_PER_UK_TSP, type CountedUnit, type UnitCode } from './codes.ts';
 import type { CombinedQuantity } from './combined.ts';
 import { TO_TASTE, UNIT_LABELS } from './labels.ts';
-import type { Locale, Translated } from './locale.ts';
+import type { Locale } from './locale.ts';
 import { presentAmount, presentCount, presentMass, presentVolume, type CountRounding, type MeasurementSystem, type PresentedAmount } from './present.ts';
 import type { Quantity } from './quantity.ts';
 
@@ -996,12 +1071,10 @@ export interface FormatOptions {
 	system: MeasurementSystem;
 	locale: Locale;
 	rounding?: CountRounding;
-	/** Translations of the non-numeric texts, by Italian key. */
-	texts?: Readonly<Record<string, Translated>>;
 }
 
 /** A sum, converted and rounded only now: "50 g + 100 ml + 2 + q.b." (spec section 6). */
-export function formatCombined(c: CombinedQuantity, { system, locale, rounding = 'recipe', texts = {} }: FormatOptions): string {
+export function formatCombined(c: CombinedQuantity, { system, locale, rounding = 'recipe' }: FormatOptions): string {
 	const parts: string[] = [];
 	let merged: CountedUnit | null = null;
 	if (c.mass_g !== null) parts.push(formatAmount(presentMass(c.mass_g, system), locale));
@@ -1019,7 +1092,7 @@ export function formatCombined(c: CombinedQuantity, { system, locale, rounding =
 		const value = c.counts[unit];
 		if (value !== undefined && unit !== merged) parts.push(formatAmount(presentCount(value, unit, rounding), locale));
 	}
-	parts.push(...c.texts.map((key) => texts[key]?.[locale] ?? key));
+	parts.push(...c.texts.map((t) => t.text[locale]));
 	if (c.to_taste) parts.push(TO_TASTE[locale]);
 	return parts.join(' + ');
 }
@@ -1215,10 +1288,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `ShoppingListInput { meals: readonly ShoppingMeal[]; ingredients: ReadonlyMap<string, ShoppingIngredient>; equivalences: readonly UnitEquivalence[]; avoided: ReadonlySet<string> }`
   - `ShoppingSource { slotId; date; mealType; recipeId: string; recipeName: Translated; quantity: Quantity }`
   - `Exclusion = 'avoid' | 'pantry'`
-  - `ConsolidatedItem { key: string; ingredientId: string; varietyKey: string; name: Translated; variety: Translated | null; department: Department; combined: CombinedQuantity; textTranslations: Record<string, Translated>; isOptional: boolean; sources: ShoppingSource[]; excluded: Exclusion | null }`
+  - `ConsolidatedItem { key: string; ingredientId: string; varietyKey: string; name: Translated; variety: Translated | null; department: Department; combined: CombinedQuantity; isOptional: boolean; sources: ShoppingSource[]; excluded: Exclusion | null }`
   - `SkippedMeal { slotId: string; recipeId: string; recipeName: Translated }`
   - `ConsolidatedList { mealCount: number; items: ConsolidatedItem[]; skipped: SkippedMeal[] }`
-  - `consolidateShoppingList(input: ShoppingListInput): ConsolidatedList`
+  - `consolidateShoppingList(input: ShoppingListInput): ConsolidatedList` (lancia un errore per
+    equivalenze ambigue o ingredienti assenti dal catalogo)
 
 - [ ] **Step 1: Scrivi i test che falliscono**
 
@@ -1334,8 +1408,7 @@ describe('consolidateShoppingList', () => {
 		const list = consolidateShoppingList(input([
 			meal('s1', '2026-10-12', 'lunch', 2, recipe('a', [line('parsley', bunch), line('oil', { kind: 'to_taste' })]))
 		]));
-		expect(item(list, 'parsley~').combined.texts).toEqual(['1 mazzetto abbondante']);
-		expect(item(list, 'parsley~').textTranslations).toEqual({ '1 mazzetto abbondante': t('1 mazzetto abbondante', '1 large bunch') });
+		expect(item(list, 'parsley~').combined.texts).toEqual([{ key: '1 mazzetto abbondante', text: t('1 mazzetto abbondante', '1 large bunch') }]);
 		expect(item(list, 'oil~').combined.to_taste).toBe(true);
 	});
 
@@ -1367,6 +1440,11 @@ describe('consolidateShoppingList', () => {
 		expect(item(list, 'tomato~').sources.map((s) => s.slotId)).toEqual(['lunch', 'dinner', 'next']);
 	});
 
+	it('refuses ambiguous shopping equivalences before computing', () => {
+		const perKilo: UnitEquivalence = { ...lemonJuice, fromUnit: 'kg', factor: 1000 / 47 };
+		expect(() => consolidateShoppingList(input([meal('s1', '2026-10-12', 'lunch', 2, null)], { equivalences: [lemonJuice, perKilo] }))).toThrow(/Ambiguous/);
+	});
+
 	it('fails on an ingredient missing from the catalogue', () => {
 		expect(() => consolidateShoppingList(input([meal('s1', '2026-10-12', 'lunch', 2, recipe('a', [line('ghost', amount(1, 'piece'))]))]))).toThrow(/ghost/);
 	});
@@ -1384,7 +1462,7 @@ Expected: FAIL, `./consolidate.ts` non trovato.
 
 ```ts
 import { addQuantity, emptyCombined, type CombinedQuantity } from '../units/combined.ts';
-import { toPurchaseUnit, type UnitEquivalence } from '../units/equivalence.ts';
+import { assertUnambiguousEquivalences, toPurchaseUnit, type UnitEquivalence } from '../units/equivalence.ts';
 import type { Translated } from '../units/locale.ts';
 import type { Quantity } from '../units/quantity.ts';
 import { scaleQuantity } from '../units/scale.ts';
@@ -1453,8 +1531,6 @@ export interface ConsolidatedItem {
 	variety: Translated | null;
 	department: Department;
 	combined: CombinedQuantity;
-	/** Translations of `combined.texts`, by Italian key. */
-	textTranslations: Record<string, Translated>;
 	isOptional: boolean;
 	sources: ShoppingSource[];
 	excluded: Exclusion | null;
@@ -1476,7 +1552,6 @@ interface Entry {
 	ingredientId: string;
 	varietyKey: string;
 	combined: CombinedQuantity;
-	textTranslations: Record<string, Translated>;
 	isOptional: boolean;
 	spellings: Map<string, { variety: Translated; uses: number }>;
 	sources: ShoppingSource[];
@@ -1493,6 +1568,7 @@ function mostUsed(spellings: Entry['spellings']): Translated | null {
 
 /** Steps 1-6 of the shopping list generation (spec section 6); presentation is in arrange.ts. */
 export function consolidateShoppingList(input: ShoppingListInput): ConsolidatedList {
+	assertUnambiguousEquivalences(input.equivalences);
 	const meals = [...input.meals].sort((a, b) => a.date.localeCompare(b.date) || MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType]);
 	const entries = new Map<string, Entry>();
 	const skipped: SkippedMeal[] = [];
@@ -1512,12 +1588,11 @@ export function consolidateShoppingList(input: ShoppingListInput): ConsolidatedL
 			const key = itemKey(line.ingredientId, variety);
 			const entry: Entry = entries.get(key) ?? {
 				ingredientId: line.ingredientId, varietyKey: variety, combined: emptyCombined(),
-				textTranslations: {}, isOptional: true, spellings: new Map(), sources: []
+				isOptional: true, spellings: new Map(), sources: []
 			};
 			const scaled = scaleQuantity(line.quantity, meal.servings, recipe.baseServings);
 			const equivalences = input.equivalences.filter((e) => e.ingredientId === line.ingredientId);
 			entry.combined = addQuantity(entry.combined, toPurchaseUnit(scaled, equivalences));
-			if (scaled.kind === 'text') entry.textTranslations[scaled.text['it-IT']] ??= scaled.text;
 			entry.isOptional &&= line.isOptional;
 			if (variety && line.variety) {
 				const spelling = JSON.stringify([line.variety['it-IT'], line.variety['en-GB']]);
@@ -1540,7 +1615,6 @@ export function consolidateShoppingList(input: ShoppingListInput): ConsolidatedL
 			variety: mostUsed(entry.spellings),
 			department: ingredient.department,
 			combined: entry.combined,
-			textTranslations: entry.textTranslations,
 			isOptional: entry.isOptional,
 			sources: entry.sources,
 			excluded: input.avoided.has(entry.ingredientId) ? 'avoid' : ingredient.isPantry ? 'pantry' : null
@@ -1608,7 +1682,8 @@ const ingredients = new Map<string, ShoppingIngredient>([
 	['pepper', { name: t('Peperone', 'Pepper'), department: 'produce', isPantry: false }],
 	['lemon', { name: t('Limone', 'Lemon'), department: 'produce', isPantry: false }],
 	['oil', { name: t('Olio', 'Oil'), department: 'condiments', isPantry: true }],
-	['anchovy', { name: t('Acciughe', 'Anchovies'), department: 'tinned', isPantry: false }]
+	['anchovy', { name: t('Acciughe', 'Anchovies'), department: 'tinned', isPantry: false }],
+	['parsley', { name: t('Prezzemolo', 'Parsley'), department: 'produce', isPantry: false }]
 ]);
 const line = (ingredientId: string, quantity: Quantity, variety: Translated | null = null): ShoppingRecipeLine => ({
 	ingredientId, variety, quantity, isOptional: false
@@ -1675,6 +1750,22 @@ describe('arrangeShoppingList', () => {
 		const checks = [{ ingredientId: 'tomato', varietyKey: 'roma', quantityAtCheck: combine(amount(200, 'g')) }];
 		const arranged = arrange({ checks, system: 'uk_imperial', locale: 'en-GB' });
 		expect(view(arranged, 'tomato~roma')).toMatchObject({ checked: true, quantity: '7 oz', name: 'Tomatoes Roma' });
+	});
+
+	it('shows the ticked quantity in the viewer language even after its text was replaced', () => {
+		const changed = consolidateShoppingList({
+			meals: [{ slotId: 's1', date: '2026-10-12', mealType: 'lunch', servings: 2, recipe: { id: 'a', name: t('Ricetta a', 'Recipe a'), baseServings: 2, lines: [
+				line('parsley', { kind: 'text', text: t('2 mazzetti abbondanti', '2 large bunches') })
+			] } }],
+			ingredients,
+			equivalences: [],
+			avoided: new Set()
+		});
+		const checks = [{ ingredientId: 'parsley', varietyKey: '', quantityAtCheck: combine({ kind: 'text', text: t('1 mazzetto abbondante', '1 large bunch') }) }];
+		const english = arrangeShoppingList(changed, { checks, addedBack: [], system: 'metric', locale: 'en-GB' });
+		expect(view(english, 'parsley~')).toMatchObject({ checked: false, quantity: '2 large bunches', previousQuantity: '1 large bunch' });
+		const italian = arrangeShoppingList(changed, { checks, addedBack: [], system: 'metric', locale: 'it-IT' });
+		expect(view(italian, 'parsley~')).toMatchObject({ quantity: '2 mazzetti abbondanti', previousQuantity: '1 mazzetto abbondante' });
 	});
 
 	it('puts excluded items back in their department when added back', () => {
@@ -1774,7 +1865,7 @@ export const displayName = (name: Translated, variety: Translated | null, locale
 	variety ? `${name[locale]} ${variety[locale]}` : name[locale];
 
 function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, system: MeasurementSystem, locale: Locale): ShoppingItemView {
-	const options = { system, locale, rounding: 'shopping' as const, texts: item.textTranslations };
+	const options = { system, locale, rounding: 'shopping' as const };
 	const grew = checked !== undefined && exceeds(item.combined, checked);
 	return {
 		key: item.key,

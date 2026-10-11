@@ -49,7 +49,11 @@ riceve dati già caricati e restituisce dati.
    limoni) applicate a ogni calcolo della lista.
 4. **Reparti** definiti in `domain/src/shopping/departments.ts`, importati da W2 e W3.
 5. **`shopping_list_checks.quantity_at_check`**: forma canonica `CombinedQuantity`
-   (sezione 5) con schema zod esportato dal dominio, usato da W2 e dal server (W1).
+   (sezione 5) con schema zod esportato dal dominio, usato da W2 e dal server (W1). Dopo
+   la review di spec e piano conserva anche i testi bilingui del momento della spunta.
+6. **Equivalenze univoche** (review di spec e piano): al massimo una equivalenza per
+   ingrediente, ambito e dimensione dell'unità di partenza (sezione 4); W2 lo garantisce
+   con un vincolo, il dominio rifiuta con un errore le configurazioni ambigue.
 
 ## 3. Codici delle unità
 
@@ -89,6 +93,12 @@ che le usa si converte in gestione, come una confezione.
   la parte della quantità nella dimensione di `fromUnit` (massa e volume in unità base,
   conteggi per codice): 50 g di succo con «1 limone = 47 g» diventano 50/47 `piece`.
   Il resto della quantità resta com'è.
+- **Invariante:** al massimo una equivalenza per (ingrediente, ambito, dimensione
+  dell'unità di partenza). Massa e volume sono una dimensione ciascuno (`g` e `kg` sono la
+  stessa); spoon, conteggi e tazza contano per codice (`bunch` e `slice` sono distinte).
+  Altrimenti il risultato dipenderebbe dall'ordine delle equivalenze (`g → piece` e
+  `kg → piece` con fattori incoerenti). `assertUnambiguousEquivalences` lancia un errore;
+  `toPurchaseUnit` e il consolidamento la applicano sempre.
 
 ## 5. Somma: `CombinedQuantity`
 
@@ -97,13 +107,18 @@ Forma canonica, senza arrotondamenti, salvata anche in `quantity_at_check`:
 ```json
 { "mass_g": 340, "volume_ml": null,
   "counts": { "piece": 2, "tbsp": 1.5 },
-  "texts": ["1 mazzetto"], "to_taste": true }
+  "texts": [{ "key": "1 mazzetto",
+               "text": { "it-IT": "1 mazzetto", "en-GB": "1 bunch" } }],
+  "to_taste": true }
 ```
 
 - `mass_g`, `volume_ml`: somma nelle unità base o null;
 - `counts`: unità `spoon`, `count` e `us_cup` per codice;
-- `texts`: chiave italiana dei testi non numerici, senza duplicati; le traduzioni per la
-  presentazione arrivano con le righe (sezione 7);
+- `texts`: testi non numerici senza duplicati, ciascuno con `key` (il testo italiano
+  normalizzato: maiuscole, accenti e spazi ignorati), usata da `exceeds`, e `text`, il testo
+  nelle due lingue. Una spunta è così autosufficiente: la quantità precedente si mostra
+  nella lingua di chi guarda anche se nel frattempo le righe hanno cambiato testo (review
+  di spec e piano);
 - `to_taste`: almeno una riga «q.b.».
 
 Funzioni: `emptyCombined`, `addQuantity(c, q)`, `exceeds(now, before)` (vero se una
@@ -148,7 +163,8 @@ si mostrano sommati («3 tbsp», non «2 tbsp + 1 tbsp»), arrotondando la somma
 calcolo resta separato: `volume_ml` e `counts.tbsp` non si fondono in `CombinedQuantity`.
 
 **Lista della spesa** (pezzi interi, tolleranza 0,1 per gli avanzi delle conversioni):
-`piece`, `bunch`, `slice` per eccesso all'intero (½ peperone → 1, 2,06 limoni → 2,
+`piece`, `bunch`, `slice` per eccesso all'intero, ignorando un avanzo fino a 0,1 compreso
+(½ peperone → 1, 2,06 limoni → 2, 1,1 → 1, 1,11 → 2,
 2,2 → 3, minimo 1); `clove`, `sprig`, `leaf`, `pinch` al mezzo come nella ricetta.
 Ricetta, scheda del pasto e provenienza delle voci restano nelle unità della ricetta
 (con la conversione di sistema, senza unità di acquisto né pezzi interi).
@@ -195,8 +211,10 @@ numerici nella lingua di chi guarda.
 
 Un `ingredientId` assente da `ingredients` è un dato incoerente: errore.
 
-**Uscita:** `items` (chiave, ingrediente, varietà, reparto, somma, testi bilingui dei
-testi non numerici, opzionale, provenienze, esclusione), `skipped`, `mealCount`.
+Le equivalenze ambigue (sezione 4) fanno lanciare un errore prima del calcolo.
+
+**Uscita:** `items` (chiave, ingrediente, varietà, reparto, somma, opzionale, provenienze,
+esclusione), `skipped`, `mealCount`.
 
 ## 8. Stato e presentazione della lista
 
@@ -218,7 +236,10 @@ Le voci libere le aggiunge il chiamante nella sezione «Altro».
 
 ## 9. Esportazioni
 
-`shoppingExportText(arranged, { locale, manualItems })`: titolo con il numero di pasti,
+`shoppingExport(list, manualItems?)`, dove `list` è il risultato di
+`arrangeShoppingList`, già presentato in una lingua e in un sistema: l'esportazione usa
+quella lingua (`list.locale`). Per esportare in un'altra lingua si ripete prima
+`arrangeShoppingList` con l'altra lingua. Contenuto: titolo con il numero di pasti,
 reparti con le voci non spuntate «quantità nome (facoltativo)», voci libere non spuntate in
 «Altro»; restituisce anche le righe «quantità nome» per Bring! e PDF. Etichette dei
 reparti, «facoltativo» e titolo in `it-IT` e `en-GB`, definiti nel dominio perché li usano
@@ -297,7 +318,10 @@ Farne a meno vorrebbe dire scrivere a mano la validazione e duplicarla nel contr
   `shopping` a ogni calcolo della lista (sezioni 2 e 6).
 - Reparti: codici `produce`, `butcher`, `fish`, `chilled`, `bakery`, `pasta_grains`,
   `tinned`, `frozen`, `condiments`, `other` definiti in `domain/src/shopping/` (sezione 2).
-- `quantity_at_check` nella forma canonica `CombinedQuantity` (sezione 2); la vista della
-  lista espone la quantità canonica di ogni voce, che il client invia con la spunta.
+- `quantity_at_check` nella forma canonica `CombinedQuantity`, con i testi non numerici
+  bilingui del momento della spunta (sezione 2); la vista della lista espone la quantità
+  canonica di ogni voce, che il client invia con la spunta.
+- Al massimo una equivalenza per ingrediente, ambito e dimensione dell'unità di partenza,
+  con vincolo nel database e controllo nel dominio (sezioni 2 e 6).
 - Etichette di unità e reparti in `domain/`, condivise da server e web (sezione 12).
 - Sezione 15, «Misure»: chiusa da questo documento.
