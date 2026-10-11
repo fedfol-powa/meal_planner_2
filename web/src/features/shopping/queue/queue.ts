@@ -162,7 +162,7 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
       await mutate((record) => ({ next: { ...record, ops: record.ops.filter((o) => o.op.input.familyId !== familyId) }, value: null }));
       // As a read refused for the family: it leaves the device and the profile is read again.
       session.revoke(familyId);
-      void session.queryClient.invalidateQueries({ queryKey: ['me'] });
+      void session.queryClient.invalidateQueries({ queryKey: ['profile', 'get'] });
       return 'continue';
     }
     if (code === 'invalid' || code === 'not_found' || code === 'conflict') {

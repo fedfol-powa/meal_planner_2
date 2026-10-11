@@ -7,7 +7,7 @@ import { setOnline } from '../../test/connectivity';
 import { renderApp } from '../../test/renderApp';
 import { createStubBackend } from '../../test/stubBackend';
 import { createMemoryStore } from '../../api/persister';
-import { grams, item, listView, MONDAY, ops, RICE, TOMATO } from './fixtures';
+import { FAMILY, grams, item, listView, MONDAY, ops, RICE, TOMATO } from './fixtures';
 import { queueKey } from './storage';
 import { createShoppingServer } from './testServer';
 
@@ -151,6 +151,26 @@ describe('shopping page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Azioni della lista' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /^Bring!/ }));
     expect(server.createLink).not.toHaveBeenCalled();
+  });
+
+  it('reads the list of the family of the profile (PR #18)', async () => {
+    const server = createShoppingServer(undefined, FAMILY);
+    const family = { id: FAMILY, name: 'Famiglia Rossi', timeZone: 'Europe/Rome', measurementSystem: 'metric' as const, role: 'member' as const };
+    const api = (locale: 'it-IT' | 'en-GB') => {
+      const base = server.api(locale);
+      return {
+        ...base,
+        profile: {
+          ...base.profile,
+          get: async () => ({ user: { id: DEMO_USER.id, displayName: 'Anna', email: DEMO_USER.email, locale, globalRoles: [] }, families: [family], currentFamilyId: FAMILY })
+        }
+      } as typeof base;
+    };
+    renderApp(PATH, { createApi: () => (locale) => api(locale), backend: createStubBackend(DEMO_USER) });
+    await screen.findByRole('heading', { level: 1 });
+    expect(server.reads).toHaveBeenCalledWith(expect.objectContaining({ familyId: FAMILY, weekStartsOn: MONDAY }));
+    fireEvent.click(tomatoBox());
+    await waitFor(() => expect(server.applied[0]).toMatchObject({ input: { familyId: FAMILY } }));
   });
 
   it('shows an empty state for a week without a menu, with the way back', async () => {

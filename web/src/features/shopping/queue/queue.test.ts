@@ -259,10 +259,13 @@ describe('shopping queue', () => {
     await queue.add(ops.tick(TOMATO), 'Pomodori');
     await queue.add(ops.tick(RICE, grams(300), OTHER_FAMILY), 'Riso');
     await queue.add(ops.add(X, 'Pane'), 'Pane');
+    session.queryClient.setQueryData(['profile', 'get', { locale: 'it-IT' }], { version: 'v', data: {} });
     setOnline(true);
     server.failNext(new ApiError('forbidden'));
     await queue.flush();
     expect(session.isRevoked(FAMILY)).toBe(true);
+    // Like a refused read: the profile is read again (W2's key, PR #18).
+    expect(session.queryClient.getQueryState(['profile', 'get', { locale: 'it-IT' }])?.isInvalidated).toBe(true);
     expect(server.send.mock.calls.map(([op]) => op.input.familyId)).toEqual([FAMILY, OTHER_FAMILY]);
     expect(queue.record().ops).toEqual([]);
   });

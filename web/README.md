@@ -22,7 +22,7 @@ linguaggio visivo in `../design/design.md`.
 - **Finta** (nessuna variabile): utente demo Federico nella Famiglia Folloni, nessun accesso.
 - **Vera**: `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (per lo sviluppo, dallo
   stack locale: `supabase status`). Accesso con email e password. Le aree elencate in
-  `SERVER_AREAS` (`src/api/types.ts`, oggi `session` e `shopping`) arrivano dal Worker con il client
+  `SERVER_AREAS` (`src/api/types.ts`, oggi `session`, `profile` e `shopping`) arrivano dal Worker con il client
   oRPC (`/api/rpc`, token di Supabase a ogni richiesta); le altre restano sul client finto
   finché il loro produttore non le aggiunge al contratto e all'elenco.
 - In sviluppo e in anteprima `/api` va al Worker locale (`npm run dev -w server`, porta
