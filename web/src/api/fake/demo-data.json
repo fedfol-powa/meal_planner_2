@@ -1732,7 +1732,6 @@
    "baseServings": 6,
    "mealType": "dinner",
    "proteinGroup": "white_meat",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -1855,7 +1854,6 @@
    "baseServings": null,
    "mealType": "dinner",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": []
   },
@@ -1878,7 +1876,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -1987,8 +1984,7 @@
    "durationMinutes": 25,
    "baseServings": null,
    "mealType": "dinner",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "red_meat",
    "addedOn": "2026-09-07",
    "ingredients": []
   },
@@ -2011,7 +2007,6 @@
    "baseServings": null,
    "mealType": "lunch",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": []
   },
@@ -2034,7 +2029,6 @@
    "baseServings": 3,
    "mealType": "dinner",
    "proteinGroup": "eggs",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -2102,7 +2096,6 @@
    "baseServings": 2,
    "mealType": "lunch",
    "proteinGroup": "eggs",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -2234,7 +2227,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -2347,8 +2339,7 @@
    "durationMinutes": 20,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "eggs",
-   "photo": null,
+   "proteinGroup": "legumes",
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -2526,7 +2517,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": [
     {
@@ -2617,7 +2607,6 @@
    "baseServings": null,
    "mealType": "dinner",
    "proteinGroup": "legumes",
-   "photo": null,
    "addedOn": "2026-09-07",
    "ingredients": []
   },
@@ -2640,7 +2629,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "eggs",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -2733,7 +2721,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -2856,8 +2843,7 @@
    "durationMinutes": 30,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "vegetarian",
-   "photo": null,
+   "proteinGroup": "cheese",
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -2914,7 +2900,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -2960,8 +2945,7 @@
    "durationMinutes": 15,
    "baseServings": 4,
    "mealType": "dinner",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "red_meat",
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3007,7 +2991,6 @@
    "baseServings": 4,
    "mealType": "both",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3104,7 +3087,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3179,7 +3161,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -3246,8 +3227,7 @@
    "durationMinutes": 30,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": null,
-   "photo": null,
+   "proteinGroup": "cured_meat",
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -3355,8 +3335,7 @@
    "durationMinutes": 30,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "meat",
-   "photo": "/assets/recipe-images/pasta-zucca-salsiccia-robiola.jpg",
+   "proteinGroup": "red_meat",
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3462,7 +3441,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -3539,7 +3517,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "vegetarian",
-   "photo": "/assets/recipe-images/pasta-crema-peperoni.jpg",
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3645,7 +3622,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3689,7 +3665,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3724,7 +3699,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "white_meat",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3767,8 +3741,7 @@
    "durationMinutes": 20,
    "baseServings": 1,
    "mealType": "both",
-   "proteinGroup": "vegetarian",
-   "photo": null,
+   "proteinGroup": "legumes",
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -3925,7 +3898,6 @@
    "baseServings": 1,
    "mealType": "both",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -4049,8 +4021,7 @@
    "durationMinutes": 25,
    "baseServings": 2,
    "mealType": "dinner",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "red_meat",
    "addedOn": "2026-09-14",
    "ingredients": [
     {
@@ -4175,7 +4146,6 @@
    "baseServings": 2,
    "mealType": "dinner",
    "proteinGroup": "eggs",
-   "photo": null,
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -4259,7 +4229,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "white_meat",
-   "photo": null,
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -4375,7 +4344,6 @@
    "baseServings": 2,
    "mealType": "dinner",
    "proteinGroup": "legumes",
-   "photo": null,
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -4461,7 +4429,6 @@
    "baseServings": 2,
    "mealType": "lunch",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -4559,8 +4526,7 @@
    "durationMinutes": 30,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "eggs",
    "addedOn": "2026-09-21",
    "ingredients": [
     {
@@ -4669,8 +4635,7 @@
    "durationMinutes": 25,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "legumes",
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -4738,7 +4703,6 @@
    "baseServings": 2,
    "mealType": "dinner",
    "proteinGroup": "white_meat",
-   "photo": null,
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -4816,7 +4780,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -4906,8 +4869,7 @@
    "durationMinutes": 15,
    "baseServings": 4,
    "mealType": "dinner",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "red_meat",
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -5003,8 +4965,7 @@
    "durationMinutes": 25,
    "baseServings": 2,
    "mealType": "lunch",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "red_meat",
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -5070,7 +5031,6 @@
    "baseServings": 4,
    "mealType": "both",
    "proteinGroup": "legumes",
-   "photo": null,
    "addedOn": "2026-09-28",
    "ingredients": [
     {
@@ -5216,8 +5176,7 @@
    "durationMinutes": 30,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "meat",
-   "photo": "/assets/recipe-images/pasta-robiola-speck.jpg",
+   "proteinGroup": "cured_meat",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5284,8 +5243,7 @@
    "durationMinutes": 15,
    "baseServings": 4,
    "mealType": "lunch",
-   "proteinGroup": "vegetarian",
-   "photo": "/assets/recipe-images/pasta-ricotta-zafferano.jpg",
+   "proteinGroup": "cheese",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5352,7 +5310,6 @@
    "baseServings": 4,
    "mealType": "both",
    "proteinGroup": "fish",
-   "photo": null,
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5473,7 +5430,6 @@
    "baseServings": 4,
    "mealType": "both",
    "proteinGroup": "vegetarian",
-   "photo": null,
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5637,8 +5593,7 @@
    "durationMinutes": 40,
    "baseServings": 4,
    "mealType": "both",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "red_meat",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5737,7 +5692,6 @@
    "baseServings": 4,
    "mealType": "dinner",
    "proteinGroup": "white_meat",
-   "photo": "/assets/recipe-images/pollo-corn-flakes.jpg",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5888,8 +5842,7 @@
    "durationMinutes": 15,
    "baseServings": 4,
    "mealType": "both",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "cured_meat",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -5986,7 +5939,6 @@
    "baseServings": 2,
    "mealType": "dinner",
    "proteinGroup": "legumes",
-   "photo": "/assets/recipe-images/riso-ceci-spinaci-mandorle.jpg",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6212,7 +6164,6 @@
    "baseServings": 3,
    "mealType": "lunch",
    "proteinGroup": "legumes",
-   "photo": "/assets/recipe-images/spaghetti-riso-tofu-verdure-wok.jpg",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6363,8 +6314,7 @@
    "durationMinutes": 25,
    "baseServings": 1,
    "mealType": "both",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "cured_meat",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6443,7 +6393,6 @@
    "baseServings": 1,
    "mealType": "both",
    "proteinGroup": "legumes",
-   "photo": null,
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6518,7 +6467,6 @@
    "baseServings": 1,
    "mealType": "both",
    "proteinGroup": "legumes",
-   "photo": null,
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6594,8 +6542,7 @@
    "durationMinutes": 25,
    "baseServings": 1,
    "mealType": "both",
-   "proteinGroup": "vegetarian",
-   "photo": null,
+   "proteinGroup": "cheese",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6672,7 +6619,6 @@
    "baseServings": 4,
    "mealType": "lunch",
    "proteinGroup": "legumes",
-   "photo": "/assets/recipe-images/wrap-fagioli-neri-cheddar.jpg",
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6807,7 +6753,6 @@
    "baseServings": 2,
    "mealType": "both",
    "proteinGroup": "eggs",
-   "photo": null,
    "addedOn": "2026-10-05",
    "ingredients": [
     {
@@ -6864,8 +6809,7 @@
    "durationMinutes": 15,
    "baseServings": 2,
    "mealType": "dinner",
-   "proteinGroup": "meat",
-   "photo": null,
+   "proteinGroup": "eggs",
    "addedOn": "2026-10-05",
    "ingredients": [
     {

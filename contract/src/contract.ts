@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { localeSchema } from './locale.ts';
 import { op } from './op.ts';
+import { ratingsContract } from './recipes/ratings.ts';
 
 export const contract = {
 	session: {
@@ -16,6 +17,7 @@ export const contract = {
 				}),
 			),
 	},
+	ratings: ratingsContract,
 };
 
 export type Contract = typeof contract;

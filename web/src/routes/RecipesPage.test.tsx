@@ -34,6 +34,17 @@ describe('recipes', () => {
     expect(toggle.getAttribute('data-active')).toBe('true');
     expect(screen.queryByRole('heading', { name: new RegExp(WOK.slice(0, 20)) })).toBeNull();
   });
+  it('filters by the eight protein groups of the planner', async () => {
+    const { history } = renderApp('/recipes');
+    fireEvent.click(await screen.findByRole('button', { name: 'Filtri e ordinamento' }));
+    const select = screen.getByLabelText('Gruppo alimentare') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual(
+      ['Tutti', 'Pesce', 'Carne bianca', 'Carne rossa', 'Salumi', 'Legumi', 'Uova', 'Formaggi', 'Vegetariano']
+    );
+    fireEvent.change(select, { target: { value: 'cured_meat' } });
+    await waitFor(() => expect(history.location.search).toContain('group=cured_meat'));
+    expect(await screen.findByRole('heading', { name: /Pasta robiola e speck/ })).toBeTruthy();
+  });
   it('offers to clear filters when nothing matches', async () => {
     const { history } = renderApp('/recipes?q=zzzz');
     expect(await screen.findByRole('heading', { name: 'Nessuna ricetta trovata' })).toBeTruthy();

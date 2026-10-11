@@ -1,4 +1,4 @@
-import type { Locale, OperationMeta } from '@app/contract';
+import type { Contract, Locale, OperationMeta } from '@app/contract';
 import type { AnyContractRouter } from '@orpc/contract';
 import { implement, type RouterImplementer } from '@orpc/server';
 import { channelOf, KeySourceError, type Channel, type Claims } from './auth.ts';
@@ -105,3 +105,6 @@ export function createImplementer<C extends AnyContractRouter>(contract: C) {
 		});
 	});
 }
+
+/** The implementer built once in router.ts and handed to the area factories. */
+export type Implementer = ReturnType<typeof createImplementer<Contract>>;

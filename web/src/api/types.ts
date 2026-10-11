@@ -3,17 +3,18 @@ import type { IsoDate, LocalDateTime, MealType } from '../lib/calendar';
 
 export type RecipeMealType = MealType | 'both';
 export type SourceType = 'web' | 'youtube' | 'book' | 'home';
-export type ProteinGroup = 'fish' | 'white_meat' | 'meat' | 'legumes' | 'eggs' | 'vegetarian';
+export type ProteinGroup = 'fish' | 'white_meat' | 'red_meat' | 'cured_meat' | 'legumes' | 'eggs' | 'cheese' | 'vegetarian';
 export type FamilyRole = 'family_admin' | 'member';
 
 export interface RatingSummary { familyAverage: number | null; familyCount: number; myStars: number | null }
+/** recipeSummaryView of the contract (W6): a never-published recipe has only id, name and maybe a description. */
 export interface RecipeSummary {
-  id: string; name: string; description: string; photo: string | null; durationMinutes: number | null;
-  sourceType: SourceType; sourceUrl: string | null; bookTitle: string | null; bookPages: string | null;
-  mealType: RecipeMealType; proteinGroup: ProteinGroup | null;
+  id: string; name: string; description: string | null; durationMinutes: number | null;
+  sourceType: SourceType | null; sourceUrl: string | null; bookTitle: string | null; bookPages: string | null;
+  mealType: RecipeMealType | null; proteinGroup: ProteinGroup | null;
 }
 /** Quantity already scaled, converted and written in the user's language (spec section 1, ready views). */
-export interface IngredientLine { ingredientId: string; name: string; amount: string; optional: boolean }
+export interface IngredientLine { ingredientId: string; name: string; amount: string; preparation: string | null; optional: boolean }
 export interface MealView {
   slotId: string; date: IsoDate; mealType: MealType; kind: 'recipe' | 'free' | 'empty';
   recipe: RecipeSummary | null; freeText: string | null; servings: number;
@@ -65,4 +66,4 @@ export interface Api {
   ratings: { set(input: { familyId: string; recipeId: string; stars: number | null }): Promise<RatingSummary> };
 }
 
-export const PROTEIN_GROUPS = ['fish', 'white_meat', 'meat', 'legumes', 'eggs', 'vegetarian'] as const satisfies readonly ProteinGroup[];
+export const PROTEIN_GROUPS = ['fish', 'white_meat', 'red_meat', 'cured_meat', 'legumes', 'eggs', 'cheese', 'vegetarian'] as const satisfies readonly ProteinGroup[];

@@ -1,11 +1,8 @@
-/* Low banner (3:1), chosen in the round 1 review instead of the reference 16:9. */
-.banner { aspect-ratio: 3 / 1; }
 .content { padding-bottom: 14px; }
 .metaRow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .metaRow :global(.meal-meta) { flex: none; margin: 0; }
 /* Fixed-length cut first; on very narrow screens the CSS ellipsis keeps it inside the card. */
 .source { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.past :global(.meal-photo) { filter: grayscale(0.4); opacity: 0.85; }
 .footer { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border-top: 1px solid var(--rule); }
 .action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 8px; border: 0; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); text-decoration: none; cursor: pointer; }
 .action + .action { border-left: 1px solid var(--rule); }

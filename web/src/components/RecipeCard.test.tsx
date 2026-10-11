@@ -5,12 +5,12 @@ import { renderWithProviders } from '../test/renderWithProviders';
 import { RecipeCard, type RecipeCardProps } from './RecipeCard';
 
 const recipe: RecipeSummary = {
-  id: 'r1', name: 'Spaghetti al pomodoro', description: 'Semplici.', photo: '/assets/recipe-images/x.jpg', durationMinutes: 20,
+  id: 'r1', name: 'Spaghetti al pomodoro', description: 'Semplici.', durationMinutes: 20,
   sourceType: 'web', sourceUrl: 'https://ricette.giallozafferano.it/spaghetti', bookTitle: null, bookPages: null, mealType: 'both', proteinGroup: 'vegetarian'
 };
 const base: RecipeCardProps = {
   cardKey: 's1', label: 'Pranzo', kind: 'recipe', recipe, freeText: null, servings: 4,
-  ingredients: [{ ingredientId: 'pasta', name: 'Spaghetti', amount: '320 g', optional: false }, { ingredientId: 'pasta', name: 'Spaghetti', amount: '10 g', optional: false }],
+  ingredients: [{ ingredientId: 'pasta', name: 'Spaghetti', amount: '320 g', preparation: null, optional: false }, { ingredientId: 'pasta', name: 'Spaghetti', amount: '10 g', preparation: null, optional: false }],
   note: null, rating: { familyAverage: 4, familyCount: 2, myStars: null }, lastChange: null,
   detailSearch: { from: 'menu', day: '2026-10-08', slot: '2026-10-08-lunch' }, familyId: 'family-main'
 };
@@ -52,5 +52,25 @@ describe('RecipeCard', () => {
     expect(screen.queryByRole('link', { name: 'Scheda ricetta' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /ingredienti: mostra o nascondi/ }));
     expect(screen.getByText('Ingredienti non ancora disponibili per questa ricetta.')).toBeTruthy();
+  });
+  it('shows a never-published recipe from the real payload: name only, no image, source, time, rating or lines', async () => {
+    // The summary W6 sends for a recipe cited by an imported meal that was never published.
+    const neverPublished: RecipeSummary = {
+      id: 'd1', name: 'Vecchia ricetta', description: null, durationMinutes: null, sourceType: null, sourceUrl: null,
+      bookTitle: null, bookPages: null, mealType: null, proteinGroup: null
+    };
+    const { container } = renderWithProviders(<RecipeCard {...base} recipe={neverPublished} servings={2} rating={null} ingredients={null} detailSearch={null} />);
+    expect(await screen.findByRole('heading', { name: 'Vecchia ricetta' })).toBeTruthy();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('.meal-source')).toBeNull();
+    expect(container.querySelector('.description')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Voto della famiglia/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /ingredienti: mostra o nascondi/ }));
+    expect(screen.getByText('Ingredienti non ancora disponibili per questa ricetta.')).toBeTruthy();
+  });
+  it('never shows an image: recipes have no photos', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    expect(container.querySelector('img')).toBeNull();
   });
 });

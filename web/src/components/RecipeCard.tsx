@@ -13,7 +13,7 @@ import { safeSourceUrl, SOURCE_MAX_CHARS, sourceLine } from './source';
 
 export interface RecipeCardProps {
   cardKey: string;
-  /** Chip on the photo: meal type in the menu, food group in the catalogue. */
+  /** Chip above the title: meal type in the menu, food group in the catalogue. */
   label: string | null;
   kind: 'recipe' | 'free' | 'empty';
   recipe: RecipeSummary | null;
@@ -43,14 +43,7 @@ export function RecipeCard(props: RecipeCardProps) {
 
   return (
     <article className={`meal${kind !== 'recipe' ? ' meal-free' : ''}${isPast ? ` ${styles.past}` : ''}`} aria-labelledby={headingId}>
-      {recipe?.photo ? (
-        <div className={`meal-media ${styles.banner}`}>
-          <img className="meal-photo" src={recipe.photo} alt="" loading="lazy" decoding="async" />
-          {chip}
-        </div>
-      ) : (
-        <div className="meal-heading">{chip}</div>
-      )}
+      <div className="meal-heading">{chip}</div>
 
       <div className={`meal-content ${styles.content}`}>
         {kind === 'free' && (

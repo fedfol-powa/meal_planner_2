@@ -15,6 +15,8 @@ export function safeSourceUrl(url: string | null): string | null {
 }
 
 export function sourceLine(recipe: RecipeSummary, t: (key: MessageKey, params?: MessageParams) => string): string | null {
+  // A never-published recipe has no source yet.
+  if (!recipe.sourceType) return null;
   if (recipe.sourceType === 'book' && recipe.bookTitle) return t('source.book', { title: recipe.bookTitle, pages: recipe.bookPages ?? '—' });
   if (recipe.sourceType === 'youtube') return t('source.youtube');
   if (recipe.sourceType === 'home') return t('source.home');

@@ -49,6 +49,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 .ingredient-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
 .ingredient-list li:last-child { border-bottom: 0; padding-bottom: 0; }
 .ingredient-quantity { max-width: 11ch; text-align: right; font-weight: 700; }
+.ingredient-preparation { color: var(--muted); }
 .meal-free { background: var(--free-surface); box-shadow: none; border: 1px solid var(--free-border); }
 .free-mark { display: inline-block; margin: 0 0 12px; color: var(--green); font-size: 0.875rem; }
 .bottom-navigation { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 8px 16px max(8px, env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--rule); }
