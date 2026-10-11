@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { formatDayLong } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { useSession } from '../../session/SessionScope';
-import { noticesOf } from './noticeStore';
+import { noticesOf } from './sessionState';
 import styles from './meals.module.css';
 
 /** Failed saves of servings that left after the card unmounted: shown in the Menu until dismissed. */

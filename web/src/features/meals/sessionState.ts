@@ -38,3 +38,36 @@ export function noticesOf(session: Session): Notices {
   }
   return notices;
 }
+
+export interface UndoOffer { familyId: string; actionId: string; weekStartsOn: string; key: number; at: number }
+
+interface UndoSlot { get(): UndoOffer | null; set(offer: UndoOffer | null): void; subscribe(listener: () => void): () => void }
+
+const undoBySession = new WeakMap<Session, UndoSlot>();
+let offers = 0;
+export const nextOfferKey = () => ++offers;
+
+/**
+ * The last action the user can undo, per session: it outlives the Menu remounting (language
+ * change, another week loading, a quick trip to another tab) and expires by its own clock.
+ */
+export function undoOf(session: Session): UndoSlot {
+  let slot = undoBySession.get(session);
+  if (!slot) {
+    let current: UndoOffer | null = null;
+    const listeners = new Set<() => void>();
+    slot = {
+      get: () => current,
+      set: (offer) => {
+        current = offer;
+        listeners.forEach((listener) => listener());
+      },
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => void listeners.delete(listener);
+      }
+    };
+    undoBySession.set(session, slot);
+  }
+  return slot;
+}

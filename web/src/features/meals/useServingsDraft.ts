@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { runMealMutation } from '../../api/mutations';
 import { useCurrentLocale, useSession } from '../../session/SessionScope';
-import { noticesOf } from './noticeStore';
+import { noticesOf } from './sessionState';
 import { useMealMutation } from './useMealMutation';
 
 export const SAVE_DELAY_MS = 800;

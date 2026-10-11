@@ -8,7 +8,7 @@ export function useMealErrors(familyId: string, weekStartsOn: string) {
   const t = useT();
   const queryClient = useQueryClient();
   return (error: unknown): string => {
-    const { code } = toApiError(error);
+    const { code, data } = toApiError(error);
     if (code === 'not_found' || code === 'not_allowed') {
       void queryClient.invalidateQueries({
         queryKey: ['menu', 'getWeek'],
@@ -16,6 +16,8 @@ export function useMealErrors(familyId: string, weekStartsOn: string) {
       });
     }
     if (code === 'not_found') return t('meals.gone');
+    // The imported draft the undo would bring back was published or closed by a curator meanwhile.
+    if (code === 'not_allowed' && (data as { reason?: string } | undefined)?.reason === 'draft_closed') return t('meals.draftClosed');
     if (code === 'not_allowed') return t('meals.undoRefused');
     if (code === 'network') return t('meals.offline');
     return t(errorKey(error));

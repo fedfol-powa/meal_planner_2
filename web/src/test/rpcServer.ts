@@ -172,7 +172,8 @@ export function createRpcTestServer() {
         profileSeen.push(authorization);
         return (await profile(authorization)) as ProfileView;
       }),
-      update: os.profile.update.handler(() => SERVER_PROFILE),
+      // The language chosen comes back, as the Worker answers it.
+      update: os.profile.update.handler(({ input }) => ({ ...SERVER_PROFILE, user: { ...SERVER_PROFILE.user, locale: input.locale ?? SERVER_PROFILE.user.locale } })),
       setCurrentFamily: os.profile.setCurrentFamily.handler(() => SERVER_PROFILE)
     },
     recipes: {
