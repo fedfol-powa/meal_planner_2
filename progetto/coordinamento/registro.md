@@ -10,12 +10,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 revisione-pasti | W1 menu (da rinominare) | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | PR #20 unita. Sessione chiusa, pane già nel worktree (branch avanzato a main); avvio di `claude --permission-mode auto` bloccato dal classificatore: serve l'utente | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 unita; libero | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | PR #23 (server di `catalogue`) aperta, review Codex in corso (revisioni/w3-pr23.md, tab «R PR23», worktree .worktrees/review-pr23); contesto azzerato. Ai rilievi: messaggio di ripresa con brief, spec, piano e file dei rilievi. Il web dopo il merge della #23 | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 approvata; sta portando la PR su main (dopo #20 e #21); a PR_CORRETTA: CI verde e diff dei conflitti → merge | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 unita; libero | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Libero (PR #17 unita). Candidato per collegamento agenti o esportazione R2, che richiedono passi esterni dell'utente | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 unita; libero | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web). Ondata 1 completata.
 
 ## Revisori attivi
 
@@ -33,7 +33,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
 0. **In corso (ordine dell'ondata 2), aggiornato l'11/10 alle 17:40:**
-   - **Merge web in sequenza:** #20 e #21 unite → W4 avvisato di portare di portare la #21
+   - **Merge web in sequenza: completati** (#20, #21, #22 unite). Prima era: W4 avvisato di portare di portare la #21
      su main → merge → scrivere a W4 di portare la #22 su main → merge. #21 e #22 sono già
      approvate: dopo il riallineamento basta controllare CI verde e risoluzione dei conflitti
      (diff dei file condivisi del web), senza nuova review salvo modifiche sostanziali.
