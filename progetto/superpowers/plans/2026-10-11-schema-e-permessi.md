@@ -150,6 +150,7 @@ lo schema `app` non va esposto. Verifica `[db] major_version = 17`.
 -- Test helpers. Inside a test transaction they are rolled back with it; the
 -- counters test drops the schema at the end.
 set check_function_bodies = off;
+set client_min_messages = warning;
 
 drop schema if exists tests cascade;
 create schema tests;

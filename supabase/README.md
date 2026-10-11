@@ -67,3 +67,71 @@ Funzioni eseguibili per ruolo:
 creata e `alter default privileges` non basta. Ogni migrazione esegue subito
 `revoke execute on function … from public` e poi concede `execute` solo ai ruoli della
 tabella. `coverage_test.sql` confronta la tabella con le ACL effettive.
+
+## Test
+
+pgTAP in `tests/`, un file per area; `tests/helpers/` contiene le funzioni di aiuto
+(`setup.psql`), i dati di prova (`fixtures.psql`) e la pulizia (`cleanup.psql`), con
+estensione `.psql` perché `pg_prove` non li esegua come test.
+
+- Tutti i file tranne `versions_test.sql` sono una transazione annullata alla fine.
+- `versions_test.sql` prova i contatori con transazioni reali: scrive e cancella davvero
+  i dati di prova. Se si interrompe a metà, `supabase db reset` (oppure il file stesso
+  alla prossima esecuzione, che parte da `cleanup.psql`) li toglie.
+- **Isolamento dal seed:** i dati di prova hanno il prefisso `test-` (slug, nomi delle
+  famiglie) ed email `@test.local`; i conteggi su dati visibili oltre la famiglia si
+  limitano a quei dati, quindi `seed.sql` e altri dati locali non cambiano l'esito.
+
+## Dati locali (`seed.sql`)
+
+Solo per lo sviluppo locale; `supabase db reset` lo applica dopo le migrazioni e non va
+mai eseguito sul progetto vero. Contiene quattro persone con password `password123`:
+`anna@example.test` (amministratrice della Famiglia Rossi), `bruno@example.test`
+(membro), `carla@example.test` (amministratrice di Carla's family, sistema imperiale,
+Londra, `en-GB`) e `dario@example.test` (curatore, senza famiglia). Niente catalogo: le
+ricette locali arrivano dall'import (W3).
+
+Per accedere con Auth locale: `supabase start` escludendo con `-x` i servizi che non
+servono (per esempio `-x realtime,storage-api,imgproxy,mailpit,postgrest,postgres-meta,studio,edge-runtime,logflare,vector,supavisor`),
+poi `supabase status` per l'URL dell'API e la chiave pubblica. Se è già avviato solo il
+database, prima `supabase stop`.
+
+## Primi utenti del progetto vero (`scripts/bootstrap.sql`)
+
+Nel traguardo A non ci sono inviti: utenti e famiglia si preparano a mano, dopo
+l'applicazione delle migrazioni al progetto.
+
+1. Creare gli utenti dalla dashboard: Authentication > Users > Add user (email,
+   password, «Auto Confirm User»).
+2. Compilare in testa allo script la famiglia e l'elenco delle persone (email, nome,
+   lingua, ruolo nella famiglia, ruoli globali). La famiglia è identificata da un UUID:
+   generarlo una volta (`select gen_random_uuid()`), scriverlo nello script e
+   **conservarlo** per eventuali rilanci.
+3. Eseguire tutto lo script dall'editor SQL. Si può rilanciare senza duplicati, anche
+   dopo una rinomina della famiglia nell'app: una famiglia esistente resta com'è. Si
+   ferma se manca un utente o un amministratore della famiglia, o se l'UUID è ancora
+   quello d'esempio.
+
+Lo esegue l'utente; nessun agente lo esegue sul remoto senza una domanda.
+`scripts/bootstrap_test.sh` lo prova sul database locale (famiglia omonima, rilancio
+dopo la rinomina, utente mancante, segnaposto rifiutato) e tocca solo le famiglie e
+l'utente che crea.
+
+## Passi remoti
+
+Nessuno si esegue senza una domanda all'utente (`STATO: DOMANDA`):
+
+- applicazione delle migrazioni al progetto. **Prima del merge** va chiarito con W1 se
+  l'integrazione GitHub di Supabase le applica da sola al merge su `main`;
+- password di `app_server` (`alter role app_server with password …`) e stringa di
+  connessione di Hyperdrive (Session pooler: utente `app_server.<project_ref>`);
+- disattivazione della Data API, oppure conferma che lo schema `app` non è esposto;
+- esecuzione di `scripts/bootstrap.sql`.
+
+## Interfaccia con il server
+
+I nomi esatti usati dal server (profilo, sessione, ruoli, appartenenze, contatori,
+ruoli per rotta, login) sono nella sezione «Interfaccia per W1» della spec di dettaglio
+`progetto/superpowers/specs/2026-10-11-schema-e-permessi.md`. Contratto dei contatori:
+al massimo un incremento per transazione; una scrittura senza effetti può farlo crescere
+comunque (invalidazione in più, mai dati sbagliati).
