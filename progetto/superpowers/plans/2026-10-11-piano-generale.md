@@ -128,9 +128,12 @@ solo il coordinatore.
 - **Review di W3 (11/10):** righe dell'import irrisolte conservate nella bozza con `ingredientId: null` e bloccanti alla pubblicazione; duplicati nelle bozze come problemi di pubblicazione, non errori di salvataggio; approvazione dei YAML legata all'hash del contenuto.
 - **Equivalenze e preparazione (11/10):** un'equivalenza può avere una `preparation` facoltativa e si applica solo a righe con la stessa preparazione (la specifica vince sulla generica); unicità per (ingrediente, ambito, dimensione dell'unità di partenza, preparazione).
 - **Proprietà dei tipi condivisi (11/10):** W4 possiede `Localized`, `Quantity` completa, codici e schemi delle unità; W3 costruisce le varianti di bozza sopra, senza ridefinirle.
-- **Aperto per l'ondata 2:** dove conservare `triedUndated` (ricette provate senza data) e come lo usa il pianificatore.
+- **Ricette provate senza data (11/10):** tabella `family_tried_recipes(family_id, recipe_id, source, created_at)` riempita dall'import; il pianificatore per ora non la usa.
 - **Review di W1 (11/10):** claim JWT obbligatori e validati (`exp`, `sub` e `session_id` UUID, `client_id` non vuoto o assente); log senza segreti; validazione MCP normalizzata anche quando la fa l'SDK; sessione verificata prima di `web_only` e all'ingresso MCP; consegna completa di W1 solo con CI sulle migrazioni reali di W2, che si unisce prima.
 - **Revoca reale degli agenti:** da provare nell'attività «Collegamento degli agenti» (ondata 2): revocare un client, riusare il suo access token non scaduto su MCP, RPC e REST, verificare il rifiuto e che gli altri client e la sessione web restino attivi.
+- **Review di W2 (11/10, verdetto «da rifare»):** `execute` revocato a `public` su ogni funzione; funzioni di autorizzazione che non rivelano la famiglia di record altrui; `undoes` nella stessa famiglia; ingredienti, libri e bozze mai cancellati fisicamente (archiviazione e chiusura, cronologia conservata); `update` solo sulle colonne previste, identità di settimane e slot immutabile; contatori delle famiglie aggiornati quando cambia il nome di una bozza che citano; bootstrap per UUID; test isolati dal seed.
+- **R1 senza versione al momento del pasto (decisione del coordinatore, 11/10):** si usa la prima versione pubblicata; se la ricetta non è mai stata pubblicata, il pasto mostra solo nome e descrizione e non entra nella spesa. Da mostrare all'utente.
+- **Revoca nei test di W2:** rimozione dalla famiglia e revoca del ruolo di curatore efficaci subito con lo stesso JWT, anche sulle letture del catalogo.
 
 ## Registro delle decisioni del coordinamento
 
