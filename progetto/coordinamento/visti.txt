@@ -82,3 +82,5 @@ w1:p1S	REVISORE_FINITO
 w1:p1T	REVISORE_FINITO
 w1:pZ	STATO: IN_ATTESA #16ac2684
 w1:pX	STATO: PR_CORRETTA #bc6595c6
+w1:pC	STATO: PR_CORRETTA #32cd182d
+w1:pA	STATO: DOMANDA Parte web nel traguardo A: A (consigliata: Bozze, Archiviate e pagina della bozza in sola lettura scritte da me, montate in RecipesPage; archiviazione e versioni sul #fd9772e6
