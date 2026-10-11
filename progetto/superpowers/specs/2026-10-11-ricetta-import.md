@@ -287,7 +287,8 @@ la decisione B `ingredient_translations` diventa colonne di `ingredients`.
 
 ### Comando e ingressi
 
-`npm run import-recipes -- [--existing <file.json>] [--today <YYYY-MM-DD>]`
+`node scripts/import/import-recipes.ts [--existing <file.json>] [--today <YYYY-MM-DD>]`
+(lo script npm nella radice si aggiunge con W1, proprietario del `package.json` della radice).
 
 | Ingresso | Contenuto |
 |---|---|
@@ -470,6 +471,7 @@ domain/src/recipe/
   ingredient.ts       ingrediente del catalogo (schema, tipo)
   variety.ts          cleanVariety, lineKey, consigli (varietyKey da W4)
   issues.ts           IssueCode, ValidationIssue, missingData, conversione degli errori zod
+  clean.ts            cleanDraft (spazi dei testi e della varietà)
   check.ts            checkDraft, checkPublishable, toPublished
   projection.ts       projectRecipe, toPlannerRecipe, resolveReferences
   index.ts
