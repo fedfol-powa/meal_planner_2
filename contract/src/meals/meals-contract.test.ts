@@ -21,4 +21,12 @@ describe('meals contract', () => {
 		expect(valid(input('setNote'), { ...base, note: 'x'.repeat(201) })).toBe(false);
 		expect(valid(input('setNote'), { ...base, note: null })).toBe(true);
 	});
+	it('keeps every identifier in lower case, whatever the spelling', () => {
+		const upper = () => crypto.randomUUID().toUpperCase();
+		const schema = contract.meals.swap['~orpc'].inputSchema as unknown as { parse(v: unknown): Record<string, string> };
+		const input = { familyId: upper(), slotId: upper(), otherSlotId: upper(), id: upper() };
+		expect(schema.parse(input)).toEqual(Object.fromEntries(Object.entries(input).map(([k, v]) => [k, v.toLowerCase()])));
+		const undo = contract.meals.undo['~orpc'].inputSchema as unknown as { parse(v: unknown): Record<string, string> };
+		expect(undo.parse({ familyId: upper(), actionId: 'A0B1C2D3-1234-4123-8123-ABCDEF123456', id: upper() }).actionId).toBe('a0b1c2d3-1234-4123-8123-abcdef123456');
+	});
 });
