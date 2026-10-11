@@ -9,7 +9,9 @@
 		"typecheck": "tsc -p tsconfig.json"
 	},
 	"dependencies": {
-		"@app/contract": "*"
+		"@app/contract": "*",
+		"jose": "6.2.12",
+		"zod": "4.6.5"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "5.20261011.1",
