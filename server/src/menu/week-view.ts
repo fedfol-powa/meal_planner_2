@@ -3,7 +3,7 @@ import { addDays } from '@app/domain/planner';
 import { appError } from '../errors.ts';
 import type { OperationContext } from '../pipeline.ts';
 import { recipeViewKey, recipeViews, type RecipeRef } from '../recipes/views.ts';
-import { mealRecipeVersions } from './versions.ts';
+import { mealRecipeVersionsAt } from './versions.ts';
 
 interface SlotRow {
 	id: string;
@@ -19,7 +19,10 @@ interface SlotRow {
 	authorName: string | null;
 }
 
-/** Spec section 5.3: the week's slots, the version of each meal (R1) and the recipe views of W6, in a few queries. */
+/**
+ * Spec section 5.3: the week's slots, the version of each meal (R1) and the recipe views of W6, in a
+ * few queries. R1 uses the request's instant, the same one the version of getWeek counts past meals at.
+ */
 export async function weekViewOf(context: OperationContext, familyId: string, weekStartsOn: string): Promise<WeekView> {
 	const { tx } = context;
 	const [week] = await tx<{ id: string }[]>`select id from app.weeks where family_id = ${familyId} and starts_on = ${weekStartsOn}`;
@@ -36,7 +39,7 @@ export async function weekViewOf(context: OperationContext, familyId: string, we
 		left join app.profiles p on p.user_id = s.updated_by
 		where s.week_id = ${week.id}
 		order by s.date, s.meal_type desc`;
-	const versions = new Map((await mealRecipeVersions(tx, familyId, week.id)).map((v) => [v.slotId, v]));
+	const versions = new Map((await mealRecipeVersionsAt(tx, familyId, week.id, context.now)).map((v) => [v.slotId, v]));
 	const refs = new Map<string, RecipeRef>();
 	for (const slot of slots) {
 		const v = versions.get(slot.id);

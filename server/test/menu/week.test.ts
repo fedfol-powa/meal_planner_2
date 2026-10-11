@@ -119,3 +119,60 @@ describe.skipIf(!hasDatabase)('menu.getWeek', () => {
 		expect(meals.every((m: any) => m.lastChange === null)).toBe(true);
 	});
 });
+
+/** R1 and the cache (review of PR #15): the version of getWeek follows the meals that pass, at the instant R1 uses. */
+describe.skipIf(!hasDatabase)('menu.getWeek across the meal thresholds', () => {
+	let db: TestDatabase;
+	let keys: TestKeys;
+	let reader: User;
+	let familyId: string;
+	let soup: string;
+	let stew: string;
+	let fx: ReturnType<typeof menuFixtures>;
+
+	const read = async (at: string, knownVersion?: string) =>
+		call(router.menu.getWeek as any, { familyId, weekStartsOn: '2026-10-12', ...(knownVersion ? { knownVersion } : {}) }, {
+			context: contextFor(keys, await keys.sign({ sub: reader.userId, session_id: reader.sessionId }), db.appServerUrl, () => new Date(at)),
+			path: ['menu', 'getWeek'],
+			interceptors: [mapErrors],
+		}) as Promise<any>;
+	const nameOn = (week: any, mealType: string) => week.data.days[2].meals.find((m: any) => m.mealType === mealType).recipe.name;
+
+	beforeAll(async () => {
+		db = await setupDatabase();
+		keys = await createTestKeys();
+		fx = menuFixtures(db);
+		reader = await db.createUser();
+		familyId = await db.createFamily([{ userId: reader.userId, role: 'member' }]);
+		soup = await fx.publishRecipe({ name: 'Zuppa', publishedAt: '2026-01-01T00:00:00Z' });
+		stew = await fx.publishRecipe({ name: 'Stufato', publishedAt: '2026-01-01T00:00:00Z' });
+		const week = await fx.insertWeek(familyId, '2026-10-12');
+		await fx.insertSlot(week, { date: '2026-10-14', mealType: 'lunch', recipeId: soup });
+		await fx.insertSlot(week, { date: '2026-10-14', mealType: 'dinner', recipeId: stew });
+		await fx.insertWeek(familyId, '2026-10-19'); // no lazy generation in between
+	});
+	afterAll(() => db?.close());
+
+	it('answers fresh when a meal passes after a concurrent publication, at 15:30 and at 23:00', async () => {
+		// Rome, Wednesday 14 October: lunch passes at 13:30Z, dinner at 21:00Z.
+		const first = await read('2026-10-14T13:29:59Z');
+		expect(nameOn(first, 'lunch')).toBe('Zuppa');
+		// A read that began just before 15:30 sees a version published just after it: lunch still open, current version.
+		await fx.publishVersion(soup, '2026-10-14T13:30:01Z');
+		const racing = await read('2026-10-14T13:29:59Z', first.version);
+		expect(nameOn(racing, 'lunch')).toBe('Zuppa v2');
+		// Once lunch has passed nothing else changed, yet the answer must show the version in force at 15:30.
+		const passed = await read('2026-10-14T13:31:00Z', racing.version);
+		expect(passed.unchanged).toBe(false);
+		expect(nameOn(passed, 'lunch')).toBe('Zuppa');
+		expect(await read('2026-10-14T13:45:00Z', passed.version)).toEqual({ unchanged: true, version: passed.version });
+
+		await fx.publishVersion(stew, '2026-10-14T21:00:01Z');
+		const racingDinner = await read('2026-10-14T20:59:59Z', passed.version);
+		expect(nameOn(racingDinner, 'dinner')).toBe('Stufato v2');
+		const dinnerPassed = await read('2026-10-14T21:01:00Z', racingDinner.version);
+		expect(dinnerPassed.unchanged).toBe(false);
+		expect(nameOn(dinnerPassed, 'dinner')).toBe('Stufato');
+		expect(await read('2026-10-14T21:30:00Z', dinnerPassed.version)).toEqual({ unchanged: true, version: dinnerPassed.version });
+	});
+});

@@ -3,6 +3,7 @@ import { appError } from '../errors.ts';
 import { fresh, type Implementer, type Prepare } from '../pipeline.ts';
 import { ensureWeeks } from './generation.ts';
 import { datesOf, effectiveDate, openingOf } from './opening.ts';
+import { mealPassedCount } from './versions.ts';
 import { weekViewOf } from './week-view.ts';
 
 const familyOf = (input: unknown) => (input as { familyId: string }).familyId;
@@ -22,7 +23,13 @@ export const menuPrepare: Record<string, Prepare> = {
 		await ensureWeeks(context.tx, familyId, context.now);
 		return { versionPart: `d${date}` };
 	},
-	'menu.getWeek': lazy,
+	/** The meals already past at the request's instant enter the version: R1 changes when a meal passes (spec 5.3). */
+	'menu.getWeek': async (context, input) => {
+		const { familyId, weekStartsOn } = input as { familyId: string; weekStartsOn: string };
+		await ensureWeeks(context.tx, familyId, context.now);
+		const [week] = await context.tx<{ id: string }[]>`select id from app.weeks where family_id = ${familyId} and starts_on = ${weekStartsOn}`;
+		if (week) return { versionPart: `p${await mealPassedCount(context.tx, familyId, week.id, context.now)}` };
+	},
 	'menu.getDates': lazy,
 };
 
