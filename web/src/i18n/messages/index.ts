@@ -1,5 +1,6 @@
 import * as agents from './agents';
 import * as auth from './auth';
+import * as catalogue from './catalogue';
 import * as common from './common';
 import * as errors from './errors';
 import * as family from './family';
@@ -9,8 +10,8 @@ import * as recipes from './recipes';
 import * as shopping from './shopping';
 
 // One file per area, so parallel work in wave 2 adds files instead of editing the same one.
-const it = { ...common.it, ...menu.it, ...recipes.it, ...profile.it, ...family.it, ...shopping.it, ...auth.it, ...agents.it, ...errors.it };
-const en: Record<keyof typeof it, string> = { ...common.en, ...menu.en, ...recipes.en, ...profile.en, ...family.en, ...shopping.en, ...auth.en, ...agents.en, ...errors.en };
+const it = { ...common.it, ...menu.it, ...recipes.it, ...profile.it, ...family.it, ...shopping.it, ...catalogue.it, ...auth.it, ...agents.it, ...errors.it };
+const en: Record<keyof typeof it, string> = { ...common.en, ...menu.en, ...recipes.en, ...profile.en, ...family.en, ...shopping.en, ...catalogue.en, ...auth.en, ...agents.en, ...errors.en };
 
 export const LOCALES = ['it-IT', 'en-GB'] as const;
 export type Locale = (typeof LOCALES)[number];

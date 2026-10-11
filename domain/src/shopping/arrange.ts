@@ -39,7 +39,11 @@ export interface ShoppingItemView {
 	ingredientId: string;
 	varietyKey: string;
 	department: Department;
+	/** Shown name: "Pomodori (Roma)". */
 	name: string;
+	/** Its parts in the viewer language, for the order of the list: "Pomodori", "Roma" (null without variety). */
+	ingredientName: string;
+	variety: string | null;
 	quantity: string;
 	/** Canonical sum shown now: the client keeps it and sends it as `quantity_at_check` when ticking. */
 	combined: CombinedQuantity;
@@ -60,9 +64,24 @@ export interface ArrangedShoppingList {
 	skipped: { slotId: string; recipeId: string; recipeName: string }[];
 }
 
-/** "Pomodori Roma", "Uva gialla senza semi". */
+/**
+ * Order of the items in a department and in «Non in lista» (coordinator, PR #24): ingredient name,
+ * then variety, the item without variety first; both in the viewer language. Never the shown name,
+ * so the brackets play no part. Also used by the web's pending layer.
+ */
+export const compareShoppingItems =
+	(locale: Locale) =>
+	(a: Pick<ShoppingItemView, 'ingredientName' | 'variety'>, b: Pick<ShoppingItemView, 'ingredientName' | 'variety'>): number =>
+		a.ingredientName.localeCompare(b.ingredientName, locale) ||
+		(a.variety === null ? (b.variety === null ? 0 : -1) : b.variety === null ? 1 : a.variety.localeCompare(b.variety, locale));
+
+/**
+ * "Pomodori (Roma)", "Onions (red)": the variety in brackets after the name, so a plural name and
+ * a singular variety never read as one phrase (coordinator, 11 October 2026). Lists, exports and
+ * the Bring! page all take the name from here.
+ */
 export const displayName = (name: Localized, variety: Localized | null, locale: Locale): string =>
-	variety ? `${name[locale]} ${variety[locale]}` : name[locale];
+	variety ? `${name[locale]} (${variety[locale]})` : name[locale];
 
 function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, system: MeasurementSystem, locale: Locale): ShoppingItemView {
 	const options = { system, locale, rounding: 'shopping' as const };
@@ -73,6 +92,8 @@ function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, s
 		varietyKey: item.varietyKey,
 		department: item.department,
 		name: displayName(item.name, item.variety, locale),
+		ingredientName: item.name[locale],
+		variety: item.variety?.[locale] ?? null,
 		quantity: formatCombined(item.combined, options),
 		combined: item.combined,
 		isOptional: item.isOptional,
@@ -84,7 +105,7 @@ function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, s
 			date: s.date,
 			mealType: s.mealType,
 			recipeName: s.recipeName[locale],
-			quantity: formatQuantity(s.quantity, system, locale)
+			quantity: formatQuantity(s.quantity, system, locale, s.scaled ? 'scaled' : 'recipe')
 		}))
 	};
 }
@@ -93,7 +114,7 @@ function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, s
 export function arrangeShoppingList(list: ConsolidatedList, { checks, addedBack, system, locale }: ArrangeOptions): ArrangedShoppingList {
 	const ticked = new Map(checks.map((c) => [itemKey(c.ingredientId, c.varietyKey), c.quantityAtCheck]));
 	const putBack = new Set(addedBack.map((a) => itemKey(a.ingredientId, a.varietyKey)));
-	const byName = (a: ShoppingItemView, b: ShoppingItemView) => a.name.localeCompare(b.name, locale);
+	const byName = compareShoppingItems(locale);
 	const views = list.items.map((item) => toView(item, ticked.get(item.key), system, locale));
 	const kept = views.filter((v) => v.excluded === null || putBack.has(v.key));
 	return {

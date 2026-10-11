@@ -58,6 +58,8 @@ export interface ShoppingSource {
 	recipeName: Localized;
 	/** Scaled line, in the recipe's unit (not converted to the purchase unit). */
 	quantity: Quantity;
+	/** Servings other than the recipe's: shown with the rounding of scaled lines. */
+	scaled: boolean;
 }
 
 export type Exclusion = 'avoid' | 'pantry';
@@ -139,7 +141,7 @@ export function consolidateShoppingList(input: ShoppingListInput): ConsolidatedL
 				found.uses++;
 				entry.spellings.set(spelling, found);
 			}
-			entry.sources.push({ slotId: meal.slotId, date: meal.date, mealType: meal.mealType, recipeId: recipe.id, recipeName: recipe.name, quantity: scaled });
+			entry.sources.push({ slotId: meal.slotId, date: meal.date, mealType: meal.mealType, recipeId: recipe.id, recipeName: recipe.name, quantity: scaled, scaled: meal.servings !== recipe.baseServings });
 			entries.set(key, entry);
 		}
 	}

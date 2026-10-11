@@ -122,3 +122,26 @@ w1:p28	REVISORE_FINITO
 w1:pY	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/21 #6729ca02
 w1:pA	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/23 #f6041fa4
 w1:pA	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/23 #79fc242a
+w1:pC	STATO: DOMANDA 1: cosa comprende «l'intero database»? #cd418433
+w1:pC	STATO: DOMANDA 2: cifratura (la mia proposta di opzione minima adeguata) #6b9e3eaa
+w1:pX	STATO: FATTO #0f727b09
+w1:pZ	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/24 #1b9702f5
+w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/25 #c85bfd07
+w1:pZ	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/24 #a9ac9227
+w1:pW	STATO: SPEC_PIANO_PRONTI #ad269148
+w1:pY	STATO: DOMANDA — Quale opzione scegli per i poteri dei token d'agente su Supabase Auth: A (consigliata: richiedere la password attuale per cambiarla, consenso veritiero, rischi #7bd1da66
+w1:pC	STATO: SPEC_PIANO_PRONTI #03f721ba
+w1:pZ	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/24 #a9ac9227
+w1:pX	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/25 #fc58b53c
+w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/28 #71c44105
+w1:pY	STATO: SPEC_E_PIANO_PRONTI #076160d4
+w1:pZ	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/27 #f9df6d6a
+w1:pC	STATO: SPEC_PIANO_PRONTI #fe295df5
+w1:pA	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/26 #12649f68
+w1:pW	STATO: SPEC_PIANO_PRONTI #340a90a4
+w1:pY	STATO: SPEC_PIANO_PRONTI #e9e5b57f
+w1:pX	STATO: DOMANDA #22ddc661
+w1:pX	STATO: DOMANDA #808b5a99
+w1:pX	STATO: DOMANDA #760dd85d
+w1:pX	STATO: DOMANDA #93acac5d
+w1:pC	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/30 #fba51312

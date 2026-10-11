@@ -35,6 +35,21 @@ describe('shoppingExport', () => {
 		expect(result.lines).toEqual(['200 g Pomodori', '1 mazzetto Prezzemolo (facoltativo)', 'Detersivo per i piatti']);
 	});
 
+	it('exports a variety in brackets after the name, as the list shows it (Condividi and Bring!)', () => {
+		const withVariety = consolidateShoppingList({
+			meals: [{ slotId: 's1', date: '2026-10-12', mealType: 'lunch', servings: 2, recipe: { id: 'a', name: t('Ricetta a', 'Recipe a'), baseServings: 2, lines: [
+				{ ingredientId: 'tomato', variety: t('Roma', 'Roma'), preparation: null, quantity: { kind: 'amount', value: 200, unit: 'g' }, isOptional: false }
+			] } }],
+			ingredients,
+			equivalences: [],
+			avoided: new Set()
+		});
+		const italian = shoppingExport(arrangeShoppingList(withVariety, { checks: [], addedBack: [], system: 'metric', locale: 'it-IT' }));
+		expect(italian.lines).toEqual(['200 g Pomodori (Roma)']);
+		const english = shoppingExport(arrangeShoppingList(withVariety, { checks: [], addedBack: [], system: 'metric', locale: 'en-GB' }));
+		expect(english.lines).toEqual(['200 g Tomatoes (Roma)']);
+	});
+
 	it('writes in the language of whoever exports', () => {
 		const arranged = arrangeShoppingList({ ...consolidated, mealCount: 2 }, { checks: [], addedBack: [], system: 'metric', locale: 'en-GB' });
 		const result = shoppingExport(arranged);

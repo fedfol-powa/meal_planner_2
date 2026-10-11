@@ -26,7 +26,8 @@ export function ingredientLinesView(lines: LineInput[], names: IngredientNames, 
 		return {
 			ingredientId: line.ingredientId,
 			name: line.variety ? `${name[locale]} ${line.variety[locale]}` : name[locale],
-			amount: formatQuantity(scaleQuantity(line.quantity, servings, baseServings), system, locale),
+			// Other servings than the source's: whole cloves, halves of pieces (user decision, option 1).
+			amount: formatQuantity(scaleQuantity(line.quantity, servings, baseServings), system, locale, servings === baseServings ? 'recipe' : 'scaled'),
 			preparation: line.preparation?.[locale] ?? null,
 			optional: line.isOptional,
 		};

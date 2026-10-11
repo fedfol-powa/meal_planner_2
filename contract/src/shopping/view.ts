@@ -20,7 +20,11 @@ export const shoppingItemViewSchema = z.object({
 	ingredientId: z.uuid(),
 	varietyKey: z.string(),
 	department: departmentSchema,
+	/** Shown name, «Pomodori (Roma)». */
 	name: z.string(),
+	/** Its parts, for the order of the list: ingredient name, then variety (none first). */
+	ingredientName: z.string(),
+	variety: z.string().nullable(),
 	quantity: z.string(),
 	/** Canonical sum shown now: sent back as `quantityAtCheck` when ticking. */
 	combined: combinedQuantitySchema,

@@ -1112,6 +1112,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   voto (sotto), ingredienti scalati. Se la ricetta è `web` o `youtube` c'è il collegamento
   al `source_url` della fonte, che si apre fuori dall'app senza passare il referrer
   (come fa oggi il sito del progetto di origine con `Referrer-Policy: no-referrer`).
+- **Scheda ricetta aperta da un pasto** (decisa dall'utente l'11 ottobre 2026): parte dalle
+  porzioni del pasto. Precedenza: porzioni esplicite nell'indirizzo, poi porzioni positive
+  del pasto, poi porzioni della fonte; il selettore resta e la versione è quella del pasto
+  (R1).
   Per `book` si mostrano titolo e pagine; per `home` nessun collegamento. Per gli slot
   liberi, il testo. Un pasto con zero porzioni mostra gli ingredienti alle porzioni di
   riferimento della ricetta.
@@ -1218,8 +1222,12 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   con una fonte.
 - **Arrotondamenti metrici della base approvata**, da verificare nel prototipo insieme
   alla nuova pipeline di calcolo: grammi alla decina (a 5 g sotto i 50 g), ml come i
-  grammi, pezzi e spicchi al mezzo superiore, cucchiai e cucchiaini al mezzo. La regola
-  si applica alla presentazione, non ai valori intermedi da sommare.
+  grammi, cucchiai e cucchiaini al mezzo. Unità contate scalate (decise dall'utente l'11
+  ottobre 2026): spicchi, pizzichi, rametti, foglie, mazzi e fette all'intero superiore
+  («5 spicchi», non «4½»); pezzi al mezzo superiore nella ricetta e nel pasto, perché
+  molte ricette usano mezze cipolle o mezzi peperoni. Alle porzioni della fonte le unità
+  contate restano come sono scritte. La regola si applica alla presentazione, non ai
+  valori intermedi da sommare.
 - **Codici delle unità** (ondata 1): massa `g`, `kg`, `oz`, `lb`; volume `ml`, `l`,
   `uk_fl_oz`, `uk_pint`; unità domestiche `tbsp`, `tsp`; conteggi `piece`, `clove`,
   `slice`, `pinch`, `sprig`, `bunch`, `leaf`; `us_cup` solo nelle bozze. Etichette
@@ -1245,7 +1253,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   3. si consolida per ingrediente e varietà: righe che differiscono solo per
      preparazione, taglia o forma della parola sono lo stesso ingrediente; prodotti
      diversi restano voci diverse (mandorle in scaglie, pomodorini perini). Righe con lo
-     stesso ingrediente e varietà diverse sono voci separate («Pomodori Roma», «Pomodori»);
+     stesso ingrediente e varietà diverse sono voci separate («Pomodori», «Pomodori (Roma)»),
+     scritte «Nome (varietà)» nelle due lingue e ordinate per ingrediente e poi per varietà
+     (deciso l'11 ottobre 2026);
      grafie della stessa varietà si sommano (confronto che ignora maiuscole, accenti,
      punteggiatura e parole come «tipo») e la voce mostra la grafia più usata. Gli
      evitati della famiglia valgono per tutte le varietà. Le unità compatibili si
@@ -1261,9 +1271,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
      pescheria, banco frigo e latticini, pane, pasta riso e cereali, scatolame e
      conserve, surgelati, condimenti e dispensa, altro);
   8. si presentano le quantità nel sistema della famiglia e i testi nella lingua di chi
-     guarda; `piece`, `bunch` e `slice` si arrotondano per eccesso all'intero,
-     ignorando un avanzo di 0,1 dovuto alle conversioni (½ peperone → 1, 2,06 limoni →
-     2), `clove`, `sprig`, `leaf` e `pinch` al mezzo. Ricetta, scheda del pasto e
+     guarda; tutte le unità contate (tranne cucchiai, cucchiaini e tazze) si
+     arrotondano per eccesso all'intero; solo `piece` ignora un avanzo di 0,1 dovuto alle
+     conversioni (½ peperone → 1, 2,06 limoni → 2). Ricetta, scheda del pasto e
      provenienza delle voci restano nelle unità della ricetta.
 - **Tazze USA delle fonti americane**: si convertono solo con un'equivalenza verificata
   per l'ingrediente, conservando il testo della fonte: il conteggio dato dalla fonte se
@@ -2172,7 +2182,8 @@ per invertire l'ordine scelto, che lascia in fondo le ricette senza voto o mai m
 (correzione dell'11 ottobre 2026 rispetto al prototipo); nessun filtro per stagione.
 Nella scheda
 ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
-ingredienti (dettagli in `design/design.md`).
+ingredienti (dettagli in `design/design.md`); aperta da un pasto, parte dalle porzioni del
+pasto (sezione 5).
 La navbar mostra solo icone, con nomi accessibili,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative

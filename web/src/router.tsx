@@ -15,10 +15,12 @@ import { RouteError } from './routes/RouteError';
 import { AgentsPage } from './features/agents/AgentsPage';
 import { AuthorizePage } from './features/agents/AuthorizePage';
 import { validateAuthorizeSearch } from './features/agents/search';
+import { DraftPage } from './features/catalogue/DraftPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
-export interface RouterContext { auth: AuthState }
+/** `exit.pending`: a session just closed here; its redirect to sign-in drops the page, and the next person starts from the menu. */
+export interface RouterContext { auth: AuthState; exit: { pending: boolean } }
 
 const rootRoute = createRootRouteWithContext<RouterContext>()({
   component: () => <Outlet />,
@@ -51,7 +53,7 @@ const appRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_app',
   beforeLoad: ({ context, location }) => {
-    if (context.auth.status !== 'signedIn') throw redirect({ to: '/login', search: { redirect: location.href }, replace: true });
+    if (context.auth.status !== 'signedIn') throw redirect({ to: '/login', search: context.exit.pending ? {} : { redirect: location.href }, replace: true });
   },
   component: AppLayout,
   errorComponent: RouteError
@@ -66,6 +68,8 @@ const indexRoute = createRoute({
 });
 const menuRoute = createRoute({ getParentRoute: () => appRoute, path: '/menu', validateSearch: validateMenuSearch, component: MenuPage });
 const recipesRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes', validateSearch: validateRecipesSearch, component: RecipesPage });
+// Before the parameter: «drafts» is never a recipe id (curators only, spec of W3, section 5).
+const draftRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes/drafts/$draftId', component: DraftPage });
 const recipeRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes/$recipeId', validateSearch: validateRecipeSearch, component: RecipePage });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
 const preferencesRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/preferences', component: PreferencesPage });
@@ -79,11 +83,11 @@ const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shop
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authorizeRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history, context: { auth: { status: 'loading' } } });
+  return createRouter({ routeTree, history, context: { auth: { status: 'loading' }, exit: { pending: false } } });
 }
 
 declare module '@tanstack/react-router' {

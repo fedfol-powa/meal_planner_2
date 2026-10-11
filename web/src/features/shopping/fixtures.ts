@@ -17,7 +17,7 @@ export const texts = (...items: string[]): CombinedQuantity => ({
 
 export function item(ingredientId: string, name: string, overrides: Partial<ShoppingItemView> = {}): ShoppingItemView {
   return {
-    key: `${ingredientId}~${overrides.varietyKey ?? ''}`, ingredientId, varietyKey: '', department: 'produce', name,
+    key: `${ingredientId}~${overrides.varietyKey ?? ''}`, ingredientId, varietyKey: '', department: 'produce', name, ingredientName: name, variety: null,
     quantity: '200 g', combined: grams(200), isOptional: false, excluded: null, checked: false, previousQuantity: null, sources: [],
     ...overrides
   };

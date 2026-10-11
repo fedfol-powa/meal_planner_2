@@ -114,9 +114,9 @@ describe('preferences', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
     await waitFor(() => expect(history.location.pathname).toBe('/login'));
     act(() => backend.setUser({ id: 'user-anna', email: 'anna@example.com' }));
-    // Back to the page requested before sign-in, in Anna's profile language (Italian in the fake client).
-    await waitFor(() => expect(history.location.pathname).toBe('/profile/preferences'));
-    expect(await screen.findByText('Lingua')).toBeTruthy();
-    expect(screen.queryByText('Language')).toBeNull();
+    // Anna starts from the menu, not from the previous person's page, in her profile language (Italian in the fake client).
+    await waitFor(() => expect(history.location.pathname).toBe('/menu'));
+    expect(await screen.findByRole('navigation', { name: 'Navigazione principale' })).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
 });
