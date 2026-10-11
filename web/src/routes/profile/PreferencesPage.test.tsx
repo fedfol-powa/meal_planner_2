@@ -60,6 +60,19 @@ describe('preferences', () => {
     expect(await screen.findByRole('heading', { name: 'Account and preferences' })).toBeTruthy();
     expect(spy).toHaveBeenCalledWith({ locale: 'en-GB' }, expect.anything());
   });
+  it('keeps the language radios still while the choice is being saved (PR #21 review, finding 3)', async () => {
+    const api = fakeApi();
+    const update = api.profile.update;
+    let release: () => void = () => {};
+    api.profile.update = vi.fn((input) => new Promise<ProfileView>((resolve) => (release = () => resolve(update(input))))) as unknown as typeof update;
+    renderApp('/profile/preferences', { api, backend: createStubBackend(DEMO_USER, 'supabase') });
+    fireEvent.click(await screen.findByLabelText('English'));
+    await waitFor(() => expect((screen.getByLabelText('Italiano') as HTMLInputElement).disabled).toBe(true));
+    expect((screen.getByLabelText('Italiano') as HTMLInputElement).checked).toBe(true);
+    await act(async () => release());
+    expect(await screen.findByRole('heading', { name: 'Account and preferences' })).toBeTruthy();
+    expect((screen.getByLabelText('Italiano') as HTMLInputElement).disabled).toBe(false);
+  });
   it('switches the whole app to English, recipe texts included', async () => {
     renderApp('/profile/preferences', { backend: createStubBackend(DEMO_USER, 'supabase') });
     fireEvent.click(await screen.findByLabelText('English'));

@@ -1,5 +1,7 @@
+import { WEEKLY_MAX } from '@app/domain/family';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { errorKey } from '../api/errors';
 import { useQueryDeps } from '../api/queries';
 import type { SettingsView } from '../api/types';
 import { useT } from '../i18n/LocaleProvider';
@@ -9,7 +11,8 @@ import styles from './IngredientRestrictions.module.css';
 type Row = SettingsView['restrictions'][number];
 export interface RestrictionChange { ingredientId: string; restriction: 'avoid' | 'limit' | null; weeklyMax: number | null }
 
-const LIMITS = [1, 2, 3] as const;
+// Every maximum the contract accepts, so a value set by an agent shows as it is (PR #21 review, finding 4).
+const LIMITS = Array.from({ length: WEEKLY_MAX }, (_, i) => i + 1);
 const SEARCH_MIN = 2;
 
 /** Ingredients to avoid (out of menus and shopping lists) or to limit to a weekly maximum (spec section 3). */
@@ -80,7 +83,14 @@ export function IngredientRestrictions({ familyId, rows, editable, pending, onCh
             <span className="visually-hidden">{t('settings.ingredients.search')}</span>
             <input type="text" placeholder={t('settings.ingredients.search')} value={text} autoComplete="off" maxLength={60} onChange={(event) => setText(event.target.value)} />
           </label>
-          {needle.length >= SEARCH_MIN && results.data && (
+          {/* A failed lookup is not an empty one (PR #21 review, finding 7). */}
+          {needle.length >= SEARCH_MIN && results.isError && (
+            <p className="meta-line" role="alert">
+              {t(errorKey(results.error))}{' '}
+              <button type="button" className="text-button" onClick={() => void results.refetch()}>{t('common.retry')}</button>
+            </p>
+          )}
+          {needle.length >= SEARCH_MIN && !results.isError && results.data && (
             results.data.length ? (
               <ul className={styles.results}>
                 {results.data.map((item) => (

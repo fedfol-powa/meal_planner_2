@@ -72,30 +72,44 @@ export interface ApplyOptions {
   isLatest: () => boolean;
 }
 
-/** Model of applyRating (W5): cancel affected reads, check, write, invalidate, restart the empty ones. */
-export async function applyMutation(queryClient: QueryClient, options: ApplyOptions): Promise<void> {
+/** The same view in another language: same area, operation and family (PR #21 review, finding 2). */
+function sameView(target: MutationTarget, familyId: string | undefined) {
+  const [area, operation] = target === 'profile' ? ['profile', 'get'] : TARGET_KEY[target];
+  return (query: Query) =>
+    query.queryKey[0] === area && query.queryKey[1] === operation && (target === 'profile' || familyOfKey(query.queryKey) === familyId);
+}
+
+/**
+ * Model of applyRating (W5): cancel affected reads, check, write, invalidate, restart the empty ones.
+ * Resolves true when the answer was written, false when it was dropped or superseded.
+ */
+export async function applyMutation(queryClient: QueryClient, options: ApplyOptions): Promise<boolean> {
   const { target, stale } = INVALIDATIONS[options.name] as Invalidation;
   const key = JSON.stringify(targetKey(target, options.familyId, options.locale));
   const isTarget = (query: Query) => JSON.stringify(query.queryKey) === key;
-  const isStale = (query: Query) => !isTarget(query) && stale.some((scope) => matches(scope, options.familyId)(query));
+  // The answer is in the language it was sent in: the other languages of the view are only made stale.
+  const isVariant = (query: Query) => !isTarget(query) && sameView(target, options.familyId)(query);
+  const isStale = (query: Query) => !isTarget(query) && (isVariant(query) || stale.some((scope) => matches(scope, options.familyId)(query)));
   const affected = (query: Query) => isTarget(query) || isStale(query);
   const running = queryClient.getQueryCache().findAll({ predicate: affected, fetchStatus: 'fetching' });
   await queryClient.cancelQueries({ predicate: affected });
   // Closing clears the cache anyway.
-  if (!options.sessionOpen()) return;
+  if (!options.sessionOpen()) return false;
   if (!options.isLatest()) {
     // Superseded answer of a successful write: not written, but everything it changed goes stale.
     void queryClient.invalidateQueries({ predicate: affected });
-    return;
+    return false;
   }
   // The old version stays: the next read gets fresh data (the counter grew), never a wrong «unchanged».
-  queryClient.setQueryData(JSON.parse(key) as unknown[], (old: { version: string } | undefined) =>
-    target === 'profile' ? options.view : { version: old?.version ?? '', data: options.view }
+  // Without a cached version none is kept, and the next read sends no knownVersion (PR #21 review, finding 1).
+  queryClient.setQueryData(JSON.parse(key) as unknown[], (old: { version?: string } | undefined) =>
+    target === 'profile' ? options.view : old?.version ? { version: old.version, data: options.view } : { data: options.view }
   );
   void queryClient.invalidateQueries({ predicate: isStale });
   // Cancelled reads that had nothing to show start again, now after the write.
   const empty = running.filter((query) => query.state.data === undefined && !isStale(query));
   if (empty.length) void queryClient.invalidateQueries({ predicate: (query) => empty.includes(query) });
+  return true;
 }
 
 export interface MutationDeps {
@@ -105,14 +119,23 @@ export interface MutationDeps {
   currentLocale: () => string;
 }
 
-/** Sends one mutation and applies its answer; the logic of useAreaMutation without React. */
-export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName, familyId: string | undefined, call: () => Promise<T>): Promise<T> {
+export interface MutationOutcome<T> {
+  view: T;
+  /** The answer is the latest of its view, in the current language, in an open session, and was written. */
+  applied: boolean;
+}
+
+/**
+ * Sends one mutation and applies its answer; the logic of useAreaMutation without React. Effects
+ * beyond the cache (e.g. the language) belong only to an applied answer (PR #21 review, finding 3).
+ */
+export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName, familyId: string | undefined, call: () => Promise<T>): Promise<MutationOutcome<T>> {
   const { target } = INVALIDATIONS[name] as Invalidation;
   const trackKey = target === 'profile' ? 'profile' : `${target}:${familyId}`;
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
   const view = await call();
-  await applyMutation(deps.queryClient, {
+  const applied = await applyMutation(deps.queryClient, {
     name,
     familyId,
     locale,
@@ -120,7 +143,7 @@ export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName,
     sessionOpen: () => !deps.session.isClosed(),
     isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token)
   });
-  return view;
+  return { view, applied };
 }
 
 /**

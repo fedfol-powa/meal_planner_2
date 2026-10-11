@@ -12,7 +12,8 @@ import { useQueryDeps, weekQuery } from '../api/queries';
 import type { Api, ProfileView } from '../api/types';
 import { createStubBackend } from '../test/stubBackend';
 import { renderSession } from '../test/sessionHarness';
-import { useSession, useSessionRevision, type CreateApi } from './SessionScope';
+import { useLocale } from '../i18n/LocaleProvider';
+import { useChooseLocale, useSession, useSessionRevision, type CreateApi } from './SessionScope';
 
 const A = { id: 'a', email: 'a@example.com' };
 const FAMILY = 'f';
@@ -177,5 +178,53 @@ describe('profile from the Worker, through SessionScope', () => {
     await screen.findByText('revoked');
     await screen.findByText('current: -');
     expect(server.profileSeen).toHaveLength(2);
+  });
+});
+
+describe('language answers out of order (PR #21 review, finding 3)', () => {
+  it('never goes back to a language whose answer was superseded', async () => {
+    const answers: { locale: 'it-IT' | 'en-GB'; resolve: () => void }[] = [];
+    // The server keeps the language of the last write it processed; answers are released by the test.
+    let saved: 'it-IT' | 'en-GB' = 'it-IT';
+    const withLocale = (locale: 'it-IT' | 'en-GB') => profileOf({ user: { ...profileOf().user, locale } });
+    const createApi: CreateApi = () => () => {
+      const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, user: A });
+      const update = ((input: { locale: 'it-IT' | 'en-GB' }) => {
+        saved = input.locale;
+        return new Promise<ProfileView>((resolve) => answers.push({ locale: input.locale, resolve: () => resolve(withLocale(input.locale)) }));
+      }) as unknown as Api['profile']['update'];
+      return { ...base, profile: { ...base.profile, get: async () => withLocale(saved), update } } as Api;
+    };
+    let cachedLocales: string[] = [];
+    function LocaleProbe() {
+      const choose = useChooseLocale();
+      const { locale } = useLocale();
+      const deps = useQueryDeps();
+      useQuery(profileQuery(deps));
+      cachedLocales = deps.queryClient.getQueriesData<ProfileView>({ queryKey: ['profile', 'get'] }).map(([, data]) => data?.user.locale ?? '-');
+      return (
+        <>
+          <p>locale: {locale}</p>
+          <button onClick={() => void choose('en-GB')}>english</button>
+          <button onClick={() => void choose('it-IT')}>italian</button>
+        </>
+      );
+    }
+    renderSession(<LocaleProbe />, { backend: createStubBackend(A), createApi });
+    await screen.findByText('locale: it-IT');
+    fireEvent.click(screen.getByText('english'));
+    fireEvent.click(screen.getByText('english'));
+    await waitFor(() => expect(answers).toHaveLength(2));
+    await act(async () => answers[1]!.resolve());
+    await screen.findByText('locale: en-GB');
+    fireEvent.click(screen.getByText('italian'));
+    await waitFor(() => expect(answers).toHaveLength(3));
+    await act(async () => answers[2]!.resolve());
+    await screen.findByText('locale: it-IT');
+    // The first English answer arrives last: superseded, it changes nothing.
+    await act(async () => answers[0]!.resolve());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.getByText('locale: it-IT')).toBeTruthy();
+    expect(cachedLocales.every((locale) => locale !== 'en-GB')).toBe(true);
   });
 });

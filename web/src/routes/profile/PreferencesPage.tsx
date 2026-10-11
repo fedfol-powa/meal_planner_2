@@ -30,6 +30,7 @@ export function PreferencesPage() {
   const saved = profile?.user.displayName ?? '';
   const [name, setName] = useState(saved);
   const [languageError, setLanguageError] = useState<unknown>(null);
+  const [sendingLocale, setSendingLocale] = useState(false);
   const rename = useAreaMutation('profile.updateName', undefined, (displayName: string) => api.profile.update({ displayName }));
   // The field follows the server while nothing is being typed or sent.
   useEffect(() => {
@@ -41,9 +42,13 @@ export function PreferencesPage() {
     // No optimistic update: the text stays as typed until the answer, then shows the server value.
     rename.mutate(name, { onError: () => setName(saved) });
   };
+  // The choice waits for the profile: one at a time, the radios show the language until the answer.
   const choose = (next: (typeof LOCALES)[number]) => {
     setLanguageError(null);
-    chooseLocale(next).catch(setLanguageError);
+    setSendingLocale(true);
+    chooseLocale(next)
+      .catch(setLanguageError)
+      .finally(() => setSendingLocale(false));
   };
   const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
 
@@ -73,11 +78,12 @@ export function PreferencesPage() {
           <h2 id="language-title">{t('profile.language')}</h2>
           {LOCALES.map((option) => (
             <label key={option} className="choice" lang={option}>
-              <input type="radio" name="locale" checked={locale === option} onChange={() => choose(option)} />
+              <input type="radio" name="locale" checked={locale === option} disabled={sendingLocale} onChange={() => choose(option)} />
               {t(`profile.language.${option}`)}
             </label>
           ))}
           <p className="meta-line">{t(online ? 'preferences.languageHint' : 'preferences.offline')}</p>
+          {sendingLocale && <p className="meta-line" role="status">{t('settings.saving')}</p>}
           {languageError !== null && <p className="meta-line" role="alert">{t(errorKey(languageError))}</p>}
         </section>
         {backend.mode === 'supabase' && (

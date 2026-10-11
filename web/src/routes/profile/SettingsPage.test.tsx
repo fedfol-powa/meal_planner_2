@@ -144,6 +144,76 @@ describe('family settings', () => {
     expect((books.getByLabelText('Panini e tramezzini') as HTMLInputElement).disabled).toBe(true);
   });
 
+  it('shows every weekly maximum and tolerance the contract accepts (PR #21 review, finding 4)', async () => {
+    const api = adminApi();
+    // Values an agent may have set through MCP.
+    await api.family.setIngredientRestriction({ familyId: DEMO_FAMILY_ID, ingredientId: 'zucchine', restriction: 'limit', weeklyMax: 7 });
+    await api.family.setKnownNew({ familyId: DEMO_FAMILY_ID, known: 7, new: 5, tolerance: 3 });
+    renderApp('/profile/family/settings', { api });
+    const ingredients = await card('Ingredienti da evitare o limitare');
+    const select = ingredients.getByLabelText('Restrizione per Zucchine') as HTMLSelectElement;
+    expect(select.value).toBe('7');
+    expect(select.selectedOptions[0]!.textContent).toBe('Max 7 a settimana');
+    expect([...select.options].map((o) => o.value)).toEqual(['avoid', '1', '2', '3', '4', '5', '6', '7']);
+    fireEvent.click(screen.getByText('Avanzate'));
+    expect((screen.getByRole('button', { name: 'Più: Tolleranza ±' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('brings the fixed meal text back to the server value after a refusal, with the error in the sheet (PR #21 review, finding 5)', async () => {
+    const api = adminApi();
+    await api.family.setMeal({ familyId: DEMO_FAMILY_ID, mealType: 'dinner', weekday: 4, servings: 2, fixedText: 'Pizza', maxMinutes: null });
+    const setMeal = api.family.setMeal;
+    let refuse = true;
+    api.family.setMeal = ((input: Parameters<typeof setMeal>[0]) => (refuse ? Promise.reject(new ApiError('invalid')) : setMeal(input))) as unknown as Api['family']['setMeal'];
+    renderApp('/profile/family/settings', { api });
+    fireEvent.click(await screen.findByRole('button', { name: 'venerdì Cena: Pizza' }));
+    const sheet = within(screen.getByRole('dialog'));
+    const field = sheet.getByLabelText('Che cosa') as HTMLInputElement;
+    fireEvent.change(field, { target: { value: 'Sushi' } });
+    fireEvent.blur(field);
+    expect((await sheet.findByRole('alert')).textContent).toBe('Dati non validi.');
+    expect(field.value).toBe('Pizza');
+    // Accepted: the field shows the text as the server saved it.
+    refuse = false;
+    fireEvent.change(field, { target: { value: '  Sushi  ' } });
+    fireEvent.blur(field);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'venerdì Cena: Sushi' })).toBeTruthy());
+    expect(field.value).toBe('Sushi');
+    expect(sheet.queryByRole('alert')).toBeNull();
+  });
+
+  it('locks the open sheets when the connection drops (PR #21 review, finding 6)', async () => {
+    renderApp('/profile/family/settings', { api: adminApi() });
+    fireEvent.click(await screen.findByRole('button', { name: 'lunedì Pranzo: 2 porzioni, max 30 min' }));
+    const meal = within(screen.getByRole('dialog'));
+    expect((meal.getByLabelText('Tempo massimo') as HTMLSelectElement).disabled).toBe(false);
+    act(() => setOnline(false));
+    await waitFor(() => expect((meal.getByLabelText('Tempo massimo') as HTMLSelectElement).disabled).toBe(true));
+    expect((meal.getByRole('button', { name: 'Più: Porzioni' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(meal.getByRole('button', { name: 'Fatto' }));
+    act(() => setOnline(true));
+    fireEvent.click(await screen.findByRole('button', { name: 'Aggiungi una regola' }));
+    const rule = within(screen.getByRole('dialog'));
+    act(() => setOnline(false));
+    await waitFor(() => expect((rule.getByRole('button', { name: 'Aggiungi' }) as HTMLButtonElement).disabled).toBe(true));
+  });
+
+  it('tells a failed ingredient search from an empty one, and searches again (PR #21 review, finding 7)', async () => {
+    const api = adminApi();
+    const search = api.family.searchIngredients;
+    let fail = true;
+    api.family.searchIngredients = ((input: Parameters<typeof search>[0]) => (fail ? Promise.reject(new ApiError('internal')) : search(input))) as unknown as Api['family']['searchIngredients'];
+    renderApp('/profile/family/settings', { api });
+    const ingredients = await card('Ingredienti da evitare o limitare');
+    fireEvent.change(ingredients.getByPlaceholderText('Cerca un ingrediente da aggiungere'), { target: { value: 'zucchin' } });
+    expect((await ingredients.findByRole('alert')).textContent).toContain('Il servizio ha avuto un problema');
+    expect(ingredients.queryByText('Nessun ingrediente trovato.')).toBeNull();
+    fail = false;
+    fireEvent.click(ingredients.getByRole('button', { name: 'Riprova' }));
+    expect(await ingredients.findByRole('button', { name: 'Zucchine' })).toBeTruthy();
+    expect(ingredients.queryByRole('alert')).toBeNull();
+  });
+
   it('has no «Elimina la famiglia» (wave 3)', async () => {
     renderApp('/profile/family/settings');
     await screen.findByText('Chi mangia quando');

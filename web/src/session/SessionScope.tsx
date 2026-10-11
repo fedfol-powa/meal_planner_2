@@ -148,8 +148,10 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
   const currentLocale = useCallback(() => localeRef.current, []);
   // Spec, Lingua: saved in the profile and applied at the answer; offline (or without network)
   // the choice stays temporary on this device, as before.
+  const choices = useRef(0);
   const chooseLocale = useCallback(
     async (next: Locale) => {
+      const choice = ++choices.current;
       const temporary = () => {
         setLocale(next);
         if (backend.mode === 'fake') writePreference('device', next);
@@ -158,10 +160,11 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
       const client = clients(localeRef.current);
       if (!identity || !session || !client || !isOnline()) return temporary();
       try {
-        const saved = await runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
+        const { view: saved, applied } = await runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
           client.profile.update({ locale: next })
         );
-        if (session.isClosed()) return;
+        // A superseded answer changes neither the language nor the copies of the profile (PR #21 review, finding 3).
+        if (!applied) return;
         // The language is the same in every copy of the profile: none of them may bring the old one back.
         session.queryClient.setQueriesData<ProfileView>({ queryKey: ['profile', 'get'] }, (old) =>
           old && old.user.id === saved.user.id ? { ...old, user: { ...old.user, locale: saved.user.locale } } : old
@@ -170,7 +173,8 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
         if (backend.mode === 'fake') writePreference('device', saved.user.locale);
         setLocale(saved.user.locale);
       } catch (error) {
-        if (toApiError(error).code === 'network') return temporary();
+        // Only the latest choice falls back to a temporary one.
+        if (toApiError(error).code === 'network') return choice === choices.current ? temporary() : undefined;
         throw error;
       }
     },

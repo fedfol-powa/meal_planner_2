@@ -1,6 +1,7 @@
 import { MAX_SERVINGS, TIME_LIMITS } from '@app/domain/family';
 import { MEAL_TYPES } from '@app/domain/planner';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { errorKey } from '../api/errors';
 import type { SettingsView } from '../api/types';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { BottomSheet } from './BottomSheet';
@@ -21,7 +22,7 @@ const kindOf = (slot: SlotSetting): Kind => (slot.servings === 0 ? 'none' : slot
  * «Chi mangia quando» (round 4): the week pattern of servings, fixed free meals and time limits.
  * A change being saved shows the value sent and keeps the controls disabled until the answer.
  */
-export function DinersGrid({ slots, editable, pending, onChange }: { slots: Slots; editable: boolean; pending: SlotChange | null; onChange: (change: SlotChange) => void }) {
+export function DinersGrid({ slots, editable, pending, error, onChange }: { slots: Slots; editable: boolean; pending: SlotChange | null; error: unknown; onChange: (change: SlotChange) => void }) {
   const t = useT();
   const { locale } = useLocale();
   const [editing, setEditing] = useState<{ mealType: MealType; weekday: number } | null>(null);
@@ -31,13 +32,20 @@ export function DinersGrid({ slots, editable, pending, onChange }: { slots: Slot
   const current = editing ? shown(editing.mealType, editing.weekday) : null;
   const kind = current ? kindOf(current) : 'recipe';
   const busy = pending !== null;
+  // Offline or read only: an open sheet stops changing too (PR #21 review, finding 6).
+  const locked = !editable || busy;
+  const savedText = editing ? slots[editing.mealType][editing.weekday]!.fixedText : null;
+  // After each answer, accepted or refused, the text is the server's (PR #21 review, finding 5).
+  useEffect(() => {
+    if (!busy) setFixedDraft(savedText ?? '');
+  }, [busy, savedText, error]);
 
   const open = (mealType: MealType, weekday: number) => {
     setEditing({ mealType, weekday });
     setFixedDraft(slots[mealType][weekday]!.fixedText ?? '');
   };
   const save = (change: Partial<SlotSetting>) => {
-    if (!editing || !current) return;
+    if (!editing || !current || locked) return;
     onChange({ ...editing, slot: { ...current, ...change } });
   };
   const setKind = (next: Kind) => {
@@ -104,7 +112,7 @@ export function DinersGrid({ slots, editable, pending, onChange }: { slots: Slot
       >
         {current && (
           <>
-            <fieldset className={styles.kinds} disabled={busy}>
+            <fieldset className={styles.kinds} disabled={locked}>
               <legend className="visually-hidden">{t('settings.slot.kind')}</legend>
               {(['recipe', 'fixed', 'none'] as const).map((option) => (
                 <label key={option} className="choice">
@@ -120,21 +128,21 @@ export function DinersGrid({ slots, editable, pending, onChange }: { slots: Slot
                   type="text"
                   maxLength={60}
                   value={fixedDraft}
-                  disabled={busy}
+                  disabled={locked}
                   onChange={(event) => setFixedDraft(event.target.value)}
                   onBlur={() => fixedDraft.trim() && fixedDraft.trim() !== current.fixedText && save({ fixedText: fixedDraft.trim() })}
                 />
               </label>
             )}
             {kind !== 'none' && (
-              <Stepper label={t('settings.slot.servings')} value={current.servings} min={1} max={MAX_SERVINGS} disabled={busy} onChange={(servings) => save({ servings })} />
+              <Stepper label={t('settings.slot.servings')} value={current.servings} min={1} max={MAX_SERVINGS} disabled={locked} onChange={(servings) => save({ servings })} />
             )}
             {kind === 'recipe' && (
               <label className={`field ${styles.limitField}`}>
                 {t('settings.slot.maxMinutes')}
                 <select
                   value={current.maxMinutes ?? ''}
-                  disabled={busy}
+                  disabled={locked}
                   onChange={(event) => save({ maxMinutes: event.target.value ? (Number(event.target.value) as SlotSetting['maxMinutes']) : null })}
                 >
                   <option value="">{t('settings.slot.noLimit')}</option>
@@ -143,6 +151,7 @@ export function DinersGrid({ slots, editable, pending, onChange }: { slots: Slot
               </label>
             )}
             {busy && <p className="meta-line" role="status">{t('settings.saving')}</p>}
+            {!busy && error !== null && <p className="meta-line" role="alert">{t(errorKey(error))}</p>}
             <button type="button" className={`text-button primary wide ${styles.done}`} onClick={() => setEditing(null)}>{t('settings.done')}</button>
           </>
         )}

@@ -16,6 +16,8 @@ export const TIME_LIMITS = [15, 20, 30, 45, 60] as const;
 export const FIXED_TEXT_MAX = 60;
 export const KNOWN_NEW_MAX = 14;
 export const GROUP_MAX = 14;
+/** Weekly maximum of a limited ingredient. */
+export const WEEKLY_MAX = 7;
 export const DISH_KINDS = ['pasta', 'rice', 'bread_wrap', 'skottle'] as const satisfies readonly DishKind[];
 
 const weekday = z.number().int().min(0).max(6);

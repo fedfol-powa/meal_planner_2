@@ -21,7 +21,6 @@ import { BackToProfile } from './BackToProfile';
 import styles from './SettingsPage.module.css';
 
 const NAME_MAX = 60;
-const TOLERANCE_MAX = 3;
 type KnownNew = SettingsView['settings']['knownNew'];
 type FoodGroup = (typeof FOOD_GROUPS)[number];
 
@@ -110,7 +109,13 @@ function SettingsSections({ familyId, view, editable }: { familyId: string; view
       <section className="settings-card" aria-labelledby="diners-title">
         <h2 id="diners-title">{t('settings.diners')}</h2>
         <p className="meta-line">{t('settings.dinersHint')}</p>
-        <DinersGrid slots={view.settings.slots} editable={editable} pending={setMeal.isPending ? setMeal.variables : null} onChange={(change) => setMeal.mutate(change)} />
+        <DinersGrid
+          slots={view.settings.slots}
+          editable={editable}
+          pending={setMeal.isPending ? setMeal.variables : null}
+          error={setMeal.isError ? setMeal.error : null}
+          onChange={(change) => setMeal.mutate(change)}
+        />
         <WriteError mutation={setMeal} />
       </section>
 
@@ -204,7 +209,7 @@ function Advanced({ familyId, view, editable }: { familyId: string; view: Settin
       <p className="meta-line">{t('settings.knownNewHint')}</p>
       <Stepper label={t('settings.known')} value={knownNew.known} max={KNOWN_NEW_MAX} disabled={quotaBusy} onChange={(known) => change({ known })} />
       <Stepper label={t('settings.new')} value={knownNew.new} max={KNOWN_NEW_MAX} disabled={quotaBusy} onChange={(fresh) => change({ new: fresh })} />
-      <Stepper label={t('settings.tolerance')} value={knownNew.tolerance} max={TOLERANCE_MAX} disabled={quotaBusy} onChange={(tolerance) => change({ tolerance })} />
+      <Stepper label={t('settings.tolerance')} value={knownNew.tolerance} max={KNOWN_NEW_MAX} disabled={quotaBusy} onChange={(tolerance) => change({ tolerance })} />
       <WriteError mutation={setKnownNew} />
       <h3>{t('settings.groups')}</h3>
       <p className="meta-line">{t('settings.groupsHint')}</p>

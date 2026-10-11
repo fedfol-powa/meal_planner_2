@@ -95,7 +95,9 @@ export function MealRules({ rules, editable, busy, onAdd, onRemove }: { rules: M
         <button
           type="button"
           className="text-button primary wide"
+          disabled={!editable || busy}
           onClick={() => {
+            if (!editable || busy) return;
             onAdd(draft());
             setAdding(false);
           }}

@@ -1,5 +1,7 @@
+import { contract } from '@app/contract';
 import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
+import { readThrough } from './queries';
 import { createMemoryStore } from './persister';
 import { createSession } from '../session/session';
 import { applyMutation, runAreaMutation, type MutationName } from './mutations';
@@ -88,6 +90,50 @@ describe('applying the answer of a mutation', () => {
     const profile = { user: { displayName: 'Fede' } };
     await run('profile.updateName', undefined, async () => profile);
     expect(client.getQueryData(['profile', 'get', { locale: 'it-IT' }])).toEqual(profile);
+  });
+
+  it('keeps no version when none was cached, so the next read is valid for the contract (PR #21 review, finding 1)', async () => {
+    const { client, run } = harness();
+    const key = ['family', 'listExclusions', { familyId: FAMILY, locale: 'it-IT' }];
+    await run('family.addExclusion', FAMILY, async () => []);
+    expect(client.getQueryData(key)).toEqual({ data: [] });
+    const inputs: unknown[] = [];
+    const fresh = await readThrough(client, key, async (knownVersion) => {
+      // The real input schema of the operation: an empty version would be refused here.
+      inputs.push(contract.family.listExclusions['~orpc'].inputSchema!['~standard'].validate({ familyId: FAMILY, knownVersion }));
+      return { unchanged: false, version: 'v2', data: [] };
+    });
+    expect(inputs).toEqual([{ value: { familyId: FAMILY } }]);
+    expect(fresh).toEqual({ version: 'v2', data: [] });
+  });
+
+  it('makes the same view in the other languages stale, written or superseded (PR #21 review, finding 2)', async () => {
+    const english = ['family', 'getSettings', { familyId: FAMILY, locale: 'en-GB' }];
+    const otherFamily = ['family', 'getSettings', { familyId: OTHER, locale: 'en-GB' }];
+    for (const superseded of [false, true]) {
+      const { client, setLocale, run } = harness();
+      client.setQueryData(english, { version: 'v1', data: view(2) });
+      client.setQueryData(otherFamily, { version: 'v1', data: view(2) });
+      const answer = deferred<unknown>();
+      const done = run('family.setBookOwned', FAMILY, () => answer.promise);
+      if (superseded) setLocale('en-GB');
+      answer.resolve(view(3));
+      await done;
+      // Never the Italian answer in the English view, but read again.
+      expect(client.getQueryData(english)).toEqual({ version: 'v1', data: view(2) });
+      expect(client.getQueryState(english)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(otherFamily)?.isInvalidated).toBe(false);
+    }
+  });
+
+  it('tells whether the answer was applied', async () => {
+    const { run } = harness();
+    const first = deferred<unknown>();
+    const a = run('profile.updateLocale', undefined, () => first.promise);
+    const b = await run('profile.updateLocale', undefined, async () => ({ n: 2 }));
+    first.resolve({ n: 1 });
+    expect(b.applied).toBe(true);
+    expect((await a).applied).toBe(false);
   });
 
   it('keeps the old version next to the new view, so the next read never gets a wrong «unchanged»', async () => {
