@@ -3,6 +3,7 @@ import { withDb, type Tx } from '../../src/db.ts';
 import { ingredientLines, ratingSummaries, recipeSummaries, recipeViewKey, recipeViews } from '../../src/recipes/views.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from '../support/db.ts';
 import { catalogueFixture, type CatalogueFixture } from './fixtures.ts';
+import { interleaved } from './interleaved.ts';
 
 describe.skipIf(!hasDatabase)('recipe views', () => {
 	let db: TestDatabase;
@@ -157,18 +158,6 @@ describe.skipIf(!hasDatabase)('recipe views', () => {
 			baseServings: 2,
 			lines: [{ ingredientId: tomato, quantity: { kind: 'amount', value: 200, unit: 'g' } }],
 		});
-		// After the first statement of the read, V2 is published and committed on another connection.
-		const interleaved = (tx: Tx, after: () => Promise<unknown>): Tx => {
-			let done = false;
-			return ((strings: TemplateStringsArray, ...values: unknown[]) =>
-				(tx as any)(strings, ...values).then(async (rows: unknown) => {
-					if (!done) {
-						done = true;
-						await after();
-					}
-					return rows;
-				})) as unknown as Tx;
-		};
 		const old = { recipeId, version: 1, servings: 0 };
 		const now = { recipeId, version: null, servings: 0 };
 		const publish = () =>

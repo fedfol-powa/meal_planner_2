@@ -110,6 +110,19 @@ describe.skipIf(!hasDatabase)('recipes.search', () => {
 		expect((await m.client.recipes.search({ familyId: m.familyId, query: {}, knownVersion: first.version })).unchanged).toBe(false);
 	});
 
+	it('refuses a removed member with the same token, even holding a version read before', async () => {
+		const admin = await t.member();
+		const other = await db.createUser();
+		await db.addMember(admin.familyId, other.userId, 'member');
+		const { client } = await t.clientFor(other);
+		await cat.recipe({ name: { 'it-IT': 'Ex', 'en-GB': 'Ex' } });
+		const before = await client.recipes.search({ familyId: admin.familyId, query: {} });
+		expect(before.unchanged).toBe(false);
+		await db.admin`delete from app.family_members where family_id = ${admin.familyId} and user_id = ${other.userId}`;
+		await expect(client.recipes.search({ familyId: admin.familyId, query: {} })).rejects.toMatchObject({ code: 'forbidden' });
+		await expect(client.recipes.search({ familyId: admin.familyId, query: {}, knownVersion: before.version })).rejects.toMatchObject({ code: 'forbidden' });
+	});
+
 	it('is forbidden to non members and works as a read-only MCP tool', async () => {
 		const m = await t.member();
 		const other = await t.member();

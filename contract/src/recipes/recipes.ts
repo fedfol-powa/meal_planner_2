@@ -48,6 +48,9 @@ export const recipeDetailView = z.object({
 	upcoming: z.array(mealOccurrenceView),
 });
 
+export type RecipeListItemView = z.infer<typeof recipeListItemView>;
+export type RecipeDetailView = z.infer<typeof recipeDetailView>;
+
 export const recipesContract = {
 	search: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] })
 		.route({
