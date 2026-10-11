@@ -40,6 +40,16 @@ describe('applyRecipeConversions', () => {
 		expect(conversions[0]?.to).toEqual({ kind: 'amount', value: 237, unit: 'ml' });
 	});
 
+	it('reads the preparation field, never the source text (the example of the guide)', () => {
+		const generic = eq({ factor: 100 });
+		const grated = eq({ factor: 120, preparation: 'grattugiato' });
+		const equivalences = new Map([[flour, [generic, grated]]]);
+		const written = { ...cupLine(flour, 1, { 'it-IT': 'Grattugiato', 'en-GB': 'grated' }), sourceText: '1 cup grated Parmesan' };
+		const onlySource = { ...cupLine(flour, 1), sourceText: '1 cup grated Parmesan' };
+		expect(applyRecipeConversions(draft([written]), equivalences).conversions[0]).toMatchObject({ to: { kind: 'amount', value: 120, unit: 'g' }, equivalence: { id: grated.id } });
+		expect(applyRecipeConversions(draft([onlySource]), equivalences).conversions[0]).toMatchObject({ to: { kind: 'amount', value: 100, unit: 'g' }, equivalence: { id: generic.id } });
+	});
+
 	it('never applies the equivalence of another preparation', () => {
 		const zest = eq({ ingredientId: lemon, toUnit: 'g', factor: 96, preparation: 'scorza' });
 		const { conversions } = applyRecipeConversions(draft([cupLine(lemon, 1, { 'it-IT': 'succo', 'en-GB': 'juice' })]), new Map([[lemon, [zest]]]));

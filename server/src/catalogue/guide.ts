@@ -18,6 +18,10 @@ export const CURATOR_GUIDE = `# Managing the recipe book as a curator
 6. conflict of kind "draft": another curator saved meanwhile. Show their version (theirs) and the fields each
    of you changed; either take theirs (read the draft again with catalogue_getDraft) or overwrite it by saving
    again with overwriteRevision set to their revision.
+   An overwritten save is never lost: catalogue_listDraftSaves lists every save of a draft (overwritten: true),
+   catalogue_getDraftSave reads one. To recover it, show it to the curator and save it again with
+   catalogue_saveDraft from the latest revision; for a closed revision, catalogue_startRevision first; for a
+   discarded new recipe, catalogue_createDraft with a new id.
 7. conflict of kind "version": the recipe got a newer version after the revision started. Tell the curator and
    publish again with confirmVersion only if they confirm.
 8. To restore an older version (catalogue_restoreVersion) show it first (catalogue_getVersion) and pass the
@@ -32,7 +36,8 @@ export const CURATOR_GUIDE = `# Managing the recipe book as a curator
 - At least one ingredient line; each with an amount and a publishable unit, "to taste" when the source says so,
   or a quantity in words in both languages; variety and preparation in both languages when present.
 - US cups are converted by the ingredient's recipe equivalence (catalogue_setEquivalence, with the source of
-  the figure); a cup without an equivalence cannot be published.
+  the figure); a cup without an equivalence cannot be published. The equivalence of the line's preparation
+  (its Italian text in the preparation field) wins over the generic one; the source text is never read.
 
 # Recipe ingredients
 
@@ -54,7 +59,8 @@ in the source, and whether it is optional. Amounts are for the recipe's base ser
 - Add a variety only when the source names a product you buy differently: a cultivar or type such as
   "Roma", "cuore di bue", "Granny Smith", "gialla senza semi".
 - Not a variety: size ("grande", "piccola"), ripeness or quality ("maturo", "fresco"), preparation
-  ("tritato", "a dadini", "succo", "scorza"). These stay only in the source text of the line.
+  ("tritato", "a dadini", "succo", "scorza"). Size, ripeness and quality stay only in the source text;
+  a preparation stays in the source text and also goes in the preparation field (section 4).
 - Before writing one, list the varieties already used for that ingredient (catalogue_listVarieties) and
   reuse the same spelling when it is the same variety.
 - Write it without the ingredient name and without "tipo" or "varietà": "Roma", not "Pomodoro tipo Roma".
@@ -63,14 +69,25 @@ in the source, and whether it is optional. Amounts are for the recipe's base ser
 - Check it (catalogue_checkVariety) and resolve every hint before saving:
   - existing_spelling: use the suggested spelling unless the curator says it is a different variety;
   - repeats_ingredient: drop the ingredient name, use the suggestion;
-  - preparation: remove the variety and keep the words in the source text.
+  - preparation: remove the variety, keep the words in the source text and write the preparation, verified
+    on the source, in the line's preparation field in both languages (section 4).
 
 ## 4. Quantities
 - Amount and unit as in the source, for the base servings. Convert nothing at this stage.
 - "q.b." / to taste only when the source says so; an unknown amount is a question for the curator,
   never "q.b.".
 - A quantity in words ("1 spicchio", "una manciata") is a text quantity, in both languages.
-- sourceText is the line exactly as written in the source, preparation included.
+- sourceText is the line exactly as written in the source, preparation included, always.
+- Preparation: when the source states how the ingredient is prepared ("succo", "scorza", "grattugiato",
+  "tritato"), write it also in the line's preparation field, in Italian and British English. Conversions
+  read only that field: the equivalence of a preparation applies to cups in recipes, and shopping lists
+  turn "succo di limone" into lemons by it. Read the ingredient (catalogue_getIngredient) and write the
+  Italian preparation with the same words as its equivalence, when there is one.
+- Example (figures for illustration): the source says "1 cup grated Parmesan"; Parmigiano has a generic
+  recipe equivalence 1 us_cup = 100 g and one for "grattugiato" 1 us_cup = 120 g. Write the line with
+  quantity 1 us_cup, preparation { it-IT: "grattugiato", en-GB: "grated" } and sourceText
+  "1 cup grated Parmesan": catalogue_checkDraft shows the conversion to 120 g. With the preparation only in
+  the source text, the generic 100 g would be published.
 
 ## 5. One line per ingredient and variety
 - The same ingredient may appear twice only with different varieties. If the source lists it twice

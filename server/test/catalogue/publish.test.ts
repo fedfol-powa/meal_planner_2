@@ -87,6 +87,28 @@ describe.skipIf(!hasDatabase)('catalogue publication', () => {
 		expect(draft!.content.ingredients[0].quantity.unit).toBe('us_cup');
 	});
 
+	it('publishes the equivalence of the line preparation, as the guide asks (generic 100, specific 120)', async () => {
+		const curator = await c.curator();
+		const cheese = await c.ingredient('Parmigiano');
+		const set = { ingredientId: cheese, fromUnit: 'us_cup' as const, toUnit: 'g' as const, source: 'Esempio' };
+		await curator.client.catalogue.setEquivalence({ ...set, factor: 100, preparation: null });
+		await curator.client.catalogue.setEquivalence({ ...set, factor: 120, preparation: 'grattugiato' });
+		const line = (preparation: { 'it-IT': string; 'en-GB': string } | null) => ({
+			ingredientId: cheese, variety: null, preparation, quantity: { kind: 'amount' as const, value: 1, unit: 'us_cup' as const },
+			sourceText: '1 cup grated Parmesan', isOptional: false, isPrimary: false,
+		});
+		const onlySource = await curator.client.catalogue.createDraft({ id: crypto.randomUUID(), content: completeContent('Sformato', cheese, { ingredients: [line(null)] }) });
+		expect((await curator.client.catalogue.checkDraft({ draftId: onlySource.draftId })).conversions[0]?.to).toEqual({ kind: 'amount', value: 100, unit: 'g' });
+		const d = await curator.client.catalogue.createDraft({
+			id: crypto.randomUUID(),
+			content: completeContent('Sformato grattugiato', cheese, { ingredients: [line({ 'it-IT': 'grattugiato', 'en-GB': 'grated' })] }),
+		});
+		expect((await curator.client.catalogue.checkDraft({ draftId: d.draftId })).conversions[0]).toMatchObject({ to: { value: 120 }, equivalence: { preparation: 'grattugiato' } });
+		await curator.client.catalogue.publish({ draftId: d.draftId });
+		const [v] = await db()`select content from app.recipe_versions where recipe_id = ${d.recipeId}`;
+		expect(v!.content.ingredients[0]).toMatchObject({ quantity: { kind: 'amount', value: 120, unit: 'g' }, sourceText: '1 cup grated Parmesan' });
+	});
+
 	it('asks to confirm a revision started from a superseded version', async () => {
 		const { curator, recipeId, draftId } = await revisionOf('Vellutata');
 		const other = await c.curator();
