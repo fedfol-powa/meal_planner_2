@@ -8,7 +8,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #13 e PR #15 (menu lato server, Task 2-11) in review; Task 12 (web) in una PR piccola dopo W5 | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #10 unita; implementazione sul branch principale senza parti web | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 (parte server, Task 1-10) in review; `/clear` fatto dopo l'apertura: al rapporto, messaggio di ripresa (fase correzioni della PR) | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 corretta; verifica breve in corso (revisioni/w4-pr11-2.md) | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR: spec e piano approvabili con correzioni; via all'implementazione (w5-06) | 11/10 |
@@ -24,7 +24,9 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 | R PR11 verifica | PR #11 dopo le correzioni | R PR11 verifica | w1:p1G | → revisioni/w4-pr11-2.md |
 | R PR13 versioni | PR #13 di W1 | R PR13 versioni | w1:p1H | → revisioni/w1-pr13.md |
 | R PR15 menu | PR #15 di W1 | R PR15 menu | w1:p1K | → revisioni/w1-pr15.md |
+| R PR16 profilo | PR #16 di W2 | R PR16 profilo | w1:p1M | → revisioni/w2-pr16.md |
 | R PR14 ricettario | PR #14 di W6 | R PR15 menu | PR #15 di W1 | R PR15 menu | w1:p1K | → revisioni/w1-pr15.md |
+| R PR16 profilo | PR #16 di W2 | R PR16 profilo | w1:p1M | → revisioni/w2-pr16.md |
 | R PR14 ricettario | w1:p1J | → revisioni/w6-pr14.md |
 
 ## Domande in sospeso
