@@ -1318,6 +1318,19 @@ In `server/test/backup.test.ts` aggiungi `import { RestoreError, restoreExport, 
 		}
 	});
 
+	it('restores and verifies an export without identities (empty Auth table)', async () => {
+		const document = await freshExport();
+		// The auth text precedes "tables"; identities is its last key (jsonb orders keys by length).
+		const noIdentities = document.replace(/"identities": \[.*?\]\},"tables":/s, '"identities": []},"tables":');
+		expect(noIdentities).not.toBe(document);
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			const result = await restoreExport(tx, noIdentities);
+			expect(result.identities).toBe(0);
+			expect(await verifyRestored(tx)).toEqual([]);
+		});
+	});
+
 	it('refuses a destination with data, even only a changed catalogue counter', async () => {
 		const document = await freshExport();
 		await inRolledBack(async (tx) => {
@@ -1618,15 +1631,18 @@ export async function verifyRestored(tx: Tx): Promise<string[]> {
 	for (const t of targets.slice(0, 2)) {
 		// Project the destination rows on the exported columns, then compare values exactly.
 		const [{ same }] = await tx.unsafe<{ same: boolean }[]>(
-			`with exported as (
-				select coalesce(jsonb_agg(e::jsonb), '[]') as rows,
-					coalesce((select array_agg(distinct k) from json_array_elements(${t.path}) x, json_object_keys(x) k), '{}') as keys
-				from pg_temp.restore_document, json_array_elements(${t.path}) e
+			// Exported columns and rows in two independent subqueries (verified on the local
+			// Postgres: equal rows, a changed nested array, both empty, one extra row).
+			`with keys as (
+				select coalesce(array_agg(distinct k), '{}') as list
+				from pg_temp.restore_document, json_array_elements(${t.path}) e, json_object_keys(e) k
 			)
-			select (select coalesce(jsonb_agg((select jsonb_object_agg(k, to_jsonb(r)->k) from unnest(exported.keys) k) order by r.id), '[]')
-					from ${t.rel} r)
-				= (select coalesce(jsonb_agg(x order by x->>'id'), '[]') from jsonb_array_elements(exported.rows) x) as same
-			from exported`,
+			select coalesce(
+				(select coalesce(jsonb_agg((select jsonb_object_agg(c, to_jsonb(r)->c) from unnest(keys.list) c) order by r.id), '[]')
+					from ${t.rel} r, keys)
+				= (select coalesce(jsonb_agg(e::jsonb order by e->>'id'), '[]')
+					from pg_temp.restore_document, json_array_elements(${t.path}) e),
+				false) as same`,
 		);
 		if (!same) different.push(t.name);
 	}
@@ -2162,13 +2178,13 @@ In quest'ordine:
 
 1. Auth del progetto nuovo: chiavi di firma asimmetriche, provider, SMTP di Resend,
    server OAuth 2.1, URL del sito e di redirect.
-2. Hyperdrive verso il Session pooler nuovo, come utente `app_server`, con il limite
-   di connessioni di prima: `(cd server && npx wrangler hyperdrive update <id> --origin-host <host> --origin-port 5432 --database postgres --origin-user app_server --origin-password "$APP_SERVER_PASSWORD")`
-   dopo `read -rs APP_SERVER_PASSWORD && export APP_SERVER_PASSWORD`.
+2. Hyperdrive verso il Session pooler nuovo, come utente `app_server.<ref del nuovo progetto>` (il Session pooler vuole il riferimento nel nome), con il limite
+   di connessioni di prima: `(cd server && npx wrangler hyperdrive update <id> --origin-host <host> --origin-port 5432 --database postgres --origin-user "app_server.$NEW_PROJECT_REF" --origin-password "$APP_SERVER_PASSWORD")`
+   dopo `NEW_PROJECT_REF=<ref del nuovo progetto>` e `read -rs APP_SERVER_PASSWORD && export APP_SERVER_PASSWORD`.
 3. `SUPABASE_URL` in `server/wrangler.jsonc` (issuer, JWKS, scoperta OAuth per MCP).
 4. `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` della build della SPA.
 5. `npm run deploy` (compila la SPA e pubblica il Worker).
-6. Verifica: accesso, famiglia e menu nell'app, `/.well-known/oauth-protected-resource`
+6. Verifica: accesso, famiglia e menu nell'app, `/.well-known/oauth-protected-resource/mcp`
    che indica il progetto nuovo. Avvisa che tutti rifanno l'accesso e ricollegano gli
    agenti.
 
@@ -2221,7 +2237,7 @@ Premi `d` per aprire i DevTools, scheda **Performance**: avvia la registrazione 
 2. `node scripts/backup/restore.ts inspect export.bin --ref HEAD`: commit trovato.
 3. Destinazione preparata come da procedura: `supabase db reset --no-seed --workdir "$SB"`.
 4. `DATABASE_URL=postgresql://postgres@127.0.0.1:58322/postgres PGPASSWORD=postgres` (password locale nota, non segreta), `restore --dry-run` riuscito, poi `restore` riuscito.
-5. Avvia lo stack completo con Auth (`supabase start --workdir "$SB"`; `db start` avvia solo il database). App web locale puntata allo stack del worktree (`web/.env.local` con `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` di `supabase status --workdir "$SB"`), accesso con un utente del seed ripristinato: famiglia e menu visibili; `curl http://localhost:8797/.well-known/oauth-protected-resource` risponde con l'issuer locale.
+5. Avvia lo stack completo con Auth (`supabase start --workdir "$SB"`; `db start` avvia solo il database). App web locale puntata allo stack del worktree (`web/.env.local` con `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` di `supabase status --workdir "$SB"`), accesso con un utente del seed ripristinato: famiglia e menu visibili; `curl http://localhost:8797/.well-known/oauth-protected-resource/mcp` risponde con `authorization_servers` che indica l'Auth dello stack locale.
 6. Riporta lo stack ai dati dei test: `supabase db reset --workdir "$SB"`; cancella `export.bin`.
 
 - [ ] **Step 6: verifica finale**

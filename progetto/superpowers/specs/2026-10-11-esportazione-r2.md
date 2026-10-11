@@ -3,7 +3,9 @@
 Creato: 11 ottobre 2026
 Stato: design approvato a sezioni dal coordinatore l'11 ottobre 2026; corretta dopo la
 review di spec e piano (`revisioni/w5-esportazione-spec-piano.md`, verdetto «da
-rifare», messaggio `w5-08-review-esportazione.md`).
+rifare», messaggio `w5-08-review-esportazione.md`) e dopo la seconda review
+(`revisioni/w5-esportazione-spec-piano-2.md`, approvabile con tre correzioni, applicate);
+approvata dal coordinatore l'11 ottobre 2026.
 Brief: `progetto/coordinamento/brief/w5-esportazione-r2.md`.
 Specifica principale: sezioni 1, 2, 4, 8 («Storico e backup»), 9, 15 («Backup e
 ripristino») e 16 (registro dell'8 e dell'11 ottobre 2026). Questa spec la estende e le
@@ -386,14 +388,14 @@ dopo un ripristino su un progetto nuovo:
    server OAuth 2.1, URL del sito e di redirect;
 2. migrazioni dal commit trovato, password di `app_server`, ripristino con la CLI;
 3. Hyperdrive: origine verso il Session pooler del progetto nuovo (`wrangler hyperdrive
-   update <id> --origin-host … --origin-user app_server --origin-password …`, limite di
+   update <id> --origin-host … --origin-user app_server.<ref del nuovo progetto> --origin-password …`: il Session pooler vuole il riferimento del progetto nel nome utente, limite di
    connessioni come prima);
 4. `SUPABASE_URL` in `server/wrangler.jsonc` (issuer, JWKS, scoperta OAuth per MCP);
 5. `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` della build della SPA;
 6. ricostruzione e pubblicazione (`npm run deploy`, che compila la SPA e pubblica il
    Worker);
 7. verifica: accesso, lettura di famiglia e menu nell'app, scoperta MCP
-   (`/.well-known/oauth-protected-resource` punta al progetto nuovo); poi tutti rifanno
+   (`/.well-known/oauth-protected-resource/mcp` risponde con `authorization_servers` che indica il progetto nuovo); poi tutti rifanno
    l'accesso e ricollegano gli agenti.
 
 ## 5. Passi esterni (li fa l'utente, su richiesta del coordinatore)
