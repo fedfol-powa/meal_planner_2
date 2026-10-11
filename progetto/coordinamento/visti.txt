@@ -87,3 +87,4 @@ w1:pA	STATO: DOMANDA Parte web nel traguardo A: A (consigliata: Bozze, Archiviat
 w1:pA	STATO: DOMANDA Ingredienti: A (consigliata: crea e modifica con versione e conflitto, equivalenze di ambito ricetta, storico in ingredient_versions, niente archiviazione), B (solo #a346955c
 w1:pA	STATO: DOMANDA Equivalenze nelle ricette: A (consigliata: conversione del server al controllo e alla pubblicazione, bozza invariata, conversioni mostrate nell'esito del controllo), B #3fed232f
 w1:pA	STATO: DOMANDA Conflitti: A (consigliata: errore conflict con discriminante draft/version/ingredient e theirs, sovrascrittura che cita la revisione, ripetizioni idempotenti) o B #f1260fe9
+w1:pA	STATO: DOMANDA Conferma e traduzioni via MCP: A (consigliata: guida con scheda completa e sì esplicito, publish legata alla revision controllata, traduzioni riviste nella stessa #8a1f9a14
