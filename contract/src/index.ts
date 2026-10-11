@@ -11,3 +11,4 @@ export { menuContract } from './menu/operations.ts';
 export { localDateTimeSchema, type MealView, type OpeningView, type WeekView } from './menu/views.ts';
 export * from './shopping/index.ts';
 export * from './catalogue/index.ts';
+export * from './agents/index.ts';
