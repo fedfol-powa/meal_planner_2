@@ -39,7 +39,7 @@ export function FreeMealForm({ familyId, weekStartsOn, meal, onBack, onDone }: {
       }}
     >
       <label className={styles.field}>
-        {t('meals.freeTitle')}
+        {t('meals.freeLabel')}
         <input type="text" placeholder={t('meals.freePlaceholder')} maxLength={MAX_FREE_TEXT} value={text} onChange={(e) => setText(e.target.value)} />
       </label>
       {picks.length > 0 && (

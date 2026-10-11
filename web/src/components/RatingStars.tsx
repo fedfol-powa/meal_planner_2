@@ -26,7 +26,7 @@ export function RatingStars({ summary, recipeId, recipeName, familyId, readOnly 
   const choose = (value: number) => rate.mutate({ recipeId, stars: summary.myStars === value ? null : value });
 
   return (
-    <div className={styles.rating}>
+    <div className={readOnly ? `${styles.rating} ${styles.readOnly}` : styles.rating}>
       <div className={styles.row}>
         <p
           className={styles.average}
@@ -42,7 +42,7 @@ export function RatingStars({ summary, recipeId, recipeName, familyId, readOnly 
           )}
         </p>
         {readOnly ? (
-          <p className="meta-line">{summary.myStars === null ? t('meals.notRated') : t('meals.myStars', { count: summary.myStars })}</p>
+          <p className={styles.mine}>{summary.myStars === null ? t('meals.notRated') : t('meals.myStars', { count: summary.myStars })}</p>
         ) : (
           <fieldset className={styles.stars} disabled={rate.isPending} aria-busy={rate.isPending}>
             <legend className="visually-hidden">{t('rating.mine')}</legend>

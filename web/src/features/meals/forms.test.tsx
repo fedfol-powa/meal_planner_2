@@ -32,7 +32,7 @@ describe('swap, free meal and note', () => {
     server.answerMeals({ getSuggestions: () => ({ recipes: [], nextOffset: 0, freeTexts: ['Fuori', 'Avanzi'] }) });
     const { sheet } = await open(/Ricetta dal server/, 'Cambia ricetta');
     fireEvent.click(within(sheet).getByRole('button', { name: 'Segna come pasto libero' }));
-    const input = (await within(sheet).findByRole('textbox', { name: 'Pasto libero' })) as HTMLInputElement;
+    const input = (await within(sheet).findByRole('textbox', { name: 'Testo del pasto libero' })) as HTMLInputElement;
     expect(input.maxLength).toBe(60);
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Fuori' }));
     expect(input.value).toBe('Fuori');
@@ -48,7 +48,7 @@ describe('swap, free meal and note', () => {
   it('writes a note with a counter and removes it', async () => {
     const { server } = realMealsApp();
     const { sheet } = await open(/Pizza/, 'Nota');
-    const box = within(sheet).getByRole('textbox', { name: 'Nota' }) as HTMLTextAreaElement;
+    const box = within(sheet).getByRole('textbox', { name: 'Nota per la famiglia' }) as HTMLTextAreaElement;
     expect(box.maxLength).toBe(200);
     fireEvent.change(box, { target: { value: 'Senza cipolla' } });
     expect(within(sheet).getByText('13/200')).toBeTruthy();

@@ -35,7 +35,7 @@ export function NoteForm({ familyId, weekStartsOn, meal, onDone }: { familyId: s
       }}
     >
       <label className={styles.field}>
-        {t('meals.note')}
+        {t('meals.noteLabel')}
         <textarea maxLength={MAX_NOTE} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
       </label>
       <p className="meta-line" aria-live="polite">{t('meals.noteCount', { count: note.length })}</p>
