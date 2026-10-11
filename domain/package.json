@@ -3,7 +3,9 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		"./planner": "./src/planner/index.ts"
+		"./planner": "./src/planner/index.ts",
+		"./units": "./src/units/index.ts",
+		"./shopping": "./src/shopping/index.ts"
 	},
 	"scripts": {
 		"test": "vitest run",
