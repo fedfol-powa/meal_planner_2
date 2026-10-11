@@ -12,6 +12,8 @@ import {
 	loadFamily,
 	loadIngredientNamesById,
 	ratingSummaries,
+	recipeViewKey,
+	recipeViews,
 	summaryOf,
 	type Content,
 } from './views.ts';
@@ -72,6 +74,44 @@ export function recipesRouter(os: Implementer) {
 				};
 			});
 			return fresh(context, { items });
+		}),
+
+		get: os.recipes.get.handler(async ({ context, input }) => {
+			const { tx, userId, locale } = context;
+			const { familyId, recipeId } = input;
+			const status = await canSeeRecipe(tx, familyId, recipeId);
+			if (!status) throw appError('not_found');
+			// Opened from a meal: a past one shows the version in force when it passed (R1).
+			let version: number | null = null;
+			if (input.slotId) {
+				const [slot] = await tx<{ version: number | null }[]>`
+					select case when p.at <= now() then app.recipe_version_at(s.recipe_id, p.at) end as version
+					from app.meal_slots s
+					join app.weeks w on w.id = s.week_id
+					join app.families f on f.id = w.family_id
+					cross join lateral (select app.meal_passed_at(s.date, s.meal_type, f.time_zone) as at) p
+					where s.id = ${input.slotId} and w.family_id = ${familyId} and s.recipe_id = ${recipeId}`;
+				if (!slot) throw appError('not_found');
+				version = slot.version;
+			}
+			// Without servings, 0: the lines come at the base of the version shown.
+			const ref = { recipeId, version, servings: input.servings ?? 0 };
+			const view = (await recipeViews(tx, { familyId, userId, locale }, [ref])).get(recipeViewKey(ref));
+			if (!view?.ingredients || !view.rating || !view.baseServings) throw appError('not_found');
+			const meals = await loadMealOccurrences(tx, familyId, [recipeId]);
+			return fresh(context, {
+				recipe: view.summary,
+				status,
+				baseServings: view.baseServings,
+				servings: input.servings ?? view.baseServings,
+				ingredients: view.ingredients,
+				rating: view.rating,
+				history: meals
+					.filter((meal) => meal.past)
+					.slice(0, 5)
+					.map(({ date, mealType }) => ({ date, mealType })),
+				upcoming: upcomingOf(meals, recipeId),
+			});
 		}),
 	};
 }
