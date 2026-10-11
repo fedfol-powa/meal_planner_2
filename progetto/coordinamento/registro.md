@@ -9,9 +9,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 |---|---|---|---|---|---|---|
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
-| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | Ondata 1: implementazione in corso, poi PR | 11/10 13:20 |
+| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 aperta; review Codex in corso; YAML dell'import da far approvare all'utente (scripts/import/out/review.html) | 11/10 13:25 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
-| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6 corretta (C10–C12), ferma in attesa della seconda review | 11/10 13:20 |
+| W5 web | W5 web | w1:pC | fondamenta/web | .worktrees/web | PR #6: corregge la regressione dei voti al cambio di lingua (messaggio w5-04), poi merge | 11/10 13:25 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Ondata 2: design approvato, scrive spec e piano | 11/10 13:20 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e spesa), #8
@@ -21,7 +21,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR6 correzioni | seconda review della PR #6 (W5), worktree .worktrees/review-pr6 | R PR6 correzioni | w1:p0 | in corso → revisioni/w5-pr6-2.md |
+| R PR9 ricetta | PR #9 (W3), worktree .worktrees/review-pr9 | R PR9 ricetta | w1:p11 | in corso → revisioni/w3-pr9.md |
 
 ## Domande in sospeso
 
@@ -32,12 +32,11 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #7 (unità e 
 Aggiornato l'11 ottobre 2026, 13:20.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
-   GESTIRE» (anche `MENU:`), poi `attendi.py` in background. Mai chiudere un turno senza
-   attesa attiva. Prima di inviare testo a un pane controllare che non ci sia un menu
-   aperto («Enter to select»): con un menu si risponde solo col numero.
-2. **PR #6 (W5):** al rapporto `revisioni/w5-pr6-2.md`: se approvabile, CI verde → merge
-   (`gh pr merge 6 --merge`, permesso concesso), chiudere la tab del revisore, togliere
-   `.worktrees/review-pr6`. Poi W5 fa la seconda PR (client oRPC reale) prevista dalla
+   GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli
+   eventi»), da riarmare a ogni scadenza. Messaggi ai worker con `herdr agent prompt`.
+2. **PR #6 (W5):** seconda review approvabile salvo una regressione (voti al cambio di
+   lingua); a `PR_CORRETTA` verifica breve del commit (o review Codex breve), CI verde →
+   merge (`gh pr merge 6 --merge`). Poi W5 fa la seconda PR (client oRPC reale) prevista dalla
    sua spec; dopo, i worker dell'ondata 2 possono implementare le parti web.
 3. **Ondata 2 (approvata dall'utente):** W1 menu, W2 profilo, W4 spesa, W6 ricettario
    scrivono spec e piano. A `SPEC_E_PIANO_PRONTI`: review Codex per ciascuno
@@ -46,7 +45,9 @@ Aggiornato l'11 ottobre 2026, 13:20.
    generale (viste di W6 per W1, `mealRecipeVersions` di W1 per W4, `resolveFamilySettings`
    di W2 per W1, elenco a–f che W4 chiede alla sessione di W5, esclusioni di W2).
    W6 consegna presto una PR piccola con le viste condivise.
-4. **W3:** in implementazione; alla PR review Codex, poi merge.
+4. **PR #9 (W3):** review Codex in corso; poi correzioni e merge. Chiedere all'utente di
+   rivedere i dati dell'import (`scripts/import/out/review.html` nel worktree di W3) per
+   approvare i quattro YAML: senza approvazione nessuna ricetta si pubblica.
 5. **Attività dell'ondata 2 non ancora assegnate:** revisione dei pasti, gestione del
    ricettario tramite MCP, collegamento degli agenti, esportazione notturna in R2, messa
    in produzione. Assegnarle ai worker che si liberano (W3 dopo il merge, W5 dopo la

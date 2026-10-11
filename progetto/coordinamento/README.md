@@ -13,7 +13,7 @@ generale, non nella conversazione.
 3. `progetto/coordinamento/protocollo-worker.md`: cosa sanno e fanno i worker.
 4. I brief in `progetto/coordinamento/brief/`.
 
-Poi `progetto/coordinamento/attendi.py --stato`, `herdr pane list` e `herdr tab list --workspace w1`: gli id dei pane cambiano,
+Poi `progetto/coordinamento/attendi.py --stato`, il Monitor con `eventi.py` (sezione «Attesa degli eventi»), `herdr pane list` e `herdr tab list --workspace w1`: gli id dei pane cambiano,
 si riconoscono dall'etichetta della tab (`W1 piattaforma`…) e dal `cwd` del worktree.
 
 ## Regole del coordinatore
@@ -48,29 +48,33 @@ si riconoscono dall'etichetta della tab (`W1 piattaforma`…) e dal `cwd` del wo
 
 ## Attesa degli eventi
 
-`progetto/coordinamento/attendi.py`, lanciato in background e senza argomenti: trova da
-solo worker (tab «W…») e revisori (tab «R …») dalle etichette delle tab e termina
-stampando `<pane> <etichetta> | <evento>` quando:
+**Ascoltatore continuo:** `progetto/coordinamento/eventi.py`, avviato con lo strumento
+**Monitor** di Claude Code (`python3 -u <percorso>/eventi.py 2>&1`, `timeout_ms` massimo,
+30 minuti; si riarma a ogni scadenza). Usa `events.subscribe` del socket di herdr: nessun
+polling e nessun buco fra un'attesa e l'altra. Ogni riga è un evento,
+`<pane> <etichetta> | <evento>`:
 
-- un worker è fermo con un'ultima riga `STATO:` non ancora segnata come vista, anche se
-  si era fermato prima che l'attesa partisse;
-- un worker passa da «working» a fermo, anche senza `STATO:` (per esempio aspetta la CI);
-- un worker ha un menu di scelta aperto (`MENU: <domanda>`): le domande del brainstorming
-  arrivano spesso così, senza riga `STATO:`;
-- un revisore ha stampato `REVISORE_FINITO` non ancora segnato come visto.
+- all'avvio, tutto ciò che non è ancora segnato come visto (come `attendi.py --stato`);
+- un worker diventa `blocked` (menu di scelta, `MENU: <domanda>`, o richiesta di permesso);
+- un worker si ferma (`idle` o `done`) dopo aver lavorato: ultima riga `STATO:` nuova, oppure
+  «fermo senza nuovo STATO» (per esempio ha presentato un design in prosa e aspetta);
+- un revisore stampa `REVISORE_FINITO`.
 
+Trova da solo worker (tab «W…») e revisori (tab «R …») e rinnova l'iscrizione quando si
+aprono o chiudono pane. Dopo aver gestito un evento: `attendi.py --visto <pane>` (salva in
+`visti.txt`). `attendi.py --stato` mostra tutti i pane con lo stato e l'ultimo evento.
 Le righe `STATO:` sono riconosciute con un'impronta delle righe precedenti, quindi due
 `STATO: DOMANDA` uguali per domande diverse sono eventi distinti.
 
-Dopo aver gestito un evento: `attendi.py --visto <pane>` (salva pane e riga in
-`visti.txt`), poi si rilancia l'attesa. `attendi.py --stato` mostra tutti i pane con lo
-stato e l'ultimo evento, marcato «visto» o «DA GESTIRE».
+**Regole:** dopo un `/clear`, `attendi.py --stato`, gestire i «DA GESTIRE», poi avviare il
+Monitor con `eventi.py`. Il Monitor deve restare sempre attivo; uno stato che aspetta
+l'utente si segna come visto e si annota in `registro.md`. `attendi.py` senza argomenti
+(polling) resta solo come ripiego se il socket non risponde.
 
-**Regole:** non chiudere mai un turno senza un'attesa in esecuzione; dopo un `/clear`
-lanciare per prima cosa `attendi.py --stato` e gestire ogni «DA GESTIRE». Uno stato che
-aspetta l'utente si segna come visto e si annota in `registro.md` fra le domande in
-sospeso. Si legge il pane con
-`herdr pane read <pane> --source recent-unwrapped --lines 80`.
+**Messaggi ai worker:** `herdr agent prompt <pane> "<testo>"`, che rifiuta l'invio se
+l'agente è `blocked` (menu aperto) invece di scrivere nel menu. In quel caso si legge la
+domanda e si risponde col numero dell'opzione (`herdr pane send-text <pane> "1"`), poi si
+manda il messaggio.
 
 ## Comandi utili
 
@@ -78,14 +82,15 @@ sospeso. Si legge il pane con
 # avviare un worker in una tab nuova
 herdr tab create --workspace w1 --label "W1 piattaforma" --no-focus   # → result.root_pane.pane_id
 herdr pane run <pane> "cd <worktree> && claude --permission-mode auto -n 'W1 piattaforma'"
-herdr pane run <pane> "Leggi progetto/coordinamento/brief/w1-piattaforma.md ed eseguilo."
+herdr agent prompt <pane> "Leggi progetto/coordinamento/brief/w1-piattaforma.md ed eseguilo."
 
 # controllare
 herdr pane get <pane>                                   # agent_status
 herdr pane read <pane> --source recent-unwrapped --lines 80
 
-# rispondere: testo e poi Invio
-herdr pane send-text <pane> "…"; herdr pane send-keys <pane> Enter
+# rispondere: agent prompt (rifiuta se c'è un menu aperto); a un menu solo il numero
+herdr agent prompt <pane> "…"
+herdr pane send-text <pane> "1"
 ```
 
 **Messaggi lunghi (oltre 2-3 righe) in un file** `progetto/coordinamento/messaggi/<worker>-<nn>-<tema>.md`, e al worker si manda solo «Leggi <percorso> ed eseguilo»: con `send-text` i testi lunghi arrivano tagliati.

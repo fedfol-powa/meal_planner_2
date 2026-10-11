@@ -17,3 +17,5 @@ w1:pZ	STATO: DOMANDA La scelta della versione per pasto (R1) la scrive W1 come f
 w1:pX	STATO: DOMANDA #88114a10
 w1:pZ	STATO: DOMANDA Per il traguardo A: Condividi (testo, anche offline) e Bring! sì, PDF rimandato all'ondata 3? In alternativa, PDF subito con il solo foglio di stampa e window.print() #bbea88ff
 w1:pX	STATO: DOMANDA #49366c0f
+w1:p0	REVISORE_FINITO
+w1:pA	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/9 #8e98d6b8
