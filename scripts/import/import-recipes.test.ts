@@ -46,6 +46,9 @@ describe('import command', () => {
 		const { root, origin } = setup();
 		expect(() => runImport({ root, originDirectory: origin, today: '2026-10-12' })).toThrow(/vecchia: primary_ingredient/);
 	});
+	it('requires --today: no default date', () => {
+		expect(() => runImport({ root: '/nonexistent' })).toThrow(/--today/);
+	});
 	it('refuses an invalid --today before reading anything', () => {
 		expect(() => runImport({ root: '/nonexistent', today: '2026-02-30' })).toThrow(/Invalid import date/);
 	});

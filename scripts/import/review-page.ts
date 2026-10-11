@@ -1,4 +1,4 @@
-import type { DraftTranslated } from '../../domain/src/recipe/index.ts';
+import type { CatalogueIngredient, DraftTranslated } from '../../domain/src/recipe/index.ts';
 import type { ImportBundle } from './bundle.ts';
 
 // Standalone review page for the user (detail spec, section 5): Italian and English side by side.
@@ -13,8 +13,12 @@ body{background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,sans-serif;ma
 table{border-collapse:collapse;width:100%;margin:8px 0 24px}td,th{border-bottom:1px solid var(--line);padding:6px;text-align:left;vertical-align:top}
 .en{color:var(--muted)}.issue{color:var(--warn)}section{overflow-x:auto}`;
 
-export function renderReviewPage(bundle: ImportBundle): string {
-	const ingredientName = new Map(bundle.ingredients.map((i) => [i.slug, i.name]));
+/**
+ * `catalogue` names every ingredient a line may use, also those already in the database on a rerun;
+ * the bundle's own list is only what is still to insert.
+ */
+export function renderReviewPage(bundle: ImportBundle, catalogue: CatalogueIngredient[]): string {
+	const ingredientName = new Map(catalogue.map((i) => [i.slug, i.name]));
 	const recipes = bundle.recipes.map((r) => {
 		const d = r.document;
 		const rows = (d.ingredients ?? []).map((l) => {
@@ -28,12 +32,12 @@ export function renderReviewPage(bundle: ImportBundle): string {
 <table><tr><th>Nome</th><td>${both(d.name)}</td></tr><tr><th>Descrizione</th><td>${both(d.description)}</td></tr></table>
 <table><tr><th>Riga della fonte</th><th>Ingrediente</th><th>Varietà</th><th>Preparazione</th><th>Quantità</th><th>Facoltativo</th><th>Principale</th></tr>${rows.join('')}</table></section>`;
 	});
-	const catalogue = bundle.ingredients.map((i) => `<tr><td><code>${escape(i.slug)}</code></td><td>${both(i.name)}</td><td>${escape(i.department)}</td><td>${i.isPantry ? 'sì' : ''}</td></tr>`);
+	const toInsert = bundle.ingredients.map((i) => `<tr><td><code>${escape(i.slug)}</code></td><td>${both(i.name)}</td><td>${escape(i.department)}</td><td>${i.isPantry ? 'sì' : ''}</td></tr>`);
 	return `<!doctype html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Revisione import</title><style>${STYLE}</style></head>
 <body><h1>Revisione dell'import del ricettario</h1><p>Generata il ${escape(bundle.generatedAt)}. Per ogni ricetta: italiano sopra, inglese sotto in grigio.</p>
 ${recipes.join('\n')}
-<section><h2>Catalogo degli ingredienti</h2><table><tr><th>Slug</th><th>Nome</th><th>Reparto</th><th>Dispensa</th></tr>${catalogue.join('')}</table></section>
+<section><h2>Ingredienti da inserire nel catalogo</h2><table><tr><th>Slug</th><th>Nome</th><th>Reparto</th><th>Dispensa</th></tr>${toInsert.join('')}</table></section>
 </body></html>
 `;
 }

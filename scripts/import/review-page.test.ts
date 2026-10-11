@@ -12,7 +12,7 @@ describe('review page', () => {
 		importDate: '2026-10-12',
 		generatedAt: '2026-10-12T10:00:00Z'
 	});
-	const html = renderReviewPage(bundle);
+	const html = renderReviewPage(bundle, inputsWith().ingredients);
 	it('is a standalone Italian page', () => {
 		expect(html.startsWith('<!doctype html>')).toBe(true);
 		expect(html).toContain('<html lang="it">');
@@ -28,5 +28,20 @@ describe('review page', () => {
 	it('marks unresolved lines', () => {
 		expect(html).toContain('Zenzero: 1');
 		expect(html).toContain('da mappare');
+	});
+	it('names ingredients already in the database from the full catalogue, listing only the new ones to insert', () => {
+		const rerun = buildBundle({
+			origin: [originRecipe()],
+			attributes: new Map([['pasta-tonno', attributesFor()]]),
+			inputs: inputsWith(),
+			existing: { recipes: [], ingredients: ['tonno'], books: [] },
+			importDate: '2026-10-12',
+			generatedAt: '2026-10-12T10:00:00Z'
+		}).bundle;
+		const page = renderReviewPage(rerun, inputsWith().ingredients);
+		expect(page).toContain('Tuna');
+		const toInsert = page.slice(page.indexOf('Ingredienti da inserire'));
+		expect(toInsert).toContain('<code>pasta-corta</code>');
+		expect(toInsert).not.toContain('<code>tonno</code>');
 	});
 });

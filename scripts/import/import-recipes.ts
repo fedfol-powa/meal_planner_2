@@ -1,6 +1,8 @@
 // Import of the origin recipe book (detail spec, section 4): writes out/bundle.json, out/report.md and
 // out/review.html. Reads ../meal_planner only; never writes to the database.
-// Usage: node scripts/import/import-recipes.ts [--existing <file.json>] [--today <YYYY-MM-DD>]
+// Usage: node scripts/import/import-recipes.ts --today <YYYY-MM-DD> [--existing <file.json>]
+// --today is required: the date decides which weeks of the history are concluded (R4), so it is never
+// taken from the clock (coordinator, review of PR #9).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +17,8 @@ import { renderReviewPage } from './review-page.ts';
 
 export function runImport(options: { root: string; originDirectory?: string; existingFile?: string; today?: string; now?: Date }): { result: BundleResult; files: Record<string, string> } {
 	const now = options.now ?? new Date();
-	const importDate = options.today ?? now.toISOString().slice(0, 10);
+	const importDate = options.today;
+	if (!importDate) throw new Error('The import date is required: --today <YYYY-MM-DD>');
 	if (!isValidIsoDate(importDate)) throw new Error(`Invalid import date: ${importDate}`);
 
 	const origin = options.originDirectory ?? originDir(options.root);
@@ -31,7 +34,8 @@ export function runImport(options: { root: string; originDirectory?: string; exi
 	const realErrors = errors.filter((e) => !e.endsWith(': missing') && !(e.endsWith(': not a recipe of the catalogue') && originIds.has(e.slice(0, e.indexOf(':')))));
 	if (realErrors.length) throw new Error(`recipe-attributes.yaml is not valid:\n${realErrors.join('\n')}`);
 
-	const result = buildBundle({ origin: recipes, attributes, inputs: readInputs(importDir), existing, importDate, generatedAt: now.toISOString() });
+	const inputs = readInputs(importDir);
+	const result = buildBundle({ origin: recipes, attributes, inputs, existing, importDate, generatedAt: now.toISOString() });
 	const archivePath = resolve(origin, 'ricettario/archivio.yaml');
 	const archivedCount = existsSync(archivePath) ? ((parse(readFileSync(archivePath, 'utf8')) as { ricette?: unknown[] }).ricette ?? []).length : 0;
 	return {
@@ -39,7 +43,7 @@ export function runImport(options: { root: string; originDirectory?: string; exi
 		files: {
 			'bundle.json': `${JSON.stringify(result.bundle, null, '\t')}\n`,
 			'report.md': renderReport(result, { archivedCount }),
-			'review.html': renderReviewPage(result.bundle)
+			'review.html': renderReviewPage(result.bundle, inputs.ingredients)
 		}
 	};
 }
