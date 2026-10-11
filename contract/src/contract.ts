@@ -6,6 +6,7 @@ import { profileContract } from './profile/index.ts';
 import { menuContract } from './menu/operations.ts';
 import { ratingsContract } from './recipes/ratings.ts';
 import { recipesContract } from './recipes/recipes.ts';
+import { shoppingContract } from './shopping/operations.ts';
 
 export const contract = {
 	session: {
@@ -26,6 +27,7 @@ export const contract = {
 	profile: profileContract,
 	family: familyContract,
 	menu: menuContract,
+	...shoppingContract,
 };
 
 export type Contract = typeof contract;

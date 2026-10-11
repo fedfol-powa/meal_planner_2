@@ -38,7 +38,7 @@ describe('conventions', () => {
 	it('validates input and output around the whole request path', () => {
 		// Index 0 means before the first middleware runs and after it returns, so even an
 		// answer given without the handler (the `unchanged` short-circuit) is validated.
-		const procedures = [router.session.whoami, ...Object.values(testRouter.test)];
+		const procedures = [router.session.whoami, ...Object.values(router.shopping), ...Object.values(testRouter.test)];
 		for (const procedure of procedures) {
 			expect(procedure['~orpc'].inputValidationIndex).toBeLessThanOrEqual(0);
 			expect(procedure['~orpc'].outputValidationIndex).toBeLessThanOrEqual(0);
