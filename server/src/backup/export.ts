@@ -8,7 +8,7 @@ import { estimateExportBytes, exportParts, readSnapshot } from './read.ts';
 
 export const KEEP_EXPORTS = 7;
 /** Largest document whose measured peak stays under 64 MB in workerd (spec, «Dimensioni, memoria e tempi»). */
-export const EXPORT_LIMIT_BYTES = 16 * 1024 * 1024;
+export const EXPORT_LIMIT_BYTES = 8 * 1024 * 1024;
 export const EXPORT_PREFIX = 'exports/';
 
 export interface ExportDeps {

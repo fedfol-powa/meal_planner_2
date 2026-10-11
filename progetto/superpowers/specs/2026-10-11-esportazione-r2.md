@@ -277,14 +277,26 @@ fallita l'esportazione già scritta. `runNightlyExport` non lancia eccezioni.
   carattere in V8), Blob UTF-8, compresso, cifrato; con dati poco comprimibili circa 4
   volte la dimensione del documento. Regola: `EXPORT_LIMIT_BYTES` è la dimensione più
   grande, fra 8, 16 e 32 MB di documento, il cui picco misurato in workerd resta sotto
-  **64 MB** (metà del limite, margine per l'isolate). Valore iniziale 16 MB, confermato
-  o abbassato dalla misura del piano prima della PR; il valore e le misure finiscono in
-  questa sezione e nella PR.
-- **Misura** in `wrangler dev` (workerd): dati sintetici poco comprimibili (testo
-  casuale in `app.shopping_list_items`) per documenti da 8, 16 e 32 MB; picco di memoria
-  dal pannello Memory dei DevTools (timeline delle allocazioni, heap JS più
-  ArrayBuffer), CPU dal profilo CPU dei DevTools, durata dal log `ms`. La CPU reale in
-  produzione si legge poi nei log del Worker pubblicato (prova di produzione).
+  **64 MB** (metà del limite, margine per l'isolate). **Valore fissato dopo la misura:
+  8 MB** (`EXPORT_LIMIT_BYTES = 8 * 1024 * 1024`): a 16 MB il picco supera già 64 MB.
+- **Misura** (11 ottobre 2026) in `wrangler dev` 4.149.0 (workerd), un isolate appena
+  avviato per ogni misura: dati sintetici poco comprimibili (base64 casuale in
+  `app.shopping_list_items`) sopra il seed. Memoria campionata ogni 5 ms dall'inspector
+  di workerd (`Runtime.getHeapUsage`: heap JS usato più `backingStorageSize`, cioè gli
+  ArrayBuffer), CPU dal profilo del protocollo DevTools (campioni non inattivi, profilo
+  attivo: valore per eccesso), durata dal campo `ms` del log.
+
+  | Documento (`uncompressedBytes`) | Oggetto (`storedBytes`) | Righe | Picco heap JS | Picco ArrayBuffer | Picco totale | CPU | Durata |
+  |---|---|---|---|---|---|---|---|
+  | 8,3 MB | 5,2 MB | 6.313 | 18,9 MB | 23,4 MB | **41,4 MB** | 0,37 s | 372 ms |
+  | 16,6 MB | 10,4 MB | 12.613 | 28,0 MB | 42,1 MB | **69,5 MB** | 0,44 s | 539 ms |
+  | 33,1 MB | 20,8 MB | 25.213 | 43,9 MB | 123,4 MB | **166,9 MB** | 1,43 s | 1.507 ms |
+
+  L'isolate a riposo occupa circa 13 MB, compresi nei picchi. La stima del database
+  (`estimatedBytes`) è rimasta entro lo 0,3% di `uncompressedBytes`. La memoria che
+  workerd tiene fuori da V8 (contenuto dei `Blob`) non compare nei campioni: il margine
+  fino a 128 MB la copre. La CPU reale in produzione si legge poi nei log del Worker
+  pubblicato (prova di produzione).
 - **Oggi:** il database reale pesa pochi MB; ci si aspettano centinaia di KB cifrati.
   Se la stima si avvicina al limite (log `backup_export_near_limit`), si passa a
   un'esportazione a pagine con upload multipart: nuova attività, non questa.
@@ -565,7 +577,7 @@ destinazione preparata con `supabase db reset --no-seed`:
   chiave nel secret `BACKUP_ENCRYPTION_KEY` e copia nel gestore di password; bucket
   `cosasimangia-backups` privato in giurisdizione UE; ultime 7 conservate dal codice,
   non da una regola di ciclo di vita (sezione 8).
-- Limite di dimensione misurato in workerd (picco sotto 64 MB), controllato con una
+- Limite di dimensione misurato in workerd (picco sotto 64 MB: 8 MB di documento), controllato con una
   stima del database prima di leggere le righe; oltre il limite nessuna esportazione e
   log di errore (sezione 8).
 - Ripristino con la CLI `scripts/backup/restore.ts` in un database appena migrato

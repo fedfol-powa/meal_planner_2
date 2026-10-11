@@ -158,3 +158,101 @@ ruoli per rotta, login) sono nella sezione «Interfaccia per W1» della spec di 
 `progetto/superpowers/specs/2026-10-11-schema-e-permessi.md`. Contratto dei contatori:
 al massimo un incremento per transazione; una scrittura senza effetti può farlo crescere
 comunque (invalidazione in più, mai dati sbagliati).
+
+## Esportazione notturna e ripristino
+
+Il Worker esporta ogni notte alle 02:30 UTC (secondo tentativo alle 04:30) i dati di
+`app` e gli utenti di Auth (`auth.users`, `auth.identities`) nel bucket R2
+`cosasimangia-backups` (giurisdizione UE), cifrati con la chiave del secret
+`BACKUP_ENCRYPTION_KEY`, e conserva le ultime 7. Restano fuori sessioni, token e agenti
+collegati. Spec: `progetto/superpowers/specs/2026-10-11-esportazione-r2.md`.
+
+Tutti i comandi partono dalla radice del repository, salvo dove è indicato `cd server`.
+Chiave e password si inseriscono con `read -rs` (non compaiono a schermo né nella
+cronologia della shell):
+
+```bash
+read -rs BACKUP_ENCRYPTION_KEY && export BACKUP_ENCRYPTION_KEY   # la chiave dal gestore di password
+```
+
+### 1. Scarica l'esportazione
+
+La chiave completa dell'oggetto (comincia già con `exports/`) si legge nel dashboard
+(R2 → `cosasimangia-backups` → `exports/`) o nel log `backup_export_done`.
+
+```bash
+KEY='exports/2026-10-12T02-30Z.json.gz.enc'
+(cd server && npx wrangler r2 object get "cosasimangia-backups/$KEY" --remote --jurisdiction eu --file ../export.bin)
+```
+
+### 2. Trova il commit delle migrazioni
+
+```bash
+git fetch origin
+node scripts/backup/restore.ts inspect export.bin
+```
+
+Stampa data, versione del Worker, migrazioni e il commit di `origin/main` in cui
+`supabase/migrations/` ha esattamente quelle migrazioni. Prepara la destinazione da
+quel commit: `git worktree add ../ripristino <commit>`.
+
+### 3. Prepara la destinazione
+
+Un database con le migrazioni del commit e nessun dato:
+
+- **ambiente di verifica locale:** dal worktree del commit, con uno stack Supabase che
+  non contiene dati da conservare, `supabase db reset --no-seed`, poi la password di
+  `app_server` usata in `server/.env` (il reset la azzera e il Worker locale risponde
+  500 con `28P01`);
+- **progetto di produzione perso:** un progetto Supabase nuovo; applica le migrazioni
+  dal worktree del commit (`supabase link` e `supabase db push`, passi da concordare
+  con il coordinatore), poi imposta la password di `app_server`.
+
+Le uniche righe ammesse sono quelle che le migrazioni inseriscono (oggi la riga
+iniziale di `app.catalogue_state`); qualsiasi altro dato fa rifiutare il ripristino.
+
+### 4. Prova a vuoto, poi ripristino
+
+```bash
+export DATABASE_URL='postgresql://postgres@<host>:<porta>/postgres'   # senza password
+read -rs PGPASSWORD && export PGPASSWORD
+node scripts/backup/restore.ts restore export.bin --dry-run
+node scripts/backup/restore.ts restore export.bin
+```
+
+La CLI rifiuta destinazioni non vuote, migrazioni diverse, chiavi sbagliate e file
+alterati; carica tutto in una transazione e fa il commit solo se chiavi esterne e
+contenuti coincidono con l'esportazione. Non stampa mai valori: in caso d'errore indica
+motivo, tabella e codice.
+
+### 5. Ricollega l'app (solo su un progetto nuovo)
+
+In quest'ordine:
+
+1. Auth del progetto nuovo: chiavi di firma asimmetriche, provider, SMTP di Resend,
+   server OAuth 2.1, URL del sito e di redirect.
+2. Hyperdrive verso il Session pooler nuovo, come utente `app_server.<ref del nuovo progetto>` (il Session pooler vuole il riferimento nel nome), con il limite
+   di connessioni di prima: `(cd server && npx wrangler hyperdrive update <id> --origin-host <host> --origin-port 5432 --database postgres --origin-user "app_server.$NEW_PROJECT_REF" --origin-password "$APP_SERVER_PASSWORD")`
+   dopo `NEW_PROJECT_REF=<ref del nuovo progetto>` e `read -rs APP_SERVER_PASSWORD && export APP_SERVER_PASSWORD`.
+3. `SUPABASE_URL` in `server/wrangler.jsonc` (issuer, JWKS, scoperta OAuth per MCP).
+4. `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` della build della SPA.
+5. `npm run deploy` (compila la SPA e pubblica il Worker).
+6. Verifica: accesso, famiglia e menu nell'app, `/.well-known/oauth-protected-resource/mcp`
+   che indica il progetto nuovo. Avvisa che tutti rifanno l'accesso e ricollegano gli
+   agenti.
+
+### Prove
+
+- **Prova locale completa** (criterio di fine della PR dell'esportazione): i passi 1-4
+  su un'esportazione di `wrangler dev`, poi accesso e lettura di famiglia e menu
+  dall'app locale puntata alla destinazione. La scoperta MCP in locale richiede
+  `[auth.oauth_server] enabled = true` nello stack e il percorso RFC 8414
+  `/.well-known/oauth-authorization-server/auth/v1`, che il Kong locale non serve
+  (Supabase ospitato sì): senza, `/.well-known/oauth-protected-resource/mcp` risponde 500
+  anche prima del ripristino.
+- **Prova automatica in CI:** `npm run test:drill -w server` (azzera il database).
+- **Prova di produzione** (a carico dell'utente, voce separata del registro): dopo la
+  creazione del bucket e la prima notte, i passi 1-4 con un'esportazione vera e la
+  chiave presa dal gestore di password, non dal secret.
+
+Con più chiavi (dopo una rotazione): `BACKUP_ENCRYPTION_KEY='k1=<…>,k2=<…>'`.
