@@ -1,4 +1,4 @@
-import { blocksDraft, checkDraft, cleanDraft, projectDraftNames, recipeDraftSchema, toPublished, type RecipeDraftDocument } from '@app/domain/recipe';
+import { blocksDraft, checkDraft, checkPublishable, cleanDraft, projectDraftNames, recipeDraftSchema, toPublished, type RecipeDraftDocument } from '@app/domain/recipe';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
 import { lockCreations, writeInstant, type Actor } from './actor.ts';
@@ -189,4 +189,52 @@ export async function publishDraft(tx: Tx, actor: Actor, input: PublishInput): P
 	const { version, at } = await writeVersion(tx, actor, { recipeId: row.recipeId, document: toPublished(document), restoredFrom: null });
 	await tx`update app.recipe_drafts set closed_at = ${at}, closed_by = ${actor.userId}, outcome = 'published' where id = ${row.id}`;
 	return { recipeId: row.recipeId, version, publishedAt: at, conversions };
+}
+
+/** Absolute state: «Annulla» after archiving and «Riporta nel ricettario» are the same call. */
+export async function setArchived(tx: Tx, actor: Actor, input: { recipeId: string; archived: boolean }) {
+	const [recipe] = await tx<{ status: string }[]>`select status from app.recipes where id = ${input.recipeId} for update`;
+	if (!recipe) throw appError('not_found');
+	if (recipe.status === 'draft') throw appError('not_allowed', { reason: 'not_published' });
+	const wanted: 'published' | 'archived' = input.archived ? 'archived' : 'published';
+	if (recipe.status !== wanted) {
+		const at = await writeInstant(tx);
+		await tx`update app.recipes set status = ${wanted}, archived_at = ${input.archived ? at : null}, archived_by = ${input.archived ? actor.userId : null},
+			updated_by = ${actor.userId}, updated_at = ${at} where id = ${input.recipeId}`;
+		await tx`insert into app.recipe_status_changes (recipe_id, status, changed_by, changed_at, channel)
+			values (${input.recipeId}, ${wanted}, ${actor.userId}, ${at}, ${actor.channel})`;
+	}
+	const [last] = await tx<{ changed_by: string | null; changed_at: Date }[]>`
+		select changed_by, changed_at from app.recipe_status_changes where recipe_id = ${input.recipeId} order by changed_at desc, id desc limit 1`;
+	const authors = await loadAuthors(tx);
+	const changedBy = last?.changed_by ?? null;
+	return {
+		recipeId: input.recipeId,
+		status: wanted,
+		changedBy: { userId: changedBy, name: changedBy ? (authors.get(changedBy) ?? null) : null },
+		changedAt: (last?.changed_at ?? (await writeInstant(tx))).toISOString(),
+	};
+}
+
+/**
+ * An older version published again as a new one (spec section 8): only this recipe's fields and
+ * lines, refused when it no longer passes today's checks or the recipe moved on since it was seen.
+ */
+export async function restoreVersion(tx: Tx, actor: Actor, input: { recipeId: string; version: number; confirmVersion: number }) {
+	const [recipe] = await tx<{ status: string; version: number }[]>`select status, version from app.recipes where id = ${input.recipeId} for update`;
+	if (!recipe || recipe.status === 'draft') throw appError('not_found');
+	const [current] = await tx<{ restored_from: number | null }[]>`
+		select restored_from from app.recipe_versions where recipe_id = ${input.recipeId} and version = ${recipe.version}`;
+	if (current?.restored_from === input.version && recipe.version === input.confirmVersion + 1) {
+		return { recipeId: input.recipeId, version: recipe.version, restoredFrom: input.version }; // a repeat
+	}
+	if (input.version === recipe.version) throw appError('not_allowed', { reason: 'already_current' });
+	const [chosen] = await tx<{ content: unknown }[]>`select content from app.recipe_versions where recipe_id = ${input.recipeId} and version = ${input.version}`;
+	if (!chosen) throw appError('not_found');
+	if (input.confirmVersion !== recipe.version) await versionConflict(tx, input.recipeId, recipe.version);
+	const document = chosen.content as RecipeDraftDocument;
+	const issues = checkPublishable(document, await loadLookup(tx, document));
+	if (issues.length) throw appError('invalid', { issues });
+	const { version } = await writeVersion(tx, actor, { recipeId: input.recipeId, document: toPublished(document), restoredFrom: input.version });
+	return { recipeId: input.recipeId, version, restoredFrom: input.version };
 }

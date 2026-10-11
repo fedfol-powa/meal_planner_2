@@ -1,11 +1,11 @@
+import { missingData } from '@app/domain/recipe';
 import { appError } from '../errors.ts';
-import type { Implementer, OperationContext } from '../pipeline.ts';
+import { fresh, type Implementer, type OperationContext } from '../pipeline.ts';
+import { publicationCheck } from './check.ts';
 import { CURATOR_GUIDE } from './guide.ts';
 import { loadDraftRow } from './load.ts';
-import { draftViewOf, overview } from './views.ts';
-import { missingData } from '@app/domain/recipe';
-import { publicationCheck } from './check.ts';
-import { actorOf, createDraft, discardDraft, publishDraft, saveDraft, startRevision } from './write.ts';
+import { draftViewOf, overview, searchCatalogueRecipes, versionDetail, versionList } from './views.ts';
+import { actorOf, createDraft, discardDraft, publishDraft, restoreVersion, saveDraft, setArchived, startRevision } from './write.ts';
 
 const notYet = () => {
 	throw appError('not_found');
@@ -42,12 +42,15 @@ export function catalogueRouter(os: Implementer) {
 			const { recipeId, version, conversions } = await publishDraft(context.tx, actorOf(context), input);
 			return { recipeId, version, conversions };
 		}),
-		// Task 8
-		searchRecipes: os.catalogue.searchRecipes.handler(notYet),
-		setArchived: os.catalogue.setArchived.handler(notYet),
-		listVersions: os.catalogue.listVersions.handler(notYet),
-		getVersion: os.catalogue.getVersion.handler(notYet),
-		restoreVersion: os.catalogue.restoreVersion.handler(notYet),
+		searchRecipes: os.catalogue.searchRecipes.handler(async ({ context, input }) =>
+			fresh(context, await searchCatalogueRecipes(context.tx, { text: input.text, status: input.status }, context.locale)),
+		),
+		setArchived: os.catalogue.setArchived.handler(({ context, input }) => setArchived(context.tx, actorOf(context), input)),
+		listVersions: os.catalogue.listVersions.handler(async ({ context, input }) => fresh(context, await versionList(context.tx, input.recipeId, context.locale))),
+		getVersion: os.catalogue.getVersion.handler(async ({ context, input }) =>
+			fresh(context, await versionDetail(context.tx, input.recipeId, input.version, context.locale)),
+		),
+		restoreVersion: os.catalogue.restoreVersion.handler(({ context, input }) => restoreVersion(context.tx, actorOf(context), input)),
 		// Task 9
 		searchIngredients: os.catalogue.searchIngredients.handler(notYet),
 		getIngredient: os.catalogue.getIngredient.handler(notYet),

@@ -1,10 +1,12 @@
-import type { ArchivedSummaryView, AuthorView, DraftSummaryView, DraftView, OverviewView } from '@app/contract';
-import { missingData, type RecipeDraftDocument } from '@app/domain/recipe';
+import type { ArchivedSummaryView, AuthorView, DraftSummaryView, DraftView, OverviewView, RecipeMatchView, VersionDetailView, VersionListView } from '@app/contract';
+import { checkPublishable, missingData, publishedRecipeSchema, type RecipeDraftDocument } from '@app/domain/recipe';
 import type { Locale } from '@app/domain/units';
 import type { Tx } from '../db.ts';
-import { loadBookTitlesById, loadIngredientNamesById } from '../recipes/views.ts';
+import { appError } from '../errors.ts';
+import { foldText } from '../family/views.ts';
+import { ingredientLinesView, loadBookTitlesById, loadIngredientNamesById, summaryOf } from '../recipes/views.ts';
 import { publicationCheck } from './check.ts';
-import { isCited, loadAuthors, type DraftRow } from './load.ts';
+import { isCited, loadAuthors, loadLookup, type DraftRow } from './load.ts';
 
 export const authorOf = (authors: Map<string, string>, userId: string | null): AuthorView => ({
 	userId,
@@ -83,4 +85,90 @@ export async function overview(tx: Tx, locale: Locale): Promise<OverviewView> {
 		}))
 		.sort((a, b) => a.name.localeCompare(b.name, locale));
 	return { drafts: draftViews, archived: archivedViews };
+}
+
+/** The curator's search of the whole catalogue (no family, no owned books): published and archived, never drafts. */
+export async function searchCatalogueRecipes(
+	tx: Tx,
+	query: { text: string; status: 'published' | 'archived' | 'any' },
+	locale: Locale,
+): Promise<{ items: RecipeMatchView[] }> {
+	const rows = await tx<{ id: string; name: Record<Locale, string>; description: Record<Locale, string> | null; status: 'published' | 'archived'; version: number; updated_at: Date }[]>`
+		select id, name, description, status, version, updated_at from app.recipes
+		where status <> 'draft' and (${query.status} = 'any' or status = ${query.status})`;
+	const needle = foldText(query.text);
+	const items = rows
+		.map((r) => ({ row: r, name: localText(r.name, locale), description: localText(r.description, locale) }))
+		.filter(({ name, description }) => !needle || foldText(name).includes(needle) || foldText(description).includes(needle))
+		.sort((a, b) => a.name.localeCompare(b.name, locale))
+		.slice(0, 50)
+		.map(({ row, name }) => ({ recipeId: row.id, name, status: row.status, version: row.version, updatedAt: row.updated_at.toISOString() }));
+	return { items };
+}
+
+export async function versionList(tx: Tx, recipeId: string, locale: Locale): Promise<VersionListView> {
+	const [recipe] = await tx<{ status: 'draft' | 'published' | 'archived'; version: number; name: Record<Locale, string> }[]>`
+		select status, version, name from app.recipes where id = ${recipeId}`;
+	if (!recipe || recipe.status === 'draft') throw appError('not_found');
+	const rows = await tx<{ version: number; published_by: string | null; published_at: Date; channel: 'web' | 'mcp' | 'import'; restored_from: number | null }[]>`
+		select version, published_by, published_at, channel, restored_from from app.recipe_versions where recipe_id = ${recipeId} order by version desc`;
+	const authors = await loadAuthors(tx);
+	return {
+		recipeId,
+		name: localText(recipe.name, locale),
+		status: recipe.status,
+		current: recipe.version,
+		versions: rows.map((r) => ({
+			version: r.version,
+			publishedBy: authorOf(authors, r.published_by),
+			publishedAt: r.published_at.toISOString(),
+			channel: r.channel,
+			restoredFrom: r.restored_from,
+		})),
+	};
+}
+
+/** A version as it was, at its base servings in metric, with the problems a restore would meet today. */
+export async function versionDetail(tx: Tx, recipeId: string, version: number, locale: Locale): Promise<VersionDetailView> {
+	const list = await versionList(tx, recipeId, locale);
+	const item = list.versions.find((v) => v.version === version);
+	const [row] = await tx<{ content: unknown }[]>`select content from app.recipe_versions where recipe_id = ${recipeId} and version = ${version}`;
+	if (!item || !row) throw appError('not_found');
+	const content = publishedRecipeSchema.parse(row.content);
+	const issues = checkPublishable(content, await loadLookup(tx, content as RecipeDraftDocument));
+	const names = await loadIngredientNamesById(tx, [...new Set(content.ingredients.map((l) => l.ingredientId))]);
+	const titles = await loadBookTitlesById(tx, [content.bookId]);
+	const summary = summaryOf(
+		{
+			recipeId,
+			status: list.status,
+			version,
+			name: content.name,
+			description: content.description,
+			durationMinutes: content.durationMinutes,
+			sourceType: content.sourceType,
+			sourceUrl: content.sourceUrl,
+			bookId: content.bookId,
+			bookPages: content.bookPages,
+			mealType: content.mealType,
+			proteinGroup: content.proteinGroup,
+			baseServings: content.baseServings,
+			lines: content.ingredients,
+		},
+		titles,
+		locale,
+	);
+	const ingredients = ingredientLinesView(content.ingredients, names, { servings: content.baseServings, baseServings: content.baseServings, system: 'metric', locale });
+	return {
+		recipeId,
+		version,
+		current: list.current,
+		publishedBy: item.publishedBy,
+		publishedAt: item.publishedAt,
+		restoredFrom: item.restoredFrom,
+		content,
+		summary,
+		ingredients,
+		issues,
+	};
 }
