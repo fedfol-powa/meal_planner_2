@@ -9,6 +9,8 @@ const patchMeal = (meal: MealView, recipeId: string, summary: RatingSummary): Me
   meal.recipe?.id === recipeId && meal.rating ? { ...meal, rating: summary } : meal;
 
 const ofFamily = (familyId: string) => (query: Query) => familyOfKey(query.queryKey) === familyId;
+/** The suggestions show ratings and are ranked by them: never patched, read again. */
+const isSuggestions = (query: Query) => query.queryKey[0] === 'meals' && query.queryKey[1] === 'getSuggestions';
 const showsRatings = (query: Query) =>
   (query.queryKey[0] === 'menu' && query.queryKey[1] === 'getWeek') || (query.queryKey[0] === 'recipes' && query.queryKey[1] === 'get');
 
@@ -25,7 +27,7 @@ export async function applyRating(
   summary: RatingSummary,
   isCurrent: () => boolean = () => true
 ): Promise<void> {
-  const affected = (query: Query) => ofFamily(familyId)(query) && showsRatings(query);
+  const affected = (query: Query) => ofFamily(familyId)(query) && (showsRatings(query) || isSuggestions(query));
   const running = queryClient.getQueryCache().findAll({ predicate: affected, fetchStatus: 'fetching' });
   await queryClient.cancelQueries({ predicate: affected });
   if (!isCurrent()) return;
@@ -36,6 +38,7 @@ export async function applyRating(
     old && old.data.recipe.id === recipeId ? { ...old, data: { ...old.data, rating: summary } } : old
   );
   void queryClient.invalidateQueries({ queryKey: ['recipes', 'search'], predicate: ofFamily(familyId) });
+  void queryClient.invalidateQueries({ predicate: (query) => ofFamily(familyId)(query) && isSuggestions(query) });
   // Cancelled reads that had nothing to show start again, now after the rating.
   const empty = running.filter((query) => query.state.data === undefined);
   if (empty.length) void queryClient.invalidateQueries({ predicate: (query) => empty.includes(query) });

@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { readThrough } from './queries';
 import { createMemoryStore } from './persister';
 import { createSession } from '../session/session';
-import { applyMutation, runAreaMutation, type MutationName } from './mutations';
+import { applyMutation, runAreaMutation, runMealMutation, type MutationName } from './mutations';
+import type { MealActionResult } from './types';
 
 const FAMILY = '00000000-0000-4000-8000-000000000001';
 const OTHER = '00000000-0000-4000-8000-000000000002';
@@ -170,5 +171,66 @@ describe('applying the answer of a mutation', () => {
     expect(await stale('profile.setCurrentFamily')).toEqual([]);
     // The profile is the view written: every other query goes stale, of every family.
     expect(await stale('profile.updateName')).toEqual(['otherWeek', 'recipe', 'search', 'shopping', 'week']);
+  });
+});
+
+const weekKey = (weekStartsOn: string, locale = 'it-IT') => ['menu', 'getWeek', { familyId: FAMILY, weekStartsOn, locale }];
+const weekView = (servings: number) => ({ startsOn: '2026-10-05', days: [{ date: '2026-10-05', meals: [{ slotId: 's', servings }] }] });
+const suggestionsKey = (familyId = FAMILY) => ['meals', 'getSuggestions', { familyId, slotId: 's', offset: 0, locale: 'it-IT' }];
+
+describe('meal mutations', () => {
+  it('write the week of the meal, keep its version, make the dependent reads stale', async () => {
+    const client = new QueryClient();
+    client.setQueryData(weekKey('2026-10-05'), { version: 'w1', data: weekView(2) });
+    client.setQueryData(weekKey('2026-10-12'), { version: 'w2', data: weekView(9) });
+    client.setQueryData(weekKey('2026-10-05', 'en-GB'), { version: 'w1en', data: weekView(2) });
+    const stale = [
+      ['menu', 'getOpening', { familyId: FAMILY, today: '2026-10-08', locale: 'it-IT' }],
+      ['shopping', 'getWeekList', { familyId: FAMILY, weekStartsOn: '2026-10-05', locale: 'it-IT' }],
+      ['recipes', 'get', { familyId: FAMILY, recipeId: 'r', locale: 'it-IT' }],
+      ['recipes', 'search', { familyId: FAMILY, query: {}, locale: 'it-IT' }],
+      suggestionsKey()
+    ];
+    for (const key of stale) client.setQueryData(key, { version: 'x', data: {} });
+    client.setQueryData(suggestionsKey(OTHER), { recipes: [] });
+    await applyMutation(client, { name: 'meals.setServings', familyId: FAMILY, weekStartsOn: '2026-10-05', locale: 'it-IT', view: weekView(4), sessionOpen: () => true, isLatest: () => true });
+    expect(client.getQueryData(weekKey('2026-10-05'))).toEqual({ version: 'w1', data: weekView(4) });
+    expect(client.getQueryState(weekKey('2026-10-12'))?.isInvalidated).toBe(false);
+    expect(client.getQueryState(weekKey('2026-10-05', 'en-GB'))?.isInvalidated).toBe(true);
+    for (const key of stale) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(suggestionsKey(OTHER))?.isInvalidated).toBe(false);
+  });
+
+  it.each([
+    'family.addExclusion', 'family.removeExclusion', 'family.setMeal', 'family.addRule', 'family.removeRule',
+    'family.setKnownNew', 'family.setGroupRange', 'family.setBookOwned', 'family.setIngredientRestriction'
+  ] as const)('%s makes the suggestions stale', async (name) => {
+    const client = new QueryClient();
+    client.setQueryData(suggestionsKey(), { recipes: [] });
+    await applyMutation(client, { name, familyId: FAMILY, locale: 'it-IT', view: {}, sessionOpen: () => true, isLatest: () => true });
+    expect(client.getQueryState(suggestionsKey())?.isInvalidated).toBe(true);
+  });
+
+  it('a suggestions answer still in flight never lands after the confirmation', async () => {
+    const client = new QueryClient();
+    const late = deferred<unknown>();
+    void client.fetchQuery({ queryKey: suggestionsKey(), queryFn: () => late.promise }).catch(() => undefined);
+    await applyMutation(client, { name: 'family.addExclusion', familyId: FAMILY, locale: 'it-IT', view: [], sessionOpen: () => true, isLatest: () => true });
+    late.resolve({ recipes: ['old'] });
+    await flush();
+    expect(client.getQueryData(suggestionsKey())).not.toEqual({ recipes: ['old'] });
+  });
+
+  it('a superseded answer of the same week is not written', async () => {
+    const h = harness();
+    h.client.setQueryData(weekKey('2026-10-05'), { version: 'w1', data: weekView(2) });
+    const deps = { queryClient: h.client, session: h.session, currentLocale: () => 'it-IT' };
+    const answer = (servings: number, actionId: string) => ({ week: weekView(servings), actionId, changed: true }) as unknown as MealActionResult;
+    const slow = deferred<MealActionResult>();
+    const first = runMealMutation(deps, 'meals.setServings', FAMILY, '2026-10-05', () => slow.promise);
+    await runMealMutation(deps, 'meals.setNote', FAMILY, '2026-10-05', async () => answer(5, 'b'));
+    slow.resolve(answer(3, 'a'));
+    expect((await first).applied).toBe(false);
+    expect((h.client.getQueryData(weekKey('2026-10-05')) as { data: unknown }).data).toEqual(weekView(5));
   });
 });
