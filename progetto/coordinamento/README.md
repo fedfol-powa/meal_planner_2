@@ -46,6 +46,14 @@ si riconoscono dall'etichetta della tab (`W1 piattaforma`…) e dal `cwd` del wo
 - Aggiornare `registro.md` a ogni cambio di fase di un worker, così un `/clear` non
   perde nulla.
 
+## Attesa degli eventi
+
+`progetto/coordinamento/attendi.sh <pane dei worker…> -- <pane dei revisori…>`, lanciato
+in background: termina quando un worker passa da «working» a fermo (stampa pane e stato)
+o quando un revisore Codex stampa `REVISORE_FINITO`. Poi si legge il pane con
+`herdr pane read <pane> --source recent-unwrapped --lines 80` e si rilancia l'attesa.
+Prima di lanciarla, togliere i worker fermi in attesa (non si sveglierebbero).
+
 ## Comandi utili
 
 ```bash

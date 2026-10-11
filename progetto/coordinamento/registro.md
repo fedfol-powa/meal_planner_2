@@ -29,4 +29,24 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Prossima azione del coordinatore
 
-Seguire il brainstorming dei cinque worker; rispondere alle domande; quando uno scrive STATO: SPEC_E_PIANO_PRONTI avviare un revisore separato.
+Aggiornato l'11 ottobre 2026, 12:25.
+
+1. Riprendere l'attesa: `progetto/coordinamento/attendi.sh w1:p8 w1:pB w1:pC` in background
+   (W2 `w1:p9` è fermo e libero; W3 `w1:pA` è fermo con il contesto pulito).
+2. **W1** (task 11): quando scrive `STATO: PR_CORRETTA` con CI verde, verificare `gh pr checks 5`
+   e unire la PR #5 (review del codice già fatta: `revisioni/w1-pr5.md`, rilievi corretti).
+   Se il task 11 ha cambiato molto codice, far fare una review breve con `avvia-revisore.sh`.
+3. **W4**: in implementazione; alla PR avviare la review Codex (worktree di review con
+   `git worktree add .worktrees/review-prN origin/<branch> --detach` e `npm ci`).
+4. **W3**: dopo il merge di W4 mandare il messaggio di ripresa (brief, protocollo, spec
+   `2026-10-11-ricetta-import.md`, piano omonimo, «sei in implementazione, rebase su
+   origin/main, poi PR»).
+5. **W5**: in implementazione; quando scrive `STATO: ANTEPRIMA <url>` girare il link
+   all'utente per l'iPhone; alla PR review Codex.
+6. A fine ondata 1: riportare nella specifica principale le sezioni «Decisioni da
+   riportare» delle spec di dettaglio unite, riscrivere la sezione 10 con lo schema del
+   piano generale, chiudere le voci della sezione 15; mostrare all'utente le decisioni
+   prese dal coordinatore marcate «da mostrare» nel piano generale; pianificare
+   l'ondata 2 (W2 è già libero).
+7. Passi di produzione (W1 task 10) da portare all'utente solo prima della prima
+   pubblicazione (vedi «Domande in sospeso»).
