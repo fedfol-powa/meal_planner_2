@@ -2,7 +2,7 @@ import type { MealActionResult } from '@app/contract';
 import { appError } from '../errors.ts';
 import { weekViewOf } from '../menu/week-view.ts';
 import type { OperationContext } from '../pipeline.ts';
-import { contentOf, sameContent, type SlotContent, type SlotRow } from './slots.ts';
+import { contentOf, lockSlots, sameContent, type SlotContent, type SlotRow } from './slots.ts';
 
 export type ActionKind = 'set_servings' | 'set_recipe' | 'set_free' | 'set_note' | 'swap' | 'undo';
 
@@ -77,4 +77,33 @@ export async function perform(context: OperationContext, familyId: string, reque
 			where id = ${edit.slot.id}`;
 	}
 	return answer(context, familyId, request, changed.length > 0);
+}
+
+const notAllowed = (reason: 'not_own_change' | 'changed_since' | 'draft_closed') => appError('not_allowed', { reason });
+
+/**
+ * meals.undo (spec section 5): own actions only, only while every slot it changed still has it
+ * as last action; all its slots together; a draft comes back only while open.
+ */
+export async function undoAction(context: OperationContext, familyId: string, input: { actionId: string; id: string }): Promise<MealActionResult> {
+	const { tx } = context;
+	const [action] = await tx<{ actorId: string | null; slotIds: string[] }[]>`
+		select a.actor_id as "actorId", to_jsonb(a.slot_ids) as "slotIds"
+		from app.meal_actions a join app.weeks w on w.id = a.week_id
+		where a.id = ${input.actionId} and w.family_id = ${familyId}`;
+	if (!action) throw appError('not_found');
+	const rows = await tx<{ id: string; slotId: string; before: SlotContent }[]>`
+		select id, meal_slot_id as "slotId", before from app.meal_changes where action_id = ${input.actionId} order by meal_slot_id`;
+	// An action without rows has nothing to undo: the undo is recorded on its slots, without rows.
+	const slots = await lockSlots(tx, familyId, rows.length > 0 ? rows.map((r) => r.slotId) : action.slotIds);
+	const request = { id: input.id, kind: 'undo' as const, slots, undoes: input.actionId };
+	const replayed = await replay(context, familyId, request);
+	if (replayed) return replayed;
+	if (rows.length === 0) return perform(context, familyId, request, []);
+	if (action.actorId !== context.userId) throw notAllowed('not_own_change');
+	if (slots.some((s) => s.lastActionId !== input.actionId)) throw notAllowed('changed_since');
+	// Not from app.recipes: after the last citation went away the member no longer sees the draft.
+	const [{ closed }] = await tx<{ closed: boolean }[]>`select app.meal_action_restores_closed_draft(${input.actionId}) as closed`;
+	if (closed) throw notAllowed('draft_closed');
+	return perform(context, familyId, request, rows.map((row) => ({ slot: slots.find((s) => s.id === row.slotId)!, after: row.before, undoes: row.id })));
 }

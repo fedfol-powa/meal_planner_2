@@ -1,6 +1,6 @@
 import { appError } from '../errors.ts';
 import type { Implementer, OperationContext } from '../pipeline.ts';
-import { perform, replay, type ActionKind } from './actions.ts';
+import { perform, replay, undoAction, type ActionKind } from './actions.ts';
 import { contentOf, lockSlots, type SlotContent, type SlotRow } from './slots.ts';
 
 /** One-slot write: lock, replay before any content check, check, perform. */
@@ -51,5 +51,6 @@ export function mealsRouter(os: Implementer) {
 				{ slot: other!, after: { ...contentOf(other!), ...moved(slot!) } },
 			]);
 		}),
+		undo: os.meals.undo.handler(({ context, input }) => undoAction(context, input.familyId, input)),
 	};
 }

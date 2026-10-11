@@ -39,4 +39,14 @@ export const mealsContract = {
 		.errors(notFound)
 		.input(slot.extend({ id: z.uuid(), otherSlotId: z.uuid() }))
 		.output(mealActionResult),
+	undo: write()
+		.route({
+			method: 'POST',
+			path: '/families/{familyId}/meals/undo',
+			summary:
+				'Undo your own last change of a meal: pass lastChange.actionId from menu_getWeek when lastChange.undoable is true (a swap comes back whole). `id` is a new UUID for the undo',
+		})
+		.errors({ ...notFound, not_allowed: errorDefinitions.not_allowed })
+		.input(z.object({ familyId: z.uuid(), actionId: z.uuid(), id: z.uuid() }))
+		.output(mealActionResult),
 };
