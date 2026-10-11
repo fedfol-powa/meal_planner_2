@@ -93,6 +93,27 @@ Seconda review: `progetto/coordinamento/revisioni/w5-spec-piano-2.md`; scelte te
 
 **C9. Versione stringa nelle fixture (rilievo 9; Task 14).** `version: 'opening-1'` nel test «says when the family has no menu yet»; `grep -n "version: [0-9]"` sul piano e su `web/src` non trova nulla.
 
+## Correzioni della review della PR #6
+
+Review: `progetto/coordinamento/revisioni/w5-pr6.md`; scelte tecniche del coordinatore: `progetto/coordinamento/messaggi/w5-03-review-pr6.md`. Sostituiscono le parti indicate di C2, C3 e C4.
+
+**C10. «Esci» non annullato da un rinnovo (rilievo 1; C2).**
+- `AuthBackend.onChange(listener: (event: AuthEvent) => void)`: l'evento conserva il tipo di Supabase (`SIGNED_IN`, `TOKEN_REFRESHED`, `SIGNED_OUT`, …) con l'utente, o `null` per `SIGNED_OUT`; nessun evento per una sessione vuota.
+- `AuthProvider` tiene in un ref l'utente la cui generazione è **in chiusura**, da `signOut(userId, cleanup)` fino alla fine di `backend.signOut()`. In quella fase ogni evento dello stesso utente (rinnovo, ripetizione di `SIGNED_IN` al ritorno sulla scheda) si ignora; `SIGNED_OUT` e gli eventi di un altro utente si applicano. L'uscita si conclude sempre con `backend.signOut()`, salvo che nel frattempo sia entrato un altro utente. Chiusa la fase, un `SIGNED_IN` dello stesso utente è un accesso nuovo.
+- Test (`AuthProvider.test.tsx`): pulizia sospesa → `TOKEN_REFRESHED` e `SIGNED_IN` di A → fine della pulizia ⇒ `signedOut`, una chiamata a `backend.signOut()`, alla riapertura nessuna sessione; dopo la chiusura un `SIGNED_IN` di A rientra. Resta verde l'ingresso di B durante la pulizia.
+
+**C11. Segni di revoca atomici (rilievo 2; C4).**
+- `KeyValueStore.transact(prefixes, change)`: legge le voci con uno dei prefissi e applica le scritture restituite da `change` (sincrona; `undefined` cancella) in **una sola transazione `readwrite`** di IndexedDB, serializzata anche fra schede. L'archivio in memoria fa lettura e scrittura senza attese intermedie, con la stessa atomicità.
+- Un record per (utente, famiglia): `revokedKey(userId, familyId) = 'revoked:<userId>:<familyId>'` con il momento dell'ultima revoca. `markRevoked` tiene il massimo; `clearRevoked(startedAt)` cancella solo se il segno salvato è precedente a `startedAt` (una lettura partita nello stesso millisecondo della revoca non la prova).
+- Il persister scrive la copia nella stessa transazione in cui legge i segni; il ripristino legge copia e segni insieme; `close()` cancella copia e segni in una transazione; `purgeOtherCopies` tiene la copia e i segni con il prefisso dell'utente rimasto.
+- Dipendenza di sviluppo `fake-indexeddb` (approvata dal coordinatore): IndexedDB vero nei test dell'adattatore.
+- Test (`persister.test.ts`, su archivio in memoria e su IndexedDB): revoca contemporanea di due famiglie; nuova revoca concorrente con la rimozione del vecchio segno, nei due ordini; poi scrittura tardiva di una scheda ignara e ripristino ⇒ le famiglie revocate non tornano. Venti transazioni «leggi e incrementa» concorrenti su IndexedDB ⇒ contatore a 20.
+
+**C12. Lingua fissa per lettura (rilievo 3; C3).**
+- `CreateApi = (user, locale) => Api`: un client per lingua, creato da `SessionScope` alla prima richiesta in quella lingua. La lettura usa il client della lingua in cui è partita, e `session.call` ne ripete la stessa funzione: anche il tentativo dopo il rinnovo resta nella lingua di partenza. Il client finto usa quella lingua per dati e versione.
+- `wrapApi(api, session, { locale, isCurrent })`: se all'arrivo della risposta la lingua mostrata è cambiata, annulla con `cancelQueries` le letture di quella lingua (`localeOfKey`), che tornano allo stato precedente senza scrivere in cache.
+- Test (`SessionScope.test.tsx`): lettura italiana rifiutata → rinnovo sospeso → passaggio all'inglese → rinnovo riuscito ⇒ nessun dato sotto la chiave italiana, in memoria e nella copia salvata; ritorno all'italiano ⇒ testo italiano; ripristino ⇒ ogni lingua ha il suo testo.
+
 ---
 
 ## Mappa dei file
