@@ -1,0 +1,2 @@
+-- Shared test data, extended task by task. Runs as postgres, before any login.
+\ir cleanup.psql

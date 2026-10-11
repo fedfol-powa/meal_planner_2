@@ -1,0 +1,129 @@
+-- Test helpers. Inside a test transaction they are rolled back with it; the
+-- counters test drops the schema at the end.
+set check_function_bodies = off;
+set client_min_messages = warning;
+
+drop schema if exists tests cascade;
+create schema tests;
+grant usage on schema tests to authenticated, anon, app_job;
+
+create function tests.create_user(p_name text, p_locale text default 'it-IT')
+returns uuid language sql security definer set search_path = '' as $$
+	insert into auth.users (id, email, aud, role, raw_user_meta_data)
+	values (
+		gen_random_uuid(), p_name || '@test.local', 'authenticated', 'authenticated',
+		jsonb_build_object('display_name', initcap(p_name), 'locale', p_locale)
+	)
+	returning id;
+$$;
+
+create function tests.uid(p_name text)
+returns uuid language sql stable security definer set search_path = '' as $$
+	select id from auth.users where email = p_name || '@test.local';
+$$;
+
+create function tests.create_session(p_name text, p_not_after timestamptz default null)
+returns uuid language sql security definer set search_path = '' as $$
+	insert into auth.sessions (id, user_id, not_after)
+	values (gen_random_uuid(), tests.uid(p_name), p_not_after)
+	returning id;
+$$;
+
+create function tests.login_with_claims(p_claims jsonb)
+returns void language plpgsql as $$
+begin
+	perform set_config('request.jwt.claims', p_claims::text, true);
+	perform set_config('role', 'authenticated', true);
+end;
+$$;
+
+create function tests.login(p_name text, p_session_id uuid default null)
+returns void language plpgsql as $$
+begin
+	perform tests.login_with_claims(jsonb_build_object(
+		'sub', tests.uid(p_name), 'role', 'authenticated', 'session_id', p_session_id
+	));
+end;
+$$;
+
+create function tests.become(p_role text)
+returns void language plpgsql as $$
+begin
+	perform set_config('request.jwt.claims', '{}', true);
+	perform set_config('role', p_role, true);
+end;
+$$;
+
+-- Rows touched by an update or delete, as the current role (RLS applies).
+create function tests.affected(p_sql text)
+returns bigint language plpgsql as $$
+declare
+	v_count bigint;
+begin
+	execute p_sql;
+	get diagnostics v_count = row_count;
+	return v_count;
+end;
+$$;
+
+-- SQLSTATE and message of a failing statement, to compare two refusals.
+create function tests.error_of(p_sql text)
+returns text language plpgsql as $$
+begin
+	execute p_sql;
+	return 'no error';
+exception when others then
+	return sqlstate || ': ' || sqlerrm;
+end;
+$$;
+
+-- Lookups of the test data, read as owner. Names and slugs get the test- prefix.
+create function tests.family(p_name text)
+returns uuid language sql stable security definer set search_path = '' as $$
+	select id from app.families where name = 'test-' || p_name;
+$$;
+
+create function tests.recipe(p_slug text)
+returns uuid language sql stable security definer set search_path = '' as $$
+	select id from app.recipes where slug = 'test-' || p_slug;
+$$;
+
+create function tests.ingredient(p_slug text)
+returns uuid language sql stable security definer set search_path = '' as $$
+	select id from app.ingredients where slug = 'test-' || p_slug;
+$$;
+
+create function tests.week(p_family text)
+returns uuid language sql stable security definer set search_path = '' as $$
+	select w.id from app.weeks w join app.families f on f.id = w.family_id
+	where f.name = 'test-' || p_family and w.starts_on = '2026-10-12';
+$$;
+
+create function tests.shopping_list(p_family text)
+returns uuid language sql stable security definer set search_path = '' as $$
+	select l.id from app.shopping_lists l join app.families f on f.id = l.family_id
+	where f.name = 'test-' || p_family;
+$$;
+
+create function tests.family_version(p_name text)
+returns bigint language sql stable security definer set search_path = '' as $$
+	select data_version from app.families where name = 'test-' || p_name;
+$$;
+
+create function tests.catalogue_version()
+returns bigint language sql stable security definer set search_path = '' as $$
+	select version from app.catalogue_state;
+$$;
+
+-- One extra ingredient line of the test pasta, to try quantity combinations.
+create function tests.insert_line(p_kind text, p_quantity numeric, p_unit text, p_text jsonb)
+returns void language sql as $$
+	insert into app.recipe_ingredients (
+		recipe_id, position, ingredient_id, variety_key, quantity_kind, quantity, unit, quantity_text, source_text
+	) values (
+		tests.recipe('pasta-al-pomodoro'), 20, tests.ingredient('tomatoes'), 'combination',
+		p_kind, p_quantity, p_unit, p_text, 'combination line'
+	);
+$$;
+
+grant execute on all functions in schema tests to authenticated, anon, app_job;
