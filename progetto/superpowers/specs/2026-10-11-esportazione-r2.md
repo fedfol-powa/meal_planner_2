@@ -1,8 +1,9 @@
 # Esportazione notturna in R2 (ondata 2, W5)
 
 Creato: 11 ottobre 2026
-Stato: design approvato a sezioni dal coordinatore l'11 ottobre 2026 (sezioni 1-3 in
-conversazione, 4 e 5 scritte direttamente qui); in attesa della review di spec e piano.
+Stato: design approvato a sezioni dal coordinatore l'11 ottobre 2026; corretta dopo la
+review di spec e piano (`revisioni/w5-esportazione-spec-piano.md`, verdetto «da
+rifare», messaggio `w5-08-review-esportazione.md`).
 Brief: `progetto/coordinamento/brief/w5-esportazione-r2.md`.
 Specifica principale: sezioni 1, 2, 4, 8 («Storico e backup»), 9, 15 («Backup e
 ripristino») e 16 (registro dell'8 e dell'11 ottobre 2026). Questa spec la estende e le
@@ -12,24 +13,25 @@ resta subordinata.
 
 Ogni notte il Worker esporta tutto il database (dati dello schema `app` e utenti di
 Supabase Auth) in un oggetto cifrato di R2 e conserva le ultime 7 esportazioni. Una
-procedura scritta e provata ripristina un'esportazione in un database nuovo, con un
-test automatico che esporta, ripristina e confronta i contenuti.
+procedura scritta e provata ripristina un'esportazione in un database appena preparato
+con le migrazioni, e una prova automatica in CI segue gli stessi passi della procedura.
 
 ## Perimetro
 
 **Dentro:** ruolo `app_backup` e funzione per gli utenti di Auth (nuova migrazione con
-test pgTAP); esportazione nel Worker sul Cron Trigger; formato, compressione e
-cifratura; conservazione delle ultime 7; CLI di ripristino con verifiche; test
-automatico di esportazione e ripristino; procedura scritta; comandi dei passi esterni.
+test pgTAP); esportazione nel Worker sul Cron Trigger con limite di dimensione;
+formato, compressione e cifratura; conservazione delle ultime 7; CLI di ripristino con
+verifiche e ricerca del commit delle migrazioni; prova di ripristino in CI; procedura
+scritta; comandi dei passi esterni.
 
 **Fuori:** email di allarme sui fallimenti (ondata 3, con quelle del job settimanale,
 sezione 4); ripristino del catalogo a una data dallo storico (sezione 8, già deciso,
 è un'altra cosa); operazioni del contratto, schermate o strumenti MCP: l'esportazione è
 un compito operativo dell'infrastruttura, non un'azione di recupero dell'app (sezione 8,
 «Il design distinguerà queste azioni dai compiti operativi di backup»); esportazione a
-pagine (sopra i 50 MB, vedi «Dimensioni e tempi»).
+pagine o in streaming (oltre il limite, vedi «Dimensioni, memoria e tempi»).
 
-## Decisioni prese nel brainstorming
+## Decisioni prese nel brainstorming e nella review
 
 Tutte del coordinatore, 11 ottobre 2026.
 
@@ -42,21 +44,39 @@ Tutte del coordinatore, 11 ottobre 2026.
    WebCrypto, chiave a 256 bit come secret del Worker e copia nel gestore di password
    dell'utente. Motivo: l'account Cloudflare è quello di POWA, e chi ha accesso a R2
    nell'account leggerebbe email e hash delle password. Perdere la chiave significa
-   perdere le esportazioni: la prova di ripristino in produzione usa la copia del
-   gestore di password, così la verifica anche.
+   perdere le esportazioni: la prova di produzione usa la copia del gestore di password,
+   così la verifica anche.
 3. **Formato:** JSON per tabella prodotto da Postgres (`json_agg`), un solo documento
    compresso con gzip (`CompressionStream`) e cifrato; il Worker non può eseguire
    `pg_dump` e non serve: lo schema si ricrea dalle migrazioni.
-4. **Approccio:** esportazione nel Worker con un'espressione cron dedicata (approccio
-   1); scartate una GitHub Action notturna con `pg_dump` (password del database e
-   token R2 nei secret di GitHub, workflow programmati in ritardo e disattivati dopo
-   60 giorni senza attività, contro il brief) e l'esportazione a pagine con upload
-   multipart (complessità inutile per pochi MB; soglia di 50 MB per riconsiderarla).
+4. **Approccio:** esportazione nel Worker con un'espressione cron dedicata; scartate una
+   GitHub Action notturna con `pg_dump` (password del database e token R2 nei secret di
+   GitHub, workflow programmati in ritardo e disattivati dopo 60 giorni senza attività,
+   contro il brief) e l'esportazione a pagine con upload multipart (complessità inutile
+   per pochi MB).
 5. **Ruolo dedicato `app_backup`** in sola lettura, con `BYPASSRLS`, verificato in
    locale (vedi sotto).
-6. **Ripristino** in un database con le stesse migrazioni e vuoto, in modalità
+6. **Ripristino** in un database preparato con le migrazioni, vuoto salvo le righe che
+   le migrazioni stesse inseriscono (elencate nel codice), in modalità
    `session_replication_role = replica`, con verifica di chiavi esterne e contenuti
-   prima del commit; il test confronta tutto.
+   prima del commit.
+7. **Marcatori di transazione** (review, rilievo 3): i contatori applicativi
+   (`families.data_version`, `catalogue_state.version`) si conservano; i marcatori di
+   deduplicazione `xid8` (`families.data_version_xid`, `catalogue_state.version_xid`)
+   tornano `NULL`, perché gli identificativi di transazione non hanno senso in un altro
+   cluster e uno coincidente bloccherebbe l'incremento successivo. I trigger gestiscono
+   già `NULL` (`is distinct from pg_current_xact_id()`). Il confronto dopo il ripristino è
+   esatto su tutto tranne queste colonne, elencate nel codice (`XID_MARKERS`).
+8. **Limite dell'esportazione** (review, rilievo 5): misurato in workerd con dati poco
+   comprimibili; controllato **prima** di leggere le righe, da una stima calcolata dal
+   database; oltre il limite l'esportazione non parte e scrive un log di errore.
+9. **Commit delle migrazioni** (review, rilievo 9): nessun registro nuovo; il commit da
+   usare per preparare la destinazione è quello in cui `supabase/migrations/` corrisponde
+   esattamente all'elenco delle migrazioni contenuto nell'esportazione; la CLI lo cerca
+   (`inspect`). `workerVersion` resta informativo.
+10. **Due prove distinte** (review, punto 3): la prova locale completa è il criterio di
+    fine della PR; la prova di produzione la fa l'utente dopo la creazione del bucket, ed
+    è una voce separata del registro.
 
 ## Verifiche fatte in locale (11 ottobre 2026)
 
@@ -73,11 +93,21 @@ come `postgres`, l'utente delle migrazioni, in transazioni annullate:
 - `postgres` ha `INSERT` su `auth.users` e `auth.identities`, `usage` su `auth` e può
   impostare `session_replication_role = replica` (consentito da supautils): il
   ripristino non richiede un superuser.
-- `supabase_migrations.schema_migrations` appartiene a `postgres`.
+- `postgres`, creatore di un ruolo, può concedersene l'uso (`grant … to postgres with
+  inherit false, set true`) dentro una transazione: serve ai test pgTAP, non alla
+  produzione.
+- `supabase_migrations.schema_migrations` appartiene a `postgres`; tabelle e funzioni di
+  `app` anche.
 - Le 30 tabelle di `app` hanno tutte una chiave primaria e nessuna sequenza; colonne
   generate: `app.ingredient_unit_equivalences.from_dimension`,
-  `auth.users.confirmed_at`, `auth.identities.email`.
-- Dati locali di prova (molto più grandi di quelli reali): 6,3 MB su disco per `app`.
+  `auth.users.confirmed_at`, `auth.identities.email`; colonne `xid8`:
+  `families.data_version_xid`, `catalogue_state.version_xid` (in JSON escono come
+  stringhe).
+- La migrazione `20261011100700_versions.sql` inserisce la riga iniziale di
+  `app.catalogue_state` (`id = true`, `version = 1`, `version_xid = null`): un database
+  appena migrato non è vuoto.
+- Il tipo `json` conserva il testo esatto e `->` ne restituisce la porzione originale,
+  spazi e cifre comprese: il confronto può essere fatto sul testo.
 
 ## 1. Ruolo e permessi (migrazione `20261012100000_backup.sql`)
 
@@ -87,16 +117,14 @@ grant app_backup to app_server;             -- app_server è NOINHERIT: serve se
 grant usage on schema app to app_backup;
 grant select on all tables in schema app to app_backup;
 alter default privileges for role postgres in schema app grant select on tables to app_backup;
-grant usage on schema supabase_migrations to app_backup;
-grant select on supabase_migrations.schema_migrations to app_backup;  -- solo se esiste
+grant usage on schema supabase_migrations to app_backup;              -- solo se la tabella esiste
+grant select on supabase_migrations.schema_migrations to app_backup;  -- idem
 ```
 
 e la funzione `app.backup_auth_rows() returns jsonb`, `stable security definer set
 search_path = ''`, che restituisce `{"users": [...], "identities": [...]}` con
-`json_agg(u order by u.id)` e `json_agg(i order by i.id)`; `revoke execute ... from
-public`, `grant execute ... to app_backup`. Le migrazioni si leggono direttamente (la
-tabella è di `postgres`); se la tabella non esiste (migrazioni applicate a mano) la
-lettura restituisce `null` (vedi ripristino).
+`jsonb_agg(to_jsonb(u) order by u.id)` e `jsonb_agg(to_jsonb(i) order by i.id)`;
+`revoke execute ... from public`, `grant execute ... to app_backup`.
 
 **Perché un ruolo dedicato** (sezione 2, separazione dei ruoli): `app_job` scrive
 settimane e pasti e legge solo ciò che serve al pianificatore; l'esportazione deve
@@ -105,18 +133,26 @@ due poteri allargherebbe ciò che un errore del job può leggere e ciò che un e
 dell'esportazione può scrivere. `BYPASSRLS` invece di una policy per tabella: una
 tabella nuova resta esportata senza ricordarsi una policy, e il test lo garantisce.
 
-**Test pgTAP** (`supabase/tests/backup_test.sql`, più `coverage_test.sql` aggiornato):
+**Test pgTAP** (`supabase/tests/backup_test.sql`, più una riga in `coverage_test.sql`).
+Il setup del file, dentro la transazione del test e quindi annullato alla fine, concede
+a `postgres` l'uso di `app_backup` (`with inherit false, set true`) e ad `app_backup`
+l'`usage` sullo schema `extensions` di pgTAP; la produzione non riceve nessuno dei due.
+Verifica:
 
 - `app_backup` ha `SELECT` su ogni tabella di `app` e nessun `INSERT`, `UPDATE`,
-  `DELETE`, `TRUNCATE` su alcuna tabella di `app`;
+  `DELETE`, `TRUNCATE`; una tabella creata dopo (come farebbe una migrazione futura)
+  resta leggibile;
 - `app_backup` esegue solo `backup_auth_rows` fra le funzioni di `app`; nessun altro
   ruolo (`authenticated`, `anon`, `app_job`, `app_server`, PUBLIC) la esegue;
-- `app_backup` è `NOLOGIN` e `BYPASSRLS`; `app_server` ne è membro senza ereditarne i
+- `app_backup` è `NOLOGIN` e `BYPASSRLS`; `app_server` può passarvi senza ereditarne i
   permessi;
-- come `app_backup` si leggono le righe di una famiglia senza appartenervi (RLS
-  scavalcato) e `backup_auth_rows()` restituisce gli utenti di prova;
-- ogni tabella di `app` ha una chiave primaria (serve all'ordine deterministico);
-- lo schema `app` non ha sequenze né colonne identità (il ripristino non le gestisce).
+- come `app_backup` si legge una famiglia senza appartenervi (RLS scavalcato),
+  `backup_auth_rows()` restituisce gli utenti, `auth.users` diretto è negato, ogni
+  scrittura è negata;
+- ogni tabella di `app` ha una chiave primaria (ordine deterministico);
+- lo schema `app` non ha sequenze né colonne identità (il ripristino non le gestisce);
+- le colonne `xid8` di `app` sono esattamente quelle di `XID_MARKERS` (chi ne aggiunge
+  una deve aggiornare l'elenco del ripristino).
 
 ## 2. Formato dell'esportazione
 
@@ -134,13 +170,16 @@ tabella nuova resta esportata senza ricordarsi una policy, e il test lo garantis
 ```
 
 - `tables` comprende tutte le tabelle di `app` (`relkind = 'r'`), scoperte da
-  `pg_catalog` a ogni esportazione, in ordine alfabetico; nessun elenco nel codice.
+  `pg_catalog` a ogni esportazione, in ordine `collate "C"`; nessun elenco nel codice.
 - Righe da `json_agg(t order by <colonne della chiave primaria>)` (array vuoto se la
-  tabella è vuota): ordine deterministico, confronto byte per byte possibile.
-- Il JSON arriva dal database come testo e il Worker compone il documento per
-  concatenazione, senza `JSON.parse` delle righe.
-- Le colonne generate restano nel file; il ripristino non le inserisce.
-- `migrations` è `null` se `supabase_migrations.schema_migrations` non esiste.
+  tabella è vuota): ordine deterministico; il testo di Postgres entra nel documento
+  così com'è, senza `JSON.parse`.
+- Istanti sempre in UTC: la lettura imposta `set local time zone 'UTC'`, e il ripristino
+  fa lo stesso.
+- Le colonne generate e i marcatori `xid8` restano nel file; il ripristino non li
+  inserisce.
+- `migrations` è `null` se `supabase_migrations.schema_migrations` non esiste o non è
+  leggibile.
 
 **Oggetto R2:**
 
@@ -159,23 +198,22 @@ tabella nuova resta esportata senza ricordarsi una policy, e il test lo garantis
 
   L'intestazione (magia, versione, identificativo) è dato autenticato aggiuntivo
   (`additionalData`) dell'AES-GCM: alterarla fa fallire la decifratura.
-- `customMetadata`: `format`, `keyId`, `createdAt`, `uncompressedBytes`, `tables`,
-  `rows` (totale), `users`. Nessun dato personale.
+- `customMetadata`: `format`, `keyId`, `createdAt`, `uncompressedBytes`, `storedBytes`,
+  `tables`, `rows`, `users`. Nessun dato personale.
 
 **Codice:** `server/src/backup/format.ts`, puro e valido sia nel Worker sia in Node
-(WebCrypto, `CompressionStream`, `DecompressionStream` sono globali in entrambi):
-`encodeExport(json: string, key: CryptoKey, keyId: string): Promise<Uint8Array>`,
-`decodeExport(bytes, keys: Record<string, CryptoKey>): Promise<string>`,
-`importKey(base64: string): Promise<CryptoKey>` (rifiuta chiavi diverse da 32 byte).
+(WebCrypto, `CompressionStream`, `DecompressionStream`): `importKey`, `parseKeyList`,
+`encodeExport`, `decodeExport`, `ExportFormatError`.
 
 ## 3. Esportazione nel Worker
 
 **Trigger.** In `server/wrangler.jsonc` `"triggers": { "crons": ["0 * * * *", "30 2,4 * * *"] }`.
 L'espressione nuova scatta alle 02:30 e alle 04:30 UTC (in Italia 03:30 e 05:30 con
-l'ora solare, 04:30 e 06:30 con l'ora legale), mezz'ora dopo il job orario, con limiti propri (15 minuti di durata, 30 s
-di CPU di default). Alle 04:30 esporta solo se manca un'esportazione con la data UTC
-del giorno: è un secondo tentativo automatico, così un errore transitorio non porta la
-perdita massima a due giorni.
+l'ora solare, 04:30 e 06:30 con l'ora legale), mezz'ora dopo il job orario, in
+un'invocazione con limiti propri: 15 minuti di durata e, sul piano a pagamento, fino a
+15 minuti di CPU per un Cron Trigger. Alle 04:30 esporta solo se manca
+un'esportazione con la data UTC del giorno: è un secondo tentativo automatico, così un
+errore transitorio non porta la perdita massima a due giorni.
 
 **Smistamento in `server/src/index.ts`** (file condiviso con W1, modifica minima e
 dichiarata): `scheduled` chiama `dispatchScheduled(controller.cron, env, time)` di
@@ -184,8 +222,8 @@ dichiarata): `scheduled` chiama `dispatchScheduled(controller.cron, env, time)` 
 `scheduled_unknown_cron` (error). Le espressioni sono costanti esportate e un test
 verifica che coincidano con `wrangler.jsonc`.
 
-**Configurazione (`Env`):** `BACKUPS: R2Bucket` (binding R2), `BACKUP_ENCRYPTION_KEY:
-string` (secret, base64 di 32 byte), `BACKUP_KEY_ID: string` (var, `k1`). Il binding
+**Configurazione (`Env`):** `BACKUPS?: R2Bucket` (binding R2), `BACKUP_ENCRYPTION_KEY?:
+string` (secret, base64 di 32 byte), `BACKUP_KEY_ID?: string` (var, `k1`). Il binding
 in `wrangler.jsonc`:
 
 ```jsonc
@@ -193,8 +231,8 @@ in `wrangler.jsonc`:
 ```
 
 Giurisdizione UE: dati personali delle famiglie conservati nell'Unione. In locale
-`wrangler dev` simula il bucket con Miniflare; la chiave locale sta in
-`server/.env` (ignorato da Git), con la riga vuota in `server/.env.example`.
+`wrangler dev` simula il bucket con Miniflare; la chiave locale sta in `server/.env`
+(ignorato da Git), con la riga vuota in `server/.env.example`.
 
 **`runNightlyExport(env, scheduledTime)`** in `server/src/backup/export.ts`:
 
@@ -202,115 +240,161 @@ Giurisdizione UE: dati personali delle famiglie conservati nell'Unione. In local
    di 32 byte) → log `backup_export_not_configured` (error) e ritorno, senza eccezione.
 2. **Salto:** `BACKUPS.list({ prefix: 'exports/<YYYY-MM-DD>T' })` della data UTC; se
    c'è già un oggetto → `backup_export_skipped` e ritorno.
-3. **Lettura:** `withDb(HYPERDRIVE, { kind: 'backup' }, readSnapshot)`. In
-   `server/src/db.ts` (file di W1, modifica minima e dichiarata) il nuovo `case
-   'backup'` esegue `set transaction isolation level repeatable read, read only` e poi
-   `set local role app_backup`: tutte le letture vedono la stessa fotografia.
-   `readSnapshot(tx)` (`server/src/backup/read.ts`, usata anche dal ripristino):
-   `set local time zone 'UTC'` (istanti sempre in UTC nel JSON, qualunque sia il
-   fuso della sessione: il ripristino fa lo stesso e il confronto non dipende dal
-   server); tabelle e chiavi primarie da `pg_catalog`; per ogni tabella `select coalesce(json_agg(t
-   order by …), '[]')::text as rows, count(*)::int as count from app.<t> t`
-   (identificatori quotati con `tx(name)`); `app.backup_auth_rows()::text`; migrazioni.
-   Restituisce le parti in testo e i conteggi.
-4. **Composizione:** `composeExport(parts, createdAt, workerVersion)` concatena il
-   documento; se supera 50 MB non compressi → log `backup_export_large` (error),
-   l'esportazione prosegue.
-5. **Scrittura:** `encodeExport`, poi `BACKUPS.put(key, bytes, { customMetadata })`.
-6. **Conservazione:** `list({ prefix: 'exports/' })` con cursore fino alla fine,
-   ordine per chiave, `delete(chiavi tranne le ultime 7)`. Solo dopo un `put` riuscito:
-   una notte fallita non consuma copie buone. Una regola di ciclo di vita di R2 a 7
-   giorni è scartata perché, dopo giorni di fallimenti, cancellerebbe le ultime copie
-   buone.
-7. **Log** `backup_export_done`: `key`, `uncompressedBytes`, `storedBytes`, `tables`,
-   `rows`, `users`, `pruned`, `ms`.
+3. **Lettura**, in una transazione con l'identità `{ kind: 'backup' }` di
+   `server/src/db.ts` (file di W1, modifica minima e dichiarata: `set transaction
+   isolation level repeatable read, read only`, poi `set local role app_backup`):
+   1. `set local time zone 'UTC'`;
+   2. **stima** della dimensione: per ogni tabella `sum(octet_length(row_to_json(t)::text))`
+      più quella degli utenti di Auth, calcolata nel database senza trasferire righe;
+      se supera `EXPORT_LIMIT_BYTES` → `ExportTooLargeError`, log
+      `backup_export_too_large` (error) con stima e limite, nessuna scrittura; sopra
+      metà del limite, log `backup_export_near_limit` (error) e l'esportazione prosegue;
+   3. per ogni tabella `select coalesce(json_agg(t order by …), '[]')::text, count(*)`;
+      `app.backup_auth_rows()::text`; elenco delle migrazioni.
+   La stima e le letture stanno nella stessa fotografia `repeatable read`.
+4. **Composizione e scrittura** con il minimo di copie: le parti del documento vanno in
+   un `Blob` (UTF-8) letto in streaming attraverso `CompressionStream`; il risultato
+   compresso si cifra; l'oggetto finale si scrive come `Blob([intestazione, IV,
+   cifrato])`. I riferimenti alle stringhe si rilasciano prima della cifratura.
+5. **Conservazione:** `list({ prefix: 'exports/' })` con cursore fino alla fine, ordine
+   per chiave, `delete(chiavi tranne le ultime 7)`. Solo dopo un `put` riuscito: una
+   notte fallita non consuma copie buone. Una regola di ciclo di vita di R2 a 7 giorni
+   è scartata perché, dopo giorni di fallimenti, cancellerebbe le ultime copie buone.
+6. **Log** `backup_export_done`: `key`, `estimatedBytes`, `uncompressedBytes`,
+   `storedBytes`, `tables`, `rows`, `users`, `pruned`, `ms`.
 
-**Errori:** ogni fase in `try/catch`; `backup_export_failed` (error) con `phase`
-(`read`, `encode`, `put`, `prune`) e `code` (`errorCode` di `menu/generation.ts`, già
-usato dal job: codici e messaggi di Postgres scelti, mai dati). Un errore di `prune` non
-rende fallita l'esportazione già scritta (log con `phase: 'prune'`, la prossima notte
-ripulisce). L'esportazione non lancia eccezioni fuori da `runNightlyExport`.
+**Errori:** `backup_export_failed` (error) con `phase` (`list`, `read`, `encode`,
+`put`, `prune`) e `code` (`errorCode` di `menu/generation.ts`, già usato dal job: codici
+di Postgres o nome dell'errore, mai messaggi o dati). Un errore di `prune` non rende
+fallita l'esportazione già scritta. `runNightlyExport` non lancia eccezioni.
 
-**Dimensioni e tempi.** Oggi il database reale pesa pochi MB; ci si aspettano
-centinaia di KB cifrati. La CPU va quasi tutta a gzip e AES: stima 50-200 ms per
-qualche MB, molto sotto i 30 s di default; la durata è dominata dall'attesa di
-Postgres e R2 (secondi). Misura con `wrangler dev` sui dati locali di prova, riportata
-nella PR. Memoria: documento, compresso e cifrato coesistono, quindi circa 2-3 volte la
-dimensione non compressa: sotto i 128 MB del Worker fino alla soglia di 50 MB. Ora
-dell'esportazione: 02:30 UTC, fuori dagli orari d'uso delle famiglie in Europa.
+### Dimensioni, memoria e tempi
+
+- **Memoria.** I 128 MB valgono per isolate, che può servire anche altre richieste. Il
+  picco dell'esportazione è circa la somma di: testo delle tabelle (1-2 byte per
+  carattere in V8), Blob UTF-8, compresso, cifrato; con dati poco comprimibili circa 4
+  volte la dimensione del documento. Regola: `EXPORT_LIMIT_BYTES` è la dimensione più
+  grande, fra 8, 16 e 32 MB di documento, il cui picco misurato in workerd resta sotto
+  **64 MB** (metà del limite, margine per l'isolate). Valore iniziale 16 MB, confermato
+  o abbassato dalla misura del piano prima della PR; il valore e le misure finiscono in
+  questa sezione e nella PR.
+- **Misura** in `wrangler dev` (workerd): dati sintetici poco comprimibili (testo
+  casuale in `app.shopping_list_items`) per documenti da 8, 16 e 32 MB; picco di memoria
+  dal pannello Memory dei DevTools (timeline delle allocazioni, heap JS più
+  ArrayBuffer), CPU dal profilo CPU dei DevTools, durata dal log `ms`. La CPU reale in
+  produzione si legge poi nei log del Worker pubblicato (prova di produzione).
+- **Oggi:** il database reale pesa pochi MB; ci si aspettano centinaia di KB cifrati.
+  Se la stima si avvicina al limite (log `backup_export_near_limit`), si passa a
+  un'esportazione a pagine con upload multipart: nuova attività, non questa.
+- **Ora:** 02:30 UTC, fuori dagli orari d'uso delle famiglie in Europa.
 
 ## 4. Ripristino
 
-**Codice:** `server/src/backup/restore.ts` (caricamento e verifiche, riceve una
-connessione Postgres.js) e la CLI `scripts/backup/restore.ts` (Node, legge il file e le
-variabili d'ambiente, stampa l'esito). Nessuna dipendenza nuova: Postgres.js è già nel
-workspace del server.
+**Codice:** `server/src/backup/restore.ts` (controlli, caricamento e verifiche dentro
+la transazione del chiamante), `scripts/backup/restore.ts` (CLI Node) e
+`scripts/backup/migrations-commit.ts` (ricerca del commit). Nessuna dipendenza nuova.
+
+**Comandi della CLI** (dalla radice del repository):
 
 ```bash
-BACKUP_ENCRYPTION_KEY='<base64>' DATABASE_URL='postgresql://postgres:<password>@<host>:5432/postgres' \
-  node scripts/backup/restore.ts <file> [--dry-run] [--accept-unknown-migrations]
+node scripts/backup/restore.ts inspect <file>                 # intestazione, migrazioni, commit corrispondente
+node scripts/backup/restore.ts restore <file> [--dry-run] [--accept-unknown-migrations]
 ```
 
-`BACKUP_ENCRYPTION_KEY` può contenere più chiavi `k1=<base64>,k2=<base64>`; una chiave
-sola senza nome vale per `k1`.
+La chiave arriva da `BACKUP_ENCRYPTION_KEY` (una chiave sola vale per `k1`; più chiavi
+`k1=<base64>,k2=<base64>`); la destinazione da `DATABASE_URL` senza password, con la
+password in `PGPASSWORD` (Postgres.js la legge da lì). La procedura le fa inserire con
+`read -rs`, così chiave e password non finiscono nella cronologia della shell.
 
-**Controlli prima di scrivere** (rifiuto con messaggio e codice di uscita 1):
+**Preparazione della destinazione** (la stessa nella procedura e nella prova in CI): un
+database con le migrazioni del commit trovato da `inspect` e nessun dato; in locale
+`supabase db reset --no-seed`, in produzione un progetto Supabase nuovo con le
+migrazioni applicate. Le righe che le migrazioni inseriscono sono elencate nel codice
+(`MIGRATION_ROWS`): oggi solo la riga iniziale di `app.catalogue_state`, riconosciuta
+dal predicato `id and version = 1 and version_xid is null`. Una destinazione in cui
+quella riga è cambiata, o con qualsiasi altra riga, è rifiutata come non vuota: non
+esiste un'opzione per sovrascrivere dati veri. Se una migrazione futura inserisce altre
+righe, la prova in CI fallisce e l'elenco va aggiornato.
+
+**Controlli prima di scrivere** (rifiuto con codice di uscita 1):
 
 1. Intestazione valida, identificativo della chiave presente fra quelle date, tag GCM
    corretto, `format` = `cosasimangia-export/1`.
 2. Migrazioni della destinazione uguali, come insieme, a quelle dell'esportazione. Se
    l'esportazione ha `migrations: null` o la destinazione non ha la tabella, si
-   prosegue solo con `--accept-unknown-migrations` (avviso stampato).
-3. Destinazione vuota: nessuna riga nelle tabelle di `app`, in `auth.users` e in
-   `auth.identities`. Nessuna opzione per sovrascrivere.
-4. Stesso insieme di tabelle di `app` e, per ogni tabella (comprese `auth.users` e
-   `auth.identities`), ogni colonna dell'esportazione esiste nella destinazione; le
-   colonne generate della destinazione si escludono dall'inserimento.
+   prosegue solo con `--accept-unknown-migrations`.
+3. Stesso insieme di tabelle di `app`.
+4. Destinazione vuota come definito sopra (`app`, `auth.users`, `auth.identities`).
+5. Ogni colonna dell'esportazione esiste nella destinazione.
 
 **Caricamento**, una transazione come `postgres`:
 
-0. `set local time zone 'UTC'`, come l'esportazione.
-
-1. Il documento decifrato entra **una volta** in una tabella temporanea
-   `restore_document(doc jsonb) on commit drop`: estrazione, caricamento e confronto si
-   fanno in SQL, così nessun numero passa da `JSON.parse` (niente perdita di
-   precisione) e il Node non tiene in memoria una seconda copia delle righe. Anche i
-   controlli preliminari 2-4 leggono da lì.
+1. `set local time zone 'UTC'`; il documento decifrato entra **una volta** in una
+   tabella temporanea `restore_document(doc json) on commit drop`. Tipo `json`, non
+   `jsonb`: conserva il testo esatto per il confronto. Estrazione, caricamento e
+   confronto si fanno in SQL, così nessun numero passa da `JSON.parse`.
 2. `set local session_replication_role = replica`: non scattano trigger dei contatori,
-   d'immutabilità, di controllo (date, fusi, ricette) né `create_profile_after_insert`,
-   e non si controllano le chiavi esterne. I dati entrano come sono stati esportati.
-3. `auth.users`, poi `auth.identities`, poi le tabelle di `app` in ordine topologico
-   delle chiavi esterne (da `pg_constraint`; a parità, alfabetico; i cicli e le
-   autoreferenze non bloccano, grazie alla modalità `replica`).
-4. Per tabella: `insert into <t> (<colonne non generate>) select <colonne> from
-   jsonb_populate_recordset(null::<t>, (select doc->'tables'->'app.<t>' from
-   restore_document))` (per `auth` il percorso è `doc->'auth'->'users'` o
-   `'identities'`).
-5. Lo schema `app` non ha sequenze né colonne identità (verificato da un test pgTAP):
-   il ripristino non riallinea sequenze. Chi ne aggiunge una fa fallire quel test, che
-   rimanda a questa spec per estendere il ripristino.
+   d'immutabilità, di controllo né `create_profile_after_insert`, e non si controllano
+   le chiavi esterne. Restano attivi i vincoli `check`, `not null` e di unicità.
+3. Le righe di `MIGRATION_ROWS` riconosciute si cancellano.
+4. `auth.users`, poi `auth.identities`, poi le tabelle di `app` in ordine topologico
+   delle chiavi esterne (a parità, alfabetico; cicli e autoreferenze non bloccano grazie
+   alla modalità `replica`). Per tabella: `insert into <t> (<colonne>) select <colonne>
+   from json_populate_recordset(null::<t>, (select <percorso> from restore_document))`,
+   con le colonne dell'esportazione che nella destinazione non sono generate e non sono
+   marcatori `xid8` (`XID_MARKERS`): i marcatori restano `NULL`.
+5. Lo schema `app` non ha sequenze né colonne identità (verificato da pgTAP).
 
 **Verifiche prima del commit**, nella stessa transazione:
 
-1. `set local session_replication_role = origin`; per ogni vincolo di chiave esterna
-   delle tabelle di `app`, `auth.users` e `auth.identities`, una query generata da
-   `pg_constraint` conta le righe orfane: devono essere zero.
-2. Confronto in SQL con il documento: per ogni tabella di `app`,
-   `json_agg(t order by <chiave primaria>)::jsonb` uguale a `doc->'tables'->'app.<t>'`
-   (contatori di versione, istanti, storico compresi; jsonb confronta i valori esatti);
-   per `auth.users` e `auth.identities` stesso numero di righe e ogni riga esportata
-   contenuta (`@>`) nella riga con lo stesso id: si confrontano le colonne
-   dell'esportazione, una versione più nuova di Auth può averne di più.
-3. Una differenza → `rollback` e l'elenco delle tabelle diverse. `--dry-run` esegue
-   tutto e poi annulla.
+1. `session_replication_role = origin`; per ogni vincolo di chiave esterna delle tabelle
+   di `app`, `auth.users` e `auth.identities`, una query generata da `pg_constraint`
+   conta le righe orfane: devono essere zero.
+2. **Confronto esatto** (`verifyRestored`, che restituisce l'elenco delle differenze):
+   - tabelle di `app` senza marcatori: `json_agg(t order by <chiave>)::text` uguale,
+     carattere per carattere, al testo `(doc->'tables'->'app.<t>')::text`;
+   - tabelle con marcatori (`families`, `catalogue_state`): uguaglianza `jsonb` delle
+     righe senza le colonne di `XID_MARKERS` (valori esatti, numeri compresi), più tutti
+     i marcatori `NULL`;
+   - `auth.users` e `auth.identities`: uguaglianza `jsonb` dell'array delle righe
+     proiettate sulle sole colonne esportate (una versione più nuova di Auth può avere
+     colonne in più, che non si confrontano); nessun contenimento: un array o un oggetto
+     annidato diverso è una differenza.
+3. Una differenza → `RestoreError('mismatch', [tabelle])` e rollback. `--dry-run`
+   esegue tutto e poi annulla.
+
+**Errori senza dati.** La CLI stampa solo esito, motivo e diagnostica strutturale (nomi
+di tabelle, colonne, vincoli, versioni delle migrazioni, codici SQLSTATE). Non stampa
+oggetti errore, messaggi, `detail`, query, parametri né valori: un errore di Postgres
+durante il caricamento diventa `RestoreError('load_failed', ['<tabella>', '<SQLSTATE>'])`,
+qualsiasi altro errore `failed: <nome dell'errore>`.
+
+**Ricerca del commit** (`inspect`): decifra, stampa `createdAt`, `workerVersion`,
+numero e ultima migrazione, e il commit più recente di `origin/main` (o del ref
+indicato con `--ref`) in cui i file di `supabase/migrations/` hanno esattamente quelle
+versioni (`git rev-list <ref> -- supabase/migrations` e `git ls-tree` per ciascun
+commit). Se nessun commit corrisponde lo dice: l'esportazione viene da migrazioni non
+unite su `main`.
 
 **Procedura scritta** in `supabase/README.md`, sezione «Esportazione notturna e
-ripristino»: scaricare l'esportazione (comandi nella sezione 5), creare il progetto o
-azzerare l'ambiente di verifica, applicare le migrazioni del commit in vigore la notte
-dell'esportazione, impostare la password di `app_server`, eseguire la CLI (prima
-`--dry-run`), aggiornare Hyperdrive se il progetto è nuovo, riconfigurare a mano Auth
-(chiavi di firma asimmetriche, provider, SMTP di Resend, server OAuth 2.1, URL di
-redirect), avvisare che tutti rifanno l'accesso e ricollegano gli agenti.
+ripristino», con le due prove della sezione 6.
+
+**Configurazioni che dipendono dal progetto Supabase**, da aggiornare in quest'ordine
+dopo un ripristino su un progetto nuovo:
+
+1. progetto nuovo: chiavi di firma asimmetriche, provider di Auth, SMTP di Resend,
+   server OAuth 2.1, URL del sito e di redirect;
+2. migrazioni dal commit trovato, password di `app_server`, ripristino con la CLI;
+3. Hyperdrive: origine verso il Session pooler del progetto nuovo (`wrangler hyperdrive
+   update <id> --origin-host … --origin-user app_server --origin-password …`, limite di
+   connessioni come prima);
+4. `SUPABASE_URL` in `server/wrangler.jsonc` (issuer, JWKS, scoperta OAuth per MCP);
+5. `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` della build della SPA;
+6. ricostruzione e pubblicazione (`npm run deploy`, che compila la SPA e pubblica il
+   Worker);
+7. verifica: accesso, lettura di famiglia e menu nell'app, scoperta MCP
+   (`/.well-known/oauth-protected-resource` punta al progetto nuovo); poi tutti rifanno
+   l'accesso e ricollegano gli agenti.
 
 ## 5. Passi esterni (li fa l'utente, su richiesta del coordinatore)
 
@@ -333,29 +417,48 @@ merge.
    ```bash
    npx wrangler secret put BACKUP_ENCRYPTION_KEY
    ```
-   e incolla la stessa chiave. Non salvarla in file del repository.
+   e incolla la stessa chiave quando Wrangler la chiede. Non salvarla in file.
 3. **Pubblicazione** del Worker (`npm run deploy` dalla radice), come ogni merge.
-4. **Verifica della prima esportazione** il giorno dopo: nel dashboard di Cloudflare,
-   R2 → `cosasimangia-backups` → `exports/`, deve esserci l'oggetto della notte; nei
-   log del Worker l'evento `backup_export_done`. Wrangler non elenca gli oggetti: la
-   chiave si legge dal dashboard o dal log.
-5. **Prova di ripristino con un'esportazione vera** (completa il collaudo della
-   sezione 9 e verifica la copia della chiave):
-   ```bash
-   npx wrangler r2 object get cosasimangia-backups/exports/<chiave> --remote --jurisdiction eu --file export.bin
-   ```
-   poi la procedura di ripristino in un ambiente di verifica locale, usando la chiave
-   presa dal gestore di password, non dal secret.
+4. **Prova di produzione** (sezione 6).
 
 Una domanda di conferma va al coordinatore (`STATO: DOMANDA`) prima di qualsiasi passo
 sull'account di POWA; nessun comando remoto si esegue dal worker.
+
+## 6. Collaudo: due prove distinte
+
+**Prova locale completa: criterio di fine della PR** (worker, prima della PR; esito
+nella descrizione):
+
+1. dati locali con le fixture e dati sintetici; esportazione da `wrangler dev
+   --test-scheduled` con R2 simulato; misure di memoria, CPU e durata (sezione 3);
+2. `inspect` dell'esportazione scaricata con `wrangler r2 object get … --local`: commit
+   trovato;
+3. destinazione preparata come da procedura (`supabase db reset --no-seed` su uno stack
+   separato), `restore --dry-run` riuscito e destinazione invariata, poi `restore`;
+4. app web locale puntata alla destinazione: accesso con un utente ripristinato, lettura
+   di famiglia e menu, risposta della scoperta MCP.
+
+**Prova automatica in CI** (`npm run test:drill -w server`, ultimo passo della CI perché
+azzera il database): stessi passi 2-3 con la CLI vera su una destinazione preparata con
+`supabase db reset --no-seed`, più i casi d'errore (sezione «Test»).
+
+**Prova di produzione: voce separata del registro, la fa l'utente** dopo la creazione
+del bucket e la prima esportazione notturna:
+
+1. nel dashboard (R2 → `cosasimangia-backups` → `exports/`) c'è l'oggetto della notte e
+   nei log del Worker `backup_export_done`, con CPU e durata;
+2. download con la chiave completa dell'oggetto (che comincia già con `exports/`), da
+   `server/`:
+   `npx wrangler r2 object get "cosasimangia-backups/<chiave completa>" --remote --jurisdiction eu --file ../export.bin`;
+3. `inspect` e ripristino in un ambiente di verifica locale con la chiave presa **dal
+   gestore di password**, non dal secret; accesso e lettura come nella prova locale.
 
 ## Cosa uso e cosa produco
 
 **Uso (su `main`):**
 
 - `server/src/index.ts` e `wrangler.jsonc`: Cron Trigger orario e `runWeeklyJob` (W1);
-- `server/src/db.ts` (`withDb`, `DbIdentity`), `log.ts` (`logEvent`),
+- `server/src/db.ts` (`withDb`, `withDbOn`, `DbIdentity`), `log.ts` (`logEvent`),
   `menu/generation.ts` (`errorCode`), `env.ts`;
 - ruoli `app_server` e schema `app` (PR #4), fixture e `support/db.ts` dei test del
   server, CI con Postgres locale (PR #5).
@@ -364,60 +467,75 @@ sull'account di POWA; nessun comando remoto si esegue dal worker.
 
 - migrazione `20261012100000_backup.sql` (ruolo `app_backup`, funzione
   `app.backup_auth_rows()`), nessuna tabella o colonna nuova o cambiata; test
-  `supabase/tests/backup_test.sql`, `coverage_test.sql` aggiornato;
+  `supabase/tests/backup_test.sql`;
 - `server/src/backup/` (`format.ts`, `read.ts`, `export.ts`, `restore.ts`) e
   `server/src/scheduled.ts`;
-- `scripts/backup/restore.ts`;
+- `scripts/backup/restore.ts`, `scripts/backup/migrations-commit.ts`;
+- `server/test/drill/restore-drill.test.ts`, `server/vitest.drill.config.ts`, script
+  `test:drill` in `server/package.json`;
 - **modifiche a file condivisi, minime:** `server/src/index.ts` (lo `scheduled`
   delega a `dispatchScheduled`), `server/src/db.ts` (`case 'backup'`),
-  `server/src/env.ts` (tre campi), `server/wrangler.jsonc` (cron e binding R2),
-  `supabase/tests/coverage_test.sql` (asserzioni sulle funzioni per ruolo),
-  `supabase/README.md` (ruolo e procedura), `server/.env.example` e `server/README.md`
-  (chiave locale e prova del cron notturno).
+  `server/src/env.ts` (tre campi), `server/wrangler.jsonc` (cron, binding R2, var),
+  `server/vitest.config.ts` (esclusione di `test/drill/`), `server/package.json`
+  (script), `.github/workflows/ci.yml` (ultimo passo `test:drill`),
+  `supabase/tests/coverage_test.sql` (una riga), `supabase/README.md` (ruolo e
+  procedura), `server/.env.example` e `server/README.md` (chiave locale e prova del cron
+  notturno).
 
 Interfaccia per altre attività: nessuna. Chi aggiunge una tabella in `app` non deve
-fare nulla (la scopre l'esportazione; `alter default privileges` concede la lettura);
-chi aggiunge una colonna generata non deve fare nulla. Un'eventuale tabella fuori da
-`app` con dati da conservare andrà aggiunta qui.
+fare nulla; chi aggiunge una colonna `xid8`, una sequenza o righe inserite da una
+migrazione fa fallire un test che rimanda a questa spec.
 
 ## Test
 
-**Unità (Vitest, senza database), `server/src/backup/format.test.ts`:**
-andata e ritorno di `encodeExport`/`decodeExport`; chiave sbagliata, identificativo
-sconosciuto, magia o versione errate, intestazione alterata (dato autenticato) e byte
-alterati rifiutati; `importKey` rifiuta lunghezze diverse da 32 byte; IV diversi a ogni
-codifica.
+**Unità (Vitest, senza database):**
 
-**Smistamento, `server/test/scheduled.test.ts`:** le espressioni coincidono con
-`wrangler.jsonc`; l'espressione oraria chiama solo il job, quella notturna solo
-l'esportazione; un'espressione sconosciuta registra il log e non lancia.
+- `server/src/backup/format.test.ts`: andata e ritorno; chiave sbagliata,
+  identificativo sconosciuto, magia o versione errate, intestazione alterata (dato
+  autenticato) e byte alterati rifiutati; chiavi diverse da 32 byte rifiutate; IV
+  diversi a ogni codifica; elenco di chiavi.
+- `scripts/backup/migrations-commit.test.ts`: in un repository Git temporaneo con due
+  commit (il secondo aggiunge una migrazione), l'elenco delle migrazioni del primo trova
+  il primo commit, quello del secondo il secondo, un elenco sconosciuto nessuno.
+- `server/test/scheduled.test.ts`: espressioni uguali a `wrangler.jsonc`; smistamento;
+  espressione sconosciuta registrata senza eccezioni.
 
-**Esportazione e ripristino (Vitest con Postgres locale),
-`server/test/backup.test.ts`, con un R2 finto in memoria (`put`, `list` con prefisso e
-cursore, `delete` di più chiavi, `get`):**
+**Con il database (Vitest, `server/test/backup.test.ts`, R2 finto in memoria con
+pagine da 2 oggetti):**
 
-- dati in tutte le aree con le fixture esistenti, più una riga in `auth.identities`;
-- esportazione con l'identità `backup` tramite `app_server`, come in produzione;
-  metadati e conteggi coerenti;
-- **ripristino:** in una transazione dell'amministratore annullata alla fine (i file
-  di test girano uno alla volta): svuota `app`, `auth.identities` e `auth.users`,
-  ripristina, e verifica zero orfani, documento riletto identico all'esportazione,
-  contatori di `families.data_version` e `catalogue_state.version` uguali, nessun
-  profilo creato due volte dal trigger;
-- rifiuti: destinazione non vuota, migrazioni diverse, chiave sbagliata, file
-  alterato, colonna mancante nella destinazione;
-- conservazione: dopo 9 esportazioni su date diverse restano le 7 più recenti; un
-  errore di `put` non cancella nulla; un errore di `delete` non rende fallita
-  l'esportazione;
-- salto: con un oggetto della stessa data, la seconda esecuzione non scrive;
-- configurazione mancante: log `backup_export_not_configured`, nessuna eccezione.
+- fotografia: tutte le tabelle e i conteggi; **scrittura concorrente** fra due letture
+  della stessa transazione (una famiglia inserita e confermata da un'altra connessione
+  dopo la prima lettura non compare: il test fallisce senza `repeatable read`);
+  scrittura negata nell'identità `backup`;
+- esportazione: oggetto cifrato con metadati; salto alle 04:30; conservazione delle
+  ultime 7 su più pagine; `put` fallito senza cancellazioni; `delete` fallito con
+  esportazione riuscita; configurazione mancante; **limite**: con un limite piccolo
+  nessuna lettura delle righe, nessun oggetto e log `backup_export_too_large`;
+- ripristino in transazione annullata sul database dei test, preparato emulando lo
+  stato dopo le migrazioni (svuotamento e riga iniziale di `catalogue_state`): rifiuti
+  per formato, tabelle, colonne, migrazioni, destinazione non vuota (anche
+  `catalogue_state` cambiata), orfani; `verifyRestored` segnala una mutazione dopo il
+  ripristino in una tabella senza marcatori (numero oltre la precisione di JavaScript
+  cambiato di 1), in una con marcatori e in `auth.users` (elemento aggiunto a un array
+  annidato dei metadati); **marcatori**: con un documento il cui `data_version_xid`
+  coincide con la transazione del ripristino, una scrittura successiva nella stessa
+  transazione fa crescere `data_version`.
 
-**Prova manuale nell'ambiente di verifica** (prima della PR, esito nella descrizione):
-`wrangler dev --test-scheduled` e
-`curl "http://localhost:8787/cdn-cgi/local/scheduled?cron=30+2,4+*+*+*"` con R2
-simulato; misura della CPU; `wrangler r2 object get … --local`; ripristino con la CLI in
-un secondo stack Supabase locale azzerato con `supabase db reset --no-seed`; login di un
-utente ripristinato nell'app locale.
+**Prova in CI (`server/test/drill/restore-drill.test.ts`)**, con la CLI vera su una
+destinazione preparata con `supabase db reset --no-seed`:
+
+- fixture comprese una riga di `ingredient_unit_equivalences` (colonna generata), numeri
+  adiacenti oltre la precisione di JavaScript in jsonb, metadati di Auth con array e
+  oggetti annidati;
+- `inspect` riuscito;
+- destinazione con una migrazione in più (archivio precedente) rifiutata con
+  `migrations`;
+- caricamento che fallisce dopo inserimenti parziali (valore con una sentinella che
+  viola un `check` di `app.families`): uscita 1, nessuna sentinella in stdout e stderr,
+  destinazione invariata;
+- `--dry-run` riuscito e destinazione invariata;
+- `restore` riuscito; rilettura identica alla fotografia d'origine (marcatori esclusi,
+  e `NULL`); una scrittura dopo il ripristino fa crescere `data_version`.
 
 ## Decisioni da riportare nella specifica
 
@@ -429,6 +547,9 @@ utente ripristinato nell'app locale.
   «Backup e ripristino»).
 - Perdita massima di circa un giorno con un secondo tentativo nella stessa notte
   (sezione 8).
+- Collaudo in due prove: locale completa (criterio di fine della PR) e di produzione
+  con la chiave dal gestore di password (voce separata, a carico dell'utente)
+  (sezioni 8 e 9).
 
 **Tecniche:**
 
@@ -442,12 +563,20 @@ utente ripristinato nell'app locale.
   chiave nel secret `BACKUP_ENCRYPTION_KEY` e copia nel gestore di password; bucket
   `cosasimangia-backups` privato in giurisdizione UE; ultime 7 conservate dal codice,
   non da una regola di ciclo di vita (sezione 8).
-- Ripristino con la CLI `scripts/backup/restore.ts` in un database con le stesse
-  migrazioni e vuoto, in modalità `replica`, con verifica di chiavi esterne e
-  contenuti prima del commit; procedura in `supabase/README.md`; collaudo con
-  un'esportazione vera (sezioni 8 e 9).
-- Soglia di 50 MB non compressi per passare a un'esportazione a pagine (sezione 8).
+- Limite di dimensione misurato in workerd (picco sotto 64 MB), controllato con una
+  stima del database prima di leggere le righe; oltre il limite nessuna esportazione e
+  log di errore (sezione 8).
+- Ripristino con la CLI `scripts/backup/restore.ts` in un database appena migrato
+  (righe iniziali delle migrazioni elencate), in modalità `replica`, contatori
+  conservati e marcatori `xid8` azzerati, verifica di chiavi esterne e confronto esatto
+  prima del commit; commit delle migrazioni ricavato dall'elenco contenuto
+  nell'esportazione; configurazioni dipendenti dal progetto elencate in ordine;
+  procedura in `supabase/README.md` (sezioni 1, 8 e 9).
+- Prova di ripristino in CI con destinazione reale (sezione 9).
 - Email di allarme sui fallimenti dell'esportazione nell'ondata 3, insieme a quelle del
   job (sezioni 4 e 15).
-- Chiude in sezione 15, «Backup e ripristino»: strumento, conservazione, cifratura e
-  procedura tecnica; restano i tempi di recupero misurati con un'esportazione vera.
+- Correzione: un Cron Trigger ha fino a 15 minuti di CPU sul piano a pagamento (già
+  scritto nella sezione 4).
+- Chiude in sezione 15, «Backup e ripristino»: strumento, conservazione, cifratura,
+  limite e procedura tecnica; restano i tempi di recupero misurati con un'esportazione
+  vera.
