@@ -127,7 +127,7 @@ export function AgentsPage() {
             {disconnect.isError && <p className="meta-line" role="alert">{t(errorKey(disconnect.error))}</p>}
             <div className={styles.sheetActions}>
               <button type="button" className="text-button" onClick={() => setLeaving(null)}>{t('agents.cancel')}</button>
-              <button type="button" className="text-button danger" disabled={!online || disconnect.isPending} onClick={() => confirm(leaving)}>{t('agents.disconnect')}</button>
+              <button type="button" className="text-button primary" disabled={!online || disconnect.isPending} onClick={() => confirm(leaving)}>{t('agents.disconnect')}</button>
             </div>
           </>
         )}
