@@ -7,6 +7,7 @@ import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, R
 import raw from './demo-data.json';
 import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
 import { createFakeCatalogue, createFakeCatalogueData, type FakeCatalogueData } from './fakeCatalogue';
+import { createFakeMeals } from './fakeMeals';
 import { createFakeShopping } from './fakeShopping';
 import { formatAmount, scaleQuantity, type Quantity, type Translated } from './quantity';
 import { DEMO_CHANGES, DEMO_FAMILY, DEMO_PEOPLE, DEMO_USER_ID, seedRatings, type DemoRating } from './seed';
@@ -22,7 +23,7 @@ interface DemoRecipe {
 }
 interface DemoSlot {
   id: string; date: IsoDate; mealType: MealType; recipeId: string | null; freeText: string | null; servings: number;
-  note: string | null; updatedBy: string | null; updatedAt: LocalDateTime | null;
+  note: string | null; updatedBy: string | null; updatedAt: LocalDateTime | null; lastActionId?: string | null;
 }
 interface DemoWeek { startsOn: IsoDate; generatedAt: LocalDateTime; slots: DemoSlot[] }
 
@@ -208,9 +209,62 @@ export function createFakeApi(options: FakeApiOptions): Api {
       ingredients: recipe ? lines(recipe, slot.servings, locale) : null, note: slot.note,
       rating: recipe && isPublished ? ratingSummary(recipe.id) : null,
       canOpenRecipe: isPublished,
-      lastChange: slot.updatedBy && slot.updatedAt ? { userName: author, at: slot.updatedAt, actionId: null, undoable: false, slotIds: [] } : null
+      lastChange: slot.updatedBy && slot.updatedAt ? { userName: author, at: slot.updatedAt, ...meals.lastChangeOf(slot) } : null
     };
   }
+  function weekView(startsOn: IsoDate) {
+    const week = visibleWeeks().find((w) => w.startsOn === startsOn);
+    if (!week) throw new ApiError('not_found');
+    const locale = options.getLocale();
+    return {
+      startsOn: week.startsOn,
+      days: weekDates(week.startsOn).map((date) => ({
+        date,
+        meals: week.slots
+          .filter((s) => s.date === date)
+          .sort((a, b) => MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType])
+          .map((s) => mealView(s, locale))
+      }))
+    };
+  }
+  /**
+   * Round 2's simulated ranking (design/percorsi.md, «Suggerimenti simulati»): published recipes for
+   * the meal, not excluded, not in the week nor the two before; family average (3 without ratings),
+   * +0.1 per week since last eaten (up to 1), -1 for the protein group of the meal before or after.
+   */
+  function rank(slotId: string): string[] {
+    const ordered = visibleWeeks().flatMap((w) => w.slots.map((slot) => ({ week: w.startsOn, slot })))
+      .sort((a, b) => a.slot.date.localeCompare(b.slot.date) || MEAL_ORDER[a.slot.mealType] - MEAL_ORDER[b.slot.mealType]);
+    const index = ordered.findIndex((e) => e.slot.id === slotId);
+    const { week, slot } = ordered[index]!;
+    const recent = new Set(ordered.filter((e) => e.week >= addDays(week, -14) && e.week <= week).map((e) => e.slot.recipeId));
+    const excluded = new Set(state.family.exclusions.map((e) => e.recipeId));
+    const groupOf = (id: string | null | undefined) => (id ? recipes.find((r) => r.id === id)?.proteinGroup ?? null : null);
+    const near = [groupOf(ordered[index - 1]?.slot.recipeId), groupOf(ordered[index + 1]?.slot.recipeId)];
+    const today = now().slice(0, 10);
+    return recipes
+      .filter((r) => r.status === 'published' && (r.mealType === slot.mealType || r.mealType === 'both') && !excluded.has(r.id) && !recent.has(r.id))
+      .map((r) => {
+        const last = pastMeals(r.id).map((s) => s.date).sort().at(-1);
+        const weeksSince = last ? Math.floor(daysBetween(last, today) / 7) : 10;
+        const score = (ratingSummary(r.id).familyAverage ?? 3) + Math.min(1, weeksSince * 0.1) - (r.proteinGroup && near.includes(r.proteinGroup) ? 1 : 0);
+        return { id: r.id, name: localized(r.name, options.getLocale()), score };
+      })
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .map((r) => r.id);
+  }
+  const meals = createFakeMeals({
+    userId,
+    latencyMs: options.latencyMs,
+    checkFamily,
+    slots: () => visibleWeeks().flatMap((w) => w.slots.map((slot) => ({ weekStartsOn: w.startsOn, slot }))),
+    weekView,
+    rank,
+    suggestion: (recipeId) => ({ recipe: summary(recipes.find((r) => r.id === recipeId)!, options.getLocale()), rating: ratingSummary(recipeId) }),
+    isPublished: (recipeId) => published(recipeId) !== null,
+    now,
+    bump: () => void (state.revision += 1)
+  });
   function matches(recipe: DemoRecipe, locale: Locale, needle: string) {
     if (!needle) return true;
     const names = recipe.ingredients.map((l) => localized(data.ingredients.find((i) => i.id === l.ingredientId)?.name ?? { 'it-IT': '', 'en-GB': null }, locale));
@@ -275,19 +329,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
       },
       async getWeek({ familyId, weekStartsOn }) {
         checkFamily(familyId);
-        const week = visibleWeeks().find((w) => w.startsOn === weekStartsOn);
-        if (!week) throw new ApiError('not_found');
-        const locale = options.getLocale();
-        return respond({
-          startsOn: week.startsOn,
-          days: weekDates(week.startsOn).map((date) => ({
-            date,
-            meals: week.slots
-              .filter((s) => s.date === date)
-              .sort((a, b) => MEAL_ORDER[a.mealType] - MEAL_ORDER[b.mealType])
-              .map((s) => mealView(s, locale))
-          }))
-        });
+        return respond(weekView(weekStartsOn));
       },
       async getDates({ familyId, month }) {
         checkFamily(familyId);
@@ -375,7 +417,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
         state.revision += 1;
         return ratingSummary(recipeId);
       }
-    }
+    },
+    meals: meals.api
   };
   return withTransport(api);
 }
@@ -389,5 +432,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue) };
+  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals) };
 }

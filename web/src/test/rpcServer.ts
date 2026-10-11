@@ -1,4 +1,4 @@
-import { contract, type FamilyView, type OpeningView, type ProfileView, type RecipeDetailView, type RecipeListItemView, type SettingsView, type WeekView } from '@app/contract';
+import { contract, type FamilyView, type MealActionResult, type MealView, type OpeningView, type ProfileView, type RecipeDetailView, type RecipeListItemView, type SettingsView, type WeekView } from '@app/contract';
 import { resolveFamilySettings } from '@app/domain/family';
 import { implement, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
@@ -57,13 +57,19 @@ const serverDetail: RecipeDetailView = {
   rating: SERVER_RECIPE.rating, history: [], upcoming: []
 };
 
+/** What the meals area of the test server answers, given the input: a value or a thrown ORPCError. */
+export type MealHandlers = {
+  [K in keyof typeof contract.meals]: (input: Record<string, unknown> & { id: string; familyId: string; slotId: string }) => unknown;
+};
+
 /**
  * A server of the contract in this process: the RPC handler of the Worker, without the Worker.
  * `answer` sets how `session.whoami` answers (a value, a thrown ORPCError, a pending promise),
  * `answerProfile` how `profile.get` answers, given the authorization header; the menu answers
  * `no_weeks` unless `answerMenu` gives an opening and a week, with the contract's validation of
  * input and output, and records the family and date of each opening; `answerFamily` sets the
- * family reads and one family write (the area of W2). The transport honours the request signal
+ * family reads and one family write (the area of W2); the meals area writes into the stored weeks
+ * unless `answerMeals` overrides an operation. The transport honours the request signal
  * like the browser's fetch.
  */
 export function createRpcTestServer() {
@@ -84,7 +90,10 @@ export function createRpcTestServer() {
       return view;
     }
   };
-  const familyApi = { get: contract.family.get, getSettings: contract.family.getSettings, setMeal: contract.family.setMeal };
+  const familyApi = {
+    get: contract.family.get, getSettings: contract.family.getSettings, setMeal: contract.family.setMeal,
+    addExclusion: contract.family.addExclusion, removeExclusion: contract.family.removeExclusion
+  };
   const seenBy = (operation: string, context: unknown) => {
     const authorization = (context as { authorization: string | null }).authorization;
     familySeen.push({ operation, authorization });
@@ -93,8 +102,63 @@ export function createRpcTestServer() {
   /** Calls of the recipe book, with their input as the Worker received it. */
   const recipeCalls: { op: string; input: Record<string, unknown> }[] = [];
   const openingSeen: { familyId: string; today?: string }[] = [];
-  let menuAnswer: { opening: OpeningView; week: WeekView | null } = { opening: { kind: 'no_weeks' }, week: null };
-  const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings, menu: contract.menu, family: familyApi });
+  let opening: OpeningView = { kind: 'no_weeks' };
+  /** The weeks the menu answers, by Monday; the meals area writes into them. */
+  const weeks = new Map<string, WeekView>();
+  const weekReads: { weekStartsOn: string }[] = [];
+  const mealCalls: { op: string; input: Record<string, unknown> }[] = [];
+  /** Copies of the weeks taken before each action, for the undo. */
+  const before = new Map<string, WeekView>();
+  const mealsOf = (week: WeekView) => week.days.flatMap((d) => d.meals);
+  const weekOf = (slotId: string) => {
+    for (const week of weeks.values()) if (mealsOf(week).some((m) => m.slotId === slotId)) return week;
+    throw new ORPCError('not_found');
+  };
+  /** Applies an action to the stored week: the changed meals get the action as their last change. */
+  function apply(id: string, slotId: string, edit: (meal: MealView, all: MealView[]) => void, slotIds = [slotId]): MealActionResult {
+    const week = weekOf(slotId);
+    before.set(id, structuredClone(week));
+    const all = mealsOf(week);
+    edit(all.find((m) => m.slotId === slotId)!, all);
+    for (const meal of all.filter((m) => slotIds.includes(m.slotId))) {
+      meal.lastChange = { userName: 'Persona dal server', at: '2026-10-08T12:00', actionId: id, undoable: true, slotIds };
+    }
+    return { week: structuredClone(week), actionId: id, changed: true };
+  }
+  const asRecipe = (meal: MealView) =>
+    Object.assign(meal, { kind: 'recipe', recipe: SERVER_RECIPE.recipe, freeText: null, ingredients: SERVER_RECIPE.ingredients, rating: SERVER_RECIPE.rating, canOpenRecipe: true });
+  const defaultMeals: MealHandlers = {
+    getSuggestions: (input) => ({ recipes: [{ recipe: SERVER_RECIPE.recipe, rating: SERVER_RECIPE.rating }], nextOffset: input.offset === 0 ? 5 : 0, freeTexts: ['Pizza'] }),
+    setServings: (input) => apply(input.id, input.slotId, (m) => void (m.servings = input.servings as number)),
+    setRecipe: (input) => apply(input.id, input.slotId, (m) => void asRecipe(m)),
+    setFree: (input) =>
+      apply(input.id, input.slotId, (m) => void Object.assign(m, { kind: 'free', recipe: null, freeText: input.text, ingredients: null, rating: null, canOpenRecipe: false })),
+    setNote: (input) => apply(input.id, input.slotId, (m) => void (m.note = input.note as string | null)),
+    swap: (input) => {
+      const other = input.otherSlotId as string;
+      return apply(input.id, input.slotId, (m, all) => {
+        const o = all.find((x) => x.slotId === other)!;
+        const moved = (x: MealView) => ({ kind: x.kind, recipe: x.recipe, freeText: x.freeText, ingredients: x.ingredients, note: x.note, rating: x.rating, canOpenRecipe: x.canOpenRecipe });
+        const [a, b] = [moved(m), moved(o)];
+        Object.assign(m, b);
+        Object.assign(o, a);
+      }, [input.slotId, other]);
+    },
+    undo: (input) => {
+      const saved = before.get(input.actionId as string);
+      if (!saved) throw new ORPCError('not_found');
+      weeks.set(saved.startsOn, structuredClone(saved));
+      return { week: structuredClone(saved), actionId: input.id, changed: true };
+    }
+  };
+  const meals: MealHandlers = { ...defaultMeals };
+  const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings, menu: contract.menu, family: familyApi, meals: contract.meals });
+  // One recorder for every operation; the union of their procedures is cast back per key.
+  const mealHandler = <K extends keyof MealHandlers>(op: K) =>
+    (os.meals[op] as typeof os.meals.undo).handler(async ({ input }) => {
+      mealCalls.push({ op: `meals.${op}`, input: input as Record<string, unknown> });
+      return (await meals[op](input as never)) as never;
+    }) as never;
   const router = os.router({
     session: {
       whoami: os.session.whoami.handler(async ({ context }) => {
@@ -130,18 +194,28 @@ export function createRpcTestServer() {
     menu: {
       getOpening: os.menu.getOpening.handler(({ input }) => {
         openingSeen.push({ familyId: input.familyId, today: input.today });
-        return { unchanged: false as const, version: 'opening-1', data: menuAnswer.opening };
+        return { unchanged: false as const, version: 'opening-1', data: opening };
       }),
       getWeek: os.menu.getWeek.handler(({ input }) => {
-        const week = menuAnswer.week;
-        if (!week || week.startsOn !== input.weekStartsOn) throw new ORPCError('not_found');
-        return { unchanged: false as const, version: 'week-1', data: week };
+        weekReads.push({ weekStartsOn: input.weekStartsOn });
+        const week = weeks.get(input.weekStartsOn);
+        if (!week) throw new ORPCError('not_found');
+        return { unchanged: false as const, version: 'week-1', data: structuredClone(week) };
       }),
       getDates: os.menu.getDates.handler(({ input }) => ({
         unchanged: false as const,
         version: 'dates-1',
-        data: menuAnswer.week?.days.filter((d) => d.meals.length && d.date.startsWith(input.month)).map((d) => d.date) ?? []
+        data: [...weeks.values()].flatMap((w) => w.days).filter((d) => d.meals.length && d.date.startsWith(input.month)).map((d) => d.date)
       }))
+    },
+    meals: {
+      getSuggestions: mealHandler('getSuggestions'),
+      setServings: mealHandler('setServings'),
+      setRecipe: mealHandler('setRecipe'),
+      setFree: mealHandler('setFree'),
+      setNote: mealHandler('setNote'),
+      swap: mealHandler('swap'),
+      undo: mealHandler('undo')
     },
     family: {
       get: os.family.get.handler(async ({ context }) => (await family.get(seenBy('get', context))) as never),
@@ -149,6 +223,14 @@ export function createRpcTestServer() {
       setMeal: os.family.setMeal.handler(async ({ context, input }) => {
         seenBy('setMeal', context);
         return (await family.setMeal(input)) as never;
+      }),
+      addExclusion: os.family.addExclusion.handler(({ context }) => {
+        seenBy('addExclusion', context);
+        return [];
+      }),
+      removeExclusion: os.family.removeExclusion.handler(({ context }) => {
+        seenBy('removeExclusion', context);
+        return [];
       })
     }
   });
@@ -174,7 +256,20 @@ export function createRpcTestServer() {
     /** Family and date of the menu openings, in order. */
     openingSeen,
     answerProfile: (next: (authorization: string | null) => unknown) => (profile = next),
-    answerMenu: (next: { opening: OpeningView; week: WeekView | null }) => (menuAnswer = next),
+    /** The opening and the weeks the menu answers (one `week` or several `weeks`). */
+    answerMenu: (next: { opening: OpeningView; week?: WeekView | null; weeks?: WeekView[] }) => {
+      opening = next.opening;
+      weeks.clear();
+      for (const week of [...(next.week ? [next.week] : []), ...(next.weeks ?? [])]) weeks.set(week.startsOn, structuredClone(week));
+    },
+    /** The stored week as the server has it now. */
+    currentWeek: (startsOn: string) => structuredClone(weeks.get(startsOn)!),
+    /** Inputs of menu.getWeek, in order. */
+    weekReads,
+    /** Calls of the meals area, with their input as the Worker received it. */
+    mealCalls,
+    defaultMeals,
+    answerMeals: (next: Partial<MealHandlers>) => Object.assign(meals, next),
     /** Family operations received, in order, with their authorization header. */
     familySeen,
     answerFamily: (next: Partial<FamilyAnswers>) => Object.assign(family, next)
