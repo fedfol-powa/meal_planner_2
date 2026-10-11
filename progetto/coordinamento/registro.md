@@ -7,15 +7,15 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20: rilievi 3 e 4 corretti; porta su main dopo #18 (e #19) e chiude 1 e 2; poi revisione dei pasti | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #18 unita; PR #21: porta su main e corregge i sette rilievi | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20: porta su main dopo la #19, chiude il rilievo 2 e il falso forbidden del menu finto; prossimo merge. Poi `/clear` (contesto ~50%) e revisione dei pasti | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 approvata; in conflitto dopo la #19: aggiorna solo dopo il merge della #20 | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Seconda review approvabile con correzioni (ricerca delle ricette per il curatore, istante di pubblicazione, rifiuto delle mutazioni web, wrapper finto); poi implementazione: prima la PR server, web dopo #19 e #21 | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22: rilievi corretti; porta su main dopo la #18, chiude i punti sul profilo, prova reale della coda sullo stack di W1 | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 approvata, prova reale fatta; in conflitto: aggiorna solo dopo il merge di #20 e #21 | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 unita (tre review). Libero | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19: porta su main dopo la #18 e chiude il rilievo 1; poi merge (prossima) | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 unita; libero | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web). Ondata 1 completata.
 
 ## Revisori attivi
 
@@ -39,9 +39,10 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
    - W5 libero: prossima attività da scegliere con la tabella del piano generale
      (collegamento agenti ed esportazione R2 richiedono passi esterni dell'utente).
    - W1 dopo il web del menu: revisione dei pasti (serve brief).
-   - `eventi.py` ha ora un controllo di riconciliazione ogni 2 minuti (gli eventi
-     `REVISORE_FINITO` a volte non arrivano); a ogni riarmo controllare comunque
-     `attendi.py --stato`.
+   - `eventi.py`: la riconciliazione ogni 2 minuti rilegge l'elenco aggiornato dei pane e
+     rinnova l'iscrizione quando cambia (la causa degli eventi persi: i revisori aperti dopo
+     l'avvio non erano iscritti, perché `pane.created` non arriva). Provato con un finto
+     revisore l'11/10.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli

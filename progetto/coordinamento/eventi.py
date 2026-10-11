@@ -32,22 +32,24 @@ def emit(line):
     print(line, flush=True)
 
 
-def pending_at_start():
+def pending_at_start(last_emitted):
     acked = seen()
     for pane, label, kind, st in panes():
         event = last_event(pane, kind)
         if event and key(pane, event) not in acked and (kind == "reviewer" or st != "working"):
-            emit(f"{pane} {label} | {event}")
+            last_emitted[pane] = f"{pane} {label} | {event}"
+            emit(last_emitted[pane])
 
 
 def reconcile(known, last_emitted):
-    """Fallback: emit what `attendi.py --stato` would show as not handled and not yet emitted."""
-    if os.environ.get("EVENTI_DEBUG"):
-        print(f"reconcile {time.strftime('%H:%M:%S')} known={len(known)}", file=sys.stderr, flush=True)
+    """Fallback on the current panes (not only the subscribed ones): emit what `attendi.py
+    --stato` shows as not handled and not yet emitted. Returns True when the set of panes has
+    changed, so the caller renews the subscription (pane.created does not always arrive)."""
     acked = seen()
-    for pane, label, kind, st in panes():
-        if pane not in known:
-            continue
+    current = panes()
+    if os.environ.get("EVENTI_DEBUG"):
+        print(f"reconcile {time.strftime('%H:%M:%S')} known={len(known)} current={len(current)}", file=sys.stderr, flush=True)
+    for pane, label, kind, st in current:
         event = last_event(pane, kind)
         if not event or key(pane, event) in acked or (kind == "worker" and st == "working"):
             continue
@@ -55,6 +57,7 @@ def reconcile(known, last_emitted):
         if last_emitted.get(pane) != line:
             last_emitted[pane] = line
             emit(line)
+    return {p for p, *_ in current} != set(known)
 
 
 def subscribe(known):
@@ -91,9 +94,9 @@ def lines(sock):
 
 
 def main():
-    pending_at_start()
     status = {}  # last agent status seen per worker pane
     last_emitted = {}  # last event line printed per pane, to avoid repeats
+    pending_at_start(last_emitted)
     next_check = time.monotonic() + RECONCILE
     while True:
         known = {p: (label, kind) for p, label, kind, st in panes()}
@@ -104,8 +107,9 @@ def main():
             for msg in lines(sock):
                 ev, data = msg.get("event"), msg.get("data") or {}
                 if time.monotonic() >= next_check:  # by elapsed time: other events keep the socket busy
-                    reconcile(known, last_emitted)
                     next_check = time.monotonic() + RECONCILE
+                    if reconcile(known, last_emitted):
+                        break  # panes opened or closed: renew the subscription
                 if ev == "tick":
                     continue
                 if ev in ("pane.created", "pane.closed", "pane.agent_detected"):
