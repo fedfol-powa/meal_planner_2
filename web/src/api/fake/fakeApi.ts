@@ -49,6 +49,8 @@ export interface FakeData {
   readonly ratings: DemoRating[];
   /** Grows at every rating: stands for the family counter of the real versions. */
   revision: number;
+  /** What the person changed in the profile; missing values come from the demo people. */
+  readonly profile: { displayName?: string; locale?: Locale };
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -75,7 +77,7 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1 };
+  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {} };
 }
 
 /**
@@ -102,6 +104,27 @@ export function createFakeApi(options: FakeApiOptions): Api {
     // Opaque and composite like W1's versions (family, counter, language, deploy); the web never parses it.
     const version = `family:${DEMO_FAMILY.id}|rev:${state.revision}|lang:${options.getLocale()}|deploy:fake`;
     return { unchanged: false, version, data: structuredClone(value) };
+  }
+  async function delayed<T>(value: T): Promise<T> {
+    if (options.latencyMs) await new Promise((resolve) => setTimeout(resolve, options.latencyMs));
+    return structuredClone(value);
+  }
+  // Same shape as the contract's profile.get (W2): not versioned.
+  function profileView() {
+    const person = DEMO_PEOPLE.find((p) => p.id === userId);
+    const email = user?.email ?? person?.email ?? '';
+    const fromEmail = email.split('@')[0] ?? '';
+    return {
+      user: {
+        id: userId,
+        displayName: state.profile.displayName ?? person?.displayName ?? (fromEmail.charAt(0).toUpperCase() + fromEmail.slice(1)),
+        email,
+        locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
+        globalRoles: []
+      },
+      families: [{ ...DEMO_FAMILY, role: person?.role ?? 'member' }],
+      currentFamilyId: DEMO_FAMILY.id
+    } satisfies Awaited<ReturnType<Api['profile']['get']>>;
   }
   function checkFamily(familyId: string) {
     if (familyId !== DEMO_FAMILY.id) throw new ApiError('forbidden');
@@ -174,21 +197,23 @@ export function createFakeApi(options: FakeApiOptions): Api {
         return { userId, channel: 'web', clientId: null, locale: options.getLocale() };
       }
     },
-    me: {
+    profile: {
       async get() {
-        const person = DEMO_PEOPLE.find((p) => p.id === userId);
-        const email = user?.email ?? person?.email ?? '';
-        const fromEmail = email.split('@')[0] ?? '';
-        return respond({
-          user: {
-            id: userId,
-            displayName: person?.displayName ?? (fromEmail.charAt(0).toUpperCase() + fromEmail.slice(1)),
-            email,
-            locale: person?.locale ?? options.getLocale()
-          },
-          families: [{ ...DEMO_FAMILY, role: person?.role ?? 'member' }],
-          currentFamilyId: DEMO_FAMILY.id
-        });
+        return delayed(profileView());
+      },
+      async update({ displayName, locale }) {
+        const name = displayName?.trim();
+        if ((displayName === undefined && locale === undefined) || (name !== undefined && (name.length < 1 || name.length > 60))) {
+          throw new ApiError('invalid');
+        }
+        if (name !== undefined) state.profile.displayName = name;
+        if (locale !== undefined) state.profile.locale = locale;
+        return delayed(profileView());
+      },
+      // One demo family: choosing another one is choosing a family the person is not in.
+      async setCurrentFamily({ familyId }) {
+        checkFamily(familyId);
+        return delayed(profileView());
       }
     },
     menu: {
@@ -295,5 +320,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), me: wrap(api.me), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
+  return { session: wrap(api.session), profile: wrap(api.profile), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
 }

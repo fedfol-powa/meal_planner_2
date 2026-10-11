@@ -97,7 +97,7 @@ describe('query options', () => {
   it('keeps languages and families apart in the keys', () => {
     expect(queryKeys.week('f', '2026-10-05', 'it-IT')).not.toEqual(queryKeys.week('f', '2026-10-05', 'en-GB'));
     expect(familyOfKey(queryKeys.search('f2', {}, 'en-GB'))).toBe('f2');
-    expect(familyOfKey(queryKeys.me('it-IT'))).toBeNull();
+    expect(familyOfKey(queryKeys.profile('it-IT'))).toBeNull();
     expect(queryKeys.recipe('f', 'r', 'it-IT', 2, 'slot-1')[2]).toEqual({ familyId: 'f', recipeId: 'r', locale: 'it-IT', servings: 2, slotId: 'slot-1' });
   });
 });

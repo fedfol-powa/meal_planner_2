@@ -32,7 +32,7 @@ export function useQueryDeps(): QueryDeps {
 }
 
 export const queryKeys = {
-  me: (locale: Locale) => ['me', 'get', { locale }] as const,
+  profile: (locale: Locale) => ['profile', 'get', { locale }] as const,
   opening: (familyId: string, locale: Locale) => ['menu', 'getOpening', { familyId, locale }] as const,
   week: (familyId: string, weekStartsOn: IsoDate, locale: Locale) => ['menu', 'getWeek', { familyId, weekStartsOn, locale }] as const,
   dates: (familyId: string, month: string, locale: Locale) => ['menu', 'getDates', { familyId, month, locale }] as const,
@@ -72,11 +72,6 @@ export function keepPreviousWithin(queryKey: QueryKey, fields: readonly string[]
 }
 
 const select = <T,>(value: Versioned<T>) => value.data;
-
-export function meQuery({ api, queryClient, locale }: QueryDeps) {
-  const queryKey = queryKeys.me(locale);
-  return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.me.get({ knownVersion })), select });
-}
 
 export function openingQuery({ api, queryClient, locale }: QueryDeps, familyId: string) {
   const queryKey = queryKeys.opening(familyId, locale);

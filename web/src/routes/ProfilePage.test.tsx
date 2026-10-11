@@ -31,7 +31,7 @@ describe('profile', () => {
   });
   it('keeps language and sign-out available when the profile cannot be read', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
-    api.me.get = () => Promise.reject(new ApiError('unknown'));
+    api.profile.get = () => Promise.reject(new ApiError('unknown'));
     const backend = createStubBackend(DEMO_USER, 'supabase');
     renderApp('/profile', { backend, api });
     expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
@@ -60,9 +60,9 @@ describe('profile', () => {
   });
   it('hides the cached profile when a new read fails with an error other than network (second review, C8)', async () => {
     const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
-    const get = api.me.get;
+    const get = api.profile.get;
     let refuse = false;
-    api.me.get = (input) => (refuse ? Promise.reject(new ApiError('unknown')) : get(input));
+    api.profile.get = (input) => (refuse ? Promise.reject(new ApiError('unknown')) : get(input));
     renderApp('/profile', { backend: createStubBackend(DEMO_USER, 'supabase'), api });
     expect(await screen.findByRole('heading', { name: 'Federico' })).toBeTruthy();
     refuse = true;
