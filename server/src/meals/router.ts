@@ -1,6 +1,7 @@
 import { appError } from '../errors.ts';
 import type { Implementer, OperationContext } from '../pipeline.ts';
 import { perform, replay, undoAction, type ActionKind } from './actions.ts';
+import { suggestionsOf } from './suggestions.ts';
 import { contentOf, lockSlots, type SlotContent, type SlotRow } from './slots.ts';
 
 /** One-slot write: lock, replay before any content check, check, perform. */
@@ -19,6 +20,7 @@ async function oneSlot(
 
 export function mealsRouter(os: Implementer) {
 	return {
+		getSuggestions: os.meals.getSuggestions.handler(({ context, input }) => suggestionsOf(context, input.familyId, input.slotId, input.offset)),
 		setServings: os.meals.setServings.handler(({ context, input }) =>
 			oneSlot(context, input, 'set_servings', (slot) => ({ ...contentOf(slot), servings: input.servings })),
 		),

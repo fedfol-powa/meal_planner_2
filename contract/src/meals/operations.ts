@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
-import { mealActionResult } from './views.ts';
+import { mealActionResult, suggestionsView } from './views.ts';
 
 const slot = z.object({ familyId: z.uuid(), slotId: z.uuid() });
 /** Every write is an action whose id comes from the client. */
@@ -10,6 +10,17 @@ const notFound = { not_found: errorDefinitions.not_found };
 const idHint = '`id` is a new UUID for this action; repeating the same request changes nothing';
 
 export const mealsContract = {
+	/** Not versioned: the ranking also uses the ratings of every family, which no counter follows. */
+	getSuggestions: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember' })
+		.route({
+			method: 'GET',
+			path: '/families/{familyId}/meals/{slotId}/suggestions',
+			summary:
+				'Five recipes that fit a meal, best first, by the same rules as the weekly menu (ratings shown, not set here); call again with nextOffset for five more. Also the free-meal texts the family uses most',
+		})
+		.errors(notFound)
+		.input(slot.extend({ offset: z.coerce.number().int().min(0).max(1000).default(0) }))
+		.output(suggestionsView),
 	setServings: write()
 		.route({ method: 'PUT', path: '/families/{familyId}/meals/{slotId}/servings', summary: `Set the servings of a meal (1-20). ${idHint}` })
 		.errors(notFound)
