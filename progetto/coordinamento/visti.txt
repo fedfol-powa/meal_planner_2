@@ -51,3 +51,4 @@ w1:pC	STATO: DOMANDA #eea5d76b
 w1:pZ	STATO: PR_CORRETTA #751567ef
 w1:pX	STATO: DOMANDA — continuo dai task 10-12 appena la seconda PR di W5 è su main? Oppure apro subito una PR con la parte server già pronta, così il Menu e gli agenti MCP possono usare #984d51a7
 w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/14 #b896ca72
+w1:pW	STATO: DOMANDA — I Task 8, 9 e 10 (generazione, generazione pigra, job) hanno bisogno di resolveFamilySettings di W2, che è nella PR #10, ancora aperta. Le viste di W6 invece sono su #cd9f0e7f

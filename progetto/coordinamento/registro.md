@@ -8,14 +8,14 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #13 (`mealRecipeVersions`, `versionedInput`, pianificatore con `noUncheckedIndexedAccess`) in review (revisioni/w1-pr13.md); prosegue sul branch principale senza parti web | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #10 corretta ma in conflitto con main su domain/package.json: aggiorna il branch, poi CI e merge | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #10 unita; implementazione sul branch principale senza parti web | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 corretta; verifica breve in corso (revisioni/w4-pr11-2.md) | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR: spec e piano approvabili con correzioni; via all'implementazione (w5-06) | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 (parte server: ricerca, scheda, MCP) in review (revisioni/w6-pr14.md); web dopo W5 | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2). Ondata 1 completata.
 
 ## Revisori attivi
 
@@ -37,7 +37,7 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
    - Unite: #6, #9, #12 (viste di W6: i task di W1 che le usano sono sbloccati).
    - W5: implementa la seconda PR (client oRPC reale + agganci di W4) → review → merge;
      poi le parti web di W1, W2, W4, W6 (ognuno si ferma lì con `STATO: DOMANDA`).
-   - W2: PR #10 → correzione minore → merge senza nuova review se CI verde.
+   - W2: PR #10 unita; prosegue senza parti web.
    - W1: PR piccola di `mealRecipeVersions` + `versionedInput` + 11 errori del
      pianificatore con `noUncheckedIndexedAccess` nel tsconfig di `domain/` (blocca il
      typecheck web di W5) → review → merge → avvisare W5 (porta su main e prosegue) e W4
