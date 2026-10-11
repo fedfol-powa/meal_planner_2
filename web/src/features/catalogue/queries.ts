@@ -27,9 +27,9 @@ export function useIsCurator(): boolean {
   return useCachedProfile().data?.user.globalRoles.includes('recipe_curator') ?? false;
 }
 
-/** Whether the profile has been read: before that, nobody is a curator yet. */
-export function useProfileRead(): boolean {
-  return useCachedProfile().data !== undefined;
+/** The profile read itself: before it succeeds nobody is a curator yet, and a failed first read is an error, not a wait. */
+export function useProfileRead() {
+  return useCachedProfile();
 }
 
 /**

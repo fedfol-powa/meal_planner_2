@@ -1,6 +1,6 @@
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { DraftView } from '@app/contract';
+import { draftView, type DraftView } from '@app/contract';
 import { ApiError } from '../../api/errors';
 import { renderApp } from '../../test/renderApp';
 import { catalogueApi, LUCIA } from './test-support';
@@ -79,5 +79,66 @@ describe('DraftPage', () => {
   it('says when the draft does not exist', async () => {
     renderApp(`/recipes/drafts/${DRAFT}`, { api: catalogueApi({ getDraft: async () => { throw new ApiError('not_found'); } }) });
     expect(await screen.findByText('Bozza non disponibile')).toBeTruthy();
+  });
+
+  it('shows the saved planner attributes, false values included, and names the attribute of a problem', async () => {
+    const classified: DraftView = {
+      ...draft,
+      content: { ...draft.content, mealType: 'both', carbohydrateGroup: 'cereals', isFreshFish: false, hasVegetables: true, isHeavy: false, seasons: ['autumn', 'winter'] },
+      issues: [{ path: ['category'], code: 'required' }]
+    };
+    renderApp(`/recipes/drafts/${DRAFT}`, { api: catalogueApi({ getDraft: async () => classified }) });
+    const attributes = await screen.findByRole('region', { name: 'Attributi' });
+    const value = (term: string) => [...attributes.querySelectorAll('dt')].find((dt) => dt.textContent === term)?.nextElementSibling?.textContent;
+    expect(value('Pasto')).toBe('Pranzo e cena');
+    expect(value('Proteina principale')).toBe('Legumi');
+    expect(value('Carboidrati')).toBe('Cereali');
+    expect(value('Tipo di piatto')).toBe('—');
+    expect(value('Pesce fresco')).toBe('No');
+    expect(value('Con verdure')).toBe('Sì');
+    expect(value('Piatto pesante')).toBe('No');
+    expect(value('Stagioni')).toBe('autunno, inverno');
+    expect(screen.getByText('Dato obbligatorio').nextElementSibling?.textContent).toBe('Tipo di piatto');
+  });
+
+  it('says «all year» when the seasons are empty', async () => {
+    renderApp(`/recipes/drafts/${DRAFT}`, { api: catalogueApi({ getDraft: async () => ({ ...draft, content: { ...draft.content, seasons: [] } }) }) });
+    expect(await screen.findByText('Tutto l’anno')).toBeTruthy();
+  });
+
+  it('shows an imported draft that does not match the current schema, with its problems', async () => {
+    // Valid for the contract (content is any record), not for recipeDraftSchema.
+    const legacy = draftView.parse({
+      ...draft,
+      content: {
+        schemaVersion: 1, name: { 'it-IT': 42, 'en-GB': 'Legacy' }, description: 7, sourceType: 'book', bookPages: { from: 1 }, sourceUrl: 3,
+        durationMinutes: '50', baseServings: 'four', proteinGroup: 'lamb', mealType: 'brunch', isHeavy: 'yes', seasons: 'winter',
+        ingredients: [null, 'flour', { ingredientId: 5, variety: { 'it-IT': 1 }, sourceText: { text: 'x' } }, { ingredientId: CECI, sourceText: 'ceci' }]
+      },
+      issues: [{ path: ['name', 'it-IT'], code: 'invalid_value' }, { path: ['mealType'], code: 'invalid_value' }]
+    });
+    renderApp(`/recipes/drafts/${DRAFT}`, { api: catalogueApi({ getDraft: async () => legacy }) });
+    expect(await screen.findByRole('heading', { level: 1, name: 'Legacy' })).toBeTruthy();
+    expect(screen.getAllByText('Valore non valido')).toHaveLength(2);
+    expect(screen.getByText('Nome (italiano)')).toBeTruthy();
+    expect(screen.getByText('Ceci')).toBeTruthy();
+    expect(screen.getByText('ceci')).toBeTruthy();
+    expect(screen.getAllByText('da collegare')).toHaveLength(1);
+    expect(screen.getByText('Libro: Il cucchiaio verde, pp. —')).toBeTruthy();
+  });
+
+  it('offers to retry when the first read of the profile fails', async () => {
+    let failing = true;
+    const api = catalogueApi({ getDraft: async () => draft });
+    const profileGet = api.profile.get;
+    api.profile.get = async (input) => {
+      if (failing) throw new ApiError('internal');
+      return profileGet(input);
+    };
+    renderApp(`/recipes/drafts/${DRAFT}`, { api });
+    expect(await screen.findByText('Il servizio ha avuto un problema: riprova tra poco.')).toBeTruthy();
+    failing = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Zuppa di farro' })).toBeTruthy();
   });
 });
