@@ -60,9 +60,13 @@ export interface ArrangedShoppingList {
 	skipped: { slotId: string; recipeId: string; recipeName: string }[];
 }
 
-/** "Pomodori Roma", "Uva gialla senza semi". */
+/**
+ * "Pomodori (Roma)", "Onions (red)": the variety in brackets after the name, so a plural name and
+ * a singular variety never read as one phrase (coordinator, 11 October 2026). Lists, exports and
+ * the Bring! page all take the name from here.
+ */
 export const displayName = (name: Localized, variety: Localized | null, locale: Locale): string =>
-	variety ? `${name[locale]} ${variety[locale]}` : name[locale];
+	variety ? `${name[locale]} (${variety[locale]})` : name[locale];
 
 function toView(item: ConsolidatedItem, checked: CombinedQuantity | undefined, system: MeasurementSystem, locale: Locale): ShoppingItemView {
 	const options = { system, locale, rounding: 'shopping' as const };

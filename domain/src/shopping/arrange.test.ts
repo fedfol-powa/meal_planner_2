@@ -46,7 +46,7 @@ describe('arrangeShoppingList', () => {
 	it('groups by department in the standard order and sorts by name', () => {
 		const arranged = arrange();
 		expect(arranged.departments.map((d) => d.department)).toEqual(['produce']);
-		expect(arranged.departments[0].items.map((i) => i.name)).toEqual(['Limone', 'Peperone', 'Pomodori', 'Pomodori Roma']);
+		expect(arranged.departments[0].items.map((i) => i.name)).toEqual(['Limone', 'Peperone', 'Pomodori', 'Pomodori (Roma)']);
 		expect(arranged.excluded.map((i) => [i.name, i.excluded])).toEqual([['Acciughe', 'avoid'], ['Olio', 'pantry']]);
 		expect(arranged.mealCount).toBe(2);
 	});
@@ -81,7 +81,7 @@ describe('arrangeShoppingList', () => {
 	it('keeps a ticked item ticked when the family changes measurement system', () => {
 		const checks = [{ ingredientId: 'tomato', varietyKey: 'roma', quantityAtCheck: combine(amount(200, 'g')) }];
 		const arranged = arrange({ checks, system: 'uk_imperial', locale: 'en-GB' });
-		expect(view(arranged, 'tomato~roma')).toMatchObject({ checked: true, quantity: '7 oz', name: 'Tomatoes Roma' });
+		expect(view(arranged, 'tomato~roma')).toMatchObject({ checked: true, quantity: '7 oz', name: 'Tomatoes (Roma)' });
 	});
 
 	it('shows the ticked quantity in the viewer language even after its text was replaced', () => {
@@ -113,8 +113,10 @@ describe('arrangeShoppingList', () => {
 });
 
 describe('displayName', () => {
-	it('appends the variety in the viewer language', () => {
-		expect(displayName(t('Uva', 'Grapes'), t('gialla senza semi', 'seedless white'), 'en-GB')).toBe('Grapes seedless white');
+	it('puts the variety in brackets after the name, in the viewer language', () => {
+		expect(displayName(t('Uva', 'Grapes'), t('gialla senza semi', 'seedless white'), 'en-GB')).toBe('Grapes (seedless white)');
+		expect(displayName(t('Cipolle', 'Onions'), t('rossa di Tropea', 'red Tropea'), 'it-IT')).toBe('Cipolle (rossa di Tropea)');
+		expect(displayName(t('Cipolle', 'Onions'), t('rossa', 'red'), 'en-GB')).toBe('Onions (red)');
 		expect(displayName(t('Uva', 'Grapes'), null, 'it-IT')).toBe('Uva');
 	});
 });
