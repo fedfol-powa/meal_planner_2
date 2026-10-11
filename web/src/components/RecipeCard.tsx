@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { IngredientLine, MealView, RatingSummary, RecipeSummary } from '../api/types';
 import { formatAverage, formatChangeTime } from '../i18n/dates';
 import { useLocale, useT } from '../i18n/LocaleProvider';
@@ -10,6 +10,16 @@ import { IngredientList } from './IngredientList';
 import { RatingStars } from './RatingStars';
 import styles from './RecipeCard.module.css';
 import { safeSourceUrl, SOURCE_MAX_CHARS, sourceLine } from './source';
+
+/** Meal actions of the menu (round 2): the pencil in the footer and its panel under it. */
+export interface CardActions {
+  label: string;
+  disabled: boolean;
+  panel: ReactNode;
+  onToggle?: (open: boolean) => void;
+  /** Empty slot: «Scegli una ricetta» in the content. */
+  onChooseRecipe?: () => void;
+}
 
 export interface RecipeCardProps {
   cardKey: string;
@@ -26,15 +36,34 @@ export interface RecipeCardProps {
   detailSearch: RecipeSearch | null;
   familyId: string;
   isPast?: boolean;
+  /** Menu only: the pencil and its panel. */
+  actions?: CardActions;
 }
 
-/** One card for menu meals and catalogue recipes (round 1). Footer: details, rating, ingredients. */
+type Section = 'rating' | 'ingredients' | 'actions';
+
+/** One card for menu meals and catalogue recipes (round 1). Footer: details, rating, ingredients and, in the menu, the pencil. */
 export function RecipeCard(props: RecipeCardProps) {
-  const { cardKey, label, kind, recipe, freeText, servings, ingredients, note, rating, lastChange, detailSearch, familyId, isPast } = props;
+  const { cardKey, label, kind, recipe, freeText, servings, ingredients, note, rating, lastChange, detailSearch, familyId, isPast, actions } = props;
   const t = useT();
   const { locale } = useLocale();
-  const [open, setOpen] = useState<'rating' | 'ingredients' | null>(null);
-  const toggle = (section: 'rating' | 'ingredients') => setOpen((current) => (current === section ? null : section));
+  const [open, setOpen] = useState<Section | null>(null);
+  const hasRecipe = kind === 'recipe' && !!recipe;
+  const toggle = (section: Section) => {
+    const next = open === section ? null : section;
+    setOpen(next);
+    // Told outside the state updater: Strict Mode calls updaters twice.
+    if (open === 'actions' || next === 'actions') actions?.onToggle?.(next === 'actions');
+  };
+  // One panel at a time (round 2); a meal that no longer has a recipe closes the recipe panels,
+  // actions disabled (offline) close their panel.
+  useEffect(() => {
+    if (!hasRecipe) setOpen((current) => (current === 'actions' ? current : null));
+  }, [hasRecipe]);
+  const disabled = actions?.disabled ?? false;
+  useEffect(() => {
+    if (disabled) setOpen((current) => (current === 'actions' ? null : current));
+  }, [disabled]);
   const headingId = `card-${cardKey}`;
   const source = recipe ? sourceLine(recipe, t) : null;
   const sourceUrl = recipe ? safeSourceUrl(recipe.sourceUrl) : null;
@@ -56,6 +85,9 @@ export function RecipeCard(props: RecipeCardProps) {
           <>
             <h3 id={headingId}>{t('meal.empty.title')}</h3>
             <p className="description">{t('meal.empty.body')}</p>
+            {actions?.onChooseRecipe && (
+              <button type="button" className="text-button" disabled={actions.disabled} onClick={actions.onChooseRecipe}>{t('meals.chooseRecipe')}</button>
+            )}
           </>
         )}
         {kind === 'recipe' && recipe && (
@@ -93,35 +125,43 @@ export function RecipeCard(props: RecipeCardProps) {
         {note && <p className="meta-line"><strong>{t('meal.note')}:</strong> {note}</p>}
       </div>
 
-      {kind === 'recipe' && recipe && (
+      {(hasRecipe || actions) && (
         <>
           <div className={styles.footer}>
-            {detailSearch && (
-              <Link to="/recipes/$recipeId" params={{ recipeId: recipe.id }} search={detailSearch} className={styles.action} aria-label={t('meal.details')}>
+            {hasRecipe && detailSearch && (
+              <Link to="/recipes/$recipeId" params={{ recipeId: recipe!.id }} search={detailSearch} className={styles.action} aria-label={t('meal.details')}>
                 <Icon name="recipe" />
               </Link>
             )}
-            {rating && (
+            {hasRecipe && rating && (
               <button type="button" className={styles.action} aria-expanded={open === 'rating'} aria-label={t('meal.ratingAction', { value: averageText })} onClick={() => toggle('rating')}>
                 <Icon name="star" className={rating.myStars != null ? styles.mine : undefined} />
                 <span aria-hidden="true">{averageText}</span>
               </button>
             )}
-            <button type="button" className={styles.action} aria-expanded={open === 'ingredients'} aria-label={t('meal.ingredientsAction', { count: ingredients?.length ?? 0 })} onClick={() => toggle('ingredients')}>
-              <Icon name="list" />
-              <span aria-hidden="true">{ingredients?.length ?? '–'}</span>
-            </button>
+            {hasRecipe && (
+              <button type="button" className={styles.action} aria-expanded={open === 'ingredients'} aria-label={t('meal.ingredientsAction', { count: ingredients?.length ?? 0 })} onClick={() => toggle('ingredients')}>
+                <Icon name="list" />
+                <span aria-hidden="true">{ingredients?.length ?? '–'}</span>
+              </button>
+            )}
+            {actions && (
+              <button type="button" className={styles.action} aria-expanded={open === 'actions'} aria-label={actions.label} disabled={actions.disabled} onClick={() => toggle('actions')}>
+                <Icon name="edit" />
+              </button>
+            )}
           </div>
-          {open === 'rating' && rating && (
+          {hasRecipe && open === 'rating' && rating && (
             <div className={styles.panel}>
-              <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={familyId} />
+              <RatingStars summary={rating} recipeId={recipe!.id} recipeName={recipe!.name} familyId={familyId} />
             </div>
           )}
-          {open === 'ingredients' && (
+          {hasRecipe && open === 'ingredients' && (
             <div className={styles.panel}>
               {ingredients ? <IngredientList ingredients={ingredients} /> : <p className="meta-line">{t('meal.ingredientsMissing')}</p>}
             </div>
           )}
+          {open === 'actions' && actions && <div className={styles.panel}>{actions.panel}</div>}
         </>
       )}
     </article>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type IconName = 'arrow' | 'clock' | 'calendar' | 'book' | 'bag' | 'user' | 'star' | 'chevron-left' | 'chevron-right' | 'recipe' | 'list' | 'filter' | 'sort' | 'users' | 'gear' | 'ban' | 'check' | 'plus' | 'more';
+export type IconName = 'arrow' | 'clock' | 'calendar' | 'book' | 'bag' | 'user' | 'star' | 'chevron-left' | 'chevron-right' | 'recipe' | 'list' | 'filter' | 'sort' | 'users' | 'gear' | 'ban' | 'check' | 'plus' | 'more' | 'edit' | 'search' | 'note' | 'swap' | 'free' | 'shuffle';
 
 const PATHS: Record<IconName, ReactNode> = {
   arrow: <path d="M5 19 19 5M5 5h14v14" />,
@@ -21,6 +21,12 @@ const PATHS: Record<IconName, ReactNode> = {
   ban: <><circle cx="12" cy="12" r="9" /><path d="m5.6 5.6 12.8 12.8" /></>,
   check: <path d="m5 12 5 5 9-10" />,
   plus: <path d="M12 5v14M5 12h14" />,
+  edit: <path d="M4 20h4L19 9l-4-4L4 16Zm9-13 4 4" />,
+  search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
+  note: <path d="M5 4h14v11l-5 5H5ZM14 20v-5h5M8 9h8M8 13h4" />,
+  swap: <path d="M7 4 3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7" />,
+  free: <path d="M4 11h16M6 11V8a6 6 0 0 1 12 0v3M5 11l1.5 9h11l1.5-9" />,
+  shuffle: <path d="M3 7h4l10 10h4M3 17h4l3-3M14 10l3-3h4M18 4l3 3-3 3M18 14l3 3-3 3" />,
   more: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>
 };
 

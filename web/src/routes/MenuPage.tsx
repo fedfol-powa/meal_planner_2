@@ -3,19 +3,23 @@ import { getRouteApi, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isBlocking, toApiError } from '../api/errors';
 import { openingQuery, queryKeys, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
-import type { FamilyView, OpeningView, WeekView } from '../api/types';
+import type { FamilyView, MealView, OpeningView, WeekView } from '../api/types';
 import { DatePicker } from '../components/DatePicker';
 import { DaySelector } from '../components/DaySelector';
 import { FamilyGate } from '../components/FamilyGate';
 import { Icon } from '../components/Icon';
 import { Loading } from '../components/Loading';
+import { useOnline } from '../components/OfflineBanner';
 import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { StateNotice } from '../components/StateNotice';
+import { useMealActions } from '../features/meals/MealActions';
+import { SaveNotices } from '../features/meals/SaveNotices';
+import { UndoProvider } from '../features/meals/UndoProvider';
 import { formatDayLong, formatMonthYear } from '../i18n/dates';
 import type { Locale } from '../i18n/translate';
 import { useLocale, useT } from '../i18n/LocaleProvider';
-import { isMealPast, localNow, mondayOf, type IsoDate } from '../lib/calendar';
+import { isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTime } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
 import { pickSelected } from './menu/selection';
 import styles from './MenuPage.module.css';
@@ -23,7 +27,16 @@ import styles from './MenuPage.module.css';
 const route = getRouteApi('/_app/menu');
 
 export function MenuPage() {
-  return <FamilyGate>{(family) => <MenuView family={family} />}</FamilyGate>;
+  // The undo offer outlives a change of week (the toast follows the action, not the week shown).
+  return (
+    <FamilyGate>
+      {(family) => (
+        <UndoProvider familyId={family.id}>
+          <MenuView family={family} />
+        </UndoProvider>
+      )}
+    </FamilyGate>
+  );
 }
 
 /**
@@ -134,6 +147,7 @@ function MenuView({ family }: { family: FamilyView }) {
   const now = localNow(family.timeZone);
   return (
     <section className="calendar app-view" aria-label={t('nav.menu')}>
+      <SaveNotices />
       <nav className="day-navigation" aria-label={t('menu.days')}>
         <div className={styles.toolbar}>
           <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
@@ -154,26 +168,38 @@ function MenuView({ family }: { family: FamilyView }) {
             <h2 className="visually-hidden" id={`heading-${day.date}`}>{formatDayLong(locale, day.date)}</h2>
             {day.meals.length === 0 && <StateNotice title={t('menu.dayEmpty')} />}
             {day.meals.map((meal) => (
-              <RecipeCard
-                key={meal.slotId}
-                cardKey={meal.slotId}
-                label={t(`meal.${meal.mealType}`)}
-                kind={meal.kind}
-                recipe={meal.recipe}
-                freeText={meal.freeText}
-                servings={meal.servings}
-                ingredients={meal.ingredients}
-                note={meal.note}
-                rating={meal.rating}
-                lastChange={meal.lastChange}
-                detailSearch={meal.recipe && meal.canOpenRecipe ? { from: 'menu', day: meal.date, slot: meal.slotId } : null}
-                familyId={familyId}
-                isPast={isMealPast(meal.date, meal.mealType, now)}
-              />
+              <MenuMeal key={meal.slotId} meal={meal} week={week.data!} familyId={familyId} now={now} />
             ))}
           </section>
         ))}
       </div>
     </section>
+  );
+}
+
+/** One meal of the week, with the pencil and the editor sheet (round 2). */
+function MenuMeal({ meal, week, familyId, now }: { meal: MealView; week: WeekView; familyId: string; now: LocalDateTime }) {
+  const t = useT();
+  const { actions, sheet } = useMealActions({ familyId, weekStartsOn: week.startsOn, meal, week, online: useOnline() });
+  return (
+    <>
+      <RecipeCard
+        cardKey={meal.slotId}
+        label={t(`meal.${meal.mealType}`)}
+        kind={meal.kind}
+        recipe={meal.recipe}
+        freeText={meal.freeText}
+        servings={meal.servings}
+        ingredients={meal.ingredients}
+        note={meal.note}
+        rating={meal.rating}
+        lastChange={meal.lastChange}
+        detailSearch={meal.recipe && meal.canOpenRecipe ? { from: 'menu', day: meal.date, slot: meal.slotId } : null}
+        familyId={familyId}
+        isPast={isMealPast(meal.date, meal.mealType, now)}
+        actions={actions}
+      />
+      {sheet}
+    </>
   );
 }
