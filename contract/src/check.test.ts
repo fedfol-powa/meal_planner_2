@@ -110,6 +110,20 @@ describe('checkContract', () => {
 		]);
 	});
 
+	it('requires familyId for family versioned reads', () => {
+		const contract = {
+			view: op({ mcp: { readOnly: true }, offline: false, role: 'user', reads: ['family'] })
+				.route(route)
+				.input(versionedInput(z.object({ familyId: z.uuid().optional() })))
+				.output(versionedOutput(z.object({}))),
+			catalogue: op({ mcp: { readOnly: true }, offline: false, role: 'user', reads: ['catalogue'] })
+				.route(route)
+				.input(versionedInput(z.object({})))
+				.output(versionedOutput(z.object({}))),
+		};
+		expect(checkContract(contract)).toEqual(['view: family version needs a uuid familyId input']);
+	});
+
 	it('requires method, path and summary', () => {
 		const contract = {
 			bare: op({ mcp: false, offline: false, role: 'user' }).input(z.object({})).output(z.object({})),

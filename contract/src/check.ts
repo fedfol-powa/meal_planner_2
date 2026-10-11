@@ -66,6 +66,10 @@ export function checkContract(router: object): string[] {
 				problems.push(`${name}: versioned read needs an optional string knownVersion input`);
 			}
 			if (!isVersionedOutput(def.outputSchema)) problems.push(`${name}: versioned read needs versionedOutput`);
+			// The family counter is read from `input.familyId`.
+			if (meta.reads.includes('family') && !requiresUuid(shape.familyId)) {
+				problems.push(`${name}: family version needs a uuid familyId input`);
+			}
 		}
 	});
 	return problems;
