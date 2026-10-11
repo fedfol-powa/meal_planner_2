@@ -1,0 +1,1491 @@
+# Revisione: 2026-10-11, rivisto dall'utente, sha256:7585febd3365b56ee08edf76b984750dbd572f6e7b7e777bae4ba80a761e7bfc
+# Nome della riga d'origine (esatto) → ingrediente, varietà, preparazione, facoltativo.
+# Le alternative restano solo nel testo della fonte; note per la revisione.
+lines:
+  Riso basmati:
+    ingredient: riso
+    variety:
+      it-IT: basmati
+      en-GB: basmati
+    preparation: null
+    optional: false
+  Petto di pollo:
+    ingredient: pollo
+    variety:
+      it-IT: petto
+      en-GB: breast
+    preparation: null
+    optional: false
+  Peperone rosso:
+    ingredient: peperoni
+    variety:
+      it-IT: rosso
+      en-GB: red
+    preparation: null
+    optional: false
+  Peperone giallo:
+    ingredient: peperoni
+    variety:
+      it-IT: giallo
+      en-GB: yellow
+    preparation: null
+    optional: false
+  Carote:
+    ingredient: carote
+    variety: null
+    preparation: null
+    optional: false
+  Zucchine:
+    ingredient: zucchine
+    variety: null
+    preparation: null
+    optional: false
+  Melanzana piccola:
+    ingredient: melanzane
+    variety: null
+    preparation: null
+    optional: false
+  Cipolla rossa di Tropea (o 1 cipollotto):
+    ingredient: cipolle
+    variety:
+      it-IT: rossa di Tropea
+      en-GB: Tropea red
+    preparation: null
+    optional: false
+    note: Alternativa (cipollotto) solo nel testo della fonte
+  Salsa di soia (senza glutine):
+    ingredient: salsa-di-soia
+    variety:
+      it-IT: senza glutine
+      en-GB: gluten-free
+    preparation: null
+    optional: false
+  Mezze penne:
+    ingredient: mezze-penne
+    variety: null
+    preparation: null
+    optional: false
+  Pomodori ramati:
+    ingredient: pomodori
+    variety:
+      it-IT: ramati
+      en-GB: on the vine
+    preparation: null
+    optional: false
+  Cipolla piccola:
+    ingredient: cipolle
+    variety: null
+    preparation: null
+    optional: false
+  Peperoncino:
+    ingredient: peperoncino-secco
+    variety: null
+    preparation: null
+    optional: false
+    note: "Un pizzico: inteso come peperoncino secco"
+  Aglio:
+    ingredient: aglio
+    variety: null
+    preparation: null
+    optional: false
+  Basilico:
+    ingredient: basilico
+    variety: null
+    preparation: null
+    optional: false
+  Ricotta:
+    ingredient: ricotta
+    variety: null
+    preparation: null
+    optional: false
+  Uova:
+    ingredient: uova
+    variety: null
+    preparation: null
+    optional: false
+  Bietole gia' cotte:
+    ingredient: bietole
+    variety: null
+    preparation:
+      it-IT: già cotte
+      en-GB: cooked
+    optional: false
+  Ricotta vaccina:
+    ingredient: ricotta
+    variety:
+      it-IT: vaccina
+      en-GB: cow's milk
+    preparation: null
+    optional: false
+  Pecorino romano grattugiato (o Parmigiano):
+    ingredient: pecorino
+    variety:
+      it-IT: romano
+      en-GB: Romano
+    preparation:
+      it-IT: grattugiato
+      en-GB: grated
+    optional: false
+    note: Alternativa (Parmigiano) solo nel testo della fonte
+  Noodles di grano (o di riso):
+    ingredient: noodles
+    variety:
+      it-IT: di grano
+      en-GB: wheat
+    preparation: null
+    optional: false
+    note: Alternativa (di riso) solo nel testo della fonte
+  Cipolla:
+    ingredient: cipolle
+    variety: null
+    preparation: null
+    optional: false
+  Peperone:
+    ingredient: peperoni
+    variety: null
+    preparation: null
+    optional: false
+  Carota:
+    ingredient: carote
+    variety: null
+    preparation: null
+    optional: false
+  Zucchina:
+    ingredient: zucchine
+    variety: null
+    preparation: null
+    optional: false
+  Salsa d'ostriche (facoltativa):
+    ingredient: salsa-di-ostriche
+    variety: null
+    preparation: null
+    optional: true
+  Salsa di soia:
+    ingredient: salsa-di-soia
+    variety: null
+    preparation: null
+    optional: false
+  Curry in polvere (facoltativo):
+    ingredient: curry
+    variety: null
+    preparation: null
+    optional: true
+  Aglio in polvere:
+    ingredient: aglio-in-polvere
+    variety: null
+    preparation: null
+    optional: false
+  Filetti di merluzzo:
+    ingredient: merluzzo
+    variety: null
+    preparation:
+      it-IT: a filetti
+      en-GB: fillets
+    optional: false
+  Pomodori ciliegini (o pomodorini):
+    ingredient: pomodori
+    variety:
+      it-IT: ciliegini
+      en-GB: cherry
+    preparation: null
+    optional: false
+    note: Alternativa (pomodorini) solo nel testo della fonte
+  Concentrato di pomodoro:
+    ingredient: concentrato-di-pomodoro
+    variety: null
+    preparation: null
+    optional: false
+  Cipollotto:
+    ingredient: cipollotti
+    variety: null
+    preparation: null
+    optional: false
+  Olive taggiasche:
+    ingredient: olive
+    variety:
+      it-IT: taggiasche
+      en-GB: Taggiasca
+    preparation: null
+    optional: false
+  Cous cous:
+    ingredient: couscous
+    variety: null
+    preparation: null
+    optional: false
+  Zafferano:
+    ingredient: zafferano
+    variety: null
+    preparation: null
+    optional: false
+  Basilico fresco:
+    ingredient: basilico
+    variety: null
+    preparation: null
+    optional: false
+  Mandorle:
+    ingredient: mandorle
+    variety: null
+    preparation: null
+    optional: false
+  Piadine integrali (da 50 g ciascuna):
+    ingredient: piadine
+    variety:
+      it-IT: integrali
+      en-GB: wholemeal
+    preparation: null
+    optional: false
+    note: Peso di ciascuna (50 g) solo nel testo della fonte
+  Peperoncino fresco dolce:
+    ingredient: peperoncino
+    variety:
+      it-IT: dolce
+      en-GB: mild
+    preparation: null
+    optional: false
+  Lattuga iceberg:
+    ingredient: lattuga
+    variety:
+      it-IT: iceberg
+      en-GB: iceberg
+    preparation: null
+    optional: false
+  Barbabietole:
+    ingredient: barbabietole
+    variety: null
+    preparation: null
+    optional: false
+  Emmentaler (8 fette):
+    ingredient: emmentaler
+    variety: null
+    preparation:
+      it-IT: a fette
+      en-GB: sliced
+    optional: false
+  Ceci precotti:
+    ingredient: ceci
+    variety: null
+    preparation:
+      it-IT: precotti
+      en-GB: cooked
+    optional: false
+  Prezzemolo:
+    ingredient: prezzemolo
+    variety: null
+    preparation: null
+    optional: false
+  Tabasco:
+    ingredient: tabasco
+    variety: null
+    preparation: null
+    optional: false
+  Succo di limone:
+    ingredient: limoni
+    variety: null
+    preparation:
+      it-IT: succo
+      en-GB: juice
+    optional: false
+  Paprika piccante:
+    ingredient: paprika
+    variety:
+      it-IT: piccante
+      en-GB: hot
+    preparation: null
+    optional: false
+  Tahina:
+    ingredient: tahina
+    variety: null
+    preparation: null
+    optional: false
+  Pane casereccio (tipo toscano):
+    ingredient: pane
+    variety:
+      it-IT: casereccio toscano
+      en-GB: Tuscan country
+    preparation: null
+    optional: false
+  Code di gambero:
+    ingredient: gamberi
+    variety: null
+    preparation:
+      it-IT: code
+      en-GB: tails
+    optional: false
+  Vino bianco secco:
+    ingredient: vino
+    variety:
+      it-IT: bianco secco
+      en-GB: dry white
+    preparation: null
+    optional: false
+  Scalogno:
+    ingredient: scalogno
+    variety: null
+    preparation: null
+    optional: false
+  Uova medie:
+    ingredient: uova
+    variety: null
+    preparation: null
+    optional: false
+  Pomodorini perini:
+    ingredient: pomodori
+    variety:
+      it-IT: perini
+      en-GB: baby plum
+    preparation: null
+    optional: false
+  Cipolla dorata:
+    ingredient: cipolle
+    variety:
+      it-IT: dorata
+      en-GB: brown
+    preparation: null
+    optional: false
+  Olio extravergine d'oliva:
+    ingredient: olio-extravergine-di-oliva
+    variety: null
+    preparation: null
+    optional: false
+  Sale fino:
+    ingredient: sale
+    variety: null
+    preparation: null
+    optional: false
+  Pepe nero:
+    ingredient: pepe
+    variety: null
+    preparation: null
+    optional: false
+  Melanzane:
+    ingredient: melanzane
+    variety: null
+    preparation: null
+    optional: false
+  Pangrattato:
+    ingredient: pangrattato
+    variety: null
+    preparation: null
+    optional: false
+  Uovo:
+    ingredient: uova
+    variety: null
+    preparation: null
+    optional: false
+  Caciocavallo grattugiato:
+    ingredient: caciocavallo
+    variety: null
+    preparation:
+      it-IT: grattugiato
+      en-GB: grated
+    optional: false
+  Noce moscata:
+    ingredient: noce-moscata
+    variety: null
+    preparation: null
+    optional: false
+  Sale e pepe:
+    ingredient: sale
+    variety: null
+    preparation: null
+    optional: false
+    note: "Riga unica per sale e pepe: il pepe resta solo nel testo della fonte"
+  Pappardelle:
+    ingredient: pappardelle
+    variety: null
+    preparation: null
+    optional: false
+  Burro:
+    ingredient: burro
+    variety: null
+    preparation: null
+    optional: false
+  Parmigiano:
+    ingredient: parmigiano
+    variety: null
+    preparation: null
+    optional: false
+  Pasta:
+    ingredient: pasta
+    variety: null
+    preparation: null
+    optional: false
+  Pesto alla genovese:
+    ingredient: pesto
+    variety:
+      it-IT: alla genovese
+      en-GB: Genovese
+    preparation: null
+    optional: false
+  Hamburger di cavallo:
+    ingredient: cavallo
+    variety: null
+    preparation:
+      it-IT: in hamburger
+      en-GB: burgers
+    optional: false
+  Panini per hamburger:
+    ingredient: panini-per-hamburger
+    variety: null
+    preparation: null
+    optional: false
+  Tonno sott'olio:
+    ingredient: tonno-in-scatola
+    variety:
+      it-IT: sott'olio
+      en-GB: in oil
+    preparation: null
+    optional: false
+  Alici:
+    ingredient: alici
+    variety: null
+    preparation: null
+    optional: false
+  Passata di pomodoro:
+    ingredient: passata-di-pomodoro
+    variety: null
+    preparation: null
+    optional: false
+  Sugo di pesce:
+    ingredient: sugo-di-pesce
+    variety: null
+    preparation: null
+    optional: false
+  Pasta fresca:
+    ingredient: pasta-fresca
+    variety: null
+    preparation: null
+    optional: false
+  Penne rigate:
+    ingredient: penne
+    variety:
+      it-IT: rigate
+      en-GB: ridged
+    preparation: null
+    optional: false
+  Panna fresca:
+    ingredient: panna
+    variety:
+      it-IT: fresca
+      en-GB: fresh
+    preparation: null
+    optional: false
+  Prosciutto cotto:
+    ingredient: prosciutto-cotto
+    variety: null
+    preparation: null
+    optional: false
+  Pomodori pelati:
+    ingredient: pomodori-pelati
+    variety: null
+    preparation: null
+    optional: false
+  Sale:
+    ingredient: sale
+    variety: null
+    preparation: null
+    optional: false
+  Rigatoni:
+    ingredient: rigatoni
+    variety: null
+    preparation: null
+    optional: false
+  Zucca a pezzetti:
+    ingredient: zucca
+    variety: null
+    preparation:
+      it-IT: a pezzetti
+      en-GB: diced
+    optional: false
+  Salsicce:
+    ingredient: salsiccia
+    variety: null
+    preparation: null
+    optional: false
+  Robiola:
+    ingredient: robiola
+    variety: null
+    preparation: null
+    optional: false
+  Orecchiette:
+    ingredient: orecchiette
+    variety: null
+    preparation: null
+    optional: false
+  Broccolo:
+    ingredient: broccoli
+    variety: null
+    preparation: null
+    optional: false
+  Paccheri:
+    ingredient: paccheri
+    variety: null
+    preparation: null
+    optional: false
+  Peperoni rossi:
+    ingredient: peperoni
+    variety:
+      it-IT: rosso
+      en-GB: red
+    preparation: null
+    optional: false
+  Latte:
+    ingredient: latte
+    variety: null
+    preparation: null
+    optional: false
+  Tonno:
+    ingredient: tonno
+    variety: null
+    preparation: null
+    optional: false
+  Limone:
+    ingredient: limoni
+    variety: null
+    preparation: null
+    optional: false
+  Filetti di branzino:
+    ingredient: branzino
+    variety: null
+    preparation:
+      it-IT: a filetti
+      en-GB: fillets
+    optional: false
+  Sovracosce di pollo disossate e spellate:
+    ingredient: pollo
+    variety:
+      it-IT: sovracosce
+      en-GB: thighs
+    preparation:
+      it-IT: disossate e spellate
+      en-GB: boneless and skinless
+    optional: false
+  Pane durum misura L (30 cm):
+    ingredient: pane-durum
+    variety: null
+    preparation: null
+    optional: false
+    note: Misura (L, 30 cm) solo nel testo della fonte
+  Fagioli rossi in scatola:
+    ingredient: fagioli
+    variety:
+      it-IT: rossi
+      en-GB: kidney
+    preparation: null
+    optional: false
+  Cumino in polvere:
+    ingredient: cumino
+    variety: null
+    preparation: null
+    optional: false
+  Succo di lime:
+    ingredient: lime
+    variety: null
+    preparation:
+      it-IT: succo
+      en-GB: juice
+    optional: false
+  Guacamole (pagina 185 del libro):
+    ingredient: guacamole
+    variety: null
+    preparation: null
+    optional: false
+    note: "Preparazione a pagina 185 del libro: qui come prodotto, da verificare"
+  Patata dolce arrosto (pagina 189 del libro):
+    ingredient: patate-dolci
+    variety: null
+    preparation:
+      it-IT: arrosto
+      en-GB: roasted
+    optional: false
+    note: Preparazione a pagina 189 del libro
+  Mais in scatola:
+    ingredient: mais
+    variety: null
+    preparation: null
+    optional: false
+  Straccetti vegani tex-mex:
+    ingredient: straccetti-vegani
+    variety:
+      it-IT: tex-mex
+      en-GB: Tex-Mex
+    preparation: null
+    optional: false
+  Cipolla rossa:
+    ingredient: cipolle
+    variety:
+      it-IT: rossa
+      en-GB: red
+    preparation: null
+    optional: false
+  Coriandolo:
+    ingredient: coriandolo
+    variety: null
+    preparation: null
+    optional: false
+  Insalata:
+    ingredient: insalata
+    variety: null
+    preparation: null
+    optional: false
+  Peperoncino verde:
+    ingredient: peperoncino
+    variety:
+      it-IT: verde
+      en-GB: green
+    preparation: null
+    optional: false
+  Pane libanese:
+    ingredient: pane-libanese
+    variety: null
+    preparation: null
+    optional: false
+  Caviale di melanzane:
+    ingredient: caviale-di-melanzane
+    variety: null
+    preparation: null
+    optional: false
+    note: "Preparazione, forse di un'altra pagina del libro: da verificare"
+  Melanzana grigliata:
+    ingredient: melanzane
+    variety: null
+    preparation:
+      it-IT: grigliata
+      en-GB: grilled
+    optional: false
+  Peperone grigliato:
+    ingredient: peperoni
+    variety: null
+    preparation:
+      it-IT: grigliato
+      en-GB: grilled
+    optional: false
+  Feta:
+    ingredient: feta
+    variety: null
+    preparation: null
+    optional: false
+  Pickles di cavolo rosso (pagina 182 del libro):
+    ingredient: cavolo-rosso
+    variety: null
+    preparation:
+      it-IT: in pickles
+      en-GB: pickled
+    optional: false
+    note: Preparazione a pagina 182 del libro
+  Uvetta:
+    ingredient: uvetta
+    variety: null
+    preparation: null
+    optional: false
+  Menta:
+    ingredient: menta
+    variety: null
+    preparation: null
+    optional: false
+  Carne di maiale macinata:
+    ingredient: maiale
+    variety: null
+    preparation:
+      it-IT: macinata
+      en-GB: minced
+    optional: false
+  Riso bianco per sushi:
+    ingredient: riso
+    variety:
+      it-IT: per sushi
+      en-GB: sushi
+    preparation: null
+    optional: false
+  Olio di semi di colza:
+    ingredient: olio-di-semi
+    variety:
+      it-IT: di colza
+      en-GB: rapeseed
+    preparation: null
+    optional: false
+  Curry o garam masala:
+    ingredient: curry
+    variety: null
+    preparation: null
+    optional: false
+    note: Alternativa (garam masala) solo nel testo della fonte
+  Salsa base giapponese (pagina 24 del libro):
+    ingredient: salsa-base-giapponese
+    variety: null
+    preparation: null
+    optional: false
+    note: Preparazione a pagina 24 del libro
+  Peperone verde:
+    ingredient: peperoni
+    variety:
+      it-IT: verde
+      en-GB: green
+    preparation: null
+    optional: false
+  Kimchi veloce (pagina 36 del libro):
+    ingredient: kimchi
+    variety: null
+    preparation: null
+    optional: true
+    note: Preparazione a pagina 36 del libro
+  Montasio:
+    ingredient: montasio
+    variety: null
+    preparation: null
+    optional: false
+  Spinacini freschi:
+    ingredient: spinaci
+    variety:
+      it-IT: spinacini
+      en-GB: baby
+    preparation: null
+    optional: false
+  Pepe:
+    ingredient: pepe
+    variety: null
+    preparation: null
+    optional: false
+  Farina 00:
+    ingredient: farina
+    variety:
+      it-IT: "00"
+      en-GB: type 00
+    preparation: null
+    optional: false
+  Limoni medi:
+    ingredient: limoni
+    variety: null
+    preparation: null
+    optional: false
+  Acqua:
+    ingredient: acqua
+    variety: null
+    preparation: null
+    optional: false
+  Prezzemolo o altre erbe aromatiche:
+    ingredient: prezzemolo
+    variety: null
+    preparation: null
+    optional: false
+    note: Alternativa (altre erbe aromatiche) solo nel testo della fonte
+  Riso:
+    ingredient: riso
+    variety: null
+    preparation: null
+    optional: false
+  Zucca pulita:
+    ingredient: zucca
+    variety: null
+    preparation:
+      it-IT: pulita
+      en-GB: prepared
+    optional: false
+  Lenticchie cotte:
+    ingredient: lenticchie
+    variety: null
+    preparation:
+      it-IT: cotte
+      en-GB: cooked
+    optional: false
+  Broccoli:
+    ingredient: broccoli
+    variety: null
+    preparation: null
+    optional: false
+  Gamberi freschi puliti:
+    ingredient: gamberi
+    variety: null
+    preparation:
+      it-IT: puliti
+      en-GB: cleaned
+    optional: false
+  Riso integrale:
+    ingredient: riso
+    variety:
+      it-IT: integrale
+      en-GB: brown
+    preparation: null
+    optional: false
+  Zenzero fresco:
+    ingredient: zenzero
+    variety: null
+    preparation: null
+    optional: false
+  Riso jasmine:
+    ingredient: riso
+    variety:
+      it-IT: jasmine
+      en-GB: jasmine
+    preparation: null
+    optional: false
+  Piselli:
+    ingredient: piselli
+    variety: null
+    preparation: null
+    optional: false
+  Prosciutto cotto a dadini:
+    ingredient: prosciutto-cotto
+    variety: null
+    preparation:
+      it-IT: a dadini
+      en-GB: diced
+    optional: false
+  Fagioli borlotti o cannellini, lessati o in scatola sgocciolati:
+    ingredient: fagioli
+    variety:
+      it-IT: borlotti
+      en-GB: borlotti
+    preparation:
+      it-IT: lessati e sgocciolati
+      en-GB: cooked and drained
+    optional: false
+    note: Alternativa (cannellini) solo nel testo della fonte
+  Brodo vegetale:
+    ingredient: brodo-vegetale
+    variety: null
+    preparation: null
+    optional: false
+  Guanciale a listarelle:
+    ingredient: guanciale
+    variety: null
+    preparation:
+      it-IT: a listarelle
+      en-GB: cut into strips
+    optional: false
+  Piadine:
+    ingredient: piadine
+    variety: null
+    preparation: null
+    optional: false
+  Pollo già cotto:
+    ingredient: pollo
+    variety: null
+    preparation:
+      it-IT: già cotto
+      en-GB: cooked
+    optional: false
+    note: "Pollo già cotto: forse un prodotto pronto, da verificare"
+  Hummus pronto:
+    ingredient: hummus
+    variety: null
+    preparation: null
+    optional: false
+  Carota (julienne cruda):
+    ingredient: carote
+    variety: null
+    preparation:
+      it-IT: a julienne, cruda
+      en-GB: raw, cut into matchsticks
+    optional: false
+  Filetti di orata spinati e senza pelle:
+    ingredient: orata
+    variety: null
+    preparation:
+      it-IT: a filetti, spinati e senza pelle
+      en-GB: fillets, boned and skinned
+    optional: false
+  Pomodorini rossi e gialli:
+    ingredient: pomodori
+    variety:
+      it-IT: ciliegini rossi e gialli
+      en-GB: red and yellow cherry
+    preparation: null
+    optional: false
+  Patata media:
+    ingredient: patate
+    variety: null
+    preparation: null
+    optional: false
+  Fette di lonza di maiale:
+    ingredient: maiale
+    variety:
+      it-IT: lonza
+      en-GB: loin
+    preparation:
+      it-IT: a fette
+      en-GB: sliced
+    optional: false
+  Limone bio (succo e scorza):
+    ingredient: limoni
+    variety:
+      it-IT: bio
+      en-GB: organic
+    preparation:
+      it-IT: succo e scorza
+      en-GB: juice and zest
+    optional: false
+  Miele:
+    ingredient: miele
+    variety: null
+    preparation: null
+    optional: false
+  Reale di vitellone (o di bovino) a fettine:
+    ingredient: manzo
+    variety:
+      it-IT: reale
+      en-GB: chuck
+    preparation:
+      it-IT: a fettine
+      en-GB: thinly sliced
+    optional: false
+    note: Alternativa (di bovino) solo nel testo della fonte
+  Pomodori pelati (o pomodorini freschi maturi):
+    ingredient: pomodori-pelati
+    variety: null
+    preparation: null
+    optional: false
+    note: Alternativa (pomodorini freschi) solo nel testo della fonte
+  Prezzemolo fresco:
+    ingredient: prezzemolo
+    variety: null
+    preparation: null
+    optional: false
+  Lenticchie (meglio pardine):
+    ingredient: lenticchie
+    variety:
+      it-IT: pardine
+      en-GB: pardina
+    preparation: null
+    optional: false
+    note: Varietà consigliata dalla fonte («meglio»)
+  Patata grande (o 2 piccole):
+    ingredient: patate
+    variety: null
+    preparation: null
+    optional: false
+    note: Alternativa (2 piccole) solo nel testo della fonte
+  Cipolla grande:
+    ingredient: cipolle
+    variety: null
+    preparation: null
+    optional: false
+  Pomodoro tritato o grattugiato:
+    ingredient: pomodori
+    variety: null
+    preparation:
+      it-IT: tritato o grattugiato
+      en-GB: chopped or grated
+    optional: false
+  Peperone rosso (o 1/2 verde):
+    ingredient: peperoni
+    variety:
+      it-IT: rosso
+      en-GB: red
+    preparation: null
+    optional: false
+    note: Alternativa (1/2 verde) solo nel testo della fonte
+  Paprika affumicata:
+    ingredient: paprika
+    variety:
+      it-IT: affumicata
+      en-GB: smoked
+    preparation: null
+    optional: false
+  Cumino:
+    ingredient: cumino
+    variety: null
+    preparation: null
+    optional: false
+  Vino bianco o fino (facoltativo):
+    ingredient: vino
+    variety:
+      it-IT: bianco
+      en-GB: white
+    preparation: null
+    optional: true
+    note: Alternativa (vino fino, uno sherry) solo nel testo della fonte
+  Alloro:
+    ingredient: alloro
+    variety: null
+    preparation: null
+    optional: false
+  Fusilloni:
+    ingredient: fusilloni
+    variety: null
+    preparation: null
+    optional: false
+  Speck da tagliare a cubetti:
+    ingredient: speck
+    variety: null
+    preparation:
+      it-IT: a cubetti
+      en-GB: diced
+    optional: false
+  Cipollotti:
+    ingredient: cipollotti
+    variety: null
+    preparation: null
+    optional: false
+  Spaghettoni:
+    ingredient: spaghettoni
+    variety: null
+    preparation: null
+    optional: false
+  Salvia:
+    ingredient: salvia
+    variety: null
+    preparation: null
+    optional: false
+  Couscous:
+    ingredient: couscous
+    variety: null
+    preparation: null
+    optional: false
+  Tonno sott'olio (peso sgocciolato):
+    ingredient: tonno-in-scatola
+    variety:
+      it-IT: sott'olio
+      en-GB: in oil
+    preparation:
+      it-IT: sgocciolato
+      en-GB: drained
+    optional: false
+    note: Peso sgocciolato
+  Fagioli rossi precotti (peso sgocciolato):
+    ingredient: fagioli
+    variety:
+      it-IT: rossi
+      en-GB: kidney
+    preparation:
+      it-IT: sgocciolati
+      en-GB: drained
+    optional: false
+    note: Peso sgocciolato
+  Ravanelli:
+    ingredient: ravanelli
+    variety: null
+    preparation: null
+    optional: false
+  Couscous precotto:
+    ingredient: couscous
+    variety: null
+    preparation: null
+    optional: false
+  Brodo vegetale caldo:
+    ingredient: brodo-vegetale
+    variety: null
+    preparation:
+      it-IT: caldo
+      en-GB: hot
+    optional: false
+  Curcuma in polvere:
+    ingredient: curcuma
+    variety: null
+    preparation: null
+    optional: false
+  Cipolle rosse:
+    ingredient: cipolle
+    variety:
+      it-IT: rossa
+      en-GB: red
+    preparation: null
+    optional: false
+  Pisellini:
+    ingredient: piselli
+    variety:
+      it-IT: fini
+      en-GB: petits pois
+    preparation: null
+    optional: false
+  Peperoncino fresco:
+    ingredient: peperoncino
+    variety: null
+    preparation: null
+    optional: false
+  Mandorle in scaglie:
+    ingredient: mandorle
+    variety: null
+    preparation:
+      it-IT: in scaglie
+      en-GB: flaked
+    optional: false
+  Pappardelle all'uovo:
+    ingredient: pappardelle
+    variety:
+      it-IT: all'uovo
+      en-GB: egg
+    preparation: null
+    optional: false
+  Salsiccia:
+    ingredient: salsiccia
+    variety: null
+    preparation: null
+    optional: false
+  Porri:
+    ingredient: porri
+    variety: null
+    preparation: null
+    optional: false
+  Vino rosso:
+    ingredient: vino
+    variety:
+      it-IT: rosso
+      en-GB: red
+    preparation: null
+    optional: false
+  Parmigiano Reggiano DOP:
+    ingredient: parmigiano
+    variety: null
+    preparation: null
+    optional: false
+  Timo:
+    ingredient: timo
+    variety: null
+    preparation: null
+    optional: false
+  Corn flakes non zuccherati:
+    ingredient: corn-flakes
+    variety:
+      it-IT: non zuccherati
+      en-GB: unsweetened
+    preparation: null
+    optional: false
+  Latte intero:
+    ingredient: latte
+    variety:
+      it-IT: intero
+      en-GB: whole
+    preparation: null
+    optional: false
+  Paprika dolce:
+    ingredient: paprika
+    variety:
+      it-IT: dolce
+      en-GB: sweet
+    preparation: null
+    optional: false
+  Yogurt bianco naturale:
+    ingredient: yogurt
+    variety:
+      it-IT: bianco naturale
+      en-GB: plain natural
+    preparation: null
+    optional: false
+  Maionese:
+    ingredient: maionese
+    variety: null
+    preparation: null
+    optional: false
+  Scorza di limone:
+    ingredient: limoni
+    variety: null
+    preparation:
+      it-IT: scorza
+      en-GB: zest
+    optional: false
+  Erba cipollina:
+    ingredient: erba-cipollina
+    variety: null
+    preparation: null
+    optional: false
+  Olio di semi di girasole:
+    ingredient: olio-di-semi
+    variety:
+      it-IT: di girasole
+      en-GB: sunflower
+    preparation: null
+    optional: false
+  Bresaola:
+    ingredient: bresaola
+    variety: null
+    preparation: null
+    optional: false
+  Stracchino:
+    ingredient: stracchino
+    variety: null
+    preparation: null
+    optional: false
+  Rucola:
+    ingredient: rucola
+    variety: null
+    preparation: null
+    optional: false
+  Pomodori secchi sott'olio:
+    ingredient: pomodori-secchi
+    variety:
+      it-IT: sott'olio
+      en-GB: in oil
+    preparation: null
+    optional: false
+  Foglie di basilico:
+    ingredient: basilico
+    variety: null
+    preparation: null
+    optional: false
+  Cipolla rossa piccola:
+    ingredient: cipolle
+    variety:
+      it-IT: rossa
+      en-GB: red
+    preparation: null
+    optional: false
+  Pomodori:
+    ingredient: pomodori
+    variety: null
+    preparation: null
+    optional: false
+  Zenzero fresco grattugiato:
+    ingredient: zenzero
+    variety: null
+    preparation:
+      it-IT: grattugiato
+      en-GB: grated
+    optional: false
+  Coriandolo macinato:
+    ingredient: coriandolo-in-polvere
+    variety: null
+    preparation: null
+    optional: false
+  Cumino macinato:
+    ingredient: cumino
+    variety: null
+    preparation: null
+    optional: false
+  Cannella:
+    ingredient: cannella
+    variety: null
+    preparation: null
+    optional: false
+  Peperoncino in fiocchi:
+    ingredient: peperoncino-secco
+    variety: null
+    preparation:
+      it-IT: in fiocchi
+      en-GB: flakes
+    optional: false
+  Crema di mandorle croccante:
+    ingredient: crema-di-mandorle
+    variety:
+      it-IT: croccante
+      en-GB: crunchy
+    preparation: null
+    optional: false
+  Ceci in scatola:
+    ingredient: ceci
+    variety: null
+    preparation: null
+    optional: false
+  Garam masala:
+    ingredient: garam-masala
+    variety: null
+    preparation: null
+    optional: false
+  Curcuma:
+    ingredient: curcuma
+    variety: null
+    preparation: null
+    optional: false
+  Mandorle tritate:
+    ingredient: mandorle
+    variety: null
+    preparation:
+      it-IT: tritate
+      en-GB: chopped
+    optional: false
+  Coriandolo fresco:
+    ingredient: coriandolo
+    variety: null
+    preparation: null
+    optional: false
+  Spaghetti di riso:
+    ingredient: noodles
+    variety:
+      it-IT: di riso
+      en-GB: rice
+    preparation: null
+    optional: false
+  Tofu affumicato:
+    ingredient: tofu
+    variety:
+      it-IT: affumicato
+      en-GB: smoked
+    preparation: null
+    optional: false
+  Germogli di soia:
+    ingredient: germogli-di-soia
+    variety: null
+    preparation: null
+    optional: false
+  Cipolla o cipollotto:
+    ingredient: cipolle
+    variety: null
+    preparation: null
+    optional: false
+    note: Alternativa (cipollotto) solo nel testo della fonte
+  Aceto:
+    ingredient: aceto
+    variety: null
+    preparation: null
+    optional: false
+  Salsa barbecue (o fumo liquido q.b.):
+    ingredient: salsa-barbecue
+    variety: null
+    preparation: null
+    optional: false
+    note: Alternativa (fumo liquido) solo nel testo della fonte
+  Semi di sesamo:
+    ingredient: semi-di-sesamo
+    variety: null
+    preparation: null
+    optional: false
+  Prezzemolo (opzionale):
+    ingredient: prezzemolo
+    variety: null
+    preparation: null
+    optional: true
+  Radicchio pulito:
+    ingredient: radicchio
+    variety: null
+    preparation:
+      it-IT: pulito
+      en-GB: prepared
+    optional: false
+  Noci sgusciate:
+    ingredient: noci
+    variety: null
+    preparation:
+      it-IT: sgusciate
+      en-GB: shelled
+    optional: false
+  Ditali:
+    ingredient: ditali
+    variety: null
+    preparation: null
+    optional: false
+  Ceci già cotti e sgocciolati:
+    ingredient: ceci
+    variety: null
+    preparation:
+      it-IT: cotti e sgocciolati
+      en-GB: cooked and drained
+    optional: false
+  Rosmarino:
+    ingredient: rosmarino
+    variety: null
+    preparation: null
+    optional: false
+  Trofie:
+    ingredient: trofie
+    variety: null
+    preparation: null
+    optional: false
+  Funghi champignon puliti:
+    ingredient: funghi
+    variety:
+      it-IT: champignon
+      en-GB: button
+    preparation:
+      it-IT: puliti
+      en-GB: cleaned
+    optional: false
+  Fusilli:
+    ingredient: fusilli
+    variety: null
+    preparation: null
+    optional: false
+  Spinaci freschi puliti:
+    ingredient: spinaci
+    variety: null
+    preparation:
+      it-IT: puliti
+      en-GB: washed
+    optional: false
+  Cipolla a dadini:
+    ingredient: cipolle
+    variety: null
+    preparation:
+      it-IT: a dadini
+      en-GB: diced
+    optional: false
+  Aglio tritato o schiacciato:
+    ingredient: aglio
+    variety: null
+    preparation:
+      it-IT: tritato o schiacciato
+      en-GB: chopped or crushed
+    optional: false
+  Fagioli neri scolati e sciacquati:
+    ingredient: fagioli
+    variety:
+      it-IT: neri
+      en-GB: black
+    preparation:
+      it-IT: scolati e sciacquati
+      en-GB: drained and rinsed
+    optional: false
+  Salsa messicana pronta:
+    ingredient: salsa-messicana
+    variety: null
+    preparation: null
+    optional: false
+  Yogurt greco (o panna acida):
+    ingredient: yogurt
+    variety:
+      it-IT: greco
+      en-GB: Greek
+    preparation: null
+    optional: false
+    note: Alternativa (panna acida) solo nel testo della fonte
+  Lattuga tagliata o spezzettata:
+    ingredient: lattuga
+    variety: null
+    preparation:
+      it-IT: tagliata o spezzettata
+      en-GB: shredded
+    optional: false
+  Cheddar Jack grattugiato (oppure Monterey Jack, cheddar o Cotija):
+    ingredient: cheddar
+    variety:
+      it-IT: Jack
+      en-GB: Jack
+    preparation:
+      it-IT: grattugiato
+      en-GB: grated
+    optional: false
+    note: Alternative (Monterey Jack, cheddar, Cotija) solo nel testo della fonte
+  Pomodoro a dadini (varietà Roma):
+    ingredient: pomodori
+    variety:
+      it-IT: Roma
+      en-GB: Roma
+    preparation:
+      it-IT: a dadini
+      en-GB: diced
+    optional: false
+  Tortillas di farina:
+    ingredient: tortillas
+    variety:
+      it-IT: di farina
+      en-GB: flour
+    preparation: null
+    optional: false
+  Erbazzone congelato:
+    ingredient: erbazzone
+    variety: null
+    preparation: null
+    optional: false
+  Pane:
+    ingredient: pane
+    variety: null
+    preparation: null
+    optional: false
+  Mozzarelle:
+    ingredient: mozzarella
+    variety: null
+    preparation: null
+    optional: false
+  Pomodoro cuore di bue:
+    ingredient: pomodori
+    variety:
+      it-IT: cuore di bue
+      en-GB: oxheart
+    preparation: null
+    optional: false
+  Tacchino:
+    ingredient: tacchino
+    variety: null
+    preparation:
+      it-IT: a fette
+      en-GB: sliced
+    optional: false

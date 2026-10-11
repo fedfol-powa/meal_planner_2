@@ -5,7 +5,8 @@
 	"exports": {
 		"./planner": "./src/planner/index.ts",
 		"./units": "./src/units/index.ts",
-		"./shopping": "./src/shopping/index.ts"
+		"./shopping": "./src/shopping/index.ts",
+		"./recipe": "./src/recipe/index.ts"
 	},
 	"scripts": {
 		"test": "vitest run",
