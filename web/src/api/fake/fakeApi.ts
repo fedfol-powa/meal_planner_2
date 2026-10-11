@@ -232,17 +232,17 @@ export function createFakeApi(options: FakeApiOptions): Api {
       }
     },
     menu: {
-      async getOpening({ familyId }) {
+      async getOpening({ familyId, today: requested }) {
         checkFamily(familyId);
         const visible = visibleWeeks();
         if (visible.length === 0) return respond<OpeningView>({ kind: 'no_weeks' });
-        const today = now().slice(0, 10);
-        const next = visible
-          .flatMap((w) => w.slots.filter((s) => s.recipeId || s.freeText).map((s) => ({ date: s.date, weekStartsOn: w.startsOn })))
-          .filter((d) => d.date >= today)
-          .sort((a, b) => a.date.localeCompare(b.date))[0];
-        const last = visible[visible.length - 1]!;
-        return respond<OpeningView>(next ? { kind: 'day', ...next } : { kind: 'day', date: last.startsOn, weekStartsOn: last.startsOn });
+        const today = requested ?? now().slice(0, 10);
+        // Spec of the menu, 5.2: first day from today with content, then with any slot, then the last earlier day with a slot, then the latest Monday.
+        const slots = visible.flatMap((w) => w.slots).sort((a, b) => a.date.localeCompare(b.date));
+        const coming = slots.filter((s) => s.date >= today);
+        const date =
+          coming.find((s) => s.recipeId || s.freeText)?.date ?? coming[0]?.date ?? slots.filter((s) => s.date < today).at(-1)?.date ?? visible.at(-1)!.startsOn;
+        return respond<OpeningView>({ kind: 'day', date, weekStartsOn: mondayOf(date) });
       },
       async getWeek({ familyId, weekStartsOn }) {
         checkFamily(familyId);

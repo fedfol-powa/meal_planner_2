@@ -3,7 +3,7 @@ import type { Locale } from '../../i18n/translate';
 import { ApiError } from '../errors';
 import { setOnline } from '../../test/connectivity';
 import type { Read } from '../types';
-import { createFakeApi, DEMO_FAMILY_ID, fakeClients } from './fakeApi';
+import { createFakeApi, createFakeData, DEMO_FAMILY_ID, fakeClients } from './fakeApi';
 import { recipeDetailView, recipeListItemView } from '@app/contract';
 import { PROTEIN_GROUPS } from '../types';
 
@@ -40,6 +40,33 @@ describe('fake api', () => {
     const week = data(await api().menu.getWeek({ familyId, weekStartsOn: '2026-11-02' }));
     expect(week.days.map((d) => d.date)[0]).toBe('2026-11-02');
     expect(week.days.flatMap((d) => d.meals).length).toBeGreaterThan(0);
+  });
+  it('opens like the server in the five cases of the menu spec (5.2)', async () => {
+    const opening = async (change: (weeks: ReturnType<typeof createFakeData>['weeks']) => void) => {
+      const shared = createFakeData();
+      change(shared.weeks);
+      return data(await createFakeApi({ getLocale: () => locale, data: shared, latencyMs: 0 }).menu.getOpening({ familyId, today: '2026-10-08' }));
+    };
+    const emptied = (weeks: ReturnType<typeof createFakeData>['weeks']) =>
+      weeks.forEach((w) => w.slots.forEach((s) => Object.assign(s, { recipeId: null, freeText: null })));
+    // 1. no weeks
+    expect(await opening((weeks) => weeks.splice(0))).toEqual({ kind: 'no_weeks' });
+    // 2. first day from today with content (the demo week has meals today)
+    expect(await opening(() => {})).toEqual({ kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' });
+    // 3. only empty slots: the first day from today with a slot, not the Monday
+    expect(await opening(emptied)).toEqual({ kind: 'day', date: '2026-10-08', weekStartsOn: '2026-10-05' });
+    // 4. only earlier slots: the last of them
+    expect(
+      await opening((weeks) => {
+        weeks.forEach((w) => (w.slots = w.slots.filter((s) => s.date < '2026-10-07')));
+      })
+    ).toEqual({ kind: 'day', date: '2026-10-06', weekStartsOn: '2026-10-05' });
+    // 5. weeks without slots: Monday of the latest week
+    expect(
+      await opening((weeks) => {
+        weeks.forEach((w) => (w.slots = []));
+      })
+    ).toEqual({ kind: 'day', date: '2026-10-12', weekStartsOn: '2026-10-12' });
   });
   it('rejects unknown weeks and other families', async () => {
     await expect(api().menu.getWeek({ familyId, weekStartsOn: '2030-01-07' })).rejects.toEqual(new ApiError('not_found'));

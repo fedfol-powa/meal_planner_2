@@ -33,7 +33,8 @@ export function useQueryDeps(): QueryDeps {
 
 export const queryKeys = {
   profile: (locale: Locale) => ['profile', 'get', { locale }] as const,
-  opening: (familyId: string, locale: Locale) => ['menu', 'getOpening', { familyId, locale }] as const,
+  /** today: the family's local date, part of the read (spec of the menu, 5.1). */
+  opening: (familyId: string, today: IsoDate, locale: Locale) => ['menu', 'getOpening', { familyId, today, locale }] as const,
   week: (familyId: string, weekStartsOn: IsoDate, locale: Locale) => ['menu', 'getWeek', { familyId, weekStartsOn, locale }] as const,
   dates: (familyId: string, month: string, locale: Locale) => ['menu', 'getDates', { familyId, month, locale }] as const,
   search: (familyId: string, query: RecipeQuery, locale: Locale) => ['recipes', 'search', { familyId, query, locale }] as const,
@@ -73,9 +74,9 @@ export function keepPreviousWithin(queryKey: QueryKey, fields: readonly string[]
 
 const select = <T,>(value: Versioned<T>) => value.data;
 
-export function openingQuery({ api, queryClient, locale }: QueryDeps, familyId: string) {
-  const queryKey = queryKeys.opening(familyId, locale);
-  return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.menu.getOpening({ familyId, knownVersion })), select });
+export function openingQuery({ api, queryClient, locale }: QueryDeps, familyId: string, today: IsoDate) {
+  const queryKey = queryKeys.opening(familyId, today, locale);
+  return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.menu.getOpening({ familyId, today, knownVersion })), select });
 }
 
 export function weekQuery({ api, queryClient, locale }: QueryDeps, familyId: string, weekStartsOn: IsoDate) {

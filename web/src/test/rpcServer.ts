@@ -1,5 +1,5 @@
-import { contract, type ProfileView, type RecipeDetailView, type RecipeListItemView } from '@app/contract';
-import { implement } from '@orpc/server';
+import { contract, type OpeningView, type ProfileView, type RecipeDetailView, type RecipeListItemView, type WeekView } from '@app/contract';
+import { implement, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { vi } from 'vitest';
 
@@ -31,8 +31,9 @@ const serverDetail: RecipeDetailView = {
 /**
  * A server of the contract in this process: the RPC handler of the Worker, without the Worker.
  * `answer` sets how `session.whoami` answers (a value, a thrown ORPCError, a pending promise),
- * `answerProfile` how `profile.get` answers, given the authorization header; the transport
- * honours the request signal like the browser's fetch.
+ * `answerProfile` how `profile.get` answers, given the authorization header; the menu answers
+ * `no_weeks` unless `answerMenu` gives an opening and a week, with the contract's validation of
+ * input and output, and records the family and date of each opening. The transport honours the request signal like the browser's fetch.
  */
 export function createRpcTestServer() {
   const seen: (string | null)[] = [];
@@ -42,7 +43,9 @@ export function createRpcTestServer() {
   let profile: (authorization: string | null) => unknown = () => SERVER_PROFILE;
   /** Calls of the recipe book, with their input as the Worker received it. */
   const recipeCalls: { op: string; input: Record<string, unknown> }[] = [];
-  const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings });
+  const openingSeen: { familyId: string; today?: string }[] = [];
+  let menuAnswer: { opening: OpeningView; week: WeekView | null } = { opening: { kind: 'no_weeks' }, week: null };
+  const os = implement({ session: contract.session, profile: contract.profile, recipes: contract.recipes, ratings: contract.ratings, menu: contract.menu });
   const router = os.router({
     session: {
       whoami: os.session.whoami.handler(async ({ context }) => {
@@ -74,6 +77,22 @@ export function createRpcTestServer() {
         recipeCalls.push({ op: 'ratings.set', input });
         return { familyAverage: input.stars, familyCount: input.stars === null ? 0 : 1, myStars: input.stars };
       })
+    },
+    menu: {
+      getOpening: os.menu.getOpening.handler(({ input }) => {
+        openingSeen.push({ familyId: input.familyId, today: input.today });
+        return { unchanged: false as const, version: 'opening-1', data: menuAnswer.opening };
+      }),
+      getWeek: os.menu.getWeek.handler(({ input }) => {
+        const week = menuAnswer.week;
+        if (!week || week.startsOn !== input.weekStartsOn) throw new ORPCError('not_found');
+        return { unchanged: false as const, version: 'week-1', data: week };
+      }),
+      getDates: os.menu.getDates.handler(({ input }) => ({
+        unchanged: false as const,
+        version: 'dates-1',
+        data: menuAnswer.week?.days.filter((d) => d.meals.length && d.date.startsWith(input.month)).map((d) => d.date) ?? []
+      }))
     }
   });
   const handler = new RPCHandler(router);
@@ -95,6 +114,9 @@ export function createRpcTestServer() {
     /** Authorization headers of the profile reads, in order. */
     profileSeen,
     recipeCalls,
-    answerProfile: (next: (authorization: string | null) => unknown) => (profile = next)
+    /** Family and date of the menu openings, in order. */
+    openingSeen,
+    answerProfile: (next: (authorization: string | null) => unknown) => (profile = next),
+    answerMenu: (next: { opening: OpeningView; week: WeekView | null }) => (menuAnswer = next)
   };
 }
