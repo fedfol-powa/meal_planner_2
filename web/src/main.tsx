@@ -11,6 +11,7 @@ import { createIndexedDbStore } from './api/persister';
 import { createFakeBackend } from './auth/backend';
 import { createSupabaseBackend } from './auth/supabaseBackend';
 import { env } from './env';
+import { registerShoppingStorage } from './features/shopping/storage';
 import { createBroadcastChannel } from './session/channel';
 import { registerServiceWorker } from './pwa/register';
 import type { CreateApi } from './session/SessionScope';
@@ -20,6 +21,9 @@ const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supab
 const createApi: CreateApi = env.supabase
   ? realClients({ rpc: createRpcClient({ getCredentials: () => backend.getCredentials() }), latencyMs: 150 })
   : fakeClients({ latencyMs: 150 });
+
+// Before any purge of other people's copies: their shopping queues go too.
+registerShoppingStorage();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
