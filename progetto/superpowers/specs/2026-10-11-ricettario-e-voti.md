@@ -134,6 +134,7 @@ export interface RecipeRef {
 export interface RecipeView {
 	summary: RecipeSummaryView;
 	status: 'draft' | 'published' | 'archived';
+	version: number;                  // versione mostrata (0 per una ricetta mai pubblicata)
 	baseServings: number | null;
 	/** null: ricetta mai pubblicata, senza ingredienti verificati. */
 	ingredients: IngredientLineView[] | null;
