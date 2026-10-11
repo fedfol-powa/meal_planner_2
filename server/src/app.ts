@@ -16,7 +16,7 @@ import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
 import { bearerToken, remoteKeySource, verifyAccessToken, type Claims, type KeySource } from './auth.ts';
 import { withDb } from './db.ts';
 import type { Env } from './env.ts';
-import { mapErrors } from './errors.ts';
+import { mapErrors, normalizeError } from './errors.ts';
 import { buildMcpServer, collectTools } from './mcp.ts';
 import type { RequestContext } from './pipeline.ts';
 import { loadSession } from './session.ts';
@@ -31,6 +31,9 @@ export interface AppOptions {
 }
 
 const notFound = () => Response.json({ code: 'not_found', status: 404, message: 'Not found' }, { status: 404 });
+
+/** The OAuth discovery documents served for MCP; other `/.well-known/` paths are 404. */
+const OAUTH_METADATA_PATHS = new Set(['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server']);
 
 export function createApp(options: AppOptions) {
 	const rpcHandler = new RPCHandler(options.router, { clientInterceptors: [mapErrors] });
@@ -49,11 +52,11 @@ export function createApp(options: AppOptions) {
 		return buildMcpServer(options.router, tools, context);
 	});
 
-	function contextFor(request: Request, env: Env, token: string | undefined): RequestContext {
+	function contextFor(request: Request, env: Env, requestId: string, token: string | undefined): RequestContext {
 		const issuer = `${env.SUPABASE_URL}/auth/v1`;
 		return {
 			env,
-			requestId: crypto.randomUUID(),
+			requestId,
 			origin: new URL(request.url).origin,
 			token,
 			verify: (t) => verifyAccessToken(t, { issuer, keys: keysFor(env) }),
@@ -66,12 +69,12 @@ export function createApp(options: AppOptions) {
 	 * Every MCP request (initialize and tools/list included) needs a valid token and a
 	 * session that still exists: a disconnected agent gets 401 and must authorise again.
 	 */
-	async function serveMcp(request: Request, env: Env, mcpUrl: URL): Promise<Response> {
+	async function serveMcp(request: Request, env: Env, requestId: string, mcpUrl: URL): Promise<Response> {
 		const gate = requireBearerAuth({
 			resourceMetadataUrl: getOAuthProtectedResourceMetadataUrl(mcpUrl),
 			verifier: {
 				async verifyAccessToken(token): Promise<AuthInfo> {
-					const context = contextFor(request, env, token);
+					const context = contextFor(request, env, requestId, token);
 					let claims: Claims;
 					try {
 						claims = await context.verify(token);
@@ -84,7 +87,8 @@ export function createApp(options: AppOptions) {
 						if (error instanceof ORPCError && error.code === 'unauthorized') {
 							throw new OAuthError(OAuthErrorCode.InvalidToken, 'The session has ended');
 						}
-						throw error;
+						// Logged without the message; not an OAuthError, so the SDK answers 500.
+						throw normalizeError(error, { requestId: context.requestId, path: ['mcp'] });
 					}
 					return { token, clientId: claims.client_id ?? '', scopes: [], expiresAt: claims.exp, extra: { context } };
 				},
@@ -95,38 +99,54 @@ export function createApp(options: AppOptions) {
 		return mcpHandler.fetch(request, { authInfo: auth });
 	}
 
+	async function route(request: Request, env: Env, requestId: string): Promise<Response> {
+		const url = new URL(request.url);
+		const mcpUrl = new URL('/mcp', url.origin);
+
+		if (url.pathname.startsWith('/.well-known/')) {
+			// Only the discovery documents fetch Supabase's metadata.
+			if (!OAUTH_METADATA_PATHS.has(url.pathname.replace(/\/+$/, ''))) return notFound();
+			const metadata = oauthMetadataResponse(request, {
+				oauthMetadata: await supabaseAuthMetadata(env.SUPABASE_URL),
+				resourceServerUrl: mcpUrl,
+				resourceName: options.resourceName,
+			});
+			return metadata ?? notFound();
+		}
+		if (url.pathname === '/mcp') return serveMcp(request, env, requestId, mcpUrl);
+		if (url.pathname === '/api/openapi.json') {
+			const spec = await openApiGenerator.generate(options.contract, {
+				info: { title: options.resourceName, version: env.CF_VERSION_METADATA?.id ?? 'dev' },
+				servers: [{ url: `${url.origin}/api` }],
+				security: [{ bearerAuth: [] }],
+				components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } },
+			});
+			return Response.json(spec);
+		}
+		if (url.pathname.startsWith('/api/')) {
+			const context = contextFor(request, env, requestId, bearerToken(request.headers.get('authorization')));
+			const [prefix, handler] = url.pathname.startsWith('/api/rpc/')
+				? (['/api/rpc', rpcHandler] as const)
+				: (['/api', openApiHandler] as const);
+			const { matched, response } = await handler.handle(request, { prefix, context });
+			return matched ? response : notFound();
+		}
+		return env.ASSETS.fetch(request);
+	}
+
 	return {
 		async fetch(request: Request, env: Env): Promise<Response> {
-			const url = new URL(request.url);
-			const mcpUrl = new URL('/mcp', url.origin);
-
-			if (url.pathname.startsWith('/.well-known/')) {
-				const metadata = oauthMetadataResponse(request, {
-					oauthMetadata: await supabaseAuthMetadata(env.SUPABASE_URL),
-					resourceServerUrl: mcpUrl,
-					resourceName: options.resourceName,
-				});
-				return metadata ?? new Response('Not found', { status: 404 });
+			const requestId = crypto.randomUUID();
+			try {
+				return await route(request, env, requestId);
+			} catch (error) {
+				// Anything thrown outside oRPC: logged with chosen fields only, never the message.
+				const normalized = normalizeError(error, { requestId });
+				return Response.json(
+					{ code: normalized.code, status: normalized.status, data: normalized.data },
+					{ status: normalized.status },
+				);
 			}
-			if (url.pathname === '/mcp') return serveMcp(request, env, mcpUrl);
-			if (url.pathname === '/api/openapi.json') {
-				const spec = await openApiGenerator.generate(options.contract, {
-					info: { title: options.resourceName, version: env.CF_VERSION_METADATA?.id ?? 'dev' },
-					servers: [{ url: `${url.origin}/api` }],
-					security: [{ bearerAuth: [] }],
-					components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } },
-				});
-				return Response.json(spec);
-			}
-			if (url.pathname.startsWith('/api/')) {
-				const context = contextFor(request, env, bearerToken(request.headers.get('authorization')));
-				const [prefix, handler] = url.pathname.startsWith('/api/rpc/')
-					? (['/api/rpc', rpcHandler] as const)
-					: (['/api', openApiHandler] as const);
-				const { matched, response } = await handler.handle(request, { prefix, context });
-				return matched ? response : notFound();
-			}
-			return env.ASSETS.fetch(request);
 		},
 	};
 }

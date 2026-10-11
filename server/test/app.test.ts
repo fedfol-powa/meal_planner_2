@@ -1,7 +1,7 @@
 import type { Contract } from '@app/contract';
 import { contract } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.ts';
 import { router } from '../src/router.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
@@ -76,10 +76,19 @@ describe('authentication on every channel, without reaching the database', () =>
 		}
 	});
 
-	it('MCP: a database failure while checking the session is a server error, not a 401', async () => {
-		const result = await mcp(app, testEnv(), await keys.sign({ sub: userId, client_id: 'codex' }), 'tools/list');
-		expect(result.status).toBe(500);
-		expect(result.headers.get('www-authenticate')).toBeNull();
+	it('MCP: a database failure while checking the session is a server error, not a 401, and is logged', async () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const result = await mcp(app, testEnv(), await keys.sign({ sub: userId, client_id: 'codex' }), 'tools/list');
+			expect(result.status).toBe(500);
+			expect(result.headers.get('www-authenticate')).toBeNull();
+			const lines = log.mock.calls.map((args) => args.join(' '));
+			expect(lines.some((line) => line.includes('unexpected_error') && line.includes('"path":"mcp"'))).toBe(true);
+			// The connection string's password never reaches the log.
+			expect(lines.join('\n')).not.toContain('secret');
+		} finally {
+			log.mockRestore();
+		}
 	});
 
 	it('MCP: signing keys that cannot be fetched refuse the token (401)', async () => {
@@ -111,6 +120,46 @@ describe('OAuth metadata', () => {
 			expect(await response.json()).toMatchObject({ resource: 'https://app.test/mcp' });
 		} finally {
 			globalThis.fetch = original;
+		}
+	});
+
+	it('answers 404 for other /.well-known paths without fetching the metadata', async () => {
+		const original = globalThis.fetch;
+		const fetchSpy = vi.fn(async () => Response.json({}));
+		globalThis.fetch = fetchSpy as unknown as typeof fetch;
+		try {
+			const env = { ...testEnv(), SUPABASE_URL: 'https://unrelated.supabase.local' };
+			const response = await rest(app, env, 'GET', '/.well-known/security.txt');
+			expect(response.status).toBe(404);
+			expect(fetchSpy).not.toHaveBeenCalled();
+		} finally {
+			globalThis.fetch = original;
+		}
+	});
+});
+
+describe('unexpected errors outside oRPC', () => {
+	it('answer 500 internal with a requestId and log it without the error message', async () => {
+		const original = globalThis.fetch;
+		globalThis.fetch = (async () => {
+			throw new Error('boom secret-token');
+		}) as typeof fetch;
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			// A Supabase URL whose metadata is not cached by an earlier test.
+			const env = { ...testEnv(), SUPABASE_URL: 'https://failing.supabase.local' };
+			const response = await rest(app, env, 'GET', '/.well-known/oauth-authorization-server');
+			expect(response.status).toBe(500);
+			const body: any = await response.json();
+			expect(body).toMatchObject({ code: 'internal', status: 500 });
+			expect(body.data.requestId).toMatch(/^[0-9a-f-]{36}$/);
+			expect(JSON.stringify(body)).not.toContain('boom');
+			const lines = log.mock.calls.map((args) => args.join(' '));
+			expect(lines.some((line) => line.includes('unexpected_error') && line.includes(body.data.requestId))).toBe(true);
+			expect(lines.join('\n')).not.toContain('boom');
+		} finally {
+			globalThis.fetch = original;
+			log.mockRestore();
 		}
 	});
 });
