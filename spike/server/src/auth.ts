@@ -3,6 +3,7 @@ import { createLocalJWKSet, decodeProtectedHeader, jwtVerify, type JSONWebKeySet
 export interface Env {
 	HYPERDRIVE: Hyperdrive;
 	SUPABASE_URL: string;
+	SUPABASE_PUBLISHABLE_KEY: string;
 }
 
 /** Claims of a verified Supabase access token, forwarded to Postgres as `request.jwt.claims`. */

@@ -12,6 +12,7 @@ import { OpenAPIHandler } from '@orpc/openapi/fetch';
 import { RPCHandler } from '@orpc/server/fetch';
 import { ZodToJsonSchemaConverter } from '@orpc/zod/zod4';
 import { bearerToken, verifyAccessToken, type Claims, type Env } from './auth.ts';
+import { authorizePage } from './authorize.ts';
 import { contract } from './contract.ts';
 import { buildMcpServer } from './mcp.ts';
 import { router } from './router.ts';
@@ -86,6 +87,7 @@ export default {
 		}
 
 		if (url.pathname === '/mcp') return serveMcp(request, env, mcpUrl);
+		if (url.pathname === '/authorize') return authorizePage(env);
 
 		if (url.pathname === '/api/openapi.json') {
 			const spec = await openApiGenerator.generate(contract, {

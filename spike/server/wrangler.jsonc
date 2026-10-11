@@ -4,7 +4,11 @@
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat"],
-	"vars": { "SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co" },
+	"vars": {
+		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
+		// Publishable by design: it is shipped to the browser on the consent page.
+		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_ZN5AmAKDK-_xVuKSINnLnw_EZa3ns7f"
+	},
 	"observability": { "enabled": true },
 	"hyperdrive": [
 		{
