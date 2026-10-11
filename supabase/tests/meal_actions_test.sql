@@ -84,6 +84,8 @@ select lives_ok(format($$insert into app.meal_changes (meal_slot_id, actor_id, c
 	select %L, tests.uid('anna'), 'web', tests.content(%L), c.before, c.id, 'e0000000-0000-4000-8000-000000000004'
 	from app.meal_changes c where c.action_id = 'e0000000-0000-4000-8000-000000000003'$$, :dinner, :dinner), 'undo row');
 select is(app.meal_action_restores_closed_draft('e0000000-0000-4000-8000-000000000003'), false, 'undoing the free meal brings back an open draft');
+select is((select provolatile from pg_proc where oid = 'app.meal_action_restores_closed_draft(uuid)'::regprocedure), 'v'::"char",
+	'volatile: it locks the recipes it would bring back, then checks with a new snapshot');
 savepoint closed;
 reset role;
 select is(tests.affected($$update app.recipe_drafts set closed_at = now(), outcome = 'discarded'

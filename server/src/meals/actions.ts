@@ -99,10 +99,12 @@ export async function undoAction(context: OperationContext, familyId: string, in
 	const request = { id: input.id, kind: 'undo' as const, slots, undoes: input.actionId };
 	const replayed = await replay(context, familyId, request);
 	if (replayed) return replayed;
-	if (rows.length === 0) return perform(context, familyId, request, []);
 	if (action.actorId !== context.userId) throw notAllowed('not_own_change');
+	if (rows.length === 0) return perform(context, familyId, request, []);
 	if (slots.some((s) => s.lastActionId !== input.actionId)) throw notAllowed('changed_since');
 	// Not from app.recipes: after the last citation went away the member no longer sees the draft.
+	// The function also locks the recipes it would bring back until the commit, against a
+	// curator's discard running at the same time (both orders serialise).
 	const [{ closed }] = await tx<{ closed: boolean }[]>`select app.meal_action_restores_closed_draft(${input.actionId}) as closed`;
 	if (closed) throw notAllowed('draft_closed');
 	return perform(context, familyId, request, rows.map((row) => ({ slot: slots.find((s) => s.id === row.slotId)!, after: row.before, undoes: row.id })));

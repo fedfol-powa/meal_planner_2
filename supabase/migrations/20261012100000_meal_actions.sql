@@ -137,17 +137,32 @@ $$;
 -- without publication (meals.undo answers draft_closed). Reads only the rows of that action,
 -- truthful by rule 1, and only for actions of weeks the caller can access: it does not depend on
 -- the recipe being visible now (the last citation may be gone) and reveals nothing else.
+-- First it locks the recipes the undo would bring back (for share, until the commit): the
+-- curator's discard and publication lock the same row (for no key update) before checking the
+-- citations, so either the discard waits and then sees the meal citing the recipe again
+-- (cited_by_meals), or the undo waits and then sees the draft closed. Volatile: the check after
+-- the wait reads with a new snapshot.
 create function app.meal_action_restores_closed_draft(p_action_id uuid)
-returns boolean language sql stable security definer set search_path = '' as $$
-	select exists (
+returns boolean language plpgsql security definer set search_path = '' as $$
+begin
+	if not exists (select 1 from app.meal_actions a where a.id = p_action_id and app.can_access_week(a.week_id)) then
+		return false;
+	end if;
+	perform 1 from app.recipes r
+	where r.id in (
+		select (c.before ->> 'recipeId')::uuid from app.meal_changes c where c.action_id = p_action_id and c.before ->> 'recipeId' is not null
+	)
+	order by r.id
+	for share of r;
+	return exists (
 		select 1
-		from app.meal_actions a
-		join app.meal_changes c on c.action_id = a.id
+		from app.meal_changes c
 		join app.recipes r on r.id = (c.before ->> 'recipeId')::uuid
-		where a.id = p_action_id and app.can_access_week(a.week_id)
+		where c.action_id = p_action_id
 			and r.status = 'draft'
 			and not exists (select 1 from app.recipe_drafts d where d.recipe_id = r.id and d.closed_at is null)
 	);
+end;
 $$;
 
 revoke execute on function app.check_meal_change(), app.check_meal_slot_last_action(), app.meal_action_restores_closed_draft(uuid) from public;

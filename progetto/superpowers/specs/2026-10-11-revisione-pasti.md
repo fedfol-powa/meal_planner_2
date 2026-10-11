@@ -256,6 +256,14 @@ veritiere dalla regola 1, e solo se l'azione è di una settimana accessibile a c
 la funzione risponde lo stesso. Non rivela lo stato di bozze di altre famiglie: una riga
 senza azione con un `before` inventato non è mai letta.
 
+Prima del controllo blocca `for share`, fino al commit, le righe di `app.recipes` che
+l'annullamento riporterebbe (solo quelle dell'azione). Lo scarto e la pubblicazione del
+curatore bloccano la stessa riga (`for no key update`) prima di controllare le citazioni,
+quindi le due operazioni si mettono in fila: se lo scarto arriva prima, l'annullamento
+aspetta e risponde `draft_closed`; se l'annullamento arriva prima, lo scarto aspetta e
+risponde `cited_by_meals`. La funzione è `plpgsql` volatile: il controllo dopo l'attesa
+legge con una fotografia nuova (correzione della review della PR #29).
+
 ### Test pgTAP
 
 Scambio bozza↔pubblicata in entrambi gli ordini; due bozze che si scambiano; ripristino
@@ -281,6 +289,10 @@ un'altra famiglia e non ingannata da una riga senza azione con una citazione fal
 - `server/src/menu/generation.ts`: `loadPlannerInput` carica anche le ricette fissate.
 
 ### Percorso di una scrittura
+
+Gli identificativi arrivano dal contratto già in minuscolo (`idSchema` di `@app/contract`,
+`z.uuid().toLowerCase()`), la forma canonica che PostgreSQL restituisce: la grafia di un
+UUID non cambia lo slot o l'azione che indica, né il riconoscimento delle ripetizioni.
 
 Nella transazione dell'utente (`read committed`, quella del pipeline), dopo autenticazione,
 sessione, ruolo e appartenenza:
@@ -343,7 +355,8 @@ indipendente dagli orologi. Gli istanti (`created_at`, `updated_at`) usano
    `undoes` = quella riga. Tutti gli slot dell'azione tornano insieme.
 
 Un'azione senza effetti non ha nulla da annullare: l'annullamento si registra senza
-righe e risponde `changed: false`. Annullare un annullamento è permesso: è un'azione propria
+righe e risponde `changed: false`, ma solo dopo il controllo dell'autore (punto 4): l'azione
+senza effetti di un altro membro risponde `not_own_change`, senza scrivere. Annullare un annullamento è permesso: è un'azione propria
 con le sue righe, e riporta di nuovo tutti i suoi slot.
 
 ### Lettura dell'annullamento (`menu.getWeek`)
@@ -591,7 +604,8 @@ rifiuti. In sintesi:
 |---|---|
 | Area `meals`: `getSuggestions` (non versionata, per i voti globali), `setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo({actionId, id})`; ogni scrittura è un'azione con `id` dal client e risposta `{week, actionId, changed}` | 1, 5, 13 |
 | `app.meal_actions` (una riga per richiesta, mai modificata), `meal_changes.action_id`, `meal_slots.last_action_id` come ordine reale dell'ultima modifica, istanti con `clock_timestamp()` dopo il lucchetto | 2, 5 |
-| Registro veritiero (`before` uguale allo slot) e regola delle bozze estesa allo spostamento nella stessa azione e al ripristino di un annullamento, con bozza aperta; `app.meal_action_restores_closed_draft` limitata alle righe dell'azione e alle settimane di chi chiama | 2 |
+| Registro veritiero (`before` uguale allo slot) e regola delle bozze estesa allo spostamento nella stessa azione e al ripristino di un annullamento, con bozza aperta; `app.meal_action_restores_closed_draft` limitata alle righe dell'azione e alle settimane di chi chiama, con il blocco delle ricette riportate in comune con scarto e pubblicazione | 2 |
+| UUID dell'input normalizzati in minuscolo dal contratto (`idSchema`) | 1 |
 | `lastChange` della vista del pasto con `actionId`, `undoable`, `slotIds` | 1, 5 |
 | `not_allowed` con `not_own_change`, `changed_since`, `draft_closed`; testo generico neutro | 1 |
 | Suggerimenti con `rankSuggestions` sulle funzioni della generazione; piatto attuale escluso prima del ripiego sui voti bassi; `fixedRecipes` (archiviate citate dai pasti) nella stessa logica anche per la generazione | 3 |

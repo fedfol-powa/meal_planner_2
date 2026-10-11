@@ -50,4 +50,19 @@ describe.skipIf(!hasDatabase)('meals on MCP', () => {
 		expect(text).toContain('not_allowed');
 		expect(text).toContain('not_own_change');
 	});
+
+	it('an agent in a new conversation undoes through tools/call, from menu_getWeek alone', async () => {
+		const changed = toolBody(await call(anna, 'meals_setNote', { familyId, slotId, id: crypto.randomUUID(), note: 'Senza cipolla' }));
+		expect(changed).toMatchObject({ changed: true });
+		// A new conversation: nothing kept from the call above, only what the tools answer.
+		const read = toolBody(await call(anna, 'menu_getWeek', { familyId, weekStartsOn: '2026-10-12' }));
+		const meal = read.data.days.flatMap((d: { meals: { slotId: string }[] }) => d.meals).find((m: { slotId: string }) => m.slotId === slotId);
+		expect(meal).toMatchObject({ note: 'Senza cipolla', lastChange: { undoable: true, slotIds: [slotId] } });
+		const undoId = crypto.randomUUID();
+		const undone = toolBody(await call(anna, 'meals_undo', { familyId, actionId: meal.lastChange.actionId, id: undoId }));
+		expect(undone).toMatchObject({ actionId: undoId, changed: true });
+		const after = undone.week.days.flatMap((d: { meals: { slotId: string }[] }) => d.meals).find((m: { slotId: string }) => m.slotId === slotId);
+		expect(after.note).toBeNull();
+		expect((await db.admin<{ channel: string; kind: string }[]>`select channel, kind from app.meal_actions where id = ${undoId}`)[0]).toEqual({ channel: 'mcp', kind: 'undo' });
+	});
 });
