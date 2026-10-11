@@ -208,3 +208,4 @@ solo il coordinatore.
 | 11 ottobre 2026 | Unita la PR #13 (`mealRecipeVersions`, `versionedInput` tipizzato, pianificatore con `noUncheckedIndexedAccess`, W1) dopo una review senza rilievi |
 | 11 ottobre 2026 | Unita la PR #16 (profilo e famiglia lato server, `profile_preferences`, W2) dopo una review senza rilievi |
 | 11 ottobre 2026 | Unita la PR #14 (ricettario lato server: ricerca, scheda, MCP, W6) dopo due review |
+| 11 ottobre 2026 | Unita la PR #15 (menu lato server: generazione, generazione pigra, job settimanale con Cron Trigger, letture, MCP, W1) dopo due review |
