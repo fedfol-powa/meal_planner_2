@@ -12,7 +12,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | correzioni/nomi-varieta | .worktrees/spesa | PR #24: review con un rilievo (ordinamento); deciso ordine per nome e poi varietà; a PR_CORRETTA verifica del commit, CI → merge; poi aggiornare la sezione 6 della specifica («Pomodori Roma» → «Pomodori (Roma)») | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Brainstorming dell'esportazione notturna (brief/w5-esportazione-r2.md), ultime 7 copie; bucket all'utente | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | correzioni/prova-stack-reale | .worktrees/ricettario | Prova sullo stack reale fatta (messaggi/w6-prova-stack-reale.md). PR #25 (correzioni 1 bloccante, 4, 5, 6) in review; stack w6-prova ancora avviato | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | correzioni/prova-stack-reale | .worktrees/ricettario | Prova sullo stack reale fatta (messaggi/w6-prova-stack-reale.md). PR #25: review approvabile con un rilievo minore (destinazione dopo l'uscita); a PR_CORRETTA controllo del commit, CI → merge | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server). Ondata 1 completata.
@@ -21,7 +21,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| Codex | PR #25 di W6 | R PR25 | w1:p2C | in corso → revisioni/w6-pr25.md (worktree .worktrees/review-pr25) |
 
 ## Domande in sospeso
 
