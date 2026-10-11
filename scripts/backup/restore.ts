@@ -5,13 +5,15 @@
  *   node scripts/backup/restore.ts restore <file> [--dry-run] [--accept-unknown-migrations]
  *
  * Key from BACKUP_ENCRYPTION_KEY; destination from DATABASE_URL, password from PGPASSWORD.
- * Output never carries data: only outcome, reason, structural names and codes.
+ * Arguments and destination are checked first (cli.ts): a remote destination needs
+ * sslmode=verify-full. Output never carries data: only outcome, reason, structural names and codes.
  */
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import postgres from 'postgres';
 import { decodeExport, ExportFormatError, parseKeyList } from '../../server/src/backup/format.ts';
 import { RestoreError, type RestoreResult, restoreExport } from '../../server/src/backup/restore.ts';
+import { type Command, DestinationError, destinationOf, parseCommand, USAGE, UsageError } from './cli.ts';
 import { findMigrationsCommit } from './migrations-commit.ts';
 
 class DryRun extends Error {}
@@ -24,12 +26,11 @@ class MissingVariable extends Error {
 	}
 }
 
-const USAGE = 'usage: node scripts/backup/restore.ts inspect <file> [--ref <ref>] | restore <file> [--dry-run] [--accept-unknown-migrations]';
-
 /** Outcome without data: error objects, messages and details of Postgres may quote values. */
 function describeError(error: unknown): string {
 	if (error instanceof RestoreError) return `refused: ${error.reason}${error.details.length > 0 ? ` (${error.details.join(', ')})` : ''}`;
 	if (error instanceof ExportFormatError) return `refused: ${error.reason}`;
+	if (error instanceof DestinationError) return `refused: destination ${error.message}`;
 	if (error instanceof MissingVariable) return `failed: missing ${error.message}`;
 	const code = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
 		&& /^([0-9A-Z]{5}|E[A-Z]+)$/.test(error.code) ? ` ${error.code}` : '';
@@ -58,8 +59,9 @@ async function inspect(file: string, ref: string): Promise<void> {
 async function restore(file: string, dryRun: boolean, acceptUnknownMigrations: boolean): Promise<void> {
 	const url = process.env.DATABASE_URL;
 	if (!url) throw new MissingVariable('DATABASE_URL');
+	const destination = destinationOf(url);
 	const document = await readExport(file);
-	const sql = postgres(url, { max: 1, onnotice: () => {} });
+	const sql = postgres(destination.url, { max: 1, ssl: destination.ssl, onnotice: () => {} });
 	try {
 		let result: RestoreResult | undefined;
 		try {
@@ -77,15 +79,18 @@ async function restore(file: string, dryRun: boolean, acceptUnknownMigrations: b
 	}
 }
 
-const [command, file, ...flags] = process.argv.slice(2);
-const refAt = flags.indexOf('--ref');
-if (!file || (command !== 'inspect' && command !== 'restore')) {
+let command: Command;
+try {
+	command = parseCommand(process.argv.slice(2));
+} catch (error) {
+	if (!(error instanceof UsageError)) throw error;
+	console.error(`refused: ${error.message}`);
 	console.error(USAGE);
 	process.exit(2);
 }
 try {
-	if (command === 'inspect') await inspect(file, refAt >= 0 ? flags[refAt + 1] : 'origin/main');
-	else await restore(file, flags.includes('--dry-run'), flags.includes('--accept-unknown-migrations'));
+	if (command.command === 'inspect') await inspect(command.file, command.ref);
+	else await restore(command.file, command.dryRun, command.acceptUnknownMigrations);
 } catch (error) {
 	console.error(describeError(error));
 	process.exitCode = 1;

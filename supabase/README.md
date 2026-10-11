@@ -213,12 +213,24 @@ iniziale di `app.catalogue_state`); qualsiasi altro dato fa rifiutare il riprist
 
 ### 4. Prova a vuoto, poi ripristino
 
+Destinazione remota (progetto Supabase): scarica il certificato radice da Database
+settings → SSL Configuration → Download certificate, poi
+
 ```bash
-export DATABASE_URL='postgresql://postgres@<host>:<porta>/postgres'   # senza password
+export DATABASE_URL='postgresql://postgres@<host>:<porta>/postgres?sslmode=verify-full&sslrootcert=/percorso/prod-ca-2021.crt'   # senza password
 read -rs PGPASSWORD && export PGPASSWORD
 node scripts/backup/restore.ts restore export.bin --dry-run
 node scripts/backup/restore.ts restore export.bin
 ```
+
+Ambiente di verifica locale: `DATABASE_URL='postgresql://postgres@127.0.0.1:54322/postgres'`.
+
+Per una destinazione remota la CLI accetta solo `sslmode=verify-full` (certificato e
+nome dell'host verificati; `sslrootcert=system` usa i certificati di sistema) e rifiuta
+ogni altra modalità prima di leggere l'esportazione e di collegarsi:
+`refused: destination tls_required`. Solo `localhost`, `127.0.0.1` e `[::1]` senza
+parametri TLS sono ammessi in chiaro. Argomenti sconosciuti o scritti male
+(`--dryrun`, `--dry-run=true`) fanno uscire con l'uso e codice 2, senza collegarsi.
 
 La CLI rifiuta destinazioni non vuote, migrazioni diverse, chiavi sbagliate e file
 alterati; carica tutto in una transazione e fa il commit solo se chiavi esterne e

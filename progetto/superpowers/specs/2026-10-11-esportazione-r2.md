@@ -320,6 +320,22 @@ La chiave arriva da `BACKUP_ENCRYPTION_KEY` (una chiave sola vale per `k1`; più
 password in `PGPASSWORD` (Postgres.js la legge da lì). La procedura le fa inserire con
 `read -rs`, così chiave e password non finiscono nella cronologia della shell.
 
+**Argomenti e destinazione, controllati prima di leggere il file e di collegarsi**
+(`scripts/backup/cli.ts`):
+
+- Argomenti validati rigorosamente per ciascun comando: opzioni sconosciute, valori
+  dati ai flag (`--dry-run=true`), refusi (`--dryrun`), file mancanti o in più, opzioni
+  dell'altro comando e `--ref` senza valore sono rifiutati con l'uso e codice di uscita 2.
+- Destinazione remota solo con `sslmode=verify-full` nell'URL (catena e nome dell'host
+  verificati), con `sslrootcert=<file>` per una CA privata come quella di Supabase o
+  `sslrootcert=system` per il deposito di sistema. Ogni altra modalità (assente,
+  `disable`, `prefer`, `require`, `verify-ca`) è rifiutata con `refused: destination
+  tls_required`, codice 1. La CLI consuma i due parametri e passa a Postgres.js le
+  opzioni TLS esplicite: un server che non offre TLS fa fallire la connessione, mai una
+  ricaduta in chiaro.
+- Unica eccezione esplicita: `localhost`, `127.0.0.1` e `[::1]` senza parametri TLS,
+  perché lo stack Supabase locale non serve TLS.
+
 **Preparazione della destinazione** (la stessa nella procedura e nella prova in CI): un
 database con le migrazioni del commit trovato da `inspect` e nessun dato; in locale
 `supabase db reset --no-seed`, in produzione un progetto Supabase nuovo con le
@@ -585,7 +601,9 @@ destinazione preparata con `supabase db reset --no-seed`:
   conservati e marcatori `xid8` azzerati, verifica di chiavi esterne e confronto esatto
   prima del commit; commit delle migrazioni ricavato dall'elenco contenuto
   nell'esportazione; configurazioni dipendenti dal progetto elencate in ordine;
-  procedura in `supabase/README.md` (sezioni 1, 8 e 9).
+  procedura in `supabase/README.md` (sezioni 1, 8 e 9); destinazione remota solo con
+  TLS e verifica del certificato (`sslmode=verify-full`), eccezione per il database
+  locale; argomenti della CLI validati prima di collegarsi (sezioni 2 e 15).
 - Prova di ripristino in CI con destinazione reale (sezione 9).
 - Email di allarme sui fallimenti dell'esportazione nell'ondata 3, insieme a quelle del
   job (sezioni 4 e 15).
