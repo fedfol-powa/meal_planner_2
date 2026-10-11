@@ -9,7 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 |---|---|---|---|---|---|---|
 | W1 revisione-pasti | W1 menu (da rinominare) | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | PR #20 unita. Sessione chiusa, pane già nel worktree (branch avanzato a main); avvio di `claude --permission-mode auto` bloccato dal classificatore: serve l'utente | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 unita; libero | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | PR #23 (server di `catalogue`): review «approvabile con correzioni» (revisioni/w3-pr23.md, 3 rilievi); correzioni in corso da messaggi/w3-05-review-pr23.md. A PR_CORRETTA: verifica breve Codex, CI con suite database eseguite → merge. Il web dopo il merge della #23 | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | PR #23 (server di `catalogue`): review «approvabile con correzioni» (revisioni/w3-pr23.md, 3 rilievi); corretta (CI verde con suite database); verifica breve Codex in corso (revisioni/w3-pr23-2.md, tab «R PR23 verifica», worktree .worktrees/review-pr23b). Se approvata → merge, poi via al web delle bozze. Il web dopo il merge della #23 | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 unita; libero | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Libero (PR #17 unita). Candidato per collegamento agenti o esportazione R2, che richiedono passi esterni dell'utente | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 unita; libero | 11/10 |
@@ -21,6 +21,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
+| Codex | PR #23 di W3, verifica breve | R PR23 verifica | w1:p2A | in corso → revisioni/w3-pr23-2.md |
 
 ## Domande in sospeso
 
