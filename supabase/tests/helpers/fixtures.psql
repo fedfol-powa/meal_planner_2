@@ -78,3 +78,30 @@ begin
 		values (v_draft, 1, '{}', tests.uid('dario'), 'mcp');
 end;
 $$;
+
+-- Families: test-Rossi (Anna admin, Bruno), test-Bianchi (Carla admin, Anna), test-Verdi (Franco admin).
+do $$
+declare
+	v_rossi uuid;
+	v_bianchi uuid;
+	v_verdi uuid;
+begin
+	insert into app.families (name) values ('test-Rossi') returning id into v_rossi;
+	insert into app.families (name, measurement_system, time_zone) values ('test-Bianchi', 'uk_imperial', 'Europe/London')
+		returning id into v_bianchi;
+	insert into app.families (name) values ('test-Verdi') returning id into v_verdi;
+	insert into app.family_members (family_id, user_id, role) values
+		(v_rossi, tests.uid('anna'), 'family_admin'),
+		(v_rossi, tests.uid('bruno'), 'member'),
+		(v_bianchi, tests.uid('carla'), 'family_admin'),
+		(v_bianchi, tests.uid('anna'), 'member'),
+		(v_verdi, tests.uid('franco'), 'family_admin');
+	insert into app.family_books (family_id, book_id) values (v_rossi, (select id from app.books where slug = 'test-cucchiaio'));
+	insert into app.family_ingredients (family_id, ingredient_id, restriction)
+		values (v_rossi, tests.ingredient('tomatoes'), 'avoid');
+	insert into app.recipe_exclusions (family_id, recipe_id, created_by)
+		values (v_verdi, tests.recipe('old-minestrone'), tests.uid('franco'));
+	insert into app.family_tried_recipes (family_id, recipe_id, source)
+		values (v_rossi, tests.recipe('pasta-al-pomodoro'), 'import');
+end;
+$$;
