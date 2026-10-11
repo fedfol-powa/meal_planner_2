@@ -9,3 +9,4 @@ export * from './score.ts';
 export * from './repair.ts';
 export * from './generate.ts';
 export * from './metrics.ts';
+export * from './local-time.ts';

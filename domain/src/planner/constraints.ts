@@ -1,4 +1,4 @@
-import { addDays, weekdayOf } from './calendar.ts';
+import { addDays, mealIndex, weekdayOf } from './calendar.ts';
 import { dishKindsOf, uses } from './groups.ts';
 import { prepared } from './prepared.ts';
 import { LOW_SCORE, RECENT_DAYS } from './settings.ts';
@@ -70,6 +70,19 @@ export function candidatesFor(slot: SlotRef, input: PlannerInput, weekRecipes: P
 	return liked.length > 0 ? liked : valid;
 }
 
+/** A recipe already planned in the 14 days after the week (a later week generated first). */
+export function usedSoonAfter(recipeId: string, weekStart: IsoDate, upcoming: PastMeal[]): boolean {
+	const end = addDays(weekStart, 6);
+	const until = addDays(end, RECENT_DAYS);
+	return upcoming.some((meal) => meal.recipeId === recipeId && meal.date > end && meal.date <= until);
+}
+
+/** A meal of the week gets a slot: planned in the diners matrix and not before `input.from`. */
+export function isPlannedSlot(input: PlannerInput, date: IsoDate, mealType: MealType): boolean {
+	if (slotSettingOf(input.settings, date, mealType).servings === 0) return false;
+	return !input.from || mealIndex(date, mealType) >= mealIndex(input.from.date, input.from.mealType);
+}
+
 /** Every broken hard constraint of a generated week, as readable lines; empty when the week is valid. */
 export function hardViolations(week: PlannedWeek, input: PlannerInput): string[] {
 	const problems: string[] = [];
@@ -79,7 +92,7 @@ export function hardViolations(week: PlannedWeek, input: PlannerInput): string[]
 		for (const mealType of MEAL_TYPES) {
 			const date = addDays(input.weekStart, day);
 			const setting = slotSettingOf(input.settings, date, mealType);
-			if (setting.servings === 0) continue;
+			if (!isPlannedSlot(input, date, mealType)) continue;
 			expected++;
 			const key = `${date} ${mealType}`;
 			const slot = week.slots.find((s) => s.date === date && s.mealType === mealType);
@@ -106,6 +119,7 @@ export function hardViolations(week: PlannedWeek, input: PlannerInput): string[]
 		if (!isAvailable(recipe, input)) problems.push(`${key}: not available`);
 		if (!fitsSlot(recipe, slotRefOf(slot, input.settings), input.settings.rules)) problems.push(`${key}: does not fit the slot`);
 		if (recentlyUsed(recipe.id, input.weekStart, input.history)) problems.push(`${key}: used in the last two weeks`);
+		if (usedSoonAfter(recipe.id, input.weekStart, input.upcoming ?? [])) problems.push(`${key}: planned again within two weeks`);
 		placed.push(recipe);
 	}
 	for (const r of input.restrictions) {

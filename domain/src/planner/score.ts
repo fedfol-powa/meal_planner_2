@@ -17,13 +17,16 @@ export interface ScoreContext {
 	week: Placed[];
 	/** Past meals whose recipe is in the catalogue. */
 	past: readonly Placed[];
+	/** Meals already planned after the week (weeks generated earlier): neighbours for the similarity. */
+	upcoming: readonly Placed[];
 	/** Recipes cooked within the known window ("known"); the others count as new. */
 	knownIds: ReadonlySet<string>;
 	knownNewApplies: boolean;
 }
 
 export function buildContext(input: PlannerInput, week: Placed[]): ScoreContext {
-	return { input, week, past: prepared(input).past, knownIds: knownRecipeIds(input), knownNewApplies: knownNewApplies(input) };
+	const { past, upcoming } = prepared(input);
+	return { input, week, past, upcoming, knownIds: knownRecipeIds(input), knownNewApplies: knownNewApplies(input) };
 }
 
 const NEUTRAL_STARS = 3;
@@ -51,7 +54,7 @@ export function scoreCandidate(recipe: PlannerRecipe, slot: { date: IsoDate; mea
 
 	const here = mealIndex(slot.date, slot.mealType);
 	let similarity = 0;
-	for (const near of [...ctx.past, ...ctx.week]) {
+	for (const near of [...ctx.past, ...ctx.upcoming, ...ctx.week]) {
 		const distance = Math.abs(mealIndex(near.date, near.mealType) - here);
 		if (distance > 0 && distance <= SIMILARITY_WINDOW) similarity += sharedFeatures(recipe, near.recipe).length / distance;
 	}

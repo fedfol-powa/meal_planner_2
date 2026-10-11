@@ -15,6 +15,11 @@ Worker di Cloudflare che serve la SPA (`web/dist`) e le rotte del contratto:
 4. `npm run build -w web`, poi `npm run dev -w server` (porta 8787).
 5. Prova: `curl -H "Authorization: Bearer <token>" http://localhost:8787/api/session/whoami`.
 
+Job settimanale in locale: `npm run dev -w server -- --test-scheduled`, poi
+`curl "http://localhost:8787/cdn-cgi/local/scheduled?cron=0+*+*+*+*"` (con `&time=<ms>`
+per un istante diverso). Serve tutte le famiglie del database locale: su quello dei test,
+che ne contiene molte, genera settimane per ognuna.
+
 In locale Hyperdrive non fa da pool: le prove di concorrenza si fanno sul Worker pubblicato.
 
 ## Test

@@ -7,3 +7,5 @@ export { isVersionedOutput, versionedInput, versionedOutput } from './versioned.
 export * from './recipes/index.ts';
 export * from './profile/index.ts';
 export * from './family/index.ts';
+export { menuContract } from './menu/operations.ts';
+export { localDateTimeSchema, type MealView, type OpeningView, type WeekView } from './menu/views.ts';

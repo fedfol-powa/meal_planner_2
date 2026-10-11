@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Claims } from '../../src/auth.ts';
 import { withDb } from '../../src/db.ts';
-import { mealRecipeVersions, mealRecipeVersionsAt } from '../../src/menu/versions.ts';
+import { mealPassedCount, mealRecipeVersions, mealRecipeVersionsAt } from '../../src/menu/versions.ts';
 import { catalogueFixture } from '../recipes/fixtures.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from '../support/db.ts';
 
@@ -95,6 +95,31 @@ describe.skipIf(!hasDatabase)('mealRecipeVersions', () => {
 		// Dinner on the 14th passes at 03:00Z on the 15th, after the second version of 21:01Z.
 		expect(await read('2026-10-15T02:59:59Z')).toEqual([[lunch, 2, true], [dinner, 2, false], [sharp, 2, false]]);
 		expect(await read('2026-10-15T03:00:00Z')).toEqual([[lunch, 2, true], [dinner, 2, true], [sharp, 2, false]]);
+	});
+
+	it('counts the meals of the week already past at the same instant, every slot included', async () => {
+		const cat = catalogueFixture(db);
+		const { familyId, claims } = await member();
+		const recipe = await cat.recipe({ name: name('Conta'), createdAt: at('2026-01-01T00:00:00Z') });
+		await cat.meal(familyId, recipe, '2026-10-14', 'lunch');
+		const week = await weekOf(familyId, '2026-10-12');
+		await db.admin`insert into app.meal_slots (week_id, date, meal_type, free_text, servings) values (${week}, '2026-10-14', 'dinner', 'Pizza', 2)`;
+		await db.admin`insert into app.meal_slots (week_id, date, meal_type, servings) values (${week}, '2026-10-15', 'lunch', 2)`;
+		const count = (iso: string | null, family = familyId) =>
+			withDb(db.appServerUrl, { kind: 'user', claims }, (tx) => mealPassedCount(tx, family, week, iso ? at(iso) : null));
+		// Rome: lunch on the 14th passes at 13:30Z, dinner at 21:00Z, lunch on the 15th at 13:30Z.
+		expect(await count('2026-10-14T13:29:59Z')).toBe(0);
+		expect(await count('2026-10-14T13:30:00Z')).toBe(1);
+		expect(await count('2026-10-14T20:59:59Z')).toBe(1);
+		expect(await count('2026-10-14T21:00:00Z')).toBe(2);
+		expect(await count('2026-10-15T13:30:00Z')).toBe(3);
+		// Without an instant: the transaction's now(), whatever the real date of the run.
+		const [withoutInstant, atNow] = await withDb(db.appServerUrl, { kind: 'user', claims }, async (tx) => {
+			const [{ now }] = await tx<{ now: Date }[]>`select now() as now`;
+			return [await mealPassedCount(tx, familyId, week), await mealPassedCount(tx, familyId, week, now)];
+		});
+		expect(withoutInstant).toBe(atNow);
+		expect(await count('2026-10-15T13:30:00Z', await db.createFamily([]))).toBe(0);
 	});
 
 	it('reads at the transaction instant without an explicit one', async () => {

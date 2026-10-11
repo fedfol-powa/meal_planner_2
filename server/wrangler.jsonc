@@ -5,6 +5,8 @@
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat"],
 	"observability": { "enabled": true },
+	// Hourly weekly job (spec section 4): next week for families past Wednesday 20:00, retries of open jobs.
+	"triggers": { "crons": ["0 * * * *"] },
 	"workers_dev": true,
 	"vars": {
 		// Supabase project URL; token issuer and JWKS are derived from it.

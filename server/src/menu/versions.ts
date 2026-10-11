@@ -20,7 +20,10 @@ export function mealRecipeVersions(tx: Tx, familyId: string, weekId: string): Pr
 	return mealRecipeVersionsAt(tx, familyId, weekId, null);
 }
 
-/** As mealRecipeVersions, at a given instant instead of the transaction's now(): for tests. */
+/**
+ * As mealRecipeVersions, at a given instant instead of the transaction's now(). A versioned read
+ * passes the same instant here and to mealPassedCount (spec section 5.3).
+ */
 export async function mealRecipeVersionsAt(tx: Tx, familyId: string, weekId: string, at: Date | null): Promise<MealRecipeVersion[]> {
 	return tx<MealRecipeVersion[]>`
 		select s.id as "slotId", s.recipe_id as "recipeId",
@@ -35,4 +38,20 @@ export async function mealRecipeVersionsAt(tx: Tx, familyId: string, weekId: str
 		cross join lateral (select app.meal_passed_at(s.date, s.meal_type, f.time_zone) as passed_at) p
 		where s.week_id = ${weekId} and w.family_id = ${familyId}
 		order by s.date, s.meal_type desc`;
+}
+
+/**
+ * Meals of one week (every slot) already past at the instant, null for the transaction's now().
+ * A versioned read that shows R1 versions puts it in its version, computed at the same instant as
+ * mealRecipeVersionsAt: when a meal passes at 15:30 or 23:00 the answer is no longer "unchanged".
+ */
+export async function mealPassedCount(tx: Tx, familyId: string, weekId: string, at: Date | null = null): Promise<number> {
+	const [row] = await tx<{ count: number }[]>`
+		select count(*)::int as count
+		from app.meal_slots s
+		join app.weeks w on w.id = s.week_id
+		join app.families f on f.id = w.family_id
+		where s.week_id = ${weekId} and w.family_id = ${familyId}
+			and app.meal_passed_at(s.date, s.meal_type, f.time_zone) <= coalesce(${at}::timestamptz, now())`;
+	return row?.count ?? 0;
 }
