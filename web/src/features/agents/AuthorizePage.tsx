@@ -65,15 +65,17 @@ export function AuthorizePage() {
     void load();
     // Any navigation ends this generation at once: the router unmounts the page only after
     // its asynchronous transition, and a late answer must not act in between.
+    // A history event that stays on this request (same path and id) leaves it running.
     const unsubscribe = router.history.subscribe(() => {
-      generation.current += 1;
+      const at = router.history.location;
+      if (at.pathname !== '/authorize' || new URLSearchParams(at.search).get('authorization_id') !== id) generation.current += 1;
     });
     // Leaving the page, another session or another request: this generation ends.
     return () => {
       unsubscribe();
       generation.current += 1;
     };
-  }, [usable, userId, load, router]);
+  }, [usable, userId, load, router, id]);
 
   async function decide(decision: 'approve' | 'deny', canAllow: boolean) {
     if (phase.kind !== 'consent' || sending.current) return;

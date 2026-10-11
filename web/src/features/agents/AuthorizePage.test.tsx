@@ -197,6 +197,23 @@ describe('agent consent page', () => {
       expect(leave).not.toHaveBeenCalled();
     });
 
+    it('a history event that stays on the same request drops nothing: the read and the decision still land', async () => {
+      const backend = createStubBackend(DEMO_USER);
+      const read = backend.holdAuthorization();
+      const decided = backend.holdDecision();
+      const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
+      const { history } = renderApp('/authorize?authorization_id=auth-1', { backend });
+      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      history.replace('/authorize?authorization_id=auth-1');
+      read(consent());
+      const allow = await screen.findByRole('button', { name: 'Consenti' });
+      await waitFor(() => expect((allow as HTMLButtonElement).disabled).toBe(false));
+      fireEvent.click(allow);
+      history.replace('/authorize?authorization_id=auth-1');
+      decided({ ok: true, value: 'http://127.0.0.1:9/callback?code=x' });
+      await waitFor(() => expect(leave).toHaveBeenCalledWith('http://127.0.0.1:9/callback?code=x'));
+    });
+
     it('leaving the page while the decision is sent', async () => {
       const backend = createStubBackend(DEMO_USER);
       const answer = backend.holdDecision();
