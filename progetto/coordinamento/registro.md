@@ -7,12 +7,13 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
+| Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Review di spec e piano «da rifare» (14 rilievi); correzioni da messaggi/w1-11-review-revisione-pasti.md (azione con actionId, tabella delle richieste, migrazione per le bozze); poi seconda review breve | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Revoca provata (funziona con session_is_active). Decisioni: riautorizzazione come Supabase (una riga per client); poteri dei token su Supabase Auth solo documentati per ora (utente), consenso veritiero. Scrive la spec | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26 (web delle bozze) aperta, review Codex in corso; contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | correzioni/unita-contate | .worktrees/spesa | PR #27 (unità contate) aperta, review Codex in corso; contesto azzerato: ai rilievi messaggio di ripresa | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Review di spec e piano «da rifare» (10 rilievi); correzioni da messaggi/w5-08-review-esportazione.md; poi seconda review breve. Prova di produzione dell'utente: voce separata dopo il bucket | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | (branch nuovo) | .worktrees/ricettario | PR #25 unita. Scheda aperta da un pasto con le porzioni del pasto (decisione dell'utente); a PR_APERTA review | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/porzioni-dal-pasto | .worktrees/ricettario | PR #28 (porzioni del pasto) aperta, review Codex in corso; contesto azzerato | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA). Ondata 1 completata.
