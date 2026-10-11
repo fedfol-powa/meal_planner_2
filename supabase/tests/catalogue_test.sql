@@ -139,7 +139,6 @@ select lives_ok($$select tests.insert_line('text', null, null, '{"it-IT": "un po
 
 -- Equivalences: one per ingredient, scope, dimension and preparation (or none)
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping')$$, '23502', null, 'source required');
-select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', '   ')$$, '23514', null, 'source not blank');
 select is(app.unit_dimension('kg'), 'mass', 'every mass unit is mass');
 select is(app.unit_dimension('uk_pint'), 'volume', 'British pint is a volume');
 select is(app.unit_dimension('tbsp'), 'tbsp', 'tbsp is a dimension of its own');
@@ -159,6 +158,25 @@ select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, 
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, preparation, source) values (tests.ingredient('pasta'), 'g', 'piece', 1, 'shopping', '  ', 'test')$$, '23514', null, 'no blank preparation');
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'cup', 'g', 100, 'recipe', 'test')$$, '23502', null, 'unknown from unit');
 select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'us_cup', 'grams', 100, 'recipe', 'test')$$, '23514', null, 'unknown to unit');
+
+-- Source: blank as for JavaScript's trim, in inserts and in curators' updates
+reset role;
+select tests.login('gina');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', '')$$, '23514', null, 'insert: empty source');
+select throws_ok($$update app.ingredient_unit_equivalences set source = '' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$, '23514', null, 'update: empty source');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', E'\t\t')$$, '23514', null, 'insert: tabs source');
+select throws_ok($$update app.ingredient_unit_equivalences set source = E'\t\t' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$, '23514', null, 'update: tabs source');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', E'\n \r\n')$$, '23514', null, 'insert: line breaks source');
+select throws_ok($$update app.ingredient_unit_equivalences set source = E'\n \r\n' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$, '23514', null, 'update: line breaks source');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', E'\u00a0')$$, '23514', null, 'insert: no-break space source');
+select throws_ok($$update app.ingredient_unit_equivalences set source = E'\u00a0' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$, '23514', null, 'update: no-break space source');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', E'\u3000')$$, '23514', null, 'insert: ideographic space source');
+select throws_ok($$update app.ingredient_unit_equivalences set source = E'\u3000' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$, '23514', null, 'update: ideographic space source');
+select throws_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', E'\ufeff\u2009')$$, '23514', null, 'insert: BOM and thin space source');
+select throws_ok($$update app.ingredient_unit_equivalences set source = E'\ufeff\u2009' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$, '23514', null, 'update: BOM and thin space source');
+select lives_ok($$insert into app.ingredient_unit_equivalences (ingredient_id, from_unit, to_unit, factor, scope, source) values (tests.ingredient('pasta'), 'g', 'piece', 0.01, 'shopping', E'  Manuale\u00a0')$$, 'insert: text with spaces around');
+select is(tests.affected($$update app.ingredient_unit_equivalences set source = E'\tLibro, p. 3 ' where ingredient_id = tests.ingredient('tomatoes') and scope = 'shopping' and from_dimension = 'mass' and preparation is null$$), 1::bigint, 'update: text with spaces around');
+reset role;
 
 -- Deleting the authors of closed drafts: references cleared, the rest intact
 do $$
