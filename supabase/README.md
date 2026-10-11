@@ -96,6 +96,19 @@ servono (per esempio `-x realtime,storage-api,imgproxy,mailpit,postgrest,postgre
 poi `supabase status` per l'URL dell'API e la chiave pubblica. Se è già avviato solo il
 database, prima `supabase stop`.
 
+### Agenti MCP in locale
+
+`config.toml` attiva il server OAuth 2.1 (percorso di consenso `/authorize`, registrazione
+dinamica) e usa come Site URL il Vite di sviluppo (`http://127.0.0.1:5174`), dove vive la
+pagina di consenso. Per collegare Claude Code allo stack locale: Worker su 8787
+(`npm run dev -w server`), web su 5174 (`npm run dev -w web`), poi dalla pagina
+Profilo › Collega un agente copia indirizzo e comando (in sviluppo puntano al Worker) e in
+Claude Code `/mcp` › Authenticate. `scripts/oauth/agents-e2e.sh` esegue la prova
+end-to-end della CI (token reali, scollegamento dall'app e dall'agente); con uno stack su
+altre porte: `SUPABASE=<comando della CLI> APP_PORT=<porta> INSPECTOR_PORT=<porta>`. Se
+`supabase start` fallisce con «failed to copy secret file into container», vedi
+`progetto/coordinamento/messaggi/w2-podman.md`.
+
 ## Primi utenti del progetto vero (`scripts/bootstrap.sql`)
 
 Nel traguardo A non ci sono inviti: utenti e famiglia si preparano a mano, dopo
