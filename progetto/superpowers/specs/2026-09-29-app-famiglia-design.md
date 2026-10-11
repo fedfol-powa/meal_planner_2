@@ -1,7 +1,7 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 11 ottobre 2026 (decisioni di fine ondata 1 dell'implementazione)
+Ultimo aggiornamento: 11 ottobre 2026 (decisioni delle attività dell'ondata 2 unite)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -144,6 +144,23 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 - nel traguardo A accesso con email e password, utenti e famiglie creati a mano
   (sezione 7).
 
+**Decisioni dell'11 ottobre 2026, attività dell'ondata 2 unite** (profilo e famiglia,
+ricettario e voti, menu e pianificatore, spesa, gestione del ricettario tramite MCP):
+
+- una sola regola di generazione all'apertura del menu: la settimana in corso, se manca,
+  dai pasti non ancora passati; la successiva dopo mercoledì alle 20:00 (sezione 4);
+- una settimana generata tiene conto anche delle settimane successive già pianificate,
+  senza mai sovrascriverle (sezione 3);
+- conferma del curatore prima della pubblicazione affidata alle istruzioni servite
+  all'agente, con la scheda completa e le traduzioni (sezioni 8 e 12);
+- ricerca del ricettario nella lingua dell'utente, anche sui sinonimi degli ingredienti
+  (sezione 12);
+- famiglia mostrata ricordata sul server (sezione 7);
+- nel traguardo A la spesa si esporta con Condividi e Bring!, il PDF arriva nell'ondata 3
+  (sezione 6);
+- nel traguardo A le bozze si consultano nell'app in sola lettura; archiviazione,
+  versioni e ripristino si fanno via MCP (sezione 8).
+
 ---
 
 ## Parte 1: cosa fa l'app (per tutti)
@@ -214,7 +231,9 @@ spesa.
 
 **Mercoledì sera** l'app prepara il menu della settimana che comincia il lunedì
 dopo: dodici pasti circa, con i pasti liberi già segnati (per esempio "sabato sera fuori",
-"domenica pizza").
+"domenica pizza"). Se manca il menu della settimana in corso, per esempio per una
+famiglia appena creata, l'app lo prepara quando lo si apre, con i soli pasti ancora da
+fare.
 
 Da quel momento tutti i membri della Famiglia possono rivederlo e cambiarlo. Non ci sono
 finestre o vincoli per settimana: si può intervenire allo stesso modo sulla settimana
@@ -287,7 +306,8 @@ nel Menu mentre si guarda quella settimana:
    limone in limoni;
 3. si spunta ciò che si ha già in casa o che si è comprato, anche in negozio senza rete:
    tutta la famiglia vede le spunte; si possono aggiungere voci libere (detersivo…);
-4. si può esportare: PDF, condivisione (WhatsApp, Note…) oppure invio a Bring!.
+4. si può esportare: condivisione (WhatsApp, Note…), anche senza rete, oppure invio a
+   Bring!, che richiede la rete; il PDF arriverà in una fase successiva (sezione 10).
 
 Non ci sono altre liste né un archivio: le settimane passate tengono la loro lista,
 consultabile dal Menu.
@@ -301,7 +321,9 @@ un piatto o è nel ricettario, e lo vedono tutti, o non c'è.
 
 Il catalogo aggiornato vive nel database. Un curatore può chiedere al proprio agente di
 aggiungere una ricetta: l'agente raccoglie le informazioni e fa le domande necessarie.
-La ricetta entra nel catalogo solo quando il servizio verifica che tutti i dati richiesti
+Prima di pubblicare mostra al curatore la scheda completa, con le traduzioni, e
+pubblica solo dopo un sì esplicito. La ricetta entra nel catalogo solo quando il
+servizio verifica che tutti i dati richiesti
 sono presenti e validi, compresi i testi in italiano e inglese britannico. Gli ingredienti
 non vengono mai dedotti dal nome del piatto. Elenco verificato degli ingredienti,
 quantità e unità quando applicabili e porzioni di riferimento sono necessari anche per
@@ -344,7 +366,8 @@ recupero dell'intero catalogo è riservato agli amministratori dell'app (sezione
 
 Ogni persona sceglie la propria lingua: **italiano o inglese britannico**. La scelta
 riguarda l'esperienza dell'app, comprese le informazioni del ricettario e della spesa;
-il trattamento dei testi liberi della famiglia è da concordare (sezione 12).
+il trattamento dei testi liberi della famiglia è da concordare (sezione 12). La ricerca
+nel ricettario usa la lingua di chi cerca, compresi i sinonimi degli ingredienti.
 
 Ogni famiglia sceglie il **sistema metrico o quello imperiale britannico**. Le quantità
 devono essere convertite di conseguenza nei pasti, nella spesa e nelle esportazioni.
@@ -495,10 +518,12 @@ configurato per workspace.
   costituiscono una seconda copia modificabile da sincronizzare automaticamente.
 
 **Strato delle operazioni.** Ogni funzione dell'app è un'operazione applicativa
-(`meals.changeRecipe`, `shopping.toggleItem`, `curation.publish`…), non un accesso
-generico alle tabelle. Il prototipo le abbozza in
-`prototype/src/lib/operations/`, punto di partenza dell'elenco. Ogni richiesta segue lo
-stesso percorso:
+(`menu.getWeek`, `shopping.setItemChecked`, `catalogue.publish`…), non un accesso
+generico alle tabelle. Le operazioni stanno in `contract/src/`, divise per area
+(`profile`, `family`, `recipes` con `ratings`, `menu`, `shopping`, `catalogue`); il
+prototipo le abbozzava in `prototype/src/lib/operations/`. L'implementatore del server
+si costruisce in un solo punto, `server/src/router.ts`, e ogni area esporta un factory
+che lo riceve. Ogni richiesta segue lo stesso percorso:
 
 ```
 Worker → verifica del JWT di Supabase → contesto (utente, canale, lingua)
@@ -506,6 +531,11 @@ Worker → verifica del JWT di Supabase → contesto (utente, canale, lingua)
      → transazione Postgres → dominio puro → registro (meal_changes, canale)
      → vista localizzata
 ```
+
+L'istante della richiesta si fissa una volta nel contesto. Un'operazione può dichiarare
+un passo `prepare`, eseguito nella transazione dell'utente dopo i controlli di sessione e
+ruolo e prima del calcolo della versione: può validare l'input contro lo stato del server
+e scrivere (la generazione pigra del menu, sezione 4).
 
 - **Token verificati nel Worker** con le chiavi pubbliche del progetto Supabase
   (`/auth/v1/.well-known/jwks.json`, libreria `jose`), tenute in memoria: non serve un
@@ -562,8 +592,16 @@ di validazione condivisi con `domain/`. Regole:
 - **Viste già pronte.** Le letture restituiscono testi nella lingua dell'utente,
   quantità scalate e convertite nel sistema della famiglia, voti (media e proprio) e
   ultima modifica: web e MCP mostrano gli stessi contenuti e il client resta sottile.
+  Le viste di una ricetta (riepilogo, voto, righe scalate) sono dell'area `recipes` e le
+  riusano Menu e Spesa; si leggono sempre dal documento immutabile della versione,
+  caricato con la riga della ricetta in una sola istruzione, così una pubblicazione in
+  corso non mescola versioni. Ricerca, filtri e ordinamento del ricettario sono una
+  funzione pura nel Worker sui documenti caricati in blocco sotto RLS, senza filtri SQL
+  né estensioni nuove.
 - **Errori a codici, non testi**: `forbidden`, `not_found`, `invalid` con il percorso
-  dei campi, `conflict` con autore, momento e campi cambiati, `last_admin`,
+  dei campi, `conflict` con autore, momento e campi cambiati e il tipo (`draft`,
+  `version`, `ingredient`), `not_allowed` (409) con il motivo per le regole di stato
+  (`cited_by_meals`, `not_published`, `already_current`), `last_admin`,
   `last_app_admin`, `sole_member`, `web_only` con l'URL della pagina. Il web li
   traduce; per MCP il server li rende nella lingua dell'utente. I codici sono in
   minuscolo con il loro stato HTTP; la validazione restituisce `invalid` su tutti i
@@ -577,7 +615,12 @@ di validazione condivisi con `domain/`. Regole:
   identificativo generato dal client: ripetere la stessa richiesta non duplica nulla.
   Le operazioni accodabili sono a stato assoluto (spuntare con `checked: true`, non
   invertire la spunta); lo schema usa chiavi naturali univoche dove si crea una riga,
-  senza una tabella generica delle ricevute.
+  senza una tabella generica delle ricevute. Le creazioni del ricettario si serializzano
+  con un lucchetto consultivo, così uuid e slug restano idempotenti anche con richieste
+  concorrenti; una revisione ripresa da `catalogue.startRevision` è ricordata per
+  richiesta (`recipe_draft_requests`, sezione 2). Le mutazioni della spesa e delle
+  impostazioni rispondono con la vista aggiornata; nella spesa vale l'ordine di arrivo
+  al server.
 - **Famiglia esplicita.** Le operazioni di famiglia ricevono `familyId`, perché una
   persona può far parte di più famiglie; utente e canale arrivano solo dal token.
 - **Letture dalla copia sul dispositivo** (deciso l'8 ottobre 2026). Ogni famiglia ha
@@ -593,9 +636,17 @@ di validazione condivisi con `domain/`. Regole:
   la versione all'apertura, al ritorno in primo piano e alla riconnessione. Le proprie
   modifiche non aggiornano la copia in modo ottimistico: applicano alle viste della
   stessa famiglia il risultato confermato dal server, dopo aver annullato le letture in
-  corso di quelle viste, e fanno rileggere le liste che dipendono dal valore cambiato.
-  Ciò che dipende solo dall'ora, come i pasti già passati, si calcola sul dispositivo.
-  Gli agenti MCP leggono sempre dal server. I contatori (`families.data_version` e
+  corso di quelle viste, e fanno rileggere le liste che dipendono dal valore cambiato,
+  secondo una tabella per operazione. Una risposta superata da un'altra modifica della
+  stessa vista o da un cambio di lingua non si scrive: marca scadute le viste.
+  Ciò che dipende solo dall'ora, come i pasti già passati, si calcola sul dispositivo:
+  le viste portano date e istanti dei pasti (`passesAt`) e tutti i pasti futuri di una
+  ricetta, e la pagina aperta si ricalcola al prossimo istante. Dove l'ora cambia i dati
+  (versione R1 dei pasti in `menu.getWeek` e `shopping.getWeekList`), la versione
+  comprende il numero di pasti già passati; quella di `menu.getOpening` comprende la
+  data effettiva. `profile.get` e le letture della gestione che dipendono dalle bozze
+  non sono versionate. Gli agenti MCP leggono sempre dal server. I contatori
+  (`families.data_version` e
   `catalogue_state.version`) crescono con trigger del database quando una transazione
   cambia i dati da cui dipendono, al massimo una volta per transazione: una scrittura
   senza effetti può farli crescere, con un'invalidazione in più ma mai dati sbagliati.
@@ -701,15 +752,16 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 
 | Tabella | Campi principali |
 |---|---|
-| `recipes` | Identità, stato e proiezione della versione corrente: `id`, `slug`, `origin_slug` e `origin_type` (identità e tipo nel progetto d'origine, con cui l'import riconosce le sue ricette), `name` e `description` (jsonb nelle due lingue), `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group` (`fish`/`white_meat`/`red_meat`/`cured_meat`/`legumes`/`eggs`/`cheese`/`vegetarian`: proteina principale), `is_fresh_fish` (pesce di pescheria, non in scatola), `carbohydrate_group` (`pasta`/`rice`/`potatoes`/`bread`/`cereals`/`none`), `has_vegetables`, `category` (tipo di piatto: `wok`/`skottle`/`oven_bake`/`grill`/`pan`/`soup`/`salad`/`savoury_pie`/`wrap_sandwich`/`burger`/`other`), `meal_type` (`lunch`/`dinner`/`both`), `seasons` (vuoto = tutto l'anno), `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario. `home` indica una ricetta senza fonte esterna. Vocabolari confermati l'8 ottobre 2026 con la classificazione delle 52 ricette d'origine (`scripts/import/recipe-attributes.yaml`, input anche dell'import); l'ingrediente principale per la somiglianza è `recipe_ingredients.is_primary`, sempre una riga della lista verificata |
+| `recipes` | Identità, stato e proiezione della versione corrente: `id`, `slug`, `origin_slug` e `origin_type` (identità e tipo nel progetto d'origine, con cui l'import riconosce le sue ricette), `name` e `description` (jsonb nelle due lingue), `source_type` (`web`/`youtube`/`book`/`home`), `source_url`, `book_id`, `book_pages`, `duration_minutes`, `base_servings`, `protein_group` (`fish`/`white_meat`/`red_meat`/`cured_meat`/`legumes`/`eggs`/`cheese`/`vegetarian`: proteina principale), `is_fresh_fish` (pesce di pescheria, non in scatola), `carbohydrate_group` (`pasta`/`rice`/`potatoes`/`bread`/`cereals`/`none`), `has_vegetables`, `category` (tipo di piatto: `wok`/`skottle`/`oven_bake`/`grill`/`pan`/`soup`/`salad`/`savoury_pie`/`wrap_sandwich`/`burger`/`other`), `meal_type` (`lunch`/`dinner`/`both`), `seasons` (vuoto = tutto l'anno), `is_heavy`, `tags`, `status` (`draft`/`published`/`archived`), `version`, `archived_at`, `archived_by`, `created_by`, `created_at`, `updated_by`, `updated_at`. Tutte le ricette sono globali; `created_at` serve anche all'ordinamento "aggiunte di recente" del ricettario, con la data nel fuso della famiglia. `home` indica una ricetta senza fonte esterna. Vocabolari confermati l'8 ottobre 2026 con la classificazione delle 52 ricette d'origine (`scripts/import/recipe-attributes.yaml`, input anche dell'import); l'ingrediente principale per la somiglianza è `recipe_ingredients.is_primary`, sempre una riga della lista verificata |
 | `ingredients` | `id`, `slug`, `name` e `synonyms` (jsonb nelle due lingue), `department` (codici `produce`, `butcher`, `fish`, `chilled`, `bakery`, `pasta_grains`, `tinned`, `frozen`, `condiments`, `other`, definiti in `domain/src/shopping/`), `is_pantry`, `version`, archiviazione: identità unica dell'ingrediente, indipendente dalla lingua; è il prodotto generico (Pomodori, Uva), senza varietà, taglia o preparazione nel nome. Reparto, dispensa, equivalenze ed evitati valgono per tutte le varietà |
-| `ingredient_versions` | `ingredient_id`, `version`, contenuto completo dell'ingrediente (reparto, dispensa, nomi e sinonimi nelle due lingue, equivalenze), `changed_by`, `changed_at`: storico in sola aggiunta, scritto a ogni creazione o modifica di un ingrediente del catalogo; serve al ripristino a una data (sezione 8) |
+| `ingredient_versions` | `ingredient_id`, `version`, contenuto completo dell'ingrediente (reparto, dispensa, nomi e sinonimi nelle due lingue, tutte le equivalenze), `changed_by`, `changed_at`: storico in sola aggiunta, scritto a ogni creazione o modifica di un ingrediente o delle sue equivalenze, che fanno crescere anche `ingredients.version`; serve al ripristino a una data (sezione 8) |
 | `recipe_ingredients` | Proiezione: `recipe_id`, `position`, `ingredient_id`, `variety` (testo libero e facoltativo nelle due lingue: «Roma», «gialla senza semi»; solo quando cambia cosa si compra), `variety_key` (testo italiano della varietà normalizzato come nel consolidamento, vuoto senza varietà), `quantity_kind` (`amount`/`to_taste`/`text`), `quantity` e `unit` per `amount`, `quantity_text` nelle due lingue per `text`, `source_text` (la riga della fonte com'è scritta, sempre conservata), `preparation` (nelle due lingue: tritato, a dadini, succo, scorza…: dettaglio della ricetta che non cambia l'ingrediente da comprare), `is_optional`, `is_primary`. Lo stesso ingrediente compare più volte in una ricetta solo con varietà diverse (confronto normalizzato, quinto giro del prototipo) |
 | `ingredient_unit_equivalences` | `ingredient_id`, `from_unit`, `to_unit`, `factor`, `scope` (`recipe` o `shopping`), `preparation` (facoltativa), `source` (obbligatoria e non vuota): equivalenze verificate per ingrediente (tazza USA in grammi o pezzi, succo di limone in limoni). Al massimo una per ingrediente, ambito, dimensione dell'unità di partenza e preparazione (o nessuna), con un vincolo nel database e un controllo nel dominio (sezione 6) |
 | `books` | `id`, `slug` (con cui l'import riconosce i libri), `title` (titolo bibliografico originale), archiviazione |
-| `recipe_drafts` | `id`, `recipe_id`, `kind` (`new`: ricetta mai pubblicata, con `recipes` in stato bozza; `revision`: modifica di una ricetta pubblicata), `base_version`, `content` (documento parziale), `created_by`, `updated_by`, `updated_at`, `revision` (cresce a ogni salvataggio e serve a riconoscere i conflitti). Una sola revisione aperta per ricetta |
+| `recipe_drafts` | `id`, `recipe_id`, `kind` (`new`: ricetta mai pubblicata, con `recipes` in stato bozza; `revision`: modifica di una ricetta pubblicata), `base_version`, `content` (documento parziale), `created_by`, `updated_by`, `updated_at`, `revision` (cresce a ogni salvataggio e serve a riconoscere i conflitti), `closed_at`, `closed_by`, `outcome` (`published`/`discarded`). Una sola revisione aperta per ricetta; una bozza chiusa resta immutabile |
 | `recipe_draft_saves` | `draft_id`, `revision`, `content`, `saved_by`, `saved_at`, `channel`, `overwritten` (sì se un salvataggio successivo l'ha sovrascritto in un conflitto): cronologia della bozza in sola aggiunta, da cui si recupera una versione sovrascritta (sezione 8) |
-| `recipe_versions` | `recipe_id`, `version`, `content` (documento completo pubblicato), `published_by`, `published_at`, `restored_from` (versione ripubblicata) e, per un ripristino dell'intero catalogo, la data ripristinata; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
+| `recipe_draft_requests` | `id` della richiesta, `draft_id`, `requested_by`, `requested_at`: una richiesta di revisione che ha ripreso una bozza già aperta, così la sua ripetizione restituisce la stessa bozza anche dopo la chiusura (sezione 1, idempotenza) |
+| `recipe_versions` | `recipe_id`, `version`, `content` (documento completo pubblicato), `published_by`, `published_at` (istante della scrittura, letto dopo tutte le attese, non l'inizio della richiesta: un'attesa non rende una versione retroattiva per un pasto già passato), `channel`, `restored_from` (versione ripubblicata) e, per un ripristino dell'intero catalogo, la data ripristinata; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
 | `recipe_status_changes` | `recipe_id`, `status`, `changed_by`, `changed_at`: storico in sola aggiunta di pubblicazioni, archiviazioni e ritorni nel ricettario. Con `recipe_versions` e `ingredient_versions` permette di ricostruire il catalogo com'era a qualunque istante, senza copie periodiche (deciso l'8 ottobre 2026, sezione 8) |
 
 **Utenti, ruoli globali e amministrazione:**
@@ -717,6 +769,7 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | Tabella o concetto | Campi principali / responsabilità |
 |---|---|
 | `profiles` | `user_id`, `display_name`, `locale` (`it-IT`/`en-GB`) |
+| `profile_preferences` | `user_id`, `current_family_id`: famiglia mostrata, ricordata sul server; privata (RLS del solo proprietario), perché `profiles` è leggibile dai co-membri; chiave esterna composta verso `family_members` |
 | `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`) |
 | `app_invitations` | Rimandata all'ondata 3. Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia: `email` del destinatario, ruoli globali da assegnare all'accettazione (anche nessuno), autore, creazione, scadenza a 7 giorni, stato (`pending`/`accepted`/`revoked`, scaduto calcolato), chi l'ha accettato e quando (sesto giro) |
 | `agent_authorizations` | Rimandata all'ondata 3. Agenti autorizzati da un utente tramite MCP: client, data del collegamento, ultimo uso; revoca dall'app (sesto giro). Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13); questa tabella serve solo per i dati che Supabase non fornisce, per esempio l'ultimo uso registrato a ogni chiamata MCP (da verificare) |
@@ -736,10 +789,10 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | `family_ingredients` | `family_id`, `ingredient_id`, `restriction` (`avoid`/`limit`), `weekly_max` |
 | `family_tried_recipes` | `family_id`, `recipe_id`, `source`, `created_at`: ricette già provate senza data, riempita dall'import (R4, sezione 11); per ora il pianificatore non la usa |
 | `weeks` | `family_id`, `starts_on` (lunedì), `generated_at`. Unica per (`family_id`, `starts_on`) |
-| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `updated_by` (null = app), `updated_at` |
+| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `updated_by` (null = app: la generazione non scrive `meal_changes`), `updated_at` |
 | `meal_changes` | `meal_slot_id`, `actor_id`, `before` (jsonb), `after` (jsonb), `created_at`: registro append-only |
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
-| `weekly_jobs` | `family_id`, `target_week`, `status`, `attempts`, `error`, `updated_at` |
+| `weekly_jobs` | `family_id`, `target_week`, `status` (`pending`/`running`/`done`/`failed`/`abandoned`; `running` non si usa), `attempts`, `error` (solo il codice), `updated_at` |
 | `shopping_lists` | `family_id`, `week_id`, `updated_by`, `updated_at`: la lista della settimana, una per (`family_id`, `week_id`), creata alla prima modifica |
 | `shopping_list_checks` | `shopping_list_id`, `ingredient_id`, `variety_key`, `quantity_at_check` (jsonb, nella forma canonica del dominio: massa, volume, conteggi per unità, testi non numerici nelle due lingue del momento della spunta, «q.b.»), `checked_by`, `checked_at`: voce spuntata con la quantità del momento. La voce è identificata da ingrediente e varietà, perché varietà diverse sono voci diverse (sezione 6): `variety_key` è il testo italiano della varietà normalizzato come nel consolidamento, vuoto senza varietà. Se un curatore cambia la grafia in modo che la forma normalizzata cambi, la spunta non corrisponde più a nessuna voce e si perde, come per una voce uscita dalla lista |
 | `shopping_list_items` | `shopping_list_id`, `client_id` (generato dal dispositivo, per l'idempotenza offline), `text`, `checked`, `created_by`, `created_at`: voci libere; più gli ingredienti esclusi rimessi in lista (`shopping_list_added_back`, con la stessa chiave di ingrediente e varietà) |
@@ -755,8 +808,10 @@ membro»); dati personali e appartenenze sono `on delete cascade`; i dati di fam
 seguono la famiglia; i pasti impediscono di cancellare una ricetta citata; nessuna
 cascata sullo storico. Gli utenti modificano solo le colonne previste dalle operazioni;
 identità di settimane e slot è immutabile e un annullamento vale solo sullo stesso
-slot. I nomi degli autori del ricettario sono leggibili dai curatori con
-`app.catalogue_author_names()` (solo id e nome), senza aprire i profili.
+slot. I nomi degli autori del ricettario, compresi quelli di `ingredient_versions`, sono
+leggibili dai curatori con `app.catalogue_author_names()` (solo id e nome), senza aprire
+i profili. `app.recipe_is_cited` (`security definer`, solo curatori) dice se un pasto di
+qualunque famiglia cita una ricetta, senza mostrare i pasti.
 
 **Nessuno stato della settimana, deciso il 6 ottobre 2026.** Le settimane non hanno
 fasi (bozza, in corso, da chiudere, chiusa) né chiusura: ogni settimana si consulta e si
@@ -778,13 +833,17 @@ cambiandolo. Una settimana generata è visibile da `generated_at`.
 
 Il sistema di misura (`metric` oppure `uk_imperial`) è una colonna,
 `families.measurement_system`. `settings` conserva solo i valori cambiati; i default
-vengono dal dominio.
+vengono dal dominio. Schema dei valori salvati e risoluzione (`resolveFamilySettings`)
+sono in `domain/src/family/settings.ts`: alla lettura un valore non valido lascia il
+posto al default. Ogni gesto è un'operazione a stato assoluto che scrive solo la sua
+chiave del jsonb; le regole si identificano dal loro valore.
 
 **Fuso orario della famiglia** (`families.time_zone`, deciso l'8 ottobre 2026): alla
 creazione si prende il fuso del browser di chi crea la famiglia, oppure quello
 dichiarato dall'agente se la famiglia nasce via MCP, validato come fuso IANA; se manca
 o non è valido si usa `Europe/Rome`. Gli amministratori della famiglia lo cambiano
-nelle impostazioni, come le altre. Il cambio vale per tutto, anche per i pasti passati:
+nella pagina delle impostazioni, accanto alle unità. Il cambio vale per tutto, anche
+per i pasti passati:
 gli istanti in cui un pasto diventa passato si ricalcolano con il nuovo fuso, quindi
 può spostarsi di qualche ora il momento da cui un pasto conta come mangiato e, solo per
 una ricetta aggiornata proprio in quelle ore, la versione mostrata da quel pasto (R1).
@@ -802,7 +861,8 @@ regole in testo libero; il modello sul pesce di pescheria è stato aggiunto l'8 
 Una famiglia nuova parte con tutti i pranzi e le cene pianificati per 2 porzioni, i
 pranzi da lunedì a venerdì entro 30 minuti (default deciso l'8 ottobre 2026 dopo
 l'esperimento del pianificatore, modificabile), senza pasti fissi, altri limiti, regole,
-ingredienti evitati né libri, e con gli intervalli CREA.
+ingredienti evitati né libri, e con gli intervalli CREA. Gli ingredienti da evitare o
+limitare si cercano per nome e sinonimi nella lingua dell'utente.
 
 **Preferenze personali** (`profiles`): lingua `it-IT` oppure `en-GB`, indipendente dalla
 famiglia e dal suo sistema di misura. La lingua del profilo vale a ogni accesso; prima
@@ -845,12 +905,16 @@ valere anche per le operazioni eseguite da amministratori dell'app.
 
 **Ingresso:**
 
-- impostazioni della famiglia;
-- catalogo visibile alla famiglia: ricette non archiviate, escluse quelle da libri che la
-  famiglia non possiede;
+- impostazioni della famiglia, risolte con `resolveFamilySettings` (sezione 2);
+- catalogo visibile alla famiglia: ricette pubblicate e non archiviate, escluse quelle da
+  libri che la famiglia non possiede, con gli attributi presi dal documento della
+  versione corrente (`toPlannerRecipe`), senza una seconda mappatura dalle proiezioni;
 - esclusioni e ingredienti da evitare o limitare;
 - punteggi;
-- storico degli slot delle settimane precedenti e della settimana in corso;
+- storico degli slot delle settimane precedenti e della settimana in corso, più i pasti
+  delle settimane successive già pianificate (`PlannerInput.upcoming`);
+- primo pasto da pianificare (`PlannerInput.from`), per generare una settimana già
+  iniziata dai soli pasti non ancora passati;
 - stagione.
 
 **Vincoli rigidi** (filtrano, mai violati dalla generazione):
@@ -860,7 +924,8 @@ valere anche per le operazioni eseguite da amministratori dell'app.
   pescheria il lunedì, niente pasta a cena);
 - esclusioni, ricette archiviate, libri non posseduti;
 - ingrediente con restrizione `avoid` come ingrediente non opzionale;
-- stessa ricetta usata nei 14 giorni prima della settimana o già nella settimana;
+- stessa ricetta usata nei 14 giorni prima o dopo la settimana (settimane già
+  pianificate) o già nella settimana;
 - ingrediente con restrizione `limit` oltre `weekly_max` (reso vincolo rigido
   nell'esperimento dell'8 ottobre 2026);
 - punteggio famiglia ≤ 2 stelle, salvo mancanza di alternative.
@@ -873,7 +938,8 @@ valere anche per le operazioni eseguite da amministratori dell'app.
 - **equilibrio**: distanza dagli intervalli settimanali per gruppo alimentare;
 - **somiglianza**: penalità per pasti vicini che condividono proteina principale,
   carboidrato principale, ingrediente principale o categoria. Il peso decresce con la
-  distanza in pasti. La finestra è mobile e attraversa le settimane;
+  distanza in pasti. La finestra è mobile, attraversa le settimane e guarda anche ai
+  pasti già pianificati dopo;
 - **quota note/nuove**: "nota" vuol dire cucinata da questa famiglia nelle ultime 8
   settimane; una ricetta non cucinata da più tempo conta di nuovo come nuova (deciso l'8
   ottobre 2026). La quota si applica da quando la famiglia ha almeno 10 ricette
@@ -984,69 +1050,85 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 ### 4. Job settimanale
 
 - **Cron Trigger di Cloudflare** (deciso l'11 ottobre 2026 al posto di `pg_cron` con
-  `pg_net`): ogni ora il Worker riceve l'evento `scheduled` e lavora nel ruolo `app_job`.
-  Non servono una rotta `/internal/jobs/*`, `pg_net` né un segreto condiviso. Le
-  esecuzioni orarie, che interrogano il database dal Worker, tengono anche attivo il
-  progetto gratuito di Supabase. Il codice considera solo le famiglie per cui
+  `pg_net`): ogni ora (`0 * * * *`) il Worker riceve l'evento `scheduled` e lavora nel
+  ruolo `app_job`. Non servono una rotta `/internal/jobs/*`, `pg_net` né un segreto
+  condiviso. Le esecuzioni orarie, che interrogano il database dal Worker, tengono anche
+  attivo il progetto gratuito di Supabase. Il codice considera solo le famiglie per cui
   è già passato il mercoledì alle 20:00 nel loro fuso (`families.time_zone`) e manca la
   settimana successiva: famiglie in fusi diversi sono servite all'ora giusta e l'ora
   legale non richiede di cambiare il cron. Un'esecuzione senza famiglie da servire non
-  fa nulla.
-- **Dispatcher**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
-  e per il lunedì successivo.
-- **Worker**: elabora le famiglie **una alla volta**, ciascuna in una transazione
-  separata, con lo stato in `weekly_jobs` (su Workers conta il tempo di CPU, non la
-  durata: fino a 5 minuti sul piano a pagamento), così un errore o un rallentamento
-  riguarda solo quella famiglia. Per ogni famiglia genera la settimana
-  successiva in un'unica transazione, se non esiste già: l'unicità di (`family_id`,
-  `starts_on`) impedisce doppioni anche con esecuzioni concorrenti. Con il giudice
-  attivo genera le candidate e chiama il giudice fuori dalla transazione. Il carico
-  reale del pianificatore va misurato (sezione 17). Non c'è chiusura della settimana
-  precedente (decisione del 6 ottobre 2026, sezione 2).
-- **Generazione pigra** (decisa l'8 ottobre 2026): se la famiglia apre l'app o un
-  agente legge il menu dopo l'orario del job e la settimana successiva non esiste, il
-  server la genera in quella richiesta, senza giudice, con lo stesso vincolo di
-  unicità. Il job resta il percorso normale e questa è la rete di sicurezza: chi apre
-  l'app dopo un fallimento del job attende circa un secondo in più e trova il menu.
-  Senza realtime, chi ha già l'app aperta vede la settimana nuova alla riapertura o
-  aggiornando.
-- **Errori**: un errore riguarda solo la sua famiglia. Si ritenta all'esecuzione
-  successiva; se dopo 12 ore dalle 20:00 del mercoledì della famiglia la settimana manca
-  ancora, arriva un'email al referente operativo del
-  servizio con le famiglie ancora senza bozza. Questo destinatario va configurato
-  esplicitamente: assegnare il nuovo ruolo di curatore non abilita a ricevere segnalazioni
-  sulle altre famiglie. Contenuti e accessi operativi devono rispettare la separazione
-  dei ruoli della sezione 2.
-- **Generazione su richiesta** (wizard della famiglia nuova, oppure "rigenera" se la bozza
-  manca): stessa funzione, al massimo 3 volte a settimana per famiglia.
+  fa nulla. Un'invocazione ha fino a 15 minuti di CPU sul piano a pagamento.
+- **Smistamento**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
+  da servire e per il lunedì successivo; poi legge, a parte, tutti i job ancora
+  `pending` o `failed`.
+- **Elaborazione**: un job alla volta, ciascuno nelle sue transazioni e nel suo
+  `try/catch`, così un errore o un rallentamento riguarda solo quella famiglia. Genera
+  la settimana in un'unica transazione, se non esiste già: l'unicità di (`family_id`,
+  `starts_on`) e un lucchetto consultivo per famiglia (`pg_advisory_xact_lock`), preso
+  prima di ogni scrittura anche dalla generazione pigra, impediscono doppioni e
+  intrecci. Il job crea solo le settimane dei suoi job. Con il giudice attivo genera le
+  candidate e chiama il giudice fuori dalla transazione. Il carico reale del
+  pianificatore va misurato (sezione 17). Non c'è chiusura della settimana precedente
+  (decisione del 6 ottobre 2026, sezione 2).
+- **Generazione pigra** (decisa l'8 ottobre 2026, regola unica dell'11 ottobre): a ogni
+  lettura del menu, dall'app o da un agente, il server controlla due settimane. Se
+  manca quella in corso la genera dai pasti non ancora passati; se manca la successiva
+  ed è passato mercoledì alle 20:00 la genera intera. Copre la prima generazione di una
+  famiglia nuova e i buchi, per esempio dopo l'import. Gira nella transazione
+  dell'utente, nel ruolo `authenticated` con le policy esistenti, senza giudice e con lo
+  stesso codice del job; ogni generazione sta in un savepoint e un errore non blocca la
+  lettura. Il job resta il percorso normale per la settimana successiva: chi apre l'app
+  dopo un fallimento del job attende un poco di più e trova il menu. Senza realtime,
+  chi ha già l'app aperta vede la settimana nuova alla riapertura o aggiornando.
+- **Errori**: un errore riguarda solo il suo job. Un job fallito si ritenta ogni ora
+  finché la sua settimana non è finita (se è già iniziata, genera i pasti ancora
+  aperti); poi si chiude come `abandoned`. Nel log restano solo campi scelti:
+  `weekly_job_failed`, `weekly_job_overdue` (dal giovedì alle 08:00 che precede la
+  settimana, cioè 12 ore dopo le 20:00 del mercoledì) e `weekly_job_abandoned`. Su
+  questi ultimi due arriverà un'email con Resend al referente operativo del servizio
+  (ondata 3). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
+  curatore non abilita a ricevere segnalazioni sulle altre famiglie. Contenuti e accessi
+  operativi devono rispettare la separazione dei ruoli della sezione 2.
+- **Generazione su richiesta** (wizard della famiglia nuova, oppure "rigenera" se la
+  settimana manca): stessa funzione, al massimo 3 volte a settimana per famiglia. Arriva
+  con il wizard nell'ondata 3; nel traguardo A non c'è un'operazione «rigenera».
 - **Prima generazione di una famiglia nuova** (deciso il 6 ottobre 2026): riempie i
   pasti non ancora passati da oggi a domenica; se è già passato mercoledì alle 20:00
-  genera anche la settimana successiva, come avrebbe fatto il job.
+  genera anche la settimana successiva, come avrebbe fatto il job. È il risultato della
+  generazione pigra.
 
 ### 5. Revisione e modifiche
 
 - **Vista di apertura**: dopo il login e a ogni apertura l'app mostra i pasti di oggi della
-  famiglia corrente. Se oggi non ci sono slot con contenuto, mostra il primo giorno futuro
-  che ne ha. Se non c'è nessuna settimana (famiglia nuova), porta alla generazione della
-  prima settimana.
+  famiglia corrente. Se oggi non ci sono slot con contenuto, mostra il primo giorno da
+  oggi che ne ha, poi il primo giorno da oggi con uno slot anche vuoto, poi l'ultimo
+  giorno con slot prima di oggi; le schede «Nessuna ricetta adatta» restano visibili.
+  Prima di scegliere il giorno vale la generazione pigra (sezione 4). Se non c'è nessuna
+  settimana (famiglia nuova), porta alla generazione della prima settimana; nel
+  traguardo A, senza wizard, la crea la generazione pigra e l'apertura segnala l'assenza
+  di settimane solo se la generazione non riesce.
 - **Contenuto di un pasto**, in ogni vista che lo mostra: nome e descrizione breve della
   ricetta, porzioni,
   voto (sotto), ingredienti scalati. Se la ricetta è `web` o `youtube` c'è il collegamento
   al `source_url` della fonte, che si apre fuori dall'app senza passare il referrer
   (come fa oggi il sito del progetto di origine con `Referrer-Policy: no-referrer`).
   Per `book` si mostrano titolo e pagine; per `home` nessun collegamento. Per gli slot
-  liberi, il testo.
+  liberi, il testo. Un pasto con zero porzioni mostra gli ingredienti alle porzioni di
+  riferimento della ricetta.
 - **Versione della ricetta nei pasti (review R1, deciso nel quinto giro del prototipo):**
   un pasto passato mostra la ricetta nella versione in vigore quando è diventato passato,
   anche nella scheda ricetta aperta da quel pasto e nella lista della sua settimana;
   oggi e i pasti futuri usano la versione corrente, quindi una correzione del curatore
   arriva subito anche alla spesa (una voce già spuntata che aumenta torna da spuntare).
+  La scelta della versione per pasto è una sola funzione del server
+  (`mealRecipeVersions`), usata da Menu e Spesa.
   Lo slot conserva solo `recipe_id`: la versione si ricava da `recipe_versions` e
   dall'istante in cui il pasto è passato, con le funzioni SQL `app.meal_passed_at` e
   `app.recipe_version_at`. Se in quell'istante la ricetta non aveva ancora una versione
   pubblicata, si usa la prima versione pubblicata; se non è mai stata pubblicata (pasti
   importati con ricette in bozza), il pasto mostra solo nome e descrizione e non entra
-  nella spesa (deciso l'11 ottobre 2026). Le ricette in bozza arrivano ai pasti solo
+  nella spesa (deciso l'11 ottobre 2026); il nome è nella lingua dell'utente o, se manca,
+  nell'altra. Le ricette in bozza arrivano ai pasti solo
   dall'import; gli utenti non le collegano. Solo i curatori vedono nella scheda l'avviso
   che la ricetta è stata aggiornata dopo, con il collegamento alla versione attuale.
 - **Ricette archiviate:** restano leggibili e votabili dai pasti che le usano, anche
@@ -1079,7 +1161,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     sua volta una modifica registrata.
 - **Voto**: è sulla ricetta (`ratings`: utente × ricetta), non sullo slot. È sempre possibile,
   dallo slot di qualsiasi settimana o dalla scheda della ricetta nel catalogo, e non dipende
-  dallo stato della settimana.
+  dallo stato della settimana. Ricettario e scheda della ricetta non offrono «non
+  proporre più» e non nascondono le ricette escluse.
 - **Voto sempre visibile**: ogni volta che l'interfaccia mostra una ricetta (slot,
   suggerimenti, risultati di ricerca, scheda della ricetta) mostra anche le stelline
   con:
@@ -1093,7 +1176,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   media e proprio voto in quella vista. È un unico componente riusato in tutte le viste; la
   sua forma si decide nel design delle superfici.
 - **Tracciabilità**: ogni scrittura aggiorna `updated_by` e `updated_at` e aggiunge
-  una riga a `meal_changes`, anche quando arriva da MCP. L'interfaccia mostra solo
+  una riga a `meal_changes`, anche quando arriva da MCP. La generazione crea e non
+  modifica: lascia `updated_by` vuoto e non scrive il registro, quindi l'ultima modifica
+  mostrata è sempre di una persona. L'interfaccia mostra solo
   l'ultima modifica, con persona e momento; il canale (web o MCP) resta nel registro e
   non si mostra (deciso il 6 ottobre 2026).
 - **Concorrenza, decisa il 6 ottobre 2026:** vince l'ultimo salvataggio, senza avviso di
@@ -1145,7 +1230,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   perché le versioni sono immutabili, mai in lettura; quelle di ambito `shopping` a ogni
   calcolo della lista. Un'equivalenza con preparazione vale solo per le righe con quella
   preparazione e ha la precedenza sulla generica; quella di un'altra preparazione non si
-  usa mai.
+  usa mai. La preparazione si legge solo dal campo bilingue della riga, mai dal testo
+  della fonte (sezione 8).
 - **Lista della settimana** (terzo giro del prototipo, 6 ottobre 2026): una lista per
   settimana con tutti i pasti della settimana, senza scelta dei pasti, senza altre liste
   e senza archivio; si apre dalla borsa nella barra del Menu sulla settimana mostrata;
@@ -1153,7 +1239,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   dai pasti, quindi seguono ogni modifica.
 - **Generazione delle voci**:
   1. si parte da tutti gli slot della settimana con ricetta (pasti liberi, vuoti e
-     ricette senza ingredienti esclusi, questi ultimi segnalati);
+     ricette senza ingredienti esclusi; le ricette senza ingredienti e quelle mai
+     pubblicate compaiono negli avvisi della lista);
   2. si scalano gli ingredienti;
   3. si consolida per ingrediente e varietà: righe che differiscono solo per
      preparazione, taglia o forma della parola sono lo stesso ingrediente; prodotti
@@ -1187,8 +1274,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   vince l'ultimo salvataggio; si ricorda chi ha cambiato la lista per ultimo. Una voce
   spuntata la cui quantità poi aumenta torna da spuntare e mostra la quantità spuntata
   ("prima: 200 g"); se diminuisce resta spuntata. Voci libere nella sezione "Altro",
-  aggiunte dall'ultima riga della sezione. La vista della lista espone la quantità
-  canonica di ogni voce, che il client invia con la spunta.
+  aggiunte dall'ultima riga della sezione, fino a 60 caratteri, conservate come scritte.
+  La vista della lista espone la quantità canonica di ogni voce, che il client invia
+  sempre con la spunta, anche via MCP: una ripetizione salva lo stesso contenuto. Se un
+  membro cancella una voce libera mentre un altro ripete l'invio della sua aggiunta, la
+  voce ricompare: caso accettato, si elimina di nuovo.
 - **Offline**: la lista è l'unica parte dell'app modificabile offline (spunte, voci
   libere, ingredienti rimessi): le modifiche restano sul dispositivo in una coda locale
   e si inviano al ritorno della rete, con la regola dell'ultimo salvataggio per voce;
@@ -1200,20 +1290,30 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   strato «da sincronizzare» fuori dalla cache delle letture; alla riconnessione si
   rinnova la sessione e si invia in ordine solo se l'utente è lo stesso; un rinnovo
   rifiutato chiude la sessione e cancella la coda; `forbidden` scarta le voci di quella
-  famiglia. Niente Background Sync, che Safari iOS non supporta.
+  famiglia. Niente Background Sync, che Safari iOS non supporta. Tutte le modifiche
+  della lista passano dalla coda, anche online: ogni operazione è salvata come in attesa
+  o inviata prima dell'invio, si compattano solo operazioni mai inviate e ogni risposta
+  diventa la nuova base, con sopra le operazioni ancora in attesa. Più schede dello
+  stesso utente si escludono con Web Locks; senza Web Locks è una limitazione
+  dichiarata.
 - **Esportazioni** (dal menu "…" della lista; escludono le voci spuntate e includono le
   voci libere):
-  - PDF di una pagina;
-  - Web Share API, con testo semplice;
-  - Bring!: si salva in `temporary_lists` con un token casuale e si apre
-    `https://api.getbring.com/rest/bringrecipes/deeplink?url=<app>/shopping-lists/<token>&source=web`.
-    La pagina `/shopping-lists/<token>` è pubblica e `noindex`, e contiene solo il JSON-LD
-    `schema.org/Recipe` con `recipeIngredient` nel formato "quantità nome", senza nome della
-    famiglia né giorni. Scade dopo 30 minuti; un job `pg_cron` la pulisce. È lo stesso meccanismo
-    di `scripts/sito_lib.py` nel progetto di origine.
+  - PDF di una pagina, nell'ondata 3 (nel traguardo A il menu non lo mostra);
+  - Condividi: testo semplice calcolato sul dispositivo, quindi anche offline, con la
+    Web Share API o, in mancanza, copiato negli appunti;
+  - Bring!: richiede la rete e la lista sincronizzata (senza operazioni in coda). Si
+    salva in `temporary_lists` con un token casuale e si apre
+    `https://api.getbring.com/rest/bringrecipes/deeplink?url=<app>/shopping-lists/<token>&source=web`
+    in due passi, compatibili con Safari iOS: creazione del link, poi «Apri in Bring!».
+    La pagina `/shopping-lists/<token>` è pubblica, `noindex` e senza cache, letta nel
+    ruolo `anon`, e contiene solo il JSON-LD `schema.org/Recipe` con nome «Cosa si
+    mangia» e `recipeIngredient` nel formato "quantità nome", senza nome della famiglia
+    né giorni. Una lista vuota non crea il link (`invalid`). Scade dopo 30 minuti; un job
+    `pg_cron` la pulisce. È lo stesso meccanismo di `scripts/sito_lib.py` nel progetto di
+    origine.
 
-  Tramite MCP si devono ottenere gli stessi contenuti esportabili: PDF, testo e
-  collegamento Bring!. La consegna di file e collegamenti dipende dalle capacità del
+  Tramite MCP si devono ottenere gli stessi contenuti esportabili: testo e collegamento
+  Bring!, poi il PDF. La consegna di file e collegamenti dipende dalle capacità del
   client e verrà provata nel design MCP; il requisito non implica poter comandare
   direttamente l'interfaccia di condivisione del dispositivo da qualunque agente.
 
@@ -1288,7 +1388,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   richiudibile con "Invita la famiglia" e "Sistema le impostazioni".
 - **Vista Profilo**: quarta voce della navbar, con famiglia corrente (membri e inviti,
   impostazioni, "non proporre più"), elenco delle proprie famiglie (un tocco cambia la
-  famiglia mostrata) e "Crea un'altra famiglia", account e preferenze.
+  famiglia mostrata) e "Crea un'altra famiglia", account e preferenze. La famiglia
+  mostrata è ricordata sul server, uguale su tutti i dispositivi; gli agenti indicano
+  sempre la famiglia su cui operano. Nel traguardo A il Profilo non mostra i comandi
+  dell'ondata 3 (inviti, rimozione, uscita, cambio di ruolo, eliminazione,
+  cancellazione, «Crea un'altra famiglia»), nemmeno come segnaposto.
 - **Rimozione di un membro**: la decide un amministratore con una conferma che ne
   spiega gli effetti; i suoi voti escono dalla media; le tracce diventano "ex membro".
 - **Uscita dalla famiglia**: libera per i membri; l'ultimo amministratore con altri
@@ -1360,13 +1464,17 @@ della loro assenza da un file YAML.
 2. Il servizio espone i dati richiesti e i vincoli; l'agente raccoglie le informazioni e
    chiede quelle mancanti. La guida non deve dipendere dalla memoria di un singolo agente:
    il servizio fornisce istruzioni scritte, a partire da quelle sugli ingredienti decise
-   nel quinto giro del prototipo (sotto, "Ingredienti e varietà").
+   nel quinto giro del prototipo (sotto, "Ingredienti e varietà"): flusso, requisiti per
+   pubblicare e ingredienti, servite come `catalogue.getGuide`.
 3. La validazione sul server restituisce campi mancanti e incoerenze in forma strutturata,
    così l'agente può proseguire con domande mirate.
    Le informazioni parziali possono essere salvate in una bozza persistente e recuperate
    in una sessione successiva; restano escluse dal catalogo pubblicato.
-4. Proposta di interazione: prima del salvataggio l'agente presenta la scheda completa
-   al curatore per la conferma, comprese le traduzioni predisposte.
+4. Prima di pubblicare l'agente presenta al curatore la scheda completa, comprese le
+   traduzioni predisposte, e pubblica solo dopo un sì esplicito (scelta dell'utente
+   dell'11 ottobre 2026). La conferma la chiedono le istruzioni servite all'agente: la
+   pubblicazione prende l'ultima revisione della bozza, senza vincoli sulla revisione
+   mostrata né un segno sulle traduzioni.
 5. Il server verifica nuovamente ruolo, completezza e validità al momento della
    pubblicazione e salva la ricetta con i suoi ingredienti e riferimenti in modo atomico.
    Un errore non deve lasciare una ricetta parzialmente inserita nel catalogo.
@@ -1382,7 +1490,11 @@ ricetta in bozza mostra nome e descrizione; la scheda si apre solo ai curatori e
 voto non è disponibile finché la ricetta non è pubblicata. Tutti i curatori possono consultare e modificare le bozze
 degli altri; autore e ultima modifica sono visibili. Salvare una bozza non pubblica
 una ricetta: la completezza resta vincolante per l'ingresso nel catalogo utilizzato
-dalle famiglie.
+dalle famiglie. Nel traguardo A le sezioni «Bozze» e «Archiviate» (con «Riporta nel
+ricettario») sono visibili ai curatori anche senza famiglia e la bozza si apre in una
+pagina di sola lettura; modifica, archiviazione, versioni e ripristino nell'app arrivano
+con l'ondata 3 e intanto si fanno via MCP. I salvataggi di una bozza, anche chiusa, si
+leggono via MCP: un salvataggio sovrascritto si recupera salvandolo di nuovo.
 
 Il salvataggio di una bozza applica controlli sui dati forniti senza richiedere i campi
 ancora mancanti: rifiuta solo dati sbagliati (indirizzo non valido, numeri non
@@ -1404,7 +1516,12 @@ obbligatori anche gli attributi del pianificatore: `meal_type`, `protein_group`,
 `carbohydrate_group`, `category`, `is_fresh_fish`, `has_vegetables`, `is_heavy`;
 restano facoltativi stagioni e ingrediente principale. La preparazione di una riga è
 facoltativa ma, se presente, va nelle due lingue come la varietà; ogni riga ha il testo
-della fonte com'è scritto, anche dopo una conversione da tazze USA.
+della fonte com'è scritto, anche dopo una conversione da tazze USA. Le tazze USA si
+convertono al controllo e alla pubblicazione con le equivalenze di ambito ricetta: la
+bozza resta com'è scritta, la versione pubblicata ha la quantità convertita e il testo
+originale, e l'esito elenca le conversioni fatte. Una preparazione verificata va nel
+campo bilingue della riga anche quando compare già nel testo della fonte, perché le
+equivalenze legate alla preparazione leggono solo quel campo.
 
 **Conflitti fra curatori, decisi nel quinto giro:** ogni salvataggio dichiara la
 revisione della bozza da cui parte. Se nel frattempo un altro curatore ha salvato, il
@@ -1471,6 +1588,10 @@ stessa entità canonica, anche se i nomi sono in lingue diverse.
 - se la fonte cita due volte lo stesso ingrediente senza varietà diverse, le quantità si
   uniscono in una riga e il testo della fonte le riporta entrambe; l'import non le unisce
   da solo: lascia entrambe le righe e la ricetta in bozza;
+- via MCP un curatore cerca, legge, crea e modifica gli ingredienti (nomi, sinonimi,
+  reparto, dispensa) dichiarando la versione da cui parte, con lo stesso conflitto delle
+  bozze, e gestisce le equivalenze di ambito ricetta con la loro fonte; archiviazione
+  degli ingredienti ed equivalenze di spesa arrivano nell'ondata 3;
 - le istruzioni per l'agente su questi punti sono una bozza nel prototipo
   (`prototype/src/lib/operations/curation-guide.ts`, copia italiana in
   `design/percorsi.md`) e diventeranno parte della guida servita da MCP (sezione 13).
@@ -1508,7 +1629,10 @@ archiviate. Una ricetta archiviata esce da ricettario, ricerca, suggerimenti e
 generazioni; i pasti che la usano restano leggibili e votabili, anche quelli futuri,
 finché la famiglia non li cambia. La precedente archiviazione automatica per assenza dal
 YAML è eliminata. Una bozza nuova mai pubblicata si può eliminare solo se nessun pasto
-la cita; una revisione si può scartare. La cancellazione del curatore non implica la
+di nessuna famiglia la cita: si chiude come scartata e la ricetta resta nel database,
+fuori da bozze e pasti. Una revisione si può scartare. Anche una ricetta archiviata si
+può rivedere e pubblicare: resta archiviata finché un curatore non la riporta nel
+ricettario. La cancellazione del curatore non implica la
 cancellazione delle ricette che ha contribuito.
 
 **Backup e ripristino richiesti:** il ricettario deve poter essere recuperato dopo
@@ -1524,7 +1648,9 @@ i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di ba
   confronto campo per campo (escluso nella review). Lo storico resta intero; il
   ripristino riporta solo campi e righe di ingredienti di quella ricetta, non le entità
   condivise (ingredienti del catalogo, nomi, reparti), e non avviene se la vecchia
-  versione non supera i controlli di oggi. Accessibile ai curatori.
+  versione non supera i controlli di oggi. Se la ricetta è cambiata dopo che il
+  curatore l'ha guardata serve una nuova conferma, come per la pubblicazione da una
+  versione superata. Accessibile ai curatori.
 - **Intero catalogo:** ripristino a una data scelta, con anteprima dell'impatto e
   verifica della coerenza. **Deciso l'8 ottobre 2026:** lo stato del catalogo a una
   data si ricostruisce dallo storico in sola aggiunta (`recipe_versions`,
@@ -1669,19 +1795,42 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
 **Ordine confermato il 3 ottobre:** prima costruire e concordare il prototipo dell'app,
 salvato nel repository; poi verificare le scelte funzionali e architetturali alla luce
 del prototipo; infine aggiornare e approvare i piani prima dell'implementazione dell'app.
+Prototipo e verifica dell'architettura sono conclusi (sezioni 1 e 14).
 
 **Dall'11 ottobre 2026 le fasi sono nel piano generale**
 `progetto/superpowers/plans/2026-10-11-piano-generale.md`, approvato dall'utente, che
-sostituisce la tabella M1–M6 precedente e il piano M1a del 29 settembre. Ogni attività ha
-una spec di dettaglio e un piano, subordinati a questa specifica, e al merge riporta qui
-le decisioni nuove. Il piano generale tiene l'ordine delle attività, le interfacce fra
-attività e il registro delle decisioni del coordinamento.
+sostituisce la tabella M1–M6 precedente e il piano M1a del 29 settembre. Il piano
+generale tiene l'ordine delle attività, le interfacce fra attività e il registro delle
+decisioni del coordinamento.
+
+**Metodo per ogni attività:** brainstorming, spec di dettaglio in
+`progetto/superpowers/specs/2026-10-11-*.md` e piano, review avversariale di spec e
+piano, implementazione con TDD, pull request con review avversariale del codice, merge
+su `main`. Dopo il merge le decisioni della sezione «Decisioni da riportare» della spec
+di dettaglio entrano in questa specifica, che resta il riferimento: per i particolari
+tecnici rimanda alle spec di dettaglio, subordinate a essa. Nell'ondata 2 un'attività
+implementa solo ciò che dipende da interfacce già fissate nel piano generale o già unite.
 
 | Ondata | Contenuto | Risultato |
 |---|---|---|
-| **1 Fondamenta** (completata l'11 ottobre 2026) | Piattaforma (Worker, contratto, verifica dei token, CI), schema e permessi, documento ricetta e import, dominio di unità e spesa, app web di base | Base comune per le attività del traguardo A |
-| **2 Traguardo A** | Profilo, famiglia e impostazioni senza inviti; ricettario e voti; menu, pianificatore, job del mercoledì e generazione pigra; revisione dei pasti; spesa, anche offline; gestione del ricettario tramite MCP; collegamento degli agenti; esportazione notturna in R2; messa in produzione con l'import del ricettario e dei dati della famiglia | La famiglia di Federico usa l'app ogni settimana, con il ricettario gestito anche tramite agente MCP |
-| **3 Prodotto** | Inviti familiari e all'app, wizard, accesso con Google, Resend e dominio `cosasimangia.qunidi.it`, amministrazione dell'app, ripristino dell'intero catalogo, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
+| **1 Fondamenta** | Piattaforma (Worker, contratto, verifica dei token, CI), schema e permessi, documento ricetta e import, dominio di unità e spesa, app web di base | Base comune per le attività del traguardo A |
+| **2 Traguardo A** | Profilo, famiglia e impostazioni senza inviti; ricettario e voti; menu, pianificatore, job del mercoledì e generazione pigra; revisione dei pasti; spesa, anche offline; gestione del ricettario tramite MCP, con le bozze visibili nell'app; collegamento degli agenti; esportazione notturna in R2; messa in produzione con l'import del ricettario e dei dati della famiglia | La famiglia di Federico usa l'app ogni settimana, con il ricettario gestito anche tramite agente MCP |
+| **3 Prodotto** | Inviti familiari e all'app, wizard e generazione su richiesta, accesso con Google, Resend (con le email del job) e dominio `cosasimangia.qunidi.it`, amministrazione dell'app, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
+
+**Stato all'11 ottobre 2026:**
+
+| Attività | Stato |
+|---|---|
+| Ondata 1: piattaforma, schema e permessi, ricetta e import, unità e spesa, app web di base con il client reale | Unite su `main` (PR #3–#9, #17) |
+| Profilo, famiglia e impostazioni | Server e web uniti (PR #10, #16, #18, #21) |
+| Ricettario e voti | Viste condivise, server e web uniti (PR #12, #14, #19) |
+| Menu, pianificatore, job e generazione pigra | Server, job con Cron Trigger e web uniti (PR #13, #15, #20) |
+| Spesa, anche offline | Server, pagina Bring!, coda offline e web uniti (PR #11, #22) |
+| Gestione del ricettario tramite MCP | Server e strumenti MCP uniti (PR #23); in corso le sezioni web delle bozze |
+| Revisione dei pasti | Da avviare: azioni sui pasti, suggerimenti, annullamento e registro delle modifiche |
+| Collegamento degli agenti | Da assegnare; serve confermare il server OAuth sul progetto di produzione |
+| Esportazione notturna in R2 | Da assegnare; servono bucket, chiave e conservazione decisa con l'utente |
+| Messa in produzione | Ultima; il Worker non è ancora pubblicato e i passi di produzione (pool, password di `app_server`, Hyperdrive, primo deploy) si concordano con l'utente prima della prima pubblicazione |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano; passi esterni (DNS di `qunidi.it`, Resend, Google) rimandati
@@ -1689,11 +1838,10 @@ finché non servono, partendo dall'indirizzo `workers.dev`.
 
 Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
 rispetta dalla sua prima versione, con l'eccezione esplicita dell'eliminazione delle
-famiglie, per cui MCP restituisce il link all'app. La collocazione delle attività nella roadmap non
-rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
-La priorità finale riguarda il modulo manuale, non la
-consultazione delle bozze nell'app, richiesta insieme alla gestione del ricettario
-tramite MCP.
+famiglie, per cui MCP restituisce il link all'app. La collocazione delle attività nella
+roadmap non rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
+La priorità finale riguarda il modulo manuale, non la consultazione delle bozze nell'app,
+richiesta insieme alla gestione del ricettario tramite MCP.
 
 ### 11. Convivenza con il progetto di origine
 
@@ -1720,7 +1868,9 @@ tramite MCP.
   d'origine non si importano: li sostituiscono gli attributi del pianificatore. Gli
   ingredienti di dispensa esclusi nell'origine non si aggiungono e il report li elenca.
   La pubblicazione resta bloccata finché i dati di revisione non sono approvati
-  (sezione 12).
+  (sezione 12). Nella messa in produzione la scrittura nel database riusa il modulo
+  della gestione del ricettario (`server/src/catalogue/write.ts`), con canale `import` e
+  gli slug dell'import conservati.
 - Quando spegnere il vecchio flusso lo decide l'utente, dopo il traguardo A.
 
 ### 12. Lingue e contenuti tradotti
@@ -1738,6 +1888,14 @@ dell'esperienza tradotta. Il nome dell'app, «Cosa si mangia», non si traduce.
 - date, numeri, plurali e nomi delle unità coerenti con la lingua selezionata;
 - identificatori e codici tecnici stabili in inglese, indipendenti dalle traduzioni,
   utilizzabili allo stesso modo dal web e da MCP.
+
+**Ricerca nella lingua dell'utente** (11 ottobre 2026): il ricettario si cerca su nome e
+descrizione della ricetta, nomi e varietà degli ingredienti e sinonimi degli ingredienti
+nella lingua di chi cerca; ogni parola cercata deve comparire, senza distinguere
+maiuscole, accenti e punteggiatura. Allo stesso modo si cercano gli ingredienti da
+evitare della famiglia e, per i curatori, ricette e ingredienti del catalogo. Una ricetta
+mai pubblicata citata da un pasto mostra il nome nell'altra lingua se manca in quella
+dell'utente.
 
 Le stringhe dell'interfaccia vivono nel codice, senza librerie: dizionari TypeScript
 tipati per area, hook `useT()`, plurali con `Intl.PluralRules`, date e numeri con
@@ -1763,9 +1921,12 @@ il curatore le inserisce senza funzionalità AI dell'app. Per l'import (11 ottob
 le traduzioni en-GB e la mappatura degli ingredienti sono preparate dall'agente in YAML
 versionati in `scripts/import/`, riviste dall'utente su una pagina generata e approvate
 con una riga in testa a ogni file, con data e impronta del contenuto: una modifica
-successiva richiede una nuova revisione e senza approvazione valida non si pubblica. La
-revisione delle traduzioni suggerite nella gestione tramite MCP resta da definire. Anche il trattamento dei testi liberi degli
-utenti è da concordare: la proposta iniziale è conservarli come scritti. Questi testi,
+successiva richiede una nuova revisione e senza approvazione valida non si pubblica.
+Nella gestione tramite MCP le traduzioni suggerite le rivede il curatore sulla scheda
+completa che l'agente mostra prima di pubblicare (sezione 8, deciso l'11 ottobre 2026).
+Il trattamento dei testi liberi degli utenti è da concordare: la proposta iniziale è
+conservarli come scritti, già decisa per le voci libere della spesa (sezione 6).
+Questi testi,
 le trascrizioni originali delle fonti e i titoli bibliografici sono distinti dai testi
 localizzati obbligatori. I collegamenti alle fonti non diventano traduzioni dei siti o
 dei libri.
@@ -1800,10 +1961,15 @@ non accesso generico alle tabelle.
   e MCP si regge sul claim `client_id`.
 - **Strumenti generati dal contratto delle operazioni**, con i metadati di esposizione
   di ciascuna operazione: nessuno strumento scritto a mano che possa divergere dal web.
-  Raggruppamento degli strumenti (uno per operazione o uno per area con l'azione come
-  parametro) da provare sui client (sezione 15).
+  Oggi uno strumento per operazione, con nome `area_operazione` (`profile_get`,
+  `catalogue_publish`…), descrizione per l'agente in inglese e letture segnate in sola
+  lettura; le letture del menu possono comunque generare una settimana (sezione 4). Il
+  raggruppamento (uno per area con l'azione come parametro) resta da provare sui client
+  (sezione 15).
 - **Istruzioni per l'agente**, a partire da quelle sugli ingredienti (sezione 8),
-  servite dal server MCP stesso, non solo descritte nella pagina dell'app.
+  servite dal server MCP stesso, non solo descritte nella pagina dell'app: per la
+  gestione del ricettario sono `catalogue.getGuide`, testo in inglese con flusso,
+  conferma del curatore, conflitti, requisiti per pubblicare e ingredienti.
 
 Compatibilità effettiva dei quattro client e consegna delle esportazioni restano da
 verificare con una prova prima dell'implementazione (sezione 15).
@@ -1821,10 +1987,10 @@ implicite alla copertura delle operazioni.
 | Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare |
 | Pasti e ricettario | Consultare oggi e settimane, cercare e leggere ricette, ingredienti e voti |
 | Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi, note ed esclusioni |
-| Voti e generazione | Dare, cambiare o togliere il proprio voto; richiedere la generazione nei limiti previsti |
-| Spesa | Leggere la lista di una settimana, spuntare voci, aggiungere voci libere, ottenere PDF, testo e collegamento Bring! |
-| Famiglia e account | Creare e gestire la famiglia, impostazioni e inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
-| Gestione del ricettario | Conoscere i requisiti e le istruzioni sugli ingredienti, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web), controllare una bozza senza pubblicarla, pubblicare ricette complete, modificare ricette di qualunque autore, cercare ingredienti e varietà già usate e controllare una varietà, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
+| Voti e generazione | Dare, cambiare o togliere il proprio voto (`ratings.set`, a stato assoluto, `null` per toglierlo); richiedere la generazione nei limiti previsti (ondata 3) |
+| Spesa | Leggere la lista di una settimana, spuntare voci (con la quantità letta dalla vista), rimettere ingredienti esclusi, aggiungere voci libere, ottenere testo e collegamento Bring!, poi il PDF |
+| Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`. Poi: creare e gestire la famiglia e gli inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
+| Gestione del ricettario | Area `catalogue`, ruolo di curatore, senza famiglia: conoscere i requisiti e le istruzioni sugli ingredienti, cercare le ricette pubblicate e archiviate, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web) e leggerne i salvataggi, controllare una bozza senza pubblicarla, pubblicare ricette complete, scartare bozze, modificare ricette di qualunque autore, cercare, leggere, creare e modificare ingredienti con le equivalenze di ricetta, elencare varietà già usate e controllare una varietà, elencare e creare libri, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
 | Amministrazione globale | Gestire utenti, ruoli, nomina di amministratori, inviti e ripristino dell'intero catalogo a una data; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
@@ -1998,7 +2164,9 @@ stato tolto); foto in
 banner basso 3:1 e fonte sulla riga del tempo, troncata. Le schede del ricettario usano
 lo stesso componente; il ricettario ha ricerca, un'icona che apre filtri e
 ordinamento (nome, voto, aggiunte di recente, mangiate di recente), con una freccia
-per invertire l'ordine scelto; nessun filtro per stagione. Nella scheda
+per invertire l'ordine scelto, che lascia in fondo le ricette senza voto o mai mangiate
+(correzione dell'11 ottobre 2026 rispetto al prototipo); nessun filtro per stagione.
+Nella scheda
 ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
 ingredienti (dettagli in `design/design.md`).
 La navbar mostra solo icone, con nomi accessibili,
@@ -2056,15 +2224,14 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|---|
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
-| Completezza delle ricette | Momento della conferma del curatore nel percorso MCP. Decisi nel quinto giro i campi obbligatori per pubblicare, anche per tipo di fonte (sezione 8) | Sezioni 8, 11 e 12 |
 | Backup e ripristino | Esportazione notturna in R2 al posto dei backup della piattaforma (piano gratuito di Supabase, deciso l'8 ottobre): strumento, conservazione, cifratura, tempi e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 2, 8, 9 e 13 |
-| Lingue | Revisione delle traduzioni suggerite nella gestione tramite MCP, testi liberi e ricerca multilingue; traduzioni mancanti bloccano già la pubblicazione. Decisi l'11 ottobre i campi bilingui jsonb al posto delle tabelle `*_translations`, l'impostazione iniziale della lingua e la revisione delle traduzioni dell'import (sezioni 2 e 12) | Sezioni 2 e 12 |
-| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), revoca dei grant di un client, raggruppamento degli strumenti, consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
+| Lingue | Testi liberi degli utenti diversi dalle voci della spesa (note e testi dei pasti liberi); traduzioni mancanti bloccano già la pubblicazione. Decisi l'11 ottobre i campi bilingui jsonb al posto delle tabelle `*_translations`, l'impostazione iniziale della lingua, la revisione delle traduzioni dell'import e di quelle suggerite via MCP sulla scheda mostrata prima di pubblicare, la ricerca nella lingua dell'utente con i sinonimi e le voci libere della spesa conservate come scritte (sezioni 2, 6, 8 e 12) | Sezioni 2 e 12 |
+| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), revoca dei grant di un client, raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | Automazione della pubblicazione del Worker prima del traguardo A (preferibilmente GitHub Actions a test verdi) e modo di applicare le migrazioni al progetto di produzione. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1) | Sezioni 1 e 10 |
 | Architettura | Valutare nell'ondata 2 `@orpc/tanstack-query` (per ora `queryOptions` scritte a mano). Decisi l'11 ottobre 2026 oRPC senza Hono, Postgres.js senza ORM e l'SDK ufficiale di MCP, provati su Workers con RLS tramite Hyperdrive, e cosa fa crescere i contatori di versione (sezione 1) | Sezione 1 |
 | Hosting e costi | Pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3; una richiesta all'API ne usa circa 7, una chiamata MCP circa 13, misurati l'11 ottobre), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare | Sezioni 1, 4, 7 e 8 |
-| Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta rispetto al job del mercoledì (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre, sezione 4) | Sezioni 2, 4 e 5 |
+| Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta («rigenera») e wizard rispetto alla generazione pigra, nell'ondata 3 (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre; l'11 ottobre regola unica di generazione all'apertura per la settimana in corso e la successiva, recupero e abbandono dei job, generazioni serializzate per famiglia, sezione 4) | Sezioni 2, 4 e 5 |
 | Pianificatore e giudice | Classificazione dei vincoli in parte decisa nell'esperimento dell'8 ottobre: vincoli rigidi (compreso il massimo settimanale degli ingredienti limitati) filtrano, voto ≤ 2 ammesso solo senza alternative, slot senza candidati segnati «nessuna ricetta adatta», regole di settimana (venerdì pesce, intervalli, quota) riparate quando possibile e altrimenti mostrate nel report. Restano: come mostrare alla famiglia una regola non soddisfatta, un modello di regola per «niente skottle il lunedì sera», crescita del ricettario per la quota note/nuove; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
 ### 16. Registro delle revisioni
@@ -2100,6 +2267,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 11 ottobre 2026, gestione del ricettario | «Gestione del ricettario» (o «gestione») sostituisce «curatela» nei documenti vivi e nell'interfaccia italiana del prototipo («Gestione del ricettario» nel Profilo). Il ruolo resta «curatore», il codice in inglese resta `curation`; piani chiusi e righe precedenti di questo registro invariati |
 | 11 ottobre 2026, prove tecniche | Scelti oRPC senza Hono, Postgres.js senza ORM, `jose` e l'SDK ufficiale di MCP, per tenere al minimo le dipendenze con pochi utenti. Provati su un Worker: RPC, OpenAPI e strumenti MCP dal contratto, RLS nel ruolo dell'utente tramite Hyperdrive senza scambi di dati sotto carico, limite di connessioni di Hyperdrive sotto il pool di Supabase, cache senza promesse condivise. Server OAuth 2.1 di Supabase disponibile sul piano gratuito; Claude Code e Codex CLI collegati con consenso e canale `client_id`; revoca da provare in M1; Claude Desktop e ChatGPT da verificare. Esito in `spike/REPORT.md`. Deciso l'account Cloudflare di POWA; installata la CLI di Supabase |
 | 11 ottobre 2026, fine dell'ondata 1 | Riportate le decisioni delle cinque attività unite (piattaforma, schema e permessi, ricetta e import, unità e spesa, app web di base) e del piano generale: fasi a tre ondate con il traguardo A; campi bilingui jsonb; attributi del pianificatore obbligatori per pubblicare; «invariato» nel contratto; Cron Trigger per il job; R1 con la prima versione pubblicata; spesa offline anche senza sessione verificabile; ruoli Postgres e schema `app`; contatori di versione; copia e sessione sul dispositivo; codici delle unità, presentazione imperiale e pezzi nella spesa; casi R4 e import con revisione approvata; accesso con email e password nel traguardo A |
+| 11 ottobre 2026, attività dell'ondata 2 unite | Riportate le decisioni di profilo e famiglia, ricettario e voti, menu e pianificatore, spesa e gestione del ricettario tramite MCP: regola unica di generazione all'apertura, settimane successive già pianificate considerate dal pianificatore, recupero e abbandono dei job, apertura sul primo giorno con pasti; famiglia mostrata sul server e Profilo senza i comandi dell'ondata 3; ricerca nella lingua dell'utente e ordinamento con i valori mancanti in fondo; Condividi e Bring! nel traguardo A, PDF nell'ondata 3, coda della spesa per ogni modifica; conferma del curatore nelle istruzioni dell'agente, eliminazione di una bozza come chiusura, revisione di ricette archiviate, ingredienti ed equivalenze via MCP, bozze in sola lettura nell'app; errori `not_allowed` e `conflict` con tipo, hook `prepare`, tabelle `profile_preferences` e `recipe_draft_requests`; fasi della sezione 10 con lo stato delle attività |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
@@ -2164,7 +2332,9 @@ da precisare anche il target della prima generazione e l'istante in cui un pasto
 **Quando:** comportamento visibile in P0; orchestrazione e recupero prima di M3.
 **Aggiornamento del 6 ottobre 2026:** le chiusure delle settimane sono state eliminate
 (sezione 2) e l'istante del pasto passato è deciso (sezione 5); resta aperta solo la
-parte su generazione su richiesta e prima generazione.
+parte su generazione su richiesta e prima generazione. **Aggiornamento dell'11 ottobre
+2026:** la prima generazione segue la regola unica di generazione all'apertura (sezione
+4); resta da definire la generazione su richiesta con il wizard (ondata 3).
 
 **R4 — Impatto medio: mappature dell'import che i dati reali richiedono.**
 Sezioni 3, 8 e 11. Nell'origine `pasta-tonno` e `lenticchie-comidista` risultano
