@@ -92,3 +92,6 @@ w1:pA	STATO: DOMANDA Approvi l'approccio 1 (logica nel Worker con il dominio di 
 w1:pA	STATO: DOMANDA Approvi questa sezione (migrazione con la sola recipe_is_cited, contenuto di ingredient_versions, interfacce usate e prodotte, montaggio in RecipesPage, web dopo la #223edd96
 w1:pA	STATO: DOMANDA Approvi l'ultima sezione, con il codice nuovo not_allowed (con reason) invece di invalid? Se sì, scrivo la spec di dettaglio. #af162816
 w1:p1V	REVISORE_FINITO
+w1:pA	STATO: SPEC_E_PIANO_PRONTI #ca7f2af3
+w1:pX	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/19 #de0cf35a
+w1:pW	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/20 #28f45f02
