@@ -1,7 +1,20 @@
 import { appError } from '../errors.ts';
-import type { Implementer } from '../pipeline.ts';
+import { fresh, type Implementer } from '../pipeline.ts';
 import { canSeeRecipe } from './access.ts';
+import { readRecipe, readRecipeBook } from './read.ts';
 import { ratingSummaries } from './views.ts';
+
+export function recipesRouter(os: Implementer) {
+	return {
+		search: os.recipes.search.handler(async ({ context, input }) =>
+			fresh(context, await readRecipeBook(context.tx, { familyId: input.familyId, userId: context.userId, locale: context.locale }, input.query)),
+		),
+
+		get: os.recipes.get.handler(async ({ context, input }) =>
+			fresh(context, await readRecipe(context.tx, { familyId: input.familyId, userId: context.userId, locale: context.locale }, input)),
+		),
+	};
+}
 
 export function ratingsRouter(os: Implementer) {
 	return {

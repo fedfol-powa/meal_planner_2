@@ -95,9 +95,24 @@ const NEVER_PUBLISHED = {
  * Contents of the references, keyed by contentKey, from ONE statement: the recipe row and the
  * immutable document of the version asked (the current one for null). Read committed gives a
  * statement a single snapshot, so a concurrent publication cannot mix two versions (R1).
- * Recipes RLS hides, and versions that do not exist, are left out.
+ * Recipes RLS hides, versions that do not exist and, with `access`, recipes the family may not
+ * see are left out: the access is judged in the same statement, on the document returned, so a
+ * publication moving the recipe to a book the family does not own cannot slip in between.
  */
-export async function loadContents(tx: Tx, refs: Pick<RecipeRef, 'recipeId' | 'version'>[]): Promise<Map<string, Content>> {
+/**
+ * Who may see a recipe, judged on the book of the document loaded: a family owning that book,
+ * or (with viaMeals) one of whose meals cites the recipe. Drafts never pass (spec of W6).
+ */
+export interface ContentAccess {
+	familyId: string;
+	viaMeals: boolean;
+}
+
+export async function loadContents(
+	tx: Tx,
+	refs: Pick<RecipeRef, 'recipeId' | 'version'>[],
+	access?: ContentAccess,
+): Promise<Map<string, Content>> {
 	const wanted = [...new Map(refs.map((ref) => [contentKey(ref), ref])).values()];
 	if (!wanted.length) return new Map();
 	// Lists travel as JSON text: the connection does not fetch array types (fetch_types: false),
@@ -109,7 +124,19 @@ export async function loadContents(tx: Tx, refs: Pick<RecipeRef, 'recipeId' | 'v
 		from jsonb_to_recordset(${JSON.stringify(wanted.map((ref) => ({ recipe_id: ref.recipeId, version: ref.version })))}::text::jsonb) as w(recipe_id uuid, version int)
 		join app.recipes r on r.id = w.recipe_id
 		left join app.recipe_versions v
-			on v.recipe_id = r.id and v.version = coalesce(w.version, nullif(r.version, 0))`;
+			on v.recipe_id = r.id and v.version = coalesce(w.version, nullif(r.version, 0))
+		where ${access?.familyId ?? null}::uuid is null
+			or (r.status <> 'draft' and (
+				v.content ->> 'bookId' is null
+				or exists (
+					select 1 from app.family_books fb
+					where fb.family_id = ${access?.familyId ?? null}::uuid and fb.book_id = (v.content ->> 'bookId')::uuid
+				)
+				or (${access?.viaMeals ?? false}::boolean and exists (
+					select 1 from app.meal_slots s join app.weeks wk on wk.id = s.week_id
+					where wk.family_id = ${access?.familyId ?? null}::uuid and s.recipe_id = r.id
+				))
+			))`;
 	const contents = new Map<string, Content>();
 	for (const row of rows) {
 		const key = contentKey({ recipeId: row.recipeId, version: row.requested || null });
