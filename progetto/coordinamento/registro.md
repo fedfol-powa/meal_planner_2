@@ -7,15 +7,15 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 unita; Task 12 (web) dopo il merge della #17 | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 unita (parte server); il web (Task 11-15) parte dopo la seconda PR di W5 | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | Web del menu (Task 12) dopo la #17 (web-01); poi revisione dei pasti | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | Web (passaggio me → profile per primo, Task 11-15; web-01); la sua PR va unita per prima | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Avviato sulla gestione del ricettario tramite MCP (brief w3-ricettario-mcp.md): brainstorming | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 unita (server della spesa); web e coda offline (task 9-14) dopo il merge della #17 | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17: verifica con rilievo 1 risolto in parte (token di B nella finestra prima dell'effetto React); corregge, poi nuova verifica breve | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 unita; `/clear` fatto (contesto 60%): alla ripresa messaggio con fase «web, task 10-12» dopo il merge della #17 | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Dopo `/clear`: web e coda offline (task 9-14; web-01) | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 unita (tre review). Libero | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | Web (task 10-12; web-01) | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione). Ondata 1 completata.
 
 ## Revisori attivi
 
@@ -32,18 +32,17 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'ondata 2 approvato dall'utente: vedi piano generale, «Ordine dell'ondata 2».
 
 0. **In corso (ordine dell'ondata 2):**
-   - Lato server dell'ondata 2 tutto unito: #10, #11, #12, #13, #14, #15, #16.
-   - **PR #17 di W5** (client reale + agganci di sessione): ultima correzione sull'identità
-     delle credenziali, poi verifica breve, CI, merge. Dopo il merge avvisare W1 (Task 12),
-     W2 (Task 11-15, con il passaggio da `me` a `profile`), W4 (task 9-14, coda offline,
-     registrazione del prefisso in `main.tsx`), W6 (task 10-12): ognuno porta il branch su
-     main e fa una PR web piccola. Attenzione ai conflitti nei file condivisi del web
-     (`web/src/api/types.ts`, wrapper, fake, `main.tsx`): unire in sequenza.
-   - W3 sulla gestione del ricettario tramite MCP (area `catalogue`); revisione dei pasti
-     a W1 dopo il web del menu; collegamento agenti ed esportazione R2 da portare
-     all'utente quando servono i passi esterni (vedi piano generale).
-   - Nota: due volte il Monitor non ha consegnato `REVISORE_FINITO`; a ogni riarmo
-     controllare `attendi.py --stato` per i «DA GESTIRE».
+   - Tutto il server e il client reale sono su main. Parti web (messaggio web-01): W2 per
+     primo (me → profile), poi W6, W1, W4 nell'ordine di approvazione; merge una alla
+     volta, chi arriva dopo porta il branch su main.
+   - W3: brainstorming chiuso, scrive spec e piano della gestione del ricettario (area
+     `catalogue`); web dopo la PR web di W2.
+   - W5 libero: prossima attività da scegliere con la tabella del piano generale
+     (collegamento agenti ed esportazione R2 richiedono passi esterni dell'utente).
+   - W1 dopo il web del menu: revisione dei pasti (serve brief).
+   - `eventi.py` ha ora un controllo di riconciliazione ogni 2 minuti (gli eventi
+     `REVISORE_FINITO` a volte non arrivano); a ogni riarmo controllare comunque
+     `attendi.py --stato`.
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA
    GESTIRE» (anche `MENU:`), poi il Monitor con `eventi.py` (README, «Attesa degli

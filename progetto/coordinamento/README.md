@@ -60,7 +60,7 @@ polling e nessun buco fra un'attesa e l'altra. Ogni riga è un evento,
   «fermo senza nuovo STATO» (per esempio ha presentato un design in prosa e aspetta);
 - un revisore stampa `REVISORE_FINITO`.
 
-Trova da solo worker (tab «W…») e revisori (tab «R …») e rinnova l'iscrizione quando si
+Ogni 2 minuti fa anche un controllo di riconciliazione come `attendi.py --stato` (herdr a volte non consegna `REVISORE_FINITO`). Trova da solo worker (tab «W…») e revisori (tab «R …») e rinnova l'iscrizione quando si
 aprono o chiudono pane. Dopo aver gestito un evento: `attendi.py --visto <pane>` (salva in
 `visti.txt`). `attendi.py --stato` mostra tutti i pane con lo stato e l'ultimo evento.
 Le righe `STATO:` sono riconosciute con un'impronta delle righe precedenti, quindi due

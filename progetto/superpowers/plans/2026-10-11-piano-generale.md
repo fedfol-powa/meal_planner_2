@@ -225,3 +225,4 @@ solo il coordinatore.
 | 11 ottobre 2026 | Unita la PR #15 (menu lato server: generazione, generazione pigra, job settimanale con Cron Trigger, letture, MCP, W1) dopo due review |
 | 11 ottobre 2026 | Unita la PR #11 (spesa lato server: contratto, lettura, mutazioni idempotenti, esportazioni, pagina Bring!, MCP, W4) dopo quattro review |
 | 11 ottobre 2026 | L'utente sceglie per la gestione MCP del ricettario la conferma del curatore affidata alle sole istruzioni dell'agente, con pubblicazione dell'ultima revisione |
+| 11 ottobre 2026 | Unita la PR #17 (client oRPC reale e agganci di sessione per la coda della spesa, W5) dopo tre review; via alle parti web di W1, W2, W4, W6 |

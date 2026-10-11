@@ -25,6 +25,7 @@ from attendi import key, last_event, panes, seen  # noqa: E402
 
 STOPPED = {"idle", "done", "blocked"}
 SETTLE = 2  # seconds for the screen to show the final message before reading it
+RECONCILE = 120  # seconds between fallback checks: herdr sometimes misses a reviewer's match
 
 
 def emit(line):
@@ -37,6 +38,21 @@ def pending_at_start():
         event = last_event(pane, kind)
         if event and key(pane, event) not in acked and (kind == "reviewer" or st != "working"):
             emit(f"{pane} {label} | {event}")
+
+
+def reconcile(known, last_emitted):
+    """Fallback: emit what `attendi.py --stato` would show as not handled and not yet emitted."""
+    acked = seen()
+    for pane, label, kind, st in panes():
+        if pane not in known:
+            continue
+        event = last_event(pane, kind)
+        if not event or key(pane, event) in acked or (kind == "worker" and st == "working"):
+            continue
+        line = f"{pane} {label} | {event}"
+        if last_emitted.get(pane) != line:
+            last_emitted[pane] = line
+            emit(line)
 
 
 def subscribe(known):
@@ -56,8 +72,13 @@ def subscribe(known):
 
 def lines(sock):
     buf = b""
+    sock.settimeout(RECONCILE)
     while True:
-        chunk = sock.recv(65536)
+        try:
+            chunk = sock.recv(65536)
+        except socket.timeout:
+            yield {"event": "tick"}
+            continue
         if not chunk:
             return
         buf += chunk
@@ -79,6 +100,9 @@ def main():
             sock = subscribe(known)
             for msg in lines(sock):
                 ev, data = msg.get("event"), msg.get("data") or {}
+                if ev == "tick":
+                    reconcile(known, last_emitted)
+                    continue
                 if ev in ("pane.created", "pane.closed", "pane.agent_detected"):
                     break  # renew the subscription with the current panes
                 pane = data.get("pane_id")

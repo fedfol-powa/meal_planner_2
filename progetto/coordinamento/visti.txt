@@ -91,3 +91,4 @@ w1:pA	STATO: DOMANDA Conferma e traduzioni via MCP: A (consigliata: guida con sc
 w1:pA	STATO: DOMANDA Approvi l'approccio 1 (logica nel Worker con il dominio di W3) e l'elenco delle operazioni? Se sì, presento la sezione successiva (dati e migrazioni, interfaccia con W6 #5ec3fe22
 w1:pA	STATO: DOMANDA Approvi questa sezione (migrazione con la sola recipe_is_cited, contenuto di ingredient_versions, interfacce usate e prodotte, montaggio in RecipesPage, web dopo la #223edd96
 w1:pA	STATO: DOMANDA Approvi l'ultima sezione, con il codice nuovo not_allowed (con reason) invece di invalid? Se sì, scrivo la spec di dettaglio. #af162816
+w1:p1V	REVISORE_FINITO
