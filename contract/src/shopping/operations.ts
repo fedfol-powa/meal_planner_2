@@ -2,10 +2,15 @@ import { combinedQuantitySchema } from '@app/domain/units';
 import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
-import { versionedInput, versionedOutput } from '../versioned.ts';
+import { versionedOutput } from '../versioned.ts';
 import { MAX_FREE_ITEM_TEXT, mondaySchema, shoppingListViewSchema } from './view.ts';
 
 const week = z.object({ familyId: z.uuid(), weekStartsOn: mondaySchema });
+/**
+ * Same schema as `versionedInput(week)`, written out: the generic `versionedInput` loses the
+ * input type of the handlers (Record<string, unknown>), reported to the coordinator.
+ */
+const versionedWeek = week.extend({ knownVersion: z.string().min(1).max(200).optional() });
 /** Every queued change carries a client id (absolute state; for addFreeItem also the item id). */
 const edit = week.extend({ id: z.uuid() });
 const item = { ingredientId: z.uuid(), varietyKey: z.string().max(200) };
@@ -19,7 +24,7 @@ export const shoppingContract = {
 		getWeekList: op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', reads: ['family', 'catalogue'] })
 			.route({ method: 'GET', path: '/shopping/week-list', summary: 'Shopping list of a week, ready to show' })
 			.errors(found)
-			.input(versionedInput(week))
+			.input(versionedWeek)
 			.output(versionedOutput(shoppingListViewSchema)),
 		setItemChecked: op(write)
 			.route({
