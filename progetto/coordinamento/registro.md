@@ -7,8 +7,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #13 unita; PR #15 (menu lato server) in review; Task 12 (web) dopo W5 | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 (parte server, Task 1-10) in review; `/clear` fatto dopo l'apertura: al rapporto, messaggio di ripresa (fase correzioni della PR) | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 «approvabile con correzioni» (R1 nella versione di getWeek, isolamento dei job; w1-10); poi verifica breve e merge. La firma dell'aiuto R1 va passata a W4 | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 approvata senza rilievi; in conflitto con main su versioned.ts: aggiorna, poi CI e merge | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 approvata ma in conflitto: aggiorna su main e fa il task 8 nella stessa PR (w4-07); poi verifica dell'ultimo tratto e merge | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR implementata; dopo la #13 porta su main, prova reale, test AuthProvider stabile, poi PR | 11/10 |
@@ -21,9 +21,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR15 menu | PR #15 di W1 | R PR15 menu | w1:p1K | → revisioni/w1-pr15.md |
-| R PR16 profilo | PR #16 di W2 | R PR16 profilo | w1:p1M | → revisioni/w2-pr16.md |
-| R PR16 profilo | PR #16 di W2 | R PR16 profilo | w1:p1M | → revisioni/w2-pr16.md |
 
 ## Domande in sospeso
 
