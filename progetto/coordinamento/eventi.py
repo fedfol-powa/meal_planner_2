@@ -25,7 +25,7 @@ from attendi import key, last_event, panes, seen  # noqa: E402
 
 STOPPED = {"idle", "done", "blocked"}
 SETTLE = 2  # seconds for the screen to show the final message before reading it
-RECONCILE = 120  # seconds between fallback checks: herdr sometimes misses a reviewer's match
+RECONCILE = int(os.environ.get("EVENTI_RECONCILE", "120"))  # seconds between fallback checks: herdr sometimes misses a reviewer's match
 
 
 def emit(line):
@@ -42,6 +42,8 @@ def pending_at_start():
 
 def reconcile(known, last_emitted):
     """Fallback: emit what `attendi.py --stato` would show as not handled and not yet emitted."""
+    if os.environ.get("EVENTI_DEBUG"):
+        print(f"reconcile {time.strftime('%H:%M:%S')} known={len(known)}", file=sys.stderr, flush=True)
     acked = seen()
     for pane, label, kind, st in panes():
         if pane not in known:

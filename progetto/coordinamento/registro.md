@@ -7,21 +7,20 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20 «approvabile con correzioni»: corregge 3 e 4 ora; 1 e 2 dopo il merge di #18 e #19 (aggiorna su main); poi revisione dei pasti | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #18 «approvabile con correzioni» (test del collegamento reale di profile) → merge per prima; PR #21 in review | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Spec e piano «da rifare» (12 rilievi, w3-04 con le decisioni); poi seconda review breve | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | Dopo `/clear`: web e coda offline (task 9-14; web-01) | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu-web | .worktrees/menu | PR #20: rilievi 3 e 4 corretti; porta su main dopo #18 (e #19) e chiude 1 e 2; poi revisione dei pasti | 11/10 |
+| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #18 unita; PR #21: porta su main e corregge i sette rilievi | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Seconda review approvabile con correzioni (ricerca delle ricette per il curatore, istante di pubblicazione, rifiuto delle mutazioni web, wrapper finto); poi implementazione: prima la PR server, web dopo #19 e #21 | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22: rilievi corretti; porta su main dopo la #18, chiude i punti sul profilo, prova reale della coda sullo stack di W1 | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 unita (tre review). Libero | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19 «approvabile con correzioni»: corregge 2 e 3 ora; 1 dopo il merge della #18 | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario-web | .worktrees/ricettario | PR #19: porta su main dopo la #18 e chiude il rilievo 1; poi merge (prossima) | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
-(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione). Ondata 1 completata.
+(fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web). Ondata 1 completata.
 
 ## Revisori attivi
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR21 profilo web | PR #21 | R PR21 profilo web | w1:p10 | → revisioni/w2-pr21.md |
 
 ## Domande in sospeso
 
