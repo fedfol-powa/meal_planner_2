@@ -2,9 +2,11 @@
 	"name": "app-famiglia",
 	"private": true,
 	"type": "module",
+	"workspaces": ["domain", "contract", "server", "web"],
 	"scripts": {
-		"test": "vitest run",
-		"typecheck": "tsc -p tsconfig.json && tsc -p domain/tsconfig.json",
+		"test": "vitest run && npm run test --workspaces --if-present",
+		"typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
+		"deploy": "npm run build -w web && npm run deploy -w server",
 		"planner-report": "node scripts/planner-report.ts",
 		"recipe-attributes-table": "node scripts/recipe-attributes-table.ts"
 	},

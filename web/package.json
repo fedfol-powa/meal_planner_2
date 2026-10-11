@@ -1,0 +1,8 @@
+{
+	"name": "@app/web",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "node -e \"const fs=require('node:fs');fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/index.html','<!doctype html><title>Cosa si mangia</title>')\""
+	}
+}
