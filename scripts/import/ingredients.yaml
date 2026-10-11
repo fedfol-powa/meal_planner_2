@@ -1,0 +1,3 @@
+# Catalogo degli ingredienti dell'import: un prodotto generico per voce (spec di dettaglio, sezione 5).
+# Preparato dall'agente dalle righe d'origine; l'approvazione si scrive con approve.ts su indicazione dell'utente.
+ingredients: {}
