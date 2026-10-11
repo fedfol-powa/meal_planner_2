@@ -4,6 +4,7 @@ import { isOnline } from '../../lib/connectivity';
 import { ApiError } from '../errors';
 import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, RecipeListItem, RecipeMealType, RecipeQuery, RecipeSummary, SourceType, ProteinGroup } from '../types';
 import raw from './demo-data.json';
+import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
 import { formatAmount, scaleQuantity, type Quantity, type Translated } from './quantity';
 import { DEMO_CHANGES, DEMO_FAMILY, DEMO_PEOPLE, DEMO_USER_ID, seedRatings, type DemoRating } from './seed';
 
@@ -51,6 +52,8 @@ export interface FakeData {
   revision: number;
   /** What the person changed in the profile; missing values come from the demo people. */
   readonly profile: { displayName?: string; locale?: Locale };
+  /** The demo family's name, units, time zone, settings and exclusions. */
+  readonly family: FakeFamilyData;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -85,7 +88,7 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     })
   }));
   const recipes = data.recipes.map((r) => ({ ...r, addedOn: addDays(r.addedOn, offset) }));
-  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {} };
+  return { user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData() };
 }
 
 /**
@@ -130,7 +133,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
         globalRoles: []
       },
-      families: [{ ...DEMO_FAMILY, role: person?.role ?? 'member' }],
+      families: [{ id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' }],
       currentFamilyId: DEMO_FAMILY.id
     } satisfies Awaited<ReturnType<Api['profile']['get']>>;
   }
@@ -231,6 +234,23 @@ export function createFakeApi(options: FakeApiOptions): Api {
         return delayed(profileView());
       }
     },
+    family: createFakeFamily({
+      data: state.family,
+      userId,
+      role: DEMO_PEOPLE.find((p) => p.id === userId)?.role ?? 'member',
+      displayName: () => profileView().user.displayName,
+      locale: options.getLocale,
+      books: data.books,
+      ingredients: data.ingredients,
+      recipeName: (recipeId, locale) => {
+        const recipe = recipes.find((r) => r.id === recipeId);
+        return recipe ? localized(recipe.name, locale) : null;
+      },
+      checkFamily,
+      respond,
+      delayed,
+      bump: () => void (state.revision += 1)
+    }),
     menu: {
       async getOpening({ familyId, today: requested }) {
         checkFamily(familyId);
@@ -345,5 +365,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), profile: wrap(api.profile), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
+  return { session: wrap(api.session), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings) };
 }

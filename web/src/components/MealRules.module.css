@@ -1,0 +1,6 @@
+.remove { flex: none; width: 44px; height: 44px; border: 0; background: none; color: var(--ink); font: 400 1.5rem/1 var(--text-font); cursor: pointer; }
+.remove:disabled { opacity: 0.4; }
+.add { min-height: 48px; color: var(--green); font-weight: 700; }
+.kinds { margin: 0 0 8px; padding: 0; border: 0; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.preview { margin: 0 0 12px; padding: 10px 12px; border-radius: 4px; background: var(--soft-green); color: var(--green); font-weight: 700; }

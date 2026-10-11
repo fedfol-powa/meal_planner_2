@@ -1,0 +1,4 @@
+.static { display: grid; gap: 6px; margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.static span { font-size: 0.875rem; font-weight: 700; }
+.wrap { flex-wrap: wrap; padding: 10px 0; }
+.small { min-height: 40px; padding: 6px 12px; }

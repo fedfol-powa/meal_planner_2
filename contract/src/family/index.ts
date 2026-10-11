@@ -1,4 +1,4 @@
-import { GROUP_MAX, knownNewSchema, mealRuleSchema, slotSettingSchema } from '@app/domain/family';
+import { GROUP_MAX, knownNewSchema, mealRuleSchema, slotSettingSchema, WEEKLY_MAX } from '@app/domain/family';
 import { FOOD_GROUPS, MEAL_TYPES } from '@app/domain/planner';
 import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
@@ -128,7 +128,7 @@ export const familyContract = {
 			family.extend({
 				ingredientId: z.uuid(),
 				restriction: z.enum(['avoid', 'limit']).nullable(),
-				weeklyMax: z.number().int().min(1).max(7).nullable(),
+				weeklyMax: z.number().int().min(1).max(WEEKLY_MAX).nullable(),
 			}),
 		)
 		.output(settingsViewSchema),

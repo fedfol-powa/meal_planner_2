@@ -1,0 +1,3 @@
+.stepper { display: flex; min-height: 48px; }
+.label { flex: 1; min-width: 0; }
+.value { min-width: 2ch; text-align: center; font-weight: 700; }

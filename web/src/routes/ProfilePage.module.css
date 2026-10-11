@@ -1,5 +1,6 @@
 .header { padding: max(20px, env(safe-area-inset-top)) 0 20px; }
 .name { margin: 0; font: 400 1.75rem/1.3 var(--heading-font); overflow-wrap: anywhere; }
 .email { margin: 4px 0 0; color: var(--muted); }
-.language { margin: 0 0 16px; padding: 0; border: 0; }
-.legend { margin-bottom: 4px; font-size: 0.875rem; font-weight: 700; }
+.current { display: inline-flex; margin-left: auto; }
+.family .current :global(.icon) { color: var(--green); }
+.family[aria-pressed='true'] :global(.row-main) { font-weight: 700; }

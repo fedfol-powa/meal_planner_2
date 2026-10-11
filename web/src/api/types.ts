@@ -1,11 +1,14 @@
 import type {
   Contract,
   RecipeDetailView as ContractRecipeDetailView,
+  ExclusionsView,
+  FamilyView as FamilyDetailView,
   IngredientLineView,
   ProfileView,
   RatingSummaryView,
   RecipeListItemView,
   RecipeSummaryView,
+  SettingsView,
   WeekView
 } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
@@ -31,7 +34,7 @@ export interface RecipeQuery {
 }
 export type RecipeListItem = RecipeListItemView;
 export type RecipeDetailView = ContractRecipeDetailView;
-export type { ProfileView };
+export type { ExclusionsView, FamilyDetailView, ProfileView, SettingsView };
 /** A family of the profile: the one shown is `currentFamilyId`. */
 export type FamilyView = ProfileView['families'][number];
 
@@ -44,7 +47,7 @@ export interface FamilyInput extends ReadInput { familyId: string }
  * Areas of the contract read from the Worker (second PR). Each wave 2 producer adds its area here
  * when it is in the contract and served, removes it from ProvisionalApi and aligns the fake client.
  */
-export const SERVER_AREAS = ['session', 'profile', 'recipes', 'ratings', 'menu'] as const satisfies readonly (keyof Contract)[];
+export const SERVER_AREAS = ['session', 'profile', 'recipes', 'ratings', 'menu', 'family'] as const satisfies readonly (keyof Contract)[];
 export type ServerArea = (typeof SERVER_AREAS)[number];
 
 /** What the screens use: the contract's client for the server areas, the provisional areas otherwise. */
