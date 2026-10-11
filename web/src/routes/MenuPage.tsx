@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
+import { getRouteApi, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isBlocking, toApiError } from '../api/errors';
 import { openingQuery, useQueryDeps, weekQuery } from '../api/queries';
@@ -117,9 +117,9 @@ function MenuView({ family }: { family: FamilyView }) {
           </button>
           <div className={styles.actions}>
             <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onToggle={togglePicker} onClose={closePicker} onSelect={select} />
-            <button type="button" className={styles.action} aria-label={t('menu.shopping')} disabled>
+            <Link to="/shopping/$weekStartsOn" params={{ weekStartsOn: week.data.startsOn }} search={{ day: selected }} className={styles.action} aria-label={t('menu.shopping')}>
               <Icon name="bag" />
-            </button>
+            </Link>
           </div>
         </div>
         <DaySelector dates={days} selected={selected} onSelect={select} />

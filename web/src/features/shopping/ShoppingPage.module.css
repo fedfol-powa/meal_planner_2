@@ -1,0 +1,53 @@
+/* The shopping list of the prototype (round 3), with the tokens of design/design.md. */
+.titleRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.meta { margin: 4px 0 0; color: var(--body-text); font-size: 0.875rem; }
+.pending { margin: 6px 0 0; color: var(--green); font-size: 0.875rem; font-weight: 700; }
+.notice { margin: 0 0 16px; color: var(--body-text); font-size: 0.875rem; }
+
+.group { margin-bottom: 20px; padding: 20px; background: var(--paper); box-shadow: var(--card-shadow); }
+.group h2 { margin: 10px 0 18px; font: 400 1.25rem/1.3 var(--heading-font); }
+.items { margin: 0; padding: 0; list-style: none; }
+
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: start; border-top: 1px solid var(--rule); }
+.item { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: start; gap: 12px; min-height: 48px; padding: 12px 0; cursor: pointer; }
+.item input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--green); }
+.item:has(input:checked) .name { color: var(--muted); text-decoration: line-through; }
+.name { display: flex; flex-wrap: wrap; column-gap: 4px; overflow-wrap: anywhere; }
+.quantity { max-width: 16ch; text-align: right; font-weight: 700; }
+.done .quantity { color: var(--muted); text-decoration: line-through; font-weight: 400; }
+.hint { color: var(--muted); font-size: 0.8125rem; }
+.previous { flex-basis: 100%; color: var(--green); font-size: 0.8125rem; font-weight: 700; }
+/* Saved on this phone, not confirmed by the server yet. */
+.sync { display: inline-block; width: 8px; height: 8px; margin: 0 0 1px 4px; border-radius: 50%; background: var(--green); vertical-align: middle; }
+
+.iconButton { display: grid; place-items: center; width: 44px; height: 48px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; }
+.remove { color: var(--muted); font: 400 1.5rem/1 var(--text-font); }
+.chevron { width: 8px; height: 8px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: translateY(-2px) rotate(45deg); }
+.iconButton[aria-expanded='true'] .chevron { transform: translateY(2px) rotate(225deg); }
+.sources { margin: -4px 0 0; padding: 0 44px 10px 32px; list-style: none; color: var(--muted); font-size: 0.8125rem; }
+.sources li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 3px 0; }
+.sourceQuantity { font-weight: 700; }
+
+.addItem { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 48px; padding: 4px 0; border-top: 1px solid var(--rule); }
+.plus { color: var(--green); font: 400 1.5rem/1 var(--text-font); text-align: center; }
+.addItem input { min-width: 0; min-height: 40px; padding: 6px 0; border: 0; border-bottom: 1px dashed var(--rule); background: transparent; color: var(--ink); font-size: 1rem; }
+.addItem input:focus { outline: none; border-bottom-color: var(--green); }
+.addItem :global(.text-button) { min-height: 40px; padding: 6px 12px; }
+
+.excluded summary { min-height: 44px; display: flex; align-items: center; font: 400 1.25rem/1.3 var(--heading-font); cursor: pointer; }
+.excluded[open] summary { margin-bottom: 8px; }
+.excludedRow { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: 12px; min-height: 48px; border-top: 1px solid var(--rule); color: var(--body-text); }
+.excludedRow small { color: var(--muted); font-size: 0.8125rem; }
+.add { width: 44px; height: 44px; border: 0; background: none; color: var(--green); font: 400 1.5rem/1 var(--text-font); cursor: pointer; }
+
+.queueNotices { margin: 0 0 16px; padding: 0; list-style: none; }
+.queueNotices li { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; padding: 8px 16px; background: var(--paper); box-shadow: var(--card-shadow); font-size: 0.875rem; }
+
+.lastChange { margin: 0 0 24px; color: var(--muted); font-size: 0.8125rem; }
+
+@media (max-width: 767px) {
+  .group { padding: 16px; }
+}
+@media (max-width: 359px) {
+  .item { gap: 8px; font-size: 0.875rem; }
+}

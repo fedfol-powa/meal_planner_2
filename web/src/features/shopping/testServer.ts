@@ -14,14 +14,14 @@ type Deferred = { resolve: () => void; reject: (error: unknown) => void };
  * Tests only: the shopping area of a server holding one list, with the fixtures as its base.
  * Absolute operations are applied in order; reads and writes can be held or refused.
  */
-export function createShoppingServer(base: () => ShoppingListView = listView) {
+export function createShoppingServer(base: () => ShoppingListView = listView, familyId = FAMILY) {
   const applied: ShoppingOperation[] = [];
   const held: { reads: Deferred[]; writes: Deferred[] } = { reads: [], writes: [] };
   let holdReads = 0;
   let holdWrites = 0;
   const failures: ApiError[] = [];
   const view = (locale: ShoppingListView['locale'] = 'it-IT'): ShoppingListView => ({
-    ...applyPending(base(), FAMILY, applied.map((op) => queued(op))).view,
+    ...applyPending(base(), familyId, applied.map((op) => queued(op))).view,
     locale
   });
   const wait = async (kind: 'reads' | 'writes') => {
@@ -58,7 +58,8 @@ export function createShoppingServer(base: () => ShoppingListView = listView) {
       async getWeekList(input) {
         online();
         reads(input);
-        if (input.familyId !== FAMILY) throw new ApiError('forbidden');
+        if (input.familyId !== familyId) throw new ApiError('forbidden');
+        if (input.weekStartsOn !== base().weekStartsOn) throw new ApiError('not_found');
         const answer = { unchanged: false as const, version: `v${applied.length}`, data: view(getLocale()) };
         await wait('reads');
         return answer;
@@ -78,6 +79,10 @@ export function createShoppingServer(base: () => ShoppingListView = listView) {
     calls,
     reads,
     createLink,
+    /** Replaces the list the server computes (e.g. portions changed by another member). */
+    setBase(next: () => ShoppingListView) {
+      base = next;
+    },
     view,
     area,
     /** The whole client: the fake one with this shopping area. */

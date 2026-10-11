@@ -4,10 +4,11 @@ import * as errors from './errors';
 import * as menu from './menu';
 import * as profile from './profile';
 import * as recipes from './recipes';
+import * as shopping from './shopping';
 
 // One file per area, so parallel work in wave 2 adds files instead of editing the same one.
-const it = { ...common.it, ...menu.it, ...recipes.it, ...profile.it, ...auth.it, ...errors.it };
-const en: Record<keyof typeof it, string> = { ...common.en, ...menu.en, ...recipes.en, ...profile.en, ...auth.en, ...errors.en };
+const it = { ...common.it, ...menu.it, ...recipes.it, ...profile.it, ...shopping.it, ...auth.it, ...errors.it };
+const en: Record<keyof typeof it, string> = { ...common.en, ...menu.en, ...recipes.en, ...profile.en, ...shopping.en, ...auth.en, ...errors.en };
 
 export const LOCALES = ['it-IT', 'en-GB'] as const;
 export type Locale = (typeof LOCALES)[number];
