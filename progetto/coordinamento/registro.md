@@ -9,7 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 |---|---|---|---|---|---|---|
 | W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 unita; Task 12 (web) dopo il merge della #17 | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 unita (parte server); il web (Task 11-15) parte dopo la seconda PR di W5 | 11/10 |
-| W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | Avviato sulla gestione del ricettario tramite MCP (brief w3-ricettario-mcp.md): brainstorming | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 unita (server della spesa); web e coda offline (task 9-14) dopo il merge della #17 | 11/10 |
 | W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17: verifica con rilievo 1 risolto in parte (token di B nella finestra prima dell'effetto React); corregge, poi nuova verifica breve | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 unita; `/clear` fatto (contesto 60%): alla ripresa messaggio con fase «web, task 10-12» dopo il merge della #17 | 11/10 |
@@ -39,9 +39,9 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
      registrazione del prefisso in `main.tsx`), W6 (task 10-12): ognuno porta il branch su
      main e fa una PR web piccola. Attenzione ai conflitti nei file condivisi del web
      (`web/src/api/types.ts`, wrapper, fake, `main.tsx`): unire in sequenza.
-   - W3 libero: prima di assegnargli un'attività scrivere la tabella produttori →
-     consumatori nel piano generale (revisione dei pasti, gestione MCP del ricettario,
-     collegamento agenti, esportazione R2, messa in produzione).
+   - W3 sulla gestione del ricettario tramite MCP (area `catalogue`); revisione dei pasti
+     a W1 dopo il web del menu; collegamento agenti ed esportazione R2 da portare
+     all'utente quando servono i passi esterni (vedi piano generale).
    - Nota: due volte il Monitor non ha consegnato `REVISORE_FINITO`; a ogni riarmo
      controllare `attendi.py --stato` per i «DA GESTIRE».
 

@@ -88,6 +88,16 @@ già unite.
 4. **Regola:** prima di lanciare un worker, tabella produttori → consumatori in questo
    piano; il worker parte solo con gli input fissati o uniti.
 
+#### Attività restanti dell'ondata 2 (approvato dall'utente l'11 ottobre 2026)
+
+| Attività | Usa | Produce per | Assegnata |
+|---|---|---|---|
+| Gestione del ricettario tramite MCP (area `catalogue`) | documento ricetta e controlli (W3), schema di bozze e versioni, viste di W6, pipeline | bozze visibili nell'app → web di W6 (dopo la #17) | W3 |
+| Revisione dei pasti | menu (W1), esclusioni (W2), viste e voti (W6) | — | W1, dopo il web del menu |
+| Collegamento degli agenti | piattaforma e verifica dei token; OAuth sul progetto Supabase (passo esterno) | prova della revoca | da assegnare, con l'utente |
+| Esportazione notturna in R2 | ricettario e versioni; bucket R2 (passo esterno) | — | da assegnare, con l'utente |
+| Messa in produzione | tutto | — | ultima |
+
 ## Metodo per ogni attività
 
 1. Worker Claude in una tab herdr, con branch e worktree dedicati in `.worktrees/`.
