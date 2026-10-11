@@ -1245,7 +1245,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   3. si consolida per ingrediente e varietà: righe che differiscono solo per
      preparazione, taglia o forma della parola sono lo stesso ingrediente; prodotti
      diversi restano voci diverse (mandorle in scaglie, pomodorini perini). Righe con lo
-     stesso ingrediente e varietà diverse sono voci separate («Pomodori Roma», «Pomodori»);
+     stesso ingrediente e varietà diverse sono voci separate («Pomodori», «Pomodori (Roma)»),
+     scritte «Nome (varietà)» nelle due lingue e ordinate per ingrediente e poi per varietà
+     (deciso l'11 ottobre 2026);
      grafie della stessa varietà si sommano (confronto che ignora maiuscole, accenti,
      punteggiatura e parole come «tipo») e la voce mostra la grafia più usata. Gli
      evitati della famiglia valgono per tutte le varietà. Le unità compatibili si
