@@ -1,7 +1,8 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 11 ottobre 2026 (decisioni delle attività dell'ondata 2 unite)
+Ultimo aggiornamento: 12 ottobre 2026 (decisioni della revisione dei pasti, lato server,
+e dell'esportazione notturna in R2)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -161,6 +162,23 @@ ricettario e voti, menu e pianificatore, spesa, gestione del ricettario tramite 
 - nel traguardo A le bozze si consultano nell'app in sola lettura; archiviazione,
   versioni e ripristino si fanno via MCP (sezione 8).
 
+**Decisioni dell'11 e 12 ottobre 2026, revisione dei pasti (server) ed esportazione
+notturna unite:**
+
+- si annulla la propria ultima modifica di un pasto, anche passato, senza limiti di
+  tempo lato server, finché nessuno ha cambiato di nuovo quei pasti; nell'app «Annulla»
+  resta per 6 secondi, da un agente si annulla anche in una conversazione nuova
+  (sezioni 5 e 13);
+- una richiesta che non cambia nulla è ricordata senza cambiare l'ultima modifica
+  mostrata (sezioni 1 e 5);
+- nei pasti si sceglie solo una ricetta pubblicata; una bozza importata già citata si
+  sposta con lo scambio e torna con l'annullamento (sezione 5);
+- note e testi dei pasti liberi restano come li scrive l'utente, senza traduzione
+  (sezione 12);
+- esportazione notturna cifrata in R2 di dati delle famiglie, catalogo e account, con
+  le ultime 7 copie e un ripristino provato in CI; dopo un ripristino tutti rifanno
+  l'accesso e ricollegano gli agenti (sezione 8).
+
 ---
 
 ## Parte 1: cosa fa l'app (per tutti)
@@ -250,7 +268,9 @@ cosa si è mangiato o rifare la spesa di un menu vecchio. Su qualsiasi pasto si 
   con cosa sostituirlo.
 
 Ogni piatto mostra chi l'ha cambiato per ultimo e quando ("cambiato da Anna, venerdì
-21:30"), così si sa sempre a chi chiedere. Subito dopo una modifica la si può annullare.
+21:30"), così si sa sempre a chi chiedere. Subito dopo una modifica la si può annullare;
+attraverso il proprio agente anche più tardi, finché nessuno ha cambiato di nuovo quel
+pasto.
 
 Un pasto passato conta sempre come mangiato. Se in realtà si è mangiato altro, si
 corregge il pasto come qualsiasi altro: si cambia il piatto o lo si segna come libero.
@@ -365,8 +385,9 @@ recupero dell'intero catalogo è riservato agli amministratori dell'app (sezione
 ### Lingua e unità di misura
 
 Ogni persona sceglie la propria lingua: **italiano o inglese britannico**. La scelta
-riguarda l'esperienza dell'app, comprese le informazioni del ricettario e della spesa;
-il trattamento dei testi liberi della famiglia è da concordare (sezione 12). La ricerca
+riguarda l'esperienza dell'app, comprese le informazioni del ricettario e della spesa.
+Ciò che scrive la famiglia (note, pasti liberi, voci libere della spesa) resta come è
+stato scritto, senza traduzione (sezione 12). La ricerca
 nel ricettario usa la lingua di chi cerca, compresi i sinonimi degli ingredienti.
 
 Ogni famiglia sceglie il **sistema metrico o quello imperiale britannico**. Le quantità
@@ -446,7 +467,8 @@ meal_planner_2/
 ├── server/                       Worker: implementazione delle operazioni, MCP, job
 ├── web/                          React (Vite, TanStack Router e Query), PWA mobile-first
 ├── supabase/migrations/          schema SQL, funzioni transazionali e policy RLS
-├── scripts/                      importazione, esportazione, report del pianificatore
+├── scripts/                      importazione, esportazione, ripristino dei backup,
+│                                 report del pianificatore
 └── progetto/                     spec, piani, regole di progetto
 ```
 
@@ -484,12 +506,14 @@ configurato per workspace.
   La SPA arriva dagli asset statici di Workers con ripiego su `index.html`; il Worker
   si esegue per primo solo sulle rotte del server (`/api/*`, `/mcp`, `/.well-known/*`).
   Il job settimanale non ha una rotta: è l'evento `scheduled` di un Cron Trigger del
-  Worker (sezione 4).
+  Worker (sezione 4); lo stesso evento, con un'espressione cron sua, avvia
+  l'esportazione notturna (sezione 8).
 
 - **Supabase sul piano gratuito**: Postgres, Auth (link via email, Google e server
   OAuth 2.1 per MCP), RLS e `pg_cron` (solo per pulire le liste temporanee di Bring!).
   Il piano gratuito non comprende i backup della piattaforma: li sostituisce
-  un'esportazione notturna (sezione 8). Il repository è collegato all'organizzazione
+  un'esportazione notturna cifrata, scritta dal Worker in un bucket R2 privato
+  nell'UE (sezione 8). Il repository è collegato all'organizzazione
   Supabase tramite l'integrazione GitHub, con «Deploy to production» disattivato
   (verificato con l'utente l'11 ottobre 2026): il merge su `main` non applica le
   migrazioni al progetto remoto.
@@ -520,7 +544,8 @@ configurato per workspace.
 **Strato delle operazioni.** Ogni funzione dell'app è un'operazione applicativa
 (`menu.getWeek`, `shopping.setItemChecked`, `catalogue.publish`…), non un accesso
 generico alle tabelle. Le operazioni stanno in `contract/src/`, divise per area
-(`profile`, `family`, `recipes` con `ratings`, `menu`, `shopping`, `catalogue`); il
+(`profile`, `family`, `recipes` con `ratings`, `menu`, `meals`, `shopping`,
+`catalogue`); il
 prototipo le abbozzava in `prototype/src/lib/operations/`. L'implementatore del server
 si costruisce in un solo punto, `server/src/router.ts`, e ogni area esporta un factory
 che lo riceve. Ogni richiesta segue lo stesso percorso:
@@ -549,9 +574,12 @@ e scrivere (la generazione pigra del menu, sezione 4).
   con i campi del token verificato, così `auth.uid()` e le policy valgono come per
   l'utente. Le impostazioni durano solo la transazione e non passano ad altre richieste
   che riusano la stessa connessione del pool. Il token non arriva a Postgres. L'utenza
-  tecnica è un solo login `app_server` (NOINHERIT), membro di `authenticated`, `anon` e
-  `app_job`; ogni transazione sceglie il ruolo: utente → `authenticated` con i claim,
-  job settimanale → `app_job`, pagina Bring! → `anon` tramite una funzione per token. La
+  tecnica è un solo login `app_server` (NOINHERIT), membro di `authenticated`, `anon`,
+  `app_job` e `app_backup`; ogni transazione sceglie il ruolo: utente → `authenticated`
+  con i claim, job settimanale → `app_job`, pagina Bring! → `anon` tramite una funzione
+  per token, esportazione notturna → `app_backup` (NOLOGIN, BYPASSRLS, sola lettura
+  su `app`, utenti di Auth dalla funzione `security definer` `app.backup_auth_rows()`;
+  sezione 8). La
   password si imposta a mano sul progetto, fuori dalle migrazioni. Tabelle e funzioni
   stanno nello schema `app`, non esposto dalla Data API di Supabase, così nessun client
   scrive saltando le operazioni; `EXECUTE` è revocato a PUBLIC su ogni funzione e
@@ -601,16 +629,21 @@ di validazione condivisi con `domain/`. Regole:
 - **Errori a codici, non testi**: `forbidden`, `not_found`, `invalid` con il percorso
   dei campi, `conflict` con autore, momento e campi cambiati e il tipo (`draft`,
   `version`, `ingredient`), `not_allowed` (409) con il motivo per le regole di stato
-  (`cited_by_meals`, `not_published`, `already_current`), `last_admin`,
+  (`cited_by_meals`, `not_published`, `already_current`; per l'annullamento dei pasti
+  `not_own_change`, `changed_since`, `draft_closed`) e un testo generico neutro,
+  `last_admin`,
   `last_app_admin`, `sole_member`, `web_only` con l'URL della pagina. Il web li
   traduce; per MCP il server li rende nella lingua dell'utente. I codici sono in
   minuscolo con il loro stato HTTP; la validazione restituisce `invalid` su tutti i
   canali, MCP compreso (la fa oRPC, non l'SDK di MCP); `internal` porta un `requestId` e
   i log contengono campi scelti, mai segreti.
 - **Concorrenza dichiarata.** Le bozze portano la revisione di partenza e ricevono
-  `conflict` se superata (sezione 8); i pasti seguono l'ultimo salvataggio e la
-  risposta indica chi ha cambiato e quando, con l'identificativo della modifica per
-  l'annullamento (sezione 5).
+  `conflict` se superata (sezione 8); i pasti seguono l'ultimo salvataggio: ogni
+  scrittura dell'area `meals` è un'azione con un `id` scelto dal client e risponde con
+  la settimana aggiornata, l'azione e se ha cambiato qualcosa (`{week, actionId,
+  changed}`); la vista del pasto dice chi ha cambiato e quando e, per chi legge, se
+  l'ultima azione è annullabile e quali pasti tocca (`lastChange` con `actionId`,
+  `undoable`, `slotIds`; sezione 5).
 - **Idempotenza.** Le creazioni e le operazioni accodabili offline portano un
   identificativo generato dal client: ripetere la stessa richiesta non duplica nulla.
   Le operazioni accodabili sono a stato assoluto (spuntare con `checked: true`, non
@@ -618,11 +651,16 @@ di validazione condivisi con `domain/`. Regole:
   senza una tabella generica delle ricevute. Le creazioni del ricettario si serializzano
   con un lucchetto consultivo, così uuid e slug restano idempotenti anche con richieste
   concorrenti; una revisione ripresa da `catalogue.startRevision` è ricordata per
-  richiesta (`recipe_draft_requests`, sezione 2). Le mutazioni della spesa e delle
+  richiesta (`recipe_draft_requests`, sezione 2). Anche le azioni sui pasti sono
+  ricordate per richiesta (`meal_actions`, sezione 2), comprese quelle senza effetti:
+  ripetere una richiesta che non ha cambiato nulla non sovrascrive le modifiche fatte
+  nel frattempo da altri. Le mutazioni della spesa e delle
   impostazioni rispondono con la vista aggiornata; nella spesa vale l'ordine di arrivo
   al server.
 - **Famiglia esplicita.** Le operazioni di famiglia ricevono `familyId`, perché una
   persona può far parte di più famiglie; utente e canale arrivano solo dal token.
+  Gli UUID dell'input si normalizzano in minuscolo nel contratto (`idSchema`), così la
+  grafia non cambia la riga indicata né il riconoscimento delle ripetizioni.
 - **Letture dalla copia sul dispositivo** (deciso l'8 ottobre 2026). Ogni famiglia ha
   un contatore di versione che cresce a ogni modifica dei suoi dati (pasti, spesa, voti,
   impostazioni, membri, settimana nuova); il ricettario ne ha uno suo, comune a tutte
@@ -637,15 +675,19 @@ di validazione condivisi con `domain/`. Regole:
   modifiche non aggiornano la copia in modo ottimistico: applicano alle viste della
   stessa famiglia il risultato confermato dal server, dopo aver annullato le letture in
   corso di quelle viste, e fanno rileggere le liste che dipendono dal valore cambiato,
-  secondo una tabella per operazione. Una risposta superata da un'altra modifica della
+  secondo una tabella per operazione (per le azioni sui pasti il bersaglio è la
+  settimana del pasto e scadono apertura, spesa, ricette e suggerimenti; i suggerimenti
+  scadono anche con esclusioni, impostazioni, libri, ingredienti evitati e voti; dettagli
+  in `2026-10-11-revisione-pasti.md`). Una risposta superata da un'altra modifica della
   stessa vista o da un cambio di lingua non si scrive: marca scadute le viste.
   Ciò che dipende solo dall'ora, come i pasti già passati, si calcola sul dispositivo:
   le viste portano date e istanti dei pasti (`passesAt`) e tutti i pasti futuri di una
   ricetta, e la pagina aperta si ricalcola al prossimo istante. Dove l'ora cambia i dati
   (versione R1 dei pasti in `menu.getWeek` e `shopping.getWeekList`), la versione
   comprende il numero di pasti già passati; quella di `menu.getOpening` comprende la
-  data effettiva. `profile.get` e le letture della gestione che dipendono dalle bozze
-  non sono versionate. Gli agenti MCP leggono sempre dal server. I contatori
+  data effettiva. `profile.get`, le letture della gestione che dipendono dalle bozze e
+  `meals.getSuggestions` (la classifica usa anche i voti globali, che nessun contatore
+  segue) non sono versionate. Gli agenti MCP leggono sempre dal server. I contatori
   (`families.data_version` e
   `catalogue_state.version`) crescono con trigger del database quando una transazione
   cambia i dati da cui dipendono, al massimo una volta per transazione: una scrittura
@@ -789,8 +831,9 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | `family_ingredients` | `family_id`, `ingredient_id`, `restriction` (`avoid`/`limit`), `weekly_max` |
 | `family_tried_recipes` | `family_id`, `recipe_id`, `source`, `created_at`: ricette già provate senza data, riempita dall'import (R4, sezione 11); per ora il pianificatore non la usa |
 | `weeks` | `family_id`, `starts_on` (lunedì), `generated_at`. Unica per (`family_id`, `starts_on`) |
-| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `updated_by` (null = app: la generazione non scrive `meal_changes`), `updated_at` |
-| `meal_changes` | `meal_slot_id`, `actor_id`, `before` (jsonb), `after` (jsonb), `created_at`: registro append-only |
+| `meal_slots` | `week_id`, `date`, `meal_type`, `recipe_id` o `free_text`, `servings`, `note`, `updated_by` (null = app: la generazione non scrive `meal_changes`), `updated_at`, `last_action_id` (l'ultima azione che ha cambiato lo slot, della stessa settimana: è l'ordine reale delle modifiche, scritto sotto il lucchetto della riga, indipendente dagli orologi) |
+| `meal_actions` | `id` (dal client), `week_id`, `actor_id`, `channel`, `kind` (`set_servings`/`set_recipe`/`set_free`/`set_note`/`swap`/`undo`), `slot_ids` (uno o due slot), `undoes` (l'azione annullata), `created_at`: una riga per richiesta, mai modificata né cancellata, anche per le richieste senza effetti; è l'identità dell'azione e la memoria delle ripetizioni dell'area, non una tabella generica delle ricevute. Lettura ai membri, inserimento solo per sé |
+| `meal_changes` | `meal_slot_id`, `actor_id`, `channel`, `before` (jsonb), `after` (jsonb), `undoes`, `action_id` (nullo solo per righe precedenti alle azioni, come l'import), `created_at`: registro append-only, una riga per slot cambiato. Per gli utenti il registro è veritiero: `before` deve coincidere con lo slot e l'azione deve essere loro e comprendere lo slot |
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
 | `weekly_jobs` | `family_id`, `target_week`, `status` (`pending`/`running`/`done`/`failed`/`abandoned`; `running` non si usa), `attempts`, `error` (solo il codice), `updated_at` |
 | `shopping_lists` | `family_id`, `week_id`, `updated_by`, `updated_at`: la lista della settimana, una per (`family_id`, `week_id`), creata alla prima modifica |
@@ -807,11 +850,32 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 membro»); dati personali e appartenenze sono `on delete cascade`; i dati di famiglia
 seguono la famiglia; i pasti impediscono di cancellare una ricetta citata; nessuna
 cascata sullo storico. Gli utenti modificano solo le colonne previste dalle operazioni;
-identità di settimane e slot è immutabile e un annullamento vale solo sullo stesso
-slot. I nomi degli autori del ricettario, compresi quelli di `ingredient_versions`, sono
+identità di settimane e slot è immutabile e un annullamento vale solo sugli slot
+dell'azione annullata. Istanti del registro e dell'ultima modifica con
+`clock_timestamp()`, cioè dopo il lucchetto, non all'inizio della richiesta. I nomi degli autori del ricettario, compresi quelli di `ingredient_versions`, sono
 leggibili dai curatori con `app.catalogue_author_names()` (solo id e nome), senza aprire
 i profili. `app.recipe_is_cited` (`security definer`, solo curatori) dice se un pasto di
 qualunque famiglia cita una ricetta, senza mostrare i pasti.
+
+**Bozze nei pasti** (revisione dei pasti, 12 ottobre 2026). Collegare uno slot a una
+ricetta mai pubblicata resta vietato, salvo quando un altro pasto della famiglia la
+cita già oppure, con la bozza ancora aperta, quando la ricetta si sposta nella stessa
+azione (scambio, anche fra due bozze) o torna con un annullamento: le prove vengono dal
+registro veritiero, senza privilegi nuovi. `app.meal_action_restores_closed_draft`
+(`security definer`, eseguibile dagli utenti) dice se annullare un'azione riporterebbe
+una bozza chiusa senza pubblicazione; legge solo le righe di quell'azione e solo nelle
+settimane di chi chiama, e blocca le ricette riportate come fanno scarto e
+pubblicazione, così annullamento e scarto si mettono in fila. Particolari nella spec di
+dettaglio `2026-10-11-revisione-pasti.md`, sezione 3.
+
+**Ruolo dell'esportazione** (11 ottobre 2026, migrazione `20261012110000_backup.sql`):
+`app_backup`, NOLOGIN e BYPASSRLS, ha solo `SELECT` su tutte le tabelle di `app`
+(anche quelle create dopo) e sull'elenco delle migrazioni, ed esegue soltanto
+`app.backup_auth_rows()`, che restituisce `auth.users` e `auth.identities`. È separato
+da `app_job`, che scrive menu e legge solo ciò che serve al pianificatore: un errore
+del job non legge tutto e un errore dell'esportazione non scrive niente. Ogni tabella di
+`app` ha una chiave primaria e lo schema non ha sequenze (verificato da pgTAP);
+dettagli in `2026-10-11-esportazione-r2.md`.
 
 **Nessuno stato della settimana, deciso il 6 ottobre 2026.** Le settimane non hanno
 fasi (bozza, in corso, da chiudere, chiusa) né chiusura: ogni settimana si consulta e si
@@ -1014,9 +1078,18 @@ requisito.
 
 - **suggerimenti**: lo stesso punteggio con gli altri slot fissati, i migliori 5; come
   nella generazione, rispettano tempi massimi, regole di pasto, ingredienti evitati e
-  massimi settimanali della famiglia (la ricerca nel ricettario resta libera);
+  massimi settimanali della famiglia (la ricerca nel ricettario resta libera). Una sola
+  logica con la generazione (`rankSuggestions` nel dominio, sulle stesse funzioni di
+  vincoli e punteggio): il piatto attuale si toglie prima della scelta fra ricette
+  gradite e ripiego sui voti bassi, così se era l'unico gradito restano le alternative;
 - **"proponimene altri"**: i 5 candidati successivi nella stessa classifica; finita la
   classifica si ricomincia dai primi. Non sostituisce il piatto: si sceglie tra i nuovi.
+
+**Ricette archiviate già nel calendario** (`PlannerInput.fixedRecipes`, 12 ottobre
+2026): le ricette archiviate citate dai pasti della famiglia non sono mai candidate, ma
+contano come pasti vicini, storico e massimi settimanali, sia nei suggerimenti sia nella
+generazione; prima restavano fuori dalla somiglianza e dalla recentezza. Le bozze mai
+pubblicate non hanno documento e restano fuori.
 
 Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026).
 
@@ -1058,6 +1131,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   settimana successiva: famiglie in fusi diversi sono servite all'ora giusta e l'ora
   legale non richiede di cambiare il cron. Un'esecuzione senza famiglie da servire non
   fa nulla. Un'invocazione ha fino a 15 minuti di CPU sul piano a pagamento.
+  Accanto al cron orario c'è quello dell'esportazione notturna (`30 2,4 * * *`, sezione
+  8): l'evento `scheduled` si smista sull'espressione (`controller.cron`), un test
+  verifica che le espressioni del codice coincidano con `wrangler.jsonc` e una
+  espressione sconosciuta scrive solo un log di errore.
 - **Smistamento**: crea in modo idempotente una riga in `weekly_jobs` per ogni famiglia
   da servire e per il lunedì successivo; poi legge, a parte, tutti i job ancora
   `pending` o `failed`.
@@ -1086,7 +1163,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `weekly_job_failed`, `weekly_job_overdue` (dal giovedì alle 08:00 che precede la
   settimana, cioè 12 ore dopo le 20:00 del mercoledì) e `weekly_job_abandoned`. Su
   questi ultimi due arriverà un'email con Resend al referente operativo del servizio
-  (ondata 3). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
+  (ondata 3), insieme a quella sui fallimenti dell'esportazione notturna (sezione 8). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
   curatore non abilita a ricevere segnalazioni sulle altre famiglie. Contenuti e accessi
   operativi devono rispettare la separazione dei ruoli della sezione 2.
 - **Generazione su richiesta** ("rigenera" se la settimana manca; il wizard non genera,
@@ -1133,7 +1210,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   importati con ricette in bozza), il pasto mostra solo nome e descrizione e non entra
   nella spesa (deciso l'11 ottobre 2026); il nome è nella lingua dell'utente o, se manca,
   nell'altra. Le ricette in bozza arrivano ai pasti solo
-  dall'import; gli utenti non le collegano. Solo i curatori vedono nella scheda l'avviso
+  dall'import; gli utenti non le scelgono, ma una bozza già citata si sposta con lo
+  scambio e torna con l'annullamento (sotto, «Annulla»). Solo i curatori vedono nella scheda l'avviso
   che la ricetta è stata aggiornata dopo, con il collegamento alla versione attuale.
 - **Ricette archiviate:** restano leggibili e votabili dai pasti che le usano, anche
   futuri, finché la famiglia non li cambia; non compaiono in ricerca, suggerimenti e
@@ -1153,16 +1231,37 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   cambia porzioni; cambia ricetta (cinque suggerimenti, "proponimene altri", ricerca con
   filtri), che raccoglie anche segna libero con testo, non proporre più e scambia con un
   altro slot della stessa settimana; nota; vota. Valgono per pasti passati, in corso e futuri e per slot
-  liberi e vuoti.
+  liberi e vuoti. Sono le operazioni dell'area `meals` (`getSuggestions`,
+  `setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo`), uguali dal web e
+  da MCP; particolari in `progetto/superpowers/specs/2026-10-11-revisione-pasti.md`.
+  - **Porzioni:** da 1 a 20. Un salvataggio respinto si spiega sempre: errore nel
+    pannello o, se nel frattempo si è cambiata pagina, un avviso nel Menu che resta
+    finché l'utente non lo chiude.
+  - **Cambia ricetta:** si sceglie solo una ricetta pubblicata, dai suggerimenti o
+    dalla ricerca, anche di un libro che la famiglia non possiede. La ricerca parte con
+    il tipo di pasto dello slot e si attiva anche con i soli filtri; i risultati, come i
+    suggerimenti, mostrano il voto in sola lettura.
+  - **Pasto libero:** testo fino a 60 caratteri, conservato come scritto; le proposte
+    rapide sono i quattro testi liberi più usati dalla famiglia. La nota resta.
   - **Scambio:** si spostano ricetta o testo libero e nota; le porzioni restano allo slot,
     perché dipendono da chi c'è quel giorno.
   - **Non proporre più:** aggiunge l'esclusione per la famiglia e apre subito la scelta
-    del sostituto; i pasti già pianificati con quella ricetta non cambiano. L'elenco delle
-    esclusioni si gestisce nel percorso Famiglia e account.
-  - **Nota:** testo libero fino a 200 caratteri, visibile a tutta la famiglia.
-  - **Annulla:** dopo ogni modifica, per alcuni secondi, si può annullare. Ripristina solo
-    le proprie modifiche e solo se lo slot non è cambiato di nuovo; l'annullamento è a
-    sua volta una modifica registrata.
+    del sostituto; i pasti già pianificati con quella ricetta non cambiano. L'esclusione
+    resta anche se si chiude il foglio senza scegliere; si annulla dal foglio stesso o
+    dall'elenco delle esclusioni, gestito nel percorso Famiglia e account (Profilo).
+  - **Nota:** testo libero fino a 200 caratteri, conservato come scritto, visibile a
+    tutta la famiglia.
+  - **Annulla:** nell'app, dopo ogni modifica che ha cambiato qualcosa, un avviso offre
+    «Annulla» per 6 secondi; il server non pone limiti di tempo, anche sui pasti passati.
+    Si annulla solo la propria ultima azione e solo se nessuno ha cambiato dopo i suoi
+    pasti; uno scambio torna sempre per intero, su entrambi i pasti. L'annullamento è a
+    sua volta un'azione registrata e si può annullare. Da un agente si annulla la
+    propria ultima modifica anche in una conversazione nuova: la vista del pasto dice se
+    è annullabile e quali pasti coinvolge (sezione 13). Una bozza importata tolta da un
+    pasto torna con l'annullamento se la bozza è ancora aperta; se nel frattempo è stata
+    pubblicata torna la ricetta pubblicata (stesso id); se è stata chiusa senza
+    pubblicazione l'annullamento non è più possibile (`draft_closed`; decisione del
+    coordinatore, 12 ottobre 2026).
 - **Voto**: è sulla ricetta (`ratings`: utente × ricetta), non sullo slot. È sempre possibile,
   dallo slot di qualsiasi settimana o dalla scheda della ricetta nel catalogo, e non dipende
   dallo stato della settimana. Ricettario e scheda della ricetta non offrono «non
@@ -1179,8 +1278,12 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   dove il voto è solo visualizzato (deciso il 6 ottobre 2026). Il salvataggio aggiorna subito
   media e proprio voto in quella vista. È un unico componente riusato in tutte le viste; la
   sua forma si decide nel design delle superfici.
-- **Tracciabilità**: ogni scrittura aggiorna `updated_by` e `updated_at` e aggiunge
-  una riga a `meal_changes`, anche quando arriva da MCP. La generazione crea e non
+- **Tracciabilità**: ogni scrittura è un'azione (`meal_actions`) con un `id` scelto
+  dal client; aggiorna `updated_by`, `updated_at` e `last_action_id` degli slot che
+  cambia e aggiunge una riga a `meal_changes` per ciascuno, anche quando arriva da MCP.
+  Una richiesta che non cambia nulla non tocca slot né registro e non cambia l'ultima
+  modifica mostrata, ma resta ricordata: ripeterla non sovrascrive le modifiche fatte
+  dopo da altri. La generazione crea e non
   modifica: lascia `updated_by` vuoto e non scrive il registro, quindi l'ultima modifica
   mostrata è sempre di una persona. L'interfaccia mostra solo
   l'ultima modifica, con persona e momento; il canale (web o MCP) resta nel registro e
@@ -1643,7 +1746,10 @@ generazioni; i pasti che la usano restano leggibili e votabili, anche quelli fut
 finché la famiglia non li cambia. La precedente archiviazione automatica per assenza dal
 YAML è eliminata. Una bozza nuova mai pubblicata si può eliminare solo se nessun pasto
 di nessuna famiglia la cita: si chiude come scartata e la ricetta resta nel database,
-fuori da bozze e pasti. Una revisione si può scartare. Anche una ricetta archiviata si
+fuori da bozze e pasti. Scarto e annullamento di un pasto che riporterebbe la bozza si
+mettono in fila: se arriva prima lo scarto l'annullamento è rifiutato, se arriva prima
+l'annullamento lo scarto risponde `cited_by_meals` (sezione 5). Una revisione si può
+scartare. Anche una ricetta archiviata si
 può rivedere e pubblicare: resta archiviata finché un curatore non la riporta nel
 ricettario. La cancellazione del curatore non implica la
 cancellazione delle ricette che ha contribuito.
@@ -1691,13 +1797,58 @@ coperti da un'esportazione notturna dell'intero database, che comprende quindi a
 dati delle famiglie. Il piano gratuito di Supabase non offre backup della piattaforma
 (deciso l'8 ottobre 2026): l'esportazione va in R2 di Cloudflare e la perdita massima
 di lavoro è di circa un giorno. Si conservano le ultime 7 esportazioni notturne (deciso
-l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore). Strumento,
-cifratura, tempi di recupero e modalità operative si definiscono prima dell'uso del catalogo in produzione. La procedura dovrà essere provata con un ripristino in un
-ambiente di verifica.
+l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore).
+
+**Esportazione notturna** (decisa l'11 ottobre 2026, PR #30; particolari in
+`progetto/superpowers/specs/2026-10-11-esportazione-r2.md`):
+
+- **Contenuto:** tutte le tabelle di `app` (dati delle famiglie e catalogo) e gli
+  account di Supabase Auth (`auth.users` e `auth.identities`, con email e password
+  cifrate da Supabase), così un ripristino riporta gli stessi account con gli stessi
+  id. Sessioni, token e autorizzazioni degli agenti restano fuori: dopo un ripristino
+  da esportazione tutti rifanno l'accesso e ricollegano gli agenti.
+- **Strumento:** il Worker stesso, su un Cron Trigger dedicato alle 02:30 UTC, con un
+  secondo tentativo alle 04:30 solo se manca l'esportazione del giorno (sezione 4): un
+  errore transitorio non porta la perdita a due giorni. Legge nel ruolo `app_backup`
+  (sezione 2) in una sola fotografia `repeatable read`. Scartate una GitHub Action con
+  `pg_dump` (password del database e token di R2 nei secret di GitHub, workflow
+  programmati in ritardo e disattivati dopo 60 giorni) e un'esportazione a pagine.
+- **Formato e cifratura:** un documento JSON per tabella prodotto da Postgres, con
+  l'elenco delle migrazioni, compresso con gzip e cifrato nel Worker con AES-256-GCM,
+  oltre alla cifratura a riposo di R2: l'account Cloudflare è quello di POWA e chi vi
+  accede non deve leggere email e password. Chiave nel secret `BACKUP_ENCRYPTION_KEY`
+  e copia nel gestore di password dell'utente: perdere la chiave vuol dire perdere le
+  esportazioni.
+- **Conservazione:** bucket privato `cosasimangia-backups` nella giurisdizione UE; le
+  ultime 7 le tiene il codice, dopo una scrittura riuscita, non una regola di ciclo di
+  vita, che dopo giorni di fallimenti cancellerebbe le ultime copie buone.
+- **Limite:** 8 MB di documento, misurati in workerd con un picco sotto 64 MB di
+  memoria; si controlla prima di leggere le righe con una stima del database e oltre il
+  limite l'esportazione non parte e scrive un log di errore (avviso già a metà). Oggi il
+  database pesa pochi MB; avvicinandosi al limite servirà un'esportazione a pagine,
+  come nuova attività.
+- **Ripristino:** CLI `scripts/backup/restore.ts` (`inspect` e `restore`, con
+  `--dry-run`) in un database appena preparato con le migrazioni del commit ricavato
+  dall'esportazione e vuoto salvo le righe inserite dalle migrazioni, elencate nel
+  codice; non esiste un modo per sovrascrivere dati veri. Caricamento in modalità
+  `replica` in una sola transazione, contatori di versione conservati e marcatori di
+  transazione `xid8` azzerati; prima del commit verifica delle chiavi esterne e
+  confronto esatto con l'esportazione. Destinazione remota solo con TLS e verifica del
+  certificato (`sslmode=verify-full`), argomenti validati prima di collegarsi; errori
+  senza dati. Procedura scritta in `supabase/README.md`, comprese le configurazioni che
+  dipendono dal progetto Supabase, da aggiornare in ordine dopo un ripristino su un
+  progetto nuovo.
+- **Collaudo in due prove** (sezione 9): una prova locale completa, criterio di fine
+  della PR, ripetuta in CI; una prova di produzione, voce separata a carico
+  dell'utente dopo la creazione del bucket, con la chiave presa dal gestore di
+  password, così si verifica anche la copia. L'email di allarme sui fallimenti arriva
+  nell'ondata 3 con quelle del job (sezione 4). Restano da misurare i tempi di
+  recupero con un'esportazione vera (sezione 15).
 
 Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
 stessi permessi e controlli. Il design distinguerà queste azioni dai compiti operativi
-di backup dell'infrastruttura.
+di backup dell'infrastruttura: esportazione e ripristino da esportazione sono compiti
+operativi, senza operazioni del contratto, schermate né strumenti MCP.
 
 **YAML per importazione ed esportazione:** formato di scambio con chiavi tecniche in
 inglese, da precisare nel piano. Un export rappresenta il catalogo a una certa data;
@@ -1769,6 +1920,17 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   conservazione dei riferimenti dai pasti e assenza di modifiche a dati e ruoli
   familiari; annullamento di un ripristino ripristinando l'istante precedente. Il
   collaudo comprende anche l'effettivo recupero da un'esportazione notturna.
+- **Esportazione e ripristino** (sezione 8): pgTAP sui permessi di `app_backup` (sola
+  lettura su ogni tabella di `app`, anche futura, chiavi primarie, nessuna sequenza,
+  marcatori `xid8` elencati); test del formato e della cifratura. **Prova di
+  ripristino in CI** con destinazione reale (`npm run test:drill -w server`, ultimo
+  passo perché azzera il database): `inspect`, rifiuto di una destinazione con
+  migrazioni diverse, caricamento fallito senza dati nei messaggi e destinazione
+  invariata, `--dry-run`, `restore` con rilettura identica all'origine e contatori che
+  crescono alla scrittura successiva. **Due prove distinte:** quella locale completa
+  (esportazione da `wrangler dev`, ripristino, accesso e lettura dall'app) è il
+  criterio di fine della PR; quella di produzione la fa l'utente dopo la creazione del
+  bucket, con la chiave dal gestore di password, ed è una voce separata.
 - **Contratto e operazioni**: test delle operazioni contro il Supabase locale, con
   l'identità di utenti diversi, così permessi e RLS si provano insieme; test ricavati
   dal contratto che verificano per ogni operazione la scelta esplicita di esposizione
@@ -1831,20 +1993,20 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 | **2 Traguardo A** | Profilo, famiglia e impostazioni senza inviti; ricettario e voti; menu, pianificatore, job del mercoledì e generazione pigra; revisione dei pasti; spesa, anche offline; gestione del ricettario tramite MCP, con le bozze visibili nell'app; collegamento degli agenti; esportazione notturna in R2; messa in produzione con l'import del ricettario e dei dati della famiglia | La famiglia di Federico usa l'app ogni settimana, con il ricettario gestito anche tramite agente MCP |
 | **3 Prodotto** | Inviti familiari e all'app, wizard e generazione su richiesta, accesso con Google, Resend (con le email del job) e dominio `cosasimangia.qunidi.it`, amministrazione dell'app, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
 
-**Stato all'11 ottobre 2026:**
+**Stato al 12 ottobre 2026:**
 
 | Attività | Stato |
 |---|---|
 | Ondata 1: piattaforma, schema e permessi, ricetta e import, unità e spesa, app web di base con il client reale | Unite su `main` (PR #3–#9, #17) |
 | Profilo, famiglia e impostazioni | Server e web uniti (PR #10, #16, #18, #21) |
-| Ricettario e voti | Viste condivise, server e web uniti (PR #12, #14, #19) |
+| Ricettario e voti | Viste condivise, server e web uniti (PR #12, #14, #19); scheda aperta da un pasto con le sue porzioni (PR #28) |
 | Menu, pianificatore, job e generazione pigra | Server, job con Cron Trigger e web uniti (PR #13, #15, #20) |
 | Spesa, anche offline | Server, pagina Bring!, coda offline e web uniti (PR #11, #22) |
-| Gestione del ricettario tramite MCP | Server e strumenti MCP uniti (PR #23); in corso le sezioni web delle bozze |
-| Revisione dei pasti | Da avviare: azioni sui pasti, suggerimenti, annullamento e registro delle modifiche |
-| Collegamento degli agenti | Da assegnare; serve confermare il server OAuth sul progetto di produzione |
-| Esportazione notturna in R2 | Da assegnare; conservazione decisa (ultime 7 copie); servono bucket e chiave |
-| Messa in produzione | Ultima; il Worker non è ancora pubblicato e i passi di produzione (pool, password di `app_server`, Hyperdrive, primo deploy) si concordano con l'utente prima della prima pubblicazione |
+| Gestione del ricettario tramite MCP | Server, strumenti MCP e sezioni web delle bozze uniti (PR #23, #26) |
+| Revisione dei pasti | Server, dominio e strumenti MCP uniti (PR #29: azioni, suggerimenti, annullamento, registro); in corso la parte web |
+| Collegamento degli agenti | In review (PR #31); serve confermare il server OAuth sul progetto di produzione |
+| Esportazione notturna in R2 | Unita (PR #30; migrazione `20261012110000_backup.sql`, rinominata nella PR #32 per una versione duplicata); bucket, chiave e prova di produzione nella messa in produzione |
+| Messa in produzione | Ultima; design approvato, spec e piano in corso. Il Worker non è ancora pubblicato e i passi di produzione (pool, password di `app_server`, Hyperdrive, bucket e chiave delle esportazioni, primo deploy) si concordano con l'utente prima della prima pubblicazione |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano; passi esterni (DNS di `qunidi.it`, Resend, Google) rimandati
@@ -1938,9 +2100,10 @@ con una riga in testa a ogni file, con data e impronta del contenuto: una modifi
 successiva richiede una nuova revisione e senza approvazione valida non si pubblica.
 Nella gestione tramite MCP le traduzioni suggerite le rivede il curatore sulla scheda
 completa che l'agente mostra prima di pubblicare (sezione 8, deciso l'11 ottobre 2026).
-Il trattamento dei testi liberi degli utenti è da concordare: la proposta iniziale è
-conservarli come scritti, già decisa per le voci libere della spesa (sezione 6).
-Questi testi,
+**Testi liberi degli utenti** (decisione del coordinatore, 12 ottobre 2026): note e
+testi dei pasti liberi restano come li scrive l'utente, senza traduzione, come le voci
+libere della spesa (sezione 6); si mostrano uguali in entrambe le lingue, mentre tutti i
+testi dell'interfaccia restano bilingui. Questi testi,
 le trascrizioni originali delle fonti e i titoli bibliografici sono distinti dai testi
 localizzati obbligatori. I collegamenti alle fonti non diventano traduzioni dei siti o
 dei libri.
@@ -2000,7 +2163,7 @@ implicite alla copertura delle operazioni.
 |---|---|
 | Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare |
 | Pasti e ricettario | Consultare oggi e settimane, cercare e leggere ricette, ingredienti e voti |
-| Revisione | Cambiare ricetta e porzioni, chiedere suggerimenti, scambiare pasti, segnare pasti liberi, note ed esclusioni |
+| Revisione | Area `meals` (PR #29): cambiare ricetta e porzioni, chiedere suggerimenti (`meals_getSuggestions`, sola lettura), scambiare pasti, segnare pasti liberi, note ed esclusioni; annullare la propria ultima modifica di un pasto anche in una conversazione nuova, con `menu_getWeek` → `lastChange.actionId` se `lastChange.undoable` → `meals_undo` (sezione 5). Ogni scrittura porta un `id` nuovo scelto dall'agente; ripeterla non cambia nulla |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto (`ratings.set`, a stato assoluto, `null` per toglierlo); richiedere la generazione nei limiti previsti (ondata 3) |
 | Spesa | Leggere la lista di una settimana, spuntare voci (con la quantità letta dalla vista), rimettere ingredienti esclusi, aggiungere voci libere, ottenere testo e collegamento Bring!, poi il PDF |
 | Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`. Poi: creare e gestire la famiglia e gli inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
@@ -2239,8 +2402,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|---|
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
-| Backup e ripristino | Esportazione notturna in R2 al posto dei backup della piattaforma (piano gratuito di Supabase, deciso l'8 ottobre): strumento, conservazione, cifratura, tempi e procedura tecnica di recupero. Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 2, 8, 9 e 13 |
-| Lingue | Testi liberi degli utenti diversi dalle voci della spesa (note e testi dei pasti liberi); traduzioni mancanti bloccano già la pubblicazione. Decisi l'11 ottobre i campi bilingui jsonb al posto delle tabelle `*_translations`, l'impostazione iniziale della lingua, la revisione delle traduzioni dell'import e di quelle suggerite via MCP sulla scheda mostrata prima di pubblicare, la ricerca nella lingua dell'utente con i sinonimi e le voci libere della spesa conservate come scritte (sezioni 2, 6, 8 e 12) | Sezioni 2 e 12 |
+| Backup e ripristino | Tempi di recupero misurati con un'esportazione vera e prova di produzione (a carico dell'utente dopo la creazione del bucket, con la chiave dal gestore di password). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), revoca dei grant di un client, raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | Automazione della pubblicazione del Worker prima del traguardo A (preferibilmente GitHub Actions a test verdi) e modo di applicare le migrazioni al progetto di produzione. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1) | Sezioni 1 e 10 |
@@ -2284,6 +2446,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 11 ottobre 2026, fine dell'ondata 1 | Riportate le decisioni delle cinque attività unite (piattaforma, schema e permessi, ricetta e import, unità e spesa, app web di base) e del piano generale: fasi a tre ondate con il traguardo A; campi bilingui jsonb; attributi del pianificatore obbligatori per pubblicare; «invariato» nel contratto; Cron Trigger per il job; R1 con la prima versione pubblicata; spesa offline anche senza sessione verificabile; ruoli Postgres e schema `app`; contatori di versione; copia e sessione sul dispositivo; codici delle unità, presentazione imperiale e pezzi nella spesa; casi R4 e import con revisione approvata; accesso con email e password nel traguardo A |
 | 11 ottobre 2026, attività dell'ondata 2 unite | Riportate le decisioni di profilo e famiglia, ricettario e voti, menu e pianificatore, spesa e gestione del ricettario tramite MCP: regola unica di generazione all'apertura, settimane successive già pianificate considerate dal pianificatore, recupero e abbandono dei job, apertura sul primo giorno con pasti; famiglia mostrata sul server e Profilo senza i comandi dell'ondata 3; ricerca nella lingua dell'utente e ordinamento con i valori mancanti in fondo; Condividi e Bring! nel traguardo A, PDF nell'ondata 3, coda della spesa per ogni modifica; conferma del curatore nelle istruzioni dell'agente, eliminazione di una bozza come chiusura, revisione di ricette archiviate, ingredienti ed equivalenze via MCP, bozze in sola lettura nell'app; errori `not_allowed` e `conflict` con tipo, hook `prepare`, tabelle `profile_preferences` e `recipe_draft_requests`; fasi della sezione 10 con lo stato delle attività |
 | 11 ottobre 2026, decisioni dell'utente sul consolidamento | Ingrediente creabile con il solo nome italiano, con il nome inglese richiesto alla pubblicazione della ricetta; nessun pulsante «Genera la prima settimana» nel wizard, perché il menu si genera all'apertura; confermati il rinvio all'ondata 3 dell'email di allarme del job e del PDF della spesa; esportazione notturna in R2 con le ultime 7 copie; progetto Supabase `lronuqvtjdhfyychnscr` confermato come produzione |
+| 11–12 ottobre 2026, revisione dei pasti (server) ed esportazione notturna unite | Riportate le decisioni delle PR #29 e #30 (con la #32, che rinomina la migrazione dell'esportazione in `20261012110000_backup.sql`). Revisione dei pasti: area `meals` con azioni a `id` del client (`meal_actions`, `last_action_id`, registro veritiero), richieste senza effetti ricordate, annullamento della propria ultima azione senza limiti di tempo lato server (6 secondi nell'app, anche da una conversazione MCP nuova con `lastChange.undoable`), scambio annullato per intero, porzioni da 1 a 20, pasto libero fino a 60 caratteri con i quattro testi più usati, solo ricette pubblicate, bozze importate che seguono scambio e annullamento (con la bozza pubblicata nel frattempo ripristinata e quella scartata che blocca, decisione del coordinatore del 12 ottobre), «non proporre più» che resta chiudendo il foglio, ricerca del sostituto con i soli filtri, salvataggi delle porzioni respinti sempre spiegati; suggerimenti con `rankSuggestions` e ricette archiviate fissate anche nella generazione; nuovi motivi di `not_allowed`, UUID in minuscolo, suggerimenti non versionati. Note e testi dei pasti liberi come scritti. Esportazione: Worker su un Cron Trigger dedicato con secondo tentativo, ruolo `app_backup`, account compresi, JSON con gzip e AES-256-GCM, bucket UE, ultime 7 dal codice, limite di 8 MB, CLI di ripristino con verifiche e TLS verificato, prova in CI e prova di produzione separata; email di allarme nell'ondata 3. Chiuse in sezione 15 le voci «Lingue» e, salvo tempi di recupero e prova di produzione, «Backup e ripristino». Sezione 10 aggiornata |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
