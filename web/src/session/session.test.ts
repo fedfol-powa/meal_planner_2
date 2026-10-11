@@ -115,7 +115,7 @@ describe('revoked families across tabs (second review, C4)', () => {
     const hub = createMemoryHub();
     const session = createSession('a', store, { channel: hub.channel(), now: () => 100 });
     session.revoke('f1');
-    await vi.waitFor(() => expect(store.entries.get(revokedKey('a'))).toEqual({ f1: 100 }));
+    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100));
     expect(hub.sent).toEqual([{ type: 'revoked', userId: 'a', familyId: 'f1' }]);
     session.revoke('f2', { announce: false });
     expect(hub.sent).toHaveLength(1);
@@ -125,7 +125,7 @@ describe('revoked families across tabs (second review, C4)', () => {
     await markRevoked(store, 'a', 'f1', 100);
     const session = createSession('a', store, { now: () => 200 });
     expect(await session.call(async () => 'week', 'f1')).toBe('week');
-    await vi.waitFor(() => expect(store.entries.has(revokedKey('a'))).toBe(false));
+    await vi.waitFor(() => expect(store.entries.has(revokedKey('a', 'f1'))).toBe(false));
   });
   it('keeps the mark for a read that started before the revocation', async () => {
     const store = createMemoryStore();
@@ -133,6 +133,6 @@ describe('revoked families across tabs (second review, C4)', () => {
     const session = createSession('a', store, { now: () => 50 });
     await session.call(async () => 'week', 'f1');
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(store.entries.get(revokedKey('a'))).toEqual({ f1: 100 });
+    expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100);
   });
 });

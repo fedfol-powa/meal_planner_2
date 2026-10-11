@@ -1,7 +1,8 @@
 import { persistQueryClientRestore, persistQueryClientSave } from '@tanstack/react-query-persist-client';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
-import { cacheKey, clearRevoked, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
+import 'fake-indexeddb/auto';
+import { cacheKey, clearRevoked, createIndexedDbStore, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
 
 const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
 const options = (buster: string) => persistOptions(createPersister(createMemoryStore(), 'x'), buster).dehydrateOptions;
@@ -18,11 +19,20 @@ async function saved(store = createMemoryStore(), buster = 'build-1') {
 function slowStore() {
   const inner = createMemoryStore();
   const pending: (() => void)[] = [];
+  let held = true;
+  const hold = (write: () => Promise<void>) =>
+    held ? new Promise<void>((resolve) => pending.push(() => void write().then(resolve))) : write();
   const store: KeyValueStore = {
     ...inner,
-    set: (key, value) => new Promise<void>((resolve) => pending.push(() => void inner.set(key, value).then(resolve)))
+    set: (key, value) => hold(() => inner.set(key, value)),
+    transact: (prefixes, change) => hold(() => inner.transact(prefixes, change))
   };
-  return { store, entries: inner.entries, pending, release: () => pending.splice(0).forEach((run) => run()) };
+  // After the release, writes run at once.
+  const release = () => {
+    held = false;
+    pending.splice(0).forEach((run) => run());
+  };
+  return { store, entries: inner.entries, pending, release };
 }
 
 describe('persister', () => {
@@ -47,7 +57,7 @@ describe('persister', () => {
   });
   it('survives a store that fails', async () => {
     const fail = () => Promise.reject(new Error('blocked'));
-    const persister = createPersister({ get: fail, set: fail, delete: fail, keys: fail }, 'user-a');
+    const persister = createPersister({ get: fail, set: fail, delete: fail, keys: fail, transact: fail }, 'user-a');
     expect(await persister.restoreClient()).toBeUndefined();
     await expect(persister.persistClient({ timestamp: 1, buster: '', clientState: { queries: [], mutations: [] } })).resolves.toBeUndefined();
     await expect(persister.close()).resolves.toBeUndefined();
@@ -63,7 +73,6 @@ describe('persister', () => {
     await persister.persistClient(client);
     release();
     await Promise.all([writing, closing]);
-    release();
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(entries.has(cacheKey('user-a'))).toBe(false);
     expect(await persister.restoreClient()).toBeUndefined();
@@ -80,10 +89,10 @@ describe('persister', () => {
   });
   it('treats the revocation marks of other users like their copies', async () => {
     const store = createMemoryStore();
-    store.entries.set(revokedKey('a'), { f: 1 });
-    store.entries.set(revokedKey('b'), { f: 1 });
+    store.entries.set(revokedKey('a', 'f'), 1);
+    store.entries.set(revokedKey('b', 'f'), 1);
     await purgeOtherCopies(store, 'b');
-    expect([...store.entries.keys()]).toEqual([revokedKey('b')]);
+    expect([...store.entries.keys()]).toEqual([revokedKey('b', 'f')]);
   });
   it('keeps only successful queries', async () => {
     const store = createMemoryStore();
@@ -147,9 +156,10 @@ describe('revoked families on the device (second review, C4)', () => {
     await markRevoked(store, 'user-a', 'f', 100);
     await markRevoked(store, 'user-a', 'h', 100);
     await clearRevoked(store, 'user-a', 'f', 90);
-    expect(store.entries.get(revokedKey('user-a'))).toEqual({ f: 100, h: 100 });
+    expect(store.entries.get(revokedKey('user-a', 'f'))).toBe(100);
     await clearRevoked(store, 'user-a', 'f', 120);
-    expect(store.entries.get(revokedKey('user-a'))).toEqual({ h: 100 });
+    expect(store.entries.has(revokedKey('user-a', 'f'))).toBe(false);
+    expect(store.entries.get(revokedKey('user-a', 'h'))).toBe(100);
     await saveBoth(store);
     expect(families(store.entries.get(cacheKey('user-a')))).toEqual(['f', 'g']);
   });
@@ -157,6 +167,61 @@ describe('revoked families on the device (second review, C4)', () => {
     const store = createMemoryStore();
     await markRevoked(store, 'user-a', 'f', 100);
     await createPersister(store, 'user-a').close();
-    expect(store.entries.has(revokedKey('user-a'))).toBe(false);
+    expect(store.entries.has(revokedKey('user-a', 'f'))).toBe(false);
+  });
+});
+
+describe('concurrent revocation marks (PR review, C11)', () => {
+  const otherWeek = ['menu', 'getWeek', { familyId: 'g', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
+  async function lateWriteAndRestore(store: KeyValueStore) {
+    // A tab that knows nothing of the revocations writes both families, then the app reopens.
+    const client = createQueryClient();
+    client.setQueryData(week, { version: 'v1', data: 'f' });
+    client.setQueryData(otherWeek, { version: 'v1', data: 'g' });
+    await persistQueryClientSave({ queryClient: client, persister: createPersister(store, 'user-a'), buster: 'b', dehydrateOptions: options('b') });
+    const restored = createQueryClient();
+    await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'user-a'), buster: 'b' });
+    return restored;
+  }
+
+  for (const [name, make] of [
+    ['memory', () => createMemoryStore()],
+    ['IndexedDB', () => createIndexedDbStore(`test-${Math.random()}`)]
+  ] as const) {
+    it(`keeps both marks of two families revoked at the same time (${name})`, async () => {
+      const store: KeyValueStore = make();
+      await Promise.all([markRevoked(store, 'user-a', 'f', 100), markRevoked(store, 'user-a', 'g', 101)]);
+      const restored = await lateWriteAndRestore(store);
+      expect(restored.getQueryData(week)).toBeUndefined();
+      expect(restored.getQueryData(otherWeek)).toBeUndefined();
+    });
+    it(`keeps a new revocation that races the lifting of the old one (${name})`, async () => {
+      const store: KeyValueStore = make();
+      await markRevoked(store, 'user-a', 'f', 100);
+      // Both orders: the lifting may read before or after the new mark is written.
+      await Promise.all([markRevoked(store, 'user-a', 'f', 200), clearRevoked(store, 'user-a', 'f', 150)]);
+      await Promise.all([clearRevoked(store, 'user-a', 'f', 250), markRevoked(store, 'user-a', 'f', 300)]);
+      const restored = await lateWriteAndRestore(store);
+      expect(restored.getQueryData(week)).toBeUndefined();
+      expect(restored.getQueryData(otherWeek)).toBeDefined();
+      // The later mark stays; an older one never replaces it.
+      await markRevoked(store, 'user-a', 'f', 120);
+      await clearRevoked(store, 'user-a', 'f', 180);
+      expect((await lateWriteAndRestore(store)).getQueryData(week)).toBeUndefined();
+      await clearRevoked(store, 'user-a', 'f', 350);
+      expect((await lateWriteAndRestore(store)).getQueryData(week)).toBeDefined();
+    });
+  }
+  it('runs a whole transaction of the IndexedDB store before any other one', async () => {
+    const store = createIndexedDbStore(`test-${Math.random()}`);
+    // Many read-and-increment steps at once: none may read a value another step is replacing.
+    await Promise.all(
+      Array.from({ length: 20 }, () =>
+        store.transact(['counter'], (entries) => [['counter', ((entries.get('counter') as number | undefined) ?? 0) + 1]])
+      )
+    );
+    expect(await store.get('counter')).toBe(20);
+    await store.transact(['counter'], () => [['counter', undefined]]);
+    expect(await store.keys()).toEqual([]);
   });
 });

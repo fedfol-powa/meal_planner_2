@@ -3,12 +3,21 @@ import type { PersistedClient, Persister, PersistQueryClientOptions } from '@tan
 import { toApiError } from './errors';
 import { familyOfKey } from './queries';
 
+/** Writes of one transaction: undefined deletes the key. */
+export type Writes = Iterable<readonly [key: string, value: unknown]>;
+
 /** Minimal storage used by the persister: IndexedDB in the app, memory in tests. */
 export interface KeyValueStore {
   get(key: string): Promise<unknown>;
   set(key: string, value: unknown): Promise<void>;
   delete(key: string): Promise<void>;
   keys(): Promise<string[]>;
+  /**
+   * Reads the entries whose key starts with one of `prefixes` and applies the writes `change`
+   * returns, as one step no other operation of any tab can interleave (PR review, C11).
+   * `change` runs synchronously.
+   */
+  transact(prefixes: string[], change: (entries: Map<string, unknown>) => Writes | void): Promise<void>;
 }
 
 export const PERSIST_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -19,38 +28,50 @@ export function cacheKey(userId: string): string {
   return `${CACHE_PREFIX}${userId}`;
 }
 
-/** Families revoked for a user on this device, with the time of the revocation (second review, C4). */
-export function revokedKey(userId: string): string {
-  return `${REVOKED_PREFIX}${userId}`;
+/** Marks of the families revoked for a user on this device (second review, C4). */
+function marksPrefix(userId: string): string {
+  return `${REVOKED_PREFIX}${userId}:`;
 }
 
-type RevocationMarks = Record<string, number>;
+/** One record per user and family, holding the time of the latest revocation (PR review, C11). */
+export function revokedKey(userId: string, familyId: string): string {
+  return `${marksPrefix(userId)}${familyId}`;
+}
 
-async function readMarks(store: KeyValueStore, userId: string): Promise<RevocationMarks> {
-  const value = await store.get(revokedKey(userId)).catch(() => undefined);
-  return typeof value === 'object' && value !== null ? (value as RevocationMarks) : {};
+function revokedFamilies(entries: Map<string, unknown>, userId: string): Set<string> {
+  const prefix = marksPrefix(userId);
+  const families = new Set<string>();
+  for (const [key, at] of entries) if (key.startsWith(prefix) && typeof at === 'number') families.add(key.slice(prefix.length));
+  return families;
 }
 
 /** Shared by every tab of the user: no persister writes or restores this family any more. */
 export async function markRevoked(store: KeyValueStore, userId: string, familyId: string, at: number): Promise<void> {
-  const marks = await readMarks(store, userId);
-  await store.set(revokedKey(userId), { ...marks, [familyId]: at }).catch(() => undefined);
+  const key = revokedKey(userId, familyId);
+  await store
+    .transact([key], (entries) => {
+      const saved = entries.get(key);
+      return [[key, typeof saved === 'number' ? Math.max(saved, at) : at]];
+    })
+    .catch(() => undefined);
 }
 
-/** The server gave the family back: only a read that started after the revocation proves it. */
+/** The server gave the family back: only a read that started after the latest revocation proves it. */
 export async function clearRevoked(store: KeyValueStore, userId: string, familyId: string, startedAt: number): Promise<void> {
-  const marks = await readMarks(store, userId);
-  const revokedAt = marks[familyId];
-  if (revokedAt === undefined || revokedAt >= startedAt) return;
-  const { [familyId]: _lifted, ...rest } = marks;
-  await (Object.keys(rest).length ? store.set(revokedKey(userId), rest) : store.delete(revokedKey(userId))).catch(() => undefined);
+  const key = revokedKey(userId, familyId);
+  await store
+    .transact([key], (entries) => {
+      const revokedAt = entries.get(key);
+      return typeof revokedAt === 'number' && revokedAt < startedAt ? [[key, undefined]] : [];
+    })
+    .catch(() => undefined);
 }
 
-function withoutRevoked(client: PersistedClient, marks: RevocationMarks): PersistedClient {
-  if (Object.keys(marks).length === 0) return client;
+function withoutRevoked(client: PersistedClient, revoked: Set<string>): PersistedClient {
+  if (revoked.size === 0) return client;
   const queries = client.clientState.queries.filter((query) => {
     const familyId = familyOfKey(query.queryKey);
-    return familyId === null || !(familyId in marks);
+    return familyId === null || !revoked.has(familyId);
   });
   return { ...client, clientState: { ...client.clientState, queries } };
 }
@@ -62,11 +83,20 @@ export function createMemoryStore(): KeyValueStore & { entries: Map<string, unkn
     get: async (key) => structuredClone(entries.get(key)),
     set: async (key, value) => void entries.set(key, structuredClone(value)),
     delete: async (key) => void entries.delete(key),
-    keys: async () => [...entries.keys()]
+    keys: async () => [...entries.keys()],
+    // Read and writes happen without awaiting in between: atomic like the IndexedDB transaction.
+    transact: async (prefixes, change) => {
+      const read = new Map<string, unknown>();
+      for (const [key, value] of entries) if (prefixes.some((prefix) => key.startsWith(prefix))) read.set(key, structuredClone(value));
+      for (const [key, value] of change(read) ?? []) {
+        if (value === undefined) entries.delete(key);
+        else entries.set(key, structuredClone(value));
+      }
+    }
   };
 }
 
-/** One database, one object store, one entry per user. */
+/** One database, one object store, one entry per user plus one per revoked family. */
 export function createIndexedDbStore(dbName = 'cosasimangia'): KeyValueStore {
   const storeName = 'kv';
   let opening: Promise<IDBDatabase> | undefined;
@@ -89,7 +119,40 @@ export function createIndexedDbStore(dbName = 'cosasimangia'): KeyValueStore {
     get: (key) => run('readonly', (s) => s.get(key)),
     set: async (key, value) => void (await run('readwrite', (s) => s.put(value, key))),
     delete: async (key) => void (await run('readwrite', (s) => s.delete(key))),
-    keys: async () => (await run('readonly', (s) => s.getAllKeys())).map(String)
+    keys: async () => (await run('readonly', (s) => s.getAllKeys())).map(String),
+    // readwrite transactions on the same store run one at a time, also across tabs.
+    async transact(prefixes, change) {
+      const db = await open();
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(storeName, 'readwrite');
+        const objects = transaction.objectStore(storeName);
+        const read = new Map<string, unknown>();
+        let pending = prefixes.length;
+        const write = () => {
+          try {
+            for (const [key, value] of change(read) ?? []) {
+              if (value === undefined) objects.delete(key);
+              else objects.put(value, key);
+            }
+          } catch (error) {
+            transaction.abort();
+            reject(error);
+          }
+        };
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = transaction.onabort = () => reject(transaction.error);
+        if (pending === 0) write();
+        for (const prefix of prefixes) {
+          const cursor = objects.openCursor(IDBKeyRange.bound(prefix, `${prefix}\uffff`));
+          cursor.onsuccess = () => {
+            if (cursor.result) {
+              read.set(String(cursor.result.key), cursor.result.value);
+              cursor.result.continue();
+            } else if (--pending === 0) write();
+          };
+        }
+      });
+    }
   };
 }
 
@@ -117,15 +180,22 @@ export function createPersister(store: KeyValueStore, userId: string): SessionPe
   return {
     persistClient(client) {
       return closed ? Promise.resolve() : enqueue(async () => {
-        // Marks are read inside the queued operation, right before writing.
-        if (!closed) await store.set(key, withoutRevoked(client, await readMarks(store, userId)));
+        // Marks are read in the same transaction that writes the copy.
+        if (!closed) await store.transact([marksPrefix(userId)], (entries) => [[key, withoutRevoked(client, revokedFamilies(entries, userId))]]);
       });
     },
     async restoreClient() {
       if (closed) return undefined;
-      const value = await store.get(key).catch(() => undefined);
+      let value: unknown;
+      let revoked = new Set<string>();
+      await store
+        .transact([key, marksPrefix(userId)], (entries) => {
+          value = entries.get(key);
+          revoked = revokedFamilies(entries, userId);
+        })
+        .catch(() => undefined);
       if (value === undefined) return undefined;
-      if (isPersistedClient(value)) return withoutRevoked(value, await readMarks(store, userId));
+      if (isPersistedClient(value)) return withoutRevoked(value, revoked);
       await enqueue(() => store.delete(key));
       return undefined;
     },
@@ -134,7 +204,9 @@ export function createPersister(store: KeyValueStore, userId: string): SessionPe
     },
     close() {
       closed = true;
-      return enqueue(() => Promise.all([store.delete(key), store.delete(revokedKey(userId))]));
+      return enqueue(() =>
+        store.transact([marksPrefix(userId)], (entries) => [[key, undefined], ...[...entries.keys()].map((mark) => [mark, undefined] as const)])
+      );
     }
   };
 }
@@ -144,9 +216,9 @@ export function createPersister(store: KeyValueStore, userId: string): SessionPe
  * null after a confirmed sign-out deletes them all (second review, C1).
  */
 export async function purgeOtherCopies(store: KeyValueStore, keepUserId: string | null): Promise<void> {
-  const keep = keepUserId ? [cacheKey(keepUserId), revokedKey(keepUserId)] : [];
+  const kept = (k: string) => keepUserId !== null && (k === cacheKey(keepUserId) || k.startsWith(marksPrefix(keepUserId)));
   const keys = await store.keys().catch(() => [] as string[]);
-  const others = keys.filter((k) => (k.startsWith(CACHE_PREFIX) || k.startsWith(REVOKED_PREFIX)) && !keep.includes(k));
+  const others = keys.filter((k) => (k.startsWith(CACHE_PREFIX) || k.startsWith(REVOKED_PREFIX)) && !kept(k));
   await Promise.all(others.map((k) => store.delete(k).catch(() => undefined)));
 }
 
