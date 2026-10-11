@@ -8,7 +8,7 @@ import { router } from '../src/router.ts';
 import { contextFor } from './support/context.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
-import { testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
+import { preparedCalls, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
 
 let keys: TestKeys;
 beforeAll(async () => {
@@ -167,6 +167,32 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 		await expect(call(testRouter.test.appAdmin, {}, options(await asUser(appAdmin)))).resolves.toEqual({ ok: true });
 		expect((await errorOf(call(testRouter.test.appAdmin, {}, options(await asUser(curator))))).code).toBe('forbidden');
 		expect((await errorOf(call(testRouter.test.curator, {}, options(await asUser(appAdmin))))).code).toBe('forbidden');
+	});
+
+	it('runs prepare in the user transaction before the version, with its version part', async () => {
+		const member = await db.createUser();
+		const id = await db.createFamily([{ userId: member.userId, role: 'member' }]);
+		const clock = () => new Date('2026-10-14T10:00:00Z');
+		const context = contextFor(keys, await keys.sign({ sub: member.userId, session_id: member.sessionId }), db.appServerUrl, clock);
+		const first = await call(testRouter.test.preparedView, { familyId: id }, { context, path: ['test', 'preparedView'] });
+		const [{ v }] = await db.admin<{ v: string }[]>`select data_version::text as v from app.families where id = ${id}`;
+		expect(first.version).toContain(`f${id}:${v}`); // read after prepare's write
+		expect(first.version.endsWith('.t2026-10-14')).toBe(true);
+		expect(preparedCalls).toContain(member.userId);
+	});
+
+	it('answers an error of prepare even with a known version, and skips prepare when the role fails', async () => {
+		const member = await db.createUser();
+		const id = await db.createFamily([{ userId: member.userId, role: 'member' }]);
+		const ctx = async (user: { userId: string; sessionId: string }) => ({ context: await asUser(user), path: ['test', 'preparedView'], interceptors: [mapErrors] });
+		const { version } = await call(testRouter.test.preparedView, { familyId: id }, await ctx(member));
+		const refused = await errorOf(call(testRouter.test.preparedView, { familyId: id, fail: true, knownVersion: version }, await ctx(member)));
+		expect(refused.code).toBe('invalid');
+
+		const stranger = await db.createUser();
+		const error = await errorOf(call(testRouter.test.preparedView, { familyId: id }, await ctx(stranger)));
+		expect(error.code).toBe('forbidden');
+		expect(preparedCalls).not.toContain(stranger.userId);
 	});
 
 	it('answers unchanged without running the handler, and fresh data after a change', async () => {

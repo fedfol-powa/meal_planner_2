@@ -24,9 +24,13 @@ export interface RequestContext {
 	verify(token: string): Promise<Claims>;
 	deployId: string;
 	state: RequestState;
+	/** Current time; tests replace it. The pipeline reads it once per request into `now`. */
+	clock?: () => Date;
 }
 
 export interface OperationContext extends RequestContext {
+	/** The fixed instant of the request: one reading of the clock. */
+	now: Date;
 	userId: string;
 	channel: Channel;
 	clientId: string | null;
@@ -58,13 +62,26 @@ async function authenticate(context: RequestContext): Promise<Claims> {
 	}
 }
 
+export interface PrepareResult {
+	/** Appended to the version of the read (for example the effective date). */
+	versionPart?: string;
+}
+
+/** Runs inside the user's transaction before the version is read: validation against the server's state, lazy work. */
+export type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>;
+
+export interface ImplementerOptions {
+	/** By operation path joined with dots, for example `menu.getOpening`. */
+	prepare?: Record<string, Prepare>;
+}
+
 /**
  * Implementer shared by every operation. Input is validated first and output last
  * (validation indexes around all middleware); in between: token and claims, transaction
- * as the user, profile and session, web-only check, role, version; the handler runs
+ * as the user, profile and session, web-only check, role, prepare, version; the handler runs
  * inside the transaction.
  */
-export function createImplementer<C extends AnyContractRouter>(contract: C) {
+export function createImplementer<C extends AnyContractRouter>(contract: C, options: ImplementerOptions = {}) {
 	// With a generic contract the implementer is a deferred conditional type: name the
 	// router branch so `.use` resolves; callers still get the concrete implementer.
 	const base = implement(contract)
@@ -75,7 +92,7 @@ export function createImplementer<C extends AnyContractRouter>(contract: C) {
 			initialOutputValidationIndex: Number.NEGATIVE_INFINITY,
 		})
 		.$context<RequestContext>() as unknown as RouterImplementer<C, RequestContext, RequestContext>;
-	return base.use<OperationContext>(async ({ context, procedure, next }, input) => {
+	return base.use<OperationContext>(async ({ context, procedure, path, next }, input) => {
 		const meta = procedure['~orpc'].meta as OperationMeta;
 		const claims = await authenticate(context);
 		const channel = channelOf(claims);
@@ -88,14 +105,17 @@ export function createImplementer<C extends AnyContractRouter>(contract: C) {
 			await checkRole(tx, meta.role, input);
 			const operation: OperationContext = {
 				...context,
+				now: context.clock?.() ?? new Date(),
 				userId: claims.sub,
 				channel,
 				clientId: claims.client_id ?? null,
 				locale,
 				tx,
 			};
+			const extra = await options.prepare?.[path.join('.')]?.(operation, input);
 			if (meta.reads) {
 				operation.version = await readVersion(tx, meta.reads, input, locale, context.deployId);
+				if (extra?.versionPart) operation.version += `.${extra.versionPart}`;
 				if ((input as { knownVersion?: string }).knownVersion === operation.version) {
 					// oRPC reads only `output` when a middleware answers without `next`.
 					return { output: { unchanged: true, version: operation.version }, context: operation };

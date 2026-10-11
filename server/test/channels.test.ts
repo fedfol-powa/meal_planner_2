@@ -87,6 +87,7 @@ describe.skipIf(!hasDatabase)('channels with a real session', () => {
 				'test_curator',
 				'test_familyView',
 				'test_member',
+				'test_preparedView',
 				'test_removeFamily',
 			]);
 			expect(listed.find((tool) => tool.name === 'test_member')?.inputSchema.required).toEqual(['familyId']);
