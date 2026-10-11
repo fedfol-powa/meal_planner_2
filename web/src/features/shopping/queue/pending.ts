@@ -1,5 +1,5 @@
 import type { ShoppingItemView, ShoppingListView } from '@app/contract';
-import { DEPARTMENTS } from '@app/domain/shopping';
+import { compareShoppingItems, DEPARTMENTS } from '@app/domain/shopping';
 import { exceeds, formatCombined } from '@app/domain/units';
 import type { QueuedOp } from './ops';
 
@@ -54,7 +54,8 @@ export function applyPending(base: ShoppingListView, familyId: string, ops: read
     }
   }
 
-  const byName = (a: ShoppingItemView, b: ShoppingItemView) => a.name.localeCompare(b.name, base.locale);
+  // The domain's order: ingredient name, then variety (PR #24).
+  const byName = compareShoppingItems(base.locale);
   const all = [...items.values()];
   const onList = all.filter((e) => e.onList).map((e) => e.item);
   return {

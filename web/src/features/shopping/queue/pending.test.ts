@@ -64,6 +64,19 @@ describe('applyPending', () => {
     expect(off.view.departments.map((d) => d.department)).toEqual(['produce', 'pasta_grains']);
   });
 
+  it('puts an item back in the order of the domain: ingredient name, then variety (PR #24)', () => {
+    const grain = (id: string, ingredientName: string, variety: string | null, excluded: 'pantry' | null = null) =>
+      item(id, variety ? `${ingredientName} (${variety})` : ingredientName, { ingredientName, variety, department: 'pasta_grains', excluded, varietyKey: variety ?? '' });
+    const english = listView({
+      locale: 'en-GB',
+      departments: [{ department: 'pasta_grains', items: [grain(RICE, 'Rice', null), grain(OIL, 'Rice flour', null)] }],
+      excluded: [grain(RICE, 'Rice', 'jasmine', 'pantry')]
+    });
+    const back = { kind: 'setAddedBack' as const, input: { ...ops.addBack(RICE).input, varietyKey: 'jasmine' } as Extract<ReturnType<typeof ops.addBack>, { kind: 'setAddedBack' }>['input'] };
+    const { view } = applyPending(deepFreeze(english), FAMILY, [queued(back)]);
+    expect(view.departments[0]!.items.map((i) => i.name)).toEqual(['Rice', 'Rice (jasmine)', 'Rice flour']);
+  });
+
   it('applies the free items', () => {
     const { view, pendingFreeIds } = applyPending(deepFreeze(listView()), FAMILY, [
       queued(ops.add(NEW, 'Pane')),
