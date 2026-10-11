@@ -4,7 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ApiProvider } from '../api/ApiProvider';
 import { toApiError } from '../api/errors';
 import { persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
-import { meQuery, useQueryDeps } from '../api/queries';
+import { profileQuery } from '../api/profile';
+import { useQueryDeps } from '../api/queries';
 import type { Api } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
@@ -108,7 +109,7 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     session?.setErrorHandler((error, scope) => {
       if (toApiError(error).code === 'forbidden' && scope.familyId) {
         session.revoke(scope.familyId);
-        void session.queryClient.invalidateQueries({ queryKey: ['me'] });
+        void session.queryClient.invalidateQueries({ queryKey: ['profile', 'get'] });
       }
     });
   }, [session]);
@@ -171,9 +172,9 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
 
 /** At each identity the profile language applies, unless this person chose another one meanwhile. */
 function ProfileLocale({ userId }: { userId: string }) {
-  const me = useQuery(meQuery(useQueryDeps()));
+  const profile = useQuery(profileQuery(useQueryDeps()));
   const { setLocale } = useLocale();
-  const profileLocale = me.data?.user.id === userId ? me.data.user.locale : undefined;
+  const profileLocale = profile.data?.user.id === userId ? profile.data.user.locale : undefined;
   useEffect(() => {
     if (profileLocale && !readPreference(userScope(userId))) setLocale(profileLocale);
   }, [profileLocale, userId, setLocale]);

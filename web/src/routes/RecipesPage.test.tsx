@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { setOnline } from '../test/connectivity';
-import type { Api, MeView, RecipeListItem } from '../api/types';
+import type { Api, ProfileView, RecipeListItem } from '../api/types';
 import type { CreateApi } from '../session/SessionScope';
 import { LanguageSwitch } from '../test/LanguageSwitch';
 import { renderApp } from '../test/renderApp';
@@ -127,21 +127,21 @@ describe('recipes from the Worker (W6)', () => {
   it('reads the new family after a change of family and never shows the previous one', async () => {
     let current = 'family-main';
     const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
-    const me = (): MeView => ({
-      user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT' },
+    const profile = (): ProfileView => ({
+      user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', globalRoles: [] },
       families: [
-        { id: 'family-main', name: 'Famiglia Folloni', timeZone: 'Europe/Rome', role: 'family_admin' },
-        { id: 'family-b', name: 'Famiglia Bianchi', timeZone: 'Europe/Rome', role: 'member' }
+        { id: 'family-main', name: 'Famiglia Folloni', timeZone: 'Europe/Rome', role: 'family_admin', measurementSystem: 'metric' },
+        { id: 'family-b', name: 'Famiglia Bianchi', timeZone: 'Europe/Rome', role: 'member', measurementSystem: 'metric' }
       ],
       currentFamilyId: current
     });
     const search = vi.fn((input: Parameters<Api['recipes']['search']>[0]) =>
       input.familyId === 'family-b' ? answer({ items: [listItem('b1', 'Ricetta dei Bianchi')] }) : base.recipes.search(input)
     );
-    const api: Api = { ...base, me: { get: () => answer(me()) }, recipes: { ...base.recipes, search } };
+    const api: Api = { ...base, profile: { ...base.profile, get: async () => profile() }, recipes: { ...base.recipes, search } };
     function SwitchFamily() {
       const queryClient = useQueryClient();
-      return <button type="button" onClick={() => { current = 'family-b'; void queryClient.invalidateQueries({ queryKey: ['me'] }); }}>test: famiglia B</button>;
+      return <button type="button" onClick={() => { current = 'family-b'; void queryClient.invalidateQueries({ queryKey: ['profile'] }); }}>test: famiglia B</button>;
     }
     renderApp('/recipes', { api, extra: <SwitchFamily /> });
     await screen.findByRole('heading', { name: new RegExp(WOK.slice(0, 20)) });

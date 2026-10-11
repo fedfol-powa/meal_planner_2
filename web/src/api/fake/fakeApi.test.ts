@@ -142,10 +142,22 @@ describe('fake api', () => {
     expect(detail.recipe.id).toBe('wok-pollo-peperoni-riso-basmati');
   });
   it('returns the signed-in user and the demo family', async () => {
-    const me = data(await createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, user: { id: 'u-1', email: 'giulia@example.com' } }).me.get({}));
-    expect(me.user).toMatchObject({ id: 'u-1', email: 'giulia@example.com', displayName: 'Giulia' });
-    expect(me.currentFamilyId).toBe(familyId);
-    expect(me.families[0]).toMatchObject({ name: 'Famiglia Folloni', timeZone: 'Europe/Rome' });
+    const profile = await createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, user: { id: 'u-1', email: 'giulia@example.com' } }).profile.get({});
+    expect(profile.user).toMatchObject({ id: 'u-1', email: 'giulia@example.com', displayName: 'Giulia', globalRoles: [] });
+    expect(profile.currentFamilyId).toBe(familyId);
+    expect(profile.families[0]).toMatchObject({ name: 'Famiglia Folloni', timeZone: 'Europe/Rome', measurementSystem: 'metric' });
+  });
+  it('changes name and language of the profile like the server, refusing an empty name', async () => {
+    const client = api();
+    expect((await client.profile.update({ displayName: '  Fede  ' })).user.displayName).toBe('Fede');
+    expect((await client.profile.update({ locale: 'en-GB' })).user).toMatchObject({ displayName: 'Fede', locale: 'en-GB' });
+    await expect(client.profile.update({ displayName: '   ' })).rejects.toMatchObject({ code: 'invalid' });
+    await expect(client.profile.update({})).rejects.toMatchObject({ code: 'invalid' });
+  });
+  it('chooses the shown family only among the person\'s families', async () => {
+    const client = api();
+    expect((await client.profile.setCurrentFamily({ familyId })).currentFamilyId).toBe(familyId);
+    await expect(client.profile.setCurrentFamily({ familyId: 'other' })).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
 

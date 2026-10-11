@@ -12,7 +12,7 @@ describe('session', () => {
     store.entries.set(cacheKey('a'), { timestamp: 1, buster: '', clientState: { queries: [], mutations: [] } });
     writePreference(userScope('a'), 'en-GB');
     const session = createSession('a', store);
-    session.queryClient.setQueryData(queryKeys.me('it-IT'), { version: 'v', data: 'me' });
+    session.queryClient.setQueryData(queryKeys.profile('it-IT'), { version: 'v', data: 'profile' });
     await session.close();
     await session.close();
     expect(session.isClosed()).toBe(true);

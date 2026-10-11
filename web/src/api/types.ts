@@ -2,12 +2,12 @@ import type {
   Contract,
   RecipeDetailView as ContractRecipeDetailView,
   IngredientLineView,
+  ProfileView,
   RatingSummaryView,
   RecipeListItemView,
   RecipeSummaryView
 } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
-import type { Locale } from '../i18n/translate';
 import type { IsoDate, LocalDateTime, MealType } from '../lib/calendar';
 
 export type RecipeMealType = MealType | 'both';
@@ -40,11 +40,9 @@ export interface RecipeQuery {
 }
 export type RecipeListItem = RecipeListItemView;
 export type RecipeDetailView = ContractRecipeDetailView;
-export interface FamilyView { id: string; name: string; timeZone: string; role: FamilyRole }
-export interface MeView {
-  user: { id: string; displayName: string; email: string; locale: Locale };
-  families: FamilyView[]; currentFamilyId: string | null;
-}
+export type { ProfileView };
+/** A family of the profile: the one shown is `currentFamilyId`. */
+export type FamilyView = ProfileView['families'][number];
 
 /** «Invariato» in the contract (decided by W1). The version is an opaque string: kept and sent back, never parsed. */
 export type Read<T> = { unchanged: true; version: string } | { unchanged: false; version: string; data: T };
@@ -55,7 +53,7 @@ export interface FamilyInput extends ReadInput { familyId: string }
  * Areas of the contract read from the Worker (second PR). Each wave 2 producer adds its area here
  * when it is in the contract and served, removes it from ProvisionalApi and aligns the fake client.
  */
-export const SERVER_AREAS = ['session', 'recipes', 'ratings'] as const satisfies readonly (keyof Contract)[];
+export const SERVER_AREAS = ['session', 'profile', 'recipes', 'ratings'] as const satisfies readonly (keyof Contract)[];
 export type ServerArea = (typeof SERVER_AREAS)[number];
 
 /** What the screens use: the contract's client for the server areas, the provisional areas otherwise. */
@@ -63,7 +61,6 @@ export type Api = ContractRouterClient<Pick<Contract, ServerArea>> & Provisional
 
 /** Areas not served yet: same shape as the oRPC client (nested by area), answered by the fake client. */
 export interface ProvisionalApi {
-  me: { get(input: ReadInput): Promise<Read<MeView>> };
   menu: {
     getOpening(input: FamilyInput): Promise<Read<OpeningView>>;
     getWeek(input: FamilyInput & { weekStartsOn: IsoDate }): Promise<Read<WeekView>>;
