@@ -211,14 +211,31 @@ export function createPersister(store: KeyValueStore, userId: string): SessionPe
   };
 }
 
+const userKeyPrefixes = new Set<string>();
+
+/** Adds a per-user key prefix (`<prefix><userId>`) that purgeOtherCopies also deletes for every other user. */
+export function registerUserKeyPrefix(prefix: string): void {
+  userKeyPrefixes.add(prefix);
+}
+
+/** Tests only: forgets the registered prefixes. */
+export function resetUserKeyPrefixes(): void {
+  userKeyPrefixes.clear();
+}
+
 /**
- * Deletes the copies and marks of every user but the one kept, once the identity is known;
- * null after a confirmed sign-out deletes them all (second review, C1).
+ * Deletes the copies, marks and registered per-user keys of every user but the one kept, once
+ * the identity is known; null after a confirmed sign-out deletes them all (second review, C1).
  */
 export async function purgeOtherCopies(store: KeyValueStore, keepUserId: string | null): Promise<void> {
   const kept = (k: string) => keepUserId !== null && (k === cacheKey(keepUserId) || k.startsWith(marksPrefix(keepUserId)));
   const keys = await store.keys().catch(() => [] as string[]);
-  const others = keys.filter((k) => (k.startsWith(CACHE_PREFIX) || k.startsWith(REVOKED_PREFIX)) && !kept(k));
+  // Registered prefixes are read now: they may have been added after the module loaded.
+  const registered = [...userKeyPrefixes].filter((k) => k !== '');
+  const isOtherUsers = (k: string) =>
+    ((k.startsWith(CACHE_PREFIX) || k.startsWith(REVOKED_PREFIX)) && !kept(k)) ||
+    registered.some((prefix) => k.startsWith(prefix) && (keepUserId === null || k !== `${prefix}${keepUserId}`));
+  const others = keys.filter(isOtherUsers);
   await Promise.all(others.map((k) => store.delete(k).catch(() => undefined)));
 }
 
