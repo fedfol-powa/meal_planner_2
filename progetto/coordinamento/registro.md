@@ -25,6 +25,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Domande in sospeso
 
+- Decisa dall'utente l'11/10: caricamento dei dati, migrazioni e rilasci li esegue il coordinatore, con le credenziali in un file locale ignorato da Git scritto dall'utente, anteprima e «vai» dell'utente prima di ogni scrittura in produzione; a fine avvio l'utente cambia le password. Avvio a fasi: 1 infrastruttura, 2 import e famiglia (dopo revisione dei pasti, esportazione, bozze), 3 agenti.
 - Decisa dall'utente l'11/10: rilasci a mano con un comando unico (npm run release), non automatici; impostazioni della famiglia scritte dallo script di caricamento (W6).
 - Decise dall'utente l'11/10 (commit d0c02ca): permesso `Bash(herdr pane run *)`, produzione `lronuqvtjdhfyychnscr`, 7 copie in R2, i tre conflitti del consolidamento come proposto.
 
