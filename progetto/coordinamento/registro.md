@@ -7,11 +7,11 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 revisione-pasti | W1 menu (da rinominare) | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | PR #20 unita. Sessione chiusa, pane già nel worktree (branch avanzato a main); avvio di `claude --permission-mode auto` bloccato dal classificatore: serve l'utente | 11/10 |
-| W2 profilo | W2 profilo | w1:pY | traguardo/profilo-web | .worktrees/profilo | PR #21 unita; libero | 11/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp | .worktrees/ricettario-mcp | PR #23 unita. Ora Task 11 (web delle bozze) su branch nuovo da main; a PR_APERTA review Codex. Il web dopo il merge della #23 | 11/10 |
+| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Brainstorming della revisione dei pasti (brief/w1-revisione-pasti.md) | 11/10 |
+| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Brainstorming con prova della revoca in locale (brief/w2-collegamento-agenti.md); passi esterni sulla produzione all'utente | 11/10 |
+| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | traguardo/spesa-web | .worktrees/spesa | PR #22 unita; libero | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Libero (PR #17 unita). Candidato per collegamento agenti o esportazione R2, che richiedono passi esterni dell'utente | 11/10 |
+| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Brainstorming dell'esportazione notturna (brief/w5-esportazione-r2.md), ultime 7 copie; bucket all'utente | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | prova/stack-reale | .worktrees/ricettario | Prova visiva di tutto il web sullo stack reale in locale, senza correzioni → messaggi/w6-prova-stack-reale.md, STATO: FATTO | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
@@ -24,10 +24,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Domande in sospeso
 
-- **Avvio di W1 (revisione dei pasti):** il classificatore blocca `herdr pane run … claude --permission-mode auto`. Chiesto all'utente se lo avvia lui o aggiunge `Bash(herdr pane run *)`.
-- **Collegamento degli agenti:** conferma che `lronuqvtjdhfyychnscr` è la produzione (chiesta all'utente).
-- **Esportazione R2:** quante copie conservare (proposta: 30 notti + una al mese per un anno).
-- **Conflitti di prodotto emersi dal consolidamento della specifica (11/10, commit 740e7e0):** (1) ingrediente creabile senza nome inglese (spec ricettario-mcp) contro la sezione 8 che chiede le due lingue; (2) pulsante «Genera la prima settimana» del wizard superfluo con la generazione pigra, da decidere prima dell'ondata 3; (3) email di allarme del job e PDF della spesa rinviati all'ondata 3.
+- Decise dall'utente l'11/10 (commit d0c02ca): permesso `Bash(herdr pane run *)`, produzione `lronuqvtjdhfyychnscr`, 7 copie in R2, i tre conflitti del consolidamento come proposto.
 
 - **Passi di produzione (W1 task 10), da portare all'utente prima della prima pubblicazione:** dimensione del pool del Session pooler, chi imposta la password di `app_server` (proposta: l'utente lancia lui il comando), creazione di Hyperdrive (comando nella spec di W1), chi lancia il primo deploy, conferma del progetto Supabase `lronuqvtjdhfyychnscr` come produzione.
 
@@ -50,7 +47,7 @@ Aggiornato l'11 ottobre 2026, pomeriggio. Nessun revisore attivo. Ordine dell'on
      che ogni PR passi da sola i controlli di main.
    - **W3:** implementazione della parte server di `catalogue`; review della PR quando la
      apre; il web dopo il merge della #21.
-   - **W2, W4, W5 liberi; W6 sulla prova dello stack reale.** Attività restanti senza assegnatario: collegamento degli agenti
+   - **W4 libero; W6 sulla prova dello stack reale; W2 collegamento degli agenti, W5 esportazione in R2.** Attività restanti senza assegnatario: collegamento degli agenti
      (serve confermare il server OAuth sul progetto di produzione, da verificare prima) ed
      esportazione notturna in R2 (serve un bucket e una chiave, e la conservazione da
      decidere con l'utente). Spiegate all'utente in modo semplice; lui ha detto di
