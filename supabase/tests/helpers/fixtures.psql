@@ -134,3 +134,21 @@ begin
 		(tests.uid('franco'), tests.recipe('pasta-al-pomodoro'), 1);
 end;
 $$;
+
+-- Rossi shopping list for the week of 12 October, two temporary lists for Bring!.
+do $$
+declare
+	v_list uuid;
+begin
+	insert into app.shopping_lists (family_id, week_id, updated_by)
+		values (tests.family('Rossi'), tests.week('Rossi'), tests.uid('anna'))
+		returning id into v_list;
+	insert into app.shopping_list_checks (shopping_list_id, ingredient_id, variety_key, quantity_at_check, checked_by)
+		values (v_list, tests.ingredient('tomatoes'), '', '{"mass_g": 400}', tests.uid('anna'));
+	insert into app.shopping_list_items (shopping_list_id, text, created_by)
+		values (v_list, 'Caffè', tests.uid('bruno'));
+	insert into app.temporary_lists (token, family_id, items, created_by, expires_at) values
+		('test-valid-token', tests.family('Rossi'), '["400 g Pomodori"]', tests.uid('anna'), now() + interval '30 minutes'),
+		('test-expired-token', tests.family('Rossi'), '["1 Caffè"]', tests.uid('anna'), now() - interval '1 minute');
+end;
+$$;
