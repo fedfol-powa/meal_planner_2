@@ -7,12 +7,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 corretta; verifica breve in corso (revisioni/w1-pr15-2.md). Dopo il merge: a W4 la firma `mealPassedCount(tx, familyId, weekId, at: Date \| null = null): Promise<number>` da includere nella versione di `shopping.getWeekList` | 11/10 |
+| W1 menu | W1 menu | w1:pW | traguardo/menu | .worktrees/menu | PR #15 verificata; rilievo minore (test dipendente dalla data) e aggiornamento su main, poi merge senza nuova review. Dopo il merge: a W4 `mealPassedCount` | 11/10 |
 | W2 profilo | W2 profilo | w1:pY | traguardo/profilo | .worktrees/profilo | PR #16 unita (parte server); il web (Task 11-15) parte dopo la seconda PR di W5 | 11/10 |
 | W3 ricetta-import | W3 ricetta-import | w1:pA | fondamenta/ricetta-import | .worktrees/ricetta-import | PR #9 unita. Libero: prossima attività da assegnare solo dopo la tabella produttori → consumatori | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 approvata ma in conflitto: aggiorna su main e fa il task 8 nella stessa PR (w4-07); poi verifica dell'ultimo tratto e merge | 11/10 |
-| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | Seconda PR pronta; prova reale sullo stack di W1 (`w1-piattaforma`, password locale di `app_server`, approvato dall'utente), poi PR | 11/10 |
-| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 «approvabile con correzioni» (visibilità e documento nella stessa fotografia; w6-05) | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | traguardo/spesa | .worktrees/spesa | PR #11 approvata (terza verifica), CI verde ma in conflitto con main: da aggiornare **dopo** il merge della #14 | 11/10 |
+| W5 web | W5 web | w1:pC | fondamenta/web-client | .worktrees/web | PR #17 «approvabile con correzioni» (invio dopo la chiusura, ripetizione dopo rinnovo di un altro utente; w5-07); poi verifica breve | 11/10 |
+| W6 ricettario | W6 ricettario | w1:pX | traguardo/ricettario | .worktrees/ricettario | PR #14 approvata, CI verde; aggiorna su main (conflitto su router.ts), poi merge | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server). Ondata 1 completata.
@@ -21,10 +21,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| R PR11 task8 | PR #11 dopo rebase e task 8 | R PR11 task8 | w1:p1N | → revisioni/w4-pr11-3.md |
-| R PR15 verifica | PR #15 dopo le correzioni | R PR15 verifica | w1:p1Q | → revisioni/w1-pr15-2.md |
-| R PR14 verifica | PR #14 dopo le correzioni | R PR15 verifica | PR #15 dopo le correzioni | R PR15 verifica | w1:p1Q | → revisioni/w1-pr15-2.md |
-| R PR14 verifica | w1:p1P | → revisioni/w6-pr14-2.md |
 
 ## Domande in sospeso
 
