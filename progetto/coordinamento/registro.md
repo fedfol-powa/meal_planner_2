@@ -10,7 +10,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti | .worktrees/revisione-pasti | Brainstorming della revisione dei pasti (brief/w1-revisione-pasti.md) | 11/10 |
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Brainstorming con prova della revoca in locale (brief/w2-collegamento-agenti.md); passi esterni sulla produzione all'utente | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | Task 11 (web delle bozze): approvate before/after su RecipesView e FamilyGate e Federico curatore nel finto; a PR_APERTA review Codex | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | correzioni/nomi-varieta | .worktrees/spesa | PR #24 (nomi «Nome (varietà)») in review | 11/10 |
+| W4 spesa | W4 spesa | w1:pZ | correzioni/nomi-varieta | .worktrees/spesa | PR #24: review con un rilievo (ordinamento); deciso ordine per nome e poi varietà; a PR_CORRETTA verifica del commit, CI → merge; poi aggiornare la sezione 6 della specifica («Pomodori Roma» → «Pomodori (Roma)») | 11/10 |
 | W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Brainstorming dell'esportazione notturna (brief/w5-esportazione-r2.md), ultime 7 copie; bucket all'utente | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | correzioni/prova-stack-reale | .worktrees/ricettario | Prova sullo stack reale fatta (messaggi/w6-prova-stack-reale.md). Corregge 1 (bloccante: shell del service worker dopo il redirect 307 degli asset), 4, 5, 6; a PR_APERTA review | 11/10 |
 
@@ -21,7 +21,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Pane | Stato |
 |---|---|---|---|---|
-| Codex | PR #24 di W4 | R PR24 | w1:p2B | in corso → revisioni/w4-pr24.md (worktree .worktrees/review-pr24) |
 
 ## Domande in sospeso
 
