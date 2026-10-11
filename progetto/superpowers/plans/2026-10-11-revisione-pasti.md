@@ -2117,7 +2117,7 @@ type, the same `FakeSlot` shape.
 
 ```ts
 // web/src/api/types.ts
-export const SERVER_AREAS = ['session', 'profile', 'recipes', 'ratings', 'menu', 'family', 'shopping', 'meals'] as const satisfies readonly (keyof Contract)[];
+export const SERVER_AREAS = ['session', 'profile', 'recipes', 'ratings', 'menu', 'family', 'shopping', 'catalogue', 'meals'] as const satisfies readonly (keyof Contract)[];
 export type { MealActionResult, SuggestionsView } from '@app/contract';
 ```
 
@@ -2568,7 +2568,7 @@ export const en: Record<keyof typeof it, string> = {
 ```
 
 `web/src/i18n/messages/index.ts`: `import * as meals from './meals';` and `...meals.it` /
-`...meals.en` in the two spreads.
+`...meals.en` in the two spreads (after `catalogue`, which is already there).
 
 - [ ] **Step 2: Failing tests**
 
