@@ -12,7 +12,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | traguardo/collegamento-agenti | .worktrees/agenti | Review di spec e piano «da rifare» (10 rilievi); contesto azzerato, correzioni da messaggi/w2-agenti-01-review-spec.md («ultimo rinnovo» al posto di «ultimo uso», testi veritieri sui poteri, CI con OAuth); poi seconda review breve | 11/10 |
 | W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | traguardo/ricettario-mcp-web | .worktrees/ricettario-mcp | PR #26 corretta; verifica breve Codex in corso (revisioni/w3-pr26-2.md, worktree .worktrees/review-pr26b) → CI → merge | 11/10 |
 | W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
-| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Seconda review di spec: 3 correzioni piccole, poi STATO: SPEC_PIANO_APPROVATI → /clear e implementazione | 11/10 |
+| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | traguardo/esportazione-r2 | .worktrees/esportazione | Spec e piano approvati (due review); contesto azzerato; implementazione in corso fino a PR_APERTA | 11/10 |
 | W6 ricettario | W6 ricettario | w1:pX | — | .worktrees/ricettario | PR #28 unita (specifica aggiornata); libero | 11/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
