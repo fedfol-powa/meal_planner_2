@@ -3,6 +3,7 @@ import { appError } from '../errors.ts';
 import { fresh, type Implementer, type Prepare } from '../pipeline.ts';
 import { ensureWeeks } from './generation.ts';
 import { datesOf, effectiveDate, openingOf } from './opening.ts';
+import { weekViewOf } from './week-view.ts';
 
 const familyOf = (input: unknown) => (input as { familyId: string }).familyId;
 /** Lazy generation before the version (spec section 4.4): the answer already shows the new weeks. */
@@ -32,9 +33,6 @@ export function menuRouter(os: Implementer) {
 			return fresh(context, await openingOf(context, input.familyId, date));
 		}),
 		getDates: os.menu.getDates.handler(async ({ context, input }) => fresh(context, await datesOf(context, input.familyId, input.month))),
-		// Replaced by the week view (task 11 of the plan).
-		getWeek: os.menu.getWeek.handler(() => {
-			throw appError('not_found');
-		}),
+		getWeek: os.menu.getWeek.handler(async ({ context, input }) => fresh(context, await weekViewOf(context, input.familyId, input.weekStartsOn))),
 	};
 }
