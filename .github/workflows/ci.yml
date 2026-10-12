@@ -32,7 +32,7 @@ jobs:
       - run: scripts/oauth/agents-e2e.sh
       # Resets the database, then restores an export into it with the real CLI.
       - run: npm run test:drill -w server
-      # After the drill: service SQL that empties the database (remove, reset), through the real prod-sql.sh.
+      # After the drill: service SQL that empties the database (reset, launch), through the real prod-sql.ts.
       - run: npx vitest run -c vitest.destructive.config.ts
         env:
           CONTAINER_CLI: docker

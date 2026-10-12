@@ -36,13 +36,30 @@ begin
 end;
 $$;
 
--- Start of a bootstrap applied with prod-sql.sh --launch: the first launch baseline only comes from a
--- database without families, where there is nothing to protect.
+-- Start of a bootstrap applied with prod-sql.ts --launch: the first launch baseline only comes from the
+-- initial state, where there is nothing to protect (review of PR #34, finding 8). "No family" is not
+-- enough: after a removal the catalogue may hold real writes of a curator. Allowed rows: those the
+-- accounts and the migrations make, with no content of a family or of the catalogue.
 create or replace function pg_temp.launch_start() returns void language plpgsql as $$
+declare
+	v_table text;
+	v_found boolean;
+	v_full text[] := '{}';
 begin
 	perform pg_temp.lock_app_tables('exclusive');
-	if exists (select 1 from app.families) then
-		raise exception 'a family already exists: no launch baseline (rerun the bootstrap without --launch)';
+	for v_table in
+		select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'app' and c.relkind = 'r'
+			and c.relname not in ('profiles', 'profile_preferences', 'user_roles', 'catalogue_state')
+		order by c.relname
+	loop
+		execute format('select exists (select 1 from app.%I)', v_table) into v_found;
+		if v_found then
+			v_full := v_full || v_table;
+		end if;
+	end loop;
+	if cardinality(v_full) > 0 then
+		raise exception 'not the initial state: app tables with rows: % (no launch baseline; reset with the last one, or rerun the bootstrap without --launch)', array_to_string(v_full, ', ');
 	end if;
 end;
 $$;

@@ -1,12 +1,14 @@
 -- First users and family of the real project (milestone A: no invitations yet).
 -- 1. Create the users by hand: Authentication > Users > Add user (email, password,
 --    "Auto Confirm User").
--- 2. Fill in the two lists below. The family is identified by its id: generate it
---    once (select gen_random_uuid()), write it here and keep it for any rerun.
--- 3. Run the whole script in the SQL editor. Safe to run again, also after renaming
---    the family in the app: an existing family is never changed.
-begin;
-
+-- 2. Run with node scripts/prod-sql.ts (detail spec of the production launch, section 8), which
+--    opens the transaction and passes the data as psql variables:
+--    --set family_id=<uuid, generated once and kept for any rerun> --set family_name=<name>
+--    --set measurement_system=metric|uk_imperial --set time_zone=Europe/Rome
+--    --set people='[{"email":…,"display_name":…,"locale":"it-IT"|"en-GB",
+--      "family_role":"family_admin"|"member","global_roles":["recipe_curator","app_admin"]}]'
+--    Safe to run again, also after renaming the family in the app: an existing family is never
+--    changed, and the people are realigned to the values given.
 create temporary table input_family (
 	id uuid not null,
 	name text not null,
@@ -14,7 +16,7 @@ create temporary table input_family (
 	time_zone text not null
 ) on commit drop;
 
-insert into input_family values ('00000000-0000-0000-0000-000000000000', 'Family name', 'metric', 'Europe/Rome');
+insert into input_family values (:'family_id', :'family_name', :'measurement_system', :'time_zone');
 
 create temporary table input_people (
 	email text not null,
@@ -24,8 +26,9 @@ create temporary table input_people (
 	global_roles text[] not null   -- any of 'recipe_curator', 'app_admin'
 ) on commit drop;
 
-insert into input_people values
-	('person@example.com', 'Name', 'it-IT', 'family_admin', array['app_admin', 'recipe_curator']);
+insert into input_people
+	select email, display_name, locale, family_role, global_roles
+	from jsonb_to_recordset(:'people'::jsonb) as p (email text, display_name text, locale text, family_role text, global_roles text[]);
 
 do $$
 declare
@@ -86,5 +89,3 @@ join app.profiles p on p.user_id = u.id
 cross join input_family f
 join app.families fam on fam.id = f.id
 left join app.family_members m on m.user_id = u.id and m.family_id = f.id;
-
-commit;

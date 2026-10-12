@@ -1,34 +1,23 @@
-// Helpers of the destructive tests (plan, Task 8): the real scripts/prod-sql.sh on the local stack, a
-// bootstrap compiled like the production one, and the launch load. Only with CI or DESTRUCTIVE_TESTS=1:
-// these tests empty schema app.
+// Helpers of the destructive tests (plan, Task 8 and Task 10): the real scripts/prod-sql.ts on the local
+// stack, the bootstrap with its --set values, and the launch load. Only with CI or DESTRUCTIVE_TESTS=1:
+// these tests empty schema app. The Vitest config has already refused any TEST_DATABASE_URL that is not
+// the local stack (scripts/test-support/local-database.ts).
 import { execFile } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import type postgres from 'postgres';
 import type { TestDatabase } from '../../server/test/support/db.ts';
 import { loadAll, type LoadOptions } from '../import/load/run.ts';
-import { checkTarget, describeEndpoint } from '../import/load/target.ts';
 import { writeOriginFixture } from '../import/load/test-origin.ts';
-import { operationFingerprint } from '../prod-sql-plan.ts';
 
 export const enabled = Boolean(process.env.CI || process.env.DESTRUCTIVE_TESTS);
-
-/** The destructive tests run only against the local stack: any other host stops them before a statement. */
-export function localDatabaseUrl(url: string | undefined): string {
-	try {
-		checkTarget('TEST_DATABASE_URL', url, { role: 'postgres', target: 'local', ref: 'unused' });
-	} catch (error) {
-		throw new Error(`destructive tests need the local stack: ${error instanceof Error ? error.message : 'TEST_DATABASE_URL refused'}`);
-	}
-	return url!;
-}
-export const databaseUrl = enabled ? localDatabaseUrl(process.env.TEST_DATABASE_URL) : (process.env.TEST_DATABASE_URL ?? '');
+export const databaseUrl = process.env.TEST_DATABASE_URL ?? '';
 const run = promisify(execFile);
 
 let credentials: string | null = null;
-function credentialsFile() {
+export function credentialsFile() {
 	if (!credentials) {
 		credentials = join(mkdtempSync(join(tmpdir(), 'prod-sql-creds-')), 'local.env');
 		writeFileSync(credentials, `POSTGRES_DATABASE_URL=${databaseUrl}\n`);
@@ -41,22 +30,25 @@ export interface ScriptResult {
 	out: string;
 }
 
-/** Runs the real script; --apply gets the confirmation of exactly these arguments. */
-export async function sqlFile(file: string, mode: '--preview' | '--apply', sets: Record<string, string> = {}, options: { launch?: boolean; target?: 'local' | 'production' } = {}): Promise<ScriptResult> {
-	const pairs = Object.entries(sets).map(([k, v]) => `${k}=${v}`);
-	const args = [mode, file, ...(options.launch ? ['--launch'] : []), ...pairs.flatMap((p) => ['--set', p])];
-	if (mode === '--apply') {
-		const endpoint = describeEndpoint(checkTarget('POSTGRES_DATABASE_URL', databaseUrl, { role: 'postgres', target: 'local', ref: 'unused' }).endpoint);
-		args.push('--confirm', operationFingerprint({ file: readFileSync(file, 'utf8'), fingerprintSql: readFileSync('supabase/scripts/app-fingerprint.sql', 'utf8'), launch: options.launch === true, sets: pairs, endpoint }));
-	}
-	const env = { ...process.env, PROD_CREDENTIALS: credentialsFile(), PROD_SQL_TARGET: options.target ?? 'local' };
-	try {
-		const { stdout, stderr } = await run('scripts/prod-sql.sh', args, { env, maxBuffer: 16 * 1024 * 1024 });
-		return { code: 0, out: stdout + stderr };
-	} catch (error) {
-		const e = error as { code: number; stdout: string; stderr: string };
-		return { code: typeof e.code === 'number' ? e.code : 1, out: (e.stdout ?? '') + (e.stderr ?? '') };
-	}
+/** Runs the real command; --apply gets the confirmation that the preview of exactly these arguments prints. */
+export async function serviceSql(name: string, mode: '--preview' | '--apply', sets: Record<string, string> = {}, options: { launch?: boolean; target?: 'local' | 'production' } = {}): Promise<ScriptResult> {
+	const args = [name, ...(options.launch ? ['--launch'] : []), ...Object.entries(sets).flatMap(([k, v]) => ['--set', `${k}=${v}`]), '--credentials', credentialsFile()];
+	const env = { ...process.env, PROD_SQL_TARGET: options.target ?? 'local' };
+	const exec = async (argv: string[]): Promise<ScriptResult> => {
+		try {
+			const { stdout, stderr } = await run(process.execPath, ['scripts/prod-sql.ts', ...argv], { env, maxBuffer: 16 * 1024 * 1024 });
+			return { code: 0, out: stdout + stderr };
+		} catch (error) {
+			const e = error as { code: number; stdout: string; stderr: string };
+			return { code: typeof e.code === 'number' ? e.code : 1, out: (e.stdout ?? '') + (e.stderr ?? '') };
+		}
+	};
+	if (mode === '--preview') return exec(['--preview', ...args]);
+	const preview = await exec(['--preview', ...args]);
+	const confirm = /--confirm ([0-9a-f]{64})/.exec(preview.out)?.[1];
+	// A preview that fails (refused baseline, …) fails the same way as the apply would.
+	if (!confirm) return preview;
+	return exec(['--apply', ...args, '--confirm', confirm]);
 }
 
 /** The value under a column header in psql's aligned output. */
@@ -66,15 +58,19 @@ export function column(out: string, name: string): string | null {
 }
 
 export async function fingerprint(): Promise<string> {
-	const r = await sqlFile('supabase/scripts/show-fingerprint.sql', '--preview');
+	const r = await serviceSql('show-fingerprint', '--preview');
 	const value = column(r.out, 'fingerprint');
 	if (r.code !== 0 || !value) throw new Error(`show-fingerprint failed: ${r.out}`);
 	return value;
 }
 
-/** Like before the launch: no family, no catalogue (the local seed and the other suites' rows go). */
+/** The initial state of the launch (detail spec, section 8): every table of app empty but the four that
+ * accounts and migrations fill (the local seed and the other suites' rows go). */
 export async function emptyApp(admin: postgres.Sql) {
-	await admin`truncate app.families, app.recipes, app.ingredients, app.books cascade`;
+	const tables = await admin<{ name: string }[]>`
+		select c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'app' and c.relkind = 'r' and c.relname not in ('profiles', 'profile_preferences', 'user_roles', 'catalogue_state')`;
+	await admin.unsafe(`truncate ${tables.map((t) => `app.${t.name}`).join(', ')} cascade`);
 }
 
 /** Rows of every table of schema app, to prove that a refused script removed nothing. */
@@ -94,24 +90,22 @@ export interface Bootstrap {
 	out: string;
 }
 
-/** A copy of bootstrap.sql compiled like the production one (fresh family uuid, a real user), applied with --launch. */
+/** The --set values of the bootstrap, like the production ones (fresh family uuid, a real user). */
+export function bootstrapSets(familyId: string, email: string): Record<string, string> {
+	return {
+		family_id: familyId, family_name: 'Famiglia di prova', measurement_system: 'metric', time_zone: 'Europe/Rome',
+		people: JSON.stringify([{ email, display_name: 'Federico', locale: 'it-IT', family_role: 'family_admin', global_roles: ['app_admin', 'recipe_curator'] }]),
+	};
+}
+
+/** bootstrap.sql applied with --launch through the real command. */
 export async function bootstrap(db: TestDatabase): Promise<Bootstrap> {
 	const { userId: curatorId } = await db.createUser();
 	const familyId = crypto.randomUUID();
-	const file = compiledBootstrap(familyId, `${curatorId}@test.local`);
-	const r = await sqlFile(file, '--apply', {}, { launch: true });
+	const r = await serviceSql('bootstrap', '--apply', bootstrapSets(familyId, `${curatorId}@test.local`), { launch: true });
 	const baseline = column(r.out, 'launch_baseline');
 	if (r.code !== 0 || !baseline) throw new Error(`bootstrap failed: ${r.out}`);
 	return { familyId, curatorId, baseline, out: r.out };
-}
-
-export function compiledBootstrap(familyId: string, email: string): string {
-	const text = readFileSync('supabase/scripts/bootstrap.sql', 'utf8')
-		.replace("('00000000-0000-0000-0000-000000000000', 'Family name',", `('${familyId}', 'Famiglia di prova',`)
-		.replace("('person@example.com', 'Name',", `('${email}', 'Federico',`);
-	const file = join(mkdtempSync(join(tmpdir(), 'bootstrap-')), 'bootstrap.production.sql');
-	writeFileSync(file, text);
-	return file;
 }
 
 export function loadOptions(b: Pick<Bootstrap, 'familyId' | 'curatorId'>, variant: { pendingReview?: boolean; missingInMenu?: boolean } = {}): LoadOptions {

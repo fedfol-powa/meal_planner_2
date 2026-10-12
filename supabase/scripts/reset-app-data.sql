@@ -1,7 +1,6 @@
 -- Empties the catalogue and every family's data, keeping schema, users, profiles and global roles
 -- (detail spec of the production launch, section 8). Only when schema app is exactly at the last launch baseline.
--- Run: scripts/prod-sql.sh --preview supabase/scripts/reset-app-data.sql --set expected_fingerprint=<fp>
-begin;
+-- Run: node scripts/prod-sql.ts --preview reset-app-data --set expected_fingerprint=<fp> (the tool opens the transaction).
 
 select set_config('w6.expected_fingerprint', :'expected_fingerprint', true);
 
@@ -26,5 +25,3 @@ union all select 'ingredients', count(*) from app.ingredients
 union all select 'books', count(*) from app.books;
 
 truncate app.families, app.recipes, app.ingredients, app.books cascade;
-
-commit;

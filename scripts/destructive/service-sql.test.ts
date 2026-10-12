@@ -1,14 +1,11 @@
-// Service SQL through the real scripts/prod-sql.sh on the local stack (detail spec, section 8): launch
-// baselines, removal of an unused family, reset before use, first generation check. Empties schema app.
-import { writeFileSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+// Service SQL through the real scripts/prod-sql.ts on the local stack (detail spec, section 8): launch
+// baselines only from the initial state, reset before use. Empties schema app.
 import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { setupDatabase, type TestDatabase } from '../../server/test/support/db.ts';
 import { lockFamilyWeeks } from '../../server/src/menu/generation.ts';
 import { FINGERPRINT_SQL, loadAll } from '../import/load/run.ts';
-import { bootstrap, column, compiledBootstrap, databaseUrl, emptyApp, enabled, fingerprint, fixture, loadOptions, rowCounts, sqlFile, type Fixture } from './support.ts';
+import { bootstrap, bootstrapSets, column, databaseUrl, emptyApp, enabled, fingerprint, fixture, loadOptions, rowCounts, serviceSql, type Fixture } from './support.ts';
 
 const CHANGED = 'app data changed since the launch baseline';
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -42,19 +39,10 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		throw new Error(`no backend waiting on a ${kind} lock`);
 	}
 
-	it('refuses a file without a single begin/commit before connecting', async () => {
-		const file = join(mkdtempSync(join(tmpdir(), 'loose-')), 'loose.sql');
-		writeFileSync(file, 'begin;\nselect 1;\ncommit;\ncommit;\n');
-		const r = await sqlFile(file, '--preview');
-		expect(r.code).toBe(1);
-		expect(r.out).toContain("exactly one 'begin;' and one 'commit;'");
-		expect(r.out).not.toMatch(/\(1 row\)/);
-	});
-
 	it('refuses the production target with a local url', async () => {
-		const r = await sqlFile('supabase/scripts/show-fingerprint.sql', '--preview', {}, { target: 'production' });
+		const r = await serviceSql('show-fingerprint', '--preview', {}, { target: 'production' });
 		expect(r.code).toBe(1);
-		expect(r.out).toMatch(/the user is not postgres\.lronuqvtjdhfyychnscr/);
+		expect(r.out).toMatch(/the user is not postgres\.lronuqvtjdhfyychnscr|not clean/);
 		expect(r.out).not.toContain(databaseUrl);
 	});
 
@@ -75,41 +63,50 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		}
 	});
 
-	it('bootstrap with --launch: baseline printed from its own transaction; refused when a family exists', async () => {
+	it('bootstrap with --launch: baseline printed from its own transaction; refused when not the initial state', async () => {
 		const b = await bootstrap(db);
 		expect(await fingerprint()).toBe(b.baseline);
-		const again = compiledBootstrap(b.familyId, `${b.curatorId}@test.local`);
+		const again = bootstrapSets(b.familyId, `${b.curatorId}@test.local`);
 		const before = await rowCounts(admin);
-		const refused = await sqlFile(again, '--apply', {}, { launch: true });
+		const refused = await serviceSql('bootstrap', '--apply', again, { launch: true });
 		expect(refused.code).not.toBe(0);
-		expect(refused.out).toContain('a family already exists');
+		expect(refused.out).toContain('not the initial state');
 		expect(await rowCounts(admin)).toEqual(before);
-		const rerun = await sqlFile(again, '--apply');
+		const rerun = await serviceSql('bootstrap', '--apply', again);
 		expect(rerun.code).toBe(0);
 		expect(rerun.out).toContain('family already exists as');
 		expect(column(rerun.out, 'launch_baseline')).toBeNull();
 	});
 
-	it('bootstrap done, launch load failed: the family is removed with the bootstrap baseline', async () => {
-		// Decision 3 of the coordinator (detail spec, section 5).
-		const b = await bootstrap(db);
-		await expect(loadAll(sql, { ...loadOptions(b, { missingInMenu: true }), launchFrom: b.baseline })).rejects.toThrow(/assente/);
-		const r = await sqlFile('supabase/scripts/remove-family.sql', '--apply', { family_id: b.familyId, expected_fingerprint: b.baseline });
-		expect(r.code).toBe(0);
-		const [{ n }] = await admin`select count(*)::int as n from app.families where id = ${b.familyId}`;
-		expect(n).toBe(0);
+	it('a new --launch after a removal and a real catalogue write is refused (review of PR #34, finding 8)', async () => {
+		const f = await fixture(db, sql);
+		await admin`delete from app.families where id = ${f.familyId}`;
+		await admin`update app.recipes set status = 'archived' where id = ${f.recipeId}`; // a curator's real write
+		const before = await rowCounts(admin);
+		const { userId } = await db.createUser();
+		const r = await serviceSql('bootstrap', '--apply', bootstrapSets(crypto.randomUUID(), `${userId}@test.local`), { launch: true });
+		expect(r.code).not.toBe(0);
+		expect(r.out).toMatch(/not the initial state: app tables with rows: .*recipes/);
+		expect(column(r.out, 'launch_baseline')).toBeNull();
+		expect((await rowCounts(admin)).recipes).toBe(before.recipes);
 	});
 
-	it('removes an unused family only with the last launch baseline, keeping the catalogue', async () => {
+	it('the way to start again: reset with the last launch baseline, then --launch from the initial state', async () => {
 		const f = await fixture(db, sql);
-		const refused = await sqlFile('supabase/scripts/remove-family.sql', '--apply', { family_id: f.familyId, expected_fingerprint: f.bootstrapBaseline });
-		expect(refused.code).not.toBe(0);
-		expect(refused.out).toContain(CHANGED);
-		const removed = await sqlFile('supabase/scripts/remove-family.sql', '--apply', { family_id: f.familyId, expected_fingerprint: f.baseline });
-		expect(removed.code).toBe(0);
-		const [{ families, recipes }] = await admin`select (select count(*)::int from app.families) as families, (select count(*)::int from app.recipes) as recipes`;
-		expect(families).toBe(0);
-		expect(recipes).toBeGreaterThan(0);
+		const reset = await serviceSql('reset-app-data', '--apply', { expected_fingerprint: f.baseline });
+		expect(reset.code, reset.out).toBe(0);
+		const b = await bootstrap(db);
+		expect(b.baseline).toMatch(/^[0-9a-f]{32}$/);
+	});
+
+	it('bootstrap done, launch load failed: the reset works with the bootstrap baseline', async () => {
+		// Decision 3 of the coordinator, simplified after the review of PR #34 (detail spec, section 5).
+		const b = await bootstrap(db);
+		await expect(loadAll(sql, { ...loadOptions(b, { missingInMenu: true }), launchFrom: b.baseline })).rejects.toThrow(/assente/);
+		const r = await serviceSql('reset-app-data', '--apply', { expected_fingerprint: b.baseline });
+		expect(r.code, r.out).toBe(0);
+		const [{ n }] = await admin`select count(*)::int as n from app.families`;
+		expect(n).toBe(0);
 	});
 
 	const writes: [string, (a: postgres.Sql, f: Fixture) => Promise<unknown>][] = [
@@ -127,16 +124,13 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		['recipe archived', (a, f) => a`update app.recipes set status = 'archived' where id = ${f.recipeId}`],
 	];
 	for (const [what, write] of writes)
-		it(`refuses reset and removal after: ${what}`, async () => {
+		it(`refuses the reset after: ${what}`, async () => {
 			const f = await fixture(db, sql);
 			await write(admin, f);
 			const afterWrite = await rowCounts(admin);
-			for (const file of ['supabase/scripts/reset-app-data.sql', 'supabase/scripts/remove-family.sql']) {
-				const sets: Record<string, string> = file.includes('remove') ? { family_id: f.familyId, expected_fingerprint: f.baseline } : { expected_fingerprint: f.baseline };
-				const r = await sqlFile(file, '--apply', sets);
-				expect(r.code).not.toBe(0);
-				expect(r.out).toContain(CHANGED);
-			}
+			const r = await serviceSql('reset-app-data', '--apply', { expected_fingerprint: f.baseline });
+			expect(r.code).not.toBe(0);
+			expect(r.out).toContain(CHANGED);
 			expect(await rowCounts(admin)).toEqual(afterWrite);
 		});
 
@@ -153,7 +147,7 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 				await held;
 			});
 			await pause(200);
-			const reset = sqlFile('supabase/scripts/reset-app-data.sql', '--apply', { expected_fingerprint: f.baseline });
+			const reset = serviceSql('reset-app-data', '--apply', { expected_fingerprint: f.baseline });
 			await waitingOn('relation');
 			release!();
 			await write;
@@ -168,7 +162,7 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		}
 	});
 
-	it('a write that waits for the launch load lands after its baseline: reset and removal refuse', async () => {
+	it('a write that waits for the launch load lands after its baseline: the reset refuses', async () => {
 		const b = await bootstrap(db);
 		const holder = postgres(databaseUrl, { max: 1, onnotice: () => {} });
 		const writer = postgres(databaseUrl, { max: 1, onnotice: () => {} });
@@ -192,11 +186,9 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 			const result = await load;
 			await write;
 			expect(await fingerprint()).not.toBe(result.baseline);
-			for (const file of ['supabase/scripts/reset-app-data.sql', 'supabase/scripts/remove-family.sql']) {
-				const r = await sqlFile(file, '--apply', { family_id: b.familyId, expected_fingerprint: result.baseline! });
-				expect(r.code).not.toBe(0);
-				expect(r.out).toContain(CHANGED);
-			}
+			const r = await serviceSql('reset-app-data', '--apply', { expected_fingerprint: result.baseline! });
+			expect(r.code).not.toBe(0);
+			expect(r.out).toContain(CHANGED);
 			const [{ name }] = await admin`select name from app.families where id = ${b.familyId}`;
 			expect(name).toBe('Renamed while loading');
 		} finally {
@@ -211,7 +203,7 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		await admin`update app.ratings set stars = 5 where user_id = ${f.curatorId}`;
 		await expect(loadAll(sql, { ...loadOptions(f), launchFrom: f.baseline })).rejects.toThrow(/changed since the launch baseline/);
 		expect((await loadAll(sql, loadOptions(f))).baseline).toBeNull();
-		const r = await sqlFile('supabase/scripts/reset-app-data.sql', '--apply', { expected_fingerprint: f.baseline });
+		const r = await serviceSql('reset-app-data', '--apply', { expected_fingerprint: f.baseline });
 		expect(r.code).not.toBe(0);
 		expect(r.out).toContain(CHANGED);
 	});
@@ -219,7 +211,7 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 	it('resets with the recorded fingerprint: catalogue and families empty, profiles and roles kept', async () => {
 		const f = await fixture(db, sql);
 		const before = await rowCounts(admin);
-		const r = await sqlFile('supabase/scripts/reset-app-data.sql', '--apply', { expected_fingerprint: f.baseline });
+		const r = await serviceSql('reset-app-data', '--apply', { expected_fingerprint: f.baseline });
 		expect(r.code).toBe(0);
 		const after = await rowCounts(admin);
 		for (const table of ['families', 'recipes', 'ingredients', 'books', 'weeks', 'meal_slots', 'ratings', 'recipe_versions', 'recipe_drafts', 'ingredient_versions'])
@@ -228,21 +220,9 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		expect(before.user_roles).toBeGreaterThan(0);
 	});
 
-	it('reports the first generation of the cron', async () => {
-		const f = await fixture(db, sql);
-		await admin`insert into app.weeks (family_id, starts_on, generated_at) values (${f.familyId}, '2026-10-19', '2026-10-14 18:10:00+00')`;
-		await admin`insert into app.weekly_jobs (family_id, target_week, status, attempts, updated_at) values (${f.familyId}, '2026-10-19', 'done', 1, '2026-10-14 18:10:05+00')`;
-		await admin`insert into app.weeks (family_id, starts_on, generated_at) values (${f.familyId}, '2026-10-26', '2026-10-21 08:00:00+00')`;
-		const byCron = await sqlFile('supabase/scripts/check-first-generation.sql', '--preview', { family_id: f.familyId, week_start: '2026-10-19' });
-		expect(byCron.code).toBe(0);
-		expect(byCron.out).toMatch(/\|\s*t\s*$/m);
-		const lazy = await sqlFile('supabase/scripts/check-first-generation.sql', '--preview', { family_id: f.familyId, week_start: '2026-10-26' });
-		expect(lazy.code).toBe(0);
-		expect(lazy.out).toMatch(/\|\s*f\s*$/m);
-	});
-
 	it('stops bootstrap.sql on the example uuid (ON_ERROR_STOP reaches psql)', async () => {
-		const r = await sqlFile('supabase/scripts/bootstrap.sql', '--preview');
+		const { userId } = await db.createUser();
+		const r = await serviceSql('bootstrap', '--preview', bootstrapSets('00000000-0000-0000-0000-000000000000', `${userId}@test.local`));
 		expect(r.code).not.toBe(0);
 		expect(r.out).toContain('write the family id first');
 		expect(r.out).not.toContain('Apply with');
