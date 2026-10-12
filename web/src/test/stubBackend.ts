@@ -1,4 +1,4 @@
-import type { AuthBackend, AuthEvent, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
+import type { AgentAuthorization, AuthBackend, AuthEvent, AuthorizationResult, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
 
 export interface StubBackend extends AuthBackend {
   nextSignIn: SignInResult;
@@ -19,6 +19,15 @@ export interface StubBackend extends AuthBackend {
   holdCredentials(): (credentials: Credentials | null) => void;
   /** The next refresh() waits until the returned function answers it. */
   holdRefresh(): (result: RenewResult) => void;
+  /** Answer of getAuthorization (a consent of «Claude Code» by default). */
+  authorization: AuthorizationResult<AgentAuthorization>;
+  /** Answer of decideAuthorization. */
+  decision: AuthorizationResult<string>;
+  decisions: { id: string; decision: 'approve' | 'deny' }[];
+  /** The next getAuthorization() not yet held waits until the returned function answers it. */
+  holdAuthorization(): (result: AuthorizationResult<AgentAuthorization>) => void;
+  /** The next decideAuthorization() not yet held waits until the returned function answers it. */
+  holdDecision(): (result: AuthorizationResult<string>) => void;
 }
 
 /** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
@@ -29,6 +38,8 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
   let heldCheck: Promise<SessionCheck> | null = null;
   let heldRefresh: Promise<RenewResult> | null = null;
   let heldCredentials: Promise<Credentials | null> | null = null;
+  const heldAuthorizations: Promise<AuthorizationResult<AgentAuthorization>>[] = [];
+  const heldDecisions: Promise<AuthorizationResult<string>>[] = [];
   const backend: StubBackend = {
     mode,
     nextSignIn: { ok: true },
@@ -36,6 +47,29 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
     signOutError: null,
     refreshResult: null,
     refreshCalls: 0,
+    authorization: {
+      ok: true,
+      value: { kind: 'consent', id: 'auth-1', clientName: 'Claude Code', clientId: 'client-1', redirectUri: 'http://127.0.0.1:9/callback', scopes: ['openid', 'email'] }
+    },
+    decision: { ok: true, value: 'http://127.0.0.1:9/callback?code=x' },
+    decisions: [],
+    async getAuthorization() {
+      return heldAuthorizations.shift() ?? backend.authorization;
+    },
+    async decideAuthorization(id, decision) {
+      backend.decisions.push({ id, decision });
+      return heldDecisions.shift() ?? backend.decision;
+    },
+    holdAuthorization() {
+      let answer!: (result: AuthorizationResult<AgentAuthorization>) => void;
+      heldAuthorizations.push(new Promise((resolve) => (answer = resolve)));
+      return answer;
+    },
+    holdDecision() {
+      let answer!: (result: AuthorizationResult<string>) => void;
+      heldDecisions.push(new Promise((resolve) => (answer = resolve)));
+      return answer;
+    },
     setUser(user) {
       current = user ? { status: 'signedIn', user } : { status: 'signedOut' };
       send(user ? { type: 'SIGNED_IN', user } : { type: 'SIGNED_OUT', user: null });

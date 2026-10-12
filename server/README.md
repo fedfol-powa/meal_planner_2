@@ -8,8 +8,9 @@ Worker di Cloudflare che serve la SPA (`web/dist`) e le rotte del contratto:
 
 1. Avvia il database locale con le migrazioni: `supabase db start` (vedi
    `supabase/README.md`; serve Podman avviato).
-2. Copia `.env.example` in `.env` e compila la connessione come `app_server` e l'URL
-   dell'Auth locale.
+2. Copia `.env.example` in `.env` e compila la connessione come `app_server`, l'URL
+   dell'Auth locale e la chiave pubblica (`SUPABASE_PUBLISHABLE_KEY`, da `supabase status`),
+   usata per scollegare gli agenti tramite Supabase Auth.
 3. Una volta sola: `npm install-scripts approve workerd` (npm 11 blocca lo script
    d'installazione del runtime usato da `wrangler dev`).
 4. `npm run build -w web`, poi `npm run dev -w server` (porta 8787).
@@ -41,8 +42,9 @@ In locale Hyperdrive non fa da pool: le prove di concorrenza si fanno sul Worker
 `npm test -w server`. I test con il database richiedono `TEST_DATABASE_URL`
 (superutente del database locale con le migrazioni di `supabase/`, per esempio
 `postgresql://postgres:postgres@127.0.0.1:54322/postgres`; verifica con `supabase status`);
-senza, in locale sono saltati, in CI falliscono. La CI avvia il database con
-`supabase db start` ed esegue anche `supabase test db`.
+senza, in locale sono saltati, in CI falliscono. La CI avvia database e Auth con
+`supabase start` ed esegue anche `supabase test db` e `scripts/oauth/agents-e2e.sh`, la prova
+end-to-end degli agenti con il Worker.
 
 ## Pubblicazione
 

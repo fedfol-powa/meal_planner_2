@@ -27,7 +27,12 @@ export default defineConfig(({ mode }) => {
   const proxy = { '/api': { target: apiTarget, changeOrigin: true } };
   return {
     plugins: [react(), precacheManifest()],
-    define: { __BUILD_VERSION__: JSON.stringify(buildVersion) },
+    define: {
+      __BUILD_VERSION__: JSON.stringify(buildVersion),
+      // «Collega un agente» shows `${origin}/mcp`: in production the Worker serves SPA and /mcp on one
+      // origin; the Vite dev server forwards only /api, so the page shows the Worker's origin there.
+      __SERVICE_ORIGIN__: JSON.stringify(mode === 'development' ? new URL(apiTarget).origin : null)
+    },
     server: { port: 5174, proxy },
     preview: { proxy },
     build: {

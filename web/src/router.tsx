@@ -12,6 +12,9 @@ import { SettingsPage } from './routes/profile/SettingsPage';
 import { RecipePage } from './routes/RecipePage';
 import { RecipesPage } from './routes/RecipesPage';
 import { RouteError } from './routes/RouteError';
+import { AgentsPage } from './features/agents/AgentsPage';
+import { AuthorizePage } from './features/agents/AuthorizePage';
+import { validateAuthorizeSearch } from './features/agents/search';
 import { DraftPage } from './features/catalogue/DraftPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
@@ -32,6 +35,17 @@ const loginRoute = createRoute({
     if (context.auth.status === 'signedIn') throw redirect({ href: search.redirect ?? '/menu', replace: true });
   },
   component: LoginPage
+});
+
+// Agent consent (spec section 13): no navbar; signing in first comes back here (after «Cambia account», to the page that asks to start again from the agent).
+const authorizeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/authorize',
+  validateSearch: validateAuthorizeSearch,
+  beforeLoad: ({ context, location }) => {
+    if (context.auth.status === 'signedOut') throw redirect({ to: '/login', search: { redirect: location.href }, replace: true });
+  },
+  component: AuthorizePage
 });
 
 // Pathless layout: every view behind sign-in, with the navbar.
@@ -62,12 +76,14 @@ const preferencesRoute = createRoute({ getParentRoute: () => appRoute, path: '/p
 const membersRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family', component: MembersPage });
 const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/settings', component: SettingsPage });
 const exclusionsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/exclusions', component: ExclusionsPage });
+const agentsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/agents', component: AgentsPage });
 // `day`: the menu day the list was opened from, where «Menu» goes back to.
 const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shopping/$weekStartsOn', validateSearch: validateMenuSearch, component: ShoppingPage });
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, shoppingRoute])
+  authorizeRoute,
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

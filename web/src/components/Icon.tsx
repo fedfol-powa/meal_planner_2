@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-export type IconName = 'arrow' | 'clock' | 'calendar' | 'book' | 'bag' | 'user' | 'star' | 'chevron-left' | 'chevron-right' | 'recipe' | 'list' | 'filter' | 'sort' | 'users' | 'gear' | 'ban' | 'check' | 'plus' | 'more';
+export type IconName = 'arrow' | 'clock' | 'calendar' | 'book' | 'bag' | 'user' | 'star' | 'chevron-left' | 'chevron-right' | 'recipe' | 'list' | 'filter' | 'sort' | 'users' | 'gear' | 'ban' | 'check' | 'plus' | 'more' | 'link';
 
 const PATHS: Record<IconName, ReactNode> = {
   arrow: <path d="M5 19 19 5M5 5h14v14" />,
@@ -21,6 +21,7 @@ const PATHS: Record<IconName, ReactNode> = {
   ban: <><circle cx="12" cy="12" r="9" /><path d="m5.6 5.6 12.8 12.8" /></>,
   check: <path d="m5 12 5 5 9-10" />,
   plus: <path d="M12 5v14M5 12h14" />,
+  link: <path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1" />,
   more: <><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></>
 };
 

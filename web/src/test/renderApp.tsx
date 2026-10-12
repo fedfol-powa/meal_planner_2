@@ -7,18 +7,19 @@ import { createMemoryStore, type KeyValueStore } from '../api/persister';
 import type { Api } from '../api/types';
 import { DEMO_USER, type AuthBackend } from '../auth/backend';
 import type { Locale } from '../i18n/translate';
+import type { SessionChannel } from '../session/channel';
 import type { CreateApi } from '../session/SessionScope';
 import { createMemoryHub } from './memoryChannel';
 import { createStubBackend } from './stubBackend';
 
-export function renderApp(path: string, options: { backend?: AuthBackend; api?: Api; createApi?: CreateApi; locale?: Locale; store?: KeyValueStore; extra?: ReactNode } = {}) {
+export function renderApp(path: string, options: { backend?: AuthBackend; api?: Api; createApi?: CreateApi; locale?: Locale; store?: KeyValueStore; channel?: SessionChannel; extra?: ReactNode } = {}) {
   const history = createMemoryHistory({ initialEntries: [path] });
   const backend = options.backend ?? createStubBackend(DEMO_USER);
   const createApi: CreateApi = options.createApi ?? (options.api
     ? () => () => options.api!
     : fakeClients({ latencyMs: 0 }));
   const result = render(
-    <AppRoot backend={backend} store={options.store ?? createMemoryStore()} createApi={createApi} channel={createMemoryHub().channel()} history={history} initialLocale={options.locale ?? 'it-IT'}>
+    <AppRoot backend={backend} store={options.store ?? createMemoryStore()} createApi={createApi} channel={options.channel ?? createMemoryHub().channel()} history={history} initialLocale={options.locale ?? 'it-IT'}>
       {options.extra}
     </AppRoot>
   );

@@ -72,4 +72,21 @@ describe('profile', () => {
     // Language and sign-out stay one tap away.
     expect(screen.getByRole('link', { name: /Account e preferenze/ })).toBeTruthy();
   });
+
+  it('opens «Collega un agente» from the account section, with the number of connected agents', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const { history } = renderApp('/profile', { api });
+    const row = await screen.findByRole('link', { name: /Collega un agente/ });
+    expect(await within(row).findByText('1 agente collegato')).toBeTruthy();
+    vi.spyOn(api.agents, 'list').mockResolvedValue([]);
+    fireEvent.click(row);
+    await waitFor(() => expect(history.location.pathname).toBe('/profile/agents'));
+  });
+
+  it('suggests the clients when no agent is connected', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    vi.spyOn(api.agents, 'list').mockResolvedValue([]);
+    renderApp('/profile', { api });
+    expect(await screen.findByText('Claude, ChatGPT o Codex con MCP')).toBeTruthy();
+  });
 });

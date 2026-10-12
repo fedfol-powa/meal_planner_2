@@ -1,8 +1,16 @@
 import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
-import type { AuthBackend, AuthUser, SignInFailure } from './backend';
+import type { AgentAuthorization, AuthBackend, AuthorizationFailure, AuthorizationResult, AuthUser, SignInFailure } from './backend';
 
 export const AUTH_STORAGE_KEY = 'cosasimangia-auth';
 export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession'>;
+
+export type OAuthApi = Pick<SupabaseClient['auth']['oauth'], 'getAuthorizationDetails' | 'approveAuthorization' | 'denyAuthorization'>;
+
+export function authorizationFailure(error: { status?: number; name?: string }): AuthorizationFailure {
+  if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network';
+  if (error.status === 400 || error.status === 404) return 'not_found';
+  return 'unknown';
+}
 
 export function signInFailure(error: { code?: string; status?: number; name?: string }): SignInFailure {
   if (error.code === 'invalid_credentials' || error.status === 400) return 'invalid_credentials';
@@ -17,14 +25,16 @@ const toUser = (user: { id: string; email?: string } | null | undefined): AuthUs
 export function createSupabaseBackend(
   url: string,
   publishableKey: string,
-  deps: { auth?: AuthClient; storage?: Pick<Storage, 'getItem' | 'removeItem'> } = {}
+  deps: { auth?: AuthClient; oauth?: OAuthApi; storage?: Pick<Storage, 'getItem' | 'removeItem'> } = {}
 ): AuthBackend {
   const storage = deps.storage ?? window.localStorage;
-  const auth: AuthClient =
-    deps.auth ??
-    createClient(url, publishableKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY }
-    }).auth;
+  const client = deps.auth
+    ? null
+    : createClient(url, publishableKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY }
+      });
+  const auth: AuthClient = deps.auth ?? client!.auth;
+  const oauth: OAuthApi | null = deps.oauth ?? client?.auth.oauth ?? null;
 
   // Offline with an expired token the library keeps the stored session but reports no session.
   const storedUser = (): AuthUser | null => {
@@ -78,6 +88,31 @@ export function createSupabaseBackend(
     async getCredentials() {
       const { data } = await auth.getSession();
       return data.session ? { accessToken: data.session.access_token, userId: data.session.user.id } : null;
+    },
+    async getAuthorization(id): Promise<AuthorizationResult<AgentAuthorization>> {
+      if (!oauth) return { ok: false, reason: 'unknown' };
+      const { data, error } = await oauth.getAuthorizationDetails(id);
+      if (error || !data) return { ok: false, reason: error ? authorizationFailure(error) : 'unknown' };
+      return 'authorization_id' in data
+        ? {
+            ok: true,
+            value: {
+              kind: 'consent',
+              id: data.authorization_id,
+              clientName: data.client.name ?? '',
+              clientId: data.client.id,
+              redirectUri: data.redirect_uri,
+              scopes: data.scope.split(' ').filter(Boolean)
+            }
+          }
+        : { ok: true, value: { kind: 'redirect', url: data.redirect_url } };
+    },
+    async decideAuthorization(id, decision) {
+      if (!oauth) return { ok: false, reason: 'unknown' };
+      const options = { skipBrowserRedirect: true };
+      const { data, error } = decision === 'approve' ? await oauth.approveAuthorization(id, options) : await oauth.denyAuthorization(id, options);
+      if (error || !data) return { ok: false, reason: error ? authorizationFailure(error) : 'unknown' };
+      return { ok: true, value: data.redirect_url };
     }
   };
 }
