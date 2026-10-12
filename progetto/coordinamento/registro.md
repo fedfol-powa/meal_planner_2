@@ -9,8 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| R pr33-2 | Verifica delle correzioni della PR #33 (d1eb4d6..95409de) → revisioni/w1-pr33-2.md | w1:p20, worktree .worktrees/review-pr33-2 | in corso |
-| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33 corretta (95409de, 5 rilievi); verifica Codex in corso; se pulita e CI pass → merge e chiusura di W1 (W6 resta l'unico worker) | 12/10 |
+| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33: verifica (revisioni/w1-pr33-2.md) 4/5 risolti, resta un minore (errore della ricerca nascosto dai risultati in cache); PR in conflitto con main, CI non partita. W1 corregge e aggiorna il branch; a PR_CORRETTA controllo del diff a mano, CI pass → merge e chiusura di W1 | 12/10 |
 | W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Spec e piano approvati (0df8737, 5 correzioni della seconda review; il caricamento ora si collega come postgres per bloccare le tabelle). /clear fatto, implementazione in corso; poi PR e review Codex. Nessun passo in produzione prima di portare il piano all'utente | 12/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
