@@ -99,4 +99,25 @@ describe('change recipe', () => {
     fireEvent.click(retry);
     expect(await within(sheet).findByRole('list', { name: 'Risultati' })).toBeTruthy();
   });
+
+  it('a failed reread with results in the cache: results stay, error and «Riprova» show (PR #33 second review)', async () => {
+    const { server } = realMealsApp();
+    const { sheet } = await openPicker(/Pizza/);
+    const box = within(sheet).getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'ceci' } });
+    await within(sheet).findByRole('list', { name: 'Risultati' });
+    fireEvent.change(box, { target: { value: 'ceci rossi' } });
+    await waitFor(() => expect(server.recipeCalls.filter((c) => c.op === 'recipes.search')).toHaveLength(2));
+    server.answerSearch(() => {
+      throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+    });
+    // Back to a cached query: its results show while it is read again, and the reread fails.
+    fireEvent.change(box, { target: { value: 'ceci' } });
+    const retry = await within(sheet).findByRole('button', { name: 'Riprova' });
+    expect(within(sheet).getByRole('list', { name: 'Risultati' })).toBeTruthy();
+    server.answerSearch(() => ({ unchanged: false, version: 'v1', data: { items: [SERVER_RECIPE] } }));
+    fireEvent.click(retry);
+    await waitFor(() => expect(within(sheet).queryByRole('button', { name: 'Riprova' })).toBeNull());
+    expect(within(sheet).getByRole('list', { name: 'Risultati' })).toBeTruthy();
+  });
 });

@@ -123,6 +123,13 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
       <section className={styles.search} aria-labelledby={`${meal.slotId}-search`}>
         <h3 id={`${meal.slotId}-search`} className={styles.title}>{t('meals.search')}</h3>
         <RecipeFilters query={query} onChange={setQuery} />
+        {/* The error and «Riprova» also show over results still in the cache, which stay readable. */}
+        {searching && search.isError && (
+          <p className="meta-line" role="alert">
+            {message(search.error)}{' '}
+            <button type="button" className="text-button" onClick={() => void search.refetch()}>{t('common.retry')}</button>
+          </p>
+        )}
         {searching &&
           (results.length > 0 ? (
             <ul className={styles.rows} aria-label={t('meals.results')}>
@@ -136,12 +143,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
                 </li>
               ))}
             </ul>
-          ) : search.isError ? (
-            <p className="meta-line" role="alert">
-              {message(search.error)}{' '}
-              <button type="button" className="text-button" onClick={() => void search.refetch()}>{t('common.retry')}</button>
-            </p>
-          ) : search.isSuccess ? (
+          ) : search.isError ? null : search.isSuccess ? (
             <p className="meta-line">{t('meals.noResults')}</p>
           ) : (
             <p className="meta-line" role="status">{t('common.loading')}</p>
