@@ -163,3 +163,4 @@ w1:p32	REVISORE_FINITO
 w1:pX	STATO: DOMANDA modifiche a spec e piano dopo la review della PR #34 (commit 9fa2813): confermi la modifica di bootstrap.sql e l'uscita di remove-family.sql? #deade99b
 w1:pX	STATO: PR_CORRETTA #131df6fe
 w1:p33	REVISORE_FINITO
+w1:p34	REVISORE_FINITO
