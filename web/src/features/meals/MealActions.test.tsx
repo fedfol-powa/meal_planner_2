@@ -137,6 +137,25 @@ describe('servings refused by the server', () => {
     fireEvent.click(within(notice.closest('[role="status"]') as HTMLElement).getByRole('button', { name: 'Chiudi avviso' }));
     expect(screen.queryByText(/non sono state salvate/)).toBeNull();
   });
+  it('a request already in flight when leaving the menu: its refusal becomes a notice (PR #33 review, 1)', async () => {
+    const { server, history } = realMealsApp();
+    let refuse: () => void = () => {};
+    server.answerMeals({
+      setServings: () =>
+        new Promise((_, fail) => (refuse = () => fail(new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 }))))
+    });
+    const lunch = await card(/Ricetta dal server/);
+    fireEvent.click(pencil(lunch));
+    fireEvent.click(more(lunch));
+    // Closing the panel sends at once: the request leaves while the card is still mounted.
+    fireEvent.click(pencil(lunch));
+    await waitFor(() => expect(servingsCalls(server)).toHaveLength(1));
+    await act(() => history.push('/recipes'));
+    await act(async () => refuse());
+    await act(() => history.push('/menu'));
+    expect(await screen.findByText(/Le porzioni di Ricetta dal server .* non sono state salvate/)).toBeTruthy();
+    expect(servingsCalls(server)).toHaveLength(1);
+  });
 });
 
 describe('servings in Strict Mode', () => {

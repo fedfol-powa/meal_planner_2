@@ -22,7 +22,8 @@ interface Options {
  * Servings with a delayed save (round 2): the value shown and the value to save are separate;
  * the save never runs inside a state update (Strict Mode replays those), leaves at once when the
  * panel closes, still leaves when the card unmounts (without the undo offer) and never offline.
- * A refused save is never silent: `error` while mounted, a Menu notice after unmounting.
+ * A refused save is never silent: `error` while mounted, a Menu notice when the refusal comes
+ * after unmounting, also for a request that left while the card was mounted.
  */
 export function useServingsDraft(o: Options) {
   const api = useApi();
@@ -31,6 +32,7 @@ export function useServingsDraft(o: Options) {
   const [draft, setDraft] = useState<number | null>(null);
   const pending = useRef<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const mounted = useRef(false);
   const latest = useRef(o);
   latest.current = o;
   const save = useMealMutation<{ servings: number }>('meals.setServings', o.familyId, o.weekStartsOn, ({ servings, id }) =>
@@ -46,13 +48,19 @@ export function useServingsDraft(o: Options) {
       setDraft(null);
       return;
     }
-    save.mutate(
-      { servings: value },
-      {
-        onSuccess: ({ view }) => latest.current.onSaved(view.actionId, view.changed),
-        onSettled: () => setDraft(null)
+    // The promise settles also after unmounting, unlike the callbacks of `mutate` (PR #33 review, 1).
+    void save.mutateAsync({ servings: value }).then(
+      ({ view }) => {
+        if (mounted.current) latest.current.onSaved(view.actionId, view.changed);
+      },
+      () => {
+        if (!mounted.current) notify(latest.current);
       }
-    );
+    ).finally(() => setDraft(null));
+  };
+
+  const notify = ({ mealLabel, date }: Options) => {
+    if (!session.isClosed()) noticesOf(session).add({ mealLabel, date });
   };
 
   const step = (next: number) => {
@@ -74,23 +82,22 @@ export function useServingsDraft(o: Options) {
 
   // Unmount (navigation): the pending value still leaves, through the session, without the undo
   // offer; if it is refused, a notice stays in the Menu until dismissed.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       clearTimeout(timer.current);
       const value = pending.current;
       pending.current = null;
-      const { familyId, weekStartsOn, slotId, servings, online, mealLabel, date } = latest.current;
+      const { familyId, weekStartsOn, slotId, servings, online } = latest.current;
       if (value === null || value === servings || !online) return;
       void runMealMutation({ queryClient: session.queryClient, session, currentLocale }, 'meals.setServings', familyId, weekStartsOn, () =>
         api.meals.setServings({ familyId, slotId, servings: value, id: crypto.randomUUID() })
-      ).catch(() => {
-        if (!session.isClosed()) noticesOf(session).add({ mealLabel, date });
-      });
-    },
+      ).catch(() => notify(latest.current));
+    };
     // Mount and unmount only: the latest values are read through `latest`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
+  }, []);
 
   return { value: draft ?? o.servings, busy: save.isPending, error: save.error, step, flush };
 }
