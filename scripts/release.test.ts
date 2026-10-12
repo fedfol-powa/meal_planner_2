@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import { apply, CHECK_TOKEN, parseJsonc, preview, realRun, redact, smokeChecks, wranglerArgs, wranglerOverrides, type Deps, type Run } from './release.ts';
@@ -26,6 +26,7 @@ const OLD_VERSION = '00000000-0000-4000-8000-000000000000';
 const OUTPUT = '/tmp/release-test/wrangler-output.ndjson';
 const DRY_RUN_OUTPUT = '/tmp/release-test/wrangler-dry-run.ndjson';
 const EMPTY_ENV = '/tmp/release-test/empty.env';
+const WRANGLER_BIN = resolve('node_modules/wrangler/bin/wrangler.js');
 
 interface FakeOver {
 	run?: Record<string, ReturnType<Run>>;
@@ -342,7 +343,9 @@ describe('Wrangler reads no .env file (second review of PR #34, finding 3)', () 
 		const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => wranglerOverrides({ [k]: '' }).length === 0));
 		const real = realRun(dir, [], () => {});
 		const workerOf = (args: string[], output: string) => {
-			const r = real('npx', args, { env: { ...clean, WRANGLER_OUTPUT_FILE_PATH: join(dir, output) } });
+			// The Wrangler of the lockfile, by absolute path: npx from a folder outside the repository could download another.
+			const [, ...rest] = args;
+			const r = real(process.execPath, [WRANGLER_BIN, ...rest], { env: { ...clean, WRANGLER_OUTPUT_FILE_PATH: join(dir, output) } });
 			expect(r.status, r.stderr).toBe(0);
 			return readFileSync(join(dir, output), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { type: string; worker_name?: string }).find((e) => e.type === 'deploy')?.worker_name;
 		};
