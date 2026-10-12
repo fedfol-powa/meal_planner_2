@@ -49,12 +49,15 @@ Stato della fase 1 (runbook in `progetto/superpowers/plans/2026-10-11-messa-in-p
   versione attiva è `6382d9b5-9187-47d6-bb6c-2e188e46cc4d`.
 - R11: `BACKUP_ENCRYPTION_KEY` impostato dall'utente.
 - R12: account dell'utente creato a mano, UID `44f5d13c-296c-48f6-91f9-98d7733f07a1`; accesso
-  dall'iPhone riuscito, app vera senza famiglia. Da chiudere: cron orario senza errori nei log, «Esci».
+  dall'iPhone riuscito, app vera senza famiglia; cron delle 22:00 UTC eseguito senza errori (outcome ok).
+  R17 pronto: account di Chicca creato dall'utente; nomi, email e UID in
+  `progetto/coordinamento/famiglia.local.md` (solo locale, escluso con `.git/info/exclude`).
+  Famiglia «Folloni-Balcerek»; Federico e Chicca entrambi `family_admin`, it-IT.
 
 Prossimi passi:
 
 1. **R13 (mattina del 13/10):** nei log del Worker `backup_export_done`, in R2 un oggetto in `exports/`.
-2. **Fase 2** (import e avvio della famiglia) solo con il via dell'utente.
+2. **R15** con l'utente in mattinata, poi **finestra il 13/10** (R18–R20 entro le 19), sempre anteprima → «vai».
 3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 5. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
