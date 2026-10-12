@@ -51,33 +51,47 @@ end-to-end degli agenti con il Worker.
 Con `npm run release` in due tempi, lanciato dal coordinatore dopo il «vai» dell'utente
 (spec di dettaglio `progetto/superpowers/specs/2026-10-11-messa-in-produzione.md`,
 sezione 7). Le credenziali si leggono da `.env.production.local` del checkout principale
-(`--env-file` per un altro file), mai dall'ambiente; nessun comando le stampa.
+(`--credentials <file>` per un altro file), mai dall'ambiente; nessun comando le stampa.
+`release` rifiuta all'avvio qualsiasi variabile `CLOUDFLARE_*` o `WRANGLER_*` (per
+esempio `CLOUDFLARE_ENV` cambierebbe il nome del Worker pubblicato).
 
 1. `npm run release -- --preview`: `main` pulito e uguale a `origin/main`, CI verde;
    un solo progetto Supabase per tutto (`scripts/production-target.json`, utente di
    `POSTGRES_DATABASE_URL`, `web/.env.production`, `server/wrangler.jsonc`, eventuale
-   `supabase link`); configurazione del Worker (account, Hyperdrive, bucket, segreti di
-   `scripts/release.config.json`, chiave pubblica **uguale** a quella della SPA); build
-   della SPA con i soli valori di `web/.env.production` e bundle del Worker; migrazioni
-   con `supabase db push --dry-run --db-url <url verificata>` (password in
-   `PGPASSWORD`, mai il progetto «collegato»). Stampa il commit e il comando seguente.
-2. `npm run release -- --apply <sha>`: ripete tutti i controlli e la build, si ferma se
-   il commit non è `<sha>`; poi migrazioni (`supabase db push --db-url`), `wrangler
-   deploy --tag <sha>` e i controlli sull'indirizzo pubblicato (OpenAPI, 401 senza
-   token, metadati OAuth, SPA, 404 su `/shopping-lists/<48 zeri>` attraverso
-   Hyperdrive).
+   `supabase link`); configurazione del Worker (account, nessuna sezione `env`,
+   Hyperdrive, bucket, segreti di `scripts/release.config.json`, `productionUrl`
+   `https://<nome>.<sottodominio>.workers.dev`, chiave pubblica **uguale** a quella
+   della SPA); Supabase Auth in sola lettura (chiave pubblica valida, iscrizioni spente,
+   OAuth server attivo con registrazione dinamica); build della SPA con i soli valori di
+   `web/.env.production` e bundle del Worker; migrazioni pendenti dall'elenco di
+   `supabase db push --dry-run` verso la destinazione verificata (password in
+   `PGPASSWORD`, mai il progetto «collegato»); versioni pubblicate con `version_id`,
+   quota di traffico e tag. Stampa l'**impronta del rilascio** (commit, ambito,
+   destinazione del database, account e nome del Worker) e il comando seguente.
+2. `npm run release -- --apply <impronta> --credentials <file>`: ripete tutti i
+   controlli e la build e si ferma se l'impronta non coincide; poi migrazioni, `wrangler
+   deploy --tag <sha>` (l'esito, con nome del Worker, `version_id` e indirizzi, dal file
+   `WRANGLER_OUTPUT_FILE_PATH`), la verifica che il deployment serva solo la versione
+   nuova e che `/api/openapi.json` risponda con `info.version` uguale al suo `version_id`
+   (fino a 60 s), infine i controlli sull'indirizzo (401 senza token, metadati OAuth, SPA,
+   404 su `/shopping-lists/<48 zeri>` attraverso Hyperdrive).
 
 La prima volta, prima della password di `app_server` e di Hyperdrive, le migrazioni vanno
-da sole: `npm run release -- --preview --migrations-only`, poi `--apply <sha>
---migrations-only` (nessuna build, nessun deploy). I ruoli del server nascono dalle
-migrazioni. Non si pubblica più con `npm run deploy` a mano, e le migrazioni non
-arrivano dall'integrazione di Supabase.
+da sole: `npm run release -- --preview --migrations-only`, poi `--apply <impronta>
+--migrations-only` (nessuna build, nessun deploy; senza migrazioni pendenti «nothing to
+apply»). I ruoli del server nascono dalle migrazioni. Non si pubblica più con `npm run
+deploy` a mano, e le migrazioni non arrivano dall'integrazione di Supabase.
+
+**Hyperdrive.** La configurazione la crea e la modifica l'utente nella dashboard di
+Cloudflare (la password di `app_server` non passa da nessuna riga di comando); il
+coordinatore la verifica con `npx wrangler hyperdrive get <id>`.
 
 **Ritorno indietro.** Primo rilascio difettoso: `npx wrangler delete` da `server/` (non
-c'è una versione precedente). Rilasci successivi: `npx wrangler rollback <version-id>
---message "<motivo>"` alla versione con il tag dello SHA precedente (`npx wrangler
-versions list`), solo se `git diff --name-only <sha precedente> <sha attuale> --
-supabase/migrations` elenca migrazioni additive; altrimenti correzione in avanti.
+c'è una versione precedente). Rilasci successivi: `npx wrangler rollback <version_id>
+--message "<motivo>"` con il `version_id` (e il tag dello SHA precedente) che
+l'anteprima di quel rilascio ha mostrato come versione pubblicata, solo se `git diff
+--name-only <sha precedente> <sha attuale> -- supabase/migrations` elenca migrazioni
+additive; altrimenti correzione in avanti.
 
 ## Risorse di produzione
 

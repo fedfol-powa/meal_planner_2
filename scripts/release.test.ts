@@ -307,8 +307,8 @@ describe('helpers', () => {
 });
 
 describe('the real command', () => {
-	// Node 26 itself checks that an --env-file path exists, even after the script (exit 9, before the
-	// module loads): the usage error is what proves the whole module runs with strip-only TypeScript.
+	// The usage error proves that the whole module runs with strip-only TypeScript. The credentials go
+	// with --credentials: Node 26 reads --env-file itself, even after the script name.
 	it('refuses CLOUDFLARE_ENV before reading anything', async () => {
 		const run = promisify(execFile);
 		const failed = await run(process.execPath, ['scripts/release.ts', '--preview'], { env: { ...process.env, CLOUDFLARE_ENV: 'review-other' } }).then(
