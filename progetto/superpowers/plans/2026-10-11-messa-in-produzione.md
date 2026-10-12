@@ -36,7 +36,12 @@ di ogni task), subordinata alla specifica principale.
   `supabase/migrations/**`, `supabase/scripts/bootstrap.sql`, `scripts/import/*.ts` e
   `scripts/backup/*.ts` esistenti si importano soltanto. File condivisi toccati con
   modifiche minime: `tsconfig.json`, `vitest.config.ts`, `package.json` (script
-  `release`), `.gitignore`, `.github/workflows/ci.yml` (un passo finale).
+  `release`), `.gitignore`, `.github/workflows/ci.yml` (un passo finale); dopo la review
+  della PR #34 anche `server/vitest.config.ts` e `server/vitest.drill.config.ts` (una
+  riga: la guardia del Task 10.1) e `supabase/scripts/bootstrap.sql` con
+  `bootstrap_test.sh` (dati dalle variabili, Task 10.4), su decisione del coordinatore.
+- Nessuna password negli argomenti di un processo (spec, sezione 1): i test registrano
+  l'argv di ogni processo figlio finto e verificano che la password non compaia.
 - Solo sintassi TypeScript cancellabile: niente parameter properties, `enum`,
   `namespace`. Ogni comando nuovo ha un test che lo lancia con `node` vero.
 - Gli script non stampano mai stringhe di connessione né password, nemmeno negli errori:
@@ -104,6 +109,27 @@ di ogni task), subordinata alla specifica principale.
 | 4 | Conferma SQL senza parametri | 1, 8 (impronta dell'operazione) | Task 8 (`prod-sql-plan.ts`, cambio del solo `family_id` rifiutato prima della connessione) |
 | 5 | Chiave segnaposto nel Worker | 3, 4 (passo 7), 7 (punto 3), 9 | Task 7 (`worker-key`), R9; tolto il vecchio R23 |
 
+**Review della PR #34** (`progetto/coordinamento/revisioni/w6-pr34.md`, decisioni del
+coordinatore in `progetto/coordinamento/messaggi/w6-produzione-02-review-pr34.md`).
+
+| # | Rilievo | Spec | Piano |
+|---|---|---|---|
+| 1 | SQL di servizio: transazione aggirabile | 1, 8 (`prod-sql.ts`) | Task 10.4 |
+| 2 | Guardia dei test dopo il global setup | — | Task 10.1 |
+| 3 | Host codificato, lista di destinazioni | 2 | Task 10.2 |
+| 4 | Password negli argomenti | 1, 2, 4 (passo 5), 9 | Task 10.3, R7, R26 |
+| 5 | Impronta e byte eseguiti | 1, 6, 8 | Task 10.4, Task 10.6 |
+| 6 | Conferma del rilascio | 7 | Task 10.7 |
+| 7 | Ordine OAuth | 3, 4 (passo 1b), 7 (punto 5), 9 | Task 10.7, R3b, R10, R25 |
+| 8 | Nuova baseline dopo la rimozione | 5, 8 («stato iniziale») | Task 10.5, R21 |
+| 9 | Report dopo il commit | 5, 6 | Task 10.6, R19 |
+| 10 | Primo cron | 5 («Evidenza della prima generazione») | Task 10.8, R23 |
+| 11 | CI rossa | — | Task 10.9 |
+| 12 | Versione per il rollback | 7 (punto 7), 8 | Task 10.7, R14 |
+| 13 | README di supabase | 10 | Task 10.10 |
+| Minori | Errori del dry run, `--credentials`, `--launch` solo con `bootstrap`, messaggio di `--migrations-only` | 2, 6, 7, 8 | Task 10.4, 10.6, 10.7 |
+| Utente | Iscrizioni spente | 4 (passo 1a), 7 (punto 5), 9 | Task 10.7, R3a |
+
 ---
 
 ## Struttura dei file
@@ -125,10 +151,12 @@ di ogni task), subordinata alla specifica principale.
 | `scripts/import/load.ts` | Comando: argomenti, credenziali, connessione, `--check-connection`, errori senza dati |
 | `scripts/release.ts` | `npm run release -- --preview` / `--apply <sha>` |
 | `scripts/release.config.json` | `productionUrl`, `requiredSecrets` |
-| `scripts/prod-sql.sh`, `scripts/prod-sql-plan.ts` | SQL sulla produzione con anteprima legata all'operazione (file, parametri, `--launch`, destinazione) |
-| `supabase/scripts/app-fingerprint.sql` | `pg_temp.app_fingerprint()`, `pg_temp.lock_app_tables(mode)`, `pg_temp.launch_start()` |
-| `supabase/scripts/show-fingerprint.sql` | Stampa l'impronta |
-| `supabase/scripts/remove-family.sql` | Rimozione della famiglia inutilizzata |
+| `scripts/prod-sql.ts` (Task 10.4; sostituisce `prod-sql.sh` e `prod-sql-plan.ts`) | SQL sulla produzione: lista chiusa, byte dal commit, tokenizzatore, transazione decisa dallo strumento, impronta dell'operazione |
+| `scripts/prod-sql/tokens.ts` | Tokenizzatore della difesa sul testo (stringhe, commenti, corpi `$$`) |
+| `scripts/test-support/local-database.ts` | Guardia «solo stack locale», chiamata in testa a ogni config di Vitest che prepara il database |
+| `scripts/git-snapshot.ts` | Checkout pulito, commit, lettura di un file da `HEAD` |
+| `supabase/scripts/app-fingerprint.sql` | `pg_temp.app_fingerprint()`, `pg_temp.lock_app_tables(mode)`, `pg_temp.launch_start()` (stato iniziale) |
+| `supabase/scripts/show-fingerprint.sql`, `supabase/scripts/migrations-state.sql` | Sola lettura: impronta; migrazioni applicate e ruoli applicativi |
 | `supabase/scripts/reset-app-data.sql` | Azzeramento prima dell'uso |
 | `supabase/scripts/check-first-generation.sql` | Controllo della prima generazione del cron |
 | `scripts/destructive/*.test.ts`, `vitest.destructive.config.ts` | Prove distruttive, ultime in CI |
@@ -2528,37 +2556,280 @@ Poi `STATO: PR_APERTA <url>`.
 
 ---
 
+### Task 10: Correzioni della review della PR #34
+
+Spec aggiornata prima del codice (commit a parte). **Dove i Task 1–9 descrivono altro
+(`prod-sql.sh`, `remove-family.sql`, `--env-file`, conferma con il solo SHA,
+`APP_SERVER_PASSWORD`), valgono questo task e la spec aggiornata.** Ogni sotto-task: test che fallisce
+sul codice attuale, implementazione, test verde, commit piccolo in italiano. Criterio
+del coordinatore: il meccanismo più semplice che renda impossibile l'errore.
+
+#### 10.1 Guardia dei test prima di qualsiasi client (rilievo 2)
+
+**Files:** Create `scripts/test-support/local-database.ts`,
+`scripts/test-support/local-database.test.ts`, `scripts/test-support/connect-probe.mjs`;
+Modify `vitest.config.ts`, `vitest.destructive.config.ts`, `server/vitest.config.ts`,
+`server/vitest.drill.config.ts` (una riga ciascuno); `scripts/destructive/support.ts`
+(la guardia vecchia si toglie: c'è quella del config).
+
+- [ ] **Test che fallisce:** `local-database.test.ts` lancia Vitest vero (`npx vitest run
+  -c <config>`) per ognuno dei quattro config, con `TEST_DATABASE_URL=postgres://postgres:x@remote.invalid:5432/postgres`,
+  `DESTRUCTIVE_TESTS=1` e `NODE_OPTIONS=--import <connect-probe.mjs>`: la sonda avvolge
+  `net.Socket.prototype.connect`, `net.connect`, `tls.connect` e `dns.lookup` e
+  scrive ogni chiamata in un file. Atteso: uscita diversa da 0, messaggio
+  «TEST_DATABASE_URL is not the local stack (remote.invalid)», file della sonda
+  **vuoto** (zero connessioni, zero risoluzioni DNS, quindi zero istruzioni). Oggi
+  fallisce: il global setup apre la connessione e invia `alter role`. Casi unitari
+  della funzione: assente → nessun errore (i test d'integrazione si saltano come oggi);
+  `localhost` e `127.0.0.1` → ammessi; `%2C`, virgole, liste, host remoto → rifiuto.
+- [ ] **Implementazione:** `assertLocalTestDatabase(process.env)` usa il validatore del
+  Task 10.2 in modalità locale ed è chiamata **al livello superiore** di ogni config,
+  prima di `defineConfig`: Vitest valuta il config prima del global setup e prima di
+  caricare qualsiasi suite.
+- [ ] Commit: «Messa in produzione: guardia dello stack locale nei config di Vitest, prima del global setup».
+
+#### 10.2 Destinazione costruita dai campi validati (rilievo 3)
+
+**Files:** Modify `scripts/import/load/target.ts` e il suo test.
+
+- [ ] **Test che fallisce:** l'host `db.example.com%2Caws-0-eu-central-1.pooler.supabase.com`
+  è rifiutato (oggi passa); idem `%` nell'utente o nel database, host IP, `[::1]`,
+  host maiuscolo, due `@`, `sslmode` ripetuto, parametri diversi da `sslmode` e
+  `sslrootcert`. Per una URL valida: `connect()` con Postgres.js vero e `max: 0`
+  connessioni aperte (si leggono solo `sql.options`) dà `host` = `[<host mostrato>]`,
+  `port` = `[5432]`, `database`, `user` uguali a `describeEndpoint`; `psqlConninfo()` dà
+  `host=… port=5432 dbname=postgres user=… sslmode=verify-full sslrootcert=…` senza
+  password; `dbUrlWithoutPassword()` per la CLI di Supabase non contiene la password.
+  Una password con `%40` si decodifica una volta.
+- [ ] **Implementazione:** `checkTarget` restituisce `{ endpoint, fields: { host, port,
+  database, user, password, caPath }, ssl }`; `connect` passa a Postgres.js l'oggetto di
+  opzioni costruito dai campi (mai la URL); `psqlConninfo` e `dbUrlWithoutPassword`
+  dagli stessi campi. Host: `^[a-z0-9-]+(\.[a-z0-9-]+)+$` e suffisso
+  `.pooler.supabase.com`. `ssl: { rejectUnauthorized: true, ca, servername: host }`.
+- [ ] Commit: «Messa in produzione: destinazione costruita dai campi validati, nessuna codifica nell'host».
+
+#### 10.3 Nessuna password negli argomenti (rilievo 4)
+
+**Files:** test di `scripts/prod-sql.ts` (10.4), `scripts/release.test.ts`.
+
+- [ ] **Test che fallisce:** un `CONTAINER_CLI` finto (script che scrive argv e il valore
+  di `PGPASSWORD` in un file) e un `supabase` finto sul `PATH`: dopo `--preview` e
+  `--apply`, nessun argv contiene la password; `PGPASSWORD` è presente nell'ambiente
+  del container e del `supabase` finto; l'argv del container contiene `-e PGPASSWORD`
+  senza `=`. Oggi fallisce: `psql "$POSTGRES_DATABASE_URL"` riceve la URL intera.
+- [ ] **Implementazione:** in `prod-sql.ts` (10.4) e già in `release.ts` per `db push`;
+  nessun comando `wrangler hyperdrive create/update` con `--origin-password` resta nel
+  codice, nei README né nel runbook (`grep -rn origin-password` trova solo i rimandi storici di spec e piano).
+- [ ] Commit insieme a 10.4.
+
+#### 10.4 `scripts/prod-sql.ts`: lista chiusa, byte dal commit, transazione dello strumento (rilievi 1, 5 e minore su `--launch`)
+
+**Files:** Create `scripts/prod-sql.ts`, `scripts/prod-sql/tokens.ts`,
+`scripts/prod-sql/tokens.test.ts`, `scripts/git-snapshot.ts`,
+`supabase/scripts/migrations-state.sql`; Modify `scripts/prod-sql.test.ts`,
+`supabase/scripts/{show-fingerprint,reset-app-data,check-first-generation}.sql` (senza
+`begin`/`commit`), `supabase/scripts/bootstrap.sql` e `bootstrap_test.sh` (dati dalle
+variabili, senza `begin`/`commit`), `scripts/destructive/support.ts`; Delete
+`scripts/prod-sql.sh`, `scripts/prod-sql-plan.ts`, `supabase/scripts/remove-family.sql`
+e i suoi test.
+
+- [ ] **Test del tokenizzatore che falliscono** (casi del rapporto e varianti):
+  `select 1; COMMIT;`, `/* c */ COMMIT;`, `select 1; \connect other`, `END;`,
+  `savepoint a;`, `release savepoint a;`, `start transaction;`, `abort;`,
+  `prepare transaction 'x';`, `\set`, `:name` non quotata, `:"name"` → rifiuto con
+  riga e colonna. Accettati: `'commit;'`, `E'it\'s commit'`, `"commit"`, `-- commit`,
+  `/* /* commit */ */`, `$$ … commit … $$`, `$fn$ … $fn$`, `:'family_id'`.
+- [ ] **Test della lista chiusa:** un percorso al posto del nome, un nome assente, una
+  variabile non dichiarata, mancante, ripetuta o di tipo sbagliato, `--launch` con uno
+  script diverso da `bootstrap`, `--apply` di uno script in sola lettura → rifiuto
+  **senza avviare il container** (il container finto registra zero chiamate). `people`
+  malformato (non array, campo mancante, `family_role` sconosciuto, carattere di
+  controllo) → rifiuto.
+- [ ] **Test dei byte:** con destinazione di produzione (host finto, container finto)
+  un checkout sporco → rifiuto prima del container; il testo inviato sullo stdin del
+  container è byte per byte quello di `git show HEAD:<file>`, anche se il file nel
+  working tree viene sostituito dopo `--preview` (il test lavora in un clone temporaneo
+  del repository); la sostituzione rende il checkout sporco e `--apply` rifiuta.
+- [ ] **Test con `psql` vero** (`scripts/destructive/prod-sql-psql.test.ts`, stack
+  locale): (a) uno script di prova in una lista passata alla funzione (non quella del
+  comando) che inserisce una riga in una tabella di prova, poi esegue `select 1/0`: dopo
+  `--apply` la riga non c'è (una sola transazione, `ON_ERROR_STOP`); (b) uno script con
+  `commit` dentro un `do $$ … $$` → errore «invalid transaction termination», nessuna
+  riga; (c) i testi rifiutati dal tokenizzatore con `delete from app.families` dopo
+  `COMMIT` → nessun processo `psql` parte e le famiglie restano; (d) `--preview` di
+  `reset-app-data` con l'impronta giusta → righe contate, dati intatti dopo
+  (`rollback`).
+- [ ] **Implementazione:** come la spec, sezione 8. `bootstrap.sql`: le due `insert`
+  di input leggono `:'family_id'`, `:'family_name'`, `:'measurement_system'`,
+  `:'time_zone'` e `jsonb_to_recordset(:'people'::jsonb)`; il resto non cambia.
+  Comando dell'anteprima stampato con tutte le `--set` e `--credentials`.
+- [ ] Commit: «Messa in produzione: SQL sulla produzione da una lista chiusa, byte dal commit, password fuori dagli argomenti».
+
+#### 10.5 `--launch` solo dallo stato iniziale (rilievo 8)
+
+**Files:** Modify `supabase/scripts/app-fingerprint.sql`, `scripts/destructive/*.test.ts`.
+
+- [ ] **Test distruttivo che fallisce:** bootstrap con `--launch` (B0), caricamento di
+  avvio (B1), famiglia tolta con SQL diretto nel test, un curatore modifica una ricetta
+  (`write.ts`), nuovo bootstrap con `--launch` → rifiuto «not the initial state: app
+  tables with rows: recipes, …» e nessuna impronta stampata. Oggi passa (controlla
+  solo le famiglie). Poi: con B1 ancora valida, `reset-app-data` → stato iniziale →
+  `--launch` ammesso.
+- [ ] **Implementazione:** `launch_start()` dopo i lock conta le righe di ogni tabella di
+  `app` tranne `profiles`, `profile_preferences`, `user_roles`, `catalogue_state` e
+  rifiuta elencando quelle non vuote.
+- [ ] Commit: «Messa in produzione: impronta di avvio solo dallo stato iniziale».
+
+#### 10.6 Caricamento: fotografia degli input, B1 subito dopo il commit, errori con dettaglio, `--credentials` (rilievi 5, 9 e minori)
+
+**Files:** Modify `scripts/import/load.ts`, `scripts/import/load/run.ts`,
+`scripts/import/load/inputs-fingerprint.ts`, `scripts/import/load/report.ts` e i loro test.
+
+- [ ] **Test che falliscono:** (a) con una seconda connessione che tiene il lock della
+  famiglia, il test modifica una scheda dell'origine mentre il caricamento aspetta, poi
+  rilascia: ciò che è scritto corrisponde alla fotografia (titolo vecchio), e l'impronta
+  stampata è quella dell'anteprima; (b) checkout sporco con destinazione di produzione
+  (runner di `git` iniettato) → rifiuto senza collegarsi, anche con `HEAD` invariato;
+  (c) scrittura del report che fallisce dopo un commit riuscito (writer iniettato che
+  lancia) → l'output contiene «Committed. Launch baseline after the load: <B1>» **prima**
+  dell'errore, avviso «data written, launch baseline B1 = …», codice d'uscita 3, e
+  `show-fingerprint` dà B1; (d) un errore di dominio nel `--dry-run` stampa passo,
+  slug e codice, mai il messaggio di Postgres; (e) `--env-file` → errore d'uso che
+  indica `--credentials`.
+- [ ] **Implementazione:** `snapshotInputs()` copia origine e YAML in una cartella
+  `mkdtemp` `0700` e restituisce percorsi e byte; impronta sui byte; `runImport`,
+  `readInputs`, `readMenus` e tutti i piani girano sulla fotografia **prima** di
+  `sql.begin`; la transazione riceve solo dati già calcolati. `loadAll` restituisce
+  l'esito del commit; il comando stampa B1, poi scrive il report in un `try` separato.
+- [ ] Commit: «Messa in produzione: caricamento dalla fotografia degli input, impronta di avvio stampata dopo il commit».
+
+#### 10.7 Rilascio: impronta del rilascio, ambiente, Auth, versione che risponde (rilievi 6, 7, 12, minori, iscrizioni)
+
+**Files:** Modify `scripts/release.ts`, `scripts/release.test.ts`, `scripts/release.config.json`.
+
+- [ ] **Test che falliscono:** (a) `CLOUDFLARE_ENV=review-other` (e qualsiasi
+  `WRANGLER_*`) → rifiuto all'avvio, nessun comando lanciato; una sezione `env` in
+  `wrangler.jsonc` → rifiuto; (b) l'impronta di `--preview --migrations-only` non vale
+  per `--apply` completo e viceversa; cambiare l'host in `<CRED>` fra anteprima e
+  applicazione → rifiuto prima di `db push`; (c) `fetch` finto con
+  `/.well-known/oauth-authorization-server/auth/v1` → 500: l'anteprima elenca
+  «Supabase OAuth server is not enabled», l'applicazione non lancia `db push` né
+  `deploy` (oggi il `fetch` finto risponde sempre bene); con `disable_signup: false` →
+  «sign-ups are enabled»; (d) dopo il deploy, `deployments status` con la versione
+  vecchia al 100%, oppure `/api/openapi.json` con `info.version` vecchio per 60 s
+  (orologio finto) → errore «the new version is not serving»; (e) l'anteprima mostra
+  per ogni `versions[]` `version_id`, quota e tag (`versions view`), non l'id del
+  deployment; (f) il comando di applicazione stampato contiene `--credentials <file>`;
+  (g) `--migrations-only` senza migrazioni pendenti stampa «no pending migrations:
+  nothing to apply»; l'esito di `db push --dry-run` si legge da codice d'uscita ed
+  elenco, non dalla frase «Remote database is up to date»; (h) l'indirizzo letto da
+  `wrangler deploy` diverso da `productionUrl` → errore.
+- [ ] **Implementazione:** come la spec, sezione 7; `--env-file` → `--credentials`.
+- [ ] Commit: «Messa in produzione: conferma del rilascio legata ad ambito e destinazioni, prerequisiti di Auth, versione che risponde».
+
+#### 10.8 Prima generazione senza ambiguità (rilievo 10)
+
+**Files:** Modify `supabase/scripts/check-first-generation.sql`; Create
+`scripts/destructive/first-generation.test.ts` (o fra i test d'integrazione se non
+svuota nulla).
+
+- [ ] **Test che falliscono** (stack locale, `runWeeklyJobOn` e `ensureWeeks` con
+  orologio fisso): (a) mercoledì 20:00 Roma il job genera → `cron_generated = t`; (b)
+  il dispatcher crea il job pendente, una generazione pigra crea la settimana, il job la
+  trova e segna `done` → `f` (oggi `t`); (c) recupero del job giovedì alle 10 → `f`
+  (fuori finestra); (d) settimana generata dalla sola generazione pigra → `f` (nessuna
+  riga del job).
+- [ ] **Implementazione:** `cron_generated = j.status = 'done' and w.generated_at =
+  j.updated_at and w.generated_at at time zone f.time_zone >= week_start - 5 + time
+  '20:00' and < week_start - 5 + time '21:00'` (il mercoledì prima del lunedì
+  `week_start`). Il file senza `begin`/`commit` (10.4).
+- [ ] Commit: «Messa in produzione: prima generazione provata dall'istante della transazione del job».
+
+#### 10.9 CI verde sul database iniziale (rilievo 11)
+
+**Files:** Modify `scripts/destructive/fresh/fresh-database.test.ts`.
+
+- [ ] Il secondo `db push` verso lo stack locale: codice d'uscita 0 e **nessuna
+  migrazione pendente** verificata nel database (`select version from
+  supabase_migrations.schema_migrations` uguale ai prefissi dei file di
+  `supabase/migrations`), non la frase della CLI. Poi CI intera.
+- [ ] Commit: «Messa in produzione: database iniziale verificato senza dipendere dal testo della CLI».
+
+#### 10.10 Documenti (rilievo 13 e allineamenti)
+
+**Files:** Modify `supabase/README.md`, `server/README.md`.
+
+- [ ] `supabase/README.md`: nella sezione di ripristino, al posto di `supabase link`,
+  `supabase db push` e `npm run deploy`, un solo rimando al runbook («Cambio di progetto
+  dopo un ripristino»); «Passi remoti» con `prod-sql.ts`, `bootstrap` con `--set`,
+  `--credentials`; sezione «Impronta e azzeramento» con lo stato iniziale; nessun
+  riferimento a `remove-family.sql`, `prod-sql.sh`, `APP_SERVER_PASSWORD`.
+- [ ] `server/README.md`: «Pubblicazione» con l'impronta del rilascio e la versione che
+  risponde; ritorno indietro con `version_id` dall'anteprima; Hyperdrive dalla
+  dashboard.
+- [ ] Controllo: `grep -rn 'prod-sql.sh\|remove-family\|APP_SERVER_PASSWORD\|origin-password\|--env-file' --exclude-dir=node_modules .`
+  trova solo le spec e i piani storici.
+- [ ] Commit: «Messa in produzione: un solo percorso di ripristino nei README».
+
+#### 10.11 Verifica e PR
+
+- [ ] Verifica completa come il Task 9, Step 3 (skill
+  `superpowers:verification-before-completion`), più `npx vitest run
+  scripts/test-support` senza database. CI verde sulla PR, passi distruttivi compresi.
+- [ ] Push del branch; commento sulla PR con l'esito per rilievo; `STATO: PR_CORRETTA`.
+
+---
+
 # Parte B: runbook
 
 Si esegue **solo dopo** il merge della PR della parte A e l'approvazione dell'utente,
 passo per passo. Ogni passo: **chi**, **dove si lancia**, **comando o percorso**,
 **esito atteso**, **ritorno indietro**. Ogni scrittura in produzione: anteprima
-all'utente, «vai», poi applicazione con l'impronta o lo SHA dell'anteprima.
+all'utente, «vai», poi applicazione con l'impronta dell'anteprima.
 
 Convenzioni:
 
 - `<MAIN>` = `/Users/fedfol/Projects/meal_planner_2`, checkout principale aggiornato a
-  `origin/main` (`git -C <MAIN> pull --ff-only`). Tutti i comandi partono da `<MAIN>`
-  salvo dove è scritto `server/`.
-- `<CRED>` = `<MAIN>/.env.production.local`. Gli script lo leggono da soli; solo per
-  `wrangler hyperdrive` si carica nella stessa riga del comando.
-- I file SQL letti con `prod-sql.sh` si scrivono come blocchi su più righe, con le righe
-  esatte `begin;` e `commit;`.
+  `origin/main` (`git -C <MAIN> pull --ff-only`) e **pulito** (gli strumenti rifiutano
+  altrimenti). Tutti i comandi partono da `<MAIN>` salvo dove è scritto `server/`.
+- `<CRED>` = `<MAIN>/.env.production.local`. Lo leggono solo gli script, con
+  `--credentials <CRED>` (è anche il default); non si carica mai nella shell.
+- `<URL>` = `https://cosasimangia.<sottodominio>.workers.dev` (R1).
+- SQL sulla produzione solo con `node scripts/prod-sql.ts` e i nomi della sua lista
+  chiusa (`migrations-state`, `show-fingerprint`, `check-first-generation`,
+  `bootstrap`, `reset-app-data`). Nessun file SQL scritto al momento.
+- Nessuna password in una riga di comando: le password le incolla l'utente nelle
+  dashboard o nel file `<CRED>`.
 
 ### Fase 1: infrastruttura senza famiglia
 
 Dipende da: PR della parte A unita.
 
-- [ ] **R1. Accessi alle CLI** — Coordinatore, da `<MAIN>/server`: `npx wrangler whoami`
-  → account POWA (annota l'`account_id`); da `<MAIN>`: `supabase projects list` →
-  riga `lronuqvtjdhfyychnscr`. Se no, l'utente lancia `! npx wrangler login` o
-  `! supabase login`. Ritorno: nessuno (sola lettura).
+- [ ] **R1. Accessi e indirizzo** — Coordinatore, da `<MAIN>/server`: `npx wrangler
+  whoami` → account POWA (annota l'`account_id`); da `<MAIN>`: `supabase projects
+  list` → riga `lronuqvtjdhfyychnscr`. Se no, l'utente lancia `! npx wrangler login` o
+  `! supabase login`. Utente: Dashboard di Cloudflare › Workers & Pages, *Subdomain* →
+  il coordinatore annota `<URL>`. Ritorno: nessuno (sola lettura).
 - [ ] **R2. Chiavi JWT** — Coordinatore:
   `curl -s https://lronuqvtjdhfyychnscr.supabase.co/auth/v1/.well-known/jwks.json` →
   almeno una chiave con `"alg":"ES256"` o `"RS256"`. Se manca: `STATO: DOMANDA` (passo
   1 dei prerequisiti di W2).
 - [ ] **R3. Data API** — Utente: Dashboard › Project Settings › Data API. Esito:
   *Exposed schemas* = `public`, `graphql_public`. Ritorno: togliere `app` se c'è.
+- [ ] **R3a. Iscrizioni spente** (decisione dell'utente, 12 ottobre 2026) — Utente:
+  Authentication › Sign In / Providers, «Allow new users to sign up» disattivato; copia
+  la *Publishable key* (Project Settings › API Keys; è pubblica, serve anche in R9).
+  Coordinatore, in sola lettura: `curl -s -H "apikey: <publishable key>"
+  https://lronuqvtjdhfyychnscr.supabase.co/auth/v1/settings` → `"disable_signup":true`.
+  Nessun tentativo di iscrizione (con le iscrizioni accese creerebbe un utente).
+  Ritorno: riattivare l'opzione.
+- [ ] **R3b. OAuth server e URL del sito** — Utente, spec di W2, «Passi esterni per la
+  produzione», passi 6–7: Authentication › OAuth Server attivo, *Authorization path*
+  `/authorize`, registrazione dinamica attiva; Authentication › URL Configuration,
+  *Site URL* = `<URL>`, *Redirect URLs* `<URL>/**`. Coordinatore: `curl -s
+  https://lronuqvtjdhfyychnscr.supabase.co/.well-known/oauth-authorization-server/auth/v1`
+  → 200 con `registration_endpoint`. Ritorno: disattivare l'OAuth server (i controlli
+  di rilascio falliscono finché è spento).
 - [ ] **R4. Certificato e credenziali del database** — Utente:
   1. `mkdir -p ~/.config/cosasimangia`; Dashboard › Database › Settings › *SSL
      Configuration* › *Download certificate* → salvato come
@@ -2566,55 +2837,45 @@ Dipende da: PR della parte A unita.
   2. crea `<CRED>` con la riga
      `POSTGRES_DATABASE_URL=postgresql://postgres.lronuqvtjdhfyychnscr:<password del database>@<host del Session pooler>:5432/postgres?sslmode=verify-full&sslrootcert=/Users/fedfol/.config/cosasimangia/supabase-ca.crt`
      (host da Dashboard › Connect › *Session pooler*; password da Database › Settings,
-     *Reset database password* se non la conosce; caratteri speciali codificati con
-     `%XX`).
+     *Reset database password* se non la conosce; caratteri speciali della password
+     codificati con `%XX`, solo lì).
 
   Coordinatore: `git -C <MAIN> check-ignore -q .env.production.local && echo ignored`
-  → `ignored`. Poi il file `$TMPDIR/migrations-state.sql`:
-
-  ```sql
-  begin;
-  select count(*) as applied from supabase_migrations.schema_migrations;
-  select count(*) as app_roles from pg_roles where rolname in ('app_server', 'app_job', 'app_backup');
-  commit;
-  ```
-
-  e `scripts/prod-sql.sh --preview "$TMPDIR/migrations-state.sql"` → `Target:
+  → `ignored`; `node scripts/prod-sql.ts --preview migrations-state` → `Target:
   postgres.lronuqvtjdhfyychnscr@…:5432/postgres`, `applied` e `app_roles` (su un progetto
-  nuovo 0 e 0, oppure l'errore «relation supabase_migrations.schema_migrations does not
-  exist»: atteso prima di R5). Ritorno: nessuno.
+  nuovo 0 e 0, oppure «relation supabase_migrations.schema_migrations does not exist»:
+  atteso prima di R5). Ritorno: nessuno.
 - [ ] **R5. Migrazioni iniziali** — Coordinatore, da `<MAIN>`:
   `npm run release -- --preview --migrations-only` → anteprima all'utente: commit, CI
-  verde, destinazione, tutte le migrazioni di `supabase/migrations` da applicare. «vai» →
-  `npm run release -- --apply <sha dell'anteprima> --migrations-only`. Esito:
-  «Migrations applied; no deploy»; di nuovo il file di R4 → `app_roles 3`. Nessun
-  Worker, nessuna build. Ritorno: correzione in avanti con una migrazione nuova (spec,
-  sezione 8); il database non ha famiglie.
+  verde, destinazione, migrazioni da applicare, impronta del rilascio. «vai» → il
+  comando stampato, `npm run release -- --apply <impronta> --migrations-only
+  --credentials <CRED>`. Esito: «Migrations applied; no deploy»; di nuovo
+  `migrations-state` → `app_roles 3`. Nessun Worker, nessuna build. Ritorno: correzione
+  in avanti con una migrazione nuova (spec, sezione 8); il database non ha famiglie.
 - [ ] **R6. Pool e password di `app_server`** — Utente: legge la dimensione del pool
-  (Dashboard › Database › Settings › Connection pooling); `openssl rand -hex 24`;
-  nell'editor SQL `alter role app_server with password '<password>';` (il ruolo esiste
-  da R5); aggiunge a `<CRED>`:
+  (Dashboard › Database › Settings › Connection pooling); `openssl rand -hex 24` (la
+  conserva per R7); nell'editor SQL `alter role app_server with password
+  '<password>';` (il ruolo esiste da R5); aggiunge a `<CRED>`:
 
   ```text
   APP_SERVER_DATABASE_URL=postgresql://app_server.lronuqvtjdhfyychnscr:<password>@<host del Session pooler>:5432/postgres?sslmode=verify-full&sslrootcert=/Users/fedfol/.config/cosasimangia/supabase-ca.crt
-  APP_SERVER_PASSWORD=<password>
   ```
 
   Comunica al coordinatore solo la dimensione del pool. Verifica subito, coordinatore:
-  `node scripts/import/load.ts --env-file <CRED> --check-connection` →
+  `node scripts/import/load.ts --credentials <CRED> --check-connection` →
   `app_server.lronuqvtjdhfyychnscr@<host>:5432/postgres: 0 families, 0 recipes visible
   to app_job`. Ritorno: nuova password con lo stesso comando.
-- [ ] **R7. Hyperdrive** — Coordinatore, verificate con Context7 le opzioni di
-  `wrangler hyperdrive create` nella versione di `server/package.json`. Anteprima
-  all'utente: il comando senza valori segreti e `N` = pool − 5 (almeno 5). «vai» → da
-  `<MAIN>/server`:
-
-  ```bash
-  set -a; . <CRED>; set +a; npx wrangler hyperdrive create cosasimangia --origin-host=<host del Session pooler> --origin-port=5432 --database=postgres --origin-user=app_server.lronuqvtjdhfyychnscr --origin-password="$APP_SERVER_PASSWORD" --caching-disabled --origin-connection-limit=<N>
-  ```
-
-  Esito: id stampato; `npx wrangler hyperdrive get <id>` con cache disattivata e limite
-  N. Ritorno: `npx wrangler hyperdrive delete <id>`.
+- [ ] **R7. Hyperdrive** — Utente, Dashboard di Cloudflare › Storage & Databases ›
+  Hyperdrive › *Create configuration* (percorso riletto al momento sulla
+  documentazione di Cloudflare): nome `cosasimangia`; connessione a PostgreSQL con host
+  del Session pooler, porta 5432, database `postgres`, utente
+  `app_server.lronuqvtjdhfyychnscr`, password di R6 incollata nel campo; cache
+  disattivata; limite di connessioni `N` = pool − 5 (almeno 5), dato dal coordinatore.
+  Coordinatore, in sola lettura, da `<MAIN>/server`: `npx wrangler hyperdrive list` →
+  id; `npx wrangler hyperdrive get <id>` → host, porta, database, utente attesi, cache
+  disattivata, limite `N`. Se la dashboard non espone il limite: anteprima all'utente,
+  «vai», `npx wrangler hyperdrive update <id> --origin-connection-limit=<N>` (nessun
+  segreto). Ritorno: l'utente elimina la configurazione dalla dashboard.
 - [ ] **R8. Bucket e chiave delle esportazioni** — Spec di W5, sezione 5, passi 1–2.
   Anteprima: il comando. «vai» → coordinatore, da `<MAIN>/server`:
   `npx wrangler r2 bucket create cosasimangia-backups --jurisdiction eu` → bucket
@@ -2623,11 +2884,11 @@ Dipende da: PR della parte A unita.
   «Cosa si mangia — chiave delle esportazioni k1» (il segreto si imposta in R11).
   Ritorno: `npx wrangler r2 bucket delete cosasimangia-backups --jurisdiction eu`
   (vuoto).
-- [ ] **R9. PR di configurazione** — Worker (o coordinatore). L'utente copia la
-  *Publishable key* da Dashboard › Project Settings › API Keys (è pubblica; passo 5 dei
-  prerequisiti di W2). In `server/wrangler.jsonc`: `account_id` (da R1), id di
-  Hyperdrive (da R7) e `vars.SUPABASE_PUBLISHABLE_KEY` = la chiave, al posto di
-  `sb_publishable_REPLACE_ME`. `web/.env.production`:
+- [ ] **R9. PR di configurazione** — Worker (o coordinatore). In
+  `server/wrangler.jsonc`: `account_id` (da R1), id di Hyperdrive (da R7) e
+  `vars.SUPABASE_PUBLISHABLE_KEY` = la chiave di R3a, al posto di
+  `sb_publishable_REPLACE_ME`. `scripts/release.config.json`: `productionUrl` = `<URL>`.
+  `web/.env.production`:
 
   ```text
   VITE_SUPABASE_URL=https://lronuqvtjdhfyychnscr.supabase.co
@@ -2638,29 +2899,33 @@ Dipende da: PR della parte A unita.
   <MAIN> ls-files web/.env.production` stampa il percorso, `grep -c REPLACE_ME
   <MAIN>/server/wrangler.jsonc` → `0`. Ritorno: revert della PR.
 - [ ] **R10. Primo rilascio** — Coordinatore, da `<MAIN>`:
-  `npm run release -- --preview` → anteprima all'utente: commit, «Remote database is up
-  to date» (migrazioni di R5), chiave del Worker uguale a quella della SPA, «first
-  release: secrets checked after the deploy», nessun problema. «vai» → `npm run release
-  -- --apply <sha dell'anteprima>`. Esito: deploy con tag, indirizzo `workers.dev`
-  stampato e controlli verdi, compreso 404 su
+  `npm run release -- --preview` → anteprima all'utente: commit, «no pending
+  migrations» (R5), chiave del Worker uguale a quella della SPA, iscrizioni spente e
+  OAuth server attivo, «first release: secrets checked after the deploy», nome
+  effettivo `cosasimangia`, impronta del rilascio, nessun problema. «vai» → il comando
+  stampato (`npm run release -- --apply <impronta> --credentials <CRED>`). Esito:
+  deploy con tag, `version_id` nuovo al 100%, `/api/openapi.json` con `info.version`
+  uguale a quel `version_id`, controlli verdi compreso 404 su
   `/shopping-lists/000000000000000000000000000000000000000000000000`; ultima riga con il
-  passo obbligatorio del segreto. Poi PR con l'indirizzo in `scripts/release.config.json`
-  e `server/README.md`. Ritorno: `npx wrangler delete` da `<MAIN>/server` dopo anteprima
-  (`npx wrangler deployments list` con una sola versione) e «vai» (spec, sezione 8).
+  passo obbligatorio del segreto. Ritorno: `npx wrangler delete` da `<MAIN>/server` dopo
+  anteprima (`npx wrangler deployments list` con una sola versione) e «vai» (spec,
+  sezione 8).
 - [ ] **R11. Segreto della chiave** — Utente, subito dopo R10 e prima delle 02:30, da
   `<MAIN>/server`: `! npx wrangler secret put BACKUP_ENCRYPTION_KEY`, incollando la
-  chiave di R8. Esito: `npx wrangler secret list` (coordinatore) contiene
+  chiave di R8 al prompt. Esito: `npx wrangler secret list` (coordinatore) contiene
   `BACKUP_ENCRYPTION_KEY`. Ritorno: `wrangler secret delete` e nuova chiave.
 - [ ] **R12. Accesso di prova** — Utente: crea il proprio account (Authentication ›
-  Users › Add user, email, password, «Auto Confirm User») e dà al coordinatore il suo
-  UID; entra dall'iPhone sull'indirizzo `workers.dev`. Esito: accesso riuscito, app vera
-  (non i dati finti), nessuna famiglia; coordinatore con `npx wrangler tail` a un'ora
-  piena: esecuzione del cron senza errori. **Poi l'utente fa «Esci».** Ritorno: nessuno.
+  Users › Add user, email, password, «Auto Confirm User»: con le iscrizioni spente è
+  l'unico modo) e dà al coordinatore il suo UID; entra dall'iPhone su `<URL>`. Esito:
+  accesso riuscito, app vera (non i dati finti), nessuna famiglia; coordinatore con
+  `npx wrangler tail` a un'ora piena: esecuzione del cron senza errori. **Poi l'utente
+  fa «Esci».** Ritorno: nessuno.
 - [ ] **R13. Prima esportazione** — Mattina dopo: nei log del Worker
   `backup_export_done`; in R2 un oggetto in `exports/`. Ritorno: spec di W5.
-- [ ] **R14. Rilasci successivi della fase** (PR con l'indirizzo, altre unite):
-  `npm run release -- --preview`, «vai», `--apply <sha>`. Ritorno: `npx wrangler
-  rollback <version-id> --message "<motivo>"` (spec, sezione 8, con il controllo delle
+- [ ] **R14. Rilasci successivi della fase** (altre PR unite): `npm run release --
+  --preview`, «vai», `--apply <impronta>`. Ritorno: `npx wrangler rollback <version_id>
+  --message "<motivo>"` con il `version_id` (e il suo tag) mostrato dall'anteprima di
+  quel rilascio come versione pubblicata (spec, sezione 8, con il controllo delle
   migrazioni).
 
 ### Fase 2: import e avvio della famiglia
@@ -2668,7 +2933,7 @@ Dipende da: PR della parte A unita.
 Dipende da: fase 1; spec di W5 riletta sulla versione unita.
 
 Ogni **impronta di avvio** stampata (R18, R19) va nel registro del coordinamento con la
-sua origine; vale sempre l'ultima. Rimozione e azzeramento usano solo quella.
+sua origine; vale sempre l'ultima. L'azzeramento usa solo quella.
 
 - [ ] **R15. Prova delle esportazioni** — Spec di W5, sezione 6, «Prova di produzione»:
   utente, download e `inspect`/ripristino in locale con la chiave del gestore di
@@ -2680,99 +2945,99 @@ sua origine; vale sempre l'ultima. Rimozione e azzeramento usano solo quella.
   «Auto Confirm User»); dà al coordinatore per ognuno email, nome, lingua (`it-IT` o
   `en-GB`), ruolo nella famiglia, e l'UID di Federico. Mai le password.
 - [ ] **R18. Famiglia** — Coordinatore:
-  1. `cp supabase/scripts/bootstrap.sql ~/.config/cosasimangia/bootstrap.production.sql`;
-  2. UUID della famiglia: `node -e "console.log(crypto.randomUUID())"`, annotato nel
+  1. UUID della famiglia: `node -e "console.log(crypto.randomUUID())"`, annotato nel
      registro del coordinamento;
-  3. nel file: `insert into input_family values ('<uuid>', '<nome della famiglia>',
-     'metric', 'Europe/Rome');` e una riga di `input_people` per persona, Federico
-     `('<email>', 'Federico', 'it-IT', 'family_admin', array['app_admin',
-     'recipe_curator'])`, gli altri `array[]::text[]` come ruoli globali;
-  4. anteprima: `scripts/prod-sql.sh --preview
-     ~/.config/cosasimangia/bootstrap.production.sql --launch` → `Target`, righe di
-     persone, famiglia e ruoli, `launch_baseline` (non valida: è un'anteprima) e il
-     comando con `--confirm <impronta dell'operazione>`. «vai» → `scripts/prod-sql.sh
-     --apply ~/.config/cosasimangia/bootstrap.production.sql --launch --confirm
-     <impronta dell'operazione>`.
+  2. anteprima:
+
+     ```bash
+     node scripts/prod-sql.ts --preview bootstrap --launch --set family_id=<uuid> --set family_name='<nome della famiglia>' --set measurement_system=metric --set time_zone=Europe/Rome --set people='[{"email":"<email>","display_name":"Federico","locale":"it-IT","family_role":"family_admin","global_roles":["app_admin","recipe_curator"]},{"email":"<email>","display_name":"<nome>","locale":"it-IT","family_role":"member","global_roles":[]}]'
+     ```
+
+     → `Target`, righe di persone, famiglia e ruoli, `launch_baseline` (non valida: è
+     un'anteprima) e il comando di applicazione con `--confirm <impronta
+     dell'operazione>`. «vai» → quel comando.
 
   Esito: stesso elenco e `launch_baseline` = **B0**, annotata nel registro
-  («bootstrap»). Verifica: un secondo `--preview` **senza** `--launch` mostra «family
-  already exists» e le stesse righe (con `--launch` rifiuterebbe: la famiglia esiste).
-  Ritorno: R21 con B0.
+  («bootstrap»). Verifica: lo stesso `--preview` **senza** `--launch` mostra «family
+  already exists» e le stesse righe (con `--launch` rifiuterebbe: non è più lo stato
+  iniziale). Se l'anteprima con `--launch` rifiuta «not the initial state»: ci si ferma
+  e si sente l'utente. Ritorno: R21 con B0.
 - [ ] **R19. Caricamento** — Coordinatore:
 
   ```bash
-  node scripts/import/load.ts --env-file <CRED> --today <oggi> --family <uuid> --curator <uid di Federico> --launch-from <B0> --dry-run
+  node scripts/import/load.ts --credentials <CRED> --today <oggi> --family <uuid> --curator <uid di Federico> --launch-from <B0> --dry-run
   ```
 
   All'utente: riepilogo, `scripts/import/out/load-report.md` (pubblicazione bloccata?
   preferenze da sistemare a mano, equivalenze divergenti, voti in sospeso, libri
   posseduti, menu in corso, pasti doppi), impronta degli input. «vai» → stesso comando
-  con `--confirm <impronta degli input>` al posto di `--dry-run`. Esito: riepilogo
-  uguale e riga «Launch baseline after the load: **B1**», annotata nel registro
-  («caricamento»); da qui vale B1. Verifica: nuovo `--dry-run` senza `--launch-from`
-  con zero creati. Ritorno: errore → nulla scritto, B0 resta valida (rimozione con B0 se
-  la finestra non basta per riprovare); «app data changed since the launch baseline» →
-  ci si ferma: qualcuno ha scritto dopo il bootstrap, si sente l'utente; impronta degli
-  input cambiata → nuovo `--dry-run`; sbagliato nella famiglia → R21; sbagliato nel
-  catalogo → R22.
+  con `--confirm <impronta degli input>` al posto di `--dry-run`. Esito: «Committed.
+  Launch baseline after the load: **B1**», poi riepilogo uguale; B1 annotata nel
+  registro («caricamento»); da qui vale B1. Verifica: nuovo `--dry-run` senza
+  `--launch-from` con zero creati. Ritorno, secondo l'uscita:
+  - **codice 1** (errore prima del commit) → nulla scritto, B0 resta valida (R21 con
+    B0 se la finestra non basta per riprovare);
+  - **codice 3** («data written, launch baseline B1 = …; the report could not be
+    written») → i dati sono scritti e vale **B1**: si annota, si corregge la causa del
+    report e si rilancia il `--dry-run` per rigenerarlo;
+  - «app data changed since the launch baseline» → ci si ferma: qualcuno ha scritto
+    dopo il bootstrap, si sente l'utente;
+  - impronta degli input cambiata → nuovo `--dry-run`;
+  - dati sbagliati (famiglia o catalogo) → R21.
 - [ ] **R20. Primo collaudo, in sola lettura** — Federico sull'iPhone con il
   coordinatore, entro le 19: accesso, menu della settimana corrente uguale al PDF,
   ricettario (numero di ricette, libri, bozze), impostazioni come la tabella di
-  `supabase/README.md`. Nessuna modifica. Poi coordinatore: `scripts/prod-sql.sh
-  --preview supabase/scripts/show-fingerprint.sql` → B1. Esito positivo → R23. Esito
-  negativo o 19:00 passate → R21.
-- [ ] **R21. Rimozione della famiglia** (solo se serve, anche dopo un caricamento
-  fallito) — Coordinatore: `scripts/prod-sql.sh --preview
-  supabase/scripts/remove-family.sql --set family_id=<uuid> --set
+  `supabase/README.md`. Nessuna modifica. Poi coordinatore: `node scripts/prod-sql.ts
+  --preview show-fingerprint` → B1. Esito positivo → R23. Esito negativo o 19:00
+  passate → R21.
+- [ ] **R21. Azzeramento** (solo se serve, prima di R23, anche dopo un caricamento
+  fallito) — Coordinatore: `node scripts/prod-sql.ts --preview reset-app-data --set
   expected_fingerprint=<ultima impronta di avvio: B1, o B0 se R19 non ha scritto>` →
-  righe che toglierebbe e `--confirm <impronta dell'operazione>`; «vai» → stesso comando
-  con `--apply` e quel `--confirm`. Esito: famiglia assente; catalogo intatto. Poi
-  correzione e R16–R20 in una nuova finestra (R18 con un UUID nuovo). Se l'impronta è
-  cambiata, si ferma: correzioni puntuali (spec, sezione 8).
-- [ ] **R22. Azzeramento** (solo se il catalogo è sbagliato, prima di R23) —
-  Coordinatore: `scripts/prod-sql.sh --preview supabase/scripts/reset-app-data.sql --set
-  expected_fingerprint=<ultima impronta di avvio>`, «vai», `--apply … --confirm
-  <impronta dell'operazione>`. Esito: catalogo e famiglie vuoti, utenti e profili
-  presenti. Poi correzione, R18–R20 in una nuova finestra.
+  righe che toglierebbe e il comando con `--confirm <impronta dell'operazione>`; «vai»
+  → quel comando. Esito: catalogo e famiglie vuoti, utenti, profili e ruoli globali
+  presenti: stato iniziale. Poi correzione e R16–R20 in una nuova finestra (R18 con un
+  UUID nuovo). Se l'impronta è cambiata, si ferma: si decide a mano con l'utente
+  (spec, sezione 8).
+- [ ] **R22.** Unito a R21 (la rimozione della sola famiglia non c'è più: spec,
+  sezione 8).
 - [ ] **R23. Collaudo completo** — All'inizio il coordinatore segna nel registro
   l'impronta di avvio come **chiusa**. Familiari con il coordinatore: tabella della
-  spec, sezione 5, riga per riga; giovedì, prima di aprire il menu,
-  `scripts/prod-sql.sh --preview supabase/scripts/check-first-generation.sql --set
-  family_id=<uuid> --set week_start=<lunedì successivo>` → `cron_generated = t`; la
-  notte dopo l'esportazione più grande. Esito in `server/README.md` e nel registro. Da
-  qui il vecchio flusso non pianifica più settimane. Ritorno: spec, sezione 8 («dopo
-  l'avvio»).
+  spec, sezione 5, riga per riga; giovedì, prima di aprire il menu, `node
+  scripts/prod-sql.ts --preview check-first-generation --set family_id=<uuid> --set
+  week_start=<lunedì successivo>` → `cron_generated = t` (stesso istante di job e
+  settimana, mercoledì fra le 20 e le 21); la notte dopo l'esportazione più grande.
+  Esito in `server/README.md` e nel registro. Da qui il vecchio flusso non pianifica
+  più settimane. Ritorno: spec, sezione 8 («dopo l'avvio»).
 
 ### Fase 3: agenti
 
 Dipende da: fase 2 (W2 è unito con la #31; la sua spec si rilegge sulla versione unita).
-La chiave pubblica del Worker è già entrata con R9.
+Chiave pubblica del Worker (R9), OAuth server e URL del sito (R3b) già attivi.
 
-- [ ] **R24. OAuth server e URL** — Utente, spec di W2, «Passi esterni per la
-  produzione», passi 6–7: OAuth Server attivo con `/authorize` e registrazione dinamica;
-  *Site URL* = indirizzo `workers.dev`, *Redirect URLs* `<origine>/**`.
-- [ ] **R25. Rilascio e prove** — Coordinatore: `npm run release -- --preview`, «vai»,
-  `--apply <sha>`; poi passi 3 e 10 di W2 (collegamento di Claude Code,
-  `session_whoami`, «Scollega», revoca verificata) e ricettario tramite agente (spec,
-  sezione 9). Ritorno: disattivare l'OAuth server; `wrangler rollback <version-id>`.
+- [ ] **R24.** Spostato in R3b (prima del primo rilascio).
+- [ ] **R25. Prove** — Se ci sono commit nuovi su `main`: `npm run release --
+  --preview`, «vai», `--apply <impronta>`. Poi passi 3 e 10 di W2 (collegamento di
+  Claude Code con registrazione dinamica del client e accesso con l'account di
+  Federico, `session_whoami`, «Scollega», revoca verificata) e ricettario tramite
+  agente (spec, sezione 9). Se il collegamento fallisce con `signup_disabled`: ci si
+  ferma e si sente l'utente (iscrizioni). Ritorno: disattivare l'OAuth server;
+  `wrangler rollback <version_id>`.
 
 ### Chiusura
 
 - [ ] **R26. Rotazione delle password** — In un'ora senza uso. Utente: *Reset database
   password* e aggiornamento di `POSTGRES_DATABASE_URL`; nuova password di `app_server`
-  nell'editor SQL e aggiornamento di `APP_SERVER_DATABASE_URL` e `APP_SERVER_PASSWORD`.
-  Coordinatore subito dopo, verificate con Context7 le opzioni di `wrangler hyperdrive
-  update`, da `<MAIN>/server`:
-
-  ```bash
-  set -a; . <CRED>; set +a; npx wrangler hyperdrive update <id> --origin-password="$APP_SERVER_PASSWORD"
-  ```
-
-  Verifica: `curl -s -o /dev/null -w '%{http_code}' <indirizzo>/shopping-lists/000000000000000000000000000000000000000000000000`
+  (`openssl rand -hex 24`) nell'editor SQL e aggiornamento di
+  `APP_SERVER_DATABASE_URL`; subito dopo la stessa password nella dashboard di
+  Cloudflare, Hyperdrive › `cosasimangia` › *Settings*, password di origine. Fra i due
+  passi le connessioni nuove di Hyperdrive falliscono per pochi minuti. Coordinatore,
+  in sola lettura: `npx wrangler hyperdrive get <id>`. Verifica: `curl -s -o /dev/null
+  -w '%{http_code}' <URL>/shopping-lists/000000000000000000000000000000000000000000000000`
   → `404`; accesso e Menu sull'iPhone; cron dell'ora dopo senza errori in `wrangler
-  tail`; `load.ts --check-connection`; `prod-sql.sh --preview
-  supabase/scripts/show-fingerprint.sql`. Ritorno: se Hyperdrive non si collega,
-  ripetere `update` con i valori del file; le password vecchie non si ripristinano.
+  tail`; `load.ts --credentials <CRED> --check-connection`; `node scripts/prod-sql.ts
+  --preview show-fingerprint`. Ritorno: se Hyperdrive non si collega, l'utente
+  reinserisce nella dashboard la password del file; le password vecchie non si
+  ripristinano.
 - [ ] **R27. Esito** — Worker o coordinatore: `server/README.md`, «Risorse di
   produzione», compilata (risorse, limite e perché, indirizzo, date); registro del
   coordinamento aggiornato; le «Decisioni da riportare» della spec passano al
@@ -2780,12 +3045,14 @@ La chiave pubblica del Worker è già entrata con R9.
 
 ### Cambio di progetto dopo un ripristino (solo per un danno grave)
 
-Spec, sezione 8, «Danno grave dopo l'avvio», e spec di W5, sezione 4: PR revisionata
-con `scripts/production-target.json`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` e
+Unico percorso, richiamato da `supabase/README.md` e `server/README.md`. Spec, sezione 8,
+«Danno grave dopo l'avvio», e spec di W5, sezione 4: PR revisionata con
+`scripts/production-target.json`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` e
 `web/.env.production` del progetto nuovo; utente aggiorna le due URL e il certificato
-in `<CRED>`; migrazioni (`npm run release -- --preview --migrations-only`, «vai»,
-`--apply <sha> --migrations-only`, come R5), password di `app_server` (come R6) e
-ripristino con la CLI di W5; `wrangler hyperdrive update <id> --origin-host …
---origin-user app_server.<ref nuovo> --origin-password …`; `npm run release`
-(anteprima, «vai», applicazione); collaudo completo (R23). Ogni strumento rifiuta finché
-file, credenziali e configurazione non indicano lo stesso progetto.
+in `<CRED>`; sul progetto nuovo R3, R3a e R3b; migrazioni (`npm run release --
+--preview --migrations-only`, «vai», `--apply <impronta> --migrations-only`, come R5),
+password di `app_server` (come R6) e ripristino con la CLI di W5; l'utente aggiorna la
+configurazione di Hyperdrive nella dashboard (host, utente `app_server.<ref nuovo>`,
+password), il coordinatore la verifica con `wrangler hyperdrive get`; `npm run
+release` (anteprima, «vai», applicazione); collaudo completo (R23). Ogni strumento
+rifiuta finché file, credenziali e configurazione non indicano lo stesso progetto.
