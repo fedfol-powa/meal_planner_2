@@ -30,5 +30,13 @@ jobs:
       # Agents end to end: real OAuth tokens, the Worker under wrangler dev, disconnection through the app.
       - run: npm run build -w web
       - run: scripts/oauth/agents-e2e.sh
-      # Last: resets the database, then restores an export into it with the real CLI.
+      # Resets the database, then restores an export into it with the real CLI.
       - run: npm run test:drill -w server
+      # After the drill: service SQL that empties the database (remove, reset), through the real prod-sql.sh.
+      - run: npx vitest run -c vitest.destructive.config.ts
+        env:
+          CONTAINER_CLI: docker
+      # Very last: drops schema app and the app roles, then rebuilds them in the order of the runbook.
+      - run: npx vitest run -c vitest.destructive.config.ts
+        env:
+          FRESH_DATABASE: '1'
