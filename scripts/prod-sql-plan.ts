@@ -20,10 +20,27 @@ export class PlanError extends Error {
 const SET = /^([a-z_]+)=([0-9A-Za-z_-]+)$/;
 const sha = (data: string) => createHash('sha256').update(data).digest('hex');
 
+const CONTROL = /^\s*(commit|end|rollback|abort|begin|start\s+transaction|savepoint|release|prepare\s+transaction)\b/i;
+
+/**
+ * Exactly one transaction and nothing outside it: only blank lines and -- comments before 'begin;' and
+ * after 'commit;', no transaction control or psql meta-command in between (a preview must never write).
+ * Lines inside a $$ body (plpgsql, with its own "end;") are not statements of the file.
+ */
 export function checkTransaction(text: string) {
 	const lines = text.split('\n');
-	if (lines.filter((l) => l === 'begin;').length !== 1 || lines.filter((l) => l === 'commit;').length !== 1)
+	const begin = lines.indexOf('begin;');
+	const commit = lines.indexOf('commit;');
+	if (begin < 0 || commit < begin || lines.filter((l) => l === 'begin;').length !== 1 || lines.filter((l) => l === 'commit;').length !== 1)
 		throw new PlanError("the file needs exactly one 'begin;' and one 'commit;' line");
+	const outside = [...lines.slice(0, begin), ...lines.slice(commit + 1)];
+	if (outside.some((l) => l.trim() !== '' && !l.trim().startsWith('--'))) throw new PlanError("only comments may stand outside 'begin;' and 'commit;'");
+	let inBody = false;
+	for (const line of lines.slice(begin + 1, commit)) {
+		if (!inBody && (CONTROL.test(line) || line.trimStart().startsWith('\\')))
+			throw new PlanError(`transaction control or a psql command inside the transaction: ${line.trim()}`);
+		if ((line.match(/\$\$/g)?.length ?? 0) % 2 === 1) inBody = !inBody;
+	}
 }
 
 export function normalizeSets(pairs: string[]): string[] {

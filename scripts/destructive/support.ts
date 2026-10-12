@@ -14,7 +14,17 @@ import { writeOriginFixture } from '../import/load/test-origin.ts';
 import { operationFingerprint } from '../prod-sql-plan.ts';
 
 export const enabled = Boolean(process.env.CI || process.env.DESTRUCTIVE_TESTS);
-export const databaseUrl = process.env.TEST_DATABASE_URL ?? '';
+
+/** The destructive tests run only against the local stack: any other host stops them before a statement. */
+export function localDatabaseUrl(url: string | undefined): string {
+	try {
+		checkTarget('TEST_DATABASE_URL', url, { role: 'postgres', target: 'local', ref: 'unused' });
+	} catch (error) {
+		throw new Error(`destructive tests need the local stack: ${error instanceof Error ? error.message : 'TEST_DATABASE_URL refused'}`);
+	}
+	return url!;
+}
+export const databaseUrl = enabled ? localDatabaseUrl(process.env.TEST_DATABASE_URL) : (process.env.TEST_DATABASE_URL ?? '');
 const run = promisify(execFile);
 
 let credentials: string | null = null;

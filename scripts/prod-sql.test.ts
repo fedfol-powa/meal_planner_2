@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { normalizeSets, operationFingerprint, PlanError } from './prod-sql-plan.ts';
+import { checkTransaction, normalizeSets, operationFingerprint, PlanError } from './prod-sql-plan.ts';
 
 describe('operationFingerprint', () => {
 	const op = { file: 'begin;\nselect 1;\ncommit;\n', fingerprintSql: 'f', launch: false, sets: ['family_id=a', 'expected_fingerprint=x'], endpoint: 'postgres@127.0.0.1:54322/postgres' };
@@ -18,6 +18,26 @@ describe('operationFingerprint', () => {
 	it('refuses a --set given twice or with other characters', () => {
 		expect(() => normalizeSets(['family_id=a', 'family_id=b'])).toThrow(/twice/);
 		expect(() => normalizeSets(["family_id=a';drop"])).toThrow(PlanError);
+	});
+});
+
+describe('checkTransaction', () => {
+	it('accepts the service files and the bootstrap, with plpgsql bodies ending in end;', () => {
+		for (const f of ['bootstrap', 'remove-family', 'reset-app-data', 'show-fingerprint', 'check-first-generation'])
+			expect(() => checkTransaction(readFileSync(`supabase/scripts/${f}.sql`, 'utf8'))).not.toThrow();
+	});
+	it('refuses anything that would run outside the one transaction', () => {
+		for (const text of [
+			'select 1;\nbegin;\nselect 2;\ncommit;\n', // before begin: autocommit
+			'begin;\nselect 1;\ncommit;\ndelete from app.families;\n', // after commit
+			'begin;\nCOMMIT;\ndelete from app.families;\nbegin;\ncommit;\n',
+			'begin;\nend;\ndelete from app.families;\ncommit;\n',
+			'begin;\ncommit; -- done\n',
+			'begin;\nrollback; begin;\ncommit;\n',
+			'begin;\n\\! rm -rf /tmp/x\ncommit;\n',
+			'begin;\nsavepoint a;\ncommit;\n',
+		])
+			expect(() => checkTransaction(text), text).toThrow(PlanError);
 	});
 });
 
