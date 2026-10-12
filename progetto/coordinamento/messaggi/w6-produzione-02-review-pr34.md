@@ -78,6 +78,11 @@ senza migrazioni pendenti va reso esatto. Gli altri (deadlock con la generazione
 prima volta della famiglia dalle impostazioni vuote, tipi Workers nella radice)
 restano annotati nella PR.
 
-**Una nota dell'utente da lasciare aperta:** l'utente sta valutando di disattivare le
-iscrizioni libere su Supabase Auth in produzione. Non decidere tu: aggiungi nella spec,
-fase 1, un passo segnaposto «Iscrizioni: decisione dell'utente» senza altro.
+**Decisione dell'utente (12/10): iscrizioni libere spente in produzione.** Nella fase 1,
+prima del primo rilascio, passo dell'utente in dashboard: Authentication › Sign In /
+Providers, «Allow new users to sign up» disattivato (gli account si creano solo con «Add
+user»). Verifica in sola lettura nel runbook: una chiamata di iscrizione con la chiave
+pubblica viene rifiutata. Controlla che l'OAuth server e la registrazione dinamica dei
+client degli agenti funzionino comunque con le iscrizioni spente (Context7 / documentazione
+di Supabase); se non è così, `STATO: DOMANDA`. Nel locale (`supabase/config.toml`) non
+cambiare nulla.

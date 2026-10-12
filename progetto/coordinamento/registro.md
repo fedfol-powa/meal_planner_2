@@ -23,12 +23,13 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 - **Un solo worker Claude** (12/10): W1 e W6 finiscono il lavoro in corso; il primo che termina si chiude (tab chiusa), l'altro resta l'unico worker. Revisori Codex senza limite.
 - **Messa in produzione:** caricamento dei dati, migrazioni, `bootstrap.sql` e rilasci li esegue il coordinatore, con le credenziali in un file locale ignorato da Git scritto dall'utente (mai nella conversazione), anteprima e «vai» dell'utente prima di ogni scrittura; a fine avvio l'utente cambia le password. Avvio in tre fasi: 1 infrastruttura (dopo l'approvazione del piano), 2 import e famiglia (dopo revisione dei pasti web), 3 agenti. Finestra lunedì–mercoledì entro le 19. Rilasci a mano con `npm run release`. Migrazioni dalla CLI di Supabase. Impostazioni della famiglia dallo script. Settimane già pianificate nell'origine importate come «menu in corso». Produzione: `lronuqvtjdhfyychnscr`, partenza da workers.dev.
+- **Iscrizioni libere spente in produzione** (12/10): account solo con «Add user».
 - **Poteri dei token d'agente su Supabase Auth:** solo documentati per ora, testi veritieri; «ultimo rinnovo dell'accesso».
 - **Altre:** 7 copie in R2 cifrate con chiave dell'utente; Annulla 6 s nell'app, nessun limite lato server; porzioni 1–20; scheda aperta da un pasto con le porzioni del pasto; unità contate scalate all'intero superiore tranne i pezzi (a mezzi in scheda e menu, interi nella spesa); voci della spesa «Nome (varietà)»; note e pasti liberi come scritti; ingrediente creabile senza nome inglese; nessun «Genera la prima settimana».
 
 ## Prossima azione del coordinatore
 
-**STOP prima della produzione (utente, 12/10):** a review e correzioni della #34 chiuse e PR unita, fermarsi. Nessun passo in produzione, neanche la fase 1, finché l'utente non ha capito come funziona: spiegargli accessi, utenze, ruoli e passi, e aspettare il suo via. Punto da chiarire con lui: iscrizioni aperte su Supabase Auth in produzione (Allow new users to sign up) da disattivare o no.
+**STOP prima della produzione (utente, 12/10):** a review e correzioni della #34 chiuse e PR unita, fermarsi. Nessun passo in produzione, neanche la fase 1, finché l'utente non ha capito come funziona: spiegargli accessi, utenze, ruoli e passi, e aspettare il suo via. Iscrizioni libere su Supabase Auth in produzione: **spente** (decisione dell'utente, 12/10), passo in dashboard nella fase 1.
 
 Aggiornato il 12 ottobre 2026, notte. main verde (ultima CI su 532f57a «success»).
 
