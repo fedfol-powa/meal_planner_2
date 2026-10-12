@@ -2,6 +2,7 @@ import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { hasDatabase, setupDatabase, type TestDatabase } from '../../../server/test/support/db.ts';
 import { cleanupLoadCase, writeOriginFixture, type LoadCase } from './test-origin.ts';
+import { lockFamilyWeeks } from '../../../server/src/menu/generation.ts';
 import { FINGERPRINT_SQL, LoadRefused, loadAll } from './run.ts';
 
 describe.skipIf(!hasDatabase)('load into the database', () => {
@@ -111,5 +112,102 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 		const start = await fingerprintNow();
 		await expect(loadAll(sql, options({ launchFrom: start }))).rejects.toThrow(/assente/);
 		expect(await fingerprintNow()).toBe(start); // the removal of the family can still use it
+	});
+
+	it('writes settings, restrictions, owned books, ratings, tried recipes, weeks and preferences', async () => {
+		const { c, options } = await freshCase();
+		const result = await loadAll(sql, options({ dryRun: true }));
+		expect(result.family.settings).toBeGreaterThan(0);
+		expect(result.family.ownedBooks).toEqual([`Libro ${c.prefix}`]);
+		expect(result.family.ratings.pending).toEqual([`${c.prefix}bozza`]); // rating of a draft
+		expect(result.family.weeks.created).toBe(2); // one of history, one current
+		expect(result.family.duplicates).toHaveLength(1);
+		expect(result.family.tried.created).toBeGreaterThanOrEqual(1); // the duplicate became a tried recipe
+		expect(result.family.preferences.map((p) => p.originSlug)).toEqual([`${c.prefix}libro`]);
+	});
+
+	it('never overwrites what the family changed, and skips existing weeks (rerun in the same test)', async () => {
+		const { familyId, curator, options } = await freshCase();
+		await loadAll(sql, options());
+		await db.admin`update app.ratings set stars = 1 where user_id = ${curator}`;
+		await db.admin`update app.families set settings = jsonb_set(settings, '{rules}', '[]') where id = ${familyId}`;
+		const again = await loadAll(sql, options());
+		expect(again.family).toMatchObject({ settings: 0, weeks: { created: 0 }, ratings: { created: 0 } });
+		const stars = await db.admin`select distinct stars from app.ratings where user_id = ${curator}`;
+		expect(stars.map((s) => s.stars)).toEqual([1]);
+		const [{ rules }] = await db.admin`select settings->'rules' as rules from app.families where id = ${familyId}`;
+		expect(rules).toEqual([]);
+	});
+
+	it('writes history and current meals as the app, with free text and no generation mark', async () => {
+		const { familyId, options } = await freshCase();
+		await loadAll(sql, options());
+		const slots = await db.admin`select w.generated_at, s.free_text, s.servings, s.updated_by from app.meal_slots s
+			join app.weeks w on w.id = s.week_id where w.family_id = ${familyId}`;
+		expect(slots.length).toBeGreaterThan(0);
+		expect(slots.every((s) => s.generated_at === null && s.updated_by === null)).toBe(true);
+		expect(slots.some((s) => s.free_text === 'Pizza da asporto' && s.servings === 4)).toBe(true);
+	});
+
+	it('refuses a first load when the app already generated a week', async () => {
+		const { familyId, options } = await freshCase();
+		await db.admin`insert into app.weeks (family_id, starts_on, generated_at) values (${familyId}, '2026-10-19', now())`;
+		await expect(loadAll(sql, options({ dryRun: true }))).rejects.toThrow(/already generated/);
+	});
+
+	it('stops when the current menu cites a missing recipe, rolling back the catalogue already written', async () => {
+		const { c, familyId, options } = await freshCase({ missingInMenu: true });
+		await expect(loadAll(sql, options())).rejects.toThrow(new RegExp(`${c.prefix}assente`));
+		expect(await count('recipes', c.prefix)).toBe(0); // written before the error, then rolled back
+		expect(await count('ingredients', c.prefix)).toBe(0);
+		const [{ n }] = await db.admin`select count(*)::int as n from app.weeks where family_id = ${familyId}`;
+		expect(n).toBe(0);
+	});
+
+	it('waits for a generation holding the lock, then refuses because the week it made came first', async () => {
+		const { familyId, options } = await freshCase();
+		const other = postgres(db.appServerUrl.replace('app_server:app_server_test', 'postgres:postgres'), { max: 1, onnotice: () => {} });
+		try {
+			let release!: () => void;
+			const held = new Promise<void>((r) => { release = r; });
+			const generation = other.begin(async (tx) => {
+				await lockFamilyWeeks(tx as never, familyId);
+				await held;
+				await tx`insert into app.weeks (family_id, starts_on, generated_at) values (${familyId}, '2026-10-19', now())`;
+			});
+			await new Promise((r) => setTimeout(r, 200));
+			const load = loadAll(sql, options());
+			await new Promise((r) => setTimeout(r, 300));
+			const [{ waiting }] = await db.admin`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and wait_event = 'advisory'`;
+			expect(waiting).toBe(1);
+			release();
+			await generation;
+			await expect(load).rejects.toThrow(/already generated/);
+		} finally {
+			await other.end();
+		}
+	});
+
+	it('waits for a concurrent settings write, then keeps it', async () => {
+		const { familyId, options } = await freshCase();
+		const other = postgres(db.appServerUrl.replace('app_server:app_server_test', 'postgres:postgres'), { max: 1, onnotice: () => {} });
+		try {
+			let release!: () => void;
+			const held = new Promise<void>((r) => { release = r; });
+			const write = other.begin(async (tx) => {
+				await tx`update app.families set settings = jsonb_set(settings, '{rules}', '[]') where id = ${familyId}`;
+				await held;
+			});
+			await new Promise((r) => setTimeout(r, 200));
+			const load = loadAll(sql, options());
+			await new Promise((r) => setTimeout(r, 300));
+			release();
+			await write;
+			await load;
+			const [{ rules }] = await db.admin`select settings->'rules' as rules from app.families where id = ${familyId}`;
+			expect(rules).toEqual([]);
+		} finally {
+			await other.end();
+		}
 	});
 });
