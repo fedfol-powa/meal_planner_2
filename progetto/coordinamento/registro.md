@@ -9,7 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33 (schermate) aperta, review Codex in corso (revisioni/w1-pr33.md); contesto azzerato | 12/10 |
+| W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33: review approvabile con 5 correzioni (revisioni/w1-pr33.md); W1 corregge; a PR_CORRETTA verifica breve, CI pass → merge | 12/10 |
 | W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Seconda review di spec: approvabile con 5 correzioni (revisioni/w6-produzione-spec-piano-2.md); W6 le applica e chiude con SPEC_PIANO_APPROVATI → /clear e implementazione | 12/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
@@ -19,7 +19,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Stato |
 |---|---|---|---|
-| Codex | PR #33 di W1 (schermate della revisione dei pasti) | R PR33 | in corso → revisioni/w1-pr33.md (worktree .worktrees/review-pr33) |
 
 ## Decisioni dell'utente da ricordare (11–12/10)
 
@@ -33,7 +32,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 Aggiornato il 12 ottobre 2026, notte. main verde (ultima CI su 532f57a «success»).
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA GESTIRE», poi il Monitor con `eventi.py` (README, «Attesa degli eventi»), da riarmare a ogni scadenza. Messaggi ai worker con `herdr agent prompt`. Ai fermi «senza nuovo STATO» leggere sempre il pane: un worker può aspettare una risposta.
-2. **PR #33 (W1, web della revisione dei pasti):** al rapporto, rilievi a W1 con il messaggio di ripresa (brief w1-revisione-pasti, spec e piano revisione-pasti, file dei rilievi), verifica breve, merge. Poi: se W6 è ancora attivo, chiudere W1; altrimenti W1 resta l'unico worker.
+2. **PR #33 (W1, web della revisione dei pasti):** rilievi già inviati a W1; a `PR_CORRETTA` verifica breve Codex del diff dopo d1eb4d6, CI pass → merge. Poi: se W6 è ancora attivo, chiudere W1; altrimenti W1 resta l'unico worker.
 3. **W6 (messa in produzione):** seconda review fatta, W6 applica le 5 correzioni; a `STATO: SPEC_PIANO_APPROVATI` → `/clear` → implementazione (script di caricamento, `npm run release`, documenti) con PR e review. Poi **portare il piano all'utente** prima di qualsiasi passo in produzione; fase 1 per prima. Se W1 ha già finito ed è chiuso, W6 resta l'unico worker.
 4. **Specifica principale:** riportare le decisioni di #31 (collegamento agenti, spec `2026-10-11-collegamento-agenti.md`), #33 (revisione dei pasti web) e della messa in produzione, con un agente in worktree come per fcffe66, poi cherry-pick su main.
 5. **Merge:** `gh pr merge <n> --merge` come comando singolo, **solo dopo aver controllato** `gh pr checks <n> --json name,bucket` → `check pass` (l'11/10 la #30 è stata unita con la CI rossa). Controllare le versioni delle migrazioni contro main (`scripts/migrations.test.ts`).
