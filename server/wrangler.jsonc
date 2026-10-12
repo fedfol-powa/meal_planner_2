@@ -1,6 +1,7 @@
 {
 	"$schema": "../node_modules/wrangler/config-schema.json",
 	"name": "cosasimangia",
+	"account_id": "d0deb498ea6d174e013c878ff38d8dfb",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat"],
@@ -13,8 +14,7 @@
 		// Supabase project URL; token issuer and JWKS are derived from it.
 		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
 		// Publishable key of the project (public value): Project Settings › API Keys.
-		// Replace with the value the user gives the coordinator (spec «Passi esterni», step 3).
-		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_REPLACE_ME",
+		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_ZN5AmAKDK-_xVuKSINnLnw_EZa3ns7f",
 		// Id of BACKUP_ENCRYPTION_KEY (a Worker secret), written in each export header.
 		"BACKUP_KEY_ID": "k1"
 	},
@@ -30,10 +30,9 @@
 		{
 			"binding": "HYPERDRIVE",
 			// Production config `cosasimangia` (cache disabled, explicit origin connection limit).
-			// Replace with the id returned when the coordinator approves creating it.
-			"id": "00000000000000000000000000000000"
+			"id": "4c2038adf73d4ed094584a3244f7fbf2"
 		}
 	],
-	// Nightly exports: private bucket in the EU jurisdiction, created by the owner before deploying.
+	// Nightly exports: private bucket in the EU jurisdiction, created on 12 October 2026.
 	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }]
 }

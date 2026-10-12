@@ -1,1 +1,1 @@
-{ "productionUrl": null, "requiredSecrets": ["BACKUP_ENCRYPTION_KEY"] }
+{ "productionUrl": "https://cosasimangia.qunidi.workers.dev", "requiredSecrets": ["BACKUP_ENCRYPTION_KEY"] }
