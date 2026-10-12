@@ -556,7 +556,12 @@ due tempi.
 o `WRANGLER_*` nel proprio ambiente (per esempio `CLOUDFLARE_ENV=review-other` farebbe
 pubblicare `cosasimangia-review-other` mentre i controlli leggono la configurazione
 principale): l'account viene da `wrangler login` e dall'`account_id` della
-configurazione. Il **nome effettivo del Worker** è il `name` di `server/wrangler.jsonc`
+configurazione. Wrangler legge anche `.env` e `.env.local` della directory in cui gira
+(`server/`, dove `.env` serve allo sviluppo locale): **ogni comando Wrangler** riceve
+quindi `--env-file <file vuoto>`, che sostituisce i file predefiniti (verificato su
+Wrangler 4.149.0), e il dry run del punto 4 scrive in `WRANGLER_OUTPUT_FILE_PATH` il nome
+del Worker che pubblicherebbe: se non è il `name` della configurazione l'anteprima lo
+rifiuta, prima di qualsiasi scrittura. Il **nome effettivo del Worker** è il `name` di `server/wrangler.jsonc`
 (nessuna sezione `env` ammessa nella configurazione), e l'indirizzo atteso è
 `https://<nome>.<sottodominio>.workers.dev`.
 
@@ -598,7 +603,7 @@ applicativi.
    -w web` con l'ambiente ripulito dalle `VITE_*` e i due valori passati
    esplicitamente; `web/dist` deve contenere **sia** l'URL **sia** la chiave esatti;
    poi `wrangler deploy --dry-run --outdir <tmp>` da `server/` (il bundle del Worker si
-   costruisce).
+   costruisce, e il nome che pubblicherebbe è quello della configurazione).
 5. **Supabase Auth, in sola lettura:** `GET https://<ref>.supabase.co/auth/v1/settings`
    con `apikey: <chiave>` → 200 (la chiave funziona) e **`disable_signup: true`**
    (iscrizioni spente, sezione 4, passo 1a); `GET
@@ -609,7 +614,10 @@ applicativi.
 6. **Migrazioni:** `supabase db push --dry-run --db-url <URL costruita dai campi
    validati, senza password>` con la password in `PGPASSWORD`: la CLI va dove indica la
    destinazione controllata, mai sul progetto «collegato». L'esito si legge dal codice
-   d'uscita e dall'elenco delle migrazioni pendenti, non da una frase della CLI.
+   d'uscita e dall'elenco delle migrazioni pendenti, non da una frase della CLI. L'elenco
+   si cerca su stdout **e** stderr (la CLI 2.120.0 lo scrive su stderr); i comandi
+   conservano i due flussi separati, e le risposte JSON di Wrangler si leggono solo da
+   stdout.
 7. **Versione pubblicata:** `wrangler deployments list --json`, ultimo deployment; per
    ognuna delle sue `versions[]`: `version_id`, quota di traffico (`percentage`) e tag
    (annotazione `workers/tag` di `wrangler versions view <version_id> --json`). È la
@@ -749,7 +757,10 @@ node scripts/prod-sql.ts --apply <script> [--launch] [--set nome=valore …] --c
   `commit`, `end`, `rollback`, `abort`, `savepoint`, `release`, `prepare`) ovunque
   compaiano, non solo a inizio riga; qualsiasi `\` (metacomandi di `psql`, per esempio
   `\connect`); ogni interpolazione di variabile che non sia nella forma quotata `:'nome'`
-  (le variabili diventano sempre letterali, mai testo SQL). Un `commit` dentro il corpo
+  (le variabili diventano sempre letterali, mai testo SQL). Il contesto di una parola è la
+  sua istruzione: si azzera a ogni `;` fuori da stringhe e corpi, e l'unica eccezione,
+  `on commit`, vale solo come clausola di `create [global|local] temp[orary] table` (così
+  `set x = on; commit;` si rifiuta). Un `commit` dentro il corpo
   di un `do $$ … $$` non si rifiuta qui: dentro una transazione esplicita Postgres lo
   respinge («invalid transaction termination») e tutto torna indietro.
 - **Transazione decisa dallo strumento.** I file non contengono `begin` né `commit`.

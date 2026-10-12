@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { checkTarget } from '../../import/load/target.ts';
-import { migrationCommand, pendingIn } from '../../release.ts';
+import { listedMigrations, migrationCommand, realRun } from '../../release.ts';
 import { databaseUrl, enabled } from '../support.ts';
 
 const run = promisify(execFile);
@@ -56,17 +56,20 @@ describe.skipIf(!enabled || !process.env.FRESH_DATABASE)('phase 1 order on a dat
 		// 2. The old order fails: the role comes from the migrations.
 		await expect(admin.unsafe(`alter role app_server with password 'app_server_test'`)).rejects.toMatchObject({ code: '42704' });
 
-		// 3. The release's own command, with the real CLI: every migration listed, then applied.
-		// The local stack serves Postgres without TLS: the command says sslmode=disable.
+		// 3. The release's own command and its own wrapper of child processes, with the real CLI: every
+		// migration listed (on stderr, for 2.120.0), then applied. The local stack serves Postgres without
+		// TLS: the command says sslmode=disable.
 		const local = checkTarget('TEST_DATABASE_URL', databaseUrl, { role: 'postgres', target: 'local', ref: 'unused' });
 		const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'));
+		const release = realRun(process.cwd(), []);
+		const path = `${join(homedir(), '.local/bin')}:${process.env.PATH}`;
 		const listed = migrationCommand(local, true);
-		const dry = await runCommand(listed.cmd, listed.args, listed.env);
-		expect(dry.code, dry.out).toBe(0);
-		expect(pendingIn(dry.out, files)).toEqual(files);
+		const dry = release(listed.cmd, listed.args, { env: { ...process.env, PATH: path, ...listed.env } });
+		expect(dry.status, dry.stderr).toBe(0);
+		expect(listedMigrations(dry, files)).toEqual(files);
 		const applied = migrationCommand(local, false);
-		const push = await runCommand(applied.cmd, applied.args, applied.env);
-		expect(push.code, push.out).toBe(0);
+		const push = release(applied.cmd, applied.args, { env: { ...process.env, PATH: path, ...applied.env } });
+		expect(push.status, push.stderr).toBe(0);
 
 		// 4. Then the password, and the check that Hyperdrive's credentials work.
 		await admin.unsafe(`alter role app_server with password 'app_server_test'`);
@@ -81,9 +84,9 @@ describe.skipIf(!enabled || !process.env.FRESH_DATABASE)('phase 1 order on a dat
 
 		// 5. Nothing left to apply: the exit code, no file listed, every file recorded in the database
 		// (not the wording of the CLI, which says "Local" for this destination: review of PR #34, finding 11).
-		const again = await runCommand(listed.cmd, listed.args, listed.env);
-		expect(again.code, again.out).toBe(0);
-		expect(pendingIn(again.out, files)).toEqual([]);
+		const again = release(listed.cmd, listed.args, { env: { ...process.env, PATH: path, ...listed.env } });
+		expect(again.status, again.stderr).toBe(0);
+		expect(listedMigrations(again, files)).toEqual([]);
 		const recorded = await admin<{ version: string }[]>`select version from supabase_migrations.schema_migrations order by version`;
 		expect(recorded.map((r) => r.version)).toEqual(files.map((f) => f.split('_')[0]).sort());
 	});

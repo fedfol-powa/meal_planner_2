@@ -53,7 +53,9 @@ Con `npm run release` in due tempi, lanciato dal coordinatore dopo il «vai» de
 sezione 7). Le credenziali si leggono da `.env.production.local` del checkout principale
 (`--credentials <file>` per un altro file), mai dall'ambiente; nessun comando le stampa.
 `release` rifiuta all'avvio qualsiasi variabile `CLOUDFLARE_*` o `WRANGLER_*` (per
-esempio `CLOUDFLARE_ENV` cambierebbe il nome del Worker pubblicato).
+esempio `CLOUDFLARE_ENV` cambierebbe il nome del Worker pubblicato), e passa a ogni
+comando Wrangler un `--env-file` vuoto: il `.env` di `server/` per lo sviluppo locale non
+arriva al rilascio.
 
 1. `npm run release -- --preview`: `main` pulito e uguale a `origin/main`, CI verde;
    un solo progetto Supabase per tutto (`scripts/production-target.json`, utente di

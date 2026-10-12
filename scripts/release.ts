@@ -5,19 +5,23 @@
 //        npm run release -- --apply <confirmation> [--migrations-only] [--credentials <file>]
 // The confirmation printed by the preview binds commit, scope, database endpoint and Cloudflare
 // destination (review of PR #34, finding 6). Credentials are read from the file into an object, never
-// into process.env, and never printed.
+// into process.env, and never printed. Every Wrangler command gets an empty --env-file: Wrangler reads no
+// .env of server/, where CLOUDFLARE_ENV would change the Worker (second review of PR #34, finding 3).
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, parseEnv } from 'node:util';
 import { checkTarget, dbUrlWithoutPassword, describeEndpoint, TargetError, type Checked } from './import/load/target.ts';
 
-export type Run = (cmd: string, args: string[], options?: { cwd?: string; env?: NodeJS.ProcessEnv }) => { status: number; stdout: string };
+/** stdout and stderr apart: JSON answers come from stdout, the Supabase CLI lists on stderr. */
+export type Run = (cmd: string, args: string[], options?: { cwd?: string; env?: NodeJS.ProcessEnv }) => { status: number; stdout: string; stderr: string };
 export interface Deps {
 	run: Run; fetch: typeof fetch; readFile: (path: string) => string | null; distFiles: () => string[]; tmpDir: () => string;
+	/** An absolute path to an empty file, given to Wrangler as its only --env-file. */
+	emptyEnvFile: () => string;
 	/** Files of supabase/migrations: a pending migration is one the dry run lists. */
 	migrationFiles: () => string[];
 	sleep: (ms: number) => Promise<void>;
@@ -63,6 +67,15 @@ export function migrationCommand(checked: Checked, dryRun: boolean): { cmd: 'sup
 
 /** The migrations a dry run lists: the exit code and the file names, not the wording of the CLI. */
 export const pendingIn = (output: string, files: string[]) => files.filter((f) => output.includes(f));
+/** Supabase CLI 2.120.0 writes the list of the dry run on stderr (second review of PR #34, finding 1). */
+export const listedMigrations = (result: { stdout: string; stderr: string }, files: string[]) => pendingIn(`${result.stdout}\n${result.stderr}`, files);
+
+/** npx arguments of a Wrangler command that reads no .env file: only the empty one given. */
+export const wranglerArgs = (emptyEnvFile: string, ...args: string[]) => ['wrangler', ...args, '--env-file', emptyEnvFile];
+
+interface DeployEntry { type?: string; worker_name?: string; version_id?: string | null; targets?: string[]; worker_name_overridden?: boolean }
+/** The deploy entry of Wrangler's output file (WRANGLER_OUTPUT_FILE_PATH). */
+const deployEntry = (text: string | null) => (text ?? '').split('\n').map((l) => jsonOf(l) as DeployEntry | null).find((e) => e?.type === 'deploy');
 
 export const releaseConfirmation = (c: { sha: string; scope: 'full' | 'migrations-only'; database: string; account: string | null; worker: string | null }) =>
 	createHash('sha256').update(JSON.stringify(c)).digest('hex');
@@ -147,30 +160,33 @@ export async function preview(deps: Deps, env: NodeJS.ProcessEnv, scope: Scope =
 	if (!scope.migrationsOnly && worker) {
 		// 3. Worker configuration and its prerequisites.
 		const server = { cwd: 'server' };
+		const emptyEnv = deps.emptyEnvFile();
+		const wrangler = (...args: string[]) => wranglerArgs(emptyEnv, ...args);
 		if (!worker.account_id) add('account', 'account_id is missing in server/wrangler.jsonc');
 		if (!worker.hyperdrive?.length || worker.hyperdrive.some((h) => !h.id || ZERO_ID.test(h.id))) add('hyperdrive', 'the Hyperdrive id is still the placeholder');
 		for (const bucket of worker.r2_buckets ?? []) {
-			const args = ['wrangler', 'r2', 'bucket', 'info', bucket.bucket_name, ...(bucket.jurisdiction ? ['--jurisdiction', bucket.jurisdiction] : [])];
+			const args = wrangler('r2', 'bucket', 'info', bucket.bucket_name, ...(bucket.jurisdiction ? ['--jurisdiction', bucket.jurisdiction] : []));
 			if (deps.run('npx', args, server).status !== 0) add('r2', `bucket ${bucket.bucket_name} not found`);
 		}
 		const name = worker.name ?? '';
 		if (!productionUrl || !new RegExp(`^https://${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.[a-z0-9-]+\\.workers\\.dev$`).test(productionUrl))
 			add('production-url', `productionUrl in scripts/release.config.json must be https://${name}.<subdomain>.workers.dev`);
-		const deployments = deps.run('npx', ['wrangler', 'deployments', 'status', '--json'], server);
+		const deployments = deps.run('npx', wrangler('deployments', 'status', '--json'), server);
 		if (deployments.status !== 0) {
-			if (deployments.stdout.includes('10007') || deployments.stdout.includes('has no deployments')) firstRelease = true;
+			const said = `${deployments.stdout}\n${deployments.stderr}`;
+			if (said.includes('10007') || said.includes('has no deployments')) firstRelease = true;
 			else add('deployments', 'wrangler deployments status failed');
 		} else {
 			// The versions of the deployment, each with its traffic and tag: what a rollback needs.
 			const current = jsonOf(deployments.stdout) as { versions?: { version_id: string; percentage: number }[] } | null;
 			deployed = (current?.versions ?? []).map((v) => {
-				const view = jsonOf(deps.run('npx', ['wrangler', 'versions', 'view', v.version_id, '--json'], server).stdout) as { annotations?: Record<string, string> } | null;
+				const view = jsonOf(deps.run('npx', wrangler('versions', 'view', v.version_id, '--json'), server).stdout) as { annotations?: Record<string, string> } | null;
 				return { versionId: v.version_id, percentage: v.percentage, tag: view?.annotations?.['workers/tag'] ?? null };
 			});
 		}
 		if (!firstRelease && deployments.status === 0) {
 			const required = releaseConfig?.requiredSecrets ?? [];
-			const secrets = jsonOf(deps.run('npx', ['wrangler', 'secret', 'list', '--format', 'json'], server).stdout) as { name: string }[] | null;
+			const secrets = jsonOf(deps.run('npx', wrangler('secret', 'list', '--format', 'json'), server).stdout) as { name: string }[] | null;
 			const missing = required.filter((name) => !secrets?.some((s) => s.name === name));
 			if (missing.length) add('secrets', `missing Worker secrets: ${missing.join(', ')}`);
 		}
@@ -198,7 +214,16 @@ export async function preview(deps: Deps, env: NodeJS.ProcessEnv, scope: Scope =
 				const dist = deps.distFiles().join('\n');
 				if (!dist.includes(url) || !dist.includes(key)) add('build', 'web/dist does not contain the exact URL and key');
 			}
-			if (deps.run('npx', ['wrangler', 'deploy', '--dry-run', '--outdir', deps.tmpDir()], server).status !== 0) add('worker-build', 'the Worker bundle does not build');
+			// The dry run says which Worker the deploy would publish: a different name is refused before any write.
+			const tmp = deps.tmpDir();
+			const dryRunOutput = join(tmp, 'wrangler-dry-run.ndjson');
+			const dryRun = deps.run('npx', wrangler('deploy', '--dry-run', '--outdir', join(tmp, 'bundle')), { ...server, env: { ...process.env, WRANGLER_OUTPUT_FILE_PATH: dryRunOutput } });
+			if (dryRun.status !== 0) add('worker-build', 'the Worker bundle does not build');
+			else {
+				const entry = deployEntry(deps.readFile(dryRunOutput));
+				if (!entry || entry.worker_name !== worker.name || entry.worker_name_overridden !== false)
+					add('deploy-target', `the deploy would publish ${entry?.worker_name ?? 'an unknown Worker'}, not ${worker.name}`);
+			}
 		}
 	}
 
@@ -208,7 +233,7 @@ export async function preview(deps: Deps, env: NodeJS.ProcessEnv, scope: Scope =
 		const m = migrationCommand(checked, true);
 		const pushed = deps.run(m.cmd, m.args, { env: { ...process.env, ...m.env } });
 		if (pushed.status !== 0) add('migrations', 'supabase db push --dry-run failed');
-		else pendingMigrations = pendingIn(pushed.stdout, deps.migrationFiles());
+		else pendingMigrations = listedMigrations(pushed, deps.migrationFiles());
 	}
 	// 8. What the "vai" confirms.
 	const confirmation = checked
@@ -271,17 +296,18 @@ export async function apply(deps: Deps, env: NodeJS.ProcessEnv, confirmation: st
 
 	// The build in web/dist is the one this apply's preview just made and checked. Wrangler writes what it
 	// deployed (Worker name, version, urls) in its output file: no parsing of the console.
+	const emptyEnv = deps.emptyEnvFile();
 	const output = join(deps.tmpDir(), 'wrangler-output.ndjson');
-	const deployed = deps.run('npx', ['wrangler', 'deploy', '--tag', p.sha!, '--message', `release ${p.sha}`], { cwd: 'server', env: { ...process.env, WRANGLER_OUTPUT_FILE_PATH: output } });
+	const deployed = deps.run('npx', wranglerArgs(emptyEnv, 'deploy', '--tag', p.sha!, '--message', `release ${p.sha}`), { cwd: 'server', env: { ...process.env, WRANGLER_OUTPUT_FILE_PATH: output } });
 	if (deployed.status !== 0) return fail('deploy', 'wrangler deploy failed');
-	const entry = (deps.readFile(output) ?? '').split('\n').map((l) => jsonOf(l) as { type?: string; worker_name?: string; version_id?: string; targets?: string[]; worker_name_overridden?: boolean } | null).find((e) => e?.type === 'deploy');
+	const entry = deployEntry(deps.readFile(output));
 	const url = p.productionUrl!;
 	if (!entry?.version_id || entry.worker_name !== p.workerName || entry.worker_name_overridden || !entry.targets?.includes(url))
 		return fail('deploy-target', `the deploy did not publish ${p.workerName} at ${url}: check before anything else`);
 	const versionId = entry.version_id;
 
 	// The new version answers: the deployment serves only it, and the Worker says it is it.
-	const status = jsonOf(deps.run('npx', ['wrangler', 'deployments', 'status', '--json'], { cwd: 'server' }).stdout) as { versions?: { version_id: string; percentage: number }[] } | null;
+	const status = jsonOf(deps.run('npx', wranglerArgs(emptyEnv, 'deployments', 'status', '--json'), { cwd: 'server' }).stdout) as { versions?: { version_id: string; percentage: number }[] } | null;
 	if (status?.versions?.length !== 1 || status.versions[0]!.version_id !== versionId || status.versions[0]!.percentage !== 100)
 		return done({ versionId, url, problems: [{ check: 'new-version', message: `the deployment does not serve ${versionId} at 100%` }] });
 	let serving: unknown = null;
@@ -294,16 +320,18 @@ export async function apply(deps: Deps, env: NodeJS.ProcessEnv, confirmation: st
 	return done({ versionId, url, problems: await smokeChecks(url, deps.fetch) });
 }
 
-function realDeps(root: string, secrets: string[]): Deps {
-	const run: Run = (cmd, args, options = {}) => {
+/** The real child processes: both streams kept apart and shown redacted (second review of PR #34, finding 1). */
+export function realRun(root: string, secrets: string[], show: (text: string) => void = console.log): Run {
+	return (cmd, args, options = {}) => {
 		const child = spawnSync(cmd, args, { cwd: resolve(root, options.cwd ?? '.'), env: options.env ?? process.env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-		const status = child.status ?? 1;
-		// stderr joins the output only on failure: JSON answers stay parsable.
-		const stdout = status === 0 ? child.stdout : `${child.stdout}\n${child.stderr}`;
-		const shown = redact(`$ ${cmd} ${args.join(' ')}\n${stdout}`, secrets).trimEnd();
-		console.log(shown);
-		return { status, stdout };
+		const result = { status: child.status ?? 1, stdout: child.stdout ?? '', stderr: child.stderr ?? '' };
+		show(redact(`$ ${cmd} ${args.join(' ')}\n${result.stdout}\n${result.stderr}`, secrets).trimEnd());
+		return result;
 	};
+}
+
+function realDeps(root: string, secrets: string[]): Deps {
+	const run = realRun(root, secrets);
 	const files = (dir: string): string[] =>
 		existsSync(dir) ? readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? files(join(dir, name)) : [join(dir, name)])) : [];
 	return {
@@ -315,6 +343,11 @@ function realDeps(root: string, secrets: string[]): Deps {
 		},
 		distFiles: () => files(resolve(root, 'web/dist')).filter((f) => /\.(js|html)$/.test(f)).map((f) => readFileSync(f, 'utf8')),
 		tmpDir: () => mkdtempSync(join(tmpdir(), 'release-worker-')),
+		emptyEnvFile: () => {
+			const file = join(mkdtempSync(join(tmpdir(), 'release-env-')), 'empty.env');
+			writeFileSync(file, '');
+			return file;
+		},
 		migrationFiles: () => readdirSync(resolve(root, 'supabase/migrations')).filter((f) => f.endsWith('.sql')),
 		sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
 	};

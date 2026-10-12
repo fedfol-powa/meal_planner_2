@@ -1,11 +1,14 @@
 import { execFile } from 'node:child_process';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { apply, CHECK_TOKEN, parseJsonc, preview, redact, smokeChecks, wranglerOverrides, type Deps, type Run } from './release.ts';
+import { apply, CHECK_TOKEN, parseJsonc, preview, realRun, redact, smokeChecks, wranglerArgs, wranglerOverrides, type Deps, type Run } from './release.ts';
 
 const ref = 'lronuqvtjdhfyychnscr';
-const ok = (stdout = '') => ({ status: 0, stdout });
-const fail = (stdout = '') => ({ status: 1, stdout });
+const ok = (stdout = '', stderr = '') => ({ status: 0, stdout, stderr });
+const fail = (stderr = '') => ({ status: 1, stdout: '', stderr });
 const WRANGLER = `{
 	// comment with https://example.com
 	"name": "cosasimangia",
@@ -21,6 +24,8 @@ const URL_OK = 'https://cosasimangia.powa.workers.dev';
 const NEW_VERSION = '11111111-1111-4111-8111-111111111111';
 const OLD_VERSION = '00000000-0000-4000-8000-000000000000';
 const OUTPUT = '/tmp/release-test/wrangler-output.ndjson';
+const DRY_RUN_OUTPUT = '/tmp/release-test/wrangler-dry-run.ndjson';
+const EMPTY_ENV = '/tmp/release-test/empty.env';
 
 interface FakeOver {
 	run?: Record<string, ReturnType<Run>>;
@@ -31,6 +36,7 @@ interface FakeOver {
 	oauthStatus?: number;
 	servingVersion?: string;
 	deployOutput?: Record<string, unknown>;
+	dryRunOutput?: Record<string, unknown>;
 	statusAfter?: string;
 }
 function fakeDeps(over: FakeOver = {}) {
@@ -55,8 +61,14 @@ function fakeDeps(over: FakeOver = {}) {
 		}
 		if (key.startsWith('npx wrangler versions view')) return ok(JSON.stringify({ id: args[3], annotations: { 'workers/tag': 'oldsha' } }));
 		if (key.startsWith('npx wrangler secret list')) return ok('[{"name":"BACKUP_ENCRYPTION_KEY"}]');
-		if (key.startsWith('supabase db push --dry-run')) return ok('Would push these migrations:\n • 20261012110000_backup.sql\n');
-		if (key.startsWith('npx wrangler deploy') && !key.includes('--dry-run')) {
+		// Like the real CLI: the list of the dry run on stderr (second review of PR #34, finding 1).
+		if (key.startsWith('supabase db push --dry-run')) return ok('', 'Would push these migrations:\n • 20261012110000_backup.sql\n');
+		if (key.startsWith('npx wrangler deploy --dry-run')) {
+			const entry = { type: 'deploy', worker_name: 'cosasimangia', version_id: null, worker_name_overridden: false, ...over.dryRunOutput };
+			files[DRY_RUN_OUTPUT] = `{"type":"wrangler-session"}\n${JSON.stringify(entry)}\n`;
+			return ok('');
+		}
+		if (key.startsWith('npx wrangler deploy')) {
 			deployed = true;
 			const entry = { type: 'deploy', worker_name: 'cosasimangia', version_id: NEW_VERSION, targets: [URL_OK], worker_name_overridden: false, ...over.deployOutput };
 			files[OUTPUT] = `{"type":"wrangler-session"}\n${JSON.stringify(entry)}\n`;
@@ -83,6 +95,7 @@ function fakeDeps(over: FakeOver = {}) {
 		readFile: (p) => (p in files ? files[p]! : null),
 		distFiles: () => [over.dist ?? `x="https://${ref}.supabase.co";k="sb_publishable_abc"`],
 		tmpDir: () => '/tmp/release-test',
+		emptyEnvFile: () => EMPTY_ENV,
 		migrationFiles: () => ['20261011100000_foundation.sql', '20261012110000_backup.sql'],
 		sleep: async () => {},
 	};
@@ -220,7 +233,7 @@ describe('the release confirmation (review of PR #34, finding 6)', () => {
 		const { deps, calls } = fakeDeps();
 		const p = await preview(deps, env);
 		expect(p.deployed).toEqual([{ versionId: OLD_VERSION, percentage: 100, tag: 'oldsha' }]);
-		expect(calls).toContain(`npx wrangler versions view ${OLD_VERSION} --json`);
+		expect(calls).toContain(`npx wrangler versions view ${OLD_VERSION} --json --env-file ${EMPTY_ENV}`);
 	});
 });
 
@@ -273,6 +286,71 @@ describe('migrations, from the list and the exit code (finding 11, minor of --mi
 	it('a failing dry run is a problem, not "up to date"', async () => {
 		expect(await checks({ run: { 'supabase db push --dry-run': fail('Would push these migrations') } })).toContain('migrations');
 	});
+});
+
+describe('migrations listed on stderr (second review of PR #34, finding 1)', () => {
+	it('finds the pending migration of a dry run that writes its list on stderr, and applies it', async () => {
+		const { deps, calls } = fakeDeps();
+		expect((await preview(deps, env)).pendingMigrations).toEqual(['20261012110000_backup.sql']);
+		expect((await apply(deps, env, await confirmationOf())).problems).toEqual([]);
+		expect(calls.some((c) => c.startsWith('supabase db push --db-url'))).toBe(true);
+	});
+	it('through the real wrapper: a CLI that lists on stderr gets its migration applied', async () => {
+		// A supabase on the PATH that, like 2.120.0, writes the dry run list on stderr and records each push.
+		const dir = mkdtempSync(join(tmpdir(), 'release-supabase-'));
+		writeFileSync(join(dir, 'supabase'), `#!/usr/bin/env bash\nprintf '%s\\n' "$*" >> "${dir}/calls"\nif [[ " $* " == *" --dry-run "* ]]; then echo 'Would push these migrations:' >&2; echo ' • 20261012110000_backup.sql' >&2; fi\n`);
+		chmodSync(join(dir, 'supabase'), 0o755);
+		const real = realRun(process.cwd(), ['pw-secret'], () => {});
+		const fake = fakeDeps();
+		const run: Run = (cmd, args, options) =>
+			cmd === 'supabase' ? real(cmd, args, { ...options, env: { ...options?.env, PATH: `${dir}:${process.env.PATH}` } }) : fake.deps.run(cmd, args, options);
+		const deps = { ...fake.deps, run };
+		expect((await preview(deps, env)).pendingMigrations).toEqual(['20261012110000_backup.sql']);
+		expect((await apply(deps, env, await confirmationOf())).problems).toEqual([]);
+		const pushes = readFileSync(join(dir, 'calls'), 'utf8').split('\n').filter(Boolean);
+		expect(pushes.filter((c) => !c.includes('--dry-run'))).toHaveLength(1);
+	});
+	it('the real wrapper keeps stdout and stderr apart, on success and on failure', () => {
+		const real = realRun(process.cwd(), [], () => {});
+		expect(real(process.execPath, ['-e', 'console.log("[1]"); console.error("note")'])).toEqual({ status: 0, stdout: '[1]\n', stderr: 'note\n' });
+		expect(real(process.execPath, ['-e', 'console.error("[code: 10007]"); process.exit(1)'])).toEqual({ status: 1, stdout: '', stderr: '[code: 10007]\n' });
+	});
+});
+
+describe('Wrangler reads no .env file (second review of PR #34, finding 3)', () => {
+	it('passes the empty environment file to every Wrangler command', async () => {
+		const { deps, calls } = fakeDeps();
+		await apply(deps, env, await confirmationOf());
+		const wrangler = calls.filter((c) => c.startsWith('npx wrangler'));
+		expect(wrangler.length).toBeGreaterThan(5);
+		for (const c of wrangler) expect(c, c).toMatch(new RegExp(`--env-file ${EMPTY_ENV}$`));
+	});
+	it('refuses before any write a dry run that would deploy another Worker name', async () => {
+		for (const dryRunOutput of [{ worker_name: 'cosasimangia-review-other' }, { worker_name_overridden: true }]) {
+			const { deps, calls } = fakeDeps({ dryRunOutput });
+			expect((await preview(deps, env)).problems.map((p) => p.check)).toContain('deploy-target');
+			expect((await apply(deps, env, await confirmationOf())).problems.map((p) => p.check)).toContain('deploy-target');
+			expect(calls.some((c) => c.startsWith('supabase db push --db-url') || c.startsWith('npx wrangler deploy --tag'))).toBe(false);
+		}
+	});
+	it('with the real Wrangler: an override in server/.env, parent environment clean, does not change the Worker', () => {
+		const dir = mkdtempSync(join(tmpdir(), 'release-wrangler-'));
+		writeFileSync(join(dir, 'wrangler.jsonc'), '{ "name": "probe-worker", "main": "index.js", "compatibility_date": "2026-01-01" }');
+		writeFileSync(join(dir, 'index.js'), 'export default { fetch() { return new Response("x"); } };');
+		writeFileSync(join(dir, '.env'), 'CLOUDFLARE_ENV=review-other\n');
+		writeFileSync(join(dir, 'empty.env'), '');
+		const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => wranglerOverrides({ [k]: '' }).length === 0));
+		const real = realRun(dir, [], () => {});
+		const workerOf = (args: string[], output: string) => {
+			const r = real('npx', args, { env: { ...clean, WRANGLER_OUTPUT_FILE_PATH: join(dir, output) } });
+			expect(r.status, r.stderr).toBe(0);
+			return readFileSync(join(dir, output), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as { type: string; worker_name?: string }).find((e) => e.type === 'deploy')?.worker_name;
+		};
+		// Without the flag the file wins: the test really exercises the override.
+		expect(workerOf(['wrangler', 'deploy', '--dry-run', '--outdir', join(dir, 'a')], 'a.ndjson')).toBe('probe-worker-review-other');
+		expect(workerOf(wranglerArgs(join(dir, 'empty.env'), 'deploy', '--dry-run', '--outdir', join(dir, 'b')), 'b.ndjson')).toBe('probe-worker');
+		expect(existsSync(join(dir, 'b'))).toBe(true);
+	}, 60_000);
 });
 
 describe('smokeChecks', () => {
