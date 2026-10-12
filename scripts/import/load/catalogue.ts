@@ -23,16 +23,19 @@ export async function existingCatalogue(tx: Tx) {
 	return { recipes: recipes.map((r) => r.s), ingredients: ingredients.map((r) => r.s), books: books.map((r) => r.s) };
 }
 
-export async function loadCatalogue(tx: Tx, actor: Actor, bundle: ImportBundle, equivalences: UnitEquivalence[]): Promise<CatalogueResult> {
+/** `step` names each write before it runs, so a failure says where (no value of the error is printed). */
+export async function loadCatalogue(tx: Tx, actor: Actor, bundle: ImportBundle, equivalences: UnitEquivalence[], step: (name: string) => void = () => {}): Promise<CatalogueResult> {
 	const result: CatalogueResult = {
 		books: { created: 0, present: 0 }, ingredients: { created: 0, present: 0 }, equivalences: { created: 0, present: 0, diverging: [] },
 		recipes: { published: 0, drafts: 0, present: 0 }, publicationBlocked: bundle.pendingReview,
 	};
 	for (const b of bundle.books) {
+		step(`books: createBook ${b.slug}`);
 		const r = await createBook(tx, actor, { bookId: randomUUID(), slug: b.slug, title: b.title });
 		result.books[r.created ? 'created' : 'present']++;
 	}
 	for (const i of bundle.ingredients) {
+		step(`ingredients: createIngredient ${i.slug}`);
 		const r = await createIngredient(tx, actor, {
 			ingredientId: randomUUID(), slug: i.slug,
 			name: { 'it-IT': i.name['it-IT'], 'en-GB': i.name['en-GB']?.trim() ? i.name['en-GB'] : null },
@@ -43,6 +46,7 @@ export async function loadCatalogue(tx: Tx, actor: Actor, bundle: ImportBundle, 
 	const ingredientIds = new Map((await tx<{ slug: string; id: string }[]>`select slug, id from app.ingredients`).map((r) => [r.slug, r.id]));
 	const bookIds = new Map((await tx<{ slug: string; id: string }[]>`select slug, id from app.books`).map((r) => [r.slug, r.id]));
 	for (const e of equivalences) {
+		step(`equivalences: ${e.ingredientId} ${e.fromUnit}`);
 		const ingredientId = ingredientIds.get(e.ingredientId);
 		if (!ingredientId) throw new Error(`Equivalence for unknown ingredient: ${e.ingredientId}`);
 		// The logical key of setEquivalence: an existing row is kept whatever its values.
@@ -62,6 +66,7 @@ export async function loadCatalogue(tx: Tx, actor: Actor, bundle: ImportBundle, 
 	const lookup = { ingredientId: (s: string) => ingredientIds.get(s), bookId: (s: string) => bookIds.get(s) };
 	const publish = bundle.pendingReview.length === 0;
 	for (const r of bundle.recipes) {
+		step(`recipes: createDraft ${r.origin.slug}`);
 		const draft = await createDraft(tx, actor, { draftId: randomUUID(), content: resolveReferences(r.document, lookup), originSlug: r.origin.slug, originType: r.origin.type });
 		if (!draft.created) { result.recipes.present++; continue; }
 		if (publish && r.status === 'publishable') {

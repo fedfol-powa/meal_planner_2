@@ -73,7 +73,7 @@ describe.skipIf(!enabled || !process.env.FRESH_DATABASE)('phase 1 order on a dat
 		appServer.password = 'app_server_test';
 		const env = join(mkdtempSync(join(tmpdir(), 'fresh-')), 'local.env');
 		writeFileSync(env, `APP_SERVER_DATABASE_URL=${appServer.toString()}\n`);
-		const check = await runCommand(process.execPath, ['scripts/import/load.ts', '--env-file', env, '--check-connection', '--local']);
+		const check = await runCommand(process.execPath, ['scripts/import/load.ts', '--credentials', env, '--check-connection', '--local']);
 		expect(check.code, check.out).toBe(0);
 		expect(check.out).toContain('0 families, 0 recipes visible to app_job');
 

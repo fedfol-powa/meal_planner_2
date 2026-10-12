@@ -27,6 +27,19 @@ async function fingerprintNow(tx: Tx) {
 	return row!.f;
 }
 
+/** Which step failed (detail spec, section 6). The message of our own plain errors is kept (slugs and
+ * reasons); Postgres and domain errors keep only name and codes, printed by describeError. */
+export const ownMessage = (error: unknown) => (error instanceof Error && error.constructor === Error && error.name === 'Error' ? error.message : null);
+export class LoadStepError extends Error {
+	step: string;
+	constructor(step: string, cause: unknown) {
+		const own = ownMessage(cause);
+		super(own ? `failed at ${step}: ${own}` : `failed at ${step}`, { cause });
+		this.name = 'LoadStepError';
+		this.step = step;
+	}
+}
+
 export class LoadRefused extends Error {
 	constructor(reason: string) {
 		super(reason);
@@ -63,44 +76,63 @@ async function checkCurator(tx: Tx, familyId: string, curatorId: string) {
 export async function loadAll(sql: postgres.Sql, options: LoadOptions): Promise<LoadResult> {
 	const actor: Actor = { userId: options.curatorId, channel: 'import' };
 	const origin = options.originDirectory ?? originDir(options.root);
+	let step = 'inputs';
+	const at = <T>(name: string, fn: () => Promise<T>) => {
+		step = name;
+		return fn();
+	};
+	// Everything that reads files is parsed before the transaction opens: waiting for the locks leaves no
+	// file to read (review of PR #34, finding 5). Only the import itself needs the catalogue in the
+	// database; it reads the same snapshot.
+	const inputs = readInputs(join(options.root, 'scripts/import'));
+	const originRecipes = readOriginRecipes(origin);
+	const menus = readOriginMenus(origin);
 	try {
 		return (await sql.begin(async (tx) => {
 			if (options.launchFrom !== undefined) {
 				// Launch load (detail spec, section 8): every table of app locked before anything else, so a
 				// concurrent write waits for the commit and the baseline below holds only bootstrap and load.
+				step = 'launch baseline';
 				await tx.unsafe(FINGERPRINT_SQL);
 				await tx`select pg_temp.lock_app_tables('exclusive')`;
 				if ((await fingerprintNow(tx)) !== options.launchFrom) throw new LoadRefused('app data changed since the launch baseline: no launch load');
 			}
+			step = 'curator';
 			await actAsCurator(tx, options.curatorId);
 			await checkCurator(tx, options.familyId, options.curatorId);
 			// Same lock as the generation, then the family row: a generation or a settings write waits
 			// for the commit, and nothing the checks below read can change before the writes.
+			step = 'locks';
 			await lockFamilyWeeks(tx, options.familyId);
 			const [family] = await tx<{ settings: unknown }[]>`select settings from app.families where id = ${options.familyId} for update`;
 			if (!family) throw new LoadRefused(`Family ${options.familyId} is not readable`);
+			step = 'import';
 			const existingFile = join(mkdtempSync(join(tmpdir(), 'load-existing-')), 'existing.json');
 			writeFileSync(existingFile, JSON.stringify(await existingCatalogue(tx)));
 			const { result: imported, files } = runImport({ root: options.root, originDirectory: origin, existingFile, today: options.today });
-			const inputs = readInputs(join(options.root, 'scripts/import'));
-			const catalogue = await loadCatalogue(tx, actor, imported.bundle, inputs.equivalences);
-			catalogue.recipes.present += imported.skipped.length;
-			const familyResult = await loadFamily(tx, {
-				familyId: options.familyId, curatorId: options.curatorId, storedSettings: family.settings,
-				origin: readOriginRecipes(origin), today: options.today, menus: readOriginMenus(origin),
+			const catalogue = await loadCatalogue(tx, actor, imported.bundle, inputs.equivalences, (s) => {
+				step = s;
 			});
+			catalogue.recipes.present += imported.skipped.length;
+			const familyResult = await at('family data', () => loadFamily(tx, {
+				familyId: options.familyId, curatorId: options.curatorId, storedSettings: family.settings,
+				origin: originRecipes, today: options.today, menus,
+			}));
 			let baseline: string | null = null;
 			if (options.launchFrom !== undefined && !options.dryRun) {
+				step = 'launch baseline';
 				await tx`reset role`; // back to postgres, which reads every row
 				baseline = await fingerprintNow(tx);
 			}
 			const result: LoadResult = { mode: options.dryRun ? 'dry-run' : 'written', catalogue, family: familyResult, importReport: files['report.md']!, baseline };
 			if (options.dryRun) throw new DryRun(result);
+			step = 'commit';
 			return result;
 		})) as LoadResult;
 	} catch (error) {
 		if (error instanceof DryRun) return error.result;
-		throw error;
+		if (error instanceof LoadRefused) throw error;
+		throw new LoadStepError(step, error);
 	}
 }
 

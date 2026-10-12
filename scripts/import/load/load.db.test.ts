@@ -4,6 +4,9 @@ import { hasDatabase, setupDatabase, type TestDatabase } from '../../../server/t
 import { cleanupLoadCase, writeOriginFixture, type LoadCase } from './test-origin.ts';
 import { lockFamilyWeeks } from '../../../server/src/menu/generation.ts';
 import { FINGERPRINT_SQL, LoadRefused, loadAll } from './run.ts';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshotInputs } from './inputs-fingerprint.ts';
 import { command } from './test-command.ts';
 
 describe.skipIf(!hasDatabase)('load into the database', () => {
@@ -189,6 +192,37 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 		}
 	});
 
+	it('writes the snapshot: a card changed while the load waits for the lock changes nothing (review of PR #34, finding 5)', async () => {
+		const { c, familyId, options } = await freshCase();
+		const snap = snapshotInputs(c.dir, join(c.dir, 'scripts/import'));
+		const other = postgres(db.appServerUrl.replace('app_server:app_server_test', 'postgres:postgres'), { max: 1, onnotice: () => {} });
+		try {
+			let release!: () => void;
+			const held = new Promise<void>((r) => { release = r; });
+			const generation = other.begin(async (tx) => {
+				await lockFamilyWeeks(tx as never, familyId);
+				await held;
+			});
+			await new Promise((r) => setTimeout(r, 200));
+			const load = loadAll(sql, options({ root: snap.root, originDirectory: snap.origin }));
+			for (let i = 0; i < 50; i++) {
+				const [{ waiting }] = await db.admin`select count(*)::int as waiting from pg_stat_activity where wait_event_type = 'Lock' and wait_event = 'advisory'`;
+				if (waiting === 1) break;
+				await new Promise((r) => setTimeout(r, 100));
+			}
+			const cards = join(c.dir, 'ricettario/ricette.yaml');
+			writeFileSync(cards, readFileSync(cards, 'utf8').replaceAll(`Pubblicabile ${c.prefix}`, 'Changed while waiting'));
+			release();
+			await generation;
+			await load;
+			const [recipe] = await db.admin<{ name: Record<string, string> }[]>`select name from app.recipes where origin_slug = ${`${c.prefix}pubblicabile`}`;
+			expect(recipe!.name['it-IT']).toBe(`Pubblicabile ${c.prefix}`);
+		} finally {
+			snap.dispose();
+			await other.end();
+		}
+	});
+
 	it('waits for a concurrent settings write, then keeps it', async () => {
 		const { familyId, options } = await freshCase();
 		const other = postgres(db.appServerUrl.replace('app_server:app_server_test', 'postgres:postgres'), { max: 1, onnotice: () => {} });
@@ -213,12 +247,12 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 	});
 
 	it('runs --check-connection with node against the local database', async () => {
-		const r = await command(['--env-file', '<env>', '--check-connection', '--local'], `APP_SERVER_DATABASE_URL=${db.appServerUrl}\n`);
+		const r = await command(['--credentials', '<env>', '--check-connection', '--local'], `APP_SERVER_DATABASE_URL=${db.appServerUrl}\n`);
 		expect(r.code).toBe(0);
 		expect(r.out).toMatch(/families, \d+ recipes visible to app_job/);
 	});
 	it('reports a wrong password as a code, without the password', async () => {
-		const r = await command(['--env-file', '<env>', '--check-connection', '--local'], `APP_SERVER_DATABASE_URL=${db.appServerUrl.replace('app_server_test', 's3cr3t-wrong')}\n`);
+		const r = await command(['--credentials', '<env>', '--check-connection', '--local'], `APP_SERVER_DATABASE_URL=${db.appServerUrl.replace('app_server_test', 's3cr3t-wrong')}\n`);
 		expect(r.code).toBe(1);
 		expect(r.out).toMatch(/failed: \w+ 28P01/);
 		expect(r.out).not.toContain('s3cr3t');
