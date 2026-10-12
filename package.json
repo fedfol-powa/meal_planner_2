@@ -7,6 +7,7 @@
 		"test": "vitest run && npm run test --workspaces --if-present",
 		"typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
 		"deploy": "npm run build -w web && npm run deploy -w server",
+		"release": "node scripts/release.ts",
 		"planner-report": "node scripts/planner-report.ts",
 		"recipe-attributes-table": "node scripts/recipe-attributes-table.ts"
 	},
