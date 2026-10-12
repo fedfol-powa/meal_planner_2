@@ -5,14 +5,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Worker attivi
 
+**Dal 12/10, su richiesta dell'utente: un solo worker Claude.** I lavori in corso (W1, W6) finiscono; chi termina per primo si chiude, l'altro resta l'unico worker. W2, W3, W4, W5 chiusi il 12/10 (lavoro tutto su main). Revisori Codex senza limite.
+
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33 (schermate) aperta, review Codex in corso (revisioni/w1-pr33.md); contesto azzerato | 12/10 |
-| W2 collegamento-agenti | W2 collegamento-agenti | w1:pY | — | .worktrees/agenti | PR #31 unita (verifica approvata, CI pass). Contesto azzerato; libero. Passi esterni nella fase 3 della messa in produzione | 12/10 |
-| W3 ricettario-mcp | W3 ricettario-mcp | w1:pA | — | .worktrees/ricettario-mcp | PR #26 unita: gestione del ricettario completa (server e web). Contesto azzerato; libero | 11/10 |
-| W4 spesa | W4 spesa | w1:pZ | — | .worktrees/spesa | PR #27 unita (specifica aggiornata; residuo accettato: decimali non realistici come 0,125 spicchi formattati a due cifre); libero | 11/10 |
-| W5 esportazione-r2 | W5 esportazione-r2 | w1:pC | — | .worktrees/esportazione | PR #30 unita (esportazione in R2 nel codice; bucket, chiave e prova di produzione nella fase 2 della messa in produzione). Contesto azzerato; libero | 11/10 |
 | W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Spec e piano corretti; seconda review in corso (revisioni/w6-produzione-spec-piano-2.md) | 12/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
