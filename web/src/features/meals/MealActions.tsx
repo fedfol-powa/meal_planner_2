@@ -16,14 +16,15 @@ const MAX_SERVINGS = 20;
 export function useMealActions({ familyId, weekStartsOn, meal, week, online }: { familyId: string; weekStartsOn: string; meal: MealView; week: WeekView; online: boolean }): { actions: CardActions; sheet: ReactNode } {
   const t = useT();
   const undo = useUndo();
-  const message = useMealErrors(familyId, weekStartsOn);
+  const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const [stage, setStage] = useState<EditorStage | null>(null);
   const servings = useServingsDraft({
     familyId, weekStartsOn, slotId: meal.slotId, servings: meal.servings, online,
     mealLabel: meal.recipe?.name ?? meal.freeText ?? t(`meal.${meal.mealType}`), date: meal.date,
     onSaved: (actionId, changed) => {
       if (changed) undo.offer(actionId, weekStartsOn);
-    }
+    },
+    onRefused: (error) => handle(error)
   });
   const panel = (
     <ul className={styles.actions}>

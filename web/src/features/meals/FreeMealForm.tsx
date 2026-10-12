@@ -17,7 +17,7 @@ export function FreeMealForm({ familyId, weekStartsOn, meal, onBack, onDone }: {
   const t = useT();
   const api = useApi();
   const undo = useUndo();
-  const message = useMealErrors(familyId, weekStartsOn);
+  const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const [text, setText] = useState(meal.freeText ?? '');
   const picks = useQuery(suggestionsQuery(useQueryDeps(), familyId, meal.slotId, 0)).data?.freeTexts ?? [];
   const save = useMealMutation<{ text: string }>('meals.setFree', familyId, weekStartsOn, ({ text, id }) => api.meals.setFree({ familyId, slotId: meal.slotId, text, id }));
@@ -28,7 +28,8 @@ export function FreeMealForm({ familyId, weekStartsOn, meal, onBack, onDone }: {
         onSuccess: ({ view }) => {
           if (view.changed) undo.offer(view.actionId, weekStartsOn);
           onDone();
-        }
+        },
+        onError: (error) => handle(error, onDone)
       }
     );
   return (

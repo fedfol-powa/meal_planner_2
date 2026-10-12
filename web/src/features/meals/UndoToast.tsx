@@ -12,7 +12,7 @@ export const UNDO_MS = 6000;
 export function UndoToast({ offer, familyId, onDone }: { offer: UndoOffer; familyId: string; onDone: () => void }) {
   const t = useT();
   const api = useApi();
-  const message = useMealErrors(familyId, offer.weekStartsOn);
+  const { message, handle } = useMealErrors(familyId, offer.weekStartsOn);
   const [refusal, setRefusal] = useState<{ text: string; at: number } | null>(null);
   // The offer's week, whatever week is shown: the answer lands on the meal's week.
   const undo = useMealMutation<Record<string, never>>('meals.undo', familyId, offer.weekStartsOn, ({ id }) =>
@@ -33,7 +33,10 @@ export function UndoToast({ offer, familyId, onDone }: { offer: UndoOffer; famil
         ) : (
           <>
             <span>{t('meals.changed')}</span>
-            <button type="button" disabled={undo.isPending} onClick={() => undo.mutate({}, { onSuccess: onDone, onError: (error) => setRefusal({ text: message(error), at: Date.now() }) })}>
+            <button type="button" disabled={undo.isPending} onClick={() => undo.mutate({}, { onSuccess: onDone, onError: (error) => {
+                handle(error);
+                setRefusal({ text: message(error), at: Date.now() });
+              } })}>
               {t('meals.undo')}
             </button>
           </>

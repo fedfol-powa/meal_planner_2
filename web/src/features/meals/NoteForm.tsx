@@ -14,7 +14,7 @@ export function NoteForm({ familyId, weekStartsOn, meal, onDone }: { familyId: s
   const t = useT();
   const api = useApi();
   const undo = useUndo();
-  const message = useMealErrors(familyId, weekStartsOn);
+  const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const [note, setNote] = useState(meal.note ?? '');
   const save = useMealMutation<{ note: string | null }>('meals.setNote', familyId, weekStartsOn, ({ note, id }) => api.meals.setNote({ familyId, slotId: meal.slotId, note, id }));
   const send = (value: string | null) =>
@@ -24,7 +24,8 @@ export function NoteForm({ familyId, weekStartsOn, meal, onDone }: { familyId: s
         onSuccess: ({ view }) => {
           if (view.changed) undo.offer(view.actionId, weekStartsOn);
           onDone();
-        }
+        },
+        onError: (error) => handle(error, onDone)
       }
     );
   return (

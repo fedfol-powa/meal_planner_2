@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { useAreaMutation } from '../../api/mutations';
 import { searchQuery, useQueryDeps } from '../../api/queries';
@@ -23,7 +23,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
   const api = useApi();
   const deps = useQueryDeps();
   const undo = useUndo();
-  const message = useMealErrors(familyId, weekStartsOn);
+  const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const [offset, setOffset] = useState(0);
   const suggestionsSection = useRef<HTMLElement>(null);
   // Starts on the slot's meal; results appear once the user types or changes a filter (prototype).
@@ -45,9 +45,15 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
         onSuccess: ({ view }) => {
           if (view.changed) undo.offer(view.actionId, weekStartsOn);
           onDone();
-        }
+        },
+        onError: (error) => handle(error, onDone)
       }
     );
+  // A slot gone meanwhile: handled once per failed read, not on each render.
+  useEffect(() => {
+    if (suggestions.isError) handle(suggestions.error, onDone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions.errorUpdatedAt]);
   const more = (nextOffset: number) => {
     setOffset(nextOffset);
     suggestionsSection.current?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
@@ -64,7 +70,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
       {excluded && (
         <p className={styles.notice} role="status">
           <span>{t('meals.excluded', { name: excluded.name })}</span>
-          <button type="button" disabled={include.isPending} onClick={() => include.mutate(excluded.id, { onSuccess: () => setExcluded(null) })}>
+          <button type="button" disabled={include.isPending} onClick={() => include.mutate(excluded.id, { onSuccess: () => setExcluded(null), onError: (error) => handle(error, onDone) })}>
             {t('meals.undoExclusion')}
           </button>
         </p>
@@ -77,7 +83,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
         </li>
         {current && !excluded && (
           <li>
-            <button type="button" disabled={exclude.isPending} onClick={() => exclude.mutate(current.id, { onSuccess: () => setExcluded({ id: current.id, name: current.name }) })}>
+            <button type="button" disabled={exclude.isPending} onClick={() => exclude.mutate(current.id, { onSuccess: () => setExcluded({ id: current.id, name: current.name }), onError: (error) => handle(error, onDone) })}>
               <Icon name="ban" />{t('meals.exclude')}
             </button>
           </li>

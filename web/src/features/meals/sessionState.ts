@@ -1,15 +1,17 @@
 import type { Session } from '../../session/session';
 
-export interface SaveNotice { id: string; mealLabel: string; date: string }
+/** A save of servings refused after its card unmounted, or a meal or recipe gone while its sheet was open. */
+export type NewNotice = { kind: 'servings'; mealLabel: string; date: string } | { kind: 'gone' };
+export type SaveNotice = NewNotice & { id: string };
 
 interface Notices {
   list(): SaveNotice[];
-  add(notice: Omit<SaveNotice, 'id'>): void;
+  add(notice: NewNotice): void;
   dismiss(id: string): void;
   subscribe(listener: () => void): () => void;
 }
 
-/** Saves that failed after their card unmounted, kept per session until dismissed (spec of the revision, 5). */
+/** Notices of the Menu, kept per session until dismissed (spec of the revision, 5). */
 const bySession = new WeakMap<Session, Notices>();
 
 export function noticesOf(session: Session): Notices {

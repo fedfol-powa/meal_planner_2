@@ -1,3 +1,4 @@
+import { ORPCError } from '@orpc/server';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SERVER_RECIPE } from '../../test/rpcServer';
@@ -62,5 +63,25 @@ describe('change recipe', () => {
     fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
     expect(within(article).getByRole('heading', { level: 3 }).textContent).toContain(NAME);
     expect(server.mealCalls.some((c) => c.op === 'meals.setRecipe')).toBe(false);
+  });
+
+  it('a recipe no longer available: sheet closed, week read once, the message stays in the menu (PR #33 review, 2)', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({
+      setRecipe: () => {
+        throw new ORPCError('not_found');
+      }
+    });
+    const { article, sheet } = await openPicker(/Pizza/);
+    const reads = server.weekReads.length;
+    fireEvent.click(await within(sheet).findByRole('button', { name: `Scegli ${NAME}` }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Questo pasto o questa ricetta non è più disponibile.')).toBeTruthy();
+    await waitFor(() => expect(server.weekReads.length).toBe(reads + 1));
+    // Renders after the refusal read nothing more.
+    fireEvent.click(within(article).getByRole('button', { name: 'Modifica il pasto' }));
+    fireEvent.click(within(article).getByRole('button', { name: 'Modifica il pasto' }));
+    await new Promise((done) => setTimeout(done, 50));
+    expect(server.weekReads.length).toBe(reads + 1);
   });
 });

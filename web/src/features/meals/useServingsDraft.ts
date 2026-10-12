@@ -16,6 +16,8 @@ interface Options {
   servings: number;
   online: boolean;
   onSaved(actionId: string, changed: boolean): void;
+  /** A refusal while the card is mounted. */
+  onRefused(error: unknown): void;
 }
 
 /**
@@ -53,14 +55,15 @@ export function useServingsDraft(o: Options) {
       ({ view }) => {
         if (mounted.current) latest.current.onSaved(view.actionId, view.changed);
       },
-      () => {
-        if (!mounted.current) notify(latest.current);
+      (error: unknown) => {
+        if (mounted.current) latest.current.onRefused(error);
+        else notify(latest.current);
       }
     ).finally(() => setDraft(null));
   };
 
   const notify = ({ mealLabel, date }: Options) => {
-    if (!session.isClosed()) noticesOf(session).add({ mealLabel, date });
+    if (!session.isClosed()) noticesOf(session).add({ kind: 'servings', mealLabel, date });
   };
 
   const step = (next: number) => {

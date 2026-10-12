@@ -13,7 +13,7 @@ export function SwapPicker({ familyId, weekStartsOn, meal, week, onDone }: { fam
   const { locale } = useLocale();
   const api = useApi();
   const undo = useUndo();
-  const message = useMealErrors(familyId, weekStartsOn);
+  const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const swap = useMealMutation<{ otherSlotId: string }>('meals.swap', familyId, weekStartsOn, ({ otherSlotId, id }) =>
     api.meals.swap({ familyId, slotId: meal.slotId, otherSlotId, id })
   );
@@ -25,7 +25,8 @@ export function SwapPicker({ familyId, weekStartsOn, meal, week, onDone }: { fam
         onSuccess: ({ view }) => {
           if (view.changed) undo.offer(view.actionId, weekStartsOn);
           onDone();
-        }
+        },
+        onError: (error) => handle(error, onDone)
       }
     );
   return (
