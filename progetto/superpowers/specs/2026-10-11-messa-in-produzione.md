@@ -1,7 +1,9 @@
 # Messa in produzione: spec di dettaglio
 
 Creata: 11 ottobre 2026 · Corretta dopo la review avversariale (16 rilievi,
-`progetto/coordinamento/revisioni/w6-produzione-spec-piano.md`) · Attività: messa in
+`progetto/coordinamento/revisioni/w6-produzione-spec-piano.md`) e dopo la seconda
+review (5 rilievi, `progetto/coordinamento/revisioni/w6-produzione-spec-piano-2.md`) ·
+Attività: messa in
 produzione (W6, branch `traguardo/messa-in-produzione`) · Subordinata a
 `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md` (sezioni 1, 2, 4, 8, 9,
 10, 11, 13) e al piano generale `progetto/superpowers/plans/2026-10-11-piano-generale.md`.
@@ -28,12 +30,13 @@ dell'utente, passo per passo.
 
 **Anteprima legata a ciò che si applica.** Ogni scrittura in produzione ha un'anteprima
 che non scrive e stampa un'**impronta** di ciò che verrà applicato; l'applicazione
-richiede quell'impronta e si rifiuta, senza scrivere, se è cambiata:
+richiede quell'impronta e si rifiuta, **prima di collegarsi**, se è cambiata:
 
 | Operazione | Anteprima | Applicazione |
 |---|---|---|
+| Migrazioni iniziali | `npm run release -- --preview --migrations-only` → commit `<sha>` | `npm run release -- --apply <sha> --migrations-only` |
 | Rilascio | `npm run release -- --preview` → commit `<sha>` | `npm run release -- --apply <sha>` |
-| SQL sulla produzione | `scripts/prod-sql.sh --preview <file>` → SHA-256 del file | `scripts/prod-sql.sh --apply <file> --confirm <sha256>` |
+| SQL sulla produzione | `scripts/prod-sql.sh --preview <file> [--launch] [--set …]` → impronta dell'operazione (sezione 8) | `scripts/prod-sql.sh --apply <file> [--launch] [--set …] --confirm <impronta>` |
 | Caricamento | `load.ts … --dry-run` → impronta degli input | `load.ts … --confirm <impronta>` |
 
 Il coordinatore mostra l'esito all'utente e procede solo con il suo «vai».
@@ -49,8 +52,8 @@ Il coordinatore mostra l'esito all'utente e procede solo con il suo «vai».
 
   | Variabile | Uso |
   |---|---|
-  | `POSTGRES_DATABASE_URL` | migrazioni (`supabase db push --db-url`), `scripts/prod-sql.sh`: Session pooler, porta 5432, database `postgres`, utente `postgres.<ref>` |
-  | `APP_SERVER_DATABASE_URL` | script di caricamento: Session pooler, porta 5432, database `postgres`, utente `app_server.<ref>` |
+  | `POSTGRES_DATABASE_URL` | migrazioni (`supabase db push --db-url`), `scripts/prod-sql.sh`, script di caricamento: Session pooler, porta 5432, database `postgres`, utente `postgres.<ref>` |
+  | `APP_SERVER_DATABASE_URL` | solo `load.ts --check-connection`, che prova le credenziali che userà Hyperdrive: Session pooler, porta 5432, database `postgres`, utente `app_server.<ref>` |
   | `APP_SERVER_PASSWORD` | solo per le opzioni `--origin-password` di `wrangler hyperdrive create/update` (stessa password della riga sopra) |
 
   Entrambe le URL terminano con
@@ -90,9 +93,9 @@ Il coordinatore mostra l'esito all'utente e procede solo con il suo «vai».
 
 | Fase | Contenuto | Dipende da |
 |---|---|---|
-| **1. Infrastruttura senza famiglia** | Prerequisiti, certificato e file delle credenziali, password di `app_server`, Hyperdrive, **bucket e chiave delle esportazioni**, PR di configurazione, primo rilascio, segreto della chiave, accesso di prova | Ciò che è su `main` (ondata 1, revisione dei pasti, esportazione in R2 unita con la #30 e la #32, bozze nell'app), più la PR di questa attività |
+| **1. Infrastruttura senza famiglia** | Prerequisiti, certificato e file delle credenziali, **migrazioni iniziali**, password di `app_server`, Hyperdrive, **bucket e chiave delle esportazioni**, PR di configurazione (con la chiave pubblica anche nel Worker), primo rilascio, segreto della chiave, accesso di prova | Ciò che è su `main` (ondata 1, revisione dei pasti, esportazione in R2 unita con la #30 e la #32, collegamento degli agenti unito con la #31, bozze nell'app), più la PR di questa attività |
 | **2. Import e avvio della famiglia** | Prova delle esportazioni, account, famiglia, caricamento, primo collaudo, collaudo completo | Fase 1; prima esportazione notturna verificata (spec di W5, sezione 6) |
-| **3. Agenti** | Chiave pubblica nel Worker, OAuth server, URL del sito, rilascio, prova della revoca e del ricettario tramite agente | Collegamento degli agenti (W2) unito; subito dopo l'avvio della famiglia |
+| **3. Agenti** | OAuth server, URL del sito, rilascio, prova della revoca e del ricettario tramite agente | Subito dopo l'avvio della famiglia (il collegamento degli agenti è unito con la #31) |
 | **Chiusura** | Rotazione delle password, esito registrato | Fasi 1–3 completate |
 
 Il codice su `main` dopo la #30 contiene già il binding `BACKUPS` al bucket
@@ -111,9 +114,12 @@ definita e provata prima dell'uso del catalogo in produzione).
 
 - esportazione in R2, `progetto/superpowers/specs/2026-10-11-esportazione-r2.md`, unita:
   sezioni «4. Ripristino», «5. Passi esterni» e «6. Collaudo»;
-- collegamento degli agenti, `progetto/superpowers/specs/2026-10-11-collegamento-agenti.md`
-  sul branch `traguardo/collegamento-agenti`, **non ancora unita**: sezione «Passi
-  esterni per la produzione (li fa l'utente)». La fase 3 dipende dal suo merge;
+- collegamento degli agenti, `progetto/superpowers/specs/2026-10-11-collegamento-agenti.md`,
+  unita con la #31: sezione «Passi esterni per la produzione (li fa l'utente)». Il suo
+  passo 5 (chiave pubblica nel Worker al posto di `sb_publishable_REPLACE_ME` **prima
+  della pubblicazione**) entra nella PR di configurazione della fase 1: con il
+  segnaposto «Scollega» risponderebbe `internal`. Attivazione (passi 6–7) e prove (passi
+  3 e 10) restano nella fase 3;
 - revisione dei pasti (W1) e bozze nell'app (PR #26): unite, nessun passo esterno.
 
 Al momento di ogni fase il coordinatore rilegge la sezione richiamata sulla versione
@@ -125,7 +131,7 @@ Passi richiamati dal Task 10 del piano della piattaforma
 (`progetto/superpowers/plans/2026-10-11-piattaforma.md`, «Risorse di produzione e prima
 pubblicazione») e dalla spec della piattaforma, sezione 6, «Passi di produzione»;
 questa spec li ordina e ne decide gli esecutori. I comandi esatti sono nel runbook del
-piano (R1–R13).
+piano (R1–R14).
 
 1. **Prerequisiti, in sola lettura:** `wrangler whoami` (account POWA),
    `supabase projects list` (`lronuqvtjdhfyychnscr`), JWKS con una chiave `ES256` o
@@ -134,24 +140,33 @@ piano (R1–R13).
 2. **Certificato e file delle credenziali** (utente): certificato del database in
    `~/.config/cosasimangia/supabase-ca.crt`; `POSTGRES_DATABASE_URL` nel file. Verifica:
    `prod-sql.sh` con un file di sola lettura risponde dal progetto giusto.
-3. **Pool e password di `app_server`** (utente): dimensione del pool; password con
+3. **Migrazioni iniziali** (coordinatore): `npm run release -- --preview
+   --migrations-only`, «vai», `--apply <sha> --migrations-only` (sezione 7). Creano lo
+   schema `app` e i ruoli `app_server`, `app_job` e `app_backup`, che i passi 4 e 5
+   presuppongono: su un progetto senza migrazioni `alter role app_server` fallirebbe e
+   Hyperdrive non avrebbe un utente valido. Ritorno indietro: correzione in avanti
+   (sezione 8); il database non ha famiglie.
+4. **Pool e password di `app_server`** (utente): dimensione del pool; password con
    `openssl rand -hex 24`, impostata nell'editor SQL; `APP_SERVER_DATABASE_URL` e
-   `APP_SERVER_PASSWORD` nel file. Verifica: caricamento con `--check-connection`.
-4. **Hyperdrive** (coordinatore): limite = pool − 5, almeno 5, con le opzioni
+   `APP_SERVER_PASSWORD` nel file. Verifica subito: `load.ts --check-connection`.
+5. **Hyperdrive** (coordinatore): limite = pool − 5, almeno 5, con le opzioni
    `--origin-*` esplicite (nessuna URL con parametri TLS passata a Hyperdrive).
-5. **Bucket e chiave delle esportazioni** (spec di W5, sezione 5, passi 1–2): bucket
+6. **Bucket e chiave delle esportazioni** (spec di W5, sezione 5, passi 1–2): bucket
    `cosasimangia-backups` in giurisdizione `eu`; chiave generata dall'utente e
-   conservata nel gestore di password. Il segreto si imposta al passo 8.
-6. **PR di configurazione** (worker; merge del coordinatore), nessun valore segreto: id
-   di Hyperdrive e `account_id` in `server/wrangler.jsonc`; `web/.env.production` con
-   `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`; eccezione
-   `!web/.env.production` nel `.gitignore` (già nella PR di questa attività).
-7. **Primo rilascio** (coordinatore): `npm run release -- --preview`, «vai», `--apply
-   <sha>` (sezione 7). Ritorno indietro: `wrangler delete` (sezione 8).
-8. **Segreto della chiave** (utente, subito dopo il primo rilascio e prima delle 02:30):
+   conservata nel gestore di password. Il segreto si imposta al passo 9.
+7. **PR di configurazione** (worker; merge del coordinatore), nessun valore segreto: id
+   di Hyperdrive, `account_id` e **`SUPABASE_PUBLISHABLE_KEY`** (la chiave pubblica, al
+   posto del segnaposto `sb_publishable_REPLACE_ME`) in `server/wrangler.jsonc`;
+   `web/.env.production` con `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`
+   (stessa chiave); eccezione `!web/.env.production` nel `.gitignore` (già nella PR di
+   questa attività).
+8. **Primo rilascio** (coordinatore): `npm run release -- --preview`, «vai», `--apply
+   <sha>` (sezione 7); le migrazioni risultano già applicate. Ritorno indietro:
+   `wrangler delete` (sezione 8).
+9. **Segreto della chiave** (utente, subito dopo il primo rilascio e prima delle 02:30):
    `! npx wrangler secret put BACKUP_ENCRYPTION_KEY` da `server/`. Da qui ogni
    anteprima di rilascio controlla che il segreto ci sia.
-9. **Accesso di prova** (utente): crea il proprio account, entra dall'iPhone
+10. **Accesso di prova** (utente): crea il proprio account, entra dall'iPhone
    sull'indirizzo `workers.dev`: app vera, nessuna famiglia. Il coordinatore segue
    `wrangler tail` a un'ora piena (cron senza errori) e, la mattina dopo, i log
    dell'esportazione notturna (`backup_export_done`). **Alla fine l'utente fa «Esci»**.
@@ -180,9 +195,11 @@ corrente alla prima lettura del menu (`ensureWeeks`, `server/src/menu/generation
 - **Avvio che non termina nella finestra** (decisione del coordinatore): se il bootstrap
   riesce ma il caricamento o il primo collaudo non terminano entro le 19 del mercoledì,
   la famiglia ancora inutilizzata si rimuove con `supabase/scripts/remove-family.sql`
-  (sezione 8: transazione, controllo dell'impronta, anteprima e «vai») e si ritenta in
-  una finestra successiva. Niente sospensioni della generazione. Il catalogo caricato
-  resta: il caricamento successivo lo ritrova e lo salta.
+  (sezione 8: transazione, controllo dell'**impronta di avvio** più recente, anteprima e
+  «vai») e si ritenta in una finestra successiva. Niente sospensioni della generazione.
+  Vale anche quando il caricamento fallisce: il suo rollback lascia valida l'impronta
+  del bootstrap, che basta alla rimozione. Il catalogo caricato resta: il caricamento
+  successivo lo ritrova e lo salta.
 
 **Passi.**
 
@@ -196,27 +213,34 @@ corrente alla prima lettura del menu (`ensureWeeks`, `server/src/menu/generation
    volta e annotato nel registro; Federico `family_admin` con ruoli globali
    `app_admin` e `recipe_curator` (sezione 2 della specifica: l'amministratore
    dell'app è Federico); gli altri `member` o `family_admin` come indicato. Anteprima
-   con `prod-sql.sh --preview`, «vai», `--apply --confirm <sha256>`. Un rilancio non
+   con `prod-sql.sh --preview --launch`, «vai», `--apply --launch --confirm <impronta
+   dell'operazione>`. Un rilancio non
    cambia la famiglia esistente e **riallinea** nome, lingua e ruolo delle persone ai
    valori del file (comportamento di `bootstrap.sql`): la verifica è un secondo
-   `--preview` che mostra l'avviso «family already exists» e le stesse righe. Ritorno
-   indietro: `remove-family.sql`.
+   `--preview` che mostra l'avviso «family already exists» e le stesse righe. Il
+   bootstrap si applica con **`--launch`** (sezione 8): blocca le tabelle di `app`,
+   rifiuta se esiste già una famiglia e stampa l'**impronta di avvio** calcolata nella
+   stessa transazione, che il coordinatore annota nel registro. Ritorno indietro:
+   `remove-family.sql` con quell'impronta.
 3. **Caricamento** (coordinatore): `--dry-run` con conteggi, report e impronta degli
-   input all'utente; «vai»; caricamento con `--confirm <impronta>` (sezione 6). Lo
-   script stampa alla fine l'**impronta dei dati** (sezione 8), che il coordinatore
-   annota nel registro: è la condizione per rimozione e azzeramento. Verifica: un
-   secondo `--dry-run` dice «0 da creare» per ogni voce.
+   input all'utente; «vai»; caricamento con `--confirm <impronta>` (sezione 6), entrambi
+   con `--launch-from <impronta di avvio del bootstrap>`. Il caricamento verifica
+   l'impronta di partenza e stampa dopo il commit la **nuova impronta di avvio**,
+   calcolata nella sua transazione; il coordinatore la annota e da qui vale quella. Se
+   il caricamento fallisce, resta valida quella del bootstrap. Verifica: un secondo
+   `--dry-run` dice «0 da creare» per ogni voce.
 4. **Primo collaudo, in sola lettura** (Federico sull'iPhone, con il coordinatore, entro
    le 19): accesso; menu della settimana corrente uguale al PDF del progetto di origine
    (ricette, porzioni, testi liberi); ricettario (numero di ricette come nel report,
    ricette dei libri visibili, sezione Bozze); impostazioni uguali alla tabella di
    `supabase/README.md`. Nessuna modifica. Il piano verifica in locale che queste
-   letture non cambino l'impronta (se una lettura scrive, esce dal primo collaudo). Se
-   fallisce o non finisce entro le 19: rimozione della famiglia, correzione, nuova
-   finestra.
+   letture non cambino l'impronta (se una lettura scrive, esce dal primo collaudo); alla
+   fine `show-fingerprint.sql` deve dare l'ultima impronta di avvio. Se fallisce o non
+   finisce entro le 19: rimozione della famiglia, correzione, nuova finestra.
 5. **Collaudo completo** (familiari con il coordinatore, dopo il primo collaudo):
-   tabella sotto. Da qui la famiglia usa l'app: niente più rimozione né azzeramento,
-   solo i ritorni indietro «dopo l'avvio» (sezione 8).
+   tabella sotto. Da qui la famiglia usa l'app: il coordinatore segna nel registro
+   l'impronta di avvio come **chiusa**; niente più rimozione né azzeramento, solo i
+   ritorni indietro «dopo l'avvio» (sezione 8).
 
 **Collaudo completo.** «CI» indica ciò che i test automatici già coprono; il collaudo
 lo verifica sul Worker pubblicato, sull'iPhone e con dati veri.
@@ -248,14 +272,14 @@ al ritorno indietro (sezione 8).
 `server/src/catalogue/write.ts`, `server/src/catalogue/ingredients.ts`
 (`setEquivalence`), `server/src/family/settings-writes.ts` (`writeSettingsKey`),
 `server/src/menu/generation.ts` (`lockFamilyWeeks`), `scripts/backup/cli.ts`
-(`destinationOf`).
+(`destinationOf`), `supabase/scripts/app-fingerprint.sql` (sezione 8).
 
 **Uso** (eseguito con `node` direttamente, TypeScript a sola cancellazione dei tipi:
 niente sintassi non cancellabile, come impone `erasableSyntaxOnly`):
 
 ```bash
-node scripts/import/load.ts --env-file <file> --today <YYYY-MM-DD> --family <uuid> --curator <uuid> --dry-run [--local]
-node scripts/import/load.ts --env-file <file> --today <YYYY-MM-DD> --family <uuid> --curator <uuid> --confirm <impronta> [--local]
+node scripts/import/load.ts --env-file <file> --today <YYYY-MM-DD> --family <uuid> --curator <uuid> [--launch-from <impronta di avvio>] --dry-run [--local]
+node scripts/import/load.ts --env-file <file> --today <YYYY-MM-DD> --family <uuid> --curator <uuid> [--launch-from <impronta di avvio>] --confirm <impronta> [--local]
 node scripts/import/load.ts --env-file <file> --check-connection [--local]
 ```
 
@@ -263,15 +287,22 @@ node scripts/import/load.ts --env-file <file> --check-connection [--local]
 - `--curator` è l'UUID dell'utente (i profili non hanno l'email): deve avere
   `recipe_curator` ed essere `family_admin` di `--family`, altrimenti rifiuto prima di
   scrivere.
-- Legge `APP_SERVER_DATABASE_URL` dal file indicato (`process.loadEnvFile`), con il
-  controllo del bersaglio e il TLS della sezione 2.
+- Legge `POSTGRES_DATABASE_URL` dal file indicato (`parseEnv`, senza toccare
+  `process.env`), con il controllo del bersaglio (ruolo `postgres`) e il TLS della
+  sezione 2. Serve il ruolo `postgres` perché il caricamento di avvio blocca tutte le
+  tabelle di `app` (sotto), cosa che `app_server` non può fare; le scritture passano
+  comunque come `authenticated` o `app_job` con `set local role`, quindi policy e
+  trigger valgono come nell'app.
+- `--launch-from <impronta>` indica il **caricamento di avvio** (sezione 8); senza,
+  è un rilancio che non produce impronte di avvio.
 - `--dry-run` e `--confirm` sono alternativi e uno dei due è obbligatorio: non esiste
   un caricamento senza anteprima.
 
 **Impronta degli input.** Prima di collegarsi, lo script calcola uno SHA-256 su:
 contenuto di tutti i file letti dell'origine (`ricettario/**`, `menu/**/menu.yaml`) e di
 `scripts/import/*.yaml`, commit `HEAD` del repository, `--today`, `--family`,
-`--curator`, ruolo, host e database di destinazione. `--dry-run` la stampa;
+`--curator`, `--launch-from` (o la sua assenza), ruolo, host e database di
+destinazione. `--dry-run` la stampa;
 `--confirm` la ricalcola e, se diversa, si ferma **senza collegarsi** («inputs changed
 since the preview: run --dry-run again»). Così l'approvazione vale per gli input
 mostrati.
@@ -281,6 +312,10 @@ diretta (`postgres`, `max: 1`): o entra tutto o niente. `--dry-run` esegue lo st
 codice e chiude con `rollback`; l'anteprima riporta quindi i conteggi veri, con gli
 stessi controlli delle scritture. Ruoli nella transazione:
 
+0. Solo con `--launch-from`, come `postgres` e prima di ogni altra istruzione: definizione
+   di `pg_temp.app_fingerprint()` e `pg_temp.lock_app_tables()`, lock di **tutte** le
+   tabelle di `app` in `exclusive mode`, poi confronto dell'impronta con quella data
+   (diversa: rifiuto «app data changed since the launch baseline», nulla scritto).
 1. `set_config('request.jwt.claims', …, true)` con i claim del curatore (`sub`,
    `role: authenticated`, `session_id` generato, `exp`) e `set local role
    authenticated`; attore `{ userId: curator, channel: 'import' }`. `session_is_active`
@@ -299,7 +334,10 @@ della famiglia, poi riga della famiglia; la generazione prende solo l'advisory e
 scritture delle impostazioni solo la riga, quindi non c'è ciclo. Una generazione
 concorrente aspetta il commit e poi trova le settimane già scritte; una scrittura
 concorrente nel catalogo (stesso slug) fa fallire il caricamento per unicità, senza
-effetti: si rilancia.
+effetti: si rilancia. Nel caricamento di avvio i lock di tutte le tabelle (punto 0)
+vengono prima: qualsiasi scrittura concorrente aspetta il commit e quindi cade **dopo**
+l'impronta di avvio. I rilanci senza `--launch-from` non bloccano le tabelle, perché la
+famiglia può già usare l'app.
 
 **Ordine delle scritture.**
 
@@ -384,10 +422,14 @@ modalità, impronta degli input, pubblicazione bloccata, conteggi delle scrittur
 (creati, già presenti, in sospeso), equivalenze divergenti, voti in sospeso, libri
 posseduti, ricette dello storico assenti, pasti doppi passati fra le provate, note del
 menu in corso non importate, preferenze da sistemare a mano. Nessuna stringa di
-connessione. Dopo un caricamento scritto stampa anche l'impronta dei dati (sezione 8).
+connessione. Un caricamento di avvio scritto stampa anche la nuova impronta di avvio
+(sezione 8), calcolata come `postgres` subito prima del commit e mostrata dopo; un
+rilancio senza `--launch-from` stampa «no launch baseline: not a launch load».
 
-**`--check-connection`:** si collega con lo stesso controllo del bersaglio e TLS e
-stampa numero di famiglie e ricette visibili ad `app_job`; non scrive.
+**`--check-connection`:** legge `APP_SERVER_DATABASE_URL` (ruolo `app_server`), si
+collega con lo stesso controllo del bersaglio e TLS e stampa numero di famiglie e
+ricette visibili ad `app_job`; non scrive. Prova la password che userà Hyperdrive e i
+grant del ruolo.
 
 ## 7. Rilascio: `npm run release`
 
@@ -395,6 +437,14 @@ stampa numero di famiglie e ricette visibili ad `app_job`; non scrive.
 nuova (`node:child_process` senza shell, `fetch`). Legge le credenziali con
 `--env-file <file>` (default il file della sezione 2). Lanciato dal coordinatore in due
 tempi.
+
+**`--migrations-only`** (una volta, nella fase 1, prima della password di `app_server` e
+di Hyperdrive): anteprima e applicazione fanno solo i punti 1, 2 (senza il controllo di
+`web/.env.production`, che ancora non esiste) e 5, poi `supabase db push --db-url …`;
+nessun controllo del Worker, nessuna build, nessun deploy. Serve perché i ruoli
+`app_server`, `app_job` e `app_backup` nascono dalle migrazioni. Il piano prova
+l'intera sequenza (migrazioni, password di `app_server`, `--check-connection`) partendo
+da un database senza i ruoli applicativi.
 
 **`--preview`** (non scrive nulla in produzione):
 
@@ -409,7 +459,10 @@ tempi.
 3. **Configurazione del Worker** (`server/wrangler.jsonc`, letto togliendo le righe di
    commento): `account_id` presente; id di Hyperdrive diverso dal segnaposto di zeri;
    ogni bucket di `r2_buckets` esistente (`wrangler r2 bucket info <nome>
-   --jurisdiction <giurisdizione>`); ogni segreto richiesto da
+   --jurisdiction <giurisdizione>`); `vars.SUPABASE_PUBLISHABLE_KEY` valorizzata, senza
+   segnaposto (`REPLACE_ME`) e **uguale** a `VITE_SUPABASE_PUBLISHABLE_KEY` di
+   `web/.env.production` (altrimenti «Scollega» degli agenti non funzionerebbe); ogni
+   segreto richiesto da
    `scripts/release.config.json` (`requiredSecrets`, oggi `BACKUP_ENCRYPTION_KEY`)
    presente in `wrangler secret list`. Al **primo rilascio** (nessuna versione
    pubblicata) i segreti non si possono ancora controllare: l'anteprima lo dice e
@@ -463,35 +516,60 @@ su quello.
 | Rilascio successivo difettoso | `npx wrangler rollback <version-id> --message "<motivo>"` alla versione con il tag dello SHA precedente (`wrangler versions list`). Prima, compatibilità dello schema: `git diff --name-only <sha precedente> <sha attuale> -- supabase/migrations` elenca le migrazioni applicate dopo; il ritorno è ammesso se sono tutte additive (nuove tabelle, colonne con default o nulle, funzioni nuove), altrimenti correzione in avanti |
 | Migrazione sbagliata | Correzione in avanti con una migrazione nuova; niente migrazioni «down». In fase 1 il database è senza famiglia |
 | Hyperdrive sbagliato | `wrangler hyperdrive update <id>` con le opzioni `--origin-*`, o `delete` e nuova creazione, poi PR con l'id |
-| Avvio che non termina nella finestra, o primo collaudo fallito | `supabase/scripts/remove-family.sql` (sotto), correzione, nuova finestra |
+| Avvio che non termina nella finestra (anche con il caricamento fallito), o primo collaudo fallito | `supabase/scripts/remove-family.sql` con l'ultima impronta di avvio (sotto), correzione, nuova finestra |
 | Caricamento riuscito ma sbagliato nel catalogo, **prima** del collaudo completo | `supabase/scripts/reset-app-data.sql` (sotto), correzione di script o YAML, famiglia e caricamento rifatti |
 | Errore nei dati **dopo** l'avvio | Correzioni puntuali dall'app o dall'agente; per un danno grave, ripristino dall'esportazione in R2 (spec di W5, sezione 4) e cambio di progetto (sotto) |
 | L'app non è usabile dalla famiglia | La famiglia torna al PDF del progetto di origine, che resta attivo (sezione 11): l'utente riprende a pianificare lì. I dati dell'app restano; si riprende con un nuovo passaggio di consegne a problema risolto |
 
-**Impronta dei dati: la condizione «solo bootstrap e import».** Rimozione e azzeramento
+**Impronta di avvio: la condizione «solo bootstrap e import».** Rimozione e azzeramento
 non provano a riconoscere tutte le forme d'uso (voti modificati, voci libere della
 spesa, impostazioni, libri, esclusioni, ingredienti, equivalenze, archiviazioni…): ne
 dimenticherebbero qualcuna. Usano invece un'**impronta di tutto lo schema `app`**:
-`pg_temp.app_fingerprint()`, definita in `supabase/scripts/app-fingerprint.sql`, MD5 per
-tabella del testo di tutte le righe in ordine, combinato in ordine di nome della
-tabella. Tabelle escluse, elencate nel file: `profile_preferences` (preferenze di
-visualizzazione, nessun contenuto). Il caricamento la stampa subito dopo il commit (la
-calcola nel ruolo `app_backup`, che legge tutto `app`); il coordinatore la annota nel
-registro. Rimozione e azzeramento:
+`pg_temp.app_fingerprint()`, definita in `supabase/scripts/app-fingerprint.sql` insieme a
+`pg_temp.lock_app_tables(mode)`, MD5 per tabella del testo di tutte le righe in ordine,
+combinato in ordine di nome della tabella. Tabelle escluse, elencate nel file:
+`profile_preferences` (preferenze di visualizzazione, nessun contenuto). Si calcola come
+`postgres`.
 
-1. bloccano **tutte** le tabelle di `app` (`lock table … in exclusive mode` per la
-   rimozione, `access exclusive` per l'azzeramento) prima di qualsiasi controllo: una
-   scrittura concorrente aspetta e, dopo, trova i dati già rimossi;
-2. calcolano l'impronta e la confrontano con quella annotata, passata come variabile
-   (`--set expected_fingerprint=<impronta>`); se è diversa si fermano senza toccare
-   nulla («app data changed since the load»). Qualsiasi scrittura dopo il caricamento,
-   anche una sola, cambia l'impronta: nel dubbio si rifiuta.
+Un'impronta autorizza rimozione e azzeramento solo se è un'**impronta di avvio**: prodotta
+**dentro la stessa transazione** delle scritture di avvio, con tutte le tabelle di `app`
+già bloccate, e quindi senza spazio per scritture d'altri fra le scritture e il calcolo.
+Ne nascono solo due, in catena:
+
+1. **bootstrap** con `prod-sql.sh --launch` (sotto): subito dopo `begin;` blocca tutte le
+   tabelle in `exclusive mode` e rifiuta se esiste già una famiglia (lo stato di partenza
+   non ha nulla da proteggere); subito prima di `commit;` calcola l'impronta e la
+   stampa;
+2. **caricamento di avvio** con `--launch-from <impronta precedente>` (sezione 6): blocca
+   tutte le tabelle, rifiuta se l'impronta di partenza non è quella data, scrive,
+   calcola la nuova impronta prima del commit e la stampa dopo.
+
+Una scrittura concorrente aspetta il commit e cade dopo l'impronta: la cambia, quindi
+rimozione e azzeramento rifiutano. Se il caricamento fallisce, il rollback lascia lo
+stato del bootstrap e la sua impronta resta valida (è il caso «bootstrap riuscito, import
+fallito» della decisione del coordinatore). I **rilanci** non rinnovano
+l'autorizzazione: senza `--launch-from` il caricamento non stampa impronte di avvio; con
+`--launch-from` funziona solo se nulla è cambiato dall'impronta precedente, cioè se lo
+stato contiene ancora soltanto bootstrap e import. Un rilancio del bootstrap si fa senza
+`--launch` (la famiglia esiste e `--launch` rifiuterebbe). Il coordinatore annota ogni
+impronta di avvio nel registro con la sua origine; vale l'ultima, e al collaudo completo
+la segna come chiusa.
+
+Rimozione e azzeramento:
+
+1. bloccano **tutte** le tabelle di `app` (`exclusive mode` per la rimozione, `access
+   exclusive` per l'azzeramento) prima di qualsiasi controllo: una scrittura concorrente
+   aspetta e, dopo, trova i dati già rimossi;
+2. calcolano l'impronta e la confrontano con l'ultima impronta di avvio, passata come
+   variabile (`--set expected_fingerprint=<impronta>`); se è diversa si fermano senza
+   toccare nulla («app data changed since the launch baseline»). Qualsiasi scrittura
+   dopo l'avvio, anche una sola, cambia l'impronta: nel dubbio si rifiuta.
 
 **SQL sulla produzione: `scripts/prod-sql.sh`.**
 
 ```bash
-scripts/prod-sql.sh --preview <file.sql> [--set nome=valore …]
-scripts/prod-sql.sh --apply <file.sql> --confirm <sha256> [--set nome=valore …]
+scripts/prod-sql.sh --preview <file.sql> [--launch] [--set nome=valore …]
+scripts/prod-sql.sh --apply <file.sql> [--launch] [--set nome=valore …] --confirm <impronta dell'operazione>
 ```
 
 Sul Mac non c'è `psql`: lo script usa quello dell'immagine Postgres dello stack locale
@@ -501,20 +579,31 @@ in CI). Legge `POSTGRES_DATABASE_URL` dal file delle credenziali
 stesso modulo del caricamento e la passa al container solo come variabile d'ambiente;
 monta in sola lettura `~/.config/cosasimangia` (certificato). Accetta solo file con
 esattamente una riga `begin;` e una riga `commit;`. Prima del file invia sempre
-`supabase/scripts/app-fingerprint.sql`. `--preview` sostituisce `commit;` con
-`rollback;`, mostra l'output e stampa lo SHA-256 del file; `--apply` esige `--confirm`
-con quello SHA e altrimenti non si collega. `--set` diventa `psql -v`. Variabili:
-`PROD_CREDENTIALS`, `PROD_SQL_TARGET=local` (solo prove), `CONTAINER_CLI`.
+`supabase/scripts/app-fingerprint.sql`. `--launch` aggiunge dopo `begin;` il lock di
+tutte le tabelle e il rifiuto se esiste una famiglia, e prima di `commit;` il calcolo
+dell'impronta di avvio. `--set` diventa `psql -v`: nomi `[a-z_]+`, valori di lettere,
+cifre, `-` e `_`, ogni nome una sola volta.
+
+**Impronta dell'operazione.** `--preview` stampa uno SHA-256 calcolato **prima di
+collegarsi** sul testo canonico di ciò che verrà eseguito: SHA-256 del file, SHA-256 di
+`app-fingerprint.sql`, presenza di `--launch`, le coppie `--set` ordinate per nome, e la
+destinazione verificata (ruolo, host, porta, database). `--apply` la ricalcola e, se
+`--confirm` non coincide, si ferma senza collegarsi. Così il «vai» vale per quel file,
+con quei parametri, su quella destinazione: un'anteprima di `remove-family.sql` per la
+famiglia A non autorizza la famiglia B. Variabili: `PROD_CREDENTIALS`,
+`PROD_SQL_TARGET=local` (solo prove), `CONTAINER_CLI`.
 
 **File SQL di servizio** (in `supabase/scripts/`, provati in CI su uno stack isolato):
 
 - `app-fingerprint.sql`: la funzione dell'impronta;
 - `show-fingerprint.sql`: stampa l'impronta (sola lettura);
-- `remove-family.sql` (variabili `family_id`, `expected_fingerprint`): lock, confronto
+- `remove-family.sql` (variabili `family_id`, `expected_fingerprint`, l'ultima impronta
+  di avvio): lock, confronto
   dell'impronta, `delete from app.families where id = :family_id` (a cascata settimane,
   pasti, membri, impostazioni, libri, provate; il catalogo e i voti di Federico
   restano, e il caricamento successivo li ritrova); conteggi di ciò che toglie;
-- `reset-app-data.sql` (variabile `expected_fingerprint`): lock, confronto
+- `reset-app-data.sql` (variabile `expected_fingerprint`, l'ultima impronta di avvio):
+  lock, confronto
   dell'impronta, `truncate app.families, app.recipes, app.ingredients, app.books
   cascade`; lascia schema, utenti, profili e ruoli globali;
 - `check-first-generation.sql` (variabili `family_id`, `week_start`): riga di
@@ -525,29 +614,29 @@ sezione 4, «Configurazioni che dipendono dal progetto Supabase», con queste ag
 perché le protezioni di W6 seguano il cambio senza indebolirsi:
 
 1. PR revisionata che cambia **insieme** `scripts/production-target.json`
-   (`supabaseRef` nuovo), `SUPABASE_URL` in `server/wrangler.jsonc` e
-   `web/.env.production` (URL e chiave pubblica nuovi). Il rilascio rifiuta qualsiasi
+   (`supabaseRef` nuovo), `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` in
+   `server/wrangler.jsonc` e `web/.env.production` (URL e chiave pubblica nuovi). Il rilascio rifiuta qualsiasi
    combinazione incoerente (sezione 7, punto 2).
 2. L'utente aggiorna `POSTGRES_DATABASE_URL` e `APP_SERVER_DATABASE_URL` nel file delle
    credenziali (utenti `postgres.<ref nuovo>` e `app_server.<ref nuovo>`, certificato
    del progetto nuovo); finché non lo fa, ogni strumento rifiuta.
-3. Migrazioni (`release --preview` le mostra), ripristino con la CLI di W5,
-   `wrangler hyperdrive update`, rilascio: nell'ordine di W5.
+3. Migrazioni con `--migrations-only`, password di `app_server`, ripristino con la CLI
+   di W5, `wrangler hyperdrive update`, rilascio: nell'ordine di W5, con le migrazioni
+   prima di tutto ciò che usa i ruoli applicativi.
 4. Il vecchio progetto non si cancella finché il nuovo non ha passato il collaudo.
 
 ## 9. Fase 3 e chiusura
 
-**Fase 3, agenti** (dopo il merge di W2, subito dopo l'avvio della famiglia). Dalla
-spec di W2, «Passi esterni per la produzione (li fa l'utente)»:
+**Fase 3, agenti** (subito dopo l'avvio della famiglia; W2 è unito con la #31). Dalla
+spec di W2, «Passi esterni per la produzione (li fa l'utente)»; la chiave pubblica nel
+Worker (suo passo 5) è già entrata con la PR di configurazione della fase 1, e ogni
+rilascio controlla che coincida con quella della SPA:
 
-1. PR (worker o W2) con la chiave pubblica in `SUPABASE_PUBLISHABLE_KEY` dei `vars` di
-   `server/wrangler.jsonc` (stesso valore di `web/.env.production`; il rilascio
-   controlla che coincidano).
-2. Utente: Authentication › OAuth Server (attivo, *Authorization path* `/authorize`,
+1. Utente: Authentication › OAuth Server (attivo, *Authorization path* `/authorize`,
    registrazione dinamica attiva); Authentication › URL Configuration, *Site URL* uguale
    all'indirizzo `workers.dev`, *Redirect URLs* con `<origine>/**`.
-3. Coordinatore: `npm run release` (anteprima, «vai», applicazione).
-4. Prove di W2 (suoi passi 3 e 10): collegamento di Claude Code, `session_whoami`,
+2. Coordinatore: `npm run release` (anteprima, «vai», applicazione).
+3. Prove di W2 (suoi passi 3 e 10): collegamento di Claude Code, `session_whoami`,
    revoca con «Scollega». In più, **ricettario tramite agente** con Federico curatore:
    ricerca di una ricetta, creazione di una bozza, modifica, pubblicazione e
    archiviazione di una ricetta di prova; risultato atteso: la ricetta compare e poi
@@ -628,7 +717,8 @@ produzione (lo prova W5 in un ambiente di verifica); spegnimento del progetto di
   i rilasci diventano frequenti.
 - **Migrazioni sul progetto di produzione** (sezioni 1, 15): con la CLI di Supabase e
   `--db-url` verificata (`db push --dry-run`, poi `db push`) dentro `npm run release`,
-  sempre prima del deploy del Worker. Chiude la voce «modo di applicare le migrazioni»
+  sempre prima del deploy del Worker; la prima volta da sole (`--migrations-only`),
+  perché i ruoli del server nascono dalle migrazioni. Chiude la voce «modo di applicare le migrazioni»
   della sezione 15; la spec della piattaforma (sezione 7) e `server/README.md` vanno
   allineati.
 - **Esecuzione delle operazioni sulla produzione** (sezione 1): le lancia il
@@ -638,8 +728,9 @@ produzione (lo prova W5 in un ambiente di verifica); spegnimento del progetto di
   rotazione delle password a fine collaudo.
 - **Variabili della build** (sezione 1): `web/.env.production` versionato con URL e
   chiave pubblica di Supabase; la build di rilascio rifiuta override locali.
-- **Import nel database** (sezione 11): `scripts/import/load.ts`, una transazione con
-  anteprima a rollback legata agli input, catalogo come curatore con canale `import`,
+- **Import nel database** (sezione 11): `scripts/import/load.ts`, collegato come
+  `postgres`, una transazione con anteprima a rollback legata agli input, catalogo come
+  curatore con canale `import`,
   storico e menu in corso nel ruolo `app_job`, lock della generazione, dati della
   famiglia calcolati sull'intero ricettario d'origine e scritti solo in aggiunta;
   nessun valore del catalogo già presente sovrascritto.
@@ -647,4 +738,5 @@ produzione (lo prova W5 in un ambiente di verifica); spegnimento del progetto di
   delle esportazioni), poi import e avvio della famiglia (dopo l'esportazione provata),
   poi agenti.
 - **Rimozione e azzeramento prima dell'uso** (sezione 8): ammessi solo se l'impronta di
-  `app` è quella registrata dopo il caricamento, con tutte le tabelle bloccate.
+  `app` è l'ultima impronta di avvio, prodotta dentro la transazione del bootstrap o del
+  caricamento di avvio con tutte le tabelle bloccate; i rilanci non la rinnovano.

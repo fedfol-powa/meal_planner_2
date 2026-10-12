@@ -4,7 +4,7 @@
 
 **Goal:** strumenti e procedura per portare il traguardo A in produzione: script di
 caricamento del ricettario e dei dati della famiglia, rilascio in due tempi, SQL sulla
-produzione con anteprima legata al file, impronta dei dati con rimozione della famiglia e
+produzione con anteprima legata all'operazione, impronta di avvio con rimozione della famiglia e
 azzeramento prima dell'uso, documenti; poi il runbook delle fasi 1–3 e della chiusura.
 
 **Architecture:** parte A (implementazione, TDD, una PR): modulo del bersaglio con TLS
@@ -61,8 +61,14 @@ di ogni task), subordinata alla specifica principale.
   con due connessioni (Task 4).
 - **Impronta:** rimozione e azzeramento rifiutati dopo ognuna delle scritture del
   rilievo 3 e dopo una scrittura concorrente (Task 8).
-- **Anteprima legata:** input o file SQL cambiati fra anteprima e applicazione →
-  rifiuto senza collegarsi (Task 5, Task 8).
+- **Anteprima legata:** input, file SQL, parametri `--set`, `--launch` o destinazione
+  cambiati fra anteprima e applicazione → rifiuto senza collegarsi (Task 5, Task 8).
+- **Impronta di avvio:** prodotta solo dentro le transazioni del bootstrap
+  (`prod-sql.sh --launch`) e del caricamento di avvio (`--launch-from`), con tutte le
+  tabelle di `app` già bloccate; i rilanci non la rinnovano (Task 3, Task 8).
+- **Ordine della fase 1:** migrazioni iniziali prima della password di `app_server` e di
+  Hyperdrive, provato da un database senza ruoli applicativi (Task 7, Task 8).
+- **Chiave pubblica del Worker:** uguale a quella della SPA in ogni rilascio (Task 7).
 - **Build prima delle scritture:** un errore di build o di chiave nell'`--apply` non
   produce nessun `db push` né `deploy` (Task 7).
 
@@ -73,20 +79,30 @@ di ogni task), subordinata alla specifica principale.
 | 1 | Destinazione delle migrazioni | 2, 7 (punti 2 e 5) | Task 7 (`--db-url`, progetto collegato, test senza comandi `supabase`) |
 | 2 | TLS del caricamento | 2 | Task 1 (`destinationOf`, opzioni del client), Task 5 |
 | 3 | Azzeramento dopo l'uso | 8 (impronta, lock) | Task 8 (otto scritture, scrittura concorrente) |
-| 4 | Bucket prima del primo rilascio | 3, 4 | Task 7 (prerequisiti), R7, R9, R10 |
+| 4 | Bucket prima del primo rilascio | 3, 4 | Task 7 (prerequisiti), R8, R10, R11 |
 | 5 | Parameter property | 6 | Task 3 (`DryRun`), test con `node` vero nei Task 5 e 7 |
 | 6 | Equivalenze sovrascritte | 6 | Task 3 (chiave logica, test di rilancio) |
-| 7 | Concorrenza con la generazione | 5, 6 | Task 3 (lock), Task 4 (due connessioni), R20 |
+| 7 | Concorrenza con la generazione | 5, 6 | Task 3 (lock), Task 4 (due connessioni), R21 |
 | 8 | Test contraddittori, CI | — | Task 3–4 (fixture per caso), Task 8 (CI) |
 | 9 | Configurazione effettiva della build | 7 (punto 4) | Task 7 |
 | 10 | Token del controllo del database | 7 | Task 7 (`CHECK_TOKEN`) |
 | 11 | Prova del `.gitignore` | 2 | Task 6 (`--no-index`) |
-| 12 | Ritorno indietro incompleto | 8 | R9, R13, «Cambio di progetto» |
-| 13 | Collaudo del cron e checklist | 5 | Task 8 (`check-first-generation.sql`), R22 |
+| 12 | Ritorno indietro incompleto | 8 | R10, R14, «Cambio di progetto» |
+| 13 | Collaudo del cron e checklist | 5 | Task 8 (`check-first-generation.sql`), R23 |
 | 14 | Anteprima non legata | 1, 6 | Task 2, Task 5, Task 8 (`--confirm`) |
 | 15 | Report incompleto | 6 | Task 5 |
-| 16 | Istruzioni non copiabili | 5, 8 | R4–R26, `prod-sql.sh` |
-| Decisioni 1–3 | Preferenze, doppi, finestra | 5, 6 | Task 2, Task 4, R19–R20 |
+| 16 | Istruzioni non copiabili | 5, 8 | R4–R27, `prod-sql.sh` |
+| Decisioni 1–3 | Preferenze, doppi, finestra | 5, 6 | Task 2, Task 4, R20–R21 |
+
+**Seconda review** (`progetto/coordinamento/revisioni/w6-produzione-spec-piano-2.md`).
+
+| # | Rilievo | Spec | Piano |
+|---|---|---|---|
+| 1 | Password di `app_server` prima del ruolo | 4 (passo 3), 7 (`--migrations-only`) | Task 7 (`--migrations-only`), Task 8 (sequenza da un database senza ruoli), R5–R7 |
+| 2 | Rimozione dopo un caricamento fallito | 5, 8 (impronta di avvio) | Task 3 (rollback senza impronta), Task 8 (bootstrap con `--launch`, caso «import fallito»), R18–R21 |
+| 3 | Impronta fuori dalla transazione, rilanci | 6, 8 | Task 3 (`--launch-from`, lock di tutte le tabelle, impronta prima del commit), Task 8 (scrittura concorrente, rilancio dopo l'avvio) |
+| 4 | Conferma SQL senza parametri | 1, 8 (impronta dell'operazione) | Task 8 (`prod-sql-plan.ts`, cambio del solo `family_id` rifiutato prima della connessione) |
+| 5 | Chiave segnaposto nel Worker | 3, 4 (passo 7), 7 (punto 3), 9 | Task 7 (`worker-key`), R9; tolto il vecchio R23 |
 
 ---
 
@@ -103,19 +119,20 @@ di ogni task), subordinata alla specifica principale.
 | `scripts/import/load/inputs-fingerprint.ts` | Impronta degli input del caricamento |
 | `scripts/import/load/catalogue.ts` | Scritture del catalogo (libri, ingredienti, equivalenze, ricette) |
 | `scripts/import/load/family.ts` | Scritture della famiglia (impostazioni, limiti, libri, voti, provate, settimane) |
-| `scripts/import/load/run.ts` | Transazione unica: ruoli, lock, rifiuti, anteprima a rollback, impronta dei dati |
+| `scripts/import/load/run.ts` | Transazione unica: ruoli, lock, rifiuti, anteprima a rollback, impronta di avvio |
 | `scripts/import/load/report.ts` | Report Markdown (con il report dell'import) e riepilogo |
 | `scripts/import/load/test-origin.ts` | Fixture d'origine per i test, con prefisso unico per caso |
 | `scripts/import/load.ts` | Comando: argomenti, credenziali, connessione, `--check-connection`, errori senza dati |
 | `scripts/release.ts` | `npm run release -- --preview` / `--apply <sha>` |
 | `scripts/release.config.json` | `productionUrl`, `requiredSecrets` |
-| `scripts/prod-sql.sh`, `scripts/prod-sql-target.ts` | SQL sulla produzione con anteprima legata al file |
-| `supabase/scripts/app-fingerprint.sql` | `pg_temp.app_fingerprint()` |
+| `scripts/prod-sql.sh`, `scripts/prod-sql-plan.ts` | SQL sulla produzione con anteprima legata all'operazione (file, parametri, `--launch`, destinazione) |
+| `supabase/scripts/app-fingerprint.sql` | `pg_temp.app_fingerprint()`, `pg_temp.lock_app_tables(mode)`, `pg_temp.launch_start()` |
 | `supabase/scripts/show-fingerprint.sql` | Stampa l'impronta |
 | `supabase/scripts/remove-family.sql` | Rimozione della famiglia inutilizzata |
 | `supabase/scripts/reset-app-data.sql` | Azzeramento prima dell'uso |
 | `supabase/scripts/check-first-generation.sql` | Controllo della prima generazione del cron |
 | `scripts/destructive/*.test.ts`, `vitest.destructive.config.ts` | Prove distruttive, ultime in CI |
+| `scripts/destructive/fresh/fresh-database.test.ts` | Sequenza della fase 1 da un database senza ruoli applicativi, ultimissima in CI |
 
 Test unitari accanto ai moduli; `scripts/import/load/load.db.test.ts` (integrazione,
 saltato senza `TEST_DATABASE_URL`, obbligatorio in CI come i test del server).
@@ -357,7 +374,7 @@ git commit -m "Messa in produzione: progetto di destinazione, bersaglio delle co
   export interface ConditionalPreference { originSlug: string; name: string; note: string }
   export function conditionalPreferences(origin: OriginRecipe[]): ConditionalPreference[];
   // inputs-fingerprint.ts
-  export function inputsFingerprint(args: { originDirectory: string; importDirectory: string; head: string; today: string; familyId: string; curatorId: string; endpoint: string }): string;
+  export function inputsFingerprint(args: { originDirectory: string; importDirectory: string; head: string; today: string; familyId: string; curatorId: string; launchFrom: string | null; endpoint: string }): string;
   ```
 
 - [ ] **Step 1: test delle impostazioni**
@@ -503,13 +520,14 @@ describe('inputsFingerprint', () => {
 	writeFileSync(join(dir, 'origin/ricettario/ricette.yaml'), 'a');
 	writeFileSync(join(dir, 'origin/menu/2026-10-12/menu.yaml'), 'b');
 	writeFileSync(join(dir, 'import/ingredients.yaml'), 'c');
-	const args = { originDirectory: join(dir, 'origin'), importDirectory: join(dir, 'import'), head: 'abc', today: '2026-10-13', familyId: 'f', curatorId: 'c', endpoint: 'app_server.x@h:5432/postgres' };
+	const args = { originDirectory: join(dir, 'origin'), importDirectory: join(dir, 'import'), head: 'abc', today: '2026-10-13', familyId: 'f', curatorId: 'c', launchFrom: null, endpoint: 'postgres.x@h:5432/postgres' };
 
 	it('is stable for the same inputs and changes with any file or argument', () => {
 		const first = inputsFingerprint(args);
 		expect(inputsFingerprint(args)).toBe(first);
 		expect(inputsFingerprint({ ...args, today: '2026-10-14' })).not.toBe(first);
-		expect(inputsFingerprint({ ...args, endpoint: 'app_server.y@h:5432/postgres' })).not.toBe(first);
+		expect(inputsFingerprint({ ...args, endpoint: 'postgres.y@h:5432/postgres' })).not.toBe(first);
+		expect(inputsFingerprint({ ...args, launchFrom: 'abc' })).not.toBe(first);
 		writeFileSync(join(dir, 'origin/menu/2026-10-12/menu.yaml'), 'b2');
 		expect(inputsFingerprint(args)).not.toBe(first);
 	});
@@ -699,7 +717,7 @@ function files(dir: string, keep: (path: string) => boolean): string[] {
 	});
 }
 
-export function inputsFingerprint(args: { originDirectory: string; importDirectory: string; head: string; today: string; familyId: string; curatorId: string; endpoint: string }): string {
+export function inputsFingerprint(args: { originDirectory: string; importDirectory: string; head: string; today: string; familyId: string; curatorId: string; launchFrom: string | null; endpoint: string }): string {
 	const read = [
 		...files(join(args.originDirectory, 'ricettario'), () => true),
 		...files(join(args.originDirectory, 'menu'), (p) => p.endsWith('/menu.yaml')),
@@ -725,7 +743,9 @@ git commit -m "Messa in produzione: impostazioni, settimane, preferenze condizio
 **Files:**
 - Create: `scripts/import/load/catalogue.ts`, `scripts/import/load/run.ts`,
   `scripts/import/load/family.ts` (segnaposto tipato, completato nel Task 4),
-  `scripts/import/load/test-origin.ts`, `scripts/import/load/load.db.test.ts`
+  `scripts/import/load/test-origin.ts`, `scripts/import/load/load.db.test.ts`,
+  `supabase/scripts/app-fingerprint.sql` (serve qui al caricamento di avvio; il Task 8
+  lo usa per `prod-sql.sh`)
 
 **Interfaces:**
 - Consumes: `createBook`, `createIngredient`, `createDraft`, `publishDraft`, `Actor`
@@ -745,13 +765,15 @@ git commit -m "Messa in produzione: impostazioni, settimane, preferenze condizio
   export async function existingCatalogue(tx: Tx): Promise<{ recipes: string[]; ingredients: string[]; books: string[] }>;
   export async function loadCatalogue(tx: Tx, actor: Actor, bundle: ImportBundle, equivalences: UnitEquivalence[]): Promise<CatalogueResult>;
   // run.ts
-  export interface LoadOptions { today: string; familyId: string; curatorId: string; root: string; originDirectory?: string; dryRun: boolean }
-  export interface LoadResult { mode: 'dry-run' | 'written'; catalogue: CatalogueResult; family: FamilyResult; importReport: string }
+  /** launchFrom: launch load (detail spec, section 8), from the last launch baseline. */
+  export interface LoadOptions { today: string; familyId: string; curatorId: string; root: string; originDirectory?: string; dryRun: boolean; launchFrom?: string }
+  /** baseline: the new launch baseline, only for a written launch load. */
+  export interface LoadResult { mode: 'dry-run' | 'written'; catalogue: CatalogueResult; family: FamilyResult; importReport: string; baseline: string | null }
   export class LoadRefused extends Error {}
+  export const FINGERPRINT_SQL: string; // supabase/scripts/app-fingerprint.sql, read next to the module
   export async function actAsCurator(tx: Tx, curatorId: string): Promise<void>;
   export async function actAsJob(tx: Tx): Promise<void>;
   export async function loadAll(sql: postgres.Sql, options: LoadOptions): Promise<LoadResult>;
-  export async function dataFingerprint(sql: postgres.Sql, root: string): Promise<string>;
   // test-origin.ts
   export interface LoadCase { prefix: string; dir: string }
   export function writeOriginFixture(variant?: { pendingReview?: boolean; missingInMenu?: boolean }): LoadCase;
@@ -776,12 +798,15 @@ equivalenze, libro) e le famiglie indicate: ogni test pulisce ciò che crea, in
 
 - [ ] **Step 2: test d'integrazione che falliscono** (`load.db.test.ts`, prima parte)
 
+Il caricamento si collega come `postgres` (spec, sezione 6): nei test `sql` è una
+connessione propria su `TEST_DATABASE_URL`, distinta da `db.admin` usata per i fixture.
+
 ```ts
 import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { hasDatabase, setupDatabase, type TestDatabase } from '../../../server/test/support/db.ts';
 import { cleanupLoadCase, writeOriginFixture, type LoadCase } from './test-origin.ts';
-import { LoadRefused, loadAll } from './run.ts';
+import { FINGERPRINT_SQL, LoadRefused, loadAll } from './run.ts';
 
 describe.skipIf(!hasDatabase)('load into the database', () => {
 	let db: TestDatabase;
@@ -789,7 +814,8 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 	const cases: { c: LoadCase; families: string[] }[] = [];
 	beforeAll(async () => {
 		db = await setupDatabase();
-		sql = postgres(db.appServerUrl, { max: 1, fetch_types: false, onnotice: () => {} });
+		// The load connects as postgres: only that role can lock every table of app for a launch load.
+		sql = postgres(process.env.TEST_DATABASE_URL!, { max: 1, fetch_types: false, onnotice: () => {} });
 	});
 	afterEach(async () => {
 		for (const { c, families } of cases.splice(0)) await cleanupLoadCase(db.admin, c, families);
@@ -811,6 +837,12 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 	}
 	const count = async (table: string, prefix: string) =>
 		(await db.admin.unsafe(`select count(*)::int as n from app.${table} where ${table === 'recipes' ? 'origin_slug' : 'slug'} like $1`, [`${prefix}%`]))[0]!.n as number;
+	const fingerprintNow = () =>
+		db.admin.begin(async (tx) => {
+			await tx.unsafe(FINGERPRINT_SQL);
+			const [row] = await tx<{ f: string }[]>`select pg_temp.app_fingerprint() as f`;
+			return row!.f;
+		}) as Promise<string>;
 
 	it('dry-run counts everything and leaves nothing', async () => {
 		const { c, options } = await freshCase();
@@ -859,6 +891,30 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 		const { userId: otherCurator } = await db.createUser();
 		await db.grantGlobalRole(otherCurator, 'recipe_curator');
 		await expect(loadAll(sql, options({ curatorId: otherCurator, dryRun: true }))).rejects.toThrow(/not an admin/);
+	});
+
+	it('launch load: checks the baseline under the table locks and returns the new one, computed before the commit', async () => {
+		const { options } = await freshCase();
+		const start = await fingerprintNow();
+		const result = await loadAll(sql, options({ launchFrom: start }));
+		expect(result.baseline).toMatch(/^[0-9a-f]{32}$/);
+		expect(await fingerprintNow()).toBe(result.baseline);
+		// A rerun without launchFrom renews nothing; a dry run never gives a baseline.
+		expect((await loadAll(sql, options())).baseline).toBeNull();
+		expect((await loadAll(sql, options({ dryRun: true, launchFrom: await fingerprintNow() }))).baseline).toBeNull();
+	});
+
+	it('refuses a launch load from a stale baseline, writing nothing', async () => {
+		const { c, options } = await freshCase();
+		await expect(loadAll(sql, options({ launchFrom: '0'.repeat(32) }))).rejects.toThrow(/changed since the launch baseline/);
+		expect(await count('recipes', c.prefix)).toBe(0);
+	});
+
+	it('leaves the previous baseline valid when the launch load fails', async () => {
+		const { options } = await freshCase({ missingInMenu: true });
+		const start = await fingerprintNow();
+		await expect(loadAll(sql, options({ launchFrom: start }))).rejects.toThrow(/assente/);
+		expect(await fingerprintNow()).toBe(start); // the removal of the family can still use it
 	});
 });
 ```
@@ -957,7 +1013,8 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type postgres from 'postgres';
 import type { Tx } from '../../../server/src/db.ts';
 import type { Actor } from '../../../server/src/catalogue/write.ts';
@@ -971,8 +1028,15 @@ import { readOriginMenus } from './menus.ts';
 
 // The production load as one transaction (detail spec, section 6): all or nothing, and the dry run is
 // the same code ending in a rollback, so the preview counts are the real ones.
-export interface LoadOptions { today: string; familyId: string; curatorId: string; root: string; originDirectory?: string; dryRun: boolean }
-export interface LoadResult { mode: 'dry-run' | 'written'; catalogue: CatalogueResult; family: FamilyResult; importReport: string }
+export interface LoadOptions { today: string; familyId: string; curatorId: string; root: string; originDirectory?: string; dryRun: boolean; launchFrom?: string }
+export interface LoadResult { mode: 'dry-run' | 'written'; catalogue: CatalogueResult; family: FamilyResult; importReport: string; baseline: string | null }
+
+export const FINGERPRINT_SQL = readFileSync(fileURLToPath(new URL('../../../supabase/scripts/app-fingerprint.sql', import.meta.url)), 'utf8');
+
+async function fingerprintNow(tx: Tx) {
+	const [row] = await tx<{ f: string }[]>`select pg_temp.app_fingerprint() as f`;
+	return row!.f;
+}
 
 export class LoadRefused extends Error {
 	constructor(reason: string) {
@@ -1012,6 +1076,13 @@ export async function loadAll(sql: postgres.Sql, options: LoadOptions): Promise<
 	const origin = options.originDirectory ?? originDir(options.root);
 	try {
 		return (await sql.begin(async (tx) => {
+			if (options.launchFrom !== undefined) {
+				// Launch load (detail spec, section 8): every table of app locked before anything else, so a
+				// concurrent write waits for the commit and the baseline below holds only bootstrap and load.
+				await tx.unsafe(FINGERPRINT_SQL);
+				await tx`select pg_temp.lock_app_tables('exclusive')`;
+				if ((await fingerprintNow(tx)) !== options.launchFrom) throw new LoadRefused('app data changed since the launch baseline: no launch load');
+			}
 			await actAsCurator(tx, options.curatorId);
 			await checkCurator(tx, options.familyId, options.curatorId);
 			// Same lock as the generation, then the family row: a generation or a settings write waits
@@ -1029,7 +1100,12 @@ export async function loadAll(sql: postgres.Sql, options: LoadOptions): Promise<
 				familyId: options.familyId, curatorId: options.curatorId, storedSettings: family.settings,
 				origin: readOriginRecipes(origin), today: options.today, menus: readOriginMenus(origin),
 			});
-			const result: LoadResult = { mode: options.dryRun ? 'dry-run' : 'written', catalogue, family: familyResult, importReport: files['report.md']! };
+			let baseline: string | null = null;
+			if (options.launchFrom !== undefined && !options.dryRun) {
+				await tx`reset role`; // back to postgres, which reads every row
+				baseline = await fingerprintNow(tx);
+			}
+			const result: LoadResult = { mode: options.dryRun ? 'dry-run' : 'written', catalogue, family: familyResult, importReport: files['report.md']!, baseline };
 			if (options.dryRun) throw new DryRun(result);
 			return result;
 		})) as LoadResult;
@@ -1039,37 +1115,82 @@ export async function loadAll(sql: postgres.Sql, options: LoadOptions): Promise<
 	}
 }
 
-/** Fingerprint of schema app after a write (detail spec, section 8), read as app_backup, which sees every row. */
-export async function dataFingerprint(sql: postgres.Sql, root: string): Promise<string> {
-	const definition = readFileSync(resolve(root, 'supabase/scripts/app-fingerprint.sql'), 'utf8');
-	return sql.begin(async (tx) => {
-		await tx`set local role app_backup`;
-		await tx.unsafe(definition);
-		const [row] = await tx<{ f: string }[]>`select pg_temp.app_fingerprint() as f`;
-		return row!.f;
-	}) as Promise<string>;
-}
-
 export const repositoryHead = (root: string) => execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
 ```
 
 `family.ts` in questo task: `FamilyResult`, `emptyFamilyResult()` e un `loadFamily` che
-restituisce `emptyFamilyResult()` (completato nel Task 4). `app-fingerprint.sql` arriva
-nel Task 8: fino ad allora `dataFingerprint` non ha test.
+restituisce `emptyFamilyResult()` (completato nel Task 4).
+
+`supabase/scripts/app-fingerprint.sql` (senza `begin`/`commit`: `prod-sql.sh` lo invia
+prima di ogni file, il caricamento di avvio lo esegue nella sua transazione):
+
+```sql
+-- Fingerprint of every row of schema app (detail spec of the production launch, section 8): the
+-- condition for removing a family or resetting the data. Any write after the last launch baseline
+-- changes it. Excluded: profile_preferences (display preferences, no content of the family).
+create or replace function pg_temp.app_fingerprint() returns text language plpgsql as $$
+declare
+	v_table text;
+	v_hash text;
+	v_all text := '';
+begin
+	for v_table in
+		select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'app' and c.relkind = 'r' and c.relname not in ('profile_preferences')
+		order by c.relname
+	loop
+		execute format('select md5(coalesce(string_agg(t::text, %L order by t::text), %L)) from app.%I t', E'\n', '', v_table) into v_hash;
+		v_all := v_all || v_table || ':' || v_hash || E'\n';
+	end loop;
+	return md5(v_all);
+end;
+$$;
+
+-- Every table of schema app in name order (the same order everywhere: no deadlock between our scripts).
+-- A concurrent write waits for the end of this transaction.
+create or replace function pg_temp.lock_app_tables(p_mode text) returns void language plpgsql as $$
+declare
+	v_table text;
+begin
+	if p_mode not in ('exclusive', 'access exclusive') then
+		raise exception 'unexpected lock mode %', p_mode;
+	end if;
+	for v_table in select format('app.%I', c.relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+		where n.nspname = 'app' and c.relkind = 'r' order by c.relname
+	loop
+		execute format('lock table %s in %s mode', v_table, p_mode);
+	end loop;
+end;
+$$;
+
+-- Start of a bootstrap applied with prod-sql.sh --launch: the first launch baseline only comes from a
+-- database without families, where there is nothing to protect.
+create or replace function pg_temp.launch_start() returns void language plpgsql as $$
+begin
+	perform pg_temp.lock_app_tables('exclusive');
+	if exists (select 1 from app.families) then
+		raise exception 'a family already exists: no launch baseline (rerun the bootstrap without --launch)';
+	end if;
+end;
+$$;
+```
 
 Verifica prima di scriverlo: nomi delle funzioni di autorizzazione (`app.has_role`,
 `app.is_family_admin`, tabella «Funzioni eseguibili per ruolo» di `supabase/README.md`);
 che `authenticated` abbia `update` su `app.families` per un amministratore (serve a
-`for update`; lo usa già `writeSettingsKey`); che `app_server` possa `set role
-app_backup` (migrazione `20261012110000_backup.sql`).
+`for update`; lo usa già `writeSettingsKey`); che `postgres` possa `set role
+authenticated` e `set role app_job` (in Supabase `postgres` è membro di
+`authenticated`; `app_job` gli è concesso con `set true` in
+`20261011100000_foundation.sql`) e legga tutte le righe di `app` per l'impronta (il test
+del Task 8 «prints the same fingerprint» confronta con la lettura come `app_backup`).
 
 - [ ] **Step 6: verifica** — Run: lo stesso comando dello Step 3 → PASS; `npm run typecheck` → PASS.
 
 - [ ] **Step 7: commit**
 
 ```bash
-git add scripts/import/load/catalogue.ts scripts/import/load/run.ts scripts/import/load/family.ts scripts/import/load/test-origin.ts scripts/import/load/load.db.test.ts
-git commit -m "Messa in produzione: caricamento del catalogo in una transazione, senza sovrascrivere, con il lock della generazione"
+git add scripts/import/load/catalogue.ts scripts/import/load/run.ts scripts/import/load/family.ts scripts/import/load/test-origin.ts scripts/import/load/load.db.test.ts supabase/scripts/app-fingerprint.sql
+git commit -m "Messa in produzione: caricamento del catalogo in una transazione, senza sovrascrivere, con il lock della generazione e l'impronta di avvio"
 ```
 
 ### Task 4: Scritture della famiglia e concorrenza
@@ -1299,12 +1420,12 @@ git commit -m "Messa in produzione: dati della famiglia nel caricamento, pasti d
 
 **Interfaces:**
 - Consumes: `checkTarget`, `connect`, `describeEndpoint`, `productionRef`, `TargetError`
-  (Task 1), `inputsFingerprint` (Task 2), `loadAll`, `LoadRefused`, `dataFingerprint`,
-  `repositoryHead`, `actAsJob` (Task 3).
+  (Task 1), `inputsFingerprint` (Task 2), `loadAll`, `LoadRefused`, `repositoryHead`,
+  `actAsJob` (Task 3).
 - Produces:
   ```ts
   // load.ts
-  export interface LoadArgs { mode: 'load' | 'check'; envFile: string; today?: string; familyId?: string; curatorId?: string; dryRun: boolean; confirm?: string; local: boolean }
+  export interface LoadArgs { mode: 'load' | 'check'; envFile: string; today?: string; familyId?: string; curatorId?: string; launchFrom?: string; dryRun: boolean; confirm?: string; local: boolean }
   export function parseLoadArgs(argv: string[]): LoadArgs; // strict; throws UsageError
   export function describeError(error: unknown): string;   // no message of Postgres, ever
   // report.ts
@@ -1352,6 +1473,10 @@ describe('parseLoadArgs', () => {
 		expect(() => parseLoadArgs([...base, '--curator', 'fede@example.com', '--dry-run'])).toThrow(/uuid/);
 		expect(() => parseLoadArgs([...base, '--dryrun'])).toThrow();
 	});
+	it('reads a launch load from a baseline of 32 hex characters only', () => {
+		expect(parseLoadArgs([...base, '--launch-from', 'a'.repeat(32), '--dry-run'])).toMatchObject({ launchFrom: 'a'.repeat(32) });
+		expect(() => parseLoadArgs([...base, '--launch-from', 'xyz', '--dry-run'])).toThrow(/--launch-from/);
+	});
 	it('reads --check-connection alone', () => {
 		expect(parseLoadArgs(['--env-file', '/x', '--check-connection', '--local'])).toMatchObject({ mode: 'check', local: true });
 	});
@@ -1368,7 +1493,7 @@ describe('the real command', () => {
 	it('refuses a confirmation that does not match the inputs, before connecting', async () => {
 		// Port 1 is closed: reaching it would give a connection error, not this refusal.
 		const r = await command(['--env-file', '<env>', ...base.slice(2), '--confirm', '0000000000000000', '--local'],
-			'APP_SERVER_DATABASE_URL=postgresql://app_server:s3cr3t@127.0.0.1:1/postgres\n');
+			'POSTGRES_DATABASE_URL=postgresql://postgres:s3cr3t@127.0.0.1:1/postgres\n');
 		expect(r.code).toBe(1);
 		expect(r.out).toContain('inputs changed since the preview');
 		expect(r.out).not.toContain('s3cr3t');
@@ -1446,9 +1571,9 @@ ${preferences.length} preferences to settle`.
 
 ```ts
 // Production load of the recipe book and the family's data (detail spec, section 6).
-// Usage: node scripts/import/load.ts --env-file <file> --today <YYYY-MM-DD> --family <uuid> --curator <uuid> (--dry-run | --confirm <inputs>) [--local]
+// Usage: node scripts/import/load.ts --env-file <file> --today <YYYY-MM-DD> --family <uuid> --curator <uuid> [--launch-from <baseline>] (--dry-run | --confirm <inputs>) [--local]
 //        node scripts/import/load.ts --env-file <file> --check-connection [--local]
-// Reads APP_SERVER_DATABASE_URL from the file; never prints it.
+// The load reads POSTGRES_DATABASE_URL, --check-connection APP_SERVER_DATABASE_URL; neither is ever printed.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1457,12 +1582,13 @@ import { originDir } from '../planner-data/origin.ts';
 import { isValidIsoDate } from './family.ts';
 import { inputsFingerprint } from './load/inputs-fingerprint.ts';
 import { loadSummary, renderLoadReport } from './load/report.ts';
-import { actAsJob, dataFingerprint, LoadRefused, loadAll, repositoryHead } from './load/run.ts';
+import { actAsJob, LoadRefused, loadAll, repositoryHead } from './load/run.ts';
 import { checkTarget, connect, describeEndpoint, productionRef, TargetError } from './load/target.ts';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const BASELINE = /^[0-9a-f]{32}$/;
 export class UsageError extends Error {}
-export interface LoadArgs { mode: 'load' | 'check'; envFile: string; today?: string; familyId?: string; curatorId?: string; dryRun: boolean; confirm?: string; local: boolean }
+export interface LoadArgs { mode: 'load' | 'check'; envFile: string; today?: string; familyId?: string; curatorId?: string; launchFrom?: string; dryRun: boolean; confirm?: string; local: boolean }
 
 export function parseLoadArgs(argv: string[]): LoadArgs {
 	let values;
@@ -1470,6 +1596,7 @@ export function parseLoadArgs(argv: string[]): LoadArgs {
 		({ values } = parseArgs({ args: argv, strict: true, allowPositionals: false, options: {
 			'env-file': { type: 'string' }, today: { type: 'string' }, family: { type: 'string' }, curator: { type: 'string' },
 			'dry-run': { type: 'boolean' }, confirm: { type: 'string' }, local: { type: 'boolean' }, 'check-connection': { type: 'boolean' },
+			'launch-from': { type: 'string' },
 		} }));
 	} catch {
 		throw new UsageError('unknown or malformed option');
@@ -1480,8 +1607,9 @@ export function parseLoadArgs(argv: string[]): LoadArgs {
 	if (!values.today || !isValidIsoDate(values.today)) throw new UsageError('--today <YYYY-MM-DD> is required');
 	if (!values.family || !UUID.test(values.family)) throw new UsageError('--family <uuid> is required');
 	if (!values.curator || !UUID.test(values.curator)) throw new UsageError('--curator must be the uuid of the curator (the UID column of Supabase Auth)');
+	if (values['launch-from'] !== undefined && !BASELINE.test(values['launch-from'])) throw new UsageError('--launch-from takes the launch baseline written in the coordination log');
 	if ((values['dry-run'] === true) === (values.confirm !== undefined)) throw new UsageError('give either --dry-run or --confirm <inputs>');
-	return { mode: 'load', envFile: values['env-file'], today: values.today, familyId: values.family, curatorId: values.curator, dryRun: values['dry-run'] === true, confirm: values.confirm, local };
+	return { mode: 'load', envFile: values['env-file'], today: values.today, familyId: values.family, curatorId: values.curator, launchFrom: values['launch-from'], dryRun: values['dry-run'] === true, confirm: values.confirm, local };
 }
 
 /** Our own refusals carry their reason; anything else only its name and code (a Postgres message may quote values). */
@@ -1495,11 +1623,14 @@ async function main() {
 	const args = parseLoadArgs(process.argv.slice(2));
 	const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 	const env = parseEnv(readFileSync(args.envFile, 'utf8'));
-	const { endpoint, destination } = checkTarget('APP_SERVER_DATABASE_URL', env.APP_SERVER_DATABASE_URL, { role: 'app_server', target: args.local ? 'local' : 'production', ref: productionRef(root) });
+	// The load runs as postgres (it locks every table of app for a launch load); the check proves the
+	// app_server credentials that Hyperdrive uses.
+	const [variable, role] = args.mode === 'check' ? (['APP_SERVER_DATABASE_URL', 'app_server'] as const) : (['POSTGRES_DATABASE_URL', 'postgres'] as const);
+	const { endpoint, destination } = checkTarget(variable, env[variable], { role, target: args.local ? 'local' : 'production', ref: productionRef(root) });
 	const where = describeEndpoint(endpoint);
 	let inputs = '';
 	if (args.mode === 'load') {
-		inputs = inputsFingerprint({ originDirectory: originDir(root), importDirectory: join(root, 'scripts/import'), head: repositoryHead(root), today: args.today!, familyId: args.familyId!, curatorId: args.curatorId!, endpoint: where });
+		inputs = inputsFingerprint({ originDirectory: originDir(root), importDirectory: join(root, 'scripts/import'), head: repositoryHead(root), today: args.today!, familyId: args.familyId!, curatorId: args.curatorId!, launchFrom: args.launchFrom ?? null, endpoint: where });
 		if (!args.dryRun && args.confirm !== inputs) throw new LoadRefused('inputs changed since the preview: run --dry-run again');
 	}
 	const sql = connect(destination);
@@ -1512,13 +1643,14 @@ async function main() {
 			console.log(`${where}: ${row!.families} families, ${row!.recipes} recipes visible to app_job`);
 			return;
 		}
-		const result = await loadAll(sql, { today: args.today!, familyId: args.familyId!, curatorId: args.curatorId!, root, dryRun: args.dryRun });
+		const result = await loadAll(sql, { today: args.today!, familyId: args.familyId!, curatorId: args.curatorId!, root, dryRun: args.dryRun, launchFrom: args.launchFrom });
 		const out = resolve(root, 'scripts/import/out');
 		mkdirSync(out, { recursive: true });
 		writeFileSync(resolve(out, 'load-report.md'), renderLoadReport(result, { endpoint: where, inputs }));
 		console.log(loadSummary(result));
 		if (args.dryRun) console.log(`Inputs ${inputs}. Load with: --confirm ${inputs}`);
-		else console.log(`Data fingerprint after the load: ${await dataFingerprint(sql, root)} (write it in the coordination log)`);
+		else if (result.baseline) console.log(`Launch baseline after the load: ${result.baseline} (write it in the coordination log; it replaces the previous one)`);
+		else console.log('No launch baseline: not a launch load');
 	} finally {
 		await sql.end().catch(() => {});
 	}
@@ -1545,16 +1677,21 @@ reset`, utente curatore e famiglia di prova con `bootstrap_test.sh` o a mano, po
 radice del worktree:
 
 ```bash
-printf 'APP_SERVER_DATABASE_URL=postgresql://app_server:app_server_test@127.0.0.1:54322/postgres\n' > "$TMPDIR/load-local.env"  # solo locale, password dei test
-node scripts/import/load.ts --env-file "$TMPDIR/load-local.env" --today 2026-10-13 --family <uuid> --curator <uuid> --local --dry-run
-node scripts/import/load.ts --env-file "$TMPDIR/load-local.env" --today 2026-10-13 --family <uuid> --curator <uuid> --local --confirm <impronta stampata>
+printf 'POSTGRES_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres\nAPP_SERVER_DATABASE_URL=postgresql://app_server:app_server_test@127.0.0.1:54322/postgres\n' > "$TMPDIR/load-local.env"  # solo locale, password dei test
+node scripts/import/load.ts --env-file "$TMPDIR/load-local.env" --check-connection --local
+node scripts/import/load.ts --env-file "$TMPDIR/load-local.env" --today 2026-10-13 --family <uuid> --curator <uuid> --launch-from <impronta attuale> --local --dry-run
+node scripts/import/load.ts --env-file "$TMPDIR/load-local.env" --today 2026-10-13 --family <uuid> --curator <uuid> --launch-from <impronta attuale> --local --confirm <impronta stampata>
 node scripts/import/load.ts --env-file "$TMPDIR/load-local.env" --today 2026-10-13 --family <uuid> --curator <uuid> --local --dry-run
 ```
 
-Expected: primo e secondo uguali nei conteggi (148 ingredienti, 2 libri, ricette
+(`<impronta attuale>`: quella del bootstrap con `prod-sql.sh --launch` dopo il Task 8,
+oppure, prima, il valore di `pg_temp.app_fingerprint()` letto a mano con `psql`.)
+
+Expected: secondo e terzo uguali nei conteggi (148 ingredienti, 2 libri, ricette
 pubblicate e bozze come nella prova di W6: 50 e 6), settimana 12–18 ottobre come «menu
-in corso», `gamberi-zucchine-skottle` fra le preferenze da sistemare; il secondo stampa
-l'impronta dei dati; terzo con «0» creati ovunque. Poi Worker locale (`wrangler dev`)
+in corso», `gamberi-zucchine-skottle` fra le preferenze da sistemare; il terzo stampa
+la nuova impronta di avvio; il quarto «0» creati ovunque e «No launch baseline»
+(rilancio senza `--launch-from`). Poi Worker locale (`wrangler dev`)
 con la build vera e controllo a vista: menu della settimana uguale a
 `../meal_planner/menu/2026-10-12/menu.yaml`, impostazioni come la tabella di
 `supabase/README.md`. Annota i numeri nella descrizione della PR.
@@ -1630,8 +1767,11 @@ git commit -m "Messa in produzione: valori pubblici della build versionati, conf
   export const CHECK_TOKEN: string; // 48 zeros: the format the Bring! page sends to the database
   export function redact(text: string, secrets: string[]): string;
   export function parseJsonc(text: string): unknown;   // full-line // comments only
-  export async function preview(deps: Deps, env: NodeJS.ProcessEnv): Promise<Preview>;
-  export async function apply(deps: Deps, env: NodeJS.ProcessEnv, sha: string): Promise<{ problems: Problem[]; url: string | null }>;
+  export interface Scope { migrationsOnly?: boolean } // --migrations-only: git, CI, target, db push; nothing else
+  export async function preview(deps: Deps, env: NodeJS.ProcessEnv, scope?: Scope): Promise<Preview>;
+  export async function apply(deps: Deps, env: NodeJS.ProcessEnv, sha: string, scope?: Scope): Promise<{ problems: Problem[]; url: string | null }>;
+  /** The one way to call supabase db push: --db-url without the password, which goes in PGPASSWORD. */
+  export function migrationCommand(checkedUrl: string, dryRun: boolean): { cmd: 'supabase'; args: string[]; env: Record<string, string> };
   export async function smokeChecks(baseUrl: string, fetchFn: typeof fetch): Promise<Problem[]>;
   ```
 
@@ -1649,7 +1789,7 @@ const WRANGLER = `{
 	// comment with https://example.com
 	"name": "cosasimangia",
 	"account_id": "acc",
-	"vars": { "SUPABASE_URL": "https://${ref}.supabase.co" },
+	"vars": { "SUPABASE_URL": "https://${ref}.supabase.co", "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_abc" },
 	"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "abc123" }],
 	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }]
 }`;
@@ -1727,6 +1867,10 @@ describe('preview', () => {
 		expect(await checks({ dist: `x="https://${ref}.supabase.co";k="sb_publishable_other"` })).toContain('build');
 		expect(await checks({ run: { 'npm run build': fail() } })).toContain('build');
 	});
+	it('refuses a Worker key that is a placeholder or differs from the SPA key', async () => {
+		expect(await checks({ files: { 'server/wrangler.jsonc': WRANGLER.replace('"sb_publishable_abc"', '"sb_publishable_REPLACE_ME"') } })).toContain('worker-key');
+		expect(await checks({ files: { 'server/wrangler.jsonc': WRANGLER.replace('"sb_publishable_abc"', '"sb_publishable_other"') } })).toContain('worker-key');
+	});
 	it('refuses the Worker prerequisites that are missing', async () => {
 		expect(await checks({ files: { 'server/wrangler.jsonc': WRANGLER.replace('abc123', '00000000000000000000000000000000') } })).toContain('hyperdrive');
 		expect(await checks({ files: { 'server/wrangler.jsonc': WRANGLER.replace('"account_id": "acc",', '') } })).toContain('account');
@@ -1736,6 +1880,24 @@ describe('preview', () => {
 	it('knows the first release: no secrets to check yet', async () => {
 		const { deps } = fakeDeps({ run: { 'npx wrangler deployments list': fail('[code: 10007] This Worker does not exist') } });
 		expect(await preview(deps, env)).toMatchObject({ problems: [], firstRelease: true });
+	});
+});
+
+describe('migrations only', () => {
+	// Before the app_server password and Hyperdrive (runbook R5): the roles come from the migrations.
+	const early = { files: { 'web/.env.production': null, 'server/wrangler.jsonc': WRANGLER.replace('abc123', '00000000000000000000000000000000').replace('"sb_publishable_abc"', '"sb_publishable_REPLACE_ME"').replace('"account_id": "acc",', '') } };
+	it('checks git, CI and target only, and pushes to the verified url without building or deploying', async () => {
+		const { deps, calls } = fakeDeps(early);
+		expect((await preview(deps, env, { migrationsOnly: true })).problems).toEqual([]);
+		const r = await apply(deps, env, 'abc123', { migrationsOnly: true });
+		expect(r.problems).toEqual([]);
+		expect(supabaseCalls(calls).map((c) => c.split(' --db-url')[0])).toEqual(['supabase db push --dry-run', 'supabase db push --dry-run', 'supabase db push']);
+		expect(calls.some((c) => c.startsWith('npm run build') || c.startsWith('npx wrangler'))).toBe(false);
+	});
+	it('still refuses another project', async () => {
+		const { deps, calls } = fakeDeps({ files: { ...early.files, 'supabase/.temp/project-ref': 'abcdefghijklmnopqrst' } });
+		expect((await preview(deps, env, { migrationsOnly: true })).problems.map((p) => p.check)).toContain('linked-project');
+		expect(supabaseCalls(calls)).toEqual([]);
 	});
 });
 
@@ -1815,9 +1977,15 @@ cancellabile dell'intero modulo).
   con `apikey` → 200 (`publishable-key`), `npm run build -w web` con `env` senza
   `VITE_*` più i due valori (`build` se fallisce), `deps.distFiles()` contiene URL e
   chiave esatti (`build`), `npx wrangler deploy --dry-run --outdir <tmp>` in `server/`
-  (`worker-build`); (5) solo se tutto è passato, `supabase db push --dry-run --db-url
-  <url senza password>` con `PGPASSWORD` nell'ambiente del figlio; `migrationsPending`
-  se l'output non contiene «Remote database is up to date».
+  (`worker-build`); `vars.SUPABASE_PUBLISHABLE_KEY` senza `REPLACE_ME` e uguale a
+  `VITE_SUPABASE_PUBLISHABLE_KEY` (`worker-key`); (5) solo se tutto è passato,
+  `migrationCommand(url, true)`: `supabase db push --dry-run --db-url <url senza
+  password>` con `PGPASSWORD` nell'ambiente del figlio; `migrationsPending` se l'output
+  non contiene «Remote database is up to date».
+- `scope.migrationsOnly` (opzione `--migrations-only`): solo (1), (2) senza
+  `web/.env.production` e (5); `apply` poi esegue soltanto `migrationCommand(url,
+  false)` e stampa «Migrations applied; no deploy». Nessun comando `wrangler`, nessuna
+  build.
 - `apply(deps, env, sha)`: `preview`; se ha problemi o `sha` diverso, si ferma senza
   altro. Poi `supabase db push --db-url …` (se `migrationsPending`), `npx wrangler
   deploy --tag <sha> --message "release <sha>"` in `server/` (la build è già in
@@ -1828,7 +1996,7 @@ cancellabile dell'intero modulo).
   delle 02:30».
 - `Run` reale: `spawnSync` senza shell, output catturato e stampato dopo `redact` con
   la password estratta da `POSTGRES_DATABASE_URL`; mai l'ambiente.
-- `main`: `--preview` | `--apply <sha>` (strict), `--env-file <path>` (default
+- `main`: `--preview` | `--apply <sha>` (strict), `--migrations-only`, `--env-file <path>` (default
   `/Users/fedfol/Projects/meal_planner_2/.env.production.local`), letto con `parseEnv`
   in un oggetto passato ai figli che ne hanno bisogno; mai `process.env` stampato.
   Stampa i problemi e esce con 1, oppure `Release preview OK for <sha>. Apply with: npm
@@ -1855,12 +2023,23 @@ git commit -m "Messa in produzione: rilascio in due tempi, build e prerequisiti 
 ### Task 8: SQL sulla produzione, impronta, rimozione della famiglia e azzeramento
 
 **Files:**
-- Create: `scripts/prod-sql.sh`, `scripts/prod-sql-target.ts`,
-  `supabase/scripts/app-fingerprint.sql`, `show-fingerprint.sql`, `remove-family.sql`,
-  `reset-app-data.sql`, `check-first-generation.sql`,
-  `vitest.destructive.config.ts`, `scripts/destructive/service-sql.test.ts`,
-  `scripts/destructive/first-check-reads.test.ts`
-- Modify: `.github/workflows/ci.yml` (un passo dopo `test:drill`)
+- Create: `scripts/prod-sql.sh`, `scripts/prod-sql-plan.ts`, `scripts/prod-sql.test.ts`,
+  `supabase/scripts/show-fingerprint.sql`, `remove-family.sql`, `reset-app-data.sql`,
+  `check-first-generation.sql`, `vitest.destructive.config.ts`,
+  `scripts/destructive/service-sql.test.ts`, `scripts/destructive/first-check-reads.test.ts`,
+  `scripts/destructive/fresh/fresh-database.test.ts`
+- Uses: `supabase/scripts/app-fingerprint.sql` (Task 3), `migrationCommand` (Task 7)
+- Modify: `.github/workflows/ci.yml` (due passi dopo `test:drill`)
+
+**Interfaces** (`scripts/prod-sql-plan.ts`):
+
+```ts
+export class PlanError extends Error {}
+export function checkTransaction(text: string): void;        // exactly one 'begin;' and one 'commit;' line
+export function normalizeSets(pairs: string[]): string[];    // name=value, [a-z_]+ = [0-9A-Za-z_-]+, each name once, sorted
+/** SHA-256 of what will run: file, fingerprint SQL, --launch, sorted --set pairs, checked endpoint. */
+export function operationFingerprint(op: { file: string; fingerprintSql: string; launch: boolean; sets: string[]; endpoint: string }): string;
+```
 
 - [ ] **Step 1: test che falliscono**
 
@@ -1870,9 +2049,10 @@ git commit -m "Messa in produzione: rilascio in due tempi, build e prerequisiti 
 import { defineConfig } from 'vitest/config';
 
 // Service SQL that empties the database (detail spec, section 8): last in CI, after the restore drill.
+// FRESH_DATABASE=1 runs only the phase 1 sequence, which drops schema app and the app roles: the very last step.
 export default defineConfig({
 	test: {
-		include: ['scripts/destructive/**/*.test.ts'],
+		include: process.env.FRESH_DATABASE ? ['scripts/destructive/fresh/*.test.ts'] : ['scripts/destructive/*.test.ts'],
 		globalSetup: ['server/test/global-setup.ts'],
 		fileParallelism: false,
 		testTimeout: 120_000,
@@ -1887,15 +2067,34 @@ export default defineConfig({
 `CONTAINER_CLI` dall'ambiente):
 
 ```ts
-// sqlFile(file, mode, sets, confirm?) runs the real script and returns { code, out }; fingerprint() runs
-// show-fingerprint.sql and parses the value; fixture() makes a family with a loaded catalogue via loadAll.
+// sqlFile(file, mode, sets, { launch }) runs the real script; for --apply it passes the confirmation computed
+// with operationFingerprint for exactly those arguments. fingerprint() runs show-fingerprint.sql and parses
+// the value. bootstrap() compiles a copy of bootstrap.sql in a temp dir (fresh family uuid, users made with
+// db.createUser) and applies it with --launch, returning { familyId, curatorId, baseline }. fixture() is
+// bootstrap() followed by a launch load (loadAll with launchFrom), returning the load baseline too.
 describe.skipIf(!enabled)('service SQL on the local stack', () => {
-	it('refuses a file without a single begin/commit, and --apply without the preview sha, before connecting', async () => { … });
+	it('refuses a file without a single begin/commit before connecting', async () => { … });
 	it('refuses the production target with a local url', async () => { … });
-	it('prints the same fingerprint as the load', async () => {
-		// loadAll writes, dataFingerprint (as app_backup) and show-fingerprint.sql (as postgres) agree.
+	it('prints the same fingerprint as the launch load and as app_backup', async () => {
+		// result.baseline of loadAll, show-fingerprint.sql (postgres) and the same function run as app_backup agree.
 	});
-	it('removes an unused family only with the recorded fingerprint, keeping the catalogue', async () => { … });
+	it('bootstrap with --launch: baseline printed from its own transaction; refused when a family exists', async () => {
+		// First run: exit 0, a 'launch_baseline' equal to fingerprint() right after. A second --launch run
+		// (family present) fails with 'a family already exists' and changes nothing; without --launch it
+		// realigns the people and prints no baseline.
+	});
+	it('bootstrap done, launch load failed: the family is removed with the bootstrap baseline', async () => {
+		// Decision 3 of the coordinator (detail spec, section 5).
+		const b = await bootstrap();
+		await expect(loadAll(sql, { ...loadOptions(b, { missingInMenu: true }), launchFrom: b.baseline })).rejects.toThrow(/assente/);
+		const r = await sqlFile('supabase/scripts/remove-family.sql', '--apply', { family_id: b.familyId, expected_fingerprint: b.baseline });
+		expect(r.code).toBe(0);
+		const [{ n }] = await admin`select count(*)::int as n from app.families where id = ${b.familyId}`;
+		expect(n).toBe(0);
+	});
+	it('removes an unused family only with the last launch baseline, keeping the catalogue', async () => {
+		// With the bootstrap baseline after a successful launch load: refused. With the load baseline: removed.
+	});
 
 	const writes: [string, (admin: postgres.Sql, f: Fixture) => Promise<unknown>][] = [
 		['rating changed', (a, f) => a`update app.ratings set stars = 5 where user_id = ${f.curator}`],
@@ -1910,13 +2109,13 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 	for (const [what, write] of writes)
 		it(`refuses reset and removal after: ${what}`, async () => {
 			const f = await fixture();
-			const before = await fingerprint();
+			const before = f.baseline; // the last launch baseline, from the launch load
 			await write(admin, f);
 			const afterWrite = await rowCounts(); // rows of every app table, taken once
 			for (const file of ['supabase/scripts/reset-app-data.sql', 'supabase/scripts/remove-family.sql']) {
-				const r = await sqlFile(file, '--apply', { expected_fingerprint: before, family_id: f.familyId }, sha(file));
+				const r = await sqlFile(file, '--apply', { expected_fingerprint: before, family_id: f.familyId });
 				expect(r.code).not.toBe(0);
-				expect(r.out).toContain('app data changed since the load');
+				expect(r.out).toContain('app data changed since the launch baseline');
 			}
 			expect(await rowCounts()).toEqual(afterWrite); // nothing removed
 		});
@@ -1925,12 +2124,61 @@ describe.skipIf(!enabled)('service SQL on the local stack', () => {
 		// Connection B inserts a rating and holds the transaction open; the reset starts and blocks on its
 		// locks (pg_stat_activity shows it waiting); B commits; the reset compares and refuses. Nothing removed.
 	});
+	it('a write that waits for the launch load lands after its baseline: reset and removal refuse', async () => {
+		// C holds the generation lock of the family (lockFamilyWeeks in an open transaction). The launch load A
+		// locks every table of app, checks its start, then waits on C. B tries a rating insert and waits on A's
+		// table locks (pg_stat_activity: B with wait_event_type 'Lock' and a relation lock). C commits; A writes,
+		// computes the baseline and commits; B's insert follows. Then fingerprint() differs from A's baseline,
+		// reset and removal with it refuse, and B's row is there.
+	});
+	it('a rerun after the start renews nothing', async () => {
+		// After fixture() (load baseline B1) a rating changes: loadAll with launchFrom B1 is refused ('changed since
+		// the launch baseline'); loadAll without launchFrom writes and returns baseline null; reset with B1 refuses.
+	});
 	it('resets with the recorded fingerprint: catalogue and families empty, profiles and roles kept', async () => { … });
 	it('reports the first generation of the cron', async () => {
 		// weeks row with generated_at and weekly_jobs row done for the same week → cron_generated true;
 		// a week with no weekly_jobs row (lazy generation) → cron_generated false.
 	});
 	it('stops bootstrap.sql on the example uuid (ON_ERROR_STOP reaches psql)', async () => { … });
+});
+```
+
+`scripts/prod-sql.test.ts` (sempre, senza database: `CONTAINER_CLI` punta a uno script
+finto in una cartella temporanea che registra argomenti e input in un file):
+
+```ts
+describe('operationFingerprint', () => {
+	const op = { file: 'begin;\nselect 1;\ncommit;\n', fingerprintSql: 'f', launch: false, sets: ['family_id=a', 'expected_fingerprint=x'], endpoint: 'postgres@127.0.0.1:54322/postgres' };
+	it('binds file, parameters, --launch and destination, not the order of --set', () => {
+		const first = operationFingerprint(op);
+		expect(operationFingerprint({ ...op, sets: ['expected_fingerprint=x', 'family_id=a'] })).toBe(first);
+		for (const other of [{ sets: ['family_id=b', 'expected_fingerprint=x'] }, { launch: true }, { endpoint: 'postgres@localhost:54322/postgres' }, { fingerprintSql: 'g' }, { file: op.file + '-- x\n' }])
+			expect(operationFingerprint({ ...op, ...other })).not.toBe(first);
+	});
+	it('refuses a --set given twice or with other characters', () => {
+		expect(() => normalizeSets(['family_id=a', 'family_id=b'])).toThrow(/twice/);
+		expect(() => normalizeSets(["family_id=a';drop"])).toThrow(PlanError);
+	});
+});
+
+describe('the real prod-sql.sh', () => {
+	it('refuses, before starting any container, an apply whose only change is the family', async () => {
+		const confirmA = confirmFor('supabase/scripts/remove-family.sql', ['family_id=' + uuidA, 'expected_fingerprint=' + fp]);
+		const r = await script(['--apply', 'supabase/scripts/remove-family.sql', '--set', `family_id=${uuidB}`, '--set', `expected_fingerprint=${fp}`, '--confirm', confirmA]);
+		expect(r.code).toBe(1);
+		expect(r.out).toContain('changed since the preview');
+		expect(containerCalls()).toEqual([]);
+	});
+	it('previews with a rollback, the launch lines and the confirmation to repeat', async () => {
+		const r = await script(['--preview', bootstrapCopy, '--launch']);
+		expect(r.code).toBe(0);
+		expect(r.out).toContain(`--confirm ${confirmFor(bootstrapCopy, [], true)}`);
+		const sent = containerInput();
+		expect(sent).toMatch(/^begin;\nselect pg_temp\.launch_start\(\);$/m);
+		expect(sent).toMatch(/select pg_temp\.app_fingerprint\(\) as launch_baseline;\nrollback;$/m);
+		expect(sent).not.toContain('postgres:postgres'); // the url travels only in the container environment
+	});
 });
 ```
 
@@ -1946,35 +2194,34 @@ corrente, ricettario con bozze, impostazioni) e controlla che l'impronta non cam
 una lettura scrive, il test fallisce indicandola: si toglie dal primo collaudo nella
 spec e nel runbook, non si cambia il server.
 
+`scripts/destructive/fresh/fresh-database.test.ts` (attivo solo con `CI` o
+`DESTRUCTIVE_TESTS=1`): la sequenza della fase 1 (runbook R4–R6) da un database **senza i
+ruoli applicativi**.
+
+```ts
+// Drops schema app and the app roles of the local stack, then rebuilds them in the runbook order.
+describe.skipIf(!enabled)('phase 1 order on a database without the application roles', () => {
+	it('migrations first, then the app_server password, then --check-connection', async () => {
+		// 1. Like a new project: drop schema app cascade; drop owned by and drop role app_server, app_job,
+		//    app_backup; cron.unschedule of the jobs of the migrations; delete from supabase_migrations.schema_migrations.
+		// 2. The old order fails: alter role app_server with password … → 42704 (undefined_object).
+		// 3. migrationCommand(localUrl, true) with the real CLI lists every file of supabase/migrations;
+		//    migrationCommand(localUrl, false) applies them.
+		// 4. alter role app_server with password 'app_server_test'; node scripts/import/load.ts --check-connection
+		//    --local with APP_SERVER_DATABASE_URL → '0 families, 0 recipes visible to app_job'.
+		// 5. migrationCommand(localUrl, true) again: 'Remote database is up to date'.
+	});
+});
+```
+
+Prima di scriverlo verifica che `cron.schedule` della migrazione `20261011100800_cron.sql`
+sopporti la riapplicazione dopo `cron.unschedule` e che la CLI accetti `--db-url` sulla
+porta 54322.
+
 Run: `DESTRUCTIVE_TESTS=1 TEST_DATABASE_URL=… npx vitest run -c vitest.destructive.config.ts` → FAIL (file assenti).
 
-- [ ] **Step 2: SQL di servizio**
-
-`supabase/scripts/app-fingerprint.sql` (senza `begin`/`commit`: `prod-sql.sh` lo invia
-prima di ogni file, `dataFingerprint` lo esegue nella sua transazione):
-
-```sql
--- Fingerprint of every row of schema app (detail spec of the production launch, section 8): the
--- condition for removing a family or resetting the data. Any write after the load changes it.
--- Excluded: profile_preferences (display preferences, no content of the family).
-create or replace function pg_temp.app_fingerprint() returns text language plpgsql as $$
-declare
-	v_table text;
-	v_hash text;
-	v_all text := '';
-begin
-	for v_table in
-		select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
-		where n.nspname = 'app' and c.relkind = 'r' and c.relname not in ('profile_preferences')
-		order by c.relname
-	loop
-		execute format('select md5(coalesce(string_agg(t::text, %L order by t::text), %L)) from app.%I t', E'\n', '', v_table) into v_hash;
-		v_all := v_all || v_table || ':' || v_hash || E'\n';
-	end loop;
-	return md5(v_all);
-end;
-$$;
-```
+- [ ] **Step 2: SQL di servizio** (`app-fingerprint.sql` è del Task 3; `prod-sql.sh` lo
+invia prima di ogni file)
 
 `supabase/scripts/show-fingerprint.sql`:
 
@@ -1989,7 +2236,8 @@ commit;
 
 ```sql
 -- Removes a family nobody has used yet (detail spec of the production launch, sections 5 and 8):
--- only when schema app is exactly as the load left it. The catalogue and the ratings stay.
+-- only when schema app is exactly at the last launch baseline (bootstrap, or launch load). The
+-- catalogue and the ratings stay.
 -- Run: scripts/prod-sql.sh --preview supabase/scripts/remove-family.sql --set family_id=<uuid> --set expected_fingerprint=<fp>
 begin;
 
@@ -1997,18 +2245,13 @@ select set_config('w6.expected_fingerprint', :'expected_fingerprint', true), set
 
 do $$
 declare
-	v_table text;
 	v_now text;
 begin
 	-- Every table first: a concurrent write waits, and the fingerprint below cannot change before the delete.
-	for v_table in select format('app.%I', c.relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-		where n.nspname = 'app' and c.relkind = 'r' order by c.relname
-	loop
-		execute format('lock table %s in exclusive mode', v_table);
-	end loop;
+	perform pg_temp.lock_app_tables('exclusive');
 	v_now := pg_temp.app_fingerprint();
 	if v_now is distinct from current_setting('w6.expected_fingerprint') then
-		raise exception 'app data changed since the load (fingerprint %, expected %): nothing removed', v_now, current_setting('w6.expected_fingerprint');
+		raise exception 'app data changed since the launch baseline (fingerprint %, expected %): nothing removed', v_now, current_setting('w6.expected_fingerprint');
 	end if;
 	if not exists (select 1 from app.families where id = current_setting('w6.family_id')::uuid) then
 		raise exception 'family % not found: nothing removed', current_setting('w6.family_id');
@@ -2029,7 +2272,7 @@ commit;
 
 ```sql
 -- Empties the catalogue and every family's data, keeping schema, users, profiles and global roles
--- (detail spec of the production launch, section 8). Only when schema app is exactly as the load left it.
+-- (detail spec of the production launch, section 8). Only when schema app is exactly at the last launch baseline.
 -- Run: scripts/prod-sql.sh --preview supabase/scripts/reset-app-data.sql --set expected_fingerprint=<fp>
 begin;
 
@@ -2037,17 +2280,12 @@ select set_config('w6.expected_fingerprint', :'expected_fingerprint', true);
 
 do $$
 declare
-	v_table text;
 	v_now text;
 begin
-	for v_table in select format('app.%I', c.relname) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-		where n.nspname = 'app' and c.relkind = 'r' order by c.relname
-	loop
-		execute format('lock table %s in access exclusive mode', v_table);
-	end loop;
+	perform pg_temp.lock_app_tables('access exclusive');
 	v_now := pg_temp.app_fingerprint();
 	if v_now is distinct from current_setting('w6.expected_fingerprint') then
-		raise exception 'app data changed since the load (fingerprint %, expected %): nothing reset', v_now, current_setting('w6.expected_fingerprint');
+		raise exception 'app data changed since the launch baseline (fingerprint %, expected %): nothing reset', v_now, current_setting('w6.expected_fingerprint');
 	end if;
 end;
 $$;
@@ -2088,73 +2326,134 @@ where f.id = :'family_id'::uuid;
 commit;
 ```
 
-- [ ] **Step 3: `scripts/prod-sql-target.ts` e `scripts/prod-sql.sh`**
+- [ ] **Step 3: `scripts/prod-sql-plan.ts` e `scripts/prod-sql.sh`**
 
 ```ts
-// Checks POSTGRES_DATABASE_URL of a credentials file (detail spec, section 2) for scripts/prod-sql.sh:
-// the endpoint goes to stderr, the checked url to stdout (captured by the script, never shown).
+// Plans one run of scripts/prod-sql.sh (detail spec, section 8) without connecting: checks the file, the
+// --set pairs and POSTGRES_DATABASE_URL of the credentials file, then computes the operation fingerprint
+// that --confirm must repeat. The endpoint goes to stderr; stdout, captured by the script and never shown,
+// carries the fingerprint on the first line and the checked url on the second.
+// Usage: node scripts/prod-sql-plan.ts <credentials> <production|local> <file.sql> <0|1 launch> [name=value ...]
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 import { checkTarget, describeEndpoint, productionRef } from './import/load/target.ts';
 
-const [file, target] = process.argv.slice(2);
-try {
-	const env = parseEnv(readFileSync(file!, 'utf8'));
-	const { endpoint } = checkTarget('POSTGRES_DATABASE_URL', env.POSTGRES_DATABASE_URL, { role: 'postgres', target: target === 'local' ? 'local' : 'production', ref: productionRef(process.cwd()) });
-	console.error(`Target: ${describeEndpoint(endpoint)}`);
-	process.stdout.write(env.POSTGRES_DATABASE_URL!);
-} catch (error) {
-	console.error(error instanceof Error && error.name === 'TargetError' ? `refused: ${error.message}` : 'refused: credentials file not readable');
-	process.exitCode = 1;
+export class PlanError extends Error {
+	constructor(reason: string) {
+		super(reason);
+		this.name = 'PlanError';
+	}
+}
+
+const SET = /^([a-z_]+)=([0-9A-Za-z_-]+)$/;
+const sha = (data: string) => createHash('sha256').update(data).digest('hex');
+
+export function checkTransaction(text: string) {
+	const lines = text.split('\n');
+	if (lines.filter((l) => l === 'begin;').length !== 1 || lines.filter((l) => l === 'commit;').length !== 1)
+		throw new PlanError("the file needs exactly one 'begin;' and one 'commit;' line");
+}
+
+export function normalizeSets(pairs: string[]): string[] {
+	const names = new Set<string>();
+	for (const pair of pairs) {
+		const match = SET.exec(pair);
+		if (!match) throw new PlanError(`--set ${pair}: the name is [a-z_]+, the value letters, digits, - and _`);
+		if (names.has(match[1]!)) throw new PlanError(`--set ${match[1]} given twice`);
+		names.add(match[1]!);
+	}
+	return [...pairs].sort();
+}
+
+export const operationFingerprint = (op: { file: string; fingerprintSql: string; launch: boolean; sets: string[]; endpoint: string }) =>
+	sha(JSON.stringify({ file: sha(op.file), fingerprintSql: sha(op.fingerprintSql), launch: op.launch, sets: normalizeSets(op.sets), endpoint: op.endpoint }));
+
+function main() {
+	const [credentials, target, file, launch, ...sets] = process.argv.slice(2);
+	const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
+	const text = readFileSync(file!, 'utf8');
+	checkTransaction(text);
+	const env = parseEnv(readFileSync(credentials!, 'utf8'));
+	const { endpoint } = checkTarget('POSTGRES_DATABASE_URL', env.POSTGRES_DATABASE_URL, { role: 'postgres', target: target === 'local' ? 'local' : 'production', ref: productionRef(root) });
+	const where = describeEndpoint(endpoint);
+	const operation = operationFingerprint({ file: text, fingerprintSql: readFileSync(resolve(root, 'supabase/scripts/app-fingerprint.sql'), 'utf8'), launch: launch === '1', sets, endpoint: where });
+	console.error(`Target: ${where}`);
+	process.stdout.write(`${operation}\n${env.POSTGRES_DATABASE_URL}\n`);
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+	try {
+		main();
+	} catch (error) {
+		const name = error instanceof Error ? error.name : '';
+		console.error(name === 'PlanError' || name === 'TargetError' ? `refused: ${(error as Error).message}` : 'refused: file or credentials not readable');
+		process.exitCode = 1;
+	}
 }
 ```
 
 ```bash
 #!/usr/bin/env bash
-# SQL on the production database with a preview bound to the file (detail spec, section 8).
-# Usage: scripts/prod-sql.sh --preview <file.sql> [--set name=value ...]
-#        scripts/prod-sql.sh --apply <file.sql> --confirm <sha256> [--set name=value ...]
+# SQL on the production database with a preview bound to the operation (detail spec, section 8):
+# file, --launch, --set pairs and destination. The connection string is never printed.
+# Usage: scripts/prod-sql.sh --preview <file.sql> [--launch] [--set name=value ...]
+#        scripts/prod-sql.sh --apply <file.sql> [--launch] [--set name=value ...] --confirm <operation>
 # Environment: PROD_CREDENTIALS (credentials file), PROD_SQL_TARGET=local (tests only),
-# CONTAINER_CLI (podman by default, docker in CI). The connection string is never printed.
+# CONTAINER_CLI (podman by default, docker in CI).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH=/opt/podman/bin:$PATH
-usage() { echo "usage: scripts/prod-sql.sh --preview|--apply <file.sql> [--confirm <sha256>] [--set name=value ...]" >&2; exit 2; }
+usage() { echo "usage: scripts/prod-sql.sh --preview|--apply <file.sql> [--launch] [--set name=value ...] [--confirm <operation>]" >&2; exit 2; }
 MODE=${1:-}; FILE=${2:-}
 [ "$MODE" = --preview ] || [ "$MODE" = --apply ] || usage
 [ -f "$FILE" ] || usage
 shift 2
-CONFIRM=""; VARS=(); SETS=""
+CONFIRM=""; LAUNCH=0; PAIRS=(); VARS=(); SHOWN=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--confirm) CONFIRM=${2:-}; shift 2 ;;
-		--set) [[ "${2:-}" =~ ^[a-z_]+=[0-9A-Za-z_-]+$ ]] || { echo "--set name=value: letters, digits, - and _ only" >&2; exit 2; }; VARS+=(-v "$2"); SETS="$SETS --set $2"; shift 2 ;;
+		--launch) LAUNCH=1; SHOWN="$SHOWN --launch"; shift ;;
+		--set) [ -n "${2:-}" ] || usage; PAIRS+=("$2"); VARS+=(-v "$2"); SHOWN="$SHOWN --set $2"; shift 2 ;;
 		*) usage ;;
 	esac
 done
-[ "$(grep -c '^begin;$' "$FILE")" = 1 ] && [ "$(grep -c '^commit;$' "$FILE")" = 1 ] || { echo "The file needs exactly one 'begin;' and one 'commit;' line" >&2; exit 2; }
-SHA=$(shasum -a 256 "$FILE" | cut -d' ' -f1)
-if [ "$MODE" = --apply ] && [ "$CONFIRM" != "$SHA" ]; then echo "The file changed since the preview, or --confirm is missing: run --preview again" >&2; exit 1; fi
 CREDENTIALS=${PROD_CREDENTIALS:-/Users/fedfol/Projects/meal_planner_2/.env.production.local}
 [ -f "$CREDENTIALS" ] || { echo "Credentials file not found: $CREDENTIALS" >&2; exit 1; }
-POSTGRES_DATABASE_URL=$(node scripts/prod-sql-target.ts "$CREDENTIALS" "${PROD_SQL_TARGET:-production}")
+# Checks file, pairs and target, and computes the operation fingerprint, without connecting.
+PLAN=$(node scripts/prod-sql-plan.ts "$CREDENTIALS" "${PROD_SQL_TARGET:-production}" "$FILE" "$LAUNCH" ${PAIRS[@]+"${PAIRS[@]}"})
+OPERATION=$(printf '%s\n' "$PLAN" | sed -n 1p)
+if [ "$MODE" = --apply ] && [ "$CONFIRM" != "$OPERATION" ]; then
+	echo "The operation changed since the preview (file, --launch, --set or target), or --confirm is missing: run --preview again" >&2
+	exit 1
+fi
+POSTGRES_DATABASE_URL=$(printf '%s\n' "$PLAN" | sed -n 2p)
 export POSTGRES_DATABASE_URL
 CLI=${CONTAINER_CLI:-podman}
 IMAGE=${PSQL_IMAGE:-public.ecr.aws/supabase/postgres:17.11.0.004}
 MOUNT=()
 [ -d "$HOME/.config/cosasimangia" ] && MOUNT=(-v "$HOME/.config/cosasimangia:$HOME/.config/cosasimangia:ro")
-if [ "$MODE" = --preview ]; then BODY=$(sed 's/^commit;$/rollback;/' "$FILE"); echo "Preview of $FILE (sha256 $SHA): ends with rollback" >&2
-else BODY=$(cat "$FILE"); fi
+PREVIEW=0
+if [ "$MODE" = --preview ]; then PREVIEW=1; echo "Preview of $FILE: ends with rollback" >&2; fi
+# --launch: every table locked and no family before the file, the launch baseline before its end.
+BODY=$(awk -v launch="$LAUNCH" -v preview="$PREVIEW" '
+	$0 == "begin;" { print; if (launch == 1) print "select pg_temp.launch_start();"; next }
+	$0 == "commit;" { if (launch == 1) print "select pg_temp.app_fingerprint() as launch_baseline;"; print (preview == 1 ? "rollback;" : "commit;"); next }
+	{ print }' "$FILE")
 { cat supabase/scripts/app-fingerprint.sql; printf '%s\n' "$BODY"; } | "$CLI" run --rm -i -e POSTGRES_DATABASE_URL ${MOUNT[@]+"${MOUNT[@]}"} --network host "$IMAGE" \
 	sh -c 'exec psql "$POSTGRES_DATABASE_URL" -X -q -v ON_ERROR_STOP=1 "$@"' sh ${VARS[@]+"${VARS[@]}"}
-[ "$MODE" = --preview ] && echo "Apply with: scripts/prod-sql.sh --apply $FILE --confirm $SHA$SETS" >&2
+if [ "$MODE" = --preview ]; then echo "Apply with: scripts/prod-sql.sh --apply $FILE$SHOWN --confirm $OPERATION" >&2
+elif [ "$LAUNCH" = 1 ]; then echo "Write the launch_baseline above in the coordination log: it replaces the previous one" >&2; fi
 exit 0
 ```
 
-(Con `--network host` su Podman
-per Mac, `127.0.0.1` è la macchina virtuale, dove lo stack locale pubblica le porte; se
-non la raggiunge, la prova usa `host.containers.internal` in `PROD_SQL_TARGET=local` e
-lo si scrive qui.)
+(Con `--network host` su Podman per Mac, `127.0.0.1` è la macchina virtuale, dove lo
+stack locale pubblica le porte; se non la raggiunge, la prova usa
+`host.containers.internal` in `PROD_SQL_TARGET=local` e lo si scrive qui. Il controllo
+del bersaglio in locale accetta solo `localhost` e `127.0.0.1`: se serve l'altro nome, lo
+si aggiunge alla lista locale di `target.ts` con il suo test.)
 
 - [ ] **Step 4: CI** — in `.github/workflows/ci.yml`, dopo `npm run test:drill -w server`:
 
@@ -2163,18 +2462,25 @@ lo si scrive qui.)
       - run: npx vitest run -c vitest.destructive.config.ts
         env:
           CONTAINER_CLI: docker
+      # Very last: drops schema app and the app roles, then rebuilds them in the order of the runbook.
+      - run: npx vitest run -c vitest.destructive.config.ts
+        env:
+          FRESH_DATABASE: '1'
 ```
 
 - [ ] **Step 5: verifica**
 
-Run: `DESTRUCTIVE_TESTS=1 TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npx vitest run -c vitest.destructive.config.ts` → PASS; poi `supabase db reset` (lo stack locale torna con il seed).
+Run: `npx vitest run scripts/prod-sql.test.ts` → PASS; `DESTRUCTIVE_TESTS=1
+TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npx vitest run
+-c vitest.destructive.config.ts` → PASS; lo stesso con `FRESH_DATABASE=1` → PASS; poi
+`supabase db reset` (lo stack locale torna con il seed).
 
 - [ ] **Step 6: commit**
 
 ```bash
 chmod +x scripts/prod-sql.sh
-git add scripts/prod-sql.sh scripts/prod-sql-target.ts supabase/scripts/app-fingerprint.sql supabase/scripts/show-fingerprint.sql supabase/scripts/remove-family.sql supabase/scripts/reset-app-data.sql supabase/scripts/check-first-generation.sql vitest.destructive.config.ts scripts/destructive .github/workflows/ci.yml
-git commit -m "Messa in produzione: SQL sulla produzione con anteprima legata al file, impronta, rimozione della famiglia e azzeramento provati in CI"
+git add scripts/prod-sql.sh scripts/prod-sql-plan.ts scripts/prod-sql.test.ts supabase/scripts/show-fingerprint.sql supabase/scripts/remove-family.sql supabase/scripts/reset-app-data.sql supabase/scripts/check-first-generation.sql vitest.destructive.config.ts scripts/destructive .github/workflows/ci.yml
+git commit -m "Messa in produzione: SQL sulla produzione con anteprima legata all'operazione, impronta di avvio, rimozione della famiglia e azzeramento provati in CI"
 ```
 
 ### Task 9: Documenti e PR
@@ -2186,7 +2492,8 @@ git commit -m "Messa in produzione: SQL sulla produzione con anteprima legata al
 
 - [ ] **Step 1: `server/README.md`** — «Pubblicazione»: `npm run release -- --preview`,
   poi `--apply <sha>` dopo il «vai» dell'utente; migrazioni comprese, dalla CLI con
-  `--db-url`; mai più «dopo che l'integrazione di Supabase ha applicato le migrazioni»
+  `--db-url` (la prima volta da sole con `--migrations-only`, prima della password di
+  `app_server`); chiave pubblica del Worker uguale a quella della SPA; mai più «dopo che l'integrazione di Supabase ha applicato le migrazioni»
   né `npm run deploy` a mano. Ritorno indietro: primo rilascio con `wrangler delete`,
   poi `wrangler rollback <version-id>` con il controllo delle migrazioni. «Risorse di
   produzione»: tabella da compilare nel runbook (Hyperdrive id e limite, account,
@@ -2197,13 +2504,15 @@ git commit -m "Messa in produzione: SQL sulla produzione con anteprima legata al
   il rilancio riallinea le persone) e lanciato dal coordinatore con
   `scripts/prod-sql.sh`; impostazioni della famiglia scritte da
   `scripts/import/load.ts` prima della prima apertura (la tabella resta come
-  riferimento del collaudo); sezione nuova sull'impronta con i tre file e le
-  condizioni.
+  riferimento del collaudo); sezione nuova sull'impronta di avvio (bootstrap con
+  `--launch`, caricamento con `--launch-from`, rilanci che non la rinnovano), con i file
+  di servizio, l'impronta dell'operazione di `prod-sql.sh` e le condizioni.
 - [ ] **Step 3: verifica completa** (skill `superpowers:verification-before-completion`)
 
 Run, con lo stack locale avviato e `TEST_DATABASE_URL` impostato:
 `npm run typecheck && npm test`, `supabase test db`, poi
-`DESTRUCTIVE_TESTS=1 npx vitest run -c vitest.destructive.config.ts` e `supabase db reset`.
+`DESTRUCTIVE_TESTS=1 npx vitest run -c vitest.destructive.config.ts`, lo stesso con
+`FRESH_DATABASE=1`, e `supabase db reset`.
 Expected: tutto verde; CI verde sulla PR, passo distruttivo compreso.
 
 - [ ] **Step 4: commit, push e PR** (protocollo dei worker, fase 6)
@@ -2261,34 +2570,41 @@ Dipende da: PR della parte A unita.
      `%XX`).
 
   Coordinatore: `git -C <MAIN> check-ignore -q .env.production.local && echo ignored`
-  → `ignored`. Poi il file `$TMPDIR/count-families.sql`:
+  → `ignored`. Poi il file `$TMPDIR/migrations-state.sql`:
 
   ```sql
   begin;
-  select count(*) as families from app.families;
+  select count(*) as applied from supabase_migrations.schema_migrations;
+  select count(*) as app_roles from pg_roles where rolname in ('app_server', 'app_job', 'app_backup');
   commit;
   ```
 
-  e `scripts/prod-sql.sh --preview "$TMPDIR/count-families.sql"` → `Target:
-  postgres.lronuqvtjdhfyychnscr@…:5432/postgres` e `families 0` (se le migrazioni non
-  ci sono ancora: errore «relation app.families does not exist», atteso prima di R9).
-  Ritorno: nessuno.
-- [ ] **R5. Pool e password di `app_server`** — Utente: legge la dimensione del pool
+  e `scripts/prod-sql.sh --preview "$TMPDIR/migrations-state.sql"` → `Target:
+  postgres.lronuqvtjdhfyychnscr@…:5432/postgres`, `applied` e `app_roles` (su un progetto
+  nuovo 0 e 0, oppure l'errore «relation supabase_migrations.schema_migrations does not
+  exist»: atteso prima di R5). Ritorno: nessuno.
+- [ ] **R5. Migrazioni iniziali** — Coordinatore, da `<MAIN>`:
+  `npm run release -- --preview --migrations-only` → anteprima all'utente: commit, CI
+  verde, destinazione, tutte le migrazioni di `supabase/migrations` da applicare. «vai» →
+  `npm run release -- --apply <sha dell'anteprima> --migrations-only`. Esito:
+  «Migrations applied; no deploy»; di nuovo il file di R4 → `app_roles 3`. Nessun
+  Worker, nessuna build. Ritorno: correzione in avanti con una migrazione nuova (spec,
+  sezione 8); il database non ha famiglie.
+- [ ] **R6. Pool e password di `app_server`** — Utente: legge la dimensione del pool
   (Dashboard › Database › Settings › Connection pooling); `openssl rand -hex 24`;
-  nell'editor SQL `alter role app_server with password '<password>';`; aggiunge a
-  `<CRED>`:
+  nell'editor SQL `alter role app_server with password '<password>';` (il ruolo esiste
+  da R5); aggiunge a `<CRED>`:
 
   ```text
   APP_SERVER_DATABASE_URL=postgresql://app_server.lronuqvtjdhfyychnscr:<password>@<host del Session pooler>:5432/postgres?sslmode=verify-full&sslrootcert=/Users/fedfol/.config/cosasimangia/supabase-ca.crt
   APP_SERVER_PASSWORD=<password>
   ```
 
-  Comunica al coordinatore solo la dimensione del pool. Verifica, dopo R9 (prima il
-  ruolo `app_job` non esiste): `node scripts/import/load.ts --env-file <CRED>
-  --check-connection` → `app_server.lronuqvtjdhfyychnscr@<host>:5432/postgres: 0
-  families, 0 recipes visible to app_job`. Ritorno: nuova password con lo stesso
-  comando.
-- [ ] **R6. Hyperdrive** — Coordinatore, verificate con Context7 le opzioni di
+  Comunica al coordinatore solo la dimensione del pool. Verifica subito, coordinatore:
+  `node scripts/import/load.ts --env-file <CRED> --check-connection` →
+  `app_server.lronuqvtjdhfyychnscr@<host>:5432/postgres: 0 families, 0 recipes visible
+  to app_job`. Ritorno: nuova password con lo stesso comando.
+- [ ] **R7. Hyperdrive** — Coordinatore, verificate con Context7 le opzioni di
   `wrangler hyperdrive create` nella versione di `server/package.json`. Anteprima
   all'utente: il comando senza valori segreti e `N` = pool − 5 (almeno 5). «vai» → da
   `<MAIN>/server`:
@@ -2299,49 +2615,50 @@ Dipende da: PR della parte A unita.
 
   Esito: id stampato; `npx wrangler hyperdrive get <id>` con cache disattivata e limite
   N. Ritorno: `npx wrangler hyperdrive delete <id>`.
-- [ ] **R7. Bucket e chiave delle esportazioni** — Spec di W5, sezione 5, passi 1–2.
+- [ ] **R8. Bucket e chiave delle esportazioni** — Spec di W5, sezione 5, passi 1–2.
   Anteprima: il comando. «vai» → coordinatore, da `<MAIN>/server`:
   `npx wrangler r2 bucket create cosasimangia-backups --jurisdiction eu` → bucket
   creato; `npx wrangler r2 bucket info cosasimangia-backups --jurisdiction eu` lo
   mostra. Utente: `openssl rand -base64 32`, copiata nel gestore di password come
-  «Cosa si mangia — chiave delle esportazioni k1» (il segreto si imposta in R10).
+  «Cosa si mangia — chiave delle esportazioni k1» (il segreto si imposta in R11).
   Ritorno: `npx wrangler r2 bucket delete cosasimangia-backups --jurisdiction eu`
   (vuoto).
-- [ ] **R8. PR di configurazione** — Worker (o coordinatore): `account_id` (da R1) e id
-  di Hyperdrive (da R6) in `server/wrangler.jsonc`; `web/.env.production`:
+- [ ] **R9. PR di configurazione** — Worker (o coordinatore). L'utente copia la
+  *Publishable key* da Dashboard › Project Settings › API Keys (è pubblica; passo 5 dei
+  prerequisiti di W2). In `server/wrangler.jsonc`: `account_id` (da R1), id di
+  Hyperdrive (da R7) e `vars.SUPABASE_PUBLISHABLE_KEY` = la chiave, al posto di
+  `sb_publishable_REPLACE_ME`. `web/.env.production`:
 
   ```text
   VITE_SUPABASE_URL=https://lronuqvtjdhfyychnscr.supabase.co
-  VITE_SUPABASE_PUBLISHABLE_KEY=<chiave pubblica>
+  VITE_SUPABASE_PUBLISHABLE_KEY=<la stessa chiave>
   ```
 
-  (l'utente copia la *Publishable key* da Dashboard › Project Settings › API Keys: è
-  pubblica). CI verde, merge del coordinatore. Esito: `git -C <MAIN> pull --ff-only` e
-  `git -C <MAIN> ls-files web/.env.production` stampa il percorso. Ritorno: revert
-  della PR.
-- [ ] **R9. Primo rilascio** — Coordinatore, da `<MAIN>`:
-  `npm run release -- --preview` → anteprima all'utente: commit, migrazioni da
-  applicare (tutte quelle di `supabase/migrations`), «first release: secrets checked
-  after the deploy», nessun problema. «vai» → `npm run release -- --apply <sha
-  dell'anteprima>`. Esito: migrazioni applicate, deploy con tag, indirizzo
-  `workers.dev` stampato e controlli verdi, compreso 404 su
+  CI verde, merge del coordinatore. Esito: `git -C <MAIN> pull --ff-only`, `git -C
+  <MAIN> ls-files web/.env.production` stampa il percorso, `grep -c REPLACE_ME
+  <MAIN>/server/wrangler.jsonc` → `0`. Ritorno: revert della PR.
+- [ ] **R10. Primo rilascio** — Coordinatore, da `<MAIN>`:
+  `npm run release -- --preview` → anteprima all'utente: commit, «Remote database is up
+  to date» (migrazioni di R5), chiave del Worker uguale a quella della SPA, «first
+  release: secrets checked after the deploy», nessun problema. «vai» → `npm run release
+  -- --apply <sha dell'anteprima>`. Esito: deploy con tag, indirizzo `workers.dev`
+  stampato e controlli verdi, compreso 404 su
   `/shopping-lists/000000000000000000000000000000000000000000000000`; ultima riga con il
-  passo obbligatorio del segreto. Poi R5 (verifica) e PR con l'indirizzo in
-  `scripts/release.config.json` e `server/README.md`. Ritorno: `npx wrangler delete` da
-  `<MAIN>/server` dopo anteprima (`npx wrangler deployments list` con una sola
-  versione) e «vai» (spec, sezione 8).
-- [ ] **R10. Segreto della chiave** — Utente, subito dopo R9 e prima delle 02:30, da
+  passo obbligatorio del segreto. Poi PR con l'indirizzo in `scripts/release.config.json`
+  e `server/README.md`. Ritorno: `npx wrangler delete` da `<MAIN>/server` dopo anteprima
+  (`npx wrangler deployments list` con una sola versione) e «vai» (spec, sezione 8).
+- [ ] **R11. Segreto della chiave** — Utente, subito dopo R10 e prima delle 02:30, da
   `<MAIN>/server`: `! npx wrangler secret put BACKUP_ENCRYPTION_KEY`, incollando la
-  chiave di R7. Esito: `npx wrangler secret list` (coordinatore) contiene
+  chiave di R8. Esito: `npx wrangler secret list` (coordinatore) contiene
   `BACKUP_ENCRYPTION_KEY`. Ritorno: `wrangler secret delete` e nuova chiave.
-- [ ] **R11. Accesso di prova** — Utente: crea il proprio account (Authentication ›
+- [ ] **R12. Accesso di prova** — Utente: crea il proprio account (Authentication ›
   Users › Add user, email, password, «Auto Confirm User») e dà al coordinatore il suo
   UID; entra dall'iPhone sull'indirizzo `workers.dev`. Esito: accesso riuscito, app vera
   (non i dati finti), nessuna famiglia; coordinatore con `npx wrangler tail` a un'ora
   piena: esecuzione del cron senza errori. **Poi l'utente fa «Esci».** Ritorno: nessuno.
-- [ ] **R12. Prima esportazione** — Mattina dopo: nei log del Worker
+- [ ] **R13. Prima esportazione** — Mattina dopo: nei log del Worker
   `backup_export_done`; in R2 un oggetto in `exports/`. Ritorno: spec di W5.
-- [ ] **R13. Rilasci successivi della fase** (PR con l'indirizzo, altre unite):
+- [ ] **R14. Rilasci successivi della fase** (PR con l'indirizzo, altre unite):
   `npm run release -- --preview`, «vai», `--apply <sha>`. Ritorno: `npx wrangler
   rollback <version-id> --message "<motivo>"` (spec, sezione 8, con il controllo delle
   migrazioni).
@@ -2350,16 +2667,19 @@ Dipende da: PR della parte A unita.
 
 Dipende da: fase 1; spec di W5 riletta sulla versione unita.
 
-- [ ] **R14. Prova delle esportazioni** — Spec di W5, sezione 6, «Prova di produzione»:
+Ogni **impronta di avvio** stampata (R18, R19) va nel registro del coordinamento con la
+sua origine; vale sempre l'ultima. Rimozione e azzeramento usano solo quella.
+
+- [ ] **R15. Prova delle esportazioni** — Spec di W5, sezione 6, «Prova di produzione»:
   utente, download e `inspect`/ripristino in locale con la chiave del gestore di
   password. Esito: ripristino riuscito. Ritorno: spec di W5.
-- [ ] **R15. Finestra** — Coordinatore e utente scelgono un giorno da lunedì a
-  mercoledì; R16–R19 di seguito, entro le 19; nessun altro apre l'app fino alla fine di
-  R19.
-- [ ] **R16. Account dei familiari** — Utente: Add user per ognuno (email, password,
+- [ ] **R16. Finestra** — Coordinatore e utente scelgono un giorno da lunedì a
+  mercoledì; R17–R20 di seguito, entro le 19; nessun altro apre l'app fino alla fine di
+  R20.
+- [ ] **R17. Account dei familiari** — Utente: Add user per ognuno (email, password,
   «Auto Confirm User»); dà al coordinatore per ognuno email, nome, lingua (`it-IT` o
   `en-GB`), ruolo nella famiglia, e l'UID di Federico. Mai le password.
-- [ ] **R17. Famiglia** — Coordinatore:
+- [ ] **R18. Famiglia** — Coordinatore:
   1. `cp supabase/scripts/bootstrap.sql ~/.config/cosasimangia/bootstrap.production.sql`;
   2. UUID della famiglia: `node -e "console.log(crypto.randomUUID())"`, annotato nel
      registro del coordinamento;
@@ -2368,45 +2688,55 @@ Dipende da: fase 1; spec di W5 riletta sulla versione unita.
      `('<email>', 'Federico', 'it-IT', 'family_admin', array['app_admin',
      'recipe_curator'])`, gli altri `array[]::text[]` come ruoli globali;
   4. anteprima: `scripts/prod-sql.sh --preview
-     ~/.config/cosasimangia/bootstrap.production.sql` → righe di persone, famiglia e
-     ruoli; `sha256` stampato. «vai» → `scripts/prod-sql.sh --apply
-     ~/.config/cosasimangia/bootstrap.production.sql --confirm <sha256>`.
+     ~/.config/cosasimangia/bootstrap.production.sql --launch` → `Target`, righe di
+     persone, famiglia e ruoli, `launch_baseline` (non valida: è un'anteprima) e il
+     comando con `--confirm <impronta dell'operazione>`. «vai» → `scripts/prod-sql.sh
+     --apply ~/.config/cosasimangia/bootstrap.production.sql --launch --confirm
+     <impronta dell'operazione>`.
 
-  Esito: stesso elenco; un secondo `--preview` mostra «family already exists» e le
-  stesse righe. Ritorno: R20 (rimozione della famiglia).
-- [ ] **R18. Caricamento** — Coordinatore:
+  Esito: stesso elenco e `launch_baseline` = **B0**, annotata nel registro
+  («bootstrap»). Verifica: un secondo `--preview` **senza** `--launch` mostra «family
+  already exists» e le stesse righe (con `--launch` rifiuterebbe: la famiglia esiste).
+  Ritorno: R21 con B0.
+- [ ] **R19. Caricamento** — Coordinatore:
 
   ```bash
-  node scripts/import/load.ts --env-file <CRED> --today <oggi> --family <uuid> --curator <uid di Federico> --dry-run
+  node scripts/import/load.ts --env-file <CRED> --today <oggi> --family <uuid> --curator <uid di Federico> --launch-from <B0> --dry-run
   ```
 
   All'utente: riepilogo, `scripts/import/out/load-report.md` (pubblicazione bloccata?
   preferenze da sistemare a mano, equivalenze divergenti, voti in sospeso, libri
   posseduti, menu in corso, pasti doppi), impronta degli input. «vai» → stesso comando
-  con `--confirm <impronta>` al posto di `--dry-run`. Esito: riepilogo uguale e riga
-  «Data fingerprint after the load: <fp>», annotata nel registro. Verifica: nuovo
-  `--dry-run` con zero creati. Ritorno: errore → nulla scritto; impronta degli input
-  cambiata → nuovo `--dry-run`; sbagliato nella famiglia → R20; sbagliato nel catalogo →
-  R21.
-- [ ] **R19. Primo collaudo, in sola lettura** — Federico sull'iPhone con il
+  con `--confirm <impronta degli input>` al posto di `--dry-run`. Esito: riepilogo
+  uguale e riga «Launch baseline after the load: **B1**», annotata nel registro
+  («caricamento»); da qui vale B1. Verifica: nuovo `--dry-run` senza `--launch-from`
+  con zero creati. Ritorno: errore → nulla scritto, B0 resta valida (rimozione con B0 se
+  la finestra non basta per riprovare); «app data changed since the launch baseline» →
+  ci si ferma: qualcuno ha scritto dopo il bootstrap, si sente l'utente; impronta degli
+  input cambiata → nuovo `--dry-run`; sbagliato nella famiglia → R21; sbagliato nel
+  catalogo → R22.
+- [ ] **R20. Primo collaudo, in sola lettura** — Federico sull'iPhone con il
   coordinatore, entro le 19: accesso, menu della settimana corrente uguale al PDF,
   ricettario (numero di ricette, libri, bozze), impostazioni come la tabella di
   `supabase/README.md`. Nessuna modifica. Poi coordinatore: `scripts/prod-sql.sh
-  --preview supabase/scripts/show-fingerprint.sql` → stessa impronta di R18. Esito
-  positivo → R22. Esito negativo o 19:00 passate → R20.
-- [ ] **R20. Rimozione della famiglia** (solo se serve) — Coordinatore:
-  `scripts/prod-sql.sh --preview supabase/scripts/remove-family.sql --set
-  family_id=<uuid> --set expected_fingerprint=<fp di R18>` → righe che toglierebbe;
-  «vai» → stesso comando con `--apply` e `--confirm <sha256>`. Esito: famiglia assente;
-  catalogo intatto. Poi correzione e R15–R19 in una nuova finestra (R17 con un UUID
-  nuovo). Se l'impronta è cambiata, si ferma: correzioni puntuali (spec, sezione 8).
-- [ ] **R21. Azzeramento** (solo se il catalogo è sbagliato, prima di R22) —
+  --preview supabase/scripts/show-fingerprint.sql` → B1. Esito positivo → R23. Esito
+  negativo o 19:00 passate → R21.
+- [ ] **R21. Rimozione della famiglia** (solo se serve, anche dopo un caricamento
+  fallito) — Coordinatore: `scripts/prod-sql.sh --preview
+  supabase/scripts/remove-family.sql --set family_id=<uuid> --set
+  expected_fingerprint=<ultima impronta di avvio: B1, o B0 se R19 non ha scritto>` →
+  righe che toglierebbe e `--confirm <impronta dell'operazione>`; «vai» → stesso comando
+  con `--apply` e quel `--confirm`. Esito: famiglia assente; catalogo intatto. Poi
+  correzione e R16–R20 in una nuova finestra (R18 con un UUID nuovo). Se l'impronta è
+  cambiata, si ferma: correzioni puntuali (spec, sezione 8).
+- [ ] **R22. Azzeramento** (solo se il catalogo è sbagliato, prima di R23) —
   Coordinatore: `scripts/prod-sql.sh --preview supabase/scripts/reset-app-data.sql --set
-  expected_fingerprint=<fp di R18>`, «vai», `--apply … --confirm <sha256>`. Esito:
-  catalogo e famiglie vuoti, utenti e profili presenti. Poi correzione, R17–R19 in una
-  nuova finestra.
-- [ ] **R22. Collaudo completo** — Familiari con il coordinatore: tabella della spec,
-  sezione 5, riga per riga; giovedì, prima di aprire il menu,
+  expected_fingerprint=<ultima impronta di avvio>`, «vai», `--apply … --confirm
+  <impronta dell'operazione>`. Esito: catalogo e famiglie vuoti, utenti e profili
+  presenti. Poi correzione, R18–R20 in una nuova finestra.
+- [ ] **R23. Collaudo completo** — All'inizio il coordinatore segna nel registro
+  l'impronta di avvio come **chiusa**. Familiari con il coordinatore: tabella della
+  spec, sezione 5, riga per riga; giovedì, prima di aprire il menu,
   `scripts/prod-sql.sh --preview supabase/scripts/check-first-generation.sql --set
   family_id=<uuid> --set week_start=<lunedì successivo>` → `cron_generated = t`; la
   notte dopo l'esportazione più grande. Esito in `server/README.md` e nel registro. Da
@@ -2415,12 +2745,9 @@ Dipende da: fase 1; spec di W5 riletta sulla versione unita.
 
 ### Fase 3: agenti
 
-Dipende da: collegamento degli agenti (W2) unito; spec di W2 riletta sulla versione
-unita.
+Dipende da: fase 2 (W2 è unito con la #31; la sua spec si rilegge sulla versione unita).
+La chiave pubblica del Worker è già entrata con R9.
 
-- [ ] **R23. Chiave pubblica nel Worker** — PR con `SUPABASE_PUBLISHABLE_KEY` nei `vars`
-  di `server/wrangler.jsonc` (valore di `web/.env.production`), se W2 non l'ha già
-  messa. Merge del coordinatore.
 - [ ] **R24. OAuth server e URL** — Utente, spec di W2, «Passi esterni per la
   produzione», passi 6–7: OAuth Server attivo con `/authorize` e registrazione dinamica;
   *Site URL* = indirizzo `workers.dev`, *Redirect URLs* `<origine>/**`.
@@ -2454,9 +2781,11 @@ unita.
 ### Cambio di progetto dopo un ripristino (solo per un danno grave)
 
 Spec, sezione 8, «Danno grave dopo l'avvio», e spec di W5, sezione 4: PR revisionata
-con `scripts/production-target.json`, `SUPABASE_URL` e `web/.env.production` del
-progetto nuovo; utente aggiorna le due URL e il certificato in `<CRED>`; migrazioni e
+con `scripts/production-target.json`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` e
+`web/.env.production` del progetto nuovo; utente aggiorna le due URL e il certificato
+in `<CRED>`; migrazioni (`npm run release -- --preview --migrations-only`, «vai»,
+`--apply <sha> --migrations-only`, come R5), password di `app_server` (come R6) e
 ripristino con la CLI di W5; `wrangler hyperdrive update <id> --origin-host …
 --origin-user app_server.<ref nuovo> --origin-password …`; `npm run release`
-(anteprima, «vai», applicazione); collaudo completo (R22). Ogni strumento rifiuta finché
+(anteprima, «vai», applicazione); collaudo completo (R23). Ogni strumento rifiuta finché
 file, credenziali e configurazione non indicano lo stesso progetto.
