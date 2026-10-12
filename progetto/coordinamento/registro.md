@@ -5,11 +5,10 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Worker attivi
 
-**Dal 12/10, su richiesta dell'utente: un solo worker Claude.** W1 chiuso il 12/10 dopo il merge della #33: W6 è l'unico worker. W2, W3, W4, W5 chiusi il 12/10 (lavoro tutto su main). Revisori Codex senza limite.
+**Nessun worker attivo.** Il 12/10 pomeriggio l'utente ha messo in pausa il lavoro («riprendiamo quando riesco a dedicarci tempo»): W6 chiuso dopo il merge della #34, worktree rimosso. Alla ripresa, limite di un solo worker Claude (decisione del 12/10), revisori Codex senza limite. W2, W3, W4, W5 chiusi il 12/10 (lavoro tutto su main). Revisori Codex senza limite.
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | PR #34 unita il 12/10 (82688e6, tre giri di review, CI pass). **STOP prima della produzione**: si aspetta che l'utente abbia capito accessi e passi e dia il via. W6 resta aperto in attesa (servirà per la PR di configurazione della fase 1) | 12/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server), #30 (esportazione notturna in R2), #32 (versione di migrazione duplicata), #31 (collegamento degli agenti), #33 (revisione dei pasti, web), #34 (strumenti della messa in produzione). Ondata 1 completata.
@@ -29,14 +28,12 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Prossima azione del coordinatore
 
-**STOP prima della produzione (utente, 12/10):** a review e correzioni della #34 chiuse e PR unita, fermarsi. Nessun passo in produzione, neanche la fase 1, finché l'utente non ha capito come funziona: spiegargli accessi, utenze, ruoli e passi, e aspettare il suo via. Iscrizioni libere su Supabase Auth in produzione: **spente** (decisione dell'utente, 12/10), passo in dashboard nella fase 1.
+Aggiornato il 12 ottobre 2026, pomeriggio. **In pausa per scelta dell'utente.** main verde, nessuna PR aperta.
 
-Aggiornato il 12 ottobre 2026, notte. main verde (ultima CI su 532f57a «success»).
-
-1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA GESTIRE», poi il Monitor con `eventi.py` (README, «Attesa degli eventi»), da riarmare a ogni scadenza. Messaggi ai worker con `herdr agent prompt`. Ai fermi «senza nuovo STATO» leggere sempre il pane: un worker può aspettare una risposta.
-2. **PR #33 unita il 12/10** (CI pass su 6e75655), W1 chiuso, worktree rimosso. Le sue decisioni vanno nella specifica principale (punto 4).
-3. **W6 (messa in produzione):** in implementazione (script di caricamento, `npm run release`, documenti); a `PR_APERTA` review Codex della PR. Poi **portare il piano all'utente** prima di qualsiasi passo in produzione; fase 1 per prima. Se W1 ha già finito ed è chiuso, W6 resta l'unico worker.
-4. **Specifica principale:** #31 e #33 riportate il 12/10; restano le decisioni della messa in produzione, con un agente in worktree come per fcffe66, poi cherry-pick su main.
-5. **Merge:** `gh pr merge <n> --merge` come comando singolo, **solo dopo aver controllato** `gh pr checks <n> --json name,bucket` → `check pass` (l'11/10 la #30 è stata unita con la CI rossa). Controllare le versioni delle migrazioni contro main (`scripts/migrations.test.ts`).
-6. **Regole di metodo:** `/clear` ai worker a ogni cambio di fase (spec approvate → implementazione; PR aperta → correzioni; nuovo compito) e oltre ~50% di contesto, a lavoro committato, poi messaggio di ripresa. I worker devono chiudere ogni fermata con una riga `STATO:` (protocollo-worker.md).
-7. **Revisori:** `progetto/coordinamento/avvia-revisore.sh "<etichetta>" <worktree> <rapporto> "<istruzioni>"` (per le PR: `git worktree add --detach .worktrees/review-prNN origin/<branch>`); al `REVISORE_FINITO` leggere il rapporto, chiudere la tab, rimuovere il worktree di review, `attendi.py --visto <pane>`.
+1. **Ripresa:** nessun passo in produzione finché l'utente non dà il via. Gli ho già spiegato le tre fasi, chi fa cosa e gli accessi (account solo creati a mano da lui in dashboard, iscrizioni spente); chiedere se vuole approfondire qualcosa (credenziali, ritorno indietro, esportazioni notturne) o fissare la finestra per la fase 1.
+2. **Fase 1** (runbook R1–R14 in `progetto/superpowers/plans/2026-10-11-messa-in-produzione.md`, spec omonima sezione 4): serve un worker solo per la PR di configurazione (id di Hyperdrive, `account_id`, chiave pubblica in `server/wrangler.jsonc` e `web/.env.production`); i comandi in produzione li lancia il coordinatore, sempre anteprima → «vai» dell'utente → applicazione.
+3. **Specifica principale:** riportare le decisioni della messa in produzione (sezione «Decisioni da riportare nella specifica» della spec di dettaglio, più le correzioni delle review della #34) con un agente in worktree, poi cherry-pick su main.
+4. **Pulizia facoltativa:** worktree vecchi di PR già unite in `.worktrees/` (agenti, esportazione, menu, profilo, ricetta-import, ricettario, ricettario-mcp, spesa, web): verificare che siano puliti e uniti prima di rimuoverli.
+5. **Revisori Codex:** formulare i prompt come revisione di qualità del proprio codice, non «avversariale» o «aggiramenti»: il filtro di sicurezza di Codex ha bloccato un revisore il 12/10.
+6. **Merge:** `gh pr merge <n> --merge` solo dopo `gh pr checks` → `pass`; controllare le versioni delle migrazioni.
+7. **Dopo un `/clear`:** `attendi.py --stato`, poi Monitor con `eventi.py` solo se ci sono worker o revisori attivi.
