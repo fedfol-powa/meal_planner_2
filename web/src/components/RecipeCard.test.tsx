@@ -1,8 +1,9 @@
-import { fireEvent, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, fireEvent, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { describe, expect, it, vi } from 'vitest';
 import type { RecipeSummary } from '../api/types';
 import { renderWithProviders } from '../test/renderWithProviders';
-import { RecipeCard, type RecipeCardProps } from './RecipeCard';
+import { RecipeCard, type CardActions, type RecipeCardProps } from './RecipeCard';
 
 const recipe: RecipeSummary = {
   id: 'r1', name: 'Spaghetti al pomodoro', description: 'Semplici.', durationMinutes: 20,
@@ -72,5 +73,62 @@ describe('RecipeCard', () => {
     const { container } = renderWithProviders(<RecipeCard {...base} />);
     await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
     expect(container.querySelector('img')).toBeNull();
+  });
+});
+
+describe('RecipeCard with the meal actions of the menu', () => {
+  const actions = (extra: Partial<CardActions> = {}): CardActions => ({ label: 'Modifica il pasto', disabled: false, panel: <p>pannello</p>, ...extra });
+
+  it('a recipe shows details, rating, ingredients and the pencil; the pencil opens its panel', async () => {
+    const onToggle = vi.fn();
+    renderWithProviders(<RecipeCard {...base} actions={actions({ onToggle })} />);
+    const edit = await screen.findByRole('button', { name: 'Modifica il pasto' });
+    expect(screen.getByRole('link', { name: 'Scheda ricetta' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Voto della famiglia/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /ingredienti/ })).toBeTruthy();
+    fireEvent.click(edit);
+    expect(screen.getByText('pannello')).toBeTruthy();
+    expect(onToggle).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByRole('button', { name: /ingredienti/ }));
+    expect(screen.queryByText('pannello')).toBeNull();
+    expect(onToggle).toHaveBeenLastCalledWith(false);
+  });
+
+  it('a free meal and an empty slot show only the pencil; the empty slot also «Scegli una ricetta»', async () => {
+    const onChooseRecipe = vi.fn();
+    const free = renderWithProviders(<RecipeCard {...base} kind="free" recipe={null} freeText="Pizza" rating={null} ingredients={null} actions={actions()} />);
+    expect(await screen.findByRole('button', { name: 'Modifica il pasto' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /ingredienti|Voto/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Scheda ricetta' })).toBeNull();
+    free.unmount();
+    renderWithProviders(<RecipeCard {...base} kind="empty" recipe={null} rating={null} ingredients={null} actions={actions({ onChooseRecipe })} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Scegli una ricetta' }));
+    expect(onChooseRecipe).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /ingredienti|Voto/ })).toBeNull();
+  });
+
+  it('without actions (recipe book) there is no pencil', async () => {
+    renderWithProviders(<RecipeCard {...base} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    expect(screen.queryByRole('button', { name: 'Modifica il pasto' })).toBeNull();
+  });
+
+  it('a meal that becomes free closes the ingredients panel; disabled actions close their panel', async () => {
+    let show: (props: Partial<RecipeCardProps>) => void = () => {};
+    function Changing() {
+      const [extra, setExtra] = useState<Partial<RecipeCardProps>>({});
+      show = setExtra;
+      return <RecipeCard {...base} actions={actions()} {...extra} />;
+    }
+    renderWithProviders(<Changing />);
+    fireEvent.click(await screen.findByRole('button', { name: /ingredienti/ }));
+    expect(screen.getByText('320 g')).toBeTruthy();
+    const free = { kind: 'free', recipe: null, freeText: 'Pizza', rating: null, ingredients: null } as const;
+    act(() => show(free));
+    expect(screen.queryByText('320 g')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Modifica il pasto' }));
+    expect(screen.getByText('pannello')).toBeTruthy();
+    act(() => show({ ...free, actions: actions({ disabled: true }) }));
+    expect(screen.queryByText('pannello')).toBeNull();
   });
 });

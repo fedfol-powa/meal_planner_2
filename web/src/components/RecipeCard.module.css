@@ -12,3 +12,4 @@
 .action:focus-visible { outline-offset: -3px; }
 .panel { padding: 16px 18px 18px; border-top: 1px solid var(--rule); }
 .panel :global(.ingredient-list) { margin-top: 0; }
+.action:disabled { color: var(--muted); cursor: not-allowed; }

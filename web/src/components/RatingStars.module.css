@@ -10,3 +10,7 @@
 .star[data-filled='true'] :global(.icon) { fill: var(--green); stroke: var(--green); }
 .star:has(input:focus-visible) { outline: 3px solid var(--green); outline-offset: -3px; border-radius: 8px; }
 .stars:disabled .star { opacity: 0.5; cursor: progress; }
+/* Read-only (suggestions of «Cambia ricetta»): no bottom margin, own stars as text. */
+.readOnly { margin: 0; }
+.readOnly .row { min-height: 32px; }
+.mine { margin: 0; color: var(--muted); }

@@ -85,3 +85,16 @@ describe('reads pending while a rating is confirmed (second review, C5)', () => 
     expect(ratingIn(client, key)).toEqual(none);
   });
 });
+
+describe('suggestions after a rating', () => {
+  it('a rating cancels and invalidates the suggestions of the family', async () => {
+    const client = new QueryClient();
+    const key = ['meals', 'getSuggestions', { familyId: 'f1', slotId: 's', offset: 0, locale: 'it-IT' }];
+    const other = ['meals', 'getSuggestions', { familyId: 'f2', slotId: 's', offset: 0, locale: 'it-IT' }];
+    client.setQueryData(key, { recipes: [] });
+    client.setQueryData(other, { recipes: [] });
+    await applyRating(client, 'f1', 'r1', confirmed);
+    expect(client.getQueryState(key)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(other)?.isInvalidated).toBe(false);
+  });
+});

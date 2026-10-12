@@ -461,11 +461,14 @@ una risposta superata non si scrive e marca scadute le viste.
 
 ### Componenti (`web/src/features/meals/`)
 
-- **`MealActions`** (il pannello): porzioni (solo ricette), «Cambia ricetta», «Nota».
+- **`MealActions`** (il pannello): porzioni (per ogni tipo di pasto: ricetta, libero e
+  vuoto, da 1 a 20, come nella sezione 5 della specifica principale), «Cambia ricetta»,
+  «Nota».
 - **Porzioni** (`useServingsDraft`); un invio respinto non sparisce in silenzio: con la
   scheda montata il pannello mostra l'errore (stesso testo degli altri errori dei pasti) e
   il valore torna a quello del server; dopo la navigazione resta un avviso persistente nel
-  Menu («Le porzioni di … non sono state salvate»), chiuso solo dall'utente:
+  Menu («Le porzioni di … non sono state salvate»), chiuso solo dall'utente, anche quando
+  la richiesta era già partita prima della navigazione:
   - valore locale per la vista e riferimento al valore da salvare, separati;
   - invio 800 ms dopo l'ultimo tocco, sempre fuori dagli aggiornamenti di stato;
   - durante l'invio il selettore è disattivato e mostra il valore inviato fino alla
@@ -508,9 +511,14 @@ una risposta superata non si scrive e marca scadute le viste.
 
 ### Stati, errori, testi
 
-- Offline: matita, selettore e azioni disattivati; menu in sola lettura.
+- Offline: matita, selettore e azioni disattivati, anche nel foglio già aperto e in
+  «Annulla»; chiusura e consultazione restano; menu in sola lettura.
 - `not_found`: «Questo pasto o questa ricetta non è più disponibile», settimana riletta,
-  foglio chiuso.
+  foglio chiuso e messaggio nel Menu finché l'utente non lo chiude. La traduzione
+  dell'errore non ha effetti: rilettura e chiusura avvengono una volta, alla risposta.
+- Un voto confermato mentre un'azione sul pasto è in corso rende superata la sua
+  risposta: la settimana si rilegge invece di essere scritta con il voto vecchio.
+- La ricerca distingue caricamento, nessun risultato ed errore (con «Riprova»).
 - `invalid`: messaggio nel modulo; `forbidden` e `unauthorized`: gestione globale.
 - Testi in `web/src/i18n/messages/meals.ts`, italiano e inglese britannico.
   - «Cambia ricetta» / «Change recipe» e «Non proporre più» / «Don’t suggest again» sono

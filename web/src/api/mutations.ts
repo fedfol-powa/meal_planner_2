@@ -2,9 +2,10 @@ import { useMutation, type Query, type QueryClient } from '@tanstack/react-query
 import { useCurrentLocale, useSession } from '../session/SessionScope';
 import type { Session } from '../session/session';
 import { familyOfKey } from './queries';
+import type { MealActionResult } from './types';
 
-/** The view a mutation answers with: the profile, or one of the versioned views of a family. */
-export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions';
+/** The view a mutation answers with: the profile, one of the versioned views of a family, or a week of the menu. */
+export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week';
 type Scope = 'all' | 'profile' | { area: string; operation?: string };
 
 export interface Invalidation {
@@ -14,6 +15,17 @@ export interface Invalidation {
 }
 
 const familyReads = (...scopes: { area: string; operation?: string }[]) => scopes;
+
+/** Not versioned: every change the planner reads makes them stale (spec of the revision, 5). */
+const SUGGESTIONS = { area: 'meals', operation: 'getSuggestions' } as const;
+/** A changed meal moves the family counter: what reads the meals goes stale. */
+const MEAL_STALE = familyReads(
+  { area: 'menu', operation: 'getOpening' },
+  { area: 'shopping', operation: 'getWeekList' },
+  { area: 'recipes', operation: 'get' },
+  { area: 'recipes', operation: 'search' },
+  SUGGESTIONS
+);
 
 /** Spec «Viste aggiornate e invalidate per operazione»: the screens never decide this themselves. */
 export const INVALIDATIONS = {
@@ -30,26 +42,37 @@ export const INVALIDATIONS = {
     target: 'family',
     stale: ['profile', ...familyReads({ area: 'menu' }, { area: 'recipes', operation: 'get' }, { area: 'shopping' })]
   },
-  'family.setMeal': { target: 'settings', stale: [] },
-  'family.addRule': { target: 'settings', stale: [] },
-  'family.removeRule': { target: 'settings', stale: [] },
-  'family.setKnownNew': { target: 'settings', stale: [] },
-  'family.setGroupRange': { target: 'settings', stale: [] },
-  'family.setBookOwned': { target: 'settings', stale: familyReads({ area: 'recipes', operation: 'search' }, { area: 'recipes', operation: 'get' }) },
-  'family.setIngredientRestriction': { target: 'settings', stale: familyReads({ area: 'shopping' }) },
-  'family.addExclusion': { target: 'exclusions', stale: [] },
-  'family.removeExclusion': { target: 'exclusions', stale: [] }
+  'family.setMeal': { target: 'settings', stale: familyReads(SUGGESTIONS) },
+  'family.addRule': { target: 'settings', stale: familyReads(SUGGESTIONS) },
+  'family.removeRule': { target: 'settings', stale: familyReads(SUGGESTIONS) },
+  'family.setKnownNew': { target: 'settings', stale: familyReads(SUGGESTIONS) },
+  'family.setGroupRange': { target: 'settings', stale: familyReads(SUGGESTIONS) },
+  'family.setBookOwned': { target: 'settings', stale: familyReads({ area: 'recipes', operation: 'search' }, { area: 'recipes', operation: 'get' }, SUGGESTIONS) },
+  'family.setIngredientRestriction': { target: 'settings', stale: familyReads({ area: 'shopping' }, SUGGESTIONS) },
+  'family.addExclusion': { target: 'exclusions', stale: familyReads(SUGGESTIONS) },
+  'family.removeExclusion': { target: 'exclusions', stale: familyReads(SUGGESTIONS) },
+  'meals.setServings': { target: 'week', stale: MEAL_STALE },
+  'meals.setRecipe': { target: 'week', stale: MEAL_STALE },
+  'meals.setFree': { target: 'week', stale: MEAL_STALE },
+  'meals.setNote': { target: 'week', stale: MEAL_STALE },
+  'meals.swap': { target: 'week', stale: MEAL_STALE },
+  'meals.undo': { target: 'week', stale: MEAL_STALE }
 } as const satisfies Record<string, Invalidation>;
 export type MutationName = keyof typeof INVALIDATIONS;
 
 const TARGET_KEY: Record<Exclude<MutationTarget, 'profile'>, [string, string]> = {
   family: ['family', 'get'],
   settings: ['family', 'getSettings'],
-  exclusions: ['family', 'listExclusions']
+  exclusions: ['family', 'listExclusions'],
+  week: ['menu', 'getWeek']
 };
 
-const targetKey = (target: MutationTarget, familyId: string | undefined, locale: string) =>
-  target === 'profile' ? ['profile', 'get', { locale }] : [...TARGET_KEY[target], { familyId, locale }];
+const targetKey = (target: MutationTarget, familyId: string | undefined, locale: string, weekStartsOn?: string) =>
+  target === 'profile'
+    ? ['profile', 'get', { locale }]
+    : target === 'week'
+      ? [...TARGET_KEY.week, { familyId, weekStartsOn, locale }]
+      : [...TARGET_KEY[target], { familyId, locale }];
 
 function matches(scope: Scope, familyId: string | undefined) {
   return (query: Query) => {
@@ -63,6 +86,8 @@ function matches(scope: Scope, familyId: string | undefined) {
 export interface ApplyOptions {
   name: MutationName;
   familyId?: string;
+  /** For a meal: the Monday of its week, the view written. */
+  weekStartsOn?: string;
   /** The language the mutation was sent in. */
   locale: string;
   view: unknown;
@@ -72,11 +97,17 @@ export interface ApplyOptions {
   isLatest: () => boolean;
 }
 
-/** The same view in another language: same area, operation and family (PR #21 review, finding 2). */
-function sameView(target: MutationTarget, familyId: string | undefined) {
+/**
+ * The same view in another language: same area, operation, family and, for a week, Monday
+ * (PR #21 review, finding 2).
+ */
+function sameView(target: MutationTarget, familyId: string | undefined, weekStartsOn?: string) {
   const [area, operation] = target === 'profile' ? ['profile', 'get'] : TARGET_KEY[target];
   return (query: Query) =>
-    query.queryKey[0] === area && query.queryKey[1] === operation && (target === 'profile' || familyOfKey(query.queryKey) === familyId);
+    query.queryKey[0] === area &&
+    query.queryKey[1] === operation &&
+    (target === 'profile' || familyOfKey(query.queryKey) === familyId) &&
+    (target !== 'week' || (query.queryKey[2] as { weekStartsOn?: string }).weekStartsOn === weekStartsOn);
 }
 
 /**
@@ -85,10 +116,10 @@ function sameView(target: MutationTarget, familyId: string | undefined) {
  */
 export async function applyMutation(queryClient: QueryClient, options: ApplyOptions): Promise<boolean> {
   const { target, stale } = INVALIDATIONS[options.name] as Invalidation;
-  const key = JSON.stringify(targetKey(target, options.familyId, options.locale));
+  const key = JSON.stringify(targetKey(target, options.familyId, options.locale, options.weekStartsOn));
   const isTarget = (query: Query) => JSON.stringify(query.queryKey) === key;
   // The answer is in the language it was sent in: the other languages of the view are only made stale.
-  const isVariant = (query: Query) => !isTarget(query) && sameView(target, options.familyId)(query);
+  const isVariant = (query: Query) => !isTarget(query) && sameView(target, options.familyId, options.weekStartsOn)(query);
   const isStale = (query: Query) => !isTarget(query) && (isVariant(query) || stale.some((scope) => matches(scope, options.familyId)(query)));
   const affected = (query: Query) => isTarget(query) || isStale(query);
   const running = queryClient.getQueryCache().findAll({ predicate: affected, fetchStatus: 'fetching' });
@@ -110,6 +141,17 @@ export async function applyMutation(queryClient: QueryClient, options: ApplyOpti
   const empty = running.filter((query) => query.state.data === undefined && !isStale(query));
   if (empty.length) void queryClient.invalidateQueries({ predicate: (query) => empty.includes(query) });
   return true;
+}
+
+const ratingsBySession = new WeakMap<Session, Map<string, number>>();
+
+/** How many ratings of the family this session has confirmed: a meal answer prepared before one may carry the old rating. */
+export const ratingsConfirmed = (session: Session, familyId: string) => ratingsBySession.get(session)?.get(familyId) ?? 0;
+
+export function countRatingConfirmed(session: Session, familyId: string) {
+  let counts = ratingsBySession.get(session);
+  if (!counts) ratingsBySession.set(session, (counts = new Map()));
+  counts.set(familyId, ratingsConfirmed(session, familyId) + 1);
 }
 
 export interface MutationDeps {
@@ -144,6 +186,37 @@ export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName,
     isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token)
   });
   return { view, applied };
+}
+
+export type MealMutationName = Extract<MutationName, `meals.${string}`>;
+
+/**
+ * As runAreaMutation for the meals: the target is the week of the meal (spec of the revision, 5).
+ * A rating confirmed meanwhile supersedes the answer, which may carry the old one: the week is
+ * read again instead of written (PR #33 review, 3).
+ */
+export async function runMealMutation(
+  deps: MutationDeps,
+  name: MealMutationName,
+  familyId: string,
+  weekStartsOn: string,
+  call: () => Promise<MealActionResult>
+): Promise<MutationOutcome<MealActionResult>> {
+  const trackKey = `week:${familyId}:${weekStartsOn}`;
+  const locale = deps.currentLocale();
+  const token = deps.session.track(trackKey);
+  const ratings = ratingsConfirmed(deps.session, familyId);
+  const result = await call();
+  const applied = await applyMutation(deps.queryClient, {
+    name,
+    familyId,
+    weekStartsOn,
+    locale,
+    view: result.week,
+    sessionOpen: () => !deps.session.isClosed(),
+    isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token) && ratingsConfirmed(deps.session, familyId) === ratings
+  });
+  return { view: result, applied };
 }
 
 /**
