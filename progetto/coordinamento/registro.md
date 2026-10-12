@@ -28,12 +28,35 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Prossima azione del coordinatore
 
-Aggiornato il 12 ottobre 2026, pomeriggio. **In pausa per scelta dell'utente.** main verde, nessuna PR aperta.
+Aggiornato il 12 ottobre 2026, notte. **Fase 1 della messa in produzione quasi completa.** main verde, nessuna PR aperta.
 
-1. **Ripresa:** nessun passo in produzione finché l'utente non dà il via. Gli ho già spiegato le tre fasi, chi fa cosa e gli accessi (account solo creati a mano da lui in dashboard, iscrizioni spente); chiedere se vuole approfondire qualcosa (credenziali, ritorno indietro, esportazioni notturne) o fissare la finestra per la fase 1.
-2. **Fase 1** (runbook R1–R14 in `progetto/superpowers/plans/2026-10-11-messa-in-produzione.md`, spec omonima sezione 4): serve un worker solo per la PR di configurazione (id di Hyperdrive, `account_id`, chiave pubblica in `server/wrangler.jsonc` e `web/.env.production`); i comandi in produzione li lancia il coordinatore, sempre anteprima → «vai» dell'utente → applicazione.
-3. **Specifica principale:** riportare le decisioni della messa in produzione (sezione «Decisioni da riportare nella specifica» della spec di dettaglio, più le correzioni delle review della #34) con un agente in worktree, poi cherry-pick su main.
-4. **Pulizia facoltativa:** worktree vecchi di PR già unite in `.worktrees/` (agenti, esportazione, menu, profilo, ricetta-import, ricettario, ricettario-mcp, spesa, web): verificare che siano puliti e uniti prima di rimuoverli.
-5. **Revisori Codex:** formulare i prompt come revisione di qualità del proprio codice, non «avversariale» o «aggiramenti»: il filtro di sicurezza di Codex ha bloccato un revisore il 12/10.
-6. **Merge:** `gh pr merge <n> --merge` solo dopo `gh pr checks` → `pass`; controllare le versioni delle migrazioni.
-7. **Dopo un `/clear`:** `attendi.py --stato`, poi Monitor con `eventi.py` solo se ci sono worker o revisori attivi.
+Stato della fase 1 (runbook in `progetto/superpowers/plans/2026-10-11-messa-in-produzione.md`):
+
+- R1–R3b fatti: account Cloudflare `d0deb498ea6d174e013c878ff38d8dfb`, sottodominio `qunidi.workers.dev`
+  (rinominato dall'utente), indirizzo `https://cosasimangia.qunidi.workers.dev`; Data API solo
+  `public`/`graphql_public`; iscrizioni spente (`disable_signup: true`); OAuth server attivo con
+  registrazione dinamica; Site URL e Redirect URL sull'indirizzo `workers.dev`.
+- R4: `.env.production.local` (ignorato da Git) e `~/.config/cosasimangia/supabase-ca.crt` scritti
+  dall'utente; host Session pooler `aws-0-eu-west-2.pooler.supabase.com`.
+- R5: 17 migrazioni applicate, `app_roles 3`.
+- R6: password di `app_server` impostata dall'utente; pool Supabase 15. Nota: una prima password di
+  `app_server` è comparsa nella conversazione per un controllo del coordinatore che stampava l'host
+  di una riga malformata; l'utente l'ha rigenerata. I controlli sul file stampano solo sì/no.
+- R7: Hyperdrive `cosasimangia` id `4c2038adf73d4ed094584a3244f7fbf2`, cache spenta, limite 10.
+- R8: R2 attivato dall'utente; bucket `cosasimangia-backups` (eu) creato.
+- R9: PR #35 unita (`b7322cf`), merge chiesto esplicitamente dall'utente.
+- R10: primo rilascio, versione `e0cab6a9-49f9-4689-ab6a-13d6dea7139c`; dopo il segreto di R11 la
+  versione attiva è `6382d9b5-9187-47d6-bb6c-2e188e46cc4d`.
+- R11: `BACKUP_ENCRYPTION_KEY` impostato dall'utente.
+- R12: account dell'utente creato a mano, UID `44f5d13c-296c-48f6-91f9-98d7733f07a1`; accesso
+  dall'iPhone riuscito, app vera senza famiglia. Da chiudere: cron orario senza errori nei log, «Esci».
+
+Prossimi passi:
+
+1. **R13 (mattina del 13/10):** nei log del Worker `backup_export_done`, in R2 un oggetto in `exports/`.
+2. **Fase 2** (import e avvio della famiglia) solo con il via dell'utente.
+3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
+4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
+5. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
+6. **Merge:** `gh pr merge <n> --merge` solo dopo `gh pr checks` → `pass`; le PR non revisionate
+   le unisce il coordinatore solo su richiesta esplicita dell'utente.
