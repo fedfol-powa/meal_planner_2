@@ -54,14 +54,14 @@ async function main() {
 	// The load runs as postgres (it locks every table of app for a launch load); the check proves the
 	// app_server credentials that Hyperdrive uses.
 	const [variable, role] = args.mode === 'check' ? (['APP_SERVER_DATABASE_URL', 'app_server'] as const) : (['POSTGRES_DATABASE_URL', 'postgres'] as const);
-	const { endpoint, destination } = checkTarget(variable, env[variable], { role, target: args.local ? 'local' : 'production', ref: productionRef(root) });
-	const where = describeEndpoint(endpoint);
+	const checked = checkTarget(variable, env[variable], { role, target: args.local ? 'local' : 'production', ref: productionRef(root) });
+	const where = describeEndpoint(checked.endpoint);
 	let inputs = '';
 	if (args.mode === 'load') {
 		inputs = inputsFingerprint({ originDirectory: originDir(root), importDirectory: join(root, 'scripts/import'), head: repositoryHead(root), today: args.today!, familyId: args.familyId!, curatorId: args.curatorId!, launchFrom: args.launchFrom ?? null, endpoint: where });
 		if (!args.dryRun && args.confirm !== inputs) throw new LoadRefused('inputs changed since the preview: run --dry-run again');
 	}
-	const sql = connect(destination);
+	const sql = connect(checked);
 	try {
 		if (args.mode === 'check') {
 			const [row] = await sql.begin(async (tx) => {
