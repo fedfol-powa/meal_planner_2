@@ -1,5 +1,7 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setOnline } from '../../test/connectivity';
+import { SERVER_RECIPE } from '../../test/rpcServer';
 import { DINNER, LUNCH, realMealsApp } from './testApp';
 
 beforeEach(() => {
@@ -60,5 +62,49 @@ describe('swap, free meal and note', () => {
     fireEvent.click(within(article).getByRole('button', { name: 'Nota' }));
     fireEvent.click(await within(screen.getByRole('dialog')).findByRole('button', { name: 'Togli nota' }));
     await waitFor(() => expect(server.mealCalls.filter((c) => c.op === 'meals.setNote').at(-1)?.input.note).toBeNull());
+  });
+});
+
+describe('losing the network with the sheet open (PR #33 review, 4)', () => {
+  afterEach(() => act(() => setOnline(true)));
+  const disabled = (sheet: HTMLElement, name: string | RegExp) => (within(sheet).getByRole('button', { name }) as HTMLButtonElement).disabled;
+
+  it('note: «Salva» goes off, closing stays, it comes back online', async () => {
+    realMealsApp();
+    const { sheet } = await open(/Pizza/, 'Nota');
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Nota per la famiglia' }), { target: { value: 'Senza cipolla' } });
+    act(() => setOnline(false));
+    expect(disabled(sheet, 'Salva')).toBe(true);
+    expect(disabled(sheet, 'Chiudi')).toBe(false);
+    act(() => setOnline(true));
+    expect(disabled(sheet, 'Salva')).toBe(false);
+  });
+
+  it('change recipe: choices and exclusion go off, the suggestions stay visible; swap and free too', async () => {
+    const { server } = realMealsApp();
+    const { sheet } = await open(/Ricetta dal server/, 'Cambia ricetta');
+    const name = `Scegli ${SERVER_RECIPE.recipe.name}`;
+    await within(sheet).findByRole('button', { name });
+    act(() => setOnline(false));
+    expect(disabled(sheet, name)).toBe(true);
+    expect(disabled(sheet, 'Non proporre più')).toBe(true);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Scambia con un altro pasto' }));
+    expect(disabled(sheet, /Pizza/)).toBe(true);
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Indietro' }));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Segna come pasto libero' }));
+    fireEvent.change(await within(sheet).findByRole('textbox', { name: 'Testo del pasto libero' }), { target: { value: 'Fuori' } });
+    expect(disabled(sheet, 'Salva')).toBe(true);
+    expect(server.mealCalls.some((c) => c.op.startsWith('meals.set') || c.op === 'meals.swap')).toBe(false);
+  });
+
+  it('«Annulla» goes off offline', async () => {
+    const { server } = realMealsApp();
+    const { sheet } = await open(/Pizza/, 'Nota');
+    fireEvent.change(within(sheet).getByRole('textbox', { name: 'Nota per la famiglia' }), { target: { value: 'Senza cipolla' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Salva' }));
+    const undo = (await screen.findByRole('button', { name: 'Annulla' })) as HTMLButtonElement;
+    act(() => setOnline(false));
+    expect(undo.disabled).toBe(true);
+    expect(server.mealCalls.some((c) => c.op === 'meals.undo')).toBe(false);
   });
 });

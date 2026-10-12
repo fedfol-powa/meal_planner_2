@@ -1,5 +1,6 @@
 import { useApi } from '../../api/ApiProvider';
 import type { MealView, WeekView } from '../../api/types';
+import { useOnline } from '../../components/OfflineBanner';
 import { formatDayLong } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { useMealErrors } from './useMealErrors';
@@ -13,6 +14,7 @@ export function SwapPicker({ familyId, weekStartsOn, meal, week, onDone }: { fam
   const { locale } = useLocale();
   const api = useApi();
   const undo = useUndo();
+  const online = useOnline();
   const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const swap = useMealMutation<{ otherSlotId: string }>('meals.swap', familyId, weekStartsOn, ({ otherSlotId, id }) =>
     api.meals.swap({ familyId, slotId: meal.slotId, otherSlotId, id })
@@ -35,7 +37,7 @@ export function SwapPicker({ familyId, weekStartsOn, meal, week, onDone }: { fam
       <ul className={styles.swapList}>
         {others.map((other) => (
           <li key={other.slotId}>
-            <button type="button" disabled={swap.isPending} onClick={() => pick(other.slotId)}>
+            <button type="button" disabled={swap.isPending || !online} onClick={() => pick(other.slotId)}>
               <span className={styles.when}>{formatDayLong(locale, other.date)} · {t(`meal.${other.mealType}`)}</span>
               <span className={other.kind === 'recipe' ? styles.name : `${styles.name} ${styles.free}`}>
                 {other.recipe?.name ?? other.freeText ?? t('meal.empty.title')}

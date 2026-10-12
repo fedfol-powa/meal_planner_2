@@ -5,6 +5,7 @@ import { useAreaMutation } from '../../api/mutations';
 import { searchQuery, useQueryDeps } from '../../api/queries';
 import type { MealView, RecipeQuery, RecipeSummary } from '../../api/types';
 import { Icon } from '../../components/Icon';
+import { useOnline } from '../../components/OfflineBanner';
 import { RatingStars } from '../../components/RatingStars';
 import { RecipeFilters } from '../../components/RecipeFilters';
 import { useT } from '../../i18n/LocaleProvider';
@@ -23,6 +24,8 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
   const api = useApi();
   const deps = useQueryDeps();
   const undo = useUndo();
+  // Writes go off without network; reading, «Proponimene altri» and closing stay (PR #33 review, 4).
+  const online = useOnline();
   const { message, handle } = useMealErrors(familyId, weekStartsOn);
   const [offset, setOffset] = useState(0);
   const suggestionsSection = useRef<HTMLElement>(null);
@@ -70,7 +73,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
       {excluded && (
         <p className={styles.notice} role="status">
           <span>{t('meals.excluded', { name: excluded.name })}</span>
-          <button type="button" disabled={include.isPending} onClick={() => include.mutate(excluded.id, { onSuccess: () => setExcluded(null), onError: (error) => handle(error, onDone) })}>
+          <button type="button" disabled={include.isPending || !online} onClick={() => include.mutate(excluded.id, { onSuccess: () => setExcluded(null), onError: (error) => handle(error, onDone) })}>
             {t('meals.undoExclusion')}
           </button>
         </p>
@@ -83,7 +86,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
         </li>
         {current && !excluded && (
           <li>
-            <button type="button" disabled={exclude.isPending} onClick={() => exclude.mutate(current.id, { onSuccess: () => setExcluded({ id: current.id, name: current.name }), onError: (error) => handle(error, onDone) })}>
+            <button type="button" disabled={exclude.isPending || !online} onClick={() => exclude.mutate(current.id, { onSuccess: () => setExcluded({ id: current.id, name: current.name }), onError: (error) => handle(error, onDone) })}>
               <Icon name="ban" />{t('meals.exclude')}
             </button>
           </li>
@@ -102,7 +105,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
         <ul className={styles.cards}>
           {suggestions.data?.recipes.map(({ recipe, rating }) => (
             <li key={recipe.id} className={styles.card}>
-              <button type="button" aria-label={t('meals.pick', { recipe: recipe.name })} disabled={setRecipe.isPending} onClick={() => choose(recipe.id)}>
+              <button type="button" aria-label={t('meals.pick', { recipe: recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(recipe.id)}>
                 <span className={styles.name}>{recipe.name}</span>
                 {recipe.description && <span className={styles.description}>{recipe.description}</span>}
                 <span className={styles.meta}>{meta(recipe)}</span>
@@ -125,7 +128,7 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
             <ul className={styles.rows} aria-label={t('meals.results')}>
               {results.map((item) => (
                 <li key={item.recipe.id}>
-                  <button type="button" aria-label={t('meals.pick', { recipe: item.recipe.name })} disabled={setRecipe.isPending} onClick={() => choose(item.recipe.id)}>
+                  <button type="button" aria-label={t('meals.pick', { recipe: item.recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(item.recipe.id)}>
                     <span className={styles.name}>{item.recipe.name}</span>
                     <span className={styles.meta}>{meta(item.recipe)}</span>
                   </button>

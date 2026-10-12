@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { useQueryDeps } from '../../api/queries';
 import type { MealView } from '../../api/types';
+import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
 import { suggestionsQuery } from './queries';
 import { useMealErrors } from './useMealErrors';
@@ -18,6 +19,7 @@ export function FreeMealForm({ familyId, weekStartsOn, meal, onBack, onDone }: {
   const api = useApi();
   const undo = useUndo();
   const { message, handle } = useMealErrors(familyId, weekStartsOn);
+  const online = useOnline();
   const [text, setText] = useState(meal.freeText ?? '');
   const picks = useQuery(suggestionsQuery(useQueryDeps(), familyId, meal.slotId, 0)).data?.freeTexts ?? [];
   const save = useMealMutation<{ text: string }>('meals.setFree', familyId, weekStartsOn, ({ text, id }) => api.meals.setFree({ familyId, slotId: meal.slotId, text, id }));
@@ -53,7 +55,7 @@ export function FreeMealForm({ familyId, weekStartsOn, meal, onBack, onDone }: {
       {save.isError && <p className="meta-line" role="alert">{message(save.error)}</p>}
       <div className={styles.buttons}>
         <button type="button" className="text-button" onClick={onBack}>{t('common.back')}</button>
-        <button type="submit" className="text-button primary" disabled={!text.trim() || save.isPending}>{t('meals.save')}</button>
+        <button type="submit" className="text-button primary" disabled={!text.trim() || save.isPending || !online}>{t('meals.save')}</button>
       </div>
     </form>
   );

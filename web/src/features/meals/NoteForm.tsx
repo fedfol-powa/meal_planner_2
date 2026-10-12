@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import type { MealView } from '../../api/types';
+import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
 import { useMealErrors } from './useMealErrors';
 import { useUndo } from './UndoProvider';
@@ -15,6 +16,7 @@ export function NoteForm({ familyId, weekStartsOn, meal, onDone }: { familyId: s
   const api = useApi();
   const undo = useUndo();
   const { message, handle } = useMealErrors(familyId, weekStartsOn);
+  const online = useOnline();
   const [note, setNote] = useState(meal.note ?? '');
   const save = useMealMutation<{ note: string | null }>('meals.setNote', familyId, weekStartsOn, ({ note, id }) => api.meals.setNote({ familyId, slotId: meal.slotId, note, id }));
   const send = (value: string | null) =>
@@ -42,8 +44,8 @@ export function NoteForm({ familyId, weekStartsOn, meal, onDone }: { familyId: s
       <p className="meta-line" aria-live="polite">{t('meals.noteCount', { count: note.length })}</p>
       {save.isError && <p className="meta-line" role="alert">{message(save.error)}</p>}
       <div className={styles.buttons}>
-        {meal.note && <button type="button" className="text-button" disabled={save.isPending} onClick={() => send(null)}>{t('meals.removeNote')}</button>}
-        <button type="submit" className="text-button primary" disabled={save.isPending}>{t('meals.save')}</button>
+        {meal.note && <button type="button" className="text-button" disabled={save.isPending || !online} onClick={() => send(null)}>{t('meals.removeNote')}</button>}
+        <button type="submit" className="text-button primary" disabled={save.isPending || !online}>{t('meals.save')}</button>
       </div>
     </form>
   );

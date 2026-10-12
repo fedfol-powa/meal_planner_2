@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
+import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
 import type { UndoOffer } from './UndoProvider';
 import { useMealErrors } from './useMealErrors';
@@ -12,6 +13,7 @@ export const UNDO_MS = 6000;
 export function UndoToast({ offer, familyId, onDone }: { offer: UndoOffer; familyId: string; onDone: () => void }) {
   const t = useT();
   const api = useApi();
+  const online = useOnline();
   const { message, handle } = useMealErrors(familyId, offer.weekStartsOn);
   const [refusal, setRefusal] = useState<{ text: string; at: number } | null>(null);
   // The offer's week, whatever week is shown: the answer lands on the meal's week.
@@ -33,7 +35,7 @@ export function UndoToast({ offer, familyId, onDone }: { offer: UndoOffer; famil
         ) : (
           <>
             <span>{t('meals.changed')}</span>
-            <button type="button" disabled={undo.isPending} onClick={() => undo.mutate({}, { onSuccess: onDone, onError: (error) => {
+            <button type="button" disabled={undo.isPending || !online} onClick={() => undo.mutate({}, { onSuccess: onDone, onError: (error) => {
                 handle(error);
                 setRefusal({ text: message(error), at: Date.now() });
               } })}>
