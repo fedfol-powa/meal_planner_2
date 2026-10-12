@@ -107,6 +107,8 @@ export function createRpcTestServer() {
   const weeks = new Map<string, WeekView>();
   const weekReads: { weekStartsOn: string }[] = [];
   const mealCalls: { op: string; input: Record<string, unknown> }[] = [];
+  /** The answer of `recipes.search` after recording the call: a value or a thrown ORPCError. */
+  let search: () => unknown = () => ({ unchanged: false as const, version: 'v1', data: { items: [SERVER_RECIPE] } });
   /** Copies of the weeks taken before each action, for the undo. */
   const before = new Map<string, WeekView>();
   const mealsOf = (week: WeekView) => week.days.flatMap((d) => d.meals);
@@ -179,7 +181,7 @@ export function createRpcTestServer() {
     recipes: {
       search: os.recipes.search.handler(({ input }) => {
         recipeCalls.push({ op: 'recipes.search', input });
-        return { unchanged: false as const, version: 'v1', data: { items: [SERVER_RECIPE] } };
+        return search() as { unchanged: false; version: string; data: { items: (typeof SERVER_RECIPE)[] } };
       }),
       get: os.recipes.get.handler(({ input }) => {
         recipeCalls.push({ op: 'recipes.get', input });
@@ -254,6 +256,7 @@ export function createRpcTestServer() {
     /** Authorization headers of the profile reads, in order. */
     profileSeen,
     recipeCalls,
+    answerSearch: (next: () => unknown) => (search = next),
     /** Family and date of the menu openings, in order. */
     openingSeen,
     answerProfile: (next: (authorization: string | null) => unknown) => (profile = next),

@@ -84,4 +84,19 @@ describe('change recipe', () => {
     await new Promise((done) => setTimeout(done, 50));
     expect(server.weekReads.length).toBe(reads + 1);
   });
+
+  it('a failed search explains and can be tried again (PR #33 review, 5)', async () => {
+    const { server } = realMealsApp();
+    server.answerSearch(() => {
+      throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+    });
+    const { sheet } = await openPicker(/Pizza/);
+    fireEvent.change(within(sheet).getByRole('searchbox'), { target: { value: 'ceci' } });
+    const retry = await within(sheet).findByRole('button', { name: 'Riprova' });
+    expect(within(sheet).getAllByRole('alert').length).toBeGreaterThan(0);
+    expect(within(sheet).queryByText('Nessuna ricetta trovata.')).toBeNull();
+    server.answerSearch(() => ({ unchanged: false, version: 'v1', data: { items: [SERVER_RECIPE] } }));
+    fireEvent.click(retry);
+    expect(await within(sheet).findByRole('list', { name: 'Risultati' })).toBeTruthy();
+  });
 });

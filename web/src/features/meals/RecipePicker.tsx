@@ -136,9 +136,16 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
                 </li>
               ))}
             </ul>
+          ) : search.isError ? (
+            <p className="meta-line" role="alert">
+              {message(search.error)}{' '}
+              <button type="button" className="text-button" onClick={() => void search.refetch()}>{t('common.retry')}</button>
+            </p>
           ) : search.isSuccess ? (
             <p className="meta-line">{t('meals.noResults')}</p>
-          ) : null)}
+          ) : (
+            <p className="meta-line" role="status">{t('common.loading')}</p>
+          ))}
       </section>
     </div>
   );
