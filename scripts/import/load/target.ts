@@ -86,11 +86,17 @@ export const connect = (checked: Checked, factory: typeof postgres = postgres) =
 	return factory({ host, port, database, username: user, password, ...clientOptions(checked) });
 };
 
-/** psql's connection string, without the password (it goes in PGPASSWORD). */
+/** psql's connection string, without the password (it goes in PGPASSWORD) and without TLS (psqlTlsEnv).
+ * Only checked fields: lowercase DNS name, number, fixed database and user, nothing to quote. */
 export function psqlConninfo(checked: Checked): string {
-	const { host, port, database, user, caPath } = checked.fields;
-	const tls = checked.ssl ? `sslmode=verify-full sslrootcert=${caPath}` : 'sslmode=disable';
-	return `host=${host} port=${port} dbname=${database} user=${user} ${tls}`;
+	const { host, port, database, user } = checked.fields;
+	return `host=${host} port=${port} dbname=${database} user=${user}`;
+}
+
+/** psql's TLS, in its environment like the password: a certificate path never becomes conninfo text,
+ * where a space or a quote would start another parameter (second review of PR #34, finding 2). */
+export function psqlTlsEnv(checked: Checked): Record<string, string> {
+	return checked.ssl ? { PGSSLMODE: 'verify-full', PGSSLROOTCERT: checked.fields.caPath! } : { PGSSLMODE: 'disable' };
 }
 
 /** The --db-url of the Supabase CLI, without the password (it goes in PGPASSWORD). */

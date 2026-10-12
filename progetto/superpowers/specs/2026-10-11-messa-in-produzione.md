@@ -103,9 +103,11 @@ cambiare l'impronta.
   parametri TLS.
 - **Stesso oggetto per ogni client:** Postgres.js riceve `{ host, port, database,
   username, password, ssl }` dai campi; `psql` riceve una stringa di connessione
-  `host=… port=… dbname=… user=… sslmode=verify-full sslrootcert=…` **senza password**,
-  con la password in `PGPASSWORD` nell'ambiente del container (passata con `-e
-  PGPASSWORD`, senza valore nell'argomento); la CLI di Supabase riceve `--db-url`
+  `host=… port=… dbname=… user=…` **senza password né TLS**, con la password in
+  `PGPASSWORD` e il TLS in `PGSSLMODE=verify-full` e `PGSSLROOTCERT` nell'ambiente del
+  container (passati con `-e NOME`, senza valore nell'argomento): un percorso del
+  certificato con spazi o apici non diventa mai testo della conninfo, dove inizierebbe un
+  altro parametro; la CLI di Supabase riceve `--db-url`
   costruita dai campi senza password, e la password in `PGPASSWORD`. Un test verifica
   che le opzioni effettive del driver coincidano con la destinazione mostrata e che
   nessun argv dei processi figli contenga la password.

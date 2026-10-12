@@ -2,7 +2,8 @@
 // findings 1, 4 and 5). Only the scripts of a closed list, by name; with the production target their
 // bytes come from HEAD of a clean checkout, read once: the fingerprint and psql get the same bytes, on
 // psql's standard input. The tool decides the transaction (begin … rollback for --preview,
-// --single-transaction for --apply, ON_ERROR_STOP always); the password travels only in PGPASSWORD.
+// --single-transaction for --apply, ON_ERROR_STOP always); the password travels only in PGPASSWORD, the
+// TLS settings in PGSSLMODE and PGSSLROOTCERT.
 // Usage: node scripts/prod-sql.ts --preview <script> [--launch] [--set name=value …] [--credentials <file>]
 //        node scripts/prod-sql.ts --apply <script> [--launch] [--set name=value …] --confirm <operation> [--credentials <file>]
 // Environment: PROD_SQL_TARGET=local (tests only: local host, no checkout check), CONTAINER_CLI (podman by
@@ -14,7 +15,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs, parseEnv } from 'node:util';
-import { checkTarget, describeEndpoint, productionRef, psqlConninfo, TargetError } from './import/load/target.ts';
+import { checkTarget, describeEndpoint, productionRef, psqlConninfo, psqlTlsEnv, TargetError } from './import/load/target.ts';
 import { checkSqlText, SqlTextError } from './prod-sql/tokens.ts';
 
 type VariableType = 'uuid' | 'date' | 'fingerprint' | 'measurement_system' | 'time_zone' | 'text' | 'people';
@@ -186,8 +187,10 @@ export async function main(argv: string[], options: { root: string; env: NodeJS.
 	io.err(`Target: ${where}\n`);
 	if (command.mode === 'preview') io.err(`Preview of ${command.name}: ends with rollback\n`);
 	const input = composeInput({ fingerprintSql, script, launch: command.launch, mode: command.mode });
+	// Password and TLS reach psql in its environment, by name: never in argv or in the connection string.
+	const pgEnv = { PGPASSWORD: checked.fields.password, ...psqlTlsEnv(checked) };
 	const args = [
-		'run', '--rm', '-i', '-e', 'PGPASSWORD',
+		'run', '--rm', '-i', ...Object.keys(pgEnv).flatMap((name) => ['-e', name]),
 		...(checked.ssl ? ['-v', `${mountDir}:${mountDir}:ro`] : []),
 		'--network', 'host', IMAGE,
 		'psql', psqlConninfo(checked), '-X', '-q', '-v', 'ON_ERROR_STOP=1',
@@ -197,7 +200,7 @@ export async function main(argv: string[], options: { root: string; env: NodeJS.
 	];
 	const code = await new Promise<number>((done, fail) => {
 		const child = spawn(options.env.CONTAINER_CLI || 'podman', args, {
-			env: { ...options.env, PATH: `/opt/podman/bin:${options.env.PATH ?? ''}`, PGPASSWORD: checked.fields.password },
+			env: { ...options.env, PATH: `/opt/podman/bin:${options.env.PATH ?? ''}`, ...pgEnv },
 			stdio: ['pipe', 'pipe', 'pipe'],
 		});
 		child.stdout.on('data', (d: Buffer) => io.out(d.toString()));

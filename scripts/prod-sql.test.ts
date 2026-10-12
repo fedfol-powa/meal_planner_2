@@ -78,16 +78,19 @@ describe('operationFingerprint and the input', () => {
 	});
 });
 
-/** A fake container CLI: argv, PGPASSWORD and stdin of each call, in files of `dir`. */
+/** A fake container CLI: argv, the PG* variables it passes on and stdin of each call, in files of `dir`. */
 function fakeContainer(dir: string) {
 	const fake = join(dir, 'container');
-	writeFileSync(fake, `#!/usr/bin/env bash\nprintf '%s\\n' "$@" >> "${dir}/args"\nprintf '%s' "\${PGPASSWORD:-}" > "${dir}/pgpassword"\ncat > "${dir}/input"\necho " launch_baseline \n-----------------\n ${'b'.repeat(32)}"\n`);
+	const saved = ['PGPASSWORD', 'PGSSLMODE', 'PGSSLROOTCERT'].map((v) => `printf '%s' "\${${v}-unset}" > "${dir}/${v}"`).join('\n');
+	writeFileSync(fake, `#!/usr/bin/env bash\nprintf '%s\\n' "$@" >> "${dir}/args"\n${saved}\ncat > "${dir}/input"\necho " launch_baseline \n-----------------\n ${'b'.repeat(32)}"\n`);
 	chmodSync(fake, 0o755);
+	const variable = (name: string) => readFileSync(join(dir, name), 'utf8');
 	return {
 		path: fake,
 		calls: () => (existsSync(join(dir, 'args')) ? readFileSync(join(dir, 'args'), 'utf8').split('\n').filter(Boolean) : []),
 		input: () => readFileSync(join(dir, 'input'), 'utf8'),
-		password: () => readFileSync(join(dir, 'pgpassword'), 'utf8'),
+		password: () => variable('PGPASSWORD'),
+		variable,
 	};
 }
 const run = promisify(execFile);
@@ -145,8 +148,10 @@ describe('the real command on the local target', () => {
 		expect(sent.endsWith('select pg_temp.app_fingerprint() as launch_baseline;\nrollback;\n')).toBe(true);
 		expect(sent).toContain(readFileSync('supabase/scripts/bootstrap.sql', 'utf8'));
 		const args = container.calls();
-		expect(args).toContain('host=127.0.0.1 port=54322 dbname=postgres user=postgres sslmode=disable');
-		expect(args).toEqual(expect.arrayContaining(['-e', 'PGPASSWORD', '-v', 'ON_ERROR_STOP=1', '-v', `people=${people}`]));
+		expect(args).toContain('host=127.0.0.1 port=54322 dbname=postgres user=postgres');
+		expect(args).toEqual(expect.arrayContaining(['-e', 'PGPASSWORD', '-e', 'PGSSLMODE', '-v', 'ON_ERROR_STOP=1', '-v', `people=${people}`]));
+		expect(args).not.toContain('PGSSLROOTCERT');
+		expect(container.variable('PGSSLMODE')).toBe('disable');
 		expect(args).not.toContain('--single-transaction');
 		expect(args.join('\n')).not.toContain('pw-s3cret');
 		expect(container.password()).toBe('pw-s3cret');
@@ -206,7 +211,10 @@ describe('the real command on the production target: bytes from the commit of a 
 		expect(r.out).toContain(`Target: postgres.${ref}@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`);
 		expect(container.input()).toContain(git('show', 'HEAD:supabase/scripts/show-fingerprint.sql'));
 		const args = container.calls();
-		expect(args).toContain(`host=aws-0-eu-central-1.pooler.supabase.com port=5432 dbname=postgres user=postgres.${ref} sslmode=verify-full sslrootcert=${home}/.config/cosasimangia/supabase-ca.crt`);
+		expect(args).toContain(`host=aws-0-eu-central-1.pooler.supabase.com port=5432 dbname=postgres user=postgres.${ref}`);
+		expect(args).toEqual(expect.arrayContaining(['-e', 'PGSSLMODE', '-e', 'PGSSLROOTCERT']));
+		expect(container.variable('PGSSLMODE')).toBe('verify-full');
+		expect(container.variable('PGSSLROOTCERT')).toBe(`${home}/.config/cosasimangia/supabase-ca.crt`);
 		expect(args).toContain(`${home}/.config/cosasimangia:${home}/.config/cosasimangia:ro`);
 		expect(args.join('\n')).not.toContain('pw-s3cret');
 		expect(container.password()).toBe('pw-s3cret');
@@ -228,6 +236,17 @@ describe('the real command on the production target: bytes from the commit of a 
 		expect(r.code).toBe(1);
 		expect(r.out).toContain('changed since the preview');
 		expect(container.calls().length).toBe(calls);
+	});
+	it('a certificate path with spaces, quotes, a backslash or conninfo-like text stays one path (second review, finding 2)', async () => {
+		// In the url + is a space: the file name is "ca 'x\\y sslmode=disable host=other.invalid".
+		const name = "ca 'x\\y sslmode=disable host=other.invalid";
+		writeFileSync(join(home, '.config/cosasimangia', name), 'CA');
+		writeFileSync(credentials, readFileSync(credentials, 'utf8').replace('supabase-ca.crt', name.replaceAll(' ', '+')));
+		const r = await prod(['--preview', 'show-fingerprint']);
+		expect(r.code, r.out).toBe(0);
+		expect(container.calls().join('\n')).not.toContain('other.invalid');
+		expect(container.variable('PGSSLROOTCERT')).toBe(`${home}/.config/cosasimangia/${name}`);
+		expect(container.variable('PGSSLMODE')).toBe('verify-full');
 	});
 	it('refuses a certificate outside the mounted folder', async () => {
 		writeFileSync(join(home, 'elsewhere.crt'), 'CA');

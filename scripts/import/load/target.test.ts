@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { describe, expect, it } from 'vitest';
-import { checkTarget, clientOptions, connect, dbUrlWithoutPassword, describeEndpoint, productionRef, psqlConninfo } from './target.ts';
+import { checkTarget, clientOptions, connect, dbUrlWithoutPassword, describeEndpoint, productionRef, psqlConninfo, psqlTlsEnv } from './target.ts';
 
 const ref = 'lronuqvtjdhfyychnscr';
 const host = 'aws-0-eu-central-1.pooler.supabase.com';
@@ -85,12 +85,23 @@ describe('the clients get the checked fields, never the url', () => {
 		await sql.end();
 	});
 	it('psql and the Supabase CLI get the destination without the password', () => {
-		expect(psqlConninfo(checked())).toBe(`host=${host} port=5432 dbname=postgres user=app_server.${ref} sslmode=verify-full sslrootcert=/ca.crt`);
+		expect(psqlConninfo(checked())).toBe(`host=${host} port=5432 dbname=postgres user=app_server.${ref}`);
+		expect(psqlTlsEnv(checked())).toEqual({ PGSSLMODE: 'verify-full', PGSSLROOTCERT: '/ca.crt' });
 		const local = checkTarget('V', 'postgresql://postgres:pw@127.0.0.1:54322/postgres', { ...opts, role: 'postgres', target: 'local' });
-		expect(psqlConninfo(local)).toBe('host=127.0.0.1 port=54322 dbname=postgres user=postgres sslmode=disable');
+		expect(psqlConninfo(local)).toBe('host=127.0.0.1 port=54322 dbname=postgres user=postgres');
+		expect(psqlTlsEnv(local)).toEqual({ PGSSLMODE: 'disable' });
 		const url = dbUrlWithoutPassword(checked());
 		expect(url).toBe(`postgresql://app_server.${ref}@${host}:5432/postgres?sslmode=verify-full&sslrootcert=%2Fca.crt`);
 		expect(url).not.toContain('s3cr');
 		expect(dbUrlWithoutPassword(local)).toBe('postgresql://postgres@127.0.0.1:54322/postgres?sslmode=disable');
+	});
+	it('a certificate path never reaches the psql connection string (second review of PR #34, finding 2)', () => {
+		// + is a space in the query: the path below holds spaces, quotes, a backslash and conninfo-like text.
+		const path = "/ca+dir/it's\\x+sslmode=disable+host=other.invalid";
+		const decoded = "/ca dir/it's\\x sslmode=disable host=other.invalid";
+		const c = checkTarget('V', prod(undefined, `sslmode=verify-full&sslrootcert=${path}`), opts);
+		expect(c.fields.caPath).toBe(decoded);
+		expect(psqlConninfo(c)).toBe(`host=${host} port=5432 dbname=postgres user=app_server.${ref}`);
+		expect(psqlTlsEnv(c)).toEqual({ PGSSLMODE: 'verify-full', PGSSLROOTCERT: decoded });
 	});
 });
