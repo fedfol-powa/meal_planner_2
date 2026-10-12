@@ -96,6 +96,6 @@ export function psqlConninfo(checked: Checked): string {
 /** The --db-url of the Supabase CLI, without the password (it goes in PGPASSWORD). */
 export function dbUrlWithoutPassword(checked: Checked): string {
 	const { host, port, database, user, caPath } = checked.fields;
-	const query = checked.ssl ? `?${new URLSearchParams({ sslmode: 'verify-full', sslrootcert: caPath! })}` : '';
+	const query = `?${new URLSearchParams(checked.ssl ? { sslmode: 'verify-full', sslrootcert: caPath! } : { sslmode: 'disable' })}`;
 	return `postgresql://${user}@${host}:${port}/${database}${query}`;
 }

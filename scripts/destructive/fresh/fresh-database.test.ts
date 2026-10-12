@@ -8,7 +8,8 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { migrationCommand } from '../../release.ts';
+import { checkTarget } from '../../import/load/target.ts';
+import { migrationCommand, pendingIn } from '../../release.ts';
 import { databaseUrl, enabled } from '../support.ts';
 
 const run = promisify(execFile);
@@ -56,13 +57,14 @@ describe.skipIf(!enabled || !process.env.FRESH_DATABASE)('phase 1 order on a dat
 		await expect(admin.unsafe(`alter role app_server with password 'app_server_test'`)).rejects.toMatchObject({ code: '42704' });
 
 		// 3. The release's own command, with the real CLI: every migration listed, then applied.
-		// The local stack serves Postgres without TLS: the CLI needs it said explicitly.
-		const localUrl = `${databaseUrl}?sslmode=disable`;
-		const listed = migrationCommand(localUrl, true);
+		// The local stack serves Postgres without TLS: the command says sslmode=disable.
+		const local = checkTarget('TEST_DATABASE_URL', databaseUrl, { role: 'postgres', target: 'local', ref: 'unused' });
+		const files = readdirSync('supabase/migrations').filter((f) => f.endsWith('.sql'));
+		const listed = migrationCommand(local, true);
 		const dry = await runCommand(listed.cmd, listed.args, listed.env);
 		expect(dry.code, dry.out).toBe(0);
-		for (const file of readdirSync('supabase/migrations')) expect(dry.out).toContain(file);
-		const applied = migrationCommand(localUrl, false);
+		expect(pendingIn(dry.out, files)).toEqual(files);
+		const applied = migrationCommand(local, false);
 		const push = await runCommand(applied.cmd, applied.args, applied.env);
 		expect(push.code, push.out).toBe(0);
 
@@ -77,8 +79,12 @@ describe.skipIf(!enabled || !process.env.FRESH_DATABASE)('phase 1 order on a dat
 		expect(check.code, check.out).toBe(0);
 		expect(check.out).toContain('0 families, 0 recipes visible to app_job');
 
-		// 5. Nothing left to apply.
+		// 5. Nothing left to apply: the exit code, no file listed, every file recorded in the database
+		// (not the wording of the CLI, which says "Local" for this destination: review of PR #34, finding 11).
 		const again = await runCommand(listed.cmd, listed.args, listed.env);
-		expect(again.out).toContain('Remote database is up to date');
+		expect(again.code, again.out).toBe(0);
+		expect(pendingIn(again.out, files)).toEqual([]);
+		const recorded = await admin<{ version: string }[]>`select version from supabase_migrations.schema_migrations order by version`;
+		expect(recorded.map((r) => r.version)).toEqual(files.map((f) => f.split('_')[0]).sort());
 	});
 });

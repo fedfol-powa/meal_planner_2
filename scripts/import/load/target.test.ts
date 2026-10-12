@@ -91,5 +91,6 @@ describe('the clients get the checked fields, never the url', () => {
 		const url = dbUrlWithoutPassword(checked());
 		expect(url).toBe(`postgresql://app_server.${ref}@${host}:5432/postgres?sslmode=verify-full&sslrootcert=%2Fca.crt`);
 		expect(url).not.toContain('s3cr');
+		expect(dbUrlWithoutPassword(local)).toBe('postgresql://postgres@127.0.0.1:54322/postgres?sslmode=disable');
 	});
 });
