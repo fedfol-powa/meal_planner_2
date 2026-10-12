@@ -9,7 +9,6 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| Codex | PR #28 di W6 | R PR28 | w1:p2H | in corso → revisioni/w6-pr28.md (worktree .worktrees/review-pr28) |
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33 (schermate) aperta, review Codex in corso (revisioni/w1-pr33.md); contesto azzerato | 12/10 |
 | W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Spec e piano corretti; seconda review in corso (revisioni/w6-produzione-spec-piano-2.md) | 12/10 |
 
