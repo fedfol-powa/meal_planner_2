@@ -10,7 +10,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
 | W1 revisione-pasti | W1 revisione-pasti | w1:pW | traguardo/revisione-pasti-web | .worktrees/revisione-pasti | PR #33 (schermate) aperta, review Codex in corso (revisioni/w1-pr33.md); contesto azzerato | 12/10 |
-| W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Spec e piano corretti; seconda review in corso (revisioni/w6-produzione-spec-piano-2.md) | 12/10 |
+| W6 messa-in-produzione | W6 messa-in-produzione | w1:pX | traguardo/messa-in-produzione | .worktrees/produzione | Seconda review di spec: approvabile con 5 correzioni (revisioni/w6-produzione-spec-piano-2.md); W6 le applica e chiude con SPEC_PIANO_APPROVATI → /clear e implementazione | 12/10 |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server), #30 (esportazione notturna in R2), #32 (versione di migrazione duplicata), #31 (collegamento degli agenti). Ondata 1 completata.
@@ -20,7 +20,6 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 | Revisore | Di cosa | Tab | Stato |
 |---|---|---|---|
 | Codex | PR #33 di W1 (schermate della revisione dei pasti) | R PR33 | in corso → revisioni/w1-pr33.md (worktree .worktrees/review-pr33) |
-| Codex | seconda review di spec e piano di W6 | R W6 spec 2 | in corso → revisioni/w6-produzione-spec-piano-2.md (sola lettura su .worktrees/produzione) |
 
 ## Decisioni dell'utente da ricordare (11–12/10)
 
@@ -35,7 +34,7 @@ Aggiornato il 12 ottobre 2026, notte. main verde (ultima CI su 532f57a «success
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA GESTIRE», poi il Monitor con `eventi.py` (README, «Attesa degli eventi»), da riarmare a ogni scadenza. Messaggi ai worker con `herdr agent prompt`. Ai fermi «senza nuovo STATO» leggere sempre il pane: un worker può aspettare una risposta.
 2. **PR #33 (W1, web della revisione dei pasti):** al rapporto, rilievi a W1 con il messaggio di ripresa (brief w1-revisione-pasti, spec e piano revisione-pasti, file dei rilievi), verifica breve, merge. Poi: se W6 è ancora attivo, chiudere W1; altrimenti W1 resta l'unico worker.
-3. **W6 (messa in produzione):** al rapporto della seconda review, correzioni, poi `STATO: SPEC_PIANO_APPROVATI` → `/clear` → implementazione (script di caricamento, `npm run release`, documenti) con PR e review. Poi **portare il piano all'utente** prima di qualsiasi passo in produzione; fase 1 per prima. Se W1 ha già finito ed è chiuso, W6 resta l'unico worker.
+3. **W6 (messa in produzione):** seconda review fatta, W6 applica le 5 correzioni; a `STATO: SPEC_PIANO_APPROVATI` → `/clear` → implementazione (script di caricamento, `npm run release`, documenti) con PR e review. Poi **portare il piano all'utente** prima di qualsiasi passo in produzione; fase 1 per prima. Se W1 ha già finito ed è chiuso, W6 resta l'unico worker.
 4. **Specifica principale:** riportare le decisioni di #31 (collegamento agenti, spec `2026-10-11-collegamento-agenti.md`), #33 (revisione dei pasti web) e della messa in produzione, con un agente in worktree come per fcffe66, poi cherry-pick su main.
 5. **Merge:** `gh pr merge <n> --merge` come comando singolo, **solo dopo aver controllato** `gh pr checks <n> --json name,bucket` → `check pass` (l'11/10 la #30 è stata unita con la CI rossa). Controllare le versioni delle migrazioni contro main (`scripts/migrations.test.ts`).
 6. **Regole di metodo:** `/clear` ai worker a ogni cambio di fase (spec approvate → implementazione; PR aperta → correzioni; nuovo compito) e oltre ~50% di contesto, a lavoro committato, poi messaggio di ripresa. I worker devono chiudere ogni fermata con una riga `STATO:` (protocollo-worker.md).
