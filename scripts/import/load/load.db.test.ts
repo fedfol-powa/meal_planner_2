@@ -4,6 +4,7 @@ import { hasDatabase, setupDatabase, type TestDatabase } from '../../../server/t
 import { cleanupLoadCase, writeOriginFixture, type LoadCase } from './test-origin.ts';
 import { lockFamilyWeeks } from '../../../server/src/menu/generation.ts';
 import { FINGERPRINT_SQL, LoadRefused, loadAll } from './run.ts';
+import { command } from './test-command.ts';
 
 describe.skipIf(!hasDatabase)('load into the database', () => {
 	let db: TestDatabase;
@@ -209,5 +210,17 @@ describe.skipIf(!hasDatabase)('load into the database', () => {
 		} finally {
 			await other.end();
 		}
+	});
+
+	it('runs --check-connection with node against the local database', async () => {
+		const r = await command(['--env-file', '<env>', '--check-connection', '--local'], `APP_SERVER_DATABASE_URL=${db.appServerUrl}\n`);
+		expect(r.code).toBe(0);
+		expect(r.out).toMatch(/families, \d+ recipes visible to app_job/);
+	});
+	it('reports a wrong password as a code, without the password', async () => {
+		const r = await command(['--env-file', '<env>', '--check-connection', '--local'], `APP_SERVER_DATABASE_URL=${db.appServerUrl.replace('app_server_test', 's3cr3t-wrong')}\n`);
+		expect(r.code).toBe(1);
+		expect(r.out).toMatch(/failed: \w+ 28P01/);
+		expect(r.out).not.toContain('s3cr3t');
 	});
 });
