@@ -67,6 +67,8 @@ describe.skipIf(!enabled)('prod-sql.ts against the real psql', () => {
 			'insert into public.prod_sql_probe values (3); COMMIT;\ndelete from app.families;\n',
 			'/* c */ COMMIT;\ninsert into public.prod_sql_probe values (3);\n',
 			'select 1; \\connect postgres\ninsert into public.prod_sql_probe values (3);\n',
+			// Second review of PR #34, finding 4: the ON of one statement does not excuse the COMMIT of the next.
+			'insert into public.prod_sql_probe values (3);\nSET enable_seqscan = on;\nCOMMIT;\nDELETE FROM app.families;\n',
 		]) {
 			await expect(runTool(['--preview', 'probe'], scriptOf('probe', text)), text).rejects.toBeInstanceOf(SqlTextError);
 		}

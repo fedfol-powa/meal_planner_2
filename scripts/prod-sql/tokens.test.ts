@@ -26,6 +26,16 @@ describe('checkSqlText', () => {
 			'select :"name";',
 			'select \'a\'; commit -- after a string',
 			'select $$ body $$; commit;',
+			// The word before COMMIT belongs to another statement (second review of PR #34, finding 4).
+			'SET enable_seqscan = on;\nCOMMIT;\nDELETE FROM app.families;',
+			'set x = on;commit;',
+			'select 1 on /* c */; commit;',
+			// ON COMMIT only as the clause of CREATE TEMP TABLE.
+			'create table t (a int) on commit drop;',
+			'select 1 from t on commit;',
+			'update t set a = 1 where b = on commit;',
+			// A CASE left open in one statement does not excuse an END in the next.
+			'select case; end;',
 		])
 			expect(() => checkSqlText(text), text).toThrow(SqlTextError);
 	});
@@ -46,6 +56,9 @@ describe('checkSqlText', () => {
 			"select :'family_id'::uuid, x::text, a[1:2] from t;",
 			'select $1;',
 			'create temporary table t (a int) on commit drop;',
+			'create temp table t (a int) on commit delete rows;',
+			'CREATE GLOBAL TEMPORARY TABLE t (a int)\nON COMMIT PRESERVE ROWS;',
+			"select 1;\ncreate temporary table t (a text default 'on') on commit drop;",
 		])
 			expect(() => checkSqlText(text), text).not.toThrow();
 	});

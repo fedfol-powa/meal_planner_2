@@ -13,13 +13,17 @@ const CONTROL = new Set(['begin', 'commit', 'rollback', 'abort', 'savepoint', 'r
 const WORD_START = /[A-Za-z_]/;
 const WORD = /[A-Za-z0-9_$]/;
 const VARIABLE = /^[a-z_]+$/;
+/** The start of a statement whose ON COMMIT is a table option: create [global|local] temp[orary] table. */
+const TEMP_TABLE = /^create (?:(?:global|local) )?temp(?:orary)? table\b/;
 
 /** Returns the variables interpolated as :'name', in order of first use. */
 export function checkSqlText(text: string): string[] {
 	const variables: string[] = [];
 	let i = 0;
+	// Both reset at every semicolon outside quotes: the context of a word is its own statement
+	// (second review of PR #34, finding 4).
 	let caseDepth = 0;
-	let previousWord = '';
+	let statement: string[] = [];
 	const where = (at: number) => {
 		const before = text.slice(0, at).split('\n');
 		return `line ${before.length}, column ${before.at(-1)!.length + 1}`;
@@ -90,11 +94,15 @@ export function checkSqlText(text: string): string[] {
 			else if (word === 'end') {
 				if (caseDepth === 0) refuse(start, 'end of a transaction');
 				caseDepth--;
-			} else if (word === 'commit' && previousWord === 'on') {
+			} else if (word === 'commit' && statement.at(-1) === 'on' && TEMP_TABLE.test(statement.join(' '))) {
 				// create temporary table … on commit drop: a table option, not a transaction command
 			} else if (CONTROL.has(word)) refuse(start, `transaction control "${word}"`);
-			else if (word === 'transaction' && (previousWord === 'start' || previousWord === 'prepare')) refuse(start, `transaction control "${previousWord} transaction"`);
-			previousWord = word;
+			else if (word === 'transaction' && (statement.at(-1) === 'start' || statement.at(-1) === 'prepare')) refuse(start, `transaction control "${statement.at(-1)} transaction"`);
+			statement.push(word);
+		} else if (c === ';') {
+			statement = [];
+			caseDepth = 0;
+			i++;
 		} else i++;
 	}
 	return variables;
