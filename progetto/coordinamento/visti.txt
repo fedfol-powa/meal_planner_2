@@ -154,3 +154,7 @@ w1:pX	STATO: SPEC_PIANO_PRONTI #0b7b3a27
 w1:pY	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/31 #79f6f1ed
 w1:pW	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/33 #309e8ffc
 w1:pX	STATO: SPEC_PIANO_PRONTI #85b36406
+w1:pW	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/33 #e33a1984
+w1:p31	REVISORE_FINITO
+w1:pW	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/33 #8b616a1d
+w1:pW	STATO: PR_CORRETTA https://github.com/fedfol-powa/meal_planner_2/pull/33 #8b616a1d
