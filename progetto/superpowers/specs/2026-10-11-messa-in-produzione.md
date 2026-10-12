@@ -394,9 +394,10 @@ script:
 3. calcola lo SHA-256 sui byte della fotografia, sul commit `HEAD`, su `--today`,
    `--family`, `--curator`, `--launch-from` (o la sua assenza) e sulla destinazione
    validata (ruolo, host, porta, database);
-4. **analizza tutto** (import, equivalenze, menu, dati della famiglia, piani di
-   settimane e preferenze) **prima di aprire la transazione**: l'attesa dei lock non
-   lascia nessuna lettura di file da fare.
+4. analizza **prima di aprire la transazione** equivalenze, schede e menu dell'origine;
+   solo l'import (`runImport`), che deve sapere quali voci sono già nel catalogo, gira
+   dentro la transazione, e legge la stessa fotografia: l'attesa dei lock non può
+   cambiare nessun byte letto.
 
 `--dry-run` stampa l'impronta; `--confirm` la ricalcola e, se diversa, si ferma **senza
 collegarsi** («inputs changed since the preview: run --dry-run again»). Così
