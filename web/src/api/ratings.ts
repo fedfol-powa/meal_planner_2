@@ -1,6 +1,8 @@
 import { useMutation, type Query, type QueryClient } from '@tanstack/react-query';
 import { isOnline } from '../lib/connectivity';
 import { useSession } from '../session/SessionScope';
+import type { Session } from '../session/session';
+import { countRatingConfirmed } from './mutations';
 import { ApiError } from './errors';
 import { familyOfKey, useQueryDeps, type Versioned } from './queries';
 import type { MealView, RatingSummary, RecipeDetailView, WeekView } from './types';
@@ -44,6 +46,15 @@ export async function applyRating(
   if (empty.length) void queryClient.invalidateQueries({ predicate: (query) => empty.includes(query) });
 }
 
+/**
+ * A confirmed rating: counted first, so a meal answer still in flight is not written over it
+ * (PR #33 review, 3), then applied to the views.
+ */
+export async function confirmRating(queryClient: QueryClient, session: Session, familyId: string, recipeId: string, summary: RatingSummary, isCurrent: () => boolean = () => true) {
+  countRatingConfirmed(session, familyId);
+  await applyRating(queryClient, familyId, recipeId, summary, isCurrent);
+}
+
 export interface RateInput { recipeId: string; stars: number | null }
 
 /** The model for wave 2 mutations: send, show the pending state, apply only confirmed and current answers. */
@@ -61,7 +72,7 @@ export function useRateRecipe(familyId: string) {
     },
     onSuccess: async ({ summary, token }, { recipeId }) => {
       const current = () => !session.isClosed() && session.isLatest(`rating:${recipeId}`, token);
-      if (current()) await applyRating(queryClient, familyId, recipeId, summary, current);
+      if (current()) await confirmRating(queryClient, session, familyId, recipeId, summary, current);
     }
   });
 }

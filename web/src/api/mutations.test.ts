@@ -5,6 +5,7 @@ import { readThrough } from './queries';
 import { createMemoryStore } from './persister';
 import { createSession } from '../session/session';
 import { applyMutation, runAreaMutation, runMealMutation, type MutationName } from './mutations';
+import { confirmRating } from './ratings';
 import type { MealActionResult } from './types';
 
 const FAMILY = '00000000-0000-4000-8000-000000000001';
@@ -232,5 +233,32 @@ describe('meal mutations', () => {
     slow.resolve(answer(3, 'a'));
     expect((await first).applied).toBe(false);
     expect((h.client.getQueryData(weekKey('2026-10-05')) as { data: unknown }).data).toEqual(weekView(5));
+  });
+
+  it('an answer prepared before a confirmed rating never brings the old rating back (PR #33 review, 3)', async () => {
+    const h = harness();
+    const rated = (myStars: number) => ({
+      startsOn: '2026-10-05',
+      days: [{ date: '2026-10-05', meals: [{ slotId: 's', servings: 4, recipe: { id: 'r' }, rating: { familyAverage: myStars, familyCount: 1, myStars } }] }]
+    });
+    h.client.setQueryData(weekKey('2026-10-05'), { version: 'w1', data: rated(2) });
+    const deps = { queryClient: h.client, session: h.session, currentLocale: () => 'it-IT' };
+    const slow = deferred<MealActionResult>();
+    const servings = runMealMutation(deps, 'meals.setServings', FAMILY, '2026-10-05', () => slow.promise);
+    await confirmRating(h.client, h.session, FAMILY, 'r', { familyAverage: 5, familyCount: 1, myStars: 5 });
+    slow.resolve({ week: rated(2), actionId: 'a', changed: true } as unknown as MealActionResult);
+    expect((await servings).applied).toBe(false);
+    const cached = h.client.getQueryData(weekKey('2026-10-05')) as { data: ReturnType<typeof rated> };
+    expect(cached.data.days[0]!.meals[0]!.rating.myStars).toBe(5);
+    expect(h.client.getQueryState(weekKey('2026-10-05'))?.isInvalidated).toBe(true);
+  });
+
+  it('a meal answer started after the rating is written', async () => {
+    const h = harness();
+    h.client.setQueryData(weekKey('2026-10-05'), { version: 'w1', data: weekView(2) });
+    await confirmRating(h.client, h.session, FAMILY, 'r', { familyAverage: 5, familyCount: 1, myStars: 5 });
+    const deps = { queryClient: h.client, session: h.session, currentLocale: () => 'it-IT' };
+    const result = await runMealMutation(deps, 'meals.setServings', FAMILY, '2026-10-05', async () => ({ week: weekView(3), actionId: 'a', changed: true }) as unknown as MealActionResult);
+    expect(result.applied).toBe(true);
   });
 });

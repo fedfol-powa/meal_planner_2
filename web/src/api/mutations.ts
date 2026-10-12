@@ -143,6 +143,17 @@ export async function applyMutation(queryClient: QueryClient, options: ApplyOpti
   return true;
 }
 
+const ratingsBySession = new WeakMap<Session, Map<string, number>>();
+
+/** How many ratings of the family this session has confirmed: a meal answer prepared before one may carry the old rating. */
+export const ratingsConfirmed = (session: Session, familyId: string) => ratingsBySession.get(session)?.get(familyId) ?? 0;
+
+export function countRatingConfirmed(session: Session, familyId: string) {
+  let counts = ratingsBySession.get(session);
+  if (!counts) ratingsBySession.set(session, (counts = new Map()));
+  counts.set(familyId, ratingsConfirmed(session, familyId) + 1);
+}
+
 export interface MutationDeps {
   queryClient: QueryClient;
   session: Session;
@@ -179,7 +190,11 @@ export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName,
 
 export type MealMutationName = Extract<MutationName, `meals.${string}`>;
 
-/** As runAreaMutation for the meals: the target is the week of the meal (spec of the revision, 5). */
+/**
+ * As runAreaMutation for the meals: the target is the week of the meal (spec of the revision, 5).
+ * A rating confirmed meanwhile supersedes the answer, which may carry the old one: the week is
+ * read again instead of written (PR #33 review, 3).
+ */
 export async function runMealMutation(
   deps: MutationDeps,
   name: MealMutationName,
@@ -190,6 +205,7 @@ export async function runMealMutation(
   const trackKey = `week:${familyId}:${weekStartsOn}`;
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
+  const ratings = ratingsConfirmed(deps.session, familyId);
   const result = await call();
   const applied = await applyMutation(deps.queryClient, {
     name,
@@ -198,7 +214,7 @@ export async function runMealMutation(
     locale,
     view: result.week,
     sessionOpen: () => !deps.session.isClosed(),
-    isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token)
+    isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token) && ratingsConfirmed(deps.session, familyId) === ratings
   });
   return { view: result, applied };
 }
