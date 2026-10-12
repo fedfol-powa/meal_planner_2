@@ -164,3 +164,5 @@ w1:pX	STATO: DOMANDA modifiche a spec e piano dopo la review della PR #34 (commi
 w1:pX	STATO: PR_CORRETTA #131df6fe
 w1:p33	REVISORE_FINITO
 w1:p34	REVISORE_FINITO
+w1:pX	STATO: PR_CORRETTA #3bb78ade
+w1:p35	REVISORE_FINITO
