@@ -1,8 +1,8 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 12 ottobre 2026 (decisioni della revisione dei pasti, lato server,
-e dell'esportazione notturna in R2)
+Ultimo aggiornamento: 12 ottobre 2026 (decisioni del collegamento degli agenti e della
+revisione dei pasti nel web)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
@@ -178,6 +178,24 @@ notturna unite:**
 - esportazione notturna cifrata in R2 di dati delle famiglie, catalogo e account, con
   le ultime 7 copie e un ripristino provato in CI; dopo un ripristino tutti rifanno
   l'accesso e ricollegano gli agenti (sezione 8).
+
+**Decisioni del 12 ottobre 2026, collegamento degli agenti e revisione dei pasti nel web
+unite:**
+
+- consenso vero nel browser e pagina «Collega un agente» con gli agenti collegati;
+  elenco e scollegamento sono operazioni anche MCP (`agents.list`,
+  `agents.disconnect`); scollegare revoca l'autorizzazione e le sessioni di
+  quell'agente con effetto immediato, provato in CI a ogni PR (sezioni 1 e 13);
+- finché un agente è collegato, autorizzarlo di nuovo non chiede un altro consenso e
+  aggiunge un accesso; «Scollega» li revoca tutti (sezione 13);
+- i poteri di un token d'agente su Supabase Auth (cambiare la password, chiudere le
+  sessioni, revocare altri agenti) per ora sono solo documentati, con testi veritieri
+  nel consenso, nella pagina e nella conferma di «Scollega» (sezioni 13, 15 e 17);
+- negli agenti collegati si mostra l'«ultimo rinnovo dell'accesso», non l'ultimo uso
+  (sezione 13);
+- revisione dei pasti nel web: matita e porzioni da 1 a 20 per ogni pasto, con
+  ricetta, libero o vuoto; «Annulla» per 6 secondi nell'app, senza limiti lato server;
+  comandi disattivati senza rete anche nel foglio già aperto (sezione 5).
 
 ---
 
@@ -414,6 +432,13 @@ comandi o configurazioni da copiare, ed elenca gli agenti collegati, che si poss
 scollegare. Quando un agente chiede l'accesso, il browser mostra chi si collega, con
 quale account e cosa potrà fare; l'utente consente o annulla (sesto giro del prototipo).
 
+I testi dicono la verità sui poteri dell'agente (12 ottobre 2026): agisce con l'account
+della persona, come se fosse lei, e può anche cambiare la password e chiudere le sue
+sessioni, nel browser e degli altri agenti; eliminare una famiglia resta possibile solo
+nell'app. «Scollega» revoca l'autorizzazione e le sessioni di quell'agente, non gli
+accessi ottenuti in altro modo: se l'agente ha cambiato la password, la si cambia. Per
+questo si consente solo agli agenti di cui ci si fida.
+
 ### Amministrare l'app
 
 Una pagina riservata agli amministratori dell'app permette di gestire **gli utenti e
@@ -513,7 +538,12 @@ configurato per workspace.
   OAuth 2.1 per MCP), RLS e `pg_cron` (solo per pulire le liste temporanee di Bring!).
   Il piano gratuito non comprende i backup della piattaforma: li sostituisce
   un'esportazione notturna cifrata, scritta dal Worker in un bucket R2 privato
-  nell'UE (sezione 8). Il repository è collegato all'organizzazione
+  nell'UE (sezione 8). Server OAuth configurato con il percorso di autorizzazione
+  `/authorize` (la pagina di consenso della SPA), la registrazione dinamica dei client
+  attiva e la Site URL sull'origine dell'app; in locale in `supabase/config.toml`. Il
+  Worker conosce la chiave pubblica del progetto (`SUPABASE_PUBLISHABLE_KEY`, valore
+  pubblico in `wrangler.jsonc`), che il gateway di Supabase chiede per lo scollegamento
+  degli agenti (sezione 13). Il repository è collegato all'organizzazione
   Supabase tramite l'integrazione GitHub, con «Deploy to production» disattivato
   (verificato con l'utente l'11 ottobre 2026): il merge su `main` non applica le
   migrazioni al progetto remoto.
@@ -545,7 +575,7 @@ configurato per workspace.
 (`menu.getWeek`, `shopping.setItemChecked`, `catalogue.publish`…), non un accesso
 generico alle tabelle. Le operazioni stanno in `contract/src/`, divise per area
 (`profile`, `family`, `recipes` con `ratings`, `menu`, `meals`, `shopping`,
-`catalogue`); il
+`catalogue`, `agents`); il
 prototipo le abbozzava in `prototype/src/lib/operations/`. L'implementatore del server
 si costruisce in un solo punto, `server/src/router.ts`, e ogni area esporta un factory
 che lo riceve. Ogni richiesta segue lo stesso percorso:
@@ -604,7 +634,10 @@ e scrivere (la generazione pigra del menu, sezione 4).
   `app.session_is_active()` sulla sessione del token, anche all'ingresso di `/mcp` per
   `initialize` e `tools/list`, prima della risposta `web_only`; appartenenze e ruoli si
   leggono a ogni query, quindi una rimozione dalla famiglia o la revoca del ruolo di
-  curatore valgono subito con lo stesso token.
+  curatore valgono subito con lo stesso token. Scollegare un agente cancella in Supabase
+  le sessioni di quel client per quell'utente, quindi questo controllo basta a rifiutare
+  subito i suoi token non scaduti, senza un controllo del grant a ogni richiesta
+  (verificato l'11 ottobre 2026 e provato in CI, sezione 13).
 
 **Contratto delle operazioni.** Il contratto è la fonte unica della forma dell'API per
 app web, MCP, coda offline e test. Si scrive separato dall'implementazione, con schemi
@@ -679,7 +712,10 @@ di validazione condivisi con `domain/`. Regole:
   settimana del pasto e scadono apertura, spesa, ricette e suggerimenti; i suggerimenti
   scadono anche con esclusioni, impostazioni, libri, ingredienti evitati e voti; dettagli
   in `2026-10-11-revisione-pasti.md`). Una risposta superata da un'altra modifica della
-  stessa vista o da un cambio di lingua non si scrive: marca scadute le viste.
+  stessa vista o da un cambio di lingua non si scrive: marca scadute le viste. Vale
+  anche fra mutazioni diverse: un voto confermato mentre un'azione sul pasto è in corso
+  rende superata la risposta dell'azione, che porterebbe il voto vecchio, e la
+  settimana si rilegge (revisione dei pasti nel web, 12 ottobre 2026).
   Ciò che dipende solo dall'ora, come i pasti già passati, si calcola sul dispositivo:
   le viste portano date e istanti dei pasti (`passesAt`) e tutti i pasti futuri di una
   ricetta, e la pagina aperta si ricalcola al prossimo istante. Dove l'ora cambia i dati
@@ -687,8 +723,8 @@ di validazione condivisi con `domain/`. Regole:
   comprende il numero di pasti già passati; quella di `menu.getOpening` comprende la
   data effettiva. `profile.get`, le letture della gestione che dipendono dalle bozze e
   `meals.getSuggestions` (la classifica usa anche i voti globali, che nessun contatore
-  segue) non sono versionate. Gli agenti MCP leggono sempre dal server. I contatori
-  (`families.data_version` e
+  segue) e `agents.list` (i dati cambiano in Supabase Auth) non sono versionate. Gli
+  agenti MCP leggono sempre dal server. I contatori (`families.data_version` e
   `catalogue_state.version`) crescono con trigger del database quando una transazione
   cambia i dati da cui dipendono, al massimo una volta per transazione: una scrittura
   senza effetti può farli crescere, con un'invalidazione in più ma mai dati sbagliati.
@@ -703,8 +739,10 @@ di validazione condivisi con `domain/`. Regole:
   (Esci, uscita da un'altra scheda, cambio d'utente); `unauthorized` porta a un rinnovo
   e poi al login, `forbidden` rimuove le viste di quella famiglia, con un segno di
   revoca rispettato da ogni scrittura e ripristino della copia. Revoche e uscite passano
-  alle altre schede con `BroadcastChannel`. Le risposte arrivate dopo l'uscita o dopo un
-  cambio di lingua si scartano. Offline, se la sessione non si può rinnovare, la copia
+  alle altre schede con `BroadcastChannel`; un'uscita annunciata da un'altra scheda
+  chiude la sessione subito, prima di aggiornare l'identità, così nessuna risposta in
+  volo (per esempio di un consenso agli agenti) la usa ancora. Le risposte arrivate
+  dopo l'uscita o dopo un cambio di lingua si scartano. Offline, se la sessione non si può rinnovare, la copia
   resta consultabile in sola lettura fino alla riconnessione, salvo la lista della spesa
   (sezione 6). Service worker scritto a mano, senza plugin: shell completa installata da
   un elenco generato dalla build e sostituita in modo atomico alla riapertura,
@@ -814,7 +852,7 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | `profile_preferences` | `user_id`, `current_family_id`: famiglia mostrata, ricordata sul server; privata (RLS del solo proprietario), perché `profiles` è leggibile dai co-membri; chiave esterna composta verso `family_members` |
 | `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`) |
 | `app_invitations` | Rimandata all'ondata 3. Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia: `email` del destinatario, ruoli globali da assegnare all'accettazione (anche nessuno), autore, creazione, scadenza a 7 giorni, stato (`pending`/`accepted`/`revoked`, scaduto calcolato), chi l'ha accettato e quando (sesto giro) |
-| `agent_authorizations` | Rimandata all'ondata 3. Agenti autorizzati da un utente tramite MCP: client, data del collegamento, ultimo uso; revoca dall'app (sesto giro). Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13); questa tabella serve solo per i dati che Supabase non fornisce, per esempio l'ultimo uso registrato a ogni chiamata MCP (da verificare) |
+| `app.connected_agents()` | Funzione, non tabella (collegamento degli agenti, migrazione `20261011200000_connected_agents.sql`): agenti autorizzati da chi chiama, cioè client, nome registrato, data del collegamento e ultimo rinnovo dell'accesso (massimo di `updated_at` delle sessioni vive del client). `security definer`, legge `auth.oauth_consents`, `auth.oauth_clients` e `auth.sessions`, solo righe dell'utente corrente e grant non revocati; eseguibile solo da `authenticated`. Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13): la tabella `agent_authorizations` prevista per l'ondata 3 non serve |
 | `catalogue_state` | Contatore di versione del ricettario, comune a tutte le famiglie (sezione 1) |
 | Tracciamento del catalogo e dell'amministrazione | Autore e data sulle righe; `channel` (`web`/`mcp`/`import`) su registro dei pasti, versioni, stati e salvataggi delle bozze. Regole di conservazione da definire |
 
@@ -1234,13 +1272,25 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   liberi e vuoti. Sono le operazioni dell'area `meals` (`getSuggestions`,
   `setServings`, `setRecipe`, `setFree`, `setNote`, `swap`, `undo`), uguali dal web e
   da MCP; particolari in `progetto/superpowers/specs/2026-10-11-revisione-pasti.md`.
-  - **Porzioni:** da 1 a 20. Un salvataggio respinto si spiega sempre: errore nel
-    pannello o, se nel frattempo si è cambiata pagina, un avviso nel Menu che resta
-    finché l'utente non lo chiude.
+  Nell'app (PR #33, come nel secondo giro) ogni pasto, con ricetta, libero o vuoto, ha
+  il footer con la matita, che apre il pannello delle azioni sotto la scheda; dettagli,
+  voto e ingredienti ci sono solo con una ricetta e un pannello alla volta resta aperto.
+  Uno slot vuoto mostra «Scegli una ricetta», che apre il foglio sui suggerimenti.
+  - **Porzioni:** da 1 a 20, per ogni pasto: con ricetta, libero o vuoto (scelta
+    dell'utente). Il valore si invia poco dopo l'ultimo tocco o alla chiusura del
+    pannello, senza aggiornamenti ottimistici. Un salvataggio respinto si spiega
+    sempre: errore nel pannello, con il valore che torna a quello del server, o, se nel
+    frattempo si è cambiata pagina, anche con la richiesta già partita, un avviso nel
+    Menu che resta finché l'utente non lo chiude; gli avvisi sono legati alla sessione e
+    si cancellano alla sua chiusura.
   - **Cambia ricetta:** si sceglie solo una ricetta pubblicata, dai suggerimenti o
     dalla ricerca, anche di un libro che la famiglia non possiede. La ricerca parte con
     il tipo di pasto dello slot e si attiva anche con i soli filtri; i risultati, come i
-    suggerimenti, mostrano il voto in sola lettura.
+    suggerimenti, mostrano il voto in sola lettura e tolgono il piatto attuale. La
+    ricerca distingue caricamento, nessun risultato ed errore, con «Riprova» anche
+    sopra risultati già mostrati. Se la ricetta o il pasto non sono più disponibili
+    (`not_found`), il foglio si chiude, la settimana si rilegge e un avviso resta nel
+    Menu finché l'utente non lo chiude.
   - **Pasto libero:** testo fino a 60 caratteri, conservato come scritto; le proposte
     rapide sono i quattro testi liberi più usati dalla famiglia. La nota resta.
   - **Scambio:** si spostano ricetta o testo libero e nota; le porzioni restano allo slot,
@@ -1252,7 +1302,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   - **Nota:** testo libero fino a 200 caratteri, conservato come scritto, visibile a
     tutta la famiglia.
   - **Annulla:** nell'app, dopo ogni modifica che ha cambiato qualcosa, un avviso offre
-    «Annulla» per 6 secondi; il server non pone limiti di tempo, anche sui pasti passati.
+    «Annulla» per 6 secondi (scelta dell'utente); il server non pone limiti di tempo,
+    anche sui pasti passati. L'annullamento dall'avviso vale per la settimana del pasto
+    anche se nel frattempo è cambiata la settimana mostrata o la lingua; se non è più
+    possibile, l'avviso dice che il pasto è stato cambiato e la settimana si rilegge.
     Si annulla solo la propria ultima azione e solo se nessuno ha cambiato dopo i suoi
     pasti; uno scambio torna sempre per intero, su entrambi i pasti. L'annullamento è a
     sua volta un'azione registrata e si può annullare. Da un agente si annulla la
@@ -1294,7 +1347,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   all'apertura, al ritorno in primo piano e a richiesta dell'utente, con il controllo
   della versione della sezione 1.
 - **Offline**: l'ultima settimana caricata resta consultabile in sola lettura, tranne
-  la lista della spesa (sezione 6), modificabile anche offline.
+  la lista della spesa (sezione 6), modificabile anche offline. Senza rete matita,
+  porzioni, comandi del foglio e «Annulla» si disattivano, anche se il foglio era già
+  aperto; chiusura e consultazione restano.
 
 ### 6. Scalatura e lista della spesa
 
@@ -1948,6 +2003,18 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   collegamento e dei percorsi previsti su ciascuno dei quattro client obiettivo:
   Codex CLI, Claude Code, ChatGPT e Claude Desktop, registrando versioni o modalità
   provate ed eventuali limitazioni emerse.
+- **Collegamento degli agenti** (PR #31): prova end-to-end in CI a ogni PR, sullo stack
+  locale con il server OAuth e il Worker vero, solo con client registrati
+  dinamicamente e utenti del seed: confini OAuth (PKCE, codice riusato o scambiato fra
+  client, `redirect_uri` non registrato, richiesta scaduta, annullamento); richiesta
+  legata alla prima persona che ne legge i dettagli, con una richiesta nuova che
+  funziona per l'altro account; canale `mcp` e risposta `web_only` su MCP, RPC e REST
+  anche dopo il rinnovo del token (con le operazioni di test della piattaforma in un
+  Worker di test mai pubblicato); scollegamento sempre tramite `agents.disconnect`, anche
+  dall'agente stesso, che rifiuta access e refresh token di tutte le sessioni del client,
+  anche dopo un nuovo collegamento, lasciando attivi gli altri agenti, il web e lo
+  stesso client autorizzato da un'altra persona. pgTAP su `app.connected_agents()`; test
+  web degli stati del consenso, delle risposte superate e della pagina degli agenti.
 - **Amministrazione dell'app**: accesso alla pagina e agli strumenti MCP riservato al
   ruolo autorizzato; assegnazione e revoca di ruoli, nomina di altri amministratori,
   inviti e cancellazione di utenti; protezione dell'ultimo amministratore dell'app,
@@ -2003,8 +2070,8 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 | Menu, pianificatore, job e generazione pigra | Server, job con Cron Trigger e web uniti (PR #13, #15, #20) |
 | Spesa, anche offline | Server, pagina Bring!, coda offline e web uniti (PR #11, #22) |
 | Gestione del ricettario tramite MCP | Server, strumenti MCP e sezioni web delle bozze uniti (PR #23, #26) |
-| Revisione dei pasti | Server, dominio e strumenti MCP uniti (PR #29: azioni, suggerimenti, annullamento, registro); in corso la parte web |
-| Collegamento degli agenti | In review (PR #31); serve confermare il server OAuth sul progetto di produzione |
+| Revisione dei pasti | Server, dominio, strumenti MCP e web uniti (PR #29: azioni, suggerimenti, annullamento, registro; PR #33: pannello, foglio, «Annulla» e invalidazioni nel web) |
+| Collegamento degli agenti | Unito (PR #31: consenso, «Collega un agente», elenco e scollegamento, prova end-to-end in CI); attivazione del server OAuth e prova sul progetto di produzione nella messa in produzione |
 | Esportazione notturna in R2 | Unita (PR #30; migrazione `20261012110000_backup.sql`, rinominata nella PR #32 per una versione duplicata); bucket, chiave e prova di produzione nella messa in produzione |
 | Messa in produzione | Ultima; design approvato, spec e piano in corso. Il Worker non è ancora pubblicato e i passi di produzione (pool, password di `app_server`, Hyperdrive, bucket e chiave delle esportazioni, primo deploy) si concordano con l'utente prima della prima pubblicazione |
 
@@ -2129,13 +2196,36 @@ non accesso generico alle tabelle.
   piano gratuito; Claude Code e Codex CLI si registrano da soli, passano dalla pagina di
   consenso dell'app e leggono solo i dati dell'utente, con il claim `client_id` che
   distingue il canale. Ogni client ha il proprio `client_id` e chiede un consenso
-  separato. Supabase non pubblica endpoint di revoca né di introspezione dei token:
-  lo scollegamento passerà dalla gestione dei grant di Supabase, da provare
-  nell'attività «Collegamento degli agenti» dell'ondata 2: revocare un client, riusare
-  il suo access token non scaduto su MCP, RPC e REST e verificarne il rifiuto, con gli
-  altri client e la sessione web ancora attivi. I
-  token hanno `aud: authenticated` e valgono su tutte le rotte: la separazione fra web
-  e MCP si regge sul claim `client_id`.
+  separato. I token hanno `aud: authenticated` e valgono su tutte le rotte: la
+  separazione fra web e MCP si regge sul claim `client_id`, presente anche dopo il
+  rinnovo.
+- **Scollegamento con la gestione dei grant di Supabase** (prova della revoca dell'11
+  ottobre 2026, PR #31). Supabase non pubblica endpoint di revoca né di introspezione dei
+  token: `agents.disconnect` chiama `DELETE /auth/v1/user/oauth/grants` con il token di
+  chi chiede e la chiave pubblica del progetto, e dichiara il successo solo con 204 o con
+  il 404 `oauth_consent_not_found` (nessun grant attivo); ogni altro esito è `internal`,
+  mai un falso «scollegato», e l'agente resta nell'elenco. Supabase cancella le sessioni
+  di quel client per quell'utente: il controllo della sessione a ogni richiesta (sezione
+  1) rifiuta subito il suo access token non scaduto su MCP, RPC e REST, i refresh token
+  sono annullati, anche di più sessioni dello stesso client, mentre gli altri client, il
+  web e lo stesso client autorizzato da un'altra persona restano attivi. Ricollegare
+  chiede di nuovo il consenso e i vecchi token restano rifiutati. Un agente scollegato
+  riceve 401 con `WWW-Authenticate` e riparte dall'autorizzazione. PostgREST accetta un
+  token revocato fino alla scadenza (un'ora), ma espone solo `public` e
+  `graphql_public`, vuoti: nessun dato raggiungibile finché `app` non è esposto.
+  Chiudere le «altre sessioni» dal web chiude anche gli agenti; «Esci» chiude solo la
+  sessione del dispositivo e non li tocca.
+- **Poteri di un token d'agente su Supabase Auth: rischio aperto accettato** (decisione
+  dell'utente dell'11 ottobre 2026). Il token vale come quello dell'utente su tutti gli
+  endpoint di Supabase Auth: senza passare dal Worker l'agente può cambiare la password
+  senza conoscere quella attuale, e mantenere così l'accesso web anche dopo
+  «Scollega», revocare gli altri agenti, chiudere le sessioni web, modificare
+  `user_metadata`; cambiare l'email richiede la conferma su entrambe le caselle, e non
+  può cancellare l'account. Il server OAuth di Supabase non permette di limitarlo: offre
+  solo gli scope OIDC, che decidono i dati inviati all'agente e non gli endpoint, non ha
+  restrizioni per client e Supabase Auth non controlla `aud` (provato con un hook che lo
+  cambiava). Per ora si documenta, nei testi per la persona (sotto) e qui, senza
+  promettere un blocco totale; la limitazione resta aperta (sezione 15).
 - **Strumenti generati dal contratto delle operazioni**, con i metadati di esposizione
   di ciascuna operazione: nessuno strumento scritto a mano che possa divergere dal web.
   Oggi uno strumento per operazione, con nome `area_operazione` (`profile_get`,
@@ -2161,7 +2251,7 @@ implicite alla copertura delle operazioni.
 
 | Ambito | Operazioni da coprire tramite MCP |
 |---|---|
-| Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare |
+| Accesso e contesto | Collegare l'account, elencare le proprie famiglie e indicare quella su cui operare; elencare gli agenti collegati e scollegarne uno, anche sé stesso (`agents_list`, `agents_disconnect`, PR #31: non `webOnly`, perché un agente può già revocare grant con il proprio token; lo scollegamento è a stato assoluto e non rivela se un client esiste) |
 | Pasti e ricettario | Consultare oggi e settimane, cercare e leggere ricette, ingredienti e voti |
 | Revisione | Area `meals` (PR #29): cambiare ricetta e porzioni, chiedere suggerimenti (`meals_getSuggestions`, sola lettura), scambiare pasti, segnare pasti liberi, note ed esclusioni; annullare la propria ultima modifica di un pasto anche in una conversazione nuova, con `menu_getWeek` → `lastChange.actionId` se `lastChange.undoable` → `meals_undo` (sezione 5). Ogni scrittura porta un `id` nuovo scelto dall'agente; ripeterla non cambia nulla |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto (`ratings.set`, a stato assoluto, `null` per toglierlo); richiedere la generazione nei limiti previsti (ondata 3) |
@@ -2204,31 +2294,94 @@ giro del prototipo, `/profile/agents`):
   indirizzo MCP e comandi o configurazioni copiabili quando il client usa questa
   modalità, oppure passaggi nell'interfaccia quando previsti;
 - spiega accesso e autorizzazione nel browser, ammessi dall'utente, ed eventuale
-  riautenticazione;
+  riautenticazione, dicendo in parole semplici che da quel momento l'agente agisce con
+  l'account della persona e può anche cambiare la password e chiudere le sue sessioni;
 - chiarisce che l'eliminazione delle famiglie si completa soltanto nell'app, tramite
   il collegamento restituito dall'agente;
 - include un esempio per verificare il collegamento e un esempio del flusso del curatore;
 - per i curatori, rimanda alle istruzioni scritte che il servizio fornisce all'agente
-  (ingredienti, varietà e quantità: sezione 8);
+  (ingredienti, varietà e quantità: sezione 8), senza riportarne il testo, che è per
+  l'agente e in inglese (diverge dal prototipo, che lo mostrava);
 - descrive come scollegare l'agente secondo il meccanismo di autorizzazione scelto.
 
 Ordine deciso nel sesto giro: indirizzo del servizio con «Copia»; i quattro client a
 fisarmonica (scelta nella review rispetto alle schede), ciascuno con passaggi numerati e
 comandi da copiare; accesso; esempi da chiedere all'agente (per i curatori anche il
-flusso di gestione del ricettario e le istruzioni sugli ingredienti servite all'agente);
-nota sull'eliminazione delle famiglie; in fondo «Agenti collegati» con client, data del
-collegamento, ultimo uso e «Scollega». Scollegare revoca l'accesso; la conferma spiega
-anche come togliere il servizio dal client. Nel prototipo i comandi di Claude Code
-(`claude mcp add --transport http`, accesso da `/mcp`) e di Codex (`codex mcp add <nome>
---url`, `codex mcp login`) e i passaggi di Claude Desktop (connettore personalizzato)
-sono verificati con la documentazione del 7 ottobre 2026; quelli di ChatGPT no. Restano
-esempi da verificare prima del rilascio.
+flusso di gestione del ricettario e il rimando alle istruzioni sugli ingredienti servite
+all'agente); nota sull'eliminazione delle famiglie; in fondo «Agenti collegati».
 
-**Schermata di autorizzazione** (sesto giro, `/authorize`, simulata): aperta dall'agente
-nel browser, richiede l'accesso all'app; mostra il client, l'account in uso con «Non
-sei tu? Cambia account», cosa l'agente potrà fare secondo i ruoli dell'utente e cosa
-no (eliminare una famiglia, vedere le credenziali), con «Consenti» e «Annulla».
-Autorizzare di nuovo lo stesso client sostituisce l'accesso precedente.
+Realizzata nella PR #31 (12 ottobre 2026):
+
+- **indirizzo** `<origine>/mcp`: l'origine della pagina, perché in produzione SPA, MCP e
+  metadati di scoperta stanno sullo stesso Worker; sul Vite di sviluppo, che inoltra solo
+  `/api`, l'origine del Worker a cui inoltra. Ogni «Copia» dice «Copiato» solo se gli
+  appunti sono stati aggiornati; altrimenti seleziona il testo e chiede di copiarlo a
+  mano;
+- **client**, con il nome del servizio `cosasimangia`: Claude Code (`claude mcp add
+  --transport http --scope user cosasimangia <url>`, poi `/mcp` › Authenticate) e Codex
+  CLI (`codex mcp add cosasimangia --url <url>`, con `codex mcp login cosasimangia` se il
+  login non parte da solo), verificati l'11 ottobre 2026; Claude Desktop (connettore
+  personalizzato) e ChatGPT (connettore in modalità sviluppatore) portano la nota
+  «Passaggi non ancora provati con questo servizio.» finché la verifica della sezione 15
+  non è fatta;
+- **«Agenti collegati»**: una riga per client con il nome, «Collegato il {data}» e, se
+  c'è, l'**ultimo rinnovo dell'accesso**, al posto dell'«ultimo uso» del sesto giro
+  (decisione del coordinatore dopo la review): è l'ultima emissione o rinnovo del token
+  di una sessione viva del client, letta da Supabase Auth senza registrazioni
+  aggiuntive, e una riga sotto l'elenco spiega che non dice quando l'agente ha usato
+  l'app. Ordine dal rinnovo più recente;
+- **«Scollega»** apre una conferma: revoca l'autorizzazione del client e chiude le sue
+  sessioni, da subito non potrà più usare l'app con questo collegamento; non chiude
+  accessi ottenuti in altro modo (se l'agente ha cambiato la password, la si cambia);
+  spiega anche come togliere il servizio dal client, con istruzioni scelte dal nome
+  registrato. Dopo la conferma l'elenco si rilegge, senza aggiornamento ottimistico; un
+  errore lascia il foglio aperto e l'agente nell'elenco; senza rete i pulsanti sono
+  disattivati;
+- **voce nel Profilo**, nella sezione «Account»: «Collega un agente» con il numero di
+  agenti collegati, oppure «Claude, ChatGPT o Codex con MCP» se non ce ne sono.
+
+**Schermata di autorizzazione** (sesto giro, `/authorize`, vera dalla PR #31): l'agente
+la apre nel browser, all'indirizzo con cui Supabase passa la richiesta
+(`/authorize?authorization_id=…`); senza accesso si passa dal login e si torna qui, senza
+rete un avviso e nessun pulsante, una richiesta mancante, scaduta o già usata dice di
+riprovare dall'agente. Mostra:
+
+- il client con il nome con cui si presenta, precisando che non è verificato (la
+  registrazione dinamica è aperta), e in «Dettagli dell'agente», chiuso, identificativo
+  del client e pagina di ritorno, per distinguere agenti con lo stesso nome;
+- l'account in uso con «Non sei tu? Cambia account»;
+- cosa l'agente potrà fare: agire con l'account, come la persona stessa; secondo i ruoli
+  anche gestire il ricettario o amministrare l'app; anche cambiare la password e
+  chiudere le sessioni, nel browser e degli altri agenti, quindi consentire solo agli
+  agenti di cui ci si fida; eliminare una famiglia resta solo nell'app. Tolto «vedere le
+  credenziali» del sesto giro da ciò che l'agente non può fare;
+- i dati che riceverà (gli scope richiesti, ciascuno con una frase, uno sconosciuto così
+  com'è), precisando che riguardano i dati ricevuti all'accesso, non ciò che l'agente può
+  fare;
+- come scollegarlo e i limiti di «Scollega», come nella pagina;
+- «Consenti» e «Annulla». «Consenti» è attivo solo quando il profilo, e quindi i ruoli,
+  è letto con successo per la persona corrente, ricontrollato al clic sullo stato
+  attuale della lettura: durante una rilettura non si consente. «Annulla» restituisce
+  al client il rifiuto.
+
+Ogni risposta appartiene alla coppia di sessione e richiesta in cui è partita: uscita
+dalla pagina, cambio di richiesta, uscita anche da un'altra scheda e cambio account la
+rendono superata, così una risposta tardiva non porta il browser alla pagina di ritorno
+di una richiesta abbandonata.
+
+**Riautorizzazione dello stesso client** (decisione del coordinatore, 11 ottobre 2026):
+finché l'agente è collegato, autorizzarlo di nuovo non chiede un altro consenso (la
+pagina torna subito all'agente) e aggiunge un accesso accanto al precedente, che resta
+valido; «Agenti collegati» mostra comunque una riga per client e «Scollega» revoca tutti
+i suoi accessi. Sostituire l'accesso precedente richiederebbe scritture nello schema
+`auth`.
+
+**Cambia account durante il consenso** (decisione del coordinatore dopo la review della
+PR #31): Supabase lega la richiesta alla prima persona che ne legge i dettagli, quindi
+un altro account non può proseguirla. «Cambia account» chiude la sessione con la
+procedura comune di «Esci» e, dopo il nuovo accesso, la pagina chiede di ripartire
+dall'agente, che aprirà una richiesta nuova per quell'account, senza promettere la
+prosecuzione di quella vecchia.
 
 I client iniziali sono scelti; comandi e modalità di collegamento effettivi vanno
 verificati nel relativo design. La specifica non assume che tutti gli agenti abbiano
@@ -2403,7 +2556,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera e prova di produzione (a carico dell'utente dopo la creazione del bucket, con la chiave dal gestore di password). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
-| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), revoca dei grant di un client, raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni, ultimo uso degli agenti e comportamento dei ritentativi. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13) | Sezioni 1, 2 e 13 |
+| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidate: password attuale richiesta per cambiarla, server di autorizzazione nel Worker). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | Automazione della pubblicazione del Worker prima del traguardo A (preferibilmente GitHub Actions a test verdi) e modo di applicare le migrazioni al progetto di produzione. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1) | Sezioni 1 e 10 |
 | Architettura | Valutare nell'ondata 2 `@orpc/tanstack-query` (per ora `queryOptions` scritte a mano). Decisi l'11 ottobre 2026 oRPC senza Hono, Postgres.js senza ORM e l'SDK ufficiale di MCP, provati su Workers con RLS tramite Hyperdrive, e cosa fa crescere i contatori di versione (sezione 1) | Sezione 1 |
@@ -2447,6 +2600,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 11 ottobre 2026, attività dell'ondata 2 unite | Riportate le decisioni di profilo e famiglia, ricettario e voti, menu e pianificatore, spesa e gestione del ricettario tramite MCP: regola unica di generazione all'apertura, settimane successive già pianificate considerate dal pianificatore, recupero e abbandono dei job, apertura sul primo giorno con pasti; famiglia mostrata sul server e Profilo senza i comandi dell'ondata 3; ricerca nella lingua dell'utente e ordinamento con i valori mancanti in fondo; Condividi e Bring! nel traguardo A, PDF nell'ondata 3, coda della spesa per ogni modifica; conferma del curatore nelle istruzioni dell'agente, eliminazione di una bozza come chiusura, revisione di ricette archiviate, ingredienti ed equivalenze via MCP, bozze in sola lettura nell'app; errori `not_allowed` e `conflict` con tipo, hook `prepare`, tabelle `profile_preferences` e `recipe_draft_requests`; fasi della sezione 10 con lo stato delle attività |
 | 11 ottobre 2026, decisioni dell'utente sul consolidamento | Ingrediente creabile con il solo nome italiano, con il nome inglese richiesto alla pubblicazione della ricetta; nessun pulsante «Genera la prima settimana» nel wizard, perché il menu si genera all'apertura; confermati il rinvio all'ondata 3 dell'email di allarme del job e del PDF della spesa; esportazione notturna in R2 con le ultime 7 copie; progetto Supabase `lronuqvtjdhfyychnscr` confermato come produzione |
 | 11–12 ottobre 2026, revisione dei pasti (server) ed esportazione notturna unite | Riportate le decisioni delle PR #29 e #30 (con la #32, che rinomina la migrazione dell'esportazione in `20261012110000_backup.sql`). Revisione dei pasti: area `meals` con azioni a `id` del client (`meal_actions`, `last_action_id`, registro veritiero), richieste senza effetti ricordate, annullamento della propria ultima azione senza limiti di tempo lato server (6 secondi nell'app, anche da una conversazione MCP nuova con `lastChange.undoable`), scambio annullato per intero, porzioni da 1 a 20, pasto libero fino a 60 caratteri con i quattro testi più usati, solo ricette pubblicate, bozze importate che seguono scambio e annullamento (con la bozza pubblicata nel frattempo ripristinata e quella scartata che blocca, decisione del coordinatore del 12 ottobre), «non proporre più» che resta chiudendo il foglio, ricerca del sostituto con i soli filtri, salvataggi delle porzioni respinti sempre spiegati; suggerimenti con `rankSuggestions` e ricette archiviate fissate anche nella generazione; nuovi motivi di `not_allowed`, UUID in minuscolo, suggerimenti non versionati. Note e testi dei pasti liberi come scritti. Esportazione: Worker su un Cron Trigger dedicato con secondo tentativo, ruolo `app_backup`, account compresi, JSON con gzip e AES-256-GCM, bucket UE, ultime 7 dal codice, limite di 8 MB, CLI di ripristino con verifiche e TLS verificato, prova in CI e prova di produzione separata; email di allarme nell'ondata 3. Chiuse in sezione 15 le voci «Lingue» e, salvo tempi di recupero e prova di produzione, «Backup e ripristino». Sezione 10 aggiornata |
+| 12 ottobre 2026, collegamento degli agenti e revisione dei pasti nel web unite | Riportate le decisioni delle PR #31 e #33. Agenti: consenso vero su `/authorize` e pagina «Collega un agente» con i comandi di Claude Code e Codex CLI verificati; area `agents` (`agents.list`, `agents.disconnect`, anche MCP) con `app.connected_agents()` al posto della tabella `agent_authorizations`; scollegamento con la gestione dei grant di Supabase e il controllo della sessione già presente, provato in CI con token reali; riautorizzazione dello stesso client che aggiunge un accesso; «ultimo rinnovo dell'accesso» al posto dell'ultimo uso; poteri dei token d'agente su Supabase Auth accettati come rischio aperto, con testi veritieri nel consenso, nella pagina e in «Scollega»; nome del client non verificato e scope come dati ricevuti; cambio account che riparte dall'agente; configurazione del server OAuth e `SUPABASE_PUBLISHABLE_KEY`. Revisione dei pasti nel web: matita e porzioni da 1 a 20 per ogni pasto, anche libero o vuoto; salvataggi respinti spiegati anche dopo la navigazione; «Annulla» per 6 secondi nell'app; `not_found` che chiude il foglio; ricerca con errore e «Riprova»; comandi disattivati offline anche nel foglio aperto; voto confermato che rende superata una risposta dei pasti. Sezione 15 «MCP» aggiornata; sezione 10 aggiornata |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
@@ -2540,6 +2694,14 @@ anche la posizione degli slot; nel secondo caso occorre adeguare il payload.
   dal revisore tramite Context7 precisa che eliminare un utente non invalida subito
   tutti i suoi JWT: la cancellazione dell'account non basta da sola a realizzare il
   requisito. [Gestione utenti Supabase](https://supabase.com/docs/guides/auth/managing-user-data).
+  Per gli agenti la verifica è fatta (PR #31): scollegare cancella le sessioni del
+  client e i suoi token non scaduti sono rifiutati subito su MCP, RPC e REST, provato in
+  CI (sezione 13); resta la revoca alla cancellazione di un account (ondata 3), per cui
+  vale che i token degli agenti seguono le sessioni.
+- Un token d'agente ha su Supabase Auth gli stessi poteri di quello dell'utente
+  (cambiare la password, revocare altri agenti, chiudere le sessioni): rischio aperto
+  accettato e documentato dall'11 ottobre 2026, da limitare in seguito (sezioni 13 e
+  15).
 - Il recupero applicativo del catalogo deve essere distinto dal ripristino dell'intero
   database, per rispettare l'indipendenza dei dati familiari richiesta in R1 (8 ottobre
   2026: il primo si ricava dallo storico, il secondo dall'esportazione notturna del
@@ -2549,8 +2711,10 @@ anche la posizione degli slot; nel secondo caso occorre adeguare il payload.
   `weekly_max`, massimi degli intervalli e venerdì pesce devono avere esiti verificabili
   quando non soddisfacibili. I limiti di runtime dichiarati non sostituiscono la misura
   del carico reale del pianificatore.
-- Restano da verificare effettivamente i quattro client MCP, il contesto web richiesto
-  per eliminare famiglie, le esportazioni e i ritentativi. Il prototipo simulato non
+- Restano da verificare effettivamente i quattro client MCP (Claude Code e Codex CLI
+  verificati l'11 ottobre 2026), il contesto web richiesto per eliminare famiglie (la
+  risposta `web_only` è provata in CI su MCP, RPC e REST con un'operazione di test), le
+  esportazioni e i ritentativi. Il prototipo simulato non
   dimostra questi comportamenti tecnici.
 
 **Aspetti risultati coerenti:** fonte unica dei requisiti; database autorevole;
