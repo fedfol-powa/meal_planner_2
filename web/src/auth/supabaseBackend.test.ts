@@ -1,6 +1,6 @@
 import { AuthRetryableFetchError } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
-import { AUTH_STORAGE_KEY, createSupabaseBackend, signInFailure, type AuthClient } from './supabaseBackend';
+import { AUTH_STORAGE_KEY, createSupabaseBackend, signInFailure, type AuthClient, type OAuthApi } from './supabaseBackend';
 
 type Listener = (event: string, session: { user: { id: string; email?: string } } | null) => void;
 
@@ -74,5 +74,53 @@ describe('supabase backend', () => {
     expect(await empty.backend.refresh()).toEqual({ kind: 'rejected' });
     const offline = setup({ refreshSession: vi.fn(async () => ({ data: { session: null }, error: new AuthRetryableFetchError('offline', 0) })) });
     expect(await offline.backend.refresh()).toEqual({ kind: 'network' });
+  });
+});
+
+describe('agent consent', () => {
+  const oauth = (overrides: Partial<Record<'getAuthorizationDetails' | 'approveAuthorization' | 'denyAuthorization', unknown>>) =>
+    ({
+      getAuthorizationDetails: vi.fn(),
+      approveAuthorization: vi.fn(),
+      denyAuthorization: vi.fn(),
+      ...overrides
+    }) as unknown as OAuthApi;
+  const backendWith = (api: OAuthApi) => createSupabaseBackend('http://sb', 'key', { auth: setup().auth as unknown as AuthClient, storage: { getItem: () => null, removeItem: () => undefined }, oauth: api });
+
+  it('reads a request that needs consent: client name, id, return page and scopes', async () => {
+    const api = oauth({
+      getAuthorizationDetails: vi.fn(async () => ({
+        data: { authorization_id: 'auth-1', redirect_uri: 'http://localhost/cb', client: { id: 'c-1', name: 'Claude Code', uri: '', logo_uri: '' }, user: { id: 'u', email: 'a@x' }, scope: 'openid  email profile ' },
+        error: null
+      }))
+    });
+    expect(await backendWith(api).getAuthorization('auth-1')).toEqual({
+      ok: true,
+      value: { kind: 'consent', id: 'auth-1', clientName: 'Claude Code', clientId: 'c-1', redirectUri: 'http://localhost/cb', scopes: ['openid', 'email', 'profile'] }
+    });
+  });
+
+  it('goes straight back to the agent when the grant is already active', async () => {
+    const api = oauth({ getAuthorizationDetails: vi.fn(async () => ({ data: { redirect_url: 'http://localhost/cb?code=x' }, error: null })) });
+    expect(await backendWith(api).getAuthorization('auth-1')).toEqual({ ok: true, value: { kind: 'redirect', url: 'http://localhost/cb?code=x' } });
+  });
+
+  it('maps missing or expired requests and network failures', async () => {
+    const missing = oauth({ getAuthorizationDetails: vi.fn(async () => ({ data: null, error: { status: 404, name: 'AuthApiError', message: 'not found' } })) });
+    const offline = oauth({ getAuthorizationDetails: vi.fn(async () => ({ data: null, error: { status: 0, name: 'AuthRetryableFetchError', message: 'fetch failed' } })) });
+    const broken = oauth({ getAuthorizationDetails: vi.fn(async () => ({ data: null, error: { status: 500, name: 'AuthApiError', message: 'boom' } })) });
+    for (const [api, reason] of [[missing, 'not_found'], [offline, 'network'], [broken, 'unknown']] as const) {
+      expect(await backendWith(api).getAuthorization('auth-1')).toEqual({ ok: false, reason });
+    }
+  });
+
+  it('approves or denies without letting the library navigate, and returns where to go', async () => {
+    const approve = vi.fn(async () => ({ data: { redirect_url: 'http://localhost/cb?code=x' }, error: null }));
+    const deny = vi.fn(async () => ({ data: { redirect_url: 'http://localhost/cb?error=access_denied' }, error: null }));
+    const backend = backendWith(oauth({ approveAuthorization: approve, denyAuthorization: deny }));
+    expect(await backend.decideAuthorization('auth-1', 'approve')).toEqual({ ok: true, value: 'http://localhost/cb?code=x' });
+    expect(approve).toHaveBeenCalledWith('auth-1', { skipBrowserRedirect: true });
+    expect(await backend.decideAuthorization('auth-1', 'deny')).toEqual({ ok: true, value: 'http://localhost/cb?error=access_denied' });
+    expect(deny).toHaveBeenCalledWith('auth-1', { skipBrowserRedirect: true });
   });
 });

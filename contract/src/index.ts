@@ -13,3 +13,4 @@ export { localDateTimeSchema, type MealView, type OpeningView, type WeekView } f
 export * from './meals/index.ts';
 export * from './shopping/index.ts';
 export * from './catalogue/index.ts';
+export * from './agents/index.ts';

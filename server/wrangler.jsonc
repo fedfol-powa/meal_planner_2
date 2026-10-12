@@ -12,6 +12,9 @@
 	"vars": {
 		// Supabase project URL; token issuer and JWKS are derived from it.
 		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
+		// Publishable key of the project (public value): Project Settings › API Keys.
+		// Replace with the value the user gives the coordinator (spec «Passi esterni», step 3).
+		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_REPLACE_ME",
 		// Id of BACKUP_ENCRYPTION_KEY (a Worker secret), written in each export header.
 		"BACKUP_KEY_ID": "k1"
 	},

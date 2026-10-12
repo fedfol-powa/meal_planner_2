@@ -4,6 +4,7 @@ import { errorKey, isBlocking } from '../api/errors';
 import { exclusionsQuery, familyQuery } from '../api/family';
 import { useAreaMutation } from '../api/mutations';
 import { useQueryDeps } from '../api/queries';
+import { agentsQuery } from '../features/agents/api';
 import type { FamilyView } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useOnline } from '../components/OfflineBanner';
@@ -21,6 +22,7 @@ export function ProfilePage() {
   const family = useFamily();
   const online = useOnline();
   const deps = useQueryDeps();
+  const agents = useQuery(agentsQuery(deps));
   const blocked = read.isError && isBlocking(read.error, !!read.data);
   // No cached profile next to a blocking error (second review, C8).
   const profile = blocked ? undefined : read.data;
@@ -70,6 +72,16 @@ export function ProfilePage() {
               <Link to="/profile/preferences" className="row-link">
                 <Icon name="user" />
                 <span className="row-main">{t('profile.preferences')}<small>{t('profile.preferencesHint')}</small></span>
+                <Icon name="chevron-right" />
+              </Link>
+            </li>
+            <li>
+              <Link to="/profile/agents" className="row-link">
+                <Icon name="link" />
+                <span className="row-main">
+                  {t('profile.agents')}
+                  <small>{agents.data?.length ? t('profile.agentsCount', { count: agents.data.length }) : t('profile.agentsHint')}</small>
+                </span>
                 <Icon name="chevron-right" />
               </Link>
             </li>
