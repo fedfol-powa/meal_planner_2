@@ -29,6 +29,8 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Prossima azione del coordinatore
 
+**STOP prima della produzione (utente, 12/10):** a review e correzioni della #34 chiuse e PR unita, fermarsi. Nessun passo in produzione, neanche la fase 1, finché l'utente non ha capito come funziona: spiegargli accessi, utenze, ruoli e passi, e aspettare il suo via. Punto da chiarire con lui: iscrizioni aperte su Supabase Auth in produzione (Allow new users to sign up) da disattivare o no.
+
 Aggiornato il 12 ottobre 2026, notte. main verde (ultima CI su 532f57a «success»).
 
 1. **Dopo un `/clear`:** `progetto/coordinamento/attendi.py --stato`, gestire ogni «DA GESTIRE», poi il Monitor con `eventi.py` (README, «Attesa degli eventi»), da riarmare a ogni scadenza. Messaggi ai worker con `herdr agent prompt`. Ai fermi «senza nuovo STATO» leggere sempre il pane: un worker può aspettare una risposta.
