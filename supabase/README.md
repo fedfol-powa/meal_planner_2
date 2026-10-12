@@ -115,7 +115,11 @@ altre porte: `SUPABASE=<comando della CLI> APP_PORT=<porta> INSPECTOR_PORT=<port
 ## Primi utenti del progetto vero (`scripts/bootstrap.sql`)
 
 Nel traguardo A non ci sono inviti: utenti e famiglia si preparano a mano, dopo
-l'applicazione delle migrazioni al progetto.
+l'applicazione delle migrazioni al progetto. In produzione lo script si compila **fuori
+dal repository** (`~/.config/cosasimangia/bootstrap.production.sql`: contiene email e
+nomi) e lo lancia il coordinatore con `scripts/prod-sql.sh --launch` dopo il «vai»
+dell'utente (sezione «Impronta, rimozione della famiglia e azzeramento»); i passi sotto
+valgono anche per l'editor SQL in locale.
 
 1. Creare gli utenti dalla dashboard: Authentication > Users > Add user (email,
    password, «Auto Confirm User»).
@@ -123,12 +127,12 @@ l'applicazione delle migrazioni al progetto.
    lingua, ruolo nella famiglia, ruoli globali). La famiglia è identificata da un UUID:
    generarlo una volta (`select gen_random_uuid()`), scriverlo nello script e
    **conservarlo** per eventuali rilanci.
-3. Eseguire tutto lo script dall'editor SQL. Si può rilanciare senza duplicati, anche
-   dopo una rinomina della famiglia nell'app: una famiglia esistente resta com'è. Si
-   ferma se manca un utente o un amministratore della famiglia, o se l'UUID è ancora
-   quello d'esempio.
+3. Eseguire tutto lo script. Si può rilanciare senza duplicati, anche dopo una rinomina
+   della famiglia nell'app: una famiglia esistente resta com'è, mentre nome, lingua e
+   ruolo delle persone si riallineano ai valori del file. Si ferma se manca un utente o
+   un amministratore della famiglia, o se l'UUID è ancora quello d'esempio.
 
-Lo esegue l'utente; nessun agente lo esegue sul remoto senza una domanda.
+Sul remoto lo lancia solo il coordinatore, con anteprima e «vai» dell'utente.
 `scripts/bootstrap_test.sh` lo prova sul database locale (famiglia omonima, rilancio
 dopo la rinomina, utente mancante, segnaposto rifiutato) e tocca solo le famiglie e
 l'utente che crea.
@@ -136,10 +140,13 @@ l'utente che crea.
 ### Impostazioni della famiglia dopo lo script
 
 Lo script crea la famiglia con le impostazioni di default (sezione 2 della specifica).
-Le impostazioni vere si sistemano poi da un amministratore della famiglia, dall'app
-(Profilo → Impostazioni) o da un agente collegato (strumenti `family_setMeal`,
-`family_addRule`, `family_setIngredientRestriction`…). Valori della famiglia di
-Federico, dalle regole del progetto d'origine (`scripts/planner-data/family.ts`):
+In produzione le impostazioni vere le scrive il caricamento (`scripts/import/load.ts`),
+**prima che qualcuno apra l'app**, perché la prima apertura genera il menu: solo le
+chiavi diverse dai default e ancora assenti. Dopo, si cambiano dall'app (Profilo →
+Impostazioni) o da un agente collegato (`family_setMeal`, `family_addRule`,
+`family_setIngredientRestriction`…). La tabella resta il riferimento del primo
+collaudo. Valori della famiglia di Federico, dalle regole del progetto d'origine
+(`scripts/planner-data/family.ts`):
 
 | Pasto | Lun | Mar | Mer | Gio | Ven | Sab | Dom |
 |---|---|---|---|---|---|---|---|
@@ -148,21 +155,71 @@ Federico, dalle regole del progetto d'origine (`scripts/planner-data/family.ts`)
 
 - Regole: pasta solo a pranzo; pesce almeno una volta il venerdì; mai pesce di
   pescheria il lunedì.
-- Ingredienti: cetrioli limitati a 1 volta la settimana. Si imposta dopo l'import del
-  ricettario, che crea gli ingredienti.
+- Ingredienti: cetrioli limitati a 1 volta la settimana, scritto dal caricamento per
+  ogni ingrediente `cetriol…` del catalogo (oggi il ricettario d'origine non ne ha:
+  nessuna riga).
 - Quota note/nuove e intervalli dei gruppi: i default.
 - Sistema metrico e fuso `Europe/Rome`: già nello script.
 
 ## Passi remoti
 
-Nessuno si esegue senza una domanda all'utente (`STATO: DOMANDA`):
+Li lancia il coordinatore, sempre dopo un'anteprima mostrata all'utente e il suo «vai»;
+l'ordine e i comandi esatti sono nel runbook del piano
+`progetto/superpowers/plans/2026-10-11-messa-in-produzione.md` (parte B).
 
-- applicazione delle migrazioni al progetto. **Prima del merge** va chiarito con W1 se
-  l'integrazione GitHub di Supabase le applica da sola al merge su `main`;
-- password di `app_server` (`alter role app_server with password …`) e stringa di
-  connessione di Hyperdrive (Session pooler: utente `app_server.<project_ref>`);
-- disattivazione della Data API, oppure conferma che lo schema `app` non è esposto;
-- esecuzione di `scripts/bootstrap.sql`.
+- **Migrazioni:** dentro `npm run release` (`server/README.md`, «Pubblicazione»), con
+  `supabase db push --db-url` sulla URL verificata; la prima volta da sole con
+  `--migrations-only`, perché `app_server`, `app_job` e `app_backup` nascono lì.
+- **Password di `app_server`** (dopo le migrazioni) e Hyperdrive sul Session pooler
+  (utente `app_server.<project_ref>`): la password la imposta l'utente; `node
+  scripts/import/load.ts --env-file <file> --check-connection` la prova.
+- **Data API:** *Exposed schemas* solo `public` e `graphql_public`.
+- **Famiglia:** `bootstrap.sql` compilato fuori dal repository, con `scripts/prod-sql.sh
+  --launch` (sezione sotto).
+- **Ricettario e dati della famiglia:** `node scripts/import/load.ts` con `--dry-run`,
+  poi `--confirm <impronta degli input>`; una transazione sola, canale `import`, nessun
+  valore già presente sovrascritto.
+
+## Impronta, rimozione della famiglia e azzeramento
+
+Spec di dettaglio della messa in produzione, sezione 8. File in `supabase/scripts/`:
+
+| File | Cosa fa |
+|---|---|
+| `app-fingerprint.sql` | `pg_temp.app_fingerprint()` (MD5 di tutte le righe di `app`, tranne `profile_preferences`), `pg_temp.lock_app_tables(mode)`, `pg_temp.launch_start()`; `prod-sql.sh` lo invia prima di ogni file |
+| `show-fingerprint.sql` | stampa l'impronta (sola lettura) |
+| `remove-family.sql` | toglie una famiglia mai usata (`family_id`, `expected_fingerprint`); catalogo e voti restano |
+| `reset-app-data.sql` | svuota catalogo e famiglie (`expected_fingerprint`); restano schema, utenti, profili e ruoli globali |
+| `check-first-generation.sql` | la prima settimana l'ha creata il cron del mercoledì? (`family_id`, `week_start`) |
+
+**SQL sulla produzione.** `scripts/prod-sql.sh --preview <file> [--launch] [--set
+nome=valore …]` esegue il file e chiude con `rollback`; stampa l'**impronta
+dell'operazione** (file, `app-fingerprint.sql`, `--launch`, coppie `--set`,
+destinazione), calcolata prima di collegarsi. `--apply` con gli stessi argomenti e
+`--confirm <impronta>` la ricalcola e rifiuta senza collegarsi se qualcosa è cambiato.
+Usa `psql` dell'immagine Postgres dello stack locale con Podman (`CONTAINER_CLI=docker`
+in CI); la stringa di connessione passa solo nell'ambiente del container. Accetta solo
+file con esattamente una riga `begin;` e una `commit;`.
+
+**Impronta di avvio.** Rimozione e azzeramento sono ammessi solo se l'impronta di `app` è
+l'ultima **impronta di avvio**, prodotta dentro la transazione delle scritture di avvio
+con tutte le tabelle di `app` bloccate. Ne nascono solo due, in catena:
+
+1. bootstrap con `prod-sql.sh --apply … --launch`: blocca le tabelle, rifiuta se esiste
+   già una famiglia, stampa `launch_baseline` prima del `commit`;
+2. caricamento con `load.ts … --launch-from <impronta precedente>`: blocca le tabelle,
+   rifiuta se l'impronta di partenza è diversa, scrive e stampa la nuova.
+
+I rilanci non la rinnovano: il bootstrap si rilancia senza `--launch`, il caricamento
+senza `--launch-from` (stampa «No launch baseline»). Se il caricamento fallisce, il
+rollback lascia valida l'impronta del bootstrap. Qualsiasi scrittura dopo l'ultima
+impronta, anche concorrente (aspetta i lock e cade dopo), fa rifiutare rimozione e
+azzeramento: «app data changed since the launch baseline». Il coordinatore annota ogni
+impronta nel registro; al collaudo completo la segna come chiusa.
+
+Le prove sono in `scripts/destructive/` (stack locale, ultime in CI con
+`vitest.destructive.config.ts`; in locale `DESTRUCTIVE_TESTS=1`, poi `supabase db
+reset`): svuotano lo schema `app`.
 
 ## Interfaccia con il server
 

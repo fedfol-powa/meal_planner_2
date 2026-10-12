@@ -48,12 +48,52 @@ end-to-end degli agenti con il Worker.
 
 ## Pubblicazione
 
-Per ora a mano, dopo il merge su `main` e dopo che l'integrazione di Supabase ha
-applicato le migrazioni: dalla radice, `npm run deploy` (build di `web`, poi
-`wrangler deploy`). Le migrazioni sono additive, quindi il Worker precedente regge
-fino alla pubblicazione.
+Con `npm run release` in due tempi, lanciato dal coordinatore dopo il «vai» dell'utente
+(spec di dettaglio `progetto/superpowers/specs/2026-10-11-messa-in-produzione.md`,
+sezione 7). Le credenziali si leggono da `.env.production.local` del checkout principale
+(`--env-file` per un altro file), mai dall'ambiente; nessun comando le stampa.
+
+1. `npm run release -- --preview`: `main` pulito e uguale a `origin/main`, CI verde;
+   un solo progetto Supabase per tutto (`scripts/production-target.json`, utente di
+   `POSTGRES_DATABASE_URL`, `web/.env.production`, `server/wrangler.jsonc`, eventuale
+   `supabase link`); configurazione del Worker (account, Hyperdrive, bucket, segreti di
+   `scripts/release.config.json`, chiave pubblica **uguale** a quella della SPA); build
+   della SPA con i soli valori di `web/.env.production` e bundle del Worker; migrazioni
+   con `supabase db push --dry-run --db-url <url verificata>` (password in
+   `PGPASSWORD`, mai il progetto «collegato»). Stampa il commit e il comando seguente.
+2. `npm run release -- --apply <sha>`: ripete tutti i controlli e la build, si ferma se
+   il commit non è `<sha>`; poi migrazioni (`supabase db push --db-url`), `wrangler
+   deploy --tag <sha>` e i controlli sull'indirizzo pubblicato (OpenAPI, 401 senza
+   token, metadati OAuth, SPA, 404 su `/shopping-lists/<48 zeri>` attraverso
+   Hyperdrive).
+
+La prima volta, prima della password di `app_server` e di Hyperdrive, le migrazioni vanno
+da sole: `npm run release -- --preview --migrations-only`, poi `--apply <sha>
+--migrations-only` (nessuna build, nessun deploy). I ruoli del server nascono dalle
+migrazioni. Non si pubblica più con `npm run deploy` a mano, e le migrazioni non
+arrivano dall'integrazione di Supabase.
+
+**Ritorno indietro.** Primo rilascio difettoso: `npx wrangler delete` da `server/` (non
+c'è una versione precedente). Rilasci successivi: `npx wrangler rollback <version-id>
+--message "<motivo>"` alla versione con il tag dello SHA precedente (`npx wrangler
+versions list`), solo se `git diff --name-only <sha precedente> <sha attuale> --
+supabase/migrations` elenca migrazioni additive; altrimenti correzione in avanti.
 
 ## Risorse di produzione
 
-(compilata nel task 10: Worker, Hyperdrive con limite di connessioni, chiavi di firma,
-esito della verifica dell'integrazione GitHub di Supabase fatta dal coordinatore)
+Da compilare durante il runbook del piano
+`progetto/superpowers/plans/2026-10-11-messa-in-produzione.md` (parte B).
+
+| Risorsa | Valore |
+|---|---|
+| Account Cloudflare | POWA, `account_id` in `wrangler.jsonc` |
+| Progetto Supabase | `lronuqvtjdhfyychnscr` (`scripts/production-target.json`) |
+| Hyperdrive | id, limite di connessioni (pool − 5) e perché |
+| Bucket delle esportazioni | `cosasimangia-backups`, giurisdizione `eu` |
+| Indirizzo | `workers.dev` (anche in `scripts/release.config.json`) |
+| Primo rilascio | data e commit |
+| Collaudo completo | data ed esito |
+| Rotazione delle password | data |
+
+Al passaggio al dominio `cosasimangia.qunidi.it` (ondata 3) vanno aggiornati *Site URL* e
+*Redirect URLs* di Supabase Auth.
