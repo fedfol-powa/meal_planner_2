@@ -114,32 +114,43 @@ altre porte: `SUPABASE=<comando della CLI> APP_PORT=<porta> INSPECTOR_PORT=<port
 
 ## Primi utenti del progetto vero (`scripts/bootstrap.sql`)
 
-Nel traguardo A non ci sono inviti: utenti e famiglia si preparano a mano, dopo
-l'applicazione delle migrazioni al progetto.
+Nel traguardo A non ci sono inviti e in produzione le iscrizioni libere sono spente
+(Authentication › Sign In / Providers, «Allow new users to sign up» disattivato): utenti
+e famiglia si preparano a mano, dopo l'applicazione delle migrazioni al progetto.
 
 1. Creare gli utenti dalla dashboard: Authentication > Users > Add user (email,
    password, «Auto Confirm User»).
-2. Compilare in testa allo script la famiglia e l'elenco delle persone (email, nome,
-   lingua, ruolo nella famiglia, ruoli globali). La famiglia è identificata da un UUID:
-   generarlo una volta (`select gen_random_uuid()`), scriverlo nello script e
-   **conservarlo** per eventuali rilanci.
-3. Eseguire tutto lo script dall'editor SQL. Si può rilanciare senza duplicati, anche
-   dopo una rinomina della famiglia nell'app: una famiglia esistente resta com'è. Si
-   ferma se manca un utente o un amministratore della famiglia, o se l'UUID è ancora
-   quello d'esempio.
+2. Lanciare lo script con `node scripts/prod-sql.ts` (lo fa il coordinatore, con
+   anteprima e «vai» dell'utente; sezione «Impronta e azzeramento»). I dati non si
+   scrivono nel file: passano come variabili `--set`, coperte dall'impronta
+   dell'operazione, e lo strumento apre la transazione:
 
-Lo esegue l'utente; nessun agente lo esegue sul remoto senza una domanda.
+   ```bash
+   node scripts/prod-sql.ts --preview bootstrap --launch --set family_id=<uuid> --set family_name='<nome>' --set measurement_system=metric --set time_zone=Europe/Rome --set people='[{"email":"…","display_name":"…","locale":"it-IT","family_role":"family_admin","global_roles":["app_admin","recipe_curator"]}]'
+   ```
+
+   La famiglia è identificata da un UUID: generarlo una volta e **conservarlo** per
+   eventuali rilanci.
+3. Si può rilanciare (senza `--launch`) senza duplicati, anche dopo una rinomina della
+   famiglia nell'app: una famiglia esistente resta com'è, mentre nome, lingua e ruolo
+   delle persone si riallineano ai valori dati. Si ferma se manca un utente o un
+   amministratore della famiglia, o se l'UUID è quello d'esempio (tutti zeri).
+
 `scripts/bootstrap_test.sh` lo prova sul database locale (famiglia omonima, rilancio
-dopo la rinomina, utente mancante, segnaposto rifiutato) e tocca solo le famiglie e
-l'utente che crea.
+dopo la rinomina, utente mancante, segnaposto rifiutato) con le stesse variabili e
+tocca solo le famiglie e l'utente che crea (`DB=<container>` per uno stack con un altro
+nome).
 
 ### Impostazioni della famiglia dopo lo script
 
 Lo script crea la famiglia con le impostazioni di default (sezione 2 della specifica).
-Le impostazioni vere si sistemano poi da un amministratore della famiglia, dall'app
-(Profilo → Impostazioni) o da un agente collegato (strumenti `family_setMeal`,
-`family_addRule`, `family_setIngredientRestriction`…). Valori della famiglia di
-Federico, dalle regole del progetto d'origine (`scripts/planner-data/family.ts`):
+In produzione le impostazioni vere le scrive il caricamento (`scripts/import/load.ts`),
+**prima che qualcuno apra l'app**, perché la prima apertura genera il menu: solo le
+chiavi diverse dai default e ancora assenti. Dopo, si cambiano dall'app (Profilo →
+Impostazioni) o da un agente collegato (`family_setMeal`, `family_addRule`,
+`family_setIngredientRestriction`…). La tabella resta il riferimento del primo
+collaudo. Valori della famiglia di Federico, dalle regole del progetto d'origine
+(`scripts/planner-data/family.ts`):
 
 | Pasto | Lun | Mar | Mer | Gio | Ven | Sab | Dom |
 |---|---|---|---|---|---|---|---|
@@ -148,21 +159,86 @@ Federico, dalle regole del progetto d'origine (`scripts/planner-data/family.ts`)
 
 - Regole: pasta solo a pranzo; pesce almeno una volta il venerdì; mai pesce di
   pescheria il lunedì.
-- Ingredienti: cetrioli limitati a 1 volta la settimana. Si imposta dopo l'import del
-  ricettario, che crea gli ingredienti.
+- Ingredienti: cetrioli limitati a 1 volta la settimana, scritto dal caricamento per
+  ogni ingrediente `cetriol…` del catalogo (oggi il ricettario d'origine non ne ha:
+  nessuna riga).
 - Quota note/nuove e intervalli dei gruppi: i default.
 - Sistema metrico e fuso `Europe/Rome`: già nello script.
 
 ## Passi remoti
 
-Nessuno si esegue senza una domanda all'utente (`STATO: DOMANDA`):
+Li lancia il coordinatore, sempre dopo un'anteprima mostrata all'utente e il suo «vai»;
+l'ordine e i comandi esatti sono nel runbook del piano
+`progetto/superpowers/plans/2026-10-11-messa-in-produzione.md` (parte B). Nessuna
+password passa da una riga di comando.
 
-- applicazione delle migrazioni al progetto. **Prima del merge** va chiarito con W1 se
-  l'integrazione GitHub di Supabase le applica da sola al merge su `main`;
-- password di `app_server` (`alter role app_server with password …`) e stringa di
-  connessione di Hyperdrive (Session pooler: utente `app_server.<project_ref>`);
-- disattivazione della Data API, oppure conferma che lo schema `app` non è esposto;
-- esecuzione di `scripts/bootstrap.sql`.
+- **Migrazioni:** dentro `npm run release` (`server/README.md`, «Pubblicazione»), con
+  `supabase db push` verso la destinazione verificata (password in `PGPASSWORD`); la
+  prima volta da sole con `--migrations-only`, perché `app_server`, `app_job` e
+  `app_backup` nascono lì.
+- **Password di `app_server`** (dopo le migrazioni, dall'utente nell'editor SQL) e
+  **Hyperdrive** sul Session pooler (utente `app_server.<project_ref>`), creato e
+  modificato dall'utente nella dashboard di Cloudflare; `node scripts/import/load.ts
+  --credentials <file> --check-connection` prova la password.
+- **Data API:** *Exposed schemas* solo `public` e `graphql_public`.
+- **Iscrizioni spente, OAuth server e URL del sito:** prima del primo rilascio, che li
+  controlla.
+- **Famiglia:** `bootstrap` con `node scripts/prod-sql.ts … --launch` (sezione sopra).
+- **Ricettario e dati della famiglia:** `node scripts/import/load.ts` con `--dry-run`,
+  poi `--confirm <impronta degli input>`; una transazione sola, canale `import`, nessun
+  valore già presente sovrascritto.
+
+## Impronta e azzeramento
+
+Spec di dettaglio della messa in produzione, sezione 8. File in `supabase/scripts/`,
+eseguiti solo con `node scripts/prod-sql.ts <nome>` (lista chiusa nel codice):
+
+| Nome | File | Cosa fa |
+|---|---|---|
+| — | `app-fingerprint.sql` | `pg_temp.app_fingerprint()` (MD5 di tutte le righe di `app`, tranne `profile_preferences`), `pg_temp.lock_app_tables(mode)`, `pg_temp.launch_start()` (stato iniziale); lo strumento lo invia prima di ogni script |
+| `migrations-state` | `migrations-state.sql` | migrazioni applicate e ruoli applicativi (sola lettura) |
+| `show-fingerprint` | `show-fingerprint.sql` | stampa l'impronta (sola lettura) |
+| `bootstrap` | `bootstrap.sql` | famiglia e persone dalle variabili; l'unico con `--launch` |
+| `reset-app-data` | `reset-app-data.sql` | svuota catalogo e famiglie (`expected_fingerprint`); restano schema, utenti, profili e ruoli globali |
+| `check-first-generation` | `check-first-generation.sql` | la prima settimana l'ha creata il cron del mercoledì? (`family_id`, `week_start`; sola lettura) |
+
+**SQL sulla produzione.** `node scripts/prod-sql.ts --preview <nome> [--launch] [--set
+nome=valore …]` esegue lo script in `begin … rollback` e stampa l'**impronta
+dell'operazione** (commit, byte di `app-fingerprint.sql` e dello script, nome,
+`--launch`, valori `--set`, destinazione), calcolata prima di collegarsi; `--apply` con
+gli stessi argomenti e `--confirm <impronta>` la ricalcola, rifiuta senza collegarsi se
+qualcosa è cambiato e applica con `psql --single-transaction`. Con la destinazione di
+produzione legge gli script da `HEAD` e rifiuta un checkout non pulito. Gli script non
+contengono `begin` né `commit`: un controllo sul testo rifiuta comandi di transazione,
+metacomandi di `psql` e variabili non quotate fuori da stringhe, commenti e corpi `$$`.
+Usa `psql` dell'immagine Postgres dello stack locale con Podman (`CONTAINER_CLI=docker`
+in CI); la password passa solo in `PGPASSWORD`.
+
+**Impronta di avvio.** L'azzeramento è ammesso solo se l'impronta di `app` è l'ultima
+**impronta di avvio**, prodotta dentro la transazione delle scritture di avvio con tutte
+le tabelle di `app` bloccate. Ne nascono solo due, in catena:
+
+1. bootstrap con `prod-sql.ts --apply bootstrap --launch …`: blocca le tabelle, rifiuta
+   se il database non è nello **stato iniziale** (tutte le tabelle di `app` vuote tranne
+   `profiles`, `profile_preferences`, `user_roles` e `catalogue_state`), stampa
+   `launch_baseline` alla fine;
+2. caricamento con `load.ts … --launch-from <impronta precedente>`: blocca le tabelle,
+   rifiuta se l'impronta di partenza è diversa, scrive e stampa la nuova subito dopo il
+   commit.
+
+I rilanci non la rinnovano: il bootstrap si rilancia senza `--launch`, il caricamento
+senza `--launch-from` (stampa «No launch baseline»). Se il caricamento fallisce, il
+rollback lascia valida l'impronta del bootstrap. Qualsiasi scrittura dopo l'ultima
+impronta, anche concorrente (aspetta i lock e cade dopo), fa rifiutare l'azzeramento:
+«app data changed since the launch baseline». Per ripartire prima del collaudo
+completo si azzera con l'ultima impronta e si rifà il bootstrap dallo stato iniziale. Il
+coordinatore annota ogni impronta nel registro; al collaudo completo la segna come
+chiusa.
+
+Le prove sono in `scripts/destructive/` (stack locale, ultime in CI con
+`vitest.destructive.config.ts`; in locale `DESTRUCTIVE_TESTS=1`, poi `supabase db
+reset`): svuotano lo schema `app`. Ogni config di Vitest che prepara il database rifiuta
+un `TEST_DATABASE_URL` che non sia lo stack locale prima di collegarsi.
 
 ## Interfaccia con il server
 
@@ -217,9 +293,12 @@ Un database con le migrazioni del commit e nessun dato:
   non contiene dati da conservare, `supabase db reset --no-seed`, poi la password di
   `app_server` usata in `server/.env` (il reset la azzera e il Worker locale risponde
   500 con `28P01`);
-- **progetto di produzione perso:** un progetto Supabase nuovo; applica le migrazioni
-  dal worktree del commit (`supabase link` e `supabase db push`, passi da concordare
-  con il coordinatore), poi imposta la password di `app_server`.
+- **progetto di produzione perso:** non da qui. C'è un solo percorso, il runbook
+  «Cambio di progetto dopo un ripristino» del piano
+  `progetto/superpowers/plans/2026-10-11-messa-in-produzione.md` (parte B): progetto
+  nuovo, PR con `scripts/production-target.json`, URL e chiave pubblica del Worker e
+  della SPA, migrazioni con `npm run release -- --migrations-only`, password di
+  `app_server`, poi i passi 1, 2 e 4 di questa sezione.
 
 Le uniche righe ammesse sono quelle che le migrazioni inseriscono (oggi la riga
 iniziale di `app.catalogue_state`); qualsiasi altro dato fa rifiutare il ripristino.
@@ -252,19 +331,12 @@ motivo, tabella e codice.
 
 ### 5. Ricollega l'app (solo su un progetto nuovo)
 
-In quest'ordine:
-
-1. Auth del progetto nuovo: chiavi di firma asimmetriche, provider, SMTP di Resend,
-   server OAuth 2.1, URL del sito e di redirect.
-2. Hyperdrive verso il Session pooler nuovo, come utente `app_server.<ref del nuovo progetto>` (il Session pooler vuole il riferimento nel nome), con il limite
-   di connessioni di prima: `(cd server && npx wrangler hyperdrive update <id> --origin-host <host> --origin-port 5432 --database postgres --origin-user "app_server.$NEW_PROJECT_REF" --origin-password "$APP_SERVER_PASSWORD")`
-   dopo `NEW_PROJECT_REF=<ref del nuovo progetto>` e `read -rs APP_SERVER_PASSWORD && export APP_SERVER_PASSWORD`.
-3. `SUPABASE_URL` in `server/wrangler.jsonc` (issuer, JWKS, scoperta OAuth per MCP).
-4. `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` della build della SPA.
-5. `npm run deploy` (compila la SPA e pubblica il Worker).
-6. Verifica: accesso, famiglia e menu nell'app, `/.well-known/oauth-protected-resource/mcp`
-   che indica il progetto nuovo. Avvisa che tutti rifanno l'accesso e ricollegano gli
-   agenti.
+Segue il runbook «Cambio di progetto dopo un ripristino» (sopra, passo 3): Auth del
+progetto nuovo (chiavi di firma, iscrizioni spente, OAuth server, URL del sito),
+Hyperdrive aggiornato dall'utente nella dashboard di Cloudflare, rilascio con `npm run
+release` (che rifiuta configurazioni incoerenti), collaudo. Nessun `supabase link`, `db
+push` o `npm run deploy` a mano. Avvisa che tutti rifanno l'accesso e ricollegano gli
+agenti.
 
 ### Prove
 

@@ -1,4 +1,8 @@
 import { defineConfig } from 'vitest/config';
+import { assertLocalTestDatabase } from '../scripts/test-support/local-database.ts';
+
+// Before the global setup and any suite: only the local stack (review of PR #34, finding 2).
+assertLocalTestDatabase(process.env);
 
 // Own config, otherwise Vitest picks up the root one (scripts/ only).
 export default defineConfig({
