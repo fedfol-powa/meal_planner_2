@@ -76,7 +76,11 @@ Prossimi passi:
    «Scollega» e nuova richiesta di accesso verificati.
    **R26 rimandato** per decisione dell'utente (13/10): le password restano quelle attuali per ora.
    **R27:** PR #36 con «Risorse di produzione» in `server/README.md`; da unire dopo la CI.
-4. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
+4. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree, più la
+   decisione dell'utente del 13/10: **la registrazione da invito (ondata 3) funziona sia con Google sia con email e
+   password scelte dall'utente** (oggi la sezione 7 dice magic link e Google). Issue aperte il 13/10: #37 cambio
+   della password dal Profilo (traguardo A, priorità alta), #38 pagina di amministrazione dei ruoli (ondata 3),
+   #39 foto delle ricette (da progettare).
 5. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 6. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
 7. **Merge:** `gh pr merge <n> --merge` solo dopo `gh pr checks` → `pass`; le PR non revisionate
