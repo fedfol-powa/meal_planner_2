@@ -63,7 +63,7 @@ function world(options: Options = {}) {
       return { update };
     }),
     getRegistration: vi.fn(async () => (options.existing ? { update } : undefined))
-  }) as EventTarget & ContainerLike;
+  }) as unknown as EventTarget & ContainerLike;
   Object.defineProperty(container, 'controller', { get: () => worker });
   let markLoaded!: () => void;
   const loaded = new Promise<void>((resolve) => (markLoaded = resolve));
