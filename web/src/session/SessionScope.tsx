@@ -4,13 +4,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ApiProvider } from '../api/ApiProvider';
 import { toApiError } from '../api/errors';
 import { runAreaMutation } from '../api/mutations';
-import { persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
+import { CACHE_SCHEMA, persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
 import { profileQuery } from '../api/profile';
 import { useQueryDeps } from '../api/queries';
 import type { Api, ProfileView } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
-import { env } from '../env';
 import { useLocale } from '../i18n/LocaleProvider';
 import { isOnline } from '../lib/connectivity';
 import { initialLocale, type Locale } from '../i18n/translate';
@@ -203,7 +202,7 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
   const persister = persisterOf(session);
   if (!persister) return <QueryClientProvider client={session.queryClient}>{content}</QueryClientProvider>;
   return (
-    <PersistQueryClientProvider key={identity ?? ''} client={session.queryClient} persistOptions={persistOptions(persister, env.buildVersion)}>
+    <PersistQueryClientProvider key={identity ?? ''} client={session.queryClient} persistOptions={persistOptions(persister, CACHE_SCHEMA)}>
       {content}
     </PersistQueryClientProvider>
   );

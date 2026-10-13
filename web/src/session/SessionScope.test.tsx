@@ -4,7 +4,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi } from '../api/fake/fakeApi';
-import { cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
+import { CACHE_SCHEMA, cacheKey, createMemoryStore, createPersister, createQueryClient } from '../api/persister';
 import { openingQuery, queryKeys, recipeQuery, searchQuery, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
 import { useRateRecipe } from '../api/ratings';
 import { useApi } from '../api/ApiProvider';
@@ -25,7 +25,6 @@ import { setOnline } from '../test/connectivity';
 import { createStubBackend } from '../test/stubBackend';
 import { renderSession } from '../test/sessionHarness';
 import { readPreference, userScope, writePreference } from './localePreference';
-import { env } from '../env';
 import { useChooseLocale, useSession, useSessionRevision, useSignOut } from './SessionScope';
 
 const A = { id: 'a', email: 'a@example.com' };
@@ -441,7 +440,7 @@ describe('language of a read (PR review, C12)', () => {
     // Reopening: each language restores its own view.
     await waitFor(async () => {
       const restored = createQueryClient();
-      await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: env.buildVersion });
+      await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: CACHE_SCHEMA });
       expect(restored.getQueryData<Versioned<RecipeDetailView>>(italianKey)?.data.recipe.name).toBe(italian);
       expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, recipeId, 'en-GB'))?.data.recipe.name).toBe(english);
     }, { timeout: 3000 });
@@ -501,7 +500,7 @@ describe('fake data shared by the languages (PR review, C13)', () => {
     // Stored copy and reopening: the same stars in both languages.
     await waitFor(async () => {
       const restored = createQueryClient();
-      await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: env.buildVersion });
+      await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'a'), buster: CACHE_SCHEMA });
       for (const locale of ['it-IT', 'en-GB'] as const) {
         expect(restored.getQueryData<Versioned<RecipeDetailView>>(queryKeys.recipe(DEMO_FAMILY_ID, rated!, locale))?.data.rating.myStars).toBe(5);
       }

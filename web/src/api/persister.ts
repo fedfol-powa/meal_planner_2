@@ -23,6 +23,17 @@ export interface KeyValueStore {
 export const PERSIST_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 export const CACHE_PREFIX = 'query-cache:';
 export const REVOKED_PREFIX = 'revoked:';
+/**
+ * Shape of the copy on the device, its buster. Change it only when the saved data or the query
+ * keys change in an incompatible way (a field removed or renamed, a type changed, another key for
+ * the same read): exactly when the rule of additive-only changes is broken (spec section 1). The
+ * copy is then dropped, with no migration: the only exception to keeping the shopping list offline.
+ * The compatibility period of the API is still required: this protects the copy, not queued
+ * requests or agents. A release alone never drops it: online every read checks the server again.
+ */
+export const CACHE_SCHEMA = '1';
+/** Copies saved before W8 have the build date as buster: they are schema '1', whatever the current one. */
+const PRE_SCHEMA_BUSTER = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
 export function cacheKey(userId: string): string {
   return `${CACHE_PREFIX}${userId}`;
@@ -195,7 +206,10 @@ export function createPersister(store: KeyValueStore, userId: string): SessionPe
         })
         .catch(() => undefined);
       if (value === undefined) return undefined;
-      if (isPersistedClient(value)) return withoutRevoked(value, revoked);
+      if (isPersistedClient(value)) {
+        const client = PRE_SCHEMA_BUSTER.test(value.buster) ? { ...value, buster: '1' } : value;
+        return withoutRevoked(client, revoked);
+      }
       await enqueue(() => store.delete(key));
       return undefined;
     },
