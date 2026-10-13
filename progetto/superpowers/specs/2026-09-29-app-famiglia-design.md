@@ -2,7 +2,7 @@
 
 Creato: 29 settembre 2026
 Ultimo aggiornamento: 13 ottobre 2026 (decisioni della messa in produzione, accesso e
-inviti)
+inviti, cambio della password e aggiornamento della PWA)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -238,6 +238,20 @@ unite:**
 - il cambio della password dal Profilo (issue #37) torna ad alta priorità nel
   traguardo A, perché la password è la strada permanente.
 
+**Decisioni del 13 ottobre 2026, cambio della password e aggiornamento della PWA
+rilasciati** (particolari in `progetto/superpowers/specs/2026-10-13-cambio-password.md` e
+`2026-10-13-aggiornamento-pwa.md`):
+
+- cambio della password dal Profilo, senza email: password attuale, nuova di almeno 8
+  caratteri e conferma; le altre sessioni si chiudono, agenti compresi. In produzione
+  «Secure password change» spento (precondizione) e «Require current password when
+  updating» acceso (sezioni 1, 7 e 13);
+- le navigazioni restano servite dalla shell installata, non dalla rete; l'app passa da
+  sola alla versione pubblicata ricaricandosi solo quando la pagina è libera, visibile e
+  non toccata (sezione 1);
+- la copia sul dispositivo usa `CACHE_SCHEMA` al posto della versione della build e
+  sopravvive agli aggiornamenti dell'app (sezioni 1 e 6).
+
 ---
 
 ## Parte 1: cosa fa l'app (per tutti)
@@ -280,7 +294,9 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   persona accetta un invito, a una famiglia o all'app, e sceglie la sua password dal
   link ricevuto per email; da lì entra nell'app con email e password (ondata 3,
   decisione dell'utente del 13 ottobre 2026). Chi ha un account può creare la propria
-  Famiglia. Per ora gli account li crea a mano l'amministratore.
+  Famiglia. Per ora gli account li crea a mano l'amministratore. Ognuno cambia la
+  propria password dal Profilo, senza email, dando anche quella attuale; gli altri
+  dispositivi e gli agenti collegati dovranno accedere di nuovo.
 - **Il curatore del ricettario** è un ruolo assegnabile a un utente. Può collegare il
   proprio agente tramite MCP e aggiungere ricette con un percorso guidato. Essere membro
   o amministratore di una famiglia, da solo, non abilita questa funzione.
@@ -603,8 +619,14 @@ configurato per workspace.
   di Supabase Auth, verificato in produzione il 13 ottobre 2026 collegando Claude
   Code). Restano spente anche nell'ondata 3: l'account lo crea il server
   all'accettazione di un invito (sezione 7). Al passaggio al dominio
-  `cosasimangia.qunidi.it` (ondata 3) *Site URL* e *Redirect URLs* vanno aggiornati. Lo
-  stack locale tiene le iscrizioni accese.
+  `cosasimangia.qunidi.it` (ondata 3) *Site URL* e *Redirect URLs* vanno aggiornati.
+  Per il cambio della password dal Profilo (sezione 7) «Secure password change» è
+  **spento** in produzione, come precondizione: senza email non c'è riautenticazione.
+  «Require current password when updating» l'ha acceso l'utente il 13 ottobre 2026; il
+  minimo di lunghezza della password in produzione non è verificato, la SPA impone 8.
+  Lo stack locale tiene le iscrizioni accese e `minimum_password_length = 8`; la CLI non
+  esprime in `config.toml` l'opzione della password attuale, che in locale e in CI resta
+  spenta.
 - **Flusso Git**: PR verso `main`, che è la produzione; CI su GitHub Actions a ogni PR
   con typecheck, test e migrazioni reali.
 - **Pubblicazione con `npm run release`** (decisa l'11–12 ottobre 2026 nella messa in
@@ -830,7 +852,10 @@ di validazione condivisi con `domain/`. Regole:
 - **Copia e sessione sul dispositivo** (app web di base, 11 ottobre 2026). La cache usa
   `@tanstack/react-query-persist-client` con un persister IndexedDB scritto a mano: una
   copia per utente, legata alla sessione e cancellata a ogni chiusura, `buster` sulla
-  versione della build, `maxAge` di 7 giorni. Una sola procedura chiude la sessione
+  costante `CACHE_SCHEMA` (13 ottobre 2026, al posto della versione della build: la copia
+  sopravvive agli aggiornamenti dell'app; le copie con `buster` in forma di data ISO
+  valgono come schema `'1'`; quando cambiarla è scritto sotto, «Modifiche solo
+  additive»), `maxAge` di 7 giorni. Una sola procedura chiude la sessione
   (Esci, uscita da un'altra scheda, cambio d'utente); `unauthorized` porta a un rinnovo
   e poi al login, `forbidden` rimuove le viste di quella famiglia, con un segno di
   revoca rispettato da ogni scrittura e ripristino della copia. Revoche e uscite passano
@@ -839,16 +864,53 @@ di validazione condivisi con `domain/`. Regole:
   volo (per esempio di un consenso agli agenti) la usa ancora. Le risposte arrivate
   dopo l'uscita o dopo un cambio di lingua si scartano. Offline, se la sessione non si può rinnovare, la copia
   resta consultabile in sola lettura fino alla riconnessione, salvo la lista della spesa
-  (sezione 6). Service worker scritto a mano, senza plugin: shell completa installata da
-  un elenco generato dalla build e sostituita in modo atomico alla riapertura,
-  navigazioni dalla rete con ripiego sulla shell, rotte del server mai intercettate; la
-  prima apertura offline dell'app installata è garantita dalla seconda visita. Le query
+  (sezione 6). Il cambio della password (`changePassword` di `AuthBackend`, sezione 7)
+  non passa dal client supabase-js e non emette eventi: verifica la password attuale con
+  un accesso di prova diretto (`/auth/v1/token`), revocato con il suo token, poi cambia
+  con `PUT /auth/v1/user` e il token della sessione letta all'inizio, controllando
+  l'identità (utente e `session_id`) prima del cambio e dopo un rifiuto, mai dopo un
+  successo; `session_expired` porta all'uscita comune.
+  Service worker scritto a mano, senza plugin (aggiornamento della PWA, 13 ottobre 2026):
+  **navigazioni dalla shell installata** della versione attiva, rete solo se manca dalla
+  cache, rotte del server mai intercettate. Sostituisce le navigazioni dalla rete con
+  ripiego sulla shell: shell e asset dalla stessa cache completa e verificata rendono
+  impossibili per costruzione versioni mescolate e pagine bianche, senza timeout né
+  guardie. Il precache è legato alla build: elenco dei file dentro `sw.js` (niente più
+  `/precache.json`) e versione in `<meta name="app-version">` di `index.html`, verificata
+  all'installazione; si scrive in cache solo dopo aver scaricato e verificato tutto, con
+  un segno di completezza per ultimo, e una cache completa della stessa versione si
+  riusa. I font non hanno hash: chi ne cambia il contenuto ne cambia il nome. Dopo il
+  precache il worker chiama `skipWaiting()`, senza `clients.claim()`; Cache Storage tiene
+  le ultime tre versioni per le pagine rimaste aperte. La pagina si registra con
+  `updateViaCache: 'none'`, chiama `registration.update()` all'avvio e al ritorno in
+  primo piano e **si ricarica quando la versione del worker attivo è diversa dalla sua**,
+  senza banner, solo se è libera, visibile e non toccata dall'ultimo ritorno in primo
+  piano; altrimenti al ritorno successivo. Un limite in `sessionStorage` evita i
+  ricaricamenti senza convergenza. Scartati il banner «Aggiorna», che si può ignorare per
+  sempre, e il passaggio solo all'apertura a freddo, perché su iOS l'app sospesa
+  resterebbe vecchia. **Pagina occupata**: scritture fuori da TanStack Query contate con
+  `trackBusy` (password, lingua, uscita, accesso, lettura e decisione delle richieste
+  degli agenti, porzioni salvate all'uscita dal Menu, scrittura della coda della spesa,
+  segno di famiglia revocata) e controlli registrati con `useBusyCheck` (mutazioni
+  TanStack in corso, «Annulla» offerto, porzioni, voce della spesa o nuova password
+  ancora da inviare, coda della spesa non vuota), più un foglio aperto o il cursore in un
+  campo di testo. Chi aggiunge una scrittura fuori da TanStack Query o una bozza solo in
+  memoria fuori da un foglio la registra come «occupata». Il rollback automatico vale
+  solo fra versioni con questo meccanismo. La prima apertura offline dell'app installata
+  è garantita dalla seconda visita. Le query
   usano `queryOptions` scritte a mano con chiavi `[area, operazione, input]` e la lingua
   nella chiave. Senza le variabili di Supabase l'app parte in modalità finta, con un
   client che implementa la stessa interfaccia di quello vero.
 - **Modifiche solo additive.** App e server si pubblicano insieme, ma richieste in coda
   offline e agenti possono usare una forma precedente: si aggiungono campi facoltativi
   e operazioni, non si rinominano né si tolgono senza un periodo di compatibilità.
+  **`CACHE_SCHEMA`** (`web/src/api/persister.ts`): chi cambia in modo incompatibile la
+  forma dei dati salvati sul dispositivo o le chiavi delle query (un campo tolto o
+  rinominato, un tipo cambiato, una chiave diversa per la stessa lettura) cambia la
+  costante, e la copia sul dispositivo si scarta senza migrazione. È l'unica eccezione
+  alla conservazione offline della lista, quindi un cambio incompatibile resta da
+  evitare; il periodo di compatibilità delle API resta richiesto, perché la costante
+  protegge la copia, non le richieste in coda né gli agenti.
 
 **Lingua del codice:** identificatori, nomi tecnici di file e directory, tabelle,
 colonne, enum, API, strumenti MCP, commenti e test in inglese. Le etichette visibili
@@ -1565,7 +1627,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   o inviata prima dell'invio, si compattano solo operazioni mai inviate e ogni risposta
   diventa la nuova base, con sopra le operazioni ancora in attesa. Più schede dello
   stesso utente si escludono con Web Locks; senza Web Locks è una limitazione
-  dichiarata.
+  dichiarata. Lista e coda sopravvivono agli aggiornamenti dell'app: la copia non dipende
+  dalla versione della build e l'app non si ricarica con la coda non vuota (sezione 1).
 - **Esportazioni** (dal menu "…" della lista; escludono le voci spuntate e includono le
   voci libere):
   - PDF di una pagina, nell'ondata 3 (nel traguardo A il menu non lo mostra);
@@ -1598,9 +1661,19 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   (sezione 10) non c'è «password dimenticata» nell'app; gli account li crea
   l'amministratore dalla dashboard di Supabase (*Add user*, con email confermata e
   password scelta da lui) e famiglia, appartenenze e ruoli globali li prepara lo script
-  di avvio `bootstrap.sql` (sezione 10). **Cambio della password dal Profilo**: alta
-  priorità nel traguardo A, perché la password è la strada permanente e oggi si cambia
-  solo dalla dashboard (issue #37, sezione 15).
+  di avvio `bootstrap.sql` (sezione 10).
+- **Cambio della password dal Profilo** (issue #37, rilasciato il 13 ottobre 2026 e
+  provato dall'utente sull'iPhone): funzione permanente, perché la password è la strada
+  permanente. Profilo › «Cambia password» chiede la password attuale, la nuova (almeno 8
+  caratteri) e la conferma; esito ed errori tradotti, nessuna email. La password attuale
+  si verifica sempre con un accesso di prova (sezione 1), anche dove Supabase non la
+  ricontrolla. Dopo il cambio Supabase chiude tutte le altre sessioni dell'utente,
+  dispositivi e agenti collegati compresi (provato in CI); il dispositivo resta dentro e
+  la pagina lo dice prima della conferma. **Precondizione di produzione**: «Secure
+  password change» spento, perché senza email non c'è riautenticazione (con l'opzione
+  accesa una sessione di più di 24 ore riceverebbe `reauthentication_needed`).
+  «Require current password when updating» acceso dall'utente il 13 ottobre 2026; il
+  minimo di produzione non è verificato, la SPA impone 8 (sezione 1).
 - **Password dimenticata** (ondata 3, con Resend): recupero via email; il link apre
   Safari una volta per scegliere la password nuova, poi si entra nell'app con email e
   password. È un caso raro e il passaggio da Safari è accettabile.
@@ -2193,6 +2266,17 @@ rivedono con l'utente (decisione del coordinatore, 11 ottobre 2026).
   Da MCP si ottiene soltanto l'URL, senza eliminazioni, anche tentando la cancellazione
   dell'account dell'unico membro. Aprire il link non ha effetti di scrittura; il
   completamento richiede autenticazione, permessi validi e conferma nella pagina web.
+- **Cambio della password**: sullo stack locale in CI, backend reale e pagina con il
+  backend reale: cambio riuscito con la sola sessione del dispositivo rimasta (confronto
+  per `session_id`), password attuale errata, password debole o uguale, sessione chiusa
+  altrove, altre sessioni chiuse, sessione più vecchia di 24 ore; nella prova degli
+  agenti, token dell'agente rifiutato su MCP, RPC e REST e refresh token annullato dopo il
+  cambio.
+- **Aggiornamento della PWA**: test di precache, service worker, pagina occupata (con i
+  provider veri e una prova di rottura per ogni protezione) e copia con `CACHE_SCHEMA`;
+  prova del passaggio fra versioni nel browser vero con agent-browser, compresi rollback,
+  ripubblicazione, rilascio cambiato durante l'installazione e pagina occupata; prova a
+  mano sull'iPhone dopo il rilascio, unica prova con la sessione Supabase vera.
 - **End to end** (agent-browser e iPhone): accettazione di un invito con creazione dell'account, scelta della password e accesso con email e password nella PWA installata, creazione della famiglia, invito, modifica di uno
   slot, voto, generazione della lista con pagina Bring!, cambio lingua e unità,
   collegamento MCP e operazioni di gestione del ricettario e amministrazione.
@@ -2238,13 +2322,15 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 | Collegamento degli agenti | Unito (PR #31: consenso, «Collega un agente», elenco e scollegamento, prova end-to-end in CI); OAuth server attivo in produzione e Claude Code collegato il 13 ottobre 2026, con ricettario tramite agente e «Scollega» verificati |
 | Esportazione notturna in R2 | Unita (PR #30; migrazione `20261012110000_backup.sql`, rinominata nella PR #32 per una versione duplicata); bucket e chiave in produzione, prima esportazione e prova di produzione il 13 ottobre 2026 |
 | Messa in produzione | Strumenti uniti (PR #34: caricamento, `npm run release`, `scripts/prod-sql.ts`, runbook), risorse compilate in `server/README.md` (PR #36). **Traguardo A in produzione**: primo rilascio il 12 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; il 13 ottobre famiglia avviata (50 ricette pubblicate, 6 bozze, 6 settimane importate) e primo collaudo riuscito, poi agenti collegati. Impronta di avvio chiusa il 13 ottobre all'inizio del collaudo completo, che è ancora in corso, con la verifica della prima generazione dal cron giovedì 15 ottobre. Rotazione delle password rimandata dall'utente (13 ottobre) |
+| Cambio della password dal Profilo | Unito (PR #41, issue #37 chiusa) e rilasciato il 13 ottobre 2026, provato dall'utente sull'iPhone; in produzione «Secure password change» spento e «Require current password when updating» acceso dall'utente il 13 ottobre; minimo di produzione non verificato (la SPA impone 8) |
+| Aggiornamento della PWA | Unito (PR #43, issue #42) e rilasciato il 13 ottobre 2026 (versione `759ce4d6`). Sull'iPhone dell'utente il primo passaggio dalla versione precedente non è avvenuto con due aperture a freddo: è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo. Il passaggio automatico resta da verificare al prossimo rilascio; #42 resta aperta fino ad allora |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
 esterni (DNS di `qunidi.it`, Resend, Google) rimandati finché non servono, partendo
 dall'indirizzo `workers.dev`. Aperte il 13 ottobre 2026: cambio della password dal
 Profilo nel traguardo A, ad alta priorità perché la password è la strada permanente
-(issue #37), pagina dei ruoli globali nell'ondata 3 (issue #38),
+(issue #37, rilasciato lo stesso giorno), pagina dei ruoli globali nell'ondata 3 (issue #38),
 foto delle ricette da progettare (issue #39); sezione 15.
 
 **Messa in produzione** (decisa l'11–12 ottobre 2026; particolari, runbook e ritorni
@@ -2440,18 +2526,23 @@ non accesso generico alle tabelle.
   token revocato fino alla scadenza (un'ora), ma espone solo `public` e
   `graphql_public`, vuoti: nessun dato raggiungibile finché `app` non è esposto.
   Chiudere le «altre sessioni» dal web chiude anche gli agenti; «Esci» chiude solo la
-  sessione del dispositivo e non li tocca.
+  sessione del dispositivo e non li tocca. Anche il cambio della password dal Profilo
+  chiude le sessioni degli agenti: dopo il cambio i loro token sono rifiutati su MCP, RPC
+  e REST e i refresh token annullati (provato in CI, sezione 7).
 - **Poteri di un token d'agente su Supabase Auth: rischio aperto accettato** (decisione
   dell'utente dell'11 ottobre 2026). Il token vale come quello dell'utente su tutti gli
-  endpoint di Supabase Auth: senza passare dal Worker l'agente può cambiare la password
-  senza conoscere quella attuale, e mantenere così l'accesso web anche dopo
-  «Scollega», revocare gli altri agenti, chiudere le sessioni web, modificare
+  endpoint di Supabase Auth: senza passare dal Worker l'agente può cambiare la password,
+  e mantenere così l'accesso web anche dopo «Scollega», revocare gli altri agenti, chiudere le sessioni web, modificare
   `user_metadata`; cambiare l'email richiede la conferma su entrambe le caselle, e non
   può cancellare l'account. Il server OAuth di Supabase non permette di limitarlo: offre
   solo gli scope OIDC, che decidono i dati inviati all'agente e non gli endpoint, non ha
   restrizioni per client e Supabase Auth non controlla `aud` (provato con un hook che lo
   cambiava). Per ora si documenta, nei testi per la persona (sotto) e qui, senza
-  promettere un blocco totale; la limitazione resta aperta (sezione 15).
+  promettere un blocco totale; la limitazione resta aperta (sezione 15). **Chiuso in
+  parte il 13 ottobre 2026**: in produzione l'utente ha acceso «Require current password
+  when updating», quindi un token d'agente cambia la password solo conoscendo quella
+  attuale; nello stack locale l'opzione resta spenta. Restano aperti gli altri poteri:
+  revocare gli altri agenti, chiudere le sessioni web, modificare `user_metadata`.
 - **Strumenti generati dal contratto delle operazioni**, con i metadati di esposizione
   di ciascuna operazione: nessuno strumento scritto a mano che possa divergere dal web.
   Oggi uno strumento per operazione, con nome `area_operazione` (`profile_get`,
@@ -2781,10 +2872,10 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account (ondata 3), dettagli tecnici da verificare nel progetto: API di Supabase per creare l'utente e inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Cambio della password dal Profilo nel traguardo A, oggi solo dalla dashboard (issue #37, priorità alta: la password è la strada permanente). Pagina dei ruoli globali da anticipare solo se serve (issue #38). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente | Sezione 7 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account (ondata 3), dettagli tecnici da verificare nel progetto: API di Supabase per creare l'utente e inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). Pagina dei ruoli globali da anticipare solo se serve (issue #38). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
-| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidate: password attuale richiesta per cambiarla, server di autorizzazione nel Worker). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
+| MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | Automazione della pubblicazione con GitHub Actions, da rivalutare quando i rilasci diventano frequenti. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1); l'11–12 ottobre, nella messa in produzione, pubblicazione a mano con `npm run release` al posto dell'automazione prima del traguardo A, migrazioni di produzione con la CLI di Supabase dentro `npm run release` prima del deploy, operazioni sulla produzione con anteprima e impronta (sezioni 1 e 10) | Sezioni 1 e 10 |
 | Foto delle ricette | Da progettare (issue #39, 13 ottobre 2026): archiviazione, chi le carica (curatore, agente o fonte), diritti d'uso, cache offline, esportazione e ripristino. Il linguaggio visivo prevede la fotografia quando disponibile, ma oggi le ricette non hanno foto | Sezioni 2, 8 e 14 |
@@ -2832,6 +2923,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 12 ottobre 2026, collegamento degli agenti e revisione dei pasti nel web unite | Riportate le decisioni delle PR #31 e #33. Agenti: consenso vero su `/authorize` e pagina «Collega un agente» con i comandi di Claude Code e Codex CLI verificati; area `agents` (`agents.list`, `agents.disconnect`, anche MCP) con `app.connected_agents()` al posto della tabella `agent_authorizations`; scollegamento con la gestione dei grant di Supabase e il controllo della sessione già presente, provato in CI con token reali; riautorizzazione dello stesso client che aggiunge un accesso; «ultimo rinnovo dell'accesso» al posto dell'ultimo uso; poteri dei token d'agente su Supabase Auth accettati come rischio aperto, con testi veritieri nel consenso, nella pagina e in «Scollega»; nome del client non verificato e scope come dati ricevuti; cambio account che riparte dall'agente; configurazione del server OAuth e `SUPABASE_PUBLISHABLE_KEY`. Revisione dei pasti nel web: matita e porzioni da 1 a 20 per ogni pasto, anche libero o vuoto; salvataggi respinti spiegati anche dopo la navigazione; «Annulla» per 6 secondi nell'app; `not_found` che chiude il foglio; ricerca con errore e «Riprova»; comandi disattivati offline anche nel foglio aperto; voto confermato che rende superata una risposta dei pasti. Sezione 15 «MCP» aggiornata; sezione 10 aggiornata |
 | 12–13 ottobre 2026, messa in produzione | Riportate le decisioni della spec `2026-10-11-messa-in-produzione.md` (PR #34, con le correzioni delle review) e l'esito del lancio (PR #36). Iscrizioni libere spente in produzione, verificate da ogni anteprima di rilascio; OAuth server, *Site URL* e *Redirect URLs* attivati prima del primo rilascio; pubblicazione con `npm run release` in due tempi con impronta, al posto dell'automazione prima del traguardo A, e migrazioni di produzione al suo interno; operazioni sulla produzione dal coordinatore con anteprima, impronta e «vai», SQL solo da una lista chiusa di script versionati, nessuna password negli argomenti, Hyperdrive creato dall'utente in dashboard, TLS verificato, progetto di destinazione in un file versionato; caricamento in una transazione con anteprima, solo in aggiunta, con impostazioni della famiglia, menu in corso, pasti doppi fra le provate e preferenze condizionali nel report; avvio a fasi e a finestra con azzeramento legato all'impronta di avvio al posto della rimozione della famiglia; ripiego sul PDF d'origine. Esito: primo rilascio il 12 ottobre su `cosasimangia.qunidi.workers.dev`, famiglia avviata e agenti collegati il 13, collaudo completo in corso, rotazione delle password rimandata dall'utente. Sezioni 1, 2, 7, 8, 10, 11, 13 e 15 aggiornate |
 | 13 ottobre 2026, accesso e inviti | Decisioni dell'utente: accesso principale con email e password dal traguardo A in poi, non provvisorio, perché sull'iPhone la PWA installata non condivide cookie e archivio con Safari e un link che apre Safari lascia lì la sessione; tolto il link via email come modo di entrare. L'invito crea l'account e le iscrizioni libere restano spente; il link nell'email serve solo a scegliere la password, come quello della «password dimenticata» (recupero via email, raro), entrambi con Resend. Google facoltativo, solo dopo una prova sull'iPhone con l'app installata (redirect OAuth nella PWA, identità Google con le iscrizioni spente: sezione 15). Cambio della password dal Profilo ad alta priorità nel traguardo A (issue #37); citate anche le issue #38 (pagina dei ruoli) e #39 (foto delle ricette). Sezioni Parte 1, 1, 7, 9, 10, 14 e 15 aggiornate |
+| 13 ottobre 2026, cambio della password e aggiornamento della PWA rilasciati | Riportate le decisioni delle spec `2026-10-13-cambio-password.md` (W7, PR #41, issue #37) e `2026-10-13-aggiornamento-pwa.md` (W8, PR #43, issue #42), entrambe rilasciate il 13 ottobre. Cambio della password dal Profilo senza email, con verifica della password attuale nella SPA e chiusura delle altre sessioni, agenti compresi; in produzione «Secure password change» spento (precondizione) e «Require current password when updating» acceso dall'utente, che chiude in parte il rischio dei poteri dei token d'agente; minimo di produzione non verificato (la SPA impone 8). Navigazioni dalla shell installata al posto di quelle dalla rete con ripiego sulla shell, perché rendono impossibili versioni mescolate e pagine bianche; precache dentro `sw.js` verificato con la versione di `index.html`, `skipWaiting`, ricaricamento quando la versione del worker attivo è diversa, solo con la pagina libera, visibile e non toccata; pagina occupata registrata con `trackBusy`; `CACHE_SCHEMA` al posto della versione della build come `buster`, con la regola accanto a quella delle modifiche solo additive. Esito: cambio della password provato dall'utente sull'iPhone; versione `759ce4d6` in produzione, ma sull'iPhone dell'utente il primo passaggio non è avvenuto con due aperture a freddo ed è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo; passaggio automatico da verificare al prossimo rilascio, #42 aperta. Sezioni Parte 1, 1, 6, 7, 9, 10, 13 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
