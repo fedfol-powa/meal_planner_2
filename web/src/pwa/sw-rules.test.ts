@@ -24,8 +24,17 @@ describe('service worker rules', () => {
     expect(strategyFor(req('/precache.json'))).toBe('passthrough');
     expect(strategyFor(req('/assets/x.js', 'cors', 'GET', 'https://cdn.example'))).toBe('passthrough');
   });
-  it('names caches by build and finds the old ones', () => {
+  it('names caches by build and keeps the current one plus the two most recent others', () => {
     expect(cacheName('2026-10-11T10:00:00.000Z')).toBe('cosasimangia-2026-10-11T10:00:00.000Z');
-    expect(staleCaches(['cosasimangia-a', 'cosasimangia-b', 'other'], 'b')).toEqual(['cosasimangia-a']);
+    const c = (day: string) => `cosasimangia-2026-10-${day}T00:00:00.000Z`;
+    const names = [c('01'), c('05'), c('07'), c('09'), 'other'];
+    // Current 09: 07 and 05 stay for the pages still open (a busy page may skip a version), 01 goes.
+    expect(staleCaches(names, '2026-10-09T00:00:00.000Z')).toEqual([c('01')]);
+  });
+  it('after a rollback keeps the newer caches, which pages still open may need', () => {
+    const c = (day: string) => `cosasimangia-2026-10-${day}T00:00:00.000Z`;
+    // Rolled back to 05: 09 (the page still open) and 07 stay, 01 goes.
+    expect(staleCaches([c('01'), c('05'), c('07'), c('09')], '2026-10-05T00:00:00.000Z')).toEqual([c('01')]);
+    expect(staleCaches(['cosasimangia-a', 'cosasimangia-b'], 'b')).toEqual([]);
   });
 });

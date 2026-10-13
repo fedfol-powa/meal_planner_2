@@ -85,7 +85,8 @@ describe('service worker lifecycle', () => {
     // B waits for the app to be reopened: A still serves with its own cache.
     expect(caches.names().sort()).toEqual(['cosasimangia-A', 'cosasimangia-B']);
     await activate(depsB);
-    expect(caches.names()).toEqual(['cosasimangia-B']);
+    // A stays for the pages still open.
+    expect(caches.names().sort()).toEqual(['cosasimangia-A', 'cosasimangia-B']);
     netB.state.offline = true;
     expect(await text(await respond(navigate('/recipes'), url('/recipes'), depsB))).toBe('index B');
     expect(await text(await respond(asset('/assets/b.js'), url('/assets/b.js'), depsB))).toBe('script B');
