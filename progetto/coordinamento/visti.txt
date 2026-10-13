@@ -189,3 +189,6 @@ w1:p3B	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/43 #8
 w1:p3B	STATO: PR_CORRETTA #f2ea12dc
 w1:p3B	STATO: PR_CORRETTA #82585a57
 w1:p3B	STATO: PR_CORRETTA #2239b1fe
+w1:p3G	REVISORE_FINITO
+w1:p3H	STATO: DOMANDA brainstorming 1: nome chiesto sulla pagina dell'invito (A) o schermata di primo accesso separata (B)? #d558a699
+w1:p3H	STATO: DOMANDA brainstorming 2: operazioni pubbliche nel contratto con ruolo public e anon (A) o rotte a mano in app.ts (B)? #6bccaf98
