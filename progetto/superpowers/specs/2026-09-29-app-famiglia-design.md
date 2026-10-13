@@ -5,13 +5,15 @@ Ultimo aggiornamento: 13 ottobre 2026 (decisioni della messa in produzione, acce
 inviti)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
-Traguardo A in produzione dal 12–13 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`
+Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
+`design/percorsi.md`) e architettura verificata l'8 ottobre: il prototipo resta il
+riferimento dei percorsi approvati.
+Stato attuale: traguardo A in produzione dal 12–13 ottobre 2026 su
+`https://cosasimangia.qunidi.workers.dev`, con il collaudo completo ancora in corso
 (sezione 10).
-Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
-usando il linguaggio visivo scelto; metodo, ordine dei percorsi e architettura del
-prototipo concordati il 6 ottobre in `design/percorsi.md`.
-Review avversariale indipendente del 3 ottobre: adatto a un prototipo esplorativo,
-non ancora pronto per l'implementazione; rilievi e decisioni conseguenti nella sezione 17.
+Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
+prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
+e decisioni conseguenti nella sezione 17.
 Repository: `fedfol-powa/meal_planner_2` (privato)
 Progetto di origine: `fedfol-powa/meal_planner` (resta attivo, vedi "Convivenza")
 
@@ -30,8 +32,8 @@ la revisione verifica sia il risultato sia l'allineamento della specifica.
 
 La Parte 1 descrive l'app per chi la usa; la Parte 2 descrive dati, comportamenti e
 architettura. Il linguaggio visivo approvato è definito nella sezione 14 e reso operativo
-in `design/design.md`. Le ulteriori decisioni sui flussi entreranno in questa specifica
-dopo la review del prototipo. Gli aspetti ancora da concordare sono elencati nella
+in `design/design.md`. Le decisioni sui flussi prese nella review del prototipo sono
+già consolidate qui (sezione 14 e registro della sezione 16). Gli aspetti ancora da concordare sono elencati nella
 sezione 15 e non vanno trattati come decisioni approvate.
 
 **Decisioni confermate il 3 ottobre 2026:**
@@ -2053,10 +2055,13 @@ coincide con l'ultima **impronta di avvio**, prodotta dentro la transazione del
 bootstrap (ammesso solo dallo stato iniziale) o del caricamento di avvio, con tutte le
 tabelle bloccate: qualsiasi scrittura successiva, anche una sola, la cambia e
 l'azzeramento si rifiuta. I rilanci non la rinnovano. Non si rimuove la sola famiglia:
-il catalogo resterebbe e non ci sarebbe più un'impronta da cui ripartire. Dopo il
-collaudo completo l'impronta si chiude (per la famiglia di Federico il 13 ottobre
-2026) e i dati si correggono in avanti, dall'app, dall'agente o, per un danno grave,
-con il ripristino dall'esportazione su un progetto nuovo. Particolari in
+il catalogo resterebbe e non ci sarebbe più un'impronta da cui ripartire.
+**All'inizio del collaudo completo** l'impronta si chiude: da lì niente azzeramento e
+i dati si correggono in avanti, dall'app, dall'agente o, per un danno grave,
+con il ripristino dall'esportazione su un progetto nuovo. Per la famiglia di Federico
+l'impronta si è chiusa il 13 ottobre 2026, all'inizio del collaudo completo (passo R23
+del runbook); il collaudo completo è ancora in corso, compresa la verifica della prima
+generazione dal cron giovedì 15 ottobre. Particolari in
 `progetto/superpowers/specs/2026-10-11-messa-in-produzione.md`, sezione 8.
 
 **YAML per importazione ed esportazione:** formato di scambio con chiavi tecniche in
@@ -2232,7 +2237,7 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 | Revisione dei pasti | Server, dominio, strumenti MCP e web uniti (PR #29: azioni, suggerimenti, annullamento, registro; PR #33: pannello, foglio, «Annulla» e invalidazioni nel web) |
 | Collegamento degli agenti | Unito (PR #31: consenso, «Collega un agente», elenco e scollegamento, prova end-to-end in CI); OAuth server attivo in produzione e Claude Code collegato il 13 ottobre 2026, con ricettario tramite agente e «Scollega» verificati |
 | Esportazione notturna in R2 | Unita (PR #30; migrazione `20261012110000_backup.sql`, rinominata nella PR #32 per una versione duplicata); bucket e chiave in produzione, prima esportazione e prova di produzione il 13 ottobre 2026 |
-| Messa in produzione | Strumenti uniti (PR #34: caricamento, `npm run release`, `scripts/prod-sql.ts`, runbook), risorse compilate in `server/README.md` (PR #36). **Traguardo A in produzione**: primo rilascio il 12 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; il 13 ottobre famiglia avviata (50 ricette pubblicate, 6 bozze, 6 settimane importate) e primo collaudo riuscito, poi agenti collegati. Collaudo completo in corso, con la verifica della prima generazione dal cron giovedì 15 ottobre. Rotazione delle password rimandata dall'utente (13 ottobre) |
+| Messa in produzione | Strumenti uniti (PR #34: caricamento, `npm run release`, `scripts/prod-sql.ts`, runbook), risorse compilate in `server/README.md` (PR #36). **Traguardo A in produzione**: primo rilascio il 12 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; il 13 ottobre famiglia avviata (50 ricette pubblicate, 6 bozze, 6 settimane importate) e primo collaudo riuscito, poi agenti collegati. Impronta di avvio chiusa il 13 ottobre all'inizio del collaudo completo, che è ancora in corso, con la verifica della prima generazione dal cron giovedì 15 ottobre. Rotazione delle password rimandata dall'utente (13 ottobre) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -2258,8 +2263,9 @@ piano):
   terminano, o il primo collaudo fallisce, si **azzera** (sezione 8) e si ritenta in una
   finestra successiva ripartendo dal bootstrap; non si rimuove la sola famiglia e non si
   sospende la generazione (decisione del coordinatore, corretta il 12 ottobre 2026 dopo
-  la review della PR #34). Dopo il collaudo completo la famiglia usa l'app e si
-  corregge solo in avanti.
+  la review della PR #34). All'inizio del collaudo completo l'impronta di avvio si
+  chiude: da lì la famiglia usa l'app e si corregge solo in avanti, anche se le prove
+  del collaudo completo non sono ancora finite.
 - **Pubblicazione** con `npm run release` e **operazioni sulla produzione** con
   anteprima, impronta e «vai» dell'utente: sezione 1.
 

@@ -18,7 +18,9 @@ Scelte dell'utente dell'11 ottobre 2026 sul perimetro del traguardo A:
 
 - comprende la gestione del ricettario tramite MCP (bozze, versioni, pubblicazione);
 - accessi diretti con utenze Supabase; primi utenti e famiglie creati a mano da
-  Supabase; inviti, wizard e accesso con Google arrivano dopo, nella fase prodotto;
+  Supabase; inviti, wizard e accesso con Google arrivano dopo, nella fase prodotto
+  (dal 13 ottobre Google è facoltativo e subordinato alle verifiche sull'iPhone; email
+  e password restano l'accesso permanente, «Login» sotto);
 - passi esterni (DNS di `qunidi.it`, Resend, Google) rimandati finché non servono:
   si parte dall'indirizzo `workers.dev`.
 
@@ -61,8 +63,11 @@ test. Ordine e parallelismo si fissano a fine ondata 1.
 
 ### Ondata 3: prodotto
 
-Inviti familiari e all'app, wizard, accesso con Google, Resend e dominio
-`cosasimangia.qunidi.it`, amministrazione dell'app, ripristino dell'intero catalogo,
+Inviti familiari e all'app (l'invito crea l'account; il link nell'email serve solo a
+scegliere la password), recupero della password via email, wizard, Resend e dominio
+`cosasimangia.qunidi.it`, accesso con Google facoltativo solo dopo due verifiche
+sull'iPhone con l'app installata (ritorno della sessione nella PWA dopo il redirect
+OAuth, collegamento dell'identità Google con le iscrizioni spente), amministrazione dell'app, ripristino dell'intero catalogo,
 Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del
 ricettario (ultima priorità), giudice AI opzionale.
 
@@ -137,7 +142,7 @@ solo il coordinatore.
 - **Campi bilingui (decisione dell'utente, 11/10):** colonne jsonb `{it-IT, en-GB}` validate da zod e da vincoli check al posto delle tabelle `*_translations`, per ricette, ingredienti e righe di ingrediente. Da riportare nelle sezioni 2, 12 e 15 della specifica.
 - **Test del server (W1, 11/10):** Vitest in Node chiamando la `fetch` del Worker con un env finto (Postgres locale, chiavi JWT generate nel test); ciò che Node non copre si verifica con `wrangler dev` e sul Worker pubblicato.
 - **Ruoli Postgres (W1 ↔ W2, 11/10):** un solo login `app_server` (NOINHERIT, membro di `authenticated`, `anon`, `app_job`); ogni transazione sceglie il ruolo: utente → `authenticated` con i claim, `/internal/jobs/*` → `app_job`, pagina Bring! → `anon` tramite funzione per token. Password impostata a mano sul progetto, fuori dalle migrazioni.
-- **Login (W5, 11/10):** solo email e password (`signInWithPassword`); link via email e Google nell'ondata 3. Sviluppo con lo stack Supabase locale (`supabase start`), configurazione degli ambienti di W1; senza variabili l'app parte in modalità finta.
+- **Login (W5, 11/10; aggiornato il 13/10 per decisione dell'utente):** email e password (`signInWithPassword`) come accesso permanente, non provvisorio: la PWA installata sull'iPhone non condivide la sessione con Safari. Nell'ondata 3 il link nell'email serve solo a scegliere o recuperare la password, mai a entrare; Google facoltativo solo dopo le due verifiche (ritorno della sessione nella PWA installata dopo il redirect OAuth, collegamento dell'identità Google con le iscrizioni spente). Sviluppo con lo stack Supabase locale (`supabase start`), configurazione degli ambienti di W1; senza variabili l'app parte in modalità finta.
 - **Import, casi R4 (W3, 11/10, decisi dal coordinatore):** ricette collaudate senza storico registrate come provate senza data nei dati della famiglia e nel report, nessun pasto inventato; ricette «casa» con URL importate come `web` con l'URL, tipo d'origine conservato e segnalato; storico `cucinata: false` non importato, `null` in settimane concluse importato come mangiato e segnalato, `null` in settimane in corso non importato, giorni o pasti non riconosciuti scartati e segnalati.
 - **Misure imperiali (W4, 11/10, decise dal coordinatore, confermate dall'utente l'11/10):** sotto ½ oz si resta in grammi; ½ oz fino a 4 oz, oncia intera fino a 1 lb, poi ¼ di lb; fino a 45 ml cucchiai di misura da 5 e 15 ml, poi fl oz, da 1 pinta al ¼ di pinta; fattori del Weights and Measures Act 1985; nella spesa piece, bunch e slice per eccesso all'intero (tolleranza 0,1), clove, sprig, leaf e pinch al mezzo.
 - **Risposta «invariato» (W1, 11/10):** dentro il contratto, non HTTP 304: input con `knownVersion` facoltativo, output `{unchanged: true, version}` oppure `{unchanged: false, version, data}`. Da riportare nella sezione 1 al posto di «HTTP 304 con ETag».
