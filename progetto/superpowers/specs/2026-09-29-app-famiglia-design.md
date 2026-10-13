@@ -2,7 +2,8 @@
 
 Creato: 29 settembre 2026
 Ultimo aggiornamento: 13 ottobre 2026 (decisioni della messa in produzione, accesso e
-inviti, cambio della password e aggiornamento della PWA)
+inviti, cambio della password e aggiornamento della PWA, inviti senza email finché manca
+il dominio di invio)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -251,6 +252,15 @@ rilasciati** (particolari in `progetto/superpowers/specs/2026-10-13-cambio-passw
   non toccata (sezione 1);
 - la copia sul dispositivo usa `CACHE_SCHEMA` al posto della versione della build e
   sopravvive agli aggiornamenti dell'app (sezioni 1 e 6).
+
+**Decisione dell'utente del 13 ottobre 2026, inviti senza email finché manca il dominio**
+(sezione 7): il DNS di `qunidi.it` per ora non si può modificare, quindi Resend non può
+verificare il dominio di invio e l'app non spedisce email (`workers.dev` non è un dominio
+nostro). Fino ad allora l'invito all'app si accetta scegliendo la password direttamente
+sulla pagina dell'invito, con il link mandato a mano dall'amministratore; la «password
+dimenticata» via email aspetta il dominio. L'app resta su `workers.dev`: il dominio
+`cosasimangia.qunidi.it` serve prima di tutto a spedire, e spostare l'app costringerebbe a
+reinstallare la PWA.
 
 ---
 
@@ -1676,7 +1686,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   minimo di produzione non è verificato, la SPA impone 8 (sezione 1).
 - **Password dimenticata** (ondata 3, con Resend): recupero via email; il link apre
   Safari una volta per scegliere la password nuova, poi si entra nell'app con email e
-  password. È un caso raro e il passaggio da Safari è accettabile.
+  password. È un caso raro e il passaggio da Safari è accettabile. Arriva solo quando il
+  dominio di invio è verificato (sotto, «Senza email finché manca il dominio»); fino ad
+  allora l'amministratore reimposta la password dalla dashboard di Supabase.
 - **Google** (decisione dell'utente del 13 ottobre 2026): comodità facoltativa, da
   aggiungere solo dopo una prova sull'iPhone con l'app installata. Da verificare nel
   progetto: se il ritorno dal redirect OAuth porta la sessione dentro la PWA
@@ -1696,6 +1708,18 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   degli utenti arrivano nell'ondata 3. Restano da verificare nel progetto i dettagli
   tecnici (sezione 15): API di Supabase per creare l'utente e inviare il link della
   password.
+- **Senza email finché manca il dominio** (decisione dell'utente del 13 ottobre 2026,
+  temporanea): il DNS di `qunidi.it` per ora non si può modificare, quindi Resend non
+  verifica `cosasimangia.qunidi.it` e l'app non spedisce email. Fino ad allora l'invito
+  all'app si accetta sulla pagina `/invite/app/<token>`: la persona scrive l'email
+  dell'invito, che deve coincidere, e sceglie la password; il server crea l'account già
+  confermato e la persona entra subito. L'amministratore copia il link e lo manda a mano
+  (per esempio su WhatsApp). Il possesso del link vale come prova al posto dell'email,
+  con i limiti già decisi: un'email, uso singolo, 7 giorni, revoca. Per gli inviti alla
+  famiglia, riusabili e non legati a un'email, la regola equivalente si decide con quel
+  lavoro. Quando il dominio è verificato si passa al link nell'email come sopra, senza
+  rifare il flusso; il dominio è già aggiunto in Resend (regione `eu-west-1`), in attesa
+  dei record DNS. L'app resta su `https://cosasimangia.qunidi.workers.dev`.
 - **Uscita e revoca sul dispositivo**: «Esci» chiude la sessione solo su questo
   dispositivo e cancella i dati salvati dell'utente anche se il servizio non risponde;
   un accesso revocato a una famiglia ne toglie subito i dati dal dispositivo (sezione 1).
@@ -2872,7 +2896,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account (ondata 3), dettagli tecnici da verificare nel progetto: API di Supabase per creare l'utente e inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). Pagina dei ruoli globali da anticipare solo se serve (issue #38). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione | Sezione 7 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account (ondata 3), dettagli tecnici da verificare nel progetto: API di Supabase per creare l'utente e inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). Pagina dei ruoli globali da anticipare solo se serve (issue #38). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio; regola equivalente per gli inviti alla famiglia da decidere | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
@@ -2924,6 +2948,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 12–13 ottobre 2026, messa in produzione | Riportate le decisioni della spec `2026-10-11-messa-in-produzione.md` (PR #34, con le correzioni delle review) e l'esito del lancio (PR #36). Iscrizioni libere spente in produzione, verificate da ogni anteprima di rilascio; OAuth server, *Site URL* e *Redirect URLs* attivati prima del primo rilascio; pubblicazione con `npm run release` in due tempi con impronta, al posto dell'automazione prima del traguardo A, e migrazioni di produzione al suo interno; operazioni sulla produzione dal coordinatore con anteprima, impronta e «vai», SQL solo da una lista chiusa di script versionati, nessuna password negli argomenti, Hyperdrive creato dall'utente in dashboard, TLS verificato, progetto di destinazione in un file versionato; caricamento in una transazione con anteprima, solo in aggiunta, con impostazioni della famiglia, menu in corso, pasti doppi fra le provate e preferenze condizionali nel report; avvio a fasi e a finestra con azzeramento legato all'impronta di avvio al posto della rimozione della famiglia; ripiego sul PDF d'origine. Esito: primo rilascio il 12 ottobre su `cosasimangia.qunidi.workers.dev`, famiglia avviata e agenti collegati il 13, collaudo completo in corso, rotazione delle password rimandata dall'utente. Sezioni 1, 2, 7, 8, 10, 11, 13 e 15 aggiornate |
 | 13 ottobre 2026, accesso e inviti | Decisioni dell'utente: accesso principale con email e password dal traguardo A in poi, non provvisorio, perché sull'iPhone la PWA installata non condivide cookie e archivio con Safari e un link che apre Safari lascia lì la sessione; tolto il link via email come modo di entrare. L'invito crea l'account e le iscrizioni libere restano spente; il link nell'email serve solo a scegliere la password, come quello della «password dimenticata» (recupero via email, raro), entrambi con Resend. Google facoltativo, solo dopo una prova sull'iPhone con l'app installata (redirect OAuth nella PWA, identità Google con le iscrizioni spente: sezione 15). Cambio della password dal Profilo ad alta priorità nel traguardo A (issue #37); citate anche le issue #38 (pagina dei ruoli) e #39 (foto delle ricette). Sezioni Parte 1, 1, 7, 9, 10, 14 e 15 aggiornate |
 | 13 ottobre 2026, cambio della password e aggiornamento della PWA rilasciati | Riportate le decisioni delle spec `2026-10-13-cambio-password.md` (W7, PR #41, issue #37) e `2026-10-13-aggiornamento-pwa.md` (W8, PR #43, issue #42), entrambe rilasciate il 13 ottobre. Cambio della password dal Profilo senza email, con verifica della password attuale nella SPA e chiusura delle altre sessioni, agenti compresi; in produzione «Secure password change» spento (precondizione) e «Require current password when updating» acceso dall'utente, che chiude in parte il rischio dei poteri dei token d'agente; minimo di produzione non verificato (la SPA impone 8). Navigazioni dalla shell installata al posto di quelle dalla rete con ripiego sulla shell, perché rendono impossibili versioni mescolate e pagine bianche; precache dentro `sw.js` verificato con la versione di `index.html`, `skipWaiting`, ricaricamento quando la versione del worker attivo è diversa, solo con la pagina libera, visibile e non toccata; pagina occupata registrata con `trackBusy`; `CACHE_SCHEMA` al posto della versione della build come `buster`, con la regola accanto a quella delle modifiche solo additive. Esito: cambio della password provato dall'utente sull'iPhone; versione `759ce4d6` in produzione, ma sull'iPhone dell'utente il primo passaggio non è avvenuto con due aperture a freddo ed è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo; passaggio automatico da verificare al prossimo rilascio, #42 aperta. Sezioni Parte 1, 1, 6, 7, 9, 10, 13 e 15 aggiornate |
+| 13 ottobre 2026, ondata 3 senza email | Decisione dell'utente: il DNS di `qunidi.it` per ora non si può modificare e `workers.dev` non permette di verificare un dominio in Resend, quindi finché manca il dominio di invio l'invito all'app si accetta scegliendo la password sulla pagina dell'invito (email dell'invito da ridigitare, account creato già confermato, link mandato a mano), il recupero della password via email aspetta il dominio e l'app resta su `workers.dev`. Ordine dell'ondata 3 nel piano generale. Sezioni 7 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

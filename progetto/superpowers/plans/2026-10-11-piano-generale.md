@@ -71,6 +71,24 @@ OAuth, collegamento dell'identità Google con le iscrizioni spente), amministraz
 Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del
 ricettario (ultima priorità), giudice AI opzionale.
 
+### Ordine dell'ondata 3 (approvato dall'utente il 13 ottobre 2026)
+
+Primo obiettivo: una persona nuova riceve un invito all'app, ottiene l'account e si crea la
+propria famiglia. Un solo worker Claude alla volta, revisori Codex senza limite, solito
+metodo. Finché il DNS di `qunidi.it` non si può modificare, niente email (specifica,
+sezione 7, «Senza email finché manca il dominio»).
+
+| # | Attività | Contenuto | Usa | Produce per |
+|---|---|---|---|---|
+| A | Inviti all'app e famiglie nuove | `app_invitations` e operazioni (anche MCP); pagina `/invite/app/<token>` con email e password, account creato dal server già confermato; primo accesso (nome); wizard «Crea la tua famiglia» e «Crea un'altra famiglia»; `/admin` con la sola sezione Inviti | profilo e famiglia (ondata 2) | B, C |
+| B | Amministrazione utenti e ruoli (#38) | `/admin` Utenti: ricerca, ruoli curatore e amministratore, ultimo amministratore protetto; MCP | scheletro di `/admin` e controlli `app_admin` di A | — |
+| C | Gestione della famiglia | inviti alla famiglia (`family_invitations`, `family_removals`, `/invite/<token>`), rimozione, uscita con successore, ruoli, eliminazione della famiglia, cancellazione dell'account | creazione dell'account da invito di A | — |
+| D | Dominio di invio ed email | record DNS in `qunidi.it` (dominio già aggiunto in Resend, `eu-west-1`), SMTP personalizzato di Supabase Auth, link della password via email, «password dimenticata» | DNS modificabile (passo esterno dell'utente) | — |
+| E | Resto dell'ondata | Google, ripristino dell'intero catalogo, Claude Desktop e ChatGPT, «rigenera», modulo manuale del ricettario, giudice AI, foto (#39) | — | — |
+
+B e C partono solo dopo il merge di A, con le interfacce di A registrate in «Interfacce
+decise».
+
 ### Ordine dell'ondata 2 (approvato dall'utente l'11 ottobre 2026)
 
 Dopo quattro review di spec «da rifare» per interfacce incompatibili scritte in
@@ -241,3 +259,4 @@ solo il coordinatore.
 | 12 ottobre 2026 | Unita la PR #34 (strumenti della messa in produzione: caricamento, `npm run release`, `scripts/prod-sql.ts`, test distruttivi, runbook) dopo tre giri di review. Fermo prima di qualsiasi passo in produzione su richiesta dell'utente |
 | 13 ottobre 2026 | Decisioni della messa in produzione riportate nella specifica principale (Parte 1 e sezioni 1, 2, 7, 8, 9, 10, 11, 13, 14, 15 e 16), con l'esito del lancio (traguardo A in produzione su `cosasimangia.qunidi.workers.dev`, famiglia avviata e agenti collegati il 13/10, rotazione delle password rimandata) e le decisioni dell'utente su accesso e inviti: email e password come accesso principale anche dopo il traguardo A (la PWA installata sull'iPhone non condivide la sessione con Safari), account creato dal server all'accettazione di un invito con il link nell'email solo per scegliere la password, recupero della password via email, Google facoltativo dopo una prova sull'iPhone, iscrizioni libere che restano spente, #37 ad alta priorità; citate le issue #37–#39. Branch `traguardo/specifica-produzione` |
 | 13 ottobre 2026 | Decisioni di W7 (cambio della password, PR #41, rilasciato il 13/10 e provato dall'utente sull'iPhone; «Secure password change» spento e «Require current password when updating» acceso in produzione) e di W8 (aggiornamento della PWA, PR #43, rilasciato il 13/10 con la versione `759ce4d6`) riportate nella specifica principale (Parte 1 e sezioni 1, 6, 7, 9, 10, 13, 15 e 16) e nelle interfacce «PWA» e «Cache persistita»: navigazioni dalla shell installata e `CACHE_SCHEMA` al posto della versione della build. Il passaggio automatico fra versioni resta da verificare al prossimo rilascio; #42 aperta fino ad allora |
+| 13 ottobre 2026 | L'utente approva l'ordine dell'ondata 3 (A inviti all'app e famiglie nuove, B amministrazione #38, C gestione della famiglia, D dominio di invio, E resto) e sceglie, finché il DNS di `qunidi.it` non si può modificare, inviti all'app senza email con la password scelta sulla pagina dell'invito; l'app resta su `workers.dev` |
