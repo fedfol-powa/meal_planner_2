@@ -1,4 +1,4 @@
-import type { AgentAuthorization, AuthBackend, AuthEvent, AuthorizationResult, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
+import type { AgentAuthorization, AuthBackend, ChangePasswordResult, AuthEvent, AuthorizationResult, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
 
 export interface StubBackend extends AuthBackend {
   nextSignIn: SignInResult;
@@ -28,6 +28,11 @@ export interface StubBackend extends AuthBackend {
   holdAuthorization(): (result: AuthorizationResult<AgentAuthorization>) => void;
   /** The next decideAuthorization() not yet held waits until the returned function answers it. */
   holdDecision(): (result: AuthorizationResult<string>) => void;
+  /** Answer of changePassword ({ ok: true } by default). */
+  nextChangePassword: ChangePasswordResult;
+  changePasswordCalls: { current: string; next: string }[];
+  /** The next changePassword() waits until the returned function answers it. */
+  holdChangePassword(): (result: ChangePasswordResult) => void;
 }
 
 /** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
@@ -38,6 +43,7 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
   let heldCheck: Promise<SessionCheck> | null = null;
   let heldRefresh: Promise<RenewResult> | null = null;
   let heldCredentials: Promise<Credentials | null> | null = null;
+  let heldChangePassword: Promise<ChangePasswordResult> | null = null;
   const heldAuthorizations: Promise<AuthorizationResult<AgentAuthorization>>[] = [];
   const heldDecisions: Promise<AuthorizationResult<string>>[] = [];
   const backend: StubBackend = {
@@ -53,6 +59,19 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
     },
     decision: { ok: true, value: 'http://127.0.0.1:9/callback?code=x' },
     decisions: [],
+    nextChangePassword: { ok: true },
+    changePasswordCalls: [],
+    holdChangePassword() {
+      let answer: (result: ChangePasswordResult) => void = () => {};
+      heldChangePassword = new Promise<ChangePasswordResult>((resolve) => (answer = resolve));
+      return answer;
+    },
+    changePassword(current, next) {
+      backend.changePasswordCalls.push({ current, next });
+      const pending = heldChangePassword;
+      heldChangePassword = null;
+      return pending ?? Promise.resolve(backend.nextChangePassword);
+    },
     async getAuthorization() {
       return heldAuthorizations.shift() ?? backend.authorization;
     },

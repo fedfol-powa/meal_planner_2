@@ -1,5 +1,6 @@
 import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
 import type { AgentAuthorization, AuthBackend, AuthorizationFailure, AuthorizationResult, AuthUser, SignInFailure } from './backend';
+import { changePasswordWith, type SessionRead } from './passwordChangeRequests';
 
 export const AUTH_STORAGE_KEY = 'cosasimangia-auth';
 export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession'>;
@@ -25,7 +26,7 @@ const toUser = (user: { id: string; email?: string } | null | undefined): AuthUs
 export function createSupabaseBackend(
   url: string,
   publishableKey: string,
-  deps: { auth?: AuthClient; oauth?: OAuthApi; storage?: Pick<Storage, 'getItem' | 'removeItem'> } = {}
+  deps: { auth?: AuthClient; oauth?: OAuthApi; storage?: Pick<Storage, 'getItem' | 'removeItem'>; fetch?: typeof fetch } = {}
 ): AuthBackend {
   const storage = deps.storage ?? window.localStorage;
   const client = deps.auth
@@ -79,6 +80,25 @@ export function createSupabaseBackend(
           }
         }
       }
+    },
+    changePassword(current, next) {
+      return changePasswordWith(
+        {
+          url,
+          publishableKey,
+          fetch: deps.fetch ?? ((input, init) => globalThis.fetch(input, init)),
+          async readSession(): Promise<SessionRead> {
+            const { data, error } = await auth.getSession();
+            const session = data.session;
+            return {
+              error: error ?? null,
+              session: session ? { userId: session.user.id, email: session.user.email ?? '', accessToken: session.access_token } : null
+            };
+          }
+        },
+        current,
+        next
+      );
     },
     async refresh() {
       const { data, error } = await auth.refreshSession();
