@@ -60,7 +60,8 @@ Prossimi passi:
    **R15 fatto (13/10):** l'utente ha decifrato con la chiave del gestore di password; `inspect` → Worker
    `6382d9b5…`, 17 migrazioni, commit `a567c03`; ripristino locale riuscito (32 tabelle, 2 utenti, 2 identità),
    i due UID presenti. File scaricato cancellato.
-2. **R15** con l'utente in mattinata, poi **finestra il 13/10** (R18–R20 entro le 19), sempre anteprima → «vai».
+2. **Finestra del 13/10 aperta** (R18–R20 entro le 19). Impronte di avvio (vale l'ultima):
+   - **B0 = `14f1d2ab274de7df828df39fcc6d72a9`** (bootstrap, R18, 13/10 mattina; famiglia `f3eada3e-67fc-4386-b5ad-93fdb8fb91d3`).
 3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 5. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
