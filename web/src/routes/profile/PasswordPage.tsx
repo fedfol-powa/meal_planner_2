@@ -5,6 +5,7 @@ import { PASSWORD_MIN_LENGTH, validatePasswordChange, type PasswordField, type P
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { useT } from '../../i18n/LocaleProvider';
+import { trackBusy, useBusyCheck } from '../../pwa/busy';
 import { useSignOut } from '../../session/SessionScope';
 import { BackToProfile } from './BackToProfile';
 import styles from './PasswordPage.module.css';
@@ -29,6 +30,8 @@ export function PasswordPage() {
   const signOut = useSignOut();
   const online = useOnline();
   const [values, setValues] = useState(EMPTY);
+  // A form filled in and not sent is only in memory, also with the keyboard closed (spec W8).
+  useBusyCheck(() => Object.values(values).some((value) => value !== ''));
   const [fieldErrors, setFieldErrors] = useState<PasswordFieldErrors>({});
   // The reason, not the text: a change of language translates it again.
   const [failure, setFailure] = useState<ChangePasswordFailure | null>(null);
@@ -51,7 +54,7 @@ export function PasswordPage() {
     const asker = shown.current;
     sending.current = true;
     setBusy(true);
-    const result = await backend.changePassword(values.current, values.next);
+    const result = await trackBusy(backend.changePassword(values.current, values.next));
     sending.current = false;
     setBusy(false);
     // Someone else is on this device now: nothing of the previous account stays on screen.

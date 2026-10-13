@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { runMealMutation } from '../../api/mutations';
+import { trackBusy, useBusyCheck } from '../../pwa/busy';
 import { useCurrentLocale, useSession } from '../../session/SessionScope';
 import { noticesOf } from './sessionState';
 import { useMealMutation } from './useMealMutation';
@@ -37,6 +38,8 @@ export function useServingsDraft(o: Options) {
   const mounted = useRef(false);
   const latest = useRef(o);
   latest.current = o;
+  // A value waiting for its delayed save is only in memory: it keeps the page from reloading (spec W8).
+  useBusyCheck(() => pending.current !== null);
   const save = useMealMutation<{ servings: number }>('meals.setServings', o.familyId, o.weekStartsOn, ({ servings, id }) =>
     api.meals.setServings({ familyId: o.familyId, slotId: o.slotId, servings, id })
   );
@@ -94,9 +97,12 @@ export function useServingsDraft(o: Options) {
       pending.current = null;
       const { familyId, weekStartsOn, slotId, servings, online } = latest.current;
       if (value === null || value === servings || !online) return;
-      void runMealMutation({ queryClient: session.queryClient, session, currentLocale }, 'meals.setServings', familyId, weekStartsOn, () =>
-        api.meals.setServings({ familyId, slotId, servings: value, id: crypto.randomUUID() })
-      ).catch(() => notify(latest.current));
+      // Outside TanStack Query: busy until the answer is handled (spec W8).
+      void trackBusy(
+        runMealMutation({ queryClient: session.queryClient, session, currentLocale }, 'meals.setServings', familyId, weekStartsOn, () =>
+          api.meals.setServings({ familyId, slotId, servings: value, id: crypto.randomUUID() })
+        ).catch(() => notify(latest.current))
+      );
     };
     // Mount and unmount only: the latest values are read through `latest`.
     // eslint-disable-next-line react-hooks/exhaustive-deps

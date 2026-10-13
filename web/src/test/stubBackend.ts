@@ -33,6 +33,8 @@ export interface StubBackend extends AuthBackend {
   changePasswordCalls: { current: string; next: string }[];
   /** The next changePassword() waits until the returned function answers it. */
   holdChangePassword(): (result: ChangePasswordResult) => void;
+  /** The next signOut() waits until the returned function ends it. */
+  holdSignOut(): () => void;
 }
 
 /** Controllable backend for tests: identity, check result, sign-in, sign-out and renewal outcomes. */
@@ -44,6 +46,7 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
   let heldRefresh: Promise<RenewResult> | null = null;
   let heldCredentials: Promise<Credentials | null> | null = null;
   let heldChangePassword: Promise<ChangePasswordResult> | null = null;
+  let heldSignOut: Promise<void> | null = null;
   const heldAuthorizations: Promise<AuthorizationResult<AgentAuthorization>>[] = [];
   const heldDecisions: Promise<AuthorizationResult<string>>[] = [];
   const backend: StubBackend = {
@@ -127,8 +130,16 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
       if (backend.nextSignIn.ok) backend.setUser({ id: `user-${email}`, email });
       return backend.nextSignIn;
     },
+    holdSignOut() {
+      let end: () => void = () => {};
+      heldSignOut = new Promise<void>((resolve) => (end = resolve));
+      return end;
+    },
     async signOut() {
       backend.signOutCalls += 1;
+      const pending = heldSignOut;
+      heldSignOut = null;
+      if (pending) await pending;
       if (backend.signOutError) throw backend.signOutError;
       backend.setUser(null);
     },

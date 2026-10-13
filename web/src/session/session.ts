@@ -2,6 +2,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { ApiError, SessionClosedError, toApiError } from '../api/errors';
 import { clearRevoked, createPersister, createQueryClient, markRevoked, type KeyValueStore, type SessionPersister } from '../api/persister';
 import { familyOfKey, localeOfKey } from '../api/queries';
+import { trackBusy } from '../pwa/busy';
 import type { Api } from '../api/types';
 import type { RenewResult } from '../auth/backend';
 
@@ -159,7 +160,8 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       revoked.add(familyId);
       queryClient.removeQueries({ predicate: (query) => familyOfKey(query.queryKey) === familyId });
       if (userId) {
-        void markRevoked(store, userId, familyId, now());
+        // The mark keeps the family's copy off the device: busy until it is written (spec W8).
+        void trackBusy(markRevoked(store, userId, familyId, now()));
         if (announce) deps.channel?.post({ type: 'revoked', userId, familyId });
       }
       changed();

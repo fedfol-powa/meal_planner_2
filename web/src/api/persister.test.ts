@@ -2,7 +2,7 @@ import { persistQueryClientRestore, persistQueryClientSave } from '@tanstack/rea
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
 import 'fake-indexeddb/auto';
-import { cacheKey, clearRevoked, createIndexedDbStore, registerUserKeyPrefix, resetUserKeyPrefixes, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
+import { CACHE_SCHEMA, cacheKey, clearRevoked, createIndexedDbStore, registerUserKeyPrefix, resetUserKeyPrefixes, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
 
 const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
 const options = (buster: string) => persistOptions(createPersister(createMemoryStore(), 'x'), buster).dehydrateOptions;
@@ -113,6 +113,30 @@ describe('persister', () => {
     expect(retry(0, new ApiError('not_found'))).toBe(false);
     await client.fetchQuery({ queryKey: week, queryFn: () => Promise.reject(new ApiError('forbidden')) }).catch(() => undefined);
     expect(onError).toHaveBeenCalledWith(new ApiError('forbidden'), { queryKey: week, familyId: 'f' });
+  });
+  it('keeps the copy across builds: the buster is the shape of the data (spec W8)', async () => {
+    const { store } = await saved(createMemoryStore(), CACHE_SCHEMA);
+    const after = createQueryClient();
+    await persistQueryClientRestore({ queryClient: after, persister: createPersister(store, 'user-a'), buster: CACHE_SCHEMA });
+    expect(after.getQueryData(week)).toEqual({ version: 'v1', data: 'week' });
+  });
+  it('restores a copy saved before W8, whose buster is the build date, as schema 1', async () => {
+    const { store } = await saved(createMemoryStore(), '2026-10-13T08:12:30.123Z');
+    const after = createQueryClient();
+    await persistQueryClientRestore({ queryClient: after, persister: createPersister(store, 'user-a'), buster: '1' });
+    expect(after.getQueryData(week)).toEqual({ version: 'v1', data: 'week' });
+  });
+  it('drops a pre-W8 copy once the schema is 2: no migration', async () => {
+    const { store } = await saved(createMemoryStore(), '2026-10-13T08:12:30.123Z');
+    const after = createQueryClient();
+    await persistQueryClientRestore({ queryClient: after, persister: createPersister(store, 'user-a'), buster: '2' });
+    expect(after.getQueryData(week)).toBeUndefined();
+  });
+  it('drops a copy of another schema', async () => {
+    const { store } = await saved(createMemoryStore(), '0');
+    const after = createQueryClient();
+    await persistQueryClientRestore({ queryClient: after, persister: createPersister(store, 'user-a'), buster: CACHE_SCHEMA });
+    expect(after.getQueryData(week)).toBeUndefined();
   });
 });
 

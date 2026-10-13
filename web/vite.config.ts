@@ -3,20 +3,25 @@ import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { precacheList } from './src/pwa/precache.ts';
+import { injectPrecache, precacheList } from './src/pwa/precache.ts';
 
-// One value per build: cache names of the service worker and buster of the persisted query cache.
+// One value per build: cache names, the version checked at install and the build of sw.js.
 const buildVersion = new Date().toISOString();
 const fontsDir = fileURLToPath(new URL('./public/assets/fonts', import.meta.url));
 
-/** Emits /precache.json: the shell the service worker installs as a whole (review, finding 7). */
-function precacheManifest(): Plugin {
+/**
+ * The worker and the page carry their build (spec W8): sw.js gets the list of files it installs,
+ * index.html its version, which the worker checks at install. No /precache.json any more.
+ */
+function pwaBuild(): Plugin {
   return {
-    name: 'precache-manifest',
+    name: 'pwa-build',
     apply: 'build',
+    transformIndexHtml: () => [{ tag: 'meta', attrs: { name: 'app-version', content: buildVersion }, injectTo: 'head' }],
     generateBundle(_options, bundle) {
-      const fonts = readdirSync(fontsDir);
-      this.emitFile({ type: 'asset', fileName: 'precache.json', source: JSON.stringify(precacheList(Object.keys(bundle), fonts)) });
+      const worker = bundle['sw.js'];
+      if (!worker || worker.type !== 'chunk') return this.error('sw.js is missing from the bundle');
+      worker.code = injectPrecache(worker.code, precacheList(Object.keys(bundle), readdirSync(fontsDir)));
     }
   };
 }
@@ -26,7 +31,7 @@ export default defineConfig(({ mode }) => {
   const apiTarget = loadEnv(mode, process.cwd(), 'VITE_').VITE_API_TARGET ?? 'http://localhost:8787';
   const proxy = { '/api': { target: apiTarget, changeOrigin: true } };
   return {
-    plugins: [react(), precacheManifest()],
+    plugins: [react(), pwaBuild()],
     define: {
       __BUILD_VERSION__: JSON.stringify(buildVersion),
       // «Collega un agente» shows `${origin}/mcp`: in production the Worker serves SPA and /mcp on one

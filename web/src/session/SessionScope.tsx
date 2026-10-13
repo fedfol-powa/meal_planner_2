@@ -4,19 +4,19 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ApiProvider } from '../api/ApiProvider';
 import { toApiError } from '../api/errors';
 import { runAreaMutation } from '../api/mutations';
-import { persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
+import { CACHE_SCHEMA, persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
 import { profileQuery } from '../api/profile';
 import { useQueryDeps } from '../api/queries';
 import type { Api, ProfileView } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
-import { env } from '../env';
 import { useLocale } from '../i18n/LocaleProvider';
 import { isOnline } from '../lib/connectivity';
 import { initialLocale, type Locale } from '../i18n/translate';
 import type { SessionChannel } from './channel';
 import { clearPreference, readPreference, userScope, writePreference } from './localePreference';
 import { createSession, persisterOf, wrapApi, type Session } from './session';
+import { trackBusy, useBusyCheck } from '../pwa/busy';
 
 /**
  * Called once per session, then once per language: the clients share what the session knows
@@ -164,8 +164,10 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
       const client = clients(localeRef.current);
       if (!identity || !session || !client || !isOnline()) return temporary();
       try {
-        const { view: saved, applied } = await runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
-          client.profile.update({ locale: next })
+        const { view: saved, applied } = await trackBusy(
+          runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
+            client.profile.update({ locale: next })
+          )
         );
         // A superseded answer changes neither the language nor the copies of the profile (PR #21 review, finding 3).
         if (!applied) return;
@@ -190,6 +192,8 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     () => (session ? { session, signOut, chooseLocale, currentLocale } : null),
     [session, signOut, chooseLocale, currentLocale]
   );
+  // A write in flight keeps the page from reloading into a new version (spec W8).
+  useBusyCheck(() => (session ? session.queryClient.isMutating() > 0 : false));
   if (!session || !api || !value) return null;
 
   const content = (
@@ -203,7 +207,7 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
   const persister = persisterOf(session);
   if (!persister) return <QueryClientProvider client={session.queryClient}>{content}</QueryClientProvider>;
   return (
-    <PersistQueryClientProvider key={identity ?? ''} client={session.queryClient} persistOptions={persistOptions(persister, env.buildVersion)}>
+    <PersistQueryClientProvider key={identity ?? ''} client={session.queryClient} persistOptions={persistOptions(persister, CACHE_SCHEMA)}>
       {content}
     </PersistQueryClientProvider>
   );

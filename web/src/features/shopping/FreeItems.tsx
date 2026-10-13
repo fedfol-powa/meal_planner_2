@@ -1,6 +1,7 @@
 import type { FreeItemView } from '@app/contract';
 import { useState, type FormEvent } from 'react';
 import { useT } from '../../i18n/LocaleProvider';
+import { useBusyCheck } from '../../pwa/busy';
 import styles from './ShoppingPage.module.css';
 
 /** Same rule as the server (contract `normalizeFreeItemText`): trimmed, inner spaces collapsed, 1-60 characters. */
@@ -22,6 +23,8 @@ interface Props {
 export function FreeItems({ items, pending, onToggle, onRemove, onAdd }: Props) {
   const t = useT();
   const [text, setText] = useState('');
+  // A typed item not added yet is only in memory, also with the keyboard closed (spec W8).
+  useBusyCheck(() => text.trim() !== '');
   function submit(event: FormEvent) {
     event.preventDefault();
     const clean = cleanFreeItemText(text);

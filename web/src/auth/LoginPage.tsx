@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useT } from '../i18n/LocaleProvider';
+import { trackBusy } from '../pwa/busy';
 import { useAuth } from './AuthProvider';
 import type { SignInFailure } from './backend';
 
@@ -12,14 +13,19 @@ export function LoginPage() {
   const [failure, setFailure] = useState<SignInFailure | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
-    setBusy(true);
-    setFailure(null);
-    const result = await backend.signIn(email.trim(), password);
-    setBusy(false);
-    // On success the session changes and the route guard redirects to the requested page.
-    if (!result.ok) setFailure(result.reason);
+    // Busy until the answer is handled (spec W8).
+    void trackBusy(
+      (async () => {
+        setBusy(true);
+        setFailure(null);
+        const result = await backend.signIn(email.trim(), password);
+        setBusy(false);
+        // On success the session changes and the route guard redirects to the requested page.
+        if (!result.ok) setFailure(result.reason);
+      })()
+    );
   }
 
   return (
