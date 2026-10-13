@@ -1,6 +1,7 @@
+import { AuthClient } from '@supabase/supabase-js';
 import postgres from 'postgres';
 import { sessionIdOf as readSessionId } from '../auth/passwordChangeRequests';
-import { createAuthClient, createSupabaseBackend } from '../auth/supabaseBackend';
+import { AUTH_OPTIONS, createSupabaseBackend } from '../auth/supabaseBackend';
 
 /** The local stack, from scripts/password/password-stack.sh; null outside it (suites skip). */
 const url = process.env.STACK_SUPABASE_URL;
@@ -14,12 +15,21 @@ export interface StackPerson { email: string; id: string; session: { access_toke
 
 export const sessionIdOf = (accessToken: string): string => readSessionId(accessToken)!;
 
+/**
+ * The Auth client of the fixtures: the app's options and the headers supabase-js gives its own
+ * Auth client, without the rest of createClient (Realtime's socket would leave listeners on
+ * window that dispose() cannot reach). Disposed after each test.
+ */
+export function createTestAuthClient(base: string, apikey: string) {
+  return new AuthClient({ url: `${base}/auth/v1`, headers: { Authorization: `Bearer ${apikey}`, apikey }, ...AUTH_OPTIONS });
+}
+
 export function createStack() {
   if (!stack) throw new Error('No local stack');
   const { url: base, key: apikey, db: dbUrl } = stack;
   const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
   const created: string[] = [];
-  const clients: ReturnType<typeof createAuthClient>[] = [];
+  const clients: ReturnType<typeof createTestAuthClient>[] = [];
   const headers = { apikey, 'content-type': 'application/json' };
   const post = (path: string, body: object, token?: string) =>
     fetch(`${base}/auth/v1${path}`, { method: 'POST', headers: token ? { ...headers, authorization: `Bearer ${token}` } : headers, body: JSON.stringify(body) });
@@ -28,7 +38,7 @@ export function createStack() {
     sql,
     /** The app's real backend on this device's storage; its Auth client goes with `disposeClients`. */
     backend(options: { fetch?: typeof fetch } = {}) {
-      const auth = createAuthClient(base, apikey);
+      const auth = createTestAuthClient(base, apikey);
       clients.push(auth);
       return createSupabaseBackend(base, apikey, { auth, oauth: auth.oauth, storage: localStorage, ...options });
     },

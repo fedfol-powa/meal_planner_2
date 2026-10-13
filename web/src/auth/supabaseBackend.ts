@@ -22,12 +22,8 @@ export function signInFailure(error: { code?: string; status?: number; name?: st
 const toUser = (user: { id: string; email?: string } | null | undefined): AuthUser | null =>
   user ? { id: user.id, email: user.email ?? '' } : null;
 
-/** The app's Auth client: the session stored under AUTH_STORAGE_KEY and renewed by the library. */
-export function createAuthClient(url: string, publishableKey: string) {
-  return createClient(url, publishableKey, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY }
-  }).auth;
-}
+/** The app's Auth options: the session stored under AUTH_STORAGE_KEY and renewed by the library. */
+export const AUTH_OPTIONS = { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY };
 
 /** Email and password only (spec: link and Google come in wave 3). The library keeps and renews the session. */
 export function createSupabaseBackend(
@@ -36,9 +32,9 @@ export function createSupabaseBackend(
   deps: { auth?: AuthClient; oauth?: OAuthApi; storage?: Pick<Storage, 'getItem' | 'removeItem'>; fetch?: typeof fetch } = {}
 ): AuthBackend {
   const storage = deps.storage ?? window.localStorage;
-  const client = deps.auth ? null : createAuthClient(url, publishableKey);
-  const auth: AuthClient = deps.auth ?? client!;
-  const oauth: OAuthApi | null = deps.oauth ?? client?.oauth ?? null;
+  const client = deps.auth ? null : createClient(url, publishableKey, { auth: AUTH_OPTIONS });
+  const auth: AuthClient = deps.auth ?? client!.auth;
+  const oauth: OAuthApi | null = deps.oauth ?? client?.auth.oauth ?? null;
 
   // Offline with an expired token the library keeps the stored session but reports no session.
   const storedUser = (): AuthUser | null => {

@@ -387,10 +387,16 @@ mappatura di `current_password_mismatch` è già coperta dai test.
 degli agenti). Ogni prova crea un utente suo con la registrazione (iscrizioni locali accese),
 **usa la sessione della registrazione come sessione del dispositivo**, chiude
 esplicitamente ogni altro accesso che apre e alla fine cancella gli utenti creati. Il
-backend di ogni prova nasce dalla fixture (`env.backend()`, client Auth costruito con
-`createAuthClient`, lo stesso dell'app) e dopo ogni prova il suo client è smaltito
-(`auth.dispose()`: ascoltatori e rinnovo automatico), prima che l'archivio venga riusato;
-nella suite della pagina prima si smonta l'app, poi si smaltisce il client. Le
+backend di ogni prova nasce dalla fixture (`env.backend()`) con un client **solo Auth**
+(`AuthClient` riesportato da `@supabase/supabase-js`, con le opzioni dell'app,
+`AUTH_OPTIONS`, e le intestazioni `apikey` e `Authorization` che supabase-js dà al proprio
+client Auth): un client completo creerebbe anche il socket di Realtime, i cui ascoltatori
+su `window` (`visibilitychange`, `pagehide`, `pageshow`) `dispose()` non rimuove (seconda
+review della PR #41). Dopo ogni prova il client è smaltito (`auth.dispose()`: ascoltatori e
+rinnovo automatico), prima che l'archivio venga riusato; nella suite della pagina prima si
+smonta l'app, poi si smaltisce il client. `stack.test.ts`, fuori dallo stack, ripete tre
+volte creazione → inizializzazione → smaltimento e verifica che su `window` e `document`
+non resti alcun ascoltatore. Il client dell'app resta quello di `createClient`. Le
 sessioni si confrontano per id (`session_id` dei token), non solo per numero:
 
 - cambio riuscito: la nuova entra, la vecchia no; in `auth.sessions` resta esattamente la
