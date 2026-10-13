@@ -28,7 +28,37 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 ## Prossima azione del coordinatore
 
-Aggiornato il 12 ottobre 2026, notte. **Fase 1 della messa in produzione quasi completa.** main verde, nessuna PR aperta.
+**Aggiornato il 13 ottobre 2026 sera, prima di un /clear chiesto dall'utente. Si riparte da qui.**
+
+1. **Prossimo lavoro: ondata 3** (decisione dell'utente del 13/10). L'utente vuole aggiungere un'altra
+   persona che si crea la propria famiglia: ha preferito non usare il `bootstrap` a mano (possibile
+   senza sviluppo, `prod-sql.ts bootstrap` senza `--launch`) e procedere con l'ondata 3. Perimetro nel
+   piano generale, «Ondata 3: prodotto». Primo passo: proporre all'utente l'ordine dell'ondata 3 e le
+   dipendenze (inviti che creano l'account con iscrizioni spente, Resend e dominio, creazione delle
+   famiglie dagli utenti, amministrazione dell'app #38, wizard…), con la mappa produttore→consumatore
+   prima di lanciare worker; limite di un worker Claude, revisori Codex senza limite; solito giro.
+2. **PR della specifica W7/W8 in preparazione** da un sottoagente del coordinatore (branch
+   `traguardo/specifica-w7-w8`, worktree in `.claude/worktrees/`): riporta nella specifica principale e
+   nelle «Interfacce decise» del piano generale le decisioni di `specs/2026-10-13-cambio-password.md` e
+   `specs/2026-10-13-aggiornamento-pwa.md`. Se dopo il /clear la PR esiste: revisione Codex, poi
+   **«mergia» esplicito dell'utente** (PR scritta dal coordinatore), poi rimuovere il worktree. Se non
+   esiste o è incompleta, rifarla.
+3. **#42 aperta:** verificare al prossimo rilascio il passaggio automatico al ritorno in primo piano
+   sull'iPhone. Il primo passaggio dalla versione vecchia non è avvenuto con due aperture: l'utente ha
+   dovuto togliere l'app, cancellare i dati di `qunidi.workers.dev` (Impostazioni › Safari › Avanzate)
+   e riaggiungerla. Chicca probabilmente deve fare lo stesso.
+4. **#37 chiusa:** cambio della password provato dall'utente in produzione. Produzione: «Secure password
+   change» spento, «Require current password when updating» acceso (13/10). Versione attiva
+   `759ce4d6-cd15-455d-8095-668f379848c9` (commit e7423c0); rollback `63f09c03…`.
+5. **Giovedì 15/10 (R23)**, prima che la famiglia apra il menu: `node scripts/prod-sql.ts --preview
+   check-first-generation --set family_id=f3eada3e-67fc-4386-b5ad-93fdb8fb91d3 --set
+   week_start=2026-10-19`, atteso `cron_generated = t`; la notte dopo controllare l'esportazione più
+   grande; esito in `server/README.md` e qui; poi collaudo completo con la famiglia.
+6. Regole: PR scritte dal coordinatore o da suoi sottoagenti solo con «mergia» dell'utente; PR dei
+   worker con revisione chiusa e CI verde le unisce il coordinatore. Produzione sempre anteprima →
+   «vai» → applicazione. R26 (rotazione password) rimandato dall'utente.
+
+### Storico della fase 1 (12–13/10)
 
 Stato della fase 1 (runbook in `progetto/superpowers/plans/2026-10-11-messa-in-produzione.md`):
 
