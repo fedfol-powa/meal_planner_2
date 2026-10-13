@@ -1,13 +1,15 @@
 # Piano generale dell'implementazione
 
 Creato: 11 ottobre 2026
-Ultimo aggiornamento: 11 ottobre 2026
-Stato: approvato dall'utente l'11 ottobre 2026; ondata 1 avviata.
+Ultimo aggiornamento: 13 ottobre 2026
+Stato: approvato dall'utente l'11 ottobre 2026; ondate 1 e 2 completate, traguardo A in
+produzione dal 12–13 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; ondata 3
+avviata il 13 ottobre 2026.
 
 Coordina il lavoro dalla fine del prototipo all'app funzionante. Sostituisce la tabella
-delle fasi della specifica, sezione 10 (da riscrivere a fine ondata 1 con questo
-schema), e il piano M1a del 29 settembre. Ogni attività ha la sua spec di dettaglio e
-il suo piano, che rimandano alla specifica principale e restano subordinati a essa.
+delle fasi della specifica, sezione 10, e il piano M1a del 29 settembre. Ogni attività
+ha la sua spec di dettaglio e il suo piano, che rimandano alla specifica principale e
+restano subordinati a essa.
 
 ## Obiettivo
 
@@ -63,13 +65,38 @@ test. Ordine e parallelismo si fissano a fine ondata 1.
 
 ### Ondata 3: prodotto
 
-Inviti familiari e all'app (l'invito crea l'account; il link nell'email serve solo a
-scegliere la password), recupero della password via email, wizard, Resend e dominio
-`cosasimangia.qunidi.it`, accesso con Google facoltativo solo dopo due verifiche
+Inviti familiari e all'app (l'invito crea l'account; prima della verifica del dominio
+di invio la password si sceglie sulla pagina dell'invito, senza email; dopo l'attività D
+il link nell'email serve solo a scegliere la password), wizard; subordinati al DNS di
+`qunidi.it`: dominio di invio `cosasimangia.qunidi.it` con Resend, recupero della
+password via email, email operative di job ed esportazione (l'app resta su
+`workers.dev`; un suo trasferimento sul dominio non è nell'ondata 3 e richiederà una
+decisione distinta); accesso con Google facoltativo solo dopo due verifiche
 sull'iPhone con l'app installata (ritorno della sessione nella PWA dopo il redirect
 OAuth, collegamento dell'identità Google con le iscrizioni spente), amministrazione dell'app, ripristino dell'intero catalogo,
 Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del
 ricettario (ultima priorità), giudice AI opzionale.
+
+### Ordine dell'ondata 3 (approvato dall'utente il 13 ottobre 2026)
+
+Primo obiettivo: una persona nuova riceve un invito all'app, ottiene l'account e si crea la
+propria famiglia. Un solo worker Claude alla volta, revisori Codex senza limite, solito
+metodo. Finché il DNS di `qunidi.it` non si può modificare, niente email (specifica,
+sezione 7, «Prima della verifica del dominio di invio»): il flusso da implementare in A
+è quello senza email.
+
+| # | Attività | Contenuto | Usa | Produce per |
+|---|---|---|---|---|
+| A | Inviti all'app e famiglie nuove | `app_invitations` e operazioni (anche MCP); pagina `/invite/app/<token>` con email e password, account creato dal server già confermato, poi accesso con email e password nella stessa pagina (se fallisce dopo la creazione, la pagina lo dice e porta all'accesso normale: l'account esiste e l'invito risulta usato); primo accesso (nome); wizard «Crea la tua famiglia» e «Crea un'altra famiglia»; `/admin` con la sola sezione Inviti | profilo e famiglia (ondata 2) | B, C |
+| B | Amministrazione utenti e ruoli (#38) | `/admin` Utenti: ricerca, ruoli curatore e amministratore, ultimo amministratore protetto; MCP | scheletro di `/admin` e controlli `app_admin` di A | — |
+| C | Gestione della famiglia | inviti alla famiglia (`family_invitations`, `family_removals`, `/invite/<token>`), rimozione, uscita con successore, ruoli, eliminazione della famiglia, cancellazione dell'account | creazione dell'account da invito di A | — |
+| D | Dominio di invio ed email | record DNS in `qunidi.it` (dominio già aggiunto in Resend, `eu-west-1`), SMTP personalizzato di Supabase Auth, link della password via email, «password dimenticata», email operative di job ed esportazione (sezioni 4 e 8 della specifica) | DNS modificabile (passo esterno dell'utente) | — |
+| E | Resto dell'ondata | Per esempio: Google, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della singola ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, «rigenera», modulo manuale del ricettario, giudice AI, foto (#39). Elenco esemplificativo: il perimetro completo è nella sezione 10 della specifica | — | — |
+
+B e C partono solo dopo il merge di A, con le interfacce di A registrate in «Interfacce
+decise». D resta bloccata finché il DNS di `qunidi.it` non si può modificare; E, come B
+e C, procede intanto senza aspettarla. Fino a C la scheda dopo la prima generazione
+mostra solo «Sistema le impostazioni» (decisione del coordinatore del 13 ottobre 2026).
 
 ### Ordine dell'ondata 2 (approvato dall'utente l'11 ottobre 2026)
 
@@ -142,20 +169,20 @@ solo il coordinatore.
 - **Campi bilingui (decisione dell'utente, 11/10):** colonne jsonb `{it-IT, en-GB}` validate da zod e da vincoli check al posto delle tabelle `*_translations`, per ricette, ingredienti e righe di ingrediente. Da riportare nelle sezioni 2, 12 e 15 della specifica.
 - **Test del server (W1, 11/10):** Vitest in Node chiamando la `fetch` del Worker con un env finto (Postgres locale, chiavi JWT generate nel test); ciò che Node non copre si verifica con `wrangler dev` e sul Worker pubblicato.
 - **Ruoli Postgres (W1 ↔ W2, 11/10):** un solo login `app_server` (NOINHERIT, membro di `authenticated`, `anon`, `app_job`); ogni transazione sceglie il ruolo: utente → `authenticated` con i claim, `/internal/jobs/*` → `app_job`, pagina Bring! → `anon` tramite funzione per token. Password impostata a mano sul progetto, fuori dalle migrazioni.
-- **Login (W5, 11/10; aggiornato il 13/10 per decisione dell'utente):** email e password (`signInWithPassword`) come accesso permanente, non provvisorio: la PWA installata sull'iPhone non condivide la sessione con Safari. Nell'ondata 3 il link nell'email serve solo a scegliere o recuperare la password, mai a entrare; Google facoltativo solo dopo le due verifiche (ritorno della sessione nella PWA installata dopo il redirect OAuth, collegamento dell'identità Google con le iscrizioni spente). Sviluppo con lo stack Supabase locale (`supabase start`), configurazione degli ambienti di W1; senza variabili l'app parte in modalità finta.
+- **Login (W5, 11/10; aggiornato il 13/10 per decisione dell'utente):** email e password (`signInWithPassword`) come accesso permanente, non provvisorio: la PWA installata sull'iPhone non condivide la sessione con Safari. Nell'ondata 3, prima della verifica del dominio di invio, la password si sceglie sulla pagina dell'invito senza email e la pagina fa entrare subito con email e password (attività A); dopo l'attività D il link nell'email serve solo a scegliere o recuperare la password, mai a entrare; Google facoltativo solo dopo le due verifiche (ritorno della sessione nella PWA installata dopo il redirect OAuth, collegamento dell'identità Google con le iscrizioni spente). Sviluppo con lo stack Supabase locale (`supabase start`), configurazione degli ambienti di W1; senza variabili l'app parte in modalità finta.
 - **Import, casi R4 (W3, 11/10, decisi dal coordinatore):** ricette collaudate senza storico registrate come provate senza data nei dati della famiglia e nel report, nessun pasto inventato; ricette «casa» con URL importate come `web` con l'URL, tipo d'origine conservato e segnalato; storico `cucinata: false` non importato, `null` in settimane concluse importato come mangiato e segnalato, `null` in settimane in corso non importato, giorni o pasti non riconosciuti scartati e segnalati.
 - **Misure imperiali (W4, 11/10, decise dal coordinatore, confermate dall'utente l'11/10):** sotto ½ oz si resta in grammi; ½ oz fino a 4 oz, oncia intera fino a 1 lb, poi ¼ di lb; fino a 45 ml cucchiai di misura da 5 e 15 ml, poi fl oz, da 1 pinta al ¼ di pinta; fattori del Weights and Measures Act 1985; nella spesa piece, bunch e slice per eccesso all'intero (tolleranza 0,1), clove, sprig, leaf e pinch al mezzo.
 - **Risposta «invariato» (W1, 11/10):** dentro il contratto, non HTTP 304: input con `knownVersion` facoltativo, output `{unchanged: true, version}` oppure `{unchanged: false, version, data}`. Da riportare nella sezione 1 al posto di «HTTP 304 con ETag».
 - **Dati di revisione dell'import (W3, 11/10):** YAML versionati in `scripts/import/` (`ingredients.yaml`, `ingredient-lines.yaml`, `translations.en-GB.yaml`) preparati dall'agente dalle righe d'origine; tabella di revisione come pagina per l'utente; approvazione con una riga di intestazione. Preparazione facoltativa ma, se presente, obbligatoria nelle due lingue per pubblicare (sezione 8).
 - **Reparti e spunte (W4 → W2, W3, W1, 11/10):** codici dei reparti in `domain/src/shopping/departments.ts`: `produce, butcher, fish, chilled, bakery, pasta_grains, tinned, frozen, condiments, other`. `quantity_at_check` in forma canonica `{mass_g, volume_ml, counts:{unit:n}, texts:[{key, text:{it-IT,en-GB}}], to_taste}` (testi bilingui del momento della spunta, dalla review di W4) con schema zod esportato dal dominio.
-- **PWA (W5, 11/10):** service worker scritto a mano (navigazioni dalla rete con ripiego su `index.html`, `/assets/*` dalla cache, `/api/*` esclusa), manifest statico, nessun plugin.
+- **PWA (W5, 11/10; W8, 13/10):** service worker scritto a mano (navigazioni dalla shell installata della versione attiva, rete solo se manca dalla cache, `/assets/*` dalla cache, `/api/*` esclusa), manifest statico, nessun plugin. Dal 13/10 (W8, spec `2026-10-13-aggiornamento-pwa.md`) le navigazioni non vengono più dalla rete con ripiego su `index.html`: elenco dei file e versione dentro `sw.js`, verificata con `<meta name="app-version">` di `index.html` all'installazione, `skipWaiting()` dopo un precache completo, ricaricamento della pagina quando la versione del worker attivo è diversa dalla sua, solo se libera, visibile e non toccata; scritture fuori da TanStack Query e bozze solo in memoria registrate come «occupata» (`trackBusy`, `useBusyCheck`).
 - **Contatori di versione (W1 ↔ W2, 11/10):** fatti crescere da trigger nel database (per riga, con incremento deduplicato: al massimo una volta per transazione, sulla famiglia della riga o sul ricettario); la versione restituita compone i contatori da cui la lettura dipende, la lingua e la versione del Worker; ogni operazione dichiara nei metadati da cosa legge.
 - **Tabelle dell'ondata 3 (W2, 11/10):** rimandate (`family_invitations`, `family_removals`, `app_invitations`, `agent_authorizations`); la spec di W2 indica i punti di aggancio.
 - **Client web (W5 ↔ W1, 11/10):** oggetto `api` annidato per area fornito da un contesto React, chiavi `[area, operazione, input]` e `queryOptions` scritte a mano (niente `@orpc/tanstack-query` per ora), token da `supabase-js` tramite `getAccessToken()` passato al link oRPC, «invariato» gestito dallo strato delle query, build in `web/dist` servita dal Worker come asset con ripiego su `index.html`.
 - **Attributi del pianificatore (decisione dell'utente, 11/10):** obbligatori per pubblicare (`meal_type`, `protein_group`, `carbohydrate_group`, `category`, `is_fresh_fish`, `has_vegetables`, `is_heavy`); facoltativi `seasons` e ingrediente principale. Supera la decisione del quinto giro sul gruppo alimentare facoltativo (sezione 8).
 - **Idempotenza (W1 ↔ W2, 11/10):** id generato dal client per le creazioni e operazioni a stato assoluto (per esempio `setChecked` con `checked: true`, non un'inversione); nello schema chiavi naturali univoche dove si crea una riga, nessuna tabella generica delle ricevute.
 - **Pubblicazione del Worker (W1, 11/10):** per ora a mano con `wrangler deploy` dal coordinatore dopo il merge, per rimandare i passi esterni; automazione (preferibilmente GitHub Actions con deploy solo a test verdi) prima del traguardo A. CI su ogni PR con typecheck e test, migrazioni applicate dall'integrazione GitHub di Supabase al merge su `main` (da verificare).
-- **Cache persistita (W5, 11/10):** `@tanstack/react-query-persist-client` con persister IndexedDB scritto a mano, copia per utente cancellata all'uscita, `buster` sulla versione della build, `maxAge` 7 giorni, rilettura al ritorno in primo piano e alla riconnessione.
+- **Cache persistita (W5, 11/10):** `@tanstack/react-query-persist-client` con persister IndexedDB scritto a mano, copia per utente cancellata all'uscita, `buster` sulla costante `CACHE_SCHEMA` (W8, 13/10, al posto della versione della build: la copia sopravvive agli aggiornamenti dell'app; si cambia solo con una modifica incompatibile dei dati salvati o delle chiavi delle query, specifica sezione 1), `maxAge` 7 giorni, rilettura al ritorno in primo piano e alla riconnessione.
 - **Documento ricetta (W3, 11/10):** schema zod strutturale per le bozze più funzioni di controllo a codici e percorsi (`ValidationIssue[]`), schema stretto per il pubblicato; campi della fonte piatti con regole per tipo nei controlli; tag, foto, stato e date fuori dal documento; identità d'origine in una colonna di `recipes`; `projectRecipe` e `toPlannerRecipe`; import senza scritture sul database, con `bundle.json`, `report.md` e `review.html` rigenerabili. Gli ingredienti di dispensa esclusi dall'origine non si aggiungono: li elenca il report.
 - **Test del web (W5, 11/10):** Vitest con `@testing-library/react` e `jsdom` solo in sviluppo; prova visiva con agent-browser e iPhone sulla porta 8767.
 - **Rischio da verificare prima del merge di W2:** l'integrazione GitHub di Supabase potrebbe applicare le migrazioni al progetto remoto al merge su `main`; W1 lo verifica nella configurazione prima che la PR dello schema venga unita.
@@ -240,3 +267,6 @@ solo il coordinatore.
 | 12 ottobre 2026 | Messa in produzione, correzioni della #34 (spec e piano 9fa2813): `scripts/prod-sql.ts` con lista chiusa di script letti da `git show HEAD:`; `bootstrap.sql` riceve i dati da `--set` (W6 lo modifica); `remove-family.sql` esce: nella finestra di avvio il ritiro è l'azzeramento, catalogo ricaricato nella finestra successiva (sostituisce la decisione dell'11/10 sulla rimozione della famiglia); prova del primo cron con `weeks.generated_at = weekly_jobs.updated_at` più la finestra mercoledì 20–21; iscrizioni spente verificate con `/auth/v1/settings` |
 | 12 ottobre 2026 | Unita la PR #34 (strumenti della messa in produzione: caricamento, `npm run release`, `scripts/prod-sql.ts`, test distruttivi, runbook) dopo tre giri di review. Fermo prima di qualsiasi passo in produzione su richiesta dell'utente |
 | 13 ottobre 2026 | Decisioni della messa in produzione riportate nella specifica principale (Parte 1 e sezioni 1, 2, 7, 8, 9, 10, 11, 13, 14, 15 e 16), con l'esito del lancio (traguardo A in produzione su `cosasimangia.qunidi.workers.dev`, famiglia avviata e agenti collegati il 13/10, rotazione delle password rimandata) e le decisioni dell'utente su accesso e inviti: email e password come accesso principale anche dopo il traguardo A (la PWA installata sull'iPhone non condivide la sessione con Safari), account creato dal server all'accettazione di un invito con il link nell'email solo per scegliere la password, recupero della password via email, Google facoltativo dopo una prova sull'iPhone, iscrizioni libere che restano spente, #37 ad alta priorità; citate le issue #37–#39. Branch `traguardo/specifica-produzione` |
+| 13 ottobre 2026 | Decisioni di W7 (cambio della password, PR #41, rilasciato il 13/10 e provato dall'utente sull'iPhone; «Secure password change» spento e «Require current password when updating» acceso in produzione) e di W8 (aggiornamento della PWA, PR #43, rilasciato il 13/10 con la versione `759ce4d6`) riportate nella specifica principale (Parte 1 e sezioni 1, 6, 7, 9, 10, 13, 15 e 16) e nelle interfacce «PWA» e «Cache persistita»: navigazioni dalla shell installata e `CACHE_SCHEMA` al posto della versione della build. Il passaggio automatico fra versioni resta da verificare al prossimo rilascio; #42 aperta fino ad allora |
+| 13 ottobre 2026 | L'utente approva l'ordine dell'ondata 3 (A inviti all'app e famiglie nuove, B amministrazione #38, C gestione della famiglia, D dominio di invio, E resto) e sceglie, finché il DNS di `qunidi.it` non si può modificare, inviti all'app senza email con la password scelta sulla pagina dell'invito; l'app resta su `workers.dev` |
+| 13 ottobre 2026 | Revisione della PR #44 (specifica di W7 e W8): flusso senza email di A distinto da quello dopo l'attività D, dominio di invio separato dall'origine dell'app (trasferimento dell'app fuori dall'ondata 3), perimetro di D ed E completato. Decisioni del coordinatore: in A accesso nella stessa pagina dopo la creazione dell'account, con ripiego sull'accesso normale; scheda dopo la prima generazione solo con «Sistema le impostazioni» fino a C; E, B e C procedono mentre D è bloccata dal DNS |
