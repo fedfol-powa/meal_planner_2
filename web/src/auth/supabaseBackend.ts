@@ -1,5 +1,6 @@
 import { createClient, isAuthRetryableFetchError, type SupabaseClient } from '@supabase/supabase-js';
 import type { AgentAuthorization, AuthBackend, AuthorizationFailure, AuthorizationResult, AuthUser, SignInFailure } from './backend';
+import { changePasswordWith, sessionIdOf, type SessionRead } from './passwordChangeRequests';
 
 export const AUTH_STORAGE_KEY = 'cosasimangia-auth';
 export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession'>;
@@ -21,18 +22,17 @@ export function signInFailure(error: { code?: string; status?: number; name?: st
 const toUser = (user: { id: string; email?: string } | null | undefined): AuthUser | null =>
   user ? { id: user.id, email: user.email ?? '' } : null;
 
+/** The app's Auth options: the session stored under AUTH_STORAGE_KEY and renewed by the library. */
+export const AUTH_OPTIONS = { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY };
+
 /** Email and password only (spec: link and Google come in wave 3). The library keeps and renews the session. */
 export function createSupabaseBackend(
   url: string,
   publishableKey: string,
-  deps: { auth?: AuthClient; oauth?: OAuthApi; storage?: Pick<Storage, 'getItem' | 'removeItem'> } = {}
+  deps: { auth?: AuthClient; oauth?: OAuthApi; storage?: Pick<Storage, 'getItem' | 'removeItem'>; fetch?: typeof fetch } = {}
 ): AuthBackend {
   const storage = deps.storage ?? window.localStorage;
-  const client = deps.auth
-    ? null
-    : createClient(url, publishableKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: AUTH_STORAGE_KEY }
-      });
+  const client = deps.auth ? null : createClient(url, publishableKey, { auth: AUTH_OPTIONS });
   const auth: AuthClient = deps.auth ?? client!.auth;
   const oauth: OAuthApi | null = deps.oauth ?? client?.auth.oauth ?? null;
 
@@ -79,6 +79,27 @@ export function createSupabaseBackend(
           }
         }
       }
+    },
+    changePassword(current, next) {
+      return changePasswordWith(
+        {
+          url,
+          publishableKey,
+          fetch: deps.fetch ?? ((input, init) => globalThis.fetch(input, init)),
+          async readSession(): Promise<SessionRead> {
+            const { data, error } = await auth.getSession();
+            const session = data.session;
+            // A token without its session id cannot be bound to the change: no usable session.
+            const sessionId = session ? sessionIdOf(session.access_token) : null;
+            return {
+              error: error ?? null,
+              session: session && sessionId ? { userId: session.user.id, sessionId, email: session.user.email ?? '', accessToken: session.access_token } : null
+            };
+          }
+        },
+        current,
+        next
+      );
     },
     async refresh() {
       const { data, error } = await auth.refreshSession();

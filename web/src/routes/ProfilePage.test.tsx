@@ -26,6 +26,11 @@ describe('profile', () => {
     expect(screen.queryByText(/Crea un’altra famiglia/)).toBeNull();
     expect(screen.queryByText(/inviti/i)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Esci' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Cambia password/ })).toBeNull();
+  });
+  it('offers the password change with Supabase only', async () => {
+    renderApp('/profile', { backend: createStubBackend(DEMO_USER) });
+    expect(await screen.findByRole('link', { name: /Cambia password/ })).toHaveProperty('href', expect.stringContaining('/profile/password'));
   });
   it('opens the members page from the family card', async () => {
     const { history } = renderApp('/profile');

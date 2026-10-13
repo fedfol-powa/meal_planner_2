@@ -2,6 +2,20 @@ export interface AuthUser { id: string; email: string }
 export type SessionCheck = { status: 'signedIn'; user: AuthUser } | { status: 'unverified'; user: AuthUser } | { status: 'signedOut' };
 export type SignInFailure = 'invalid_credentials' | 'network' | 'unknown';
 export type SignInResult = { ok: true } | { ok: false; reason: SignInFailure };
+/** Outcomes of a password change (spec «Cambio della password», table of errors). */
+export type ChangePasswordFailure =
+  | 'current_invalid'
+  | 'weak_length'
+  | 'weak_characters'
+  | 'weak'
+  | 'same_password'
+  | 'session_expired'
+  | 'reauthentication_needed'
+  | 'account_changed'
+  | 'rate_limited'
+  | 'network'
+  | 'unknown';
+export type ChangePasswordResult = { ok: true } | { ok: false; reason: ChangePasswordFailure };
 /** Outcome of one renewal (W4's interface): `network` changes nothing, `rejected` ends the session. */
 /** The token and the person it belongs to, read together from the same stored session. */
 export interface Credentials { accessToken: string; userId: string }
@@ -43,6 +57,8 @@ export interface AuthBackend {
   signIn(email: string, password: string): Promise<SignInResult>;
   /** This device only; nothing stays stored even when the service cannot be reached. */
   signOut(): Promise<void>;
+  /** Checks `current` with a throwaway sign-in, then sets `next` with this device's captured session; other sessions end. */
+  changePassword(current: string, next: string): Promise<ChangePasswordResult>;
   /** One renewal of the session; `userId` is the user of the renewed token. */
   refresh(): Promise<RenewResult>;
   /** For the oRPC link (Authorization: Bearer), read at every request; null without a session. */
@@ -73,6 +89,7 @@ export function createFakeBackend(): AuthBackend {
     onChange: () => () => undefined,
     signIn: async () => ({ ok: true }),
     signOut: async () => undefined,
+    changePassword: async () => ({ ok: true }),
     refresh: async () => ({ kind: 'ok', userId: DEMO_USER.id }),
     getCredentials: async () => null,
     getAuthorization: async () => ({ ok: true, value: DEMO_AUTHORIZATION }),

@@ -293,4 +293,35 @@ is('agent B disconnects itself: answer', toolResult(own)?.clientId, clientB);
 await refusedEverywhere('agent B after disconnecting itself', b.access_token);
 await channelEverywhere('web of Anna after B left', anna.access_token, 'web');
 
+// 6. Password change from the web (spec «Cambio della password»): Supabase ends every other
+// session of the person, the agents' too; the web session that asked stays.
+{
+	const email = `password-${randomBytes(6).toString('hex')}@example.test`;
+	const signup = await read(await fetch(`${AUTH}/signup`, {
+		method: 'POST',
+		headers: { apikey: KEY, 'content-type': 'application/json' },
+		body: JSON.stringify({ email, password: 'first-password' }),
+	}));
+	if (signup.status !== 200 || !signup.body.access_token) throw new Error(`sign-up for the password check: ${signup.status} ${JSON.stringify(signup.body)}`);
+	const web = signup.body;
+	try {
+		const clientP = await register('E2E agent P');
+		const agent = await connect(clientP, web.access_token);
+		await channelEverywhere('agent P before the password change', agent.access_token, 'mcp');
+		const changed = await read(await fetch(`${AUTH}/user`, {
+			method: 'PUT',
+			headers: { apikey: KEY, authorization: `Bearer ${web.access_token}`, 'content-type': 'application/json', 'x-supabase-api-version': '2024-01-01' },
+			body: JSON.stringify({ password: 'second-password', current_password: 'first-password' }),
+		}));
+		is('password changed from the web', changed.status, 200);
+		await refusedEverywhere('agent P after the password change', agent.access_token);
+		refusedGrant('refresh token of agent P refused after the password change', await refresh(clientP, agent.refresh_token));
+		await channelEverywhere('web session that changed the password', web.access_token, 'web');
+	} finally {
+		const sql = postgres(DB, { max: 1, onnotice: () => {} });
+		await sql`delete from auth.users where email = ${email}`;
+		await sql.end();
+	}
+}
+
 process.exit(failures ? 1 : 0);

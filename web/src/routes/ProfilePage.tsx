@@ -17,7 +17,7 @@ import styles from './ProfilePage.module.css';
 
 export function ProfilePage() {
   const t = useT();
-  const { state } = useAuth();
+  const { state, backend } = useAuth();
   const read = useProfile();
   const family = useFamily();
   const online = useOnline();
@@ -75,6 +75,15 @@ export function ProfilePage() {
                 <Icon name="chevron-right" />
               </Link>
             </li>
+            {backend.mode === 'supabase' && (
+              <li>
+                <Link to="/profile/password" className="row-link">
+                  <Icon name="lock" />
+                  <span className="row-main">{t('profile.password')}<small>{t('profile.passwordHint')}</small></span>
+                  <Icon name="chevron-right" />
+                </Link>
+              </li>
+            )}
             <li>
               <Link to="/profile/agents" className="row-link">
                 <Icon name="link" />
