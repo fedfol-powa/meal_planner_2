@@ -879,6 +879,10 @@ produzione (lo prova W5 in un ambiente di verifica); spegnimento del progetto di
 
 ## Decisioni da riportare nella specifica
 
+Riportate nella specifica principale il 13 ottobre 2026 (sezioni 1, 2, 7, 8, 10, 11, 13
+e 15, registro nella sezione 16). Per l'avvio a finestra vale l'azzeramento della
+sezione 5, non la rimozione della famiglia indicata sotto.
+
 **Prodotto**
 
 - **Menu in corso** (sezione 11): all'avvio l'import porta le settimane già pianificate

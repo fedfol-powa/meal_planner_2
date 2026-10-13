@@ -1,15 +1,19 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 12 ottobre 2026 (decisioni del collegamento degli agenti e della
-revisione dei pasti nel web)
+Ultimo aggiornamento: 13 ottobre 2026 (decisioni della messa in produzione, accesso e
+inviti)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
-Il prossimo artefatto è il prototipo completo, da costruire e approvare per giri
-usando il linguaggio visivo scelto; metodo, ordine dei percorsi e architettura del
-prototipo concordati il 6 ottobre in `design/percorsi.md`.
-Review avversariale indipendente del 3 ottobre: adatto a un prototipo esplorativo,
-non ancora pronto per l'implementazione; rilievi e decisioni conseguenti nella sezione 17.
+Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
+`design/percorsi.md`) e architettura verificata l'8 ottobre: il prototipo resta il
+riferimento dei percorsi approvati.
+Stato attuale: traguardo A in produzione dal 12–13 ottobre 2026 su
+`https://cosasimangia.qunidi.workers.dev`, con il collaudo completo ancora in corso
+(sezione 10).
+Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
+prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
+e decisioni conseguenti nella sezione 17.
 Repository: `fedfol-powa/meal_planner_2` (privato)
 Progetto di origine: `fedfol-powa/meal_planner` (resta attivo, vedi "Convivenza")
 
@@ -28,8 +32,8 @@ la revisione verifica sia il risultato sia l'allineamento della specifica.
 
 La Parte 1 descrive l'app per chi la usa; la Parte 2 descrive dati, comportamenti e
 architettura. Il linguaggio visivo approvato è definito nella sezione 14 e reso operativo
-in `design/design.md`. Le ulteriori decisioni sui flussi entreranno in questa specifica
-dopo la review del prototipo. Gli aspetti ancora da concordare sono elencati nella
+in `design/design.md`. Le decisioni sui flussi prese nella review del prototipo sono
+già consolidate qui (sezione 14 e registro della sezione 16). Gli aspetti ancora da concordare sono elencati nella
 sezione 15 e non vanno trattati come decisioni approvate.
 
 **Decisioni confermate il 3 ottobre 2026:**
@@ -197,6 +201,43 @@ unite:**
   ricetta, libero o vuoto; «Annulla» per 6 secondi nell'app, senza limiti lato server;
   comandi disattivati senza rete anche nel foglio già aperto (sezione 5).
 
+**Decisioni dell'11–13 ottobre 2026, messa in produzione** (particolari in
+`progetto/superpowers/specs/2026-10-11-messa-in-produzione.md`):
+
+- iscrizioni libere spente in produzione: nel traguardo A gli account si creano solo
+  dalla dashboard di Supabase (decisione dell'utente del 12 ottobre 2026; sezioni 1, 7 e
+  13); restano spente anche nell'ondata 3, dove l'account lo crea l'invito (sotto);
+- pubblicazione a mano con `npm run release` in due tempi, anteprima con impronta e
+  applicazione dello stesso commit, migrazioni comprese, dopo il «vai» dell'utente; GitHub
+  Actions si rivaluta quando i rilasci diventano frequenti (sezioni 1, 10 e 15);
+- operazioni sulla produzione lanciate dal coordinatore con anteprima e impronta, SQL
+  solo da una lista chiusa di script versionati, nessuna password negli argomenti dei
+  processi, TLS verificato (sezione 1);
+- import nel database in una transazione con anteprima, che porta anche il menu in corso
+  e le impostazioni della famiglia; le preferenze condizionali dell'origine non
+  diventano esclusioni (sezioni 2, 8 e 11);
+- avvio a fasi e a finestra, con azzeramento prima dell'uso legato all'impronta di avvio
+  al posto della rimozione della famiglia; ripiego sul PDF del progetto di origine
+  (sezioni 8, 10 e 11);
+- esito: primo rilascio il 12 ottobre, famiglia avviata e agenti collegati il 13
+  ottobre; rotazione delle password rimandata dall'utente (sezione 10).
+
+**Decisioni dell'utente del 13 ottobre 2026, accesso e inviti**
+(sezione 7):
+
+- **accesso principale con email e password**, dal traguardo A in poi e non come
+  soluzione provvisoria: sull'iPhone la PWA installata sulla schermata Home non
+  condivide cookie e archivio con Safari, quindi un link che apre Safari lascia lì la
+  sessione. Niente link via email per entrare;
+- l'invito crea l'account (iscrizioni libere spente): il link nell'email serve solo a
+  scegliere la password, apre Safari una volta e poi si entra nell'app con email e
+  password; lo stesso vale per la «password dimenticata», con recupero via email (raro,
+  accettabile). Entrambi richiedono l'invio di email (Resend);
+- Google è una comodità facoltativa, da aggiungere solo dopo una prova sull'iPhone con
+  l'app installata (sezione 15);
+- il cambio della password dal Profilo (issue #37) torna ad alta priorità nel
+  traguardo A, perché la password è la strada permanente.
+
 ---
 
 ## Parte 1: cosa fa l'app (per tutti)
@@ -235,7 +276,11 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   famiglia e può eliminarla dall'app web. Eliminare una famiglia rimuove i suoi dati
   per tutti i membri, ma conserva gli account delle persone e le altre famiglie a cui
   appartengono.
-- **Chiunque può iscriversi** e creare la propria Famiglia.
+- **Si entra su invito.** L'iscrizione libera è spenta: l'account nasce quando una
+  persona accetta un invito, a una famiglia o all'app, e sceglie la sua password dal
+  link ricevuto per email; da lì entra nell'app con email e password (ondata 3,
+  decisione dell'utente del 13 ottobre 2026). Chi ha un account può creare la propria
+  Famiglia. Per ora gli account li crea a mano l'amministratore.
 - **Il curatore del ricettario** è un ruolo assegnabile a un utente. Può collegare il
   proprio agente tramite MCP e aggiungere ricette con un percorso guidato. Essere membro
   o amministratore di una famiglia, da solo, non abilita questa funzione.
@@ -453,10 +498,12 @@ un momento passato. Questo recupero riguarda il catalogo, senza ripristinare i d
 privati delle famiglie: le ricette tornano com'erano come nuova versione, quelle nate
 dopo quel momento vengono archiviate, e prima di confermare si vede un'anteprima.
 
-Gli inviti all'app e quelli a una famiglia hanno scopi distinti. L'iscrizione resta
-aperta: un invito all'app chiama una persona precisa e può darle il ruolo di curatore
-o di amministratore quando accetta, ma non la fa entrare in una famiglia. Regole decise
-nel sesto giro del prototipo, sezione 7.
+Gli inviti all'app e quelli a una famiglia hanno scopi distinti. Un invito all'app
+chiama una persona precisa e può darle il ruolo di curatore o di amministratore quando
+accetta, ma non la fa entrare in una famiglia. Regole decise nel sesto giro del
+prototipo, sezione 7. Questa pagina e gli inviti arrivano nell'ondata 3; fino ad allora
+gli account si creano a mano e i ruoli globali li assegna lo script di avvio
+(sezione 7).
 
 ### Cosa l'app non fa (per ora)
 
@@ -534,8 +581,9 @@ configurato per workspace.
   Worker (sezione 4); lo stesso evento, con un'espressione cron sua, avvia
   l'esportazione notturna (sezione 8).
 
-- **Supabase sul piano gratuito**: Postgres, Auth (link via email, Google e server
-  OAuth 2.1 per MCP), RLS e `pg_cron` (solo per pulire le liste temporanee di Bring!).
+- **Supabase sul piano gratuito**: Postgres, Auth (email e password; Google
+  facoltativo dopo una prova sull'iPhone; server OAuth 2.1 per MCP; sezione 7), RLS e `pg_cron` (solo per
+  pulire le liste temporanee di Bring!).
   Il piano gratuito non comprende i backup della piattaforma: li sostituisce
   un'esportazione notturna cifrata, scritta dal Worker in un bucket R2 privato
   nell'UE (sezione 8). Server OAuth configurato con il percorso di autorizzazione
@@ -546,11 +594,55 @@ configurato per workspace.
   degli agenti (sezione 13). Il repository è collegato all'organizzazione
   Supabase tramite l'integrazione GitHub, con «Deploy to production» disattivato
   (verificato con l'utente l'11 ottobre 2026): il merge su `main` non applica le
-  migrazioni al progetto remoto.
+  migrazioni al progetto remoto. **In produzione** (progetto `lronuqvtjdhfyychnscr`)
+  le iscrizioni libere sono spente (`disable_signup`, sezione 7) e OAuth server,
+  registrazione dinamica, *Site URL* e *Redirect URLs* sull'indirizzo dell'app si
+  attivano **prima del primo rilascio**, che ne controlla i metadati: il Worker serve
+  quelli di `/mcp` leggendoli da Supabase. Con le iscrizioni spente l'OAuth server
+  funziona comunque, perché gli agenti accedono con utenti già esistenti (documentazione
+  di Supabase Auth, verificato in produzione il 13 ottobre 2026 collegando Claude
+  Code). Restano spente anche nell'ondata 3: l'account lo crea il server
+  all'accettazione di un invito (sezione 7). Al passaggio al dominio
+  `cosasimangia.qunidi.it` (ondata 3) *Site URL* e *Redirect URLs* vanno aggiornati. Lo
+  stack locale tiene le iscrizioni accese.
 - **Flusso Git**: PR verso `main`, che è la produzione; CI su GitHub Actions a ogni PR
-  con typecheck, test e migrazioni reali. Per ora il coordinatore pubblica il Worker a
-  mano con `wrangler deploy` dopo il merge; l'automazione (preferibilmente GitHub
-  Actions con pubblicazione solo a test verdi) arriva prima del traguardo A.
+  con typecheck, test e migrazioni reali.
+- **Pubblicazione con `npm run release`** (decisa l'11–12 ottobre 2026 nella messa in
+  produzione; supera l'automazione prima del traguardo A, per scelta dell'utente): il
+  coordinatore la lancia a mano dopo il merge, in due tempi. `--preview` non scrive
+  nulla: controlla repository (`main` pulito, uguale a `origin/main`, CI verde),
+  coerenza del progetto Supabase fra configurazioni, configurazione del Worker e
+  segreti richiesti, impostazioni di Auth (iscrizioni spente, metadati OAuth), costruisce
+  SPA e Worker con i valori fissati, elenca le migrazioni pendenti e la versione
+  pubblicata e stampa un'**impronta del rilascio** (commit, ambito, destinazione del
+  database, account e Worker). Dopo il «vai» dell'utente, `--apply <impronta>` ripete i
+  controlli, si ferma se l'impronta è cambiata, applica le migrazioni con la CLI di
+  Supabase su una destinazione verificata (`db push`, sempre prima del deploy), pubblica
+  il Worker con il tag del commit e verifica che risponda proprio la versione nuova. La
+  prima volta le migrazioni vanno da sole (`--migrations-only`), perché i ruoli del
+  server nascono dalle migrazioni. Variabili `CLOUDFLARE_*`, `WRANGLER_*`, `VITE_*` e
+  file d'ambiente locali sono rifiutati o neutralizzati. `npm run deploy` resta il passo
+  interno di `release`, non un comando da lanciare a mano in produzione. GitHub Actions
+  si rivaluta quando i rilasci diventano frequenti (sezione 15). Ritorno indietro:
+  `wrangler rollback` alla versione precedente se le migrazioni successive sono
+  additive, altrimenti correzione in avanti; niente migrazioni «down».
+- **Operazioni sulla produzione** (messa in produzione, 11–12 ottobre 2026): le lancia il
+  coordinatore, sempre dopo un'anteprima che non scrive e stampa un'impronta di ciò che
+  verrà applicato e dopo il «vai» dell'utente; l'applicazione si rifiuta, prima di
+  collegarsi, se l'impronta è cambiata, ed esegue gli stessi byte mostrati
+  nell'anteprima, dal commit corrente con checkout pulito. Le credenziali stanno in
+  `.env.production.local`, scritto dall'utente e letto solo dagli strumenti
+  (`--credentials`); il progetto di destinazione è in un solo file versionato
+  (`scripts/production-target.json`), che si cambia solo con una PR; le connessioni si
+  costruiscono dai campi validati della destinazione, con TLS verificato
+  (`verify-full`). **Nessuna password negli argomenti dei processi**: solo nel file
+  delle credenziali, in `PGPASSWORD` dei processi figli e nelle dashboard; la password
+  di origine di Hyperdrive la inserisce l'utente nella dashboard di Cloudflare. **SQL
+  sulla produzione solo da una lista chiusa di script versionati** in
+  `supabase/scripts/`, eseguiti da `scripts/prod-sql.ts` con la transazione decisa
+  dallo strumento. La build di rilascio legge URL e chiave pubblica di Supabase da
+  `web/.env.production`, versionato, e rifiuta override locali. La rotazione delle
+  password è prevista a fine collaudo; il 13 ottobre 2026 l'utente l'ha rimandata.
 - **Collegamento al database con Hyperdrive**, il pool di connessioni di Cloudflare,
   con Postgres.js e query SQL scritte a mano, validate con zod. La cache delle query di
   Hyperdrive resta disattivata: le letture dipendono dall'utente tramite RLS e devono
@@ -560,7 +652,10 @@ configurato per workspace.
   esplicito e sotto la dimensione del pool di Supabase: con il valore di default (20)
   la prova dell'11 ottobre ha avuto richieste appese sotto carico, con 10 nessun errore.
   Il Worker si chiama `cosasimangia` e per ora è servito da `workers.dev` dell'account
-  di POWA; Hyperdrive ha `origin_connection_limit` esplicito.
+  di POWA, all'indirizzo `https://cosasimangia.qunidi.workers.dev`; Hyperdrive
+  (`cosasimangia`, creato dall'utente nella dashboard con la password di `app_server`)
+  ha `origin_connection_limit` esplicito, in produzione 10: il pool di Supabase (15)
+  meno 5 per migrazioni, strumenti e dashboard.
   Nel codice del Worker le cache di modulo conservano solo dati già risolti, mai
   promesse di I/O condivise fra richieste, che Workers annulla.
 - **Email con Resend** (sezione 7): SMTP di Supabase Auth e API per le email del server.
@@ -965,6 +1060,13 @@ pranzi da lunedì a venerdì entro 30 minuti (default deciso l'8 ottobre 2026 do
 l'esperimento del pianificatore, modificabile), senza pasti fissi, altri limiti, regole,
 ingredienti evitati né libri, e con gli intervalli CREA. Gli ingredienti da evitare o
 limitare si cercano per nome e sinonimi nella lingua dell'utente.
+
+La famiglia di Federico non parte dai default (messa in produzione, 11 ottobre 2026):
+porzioni, tempi, pasti fissi, regole, quote e intervalli, il limite sui cetrioli e i
+libri posseduti (tutti quelli citati dal ricettario d'origine) li scrive il caricamento
+dalle regole del progetto di origine, **prima che qualcuno apra l'app**, perché la prima
+apertura genera il menu. Si scrivono solo le chiavi diverse dai default e ancora
+assenti, senza sovrascrivere ciò che la famiglia ha cambiato (sezione 11).
 
 **Preferenze personali** (`profiles`): lingua `it-IT` oppure `en-GB`, indipendente dalla
 famiglia e dal suo sistema di misura. La lingua del profilo vale a ogni accesso; prima
@@ -1487,17 +1589,47 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 
 ### 7. Account, Famiglia, inviti
 
-- **Supabase Auth**: magic link via email e Google. Iscrizione aperta. Nel traguardo A
-  (sezione 10) l'accesso è solo con email e password, senza «password dimenticata»
-  nell'app, e famiglie e primi utenti si preparano a mano con uno script dalla dashboard
-  di Supabase; link via email, Google, inviti e creazione ed eliminazione delle famiglie
-  da parte degli utenti arrivano nell'ondata 3.
+- **Supabase Auth: accesso con email e password**, dal traguardo A in poi (decisione
+  dell'utente del 13 ottobre 2026, che sostituisce il link via email della specifica di
+  base). Sull'iPhone la PWA installata sulla schermata Home non condivide cookie e
+  archivio con Safari: un link che apre Safari lascia lì la sessione e l'app installata
+  resta fuori. Per questo nessun link via email serve a entrare; i link nelle email
+  servono solo a scegliere o reimpostare la password (sotto). Nel traguardo A
+  (sezione 10) non c'è «password dimenticata» nell'app; gli account li crea
+  l'amministratore dalla dashboard di Supabase (*Add user*, con email confermata e
+  password scelta da lui) e famiglia, appartenenze e ruoli globali li prepara lo script
+  di avvio `bootstrap.sql` (sezione 10). **Cambio della password dal Profilo**: alta
+  priorità nel traguardo A, perché la password è la strada permanente e oggi si cambia
+  solo dalla dashboard (issue #37, sezione 15).
+- **Password dimenticata** (ondata 3, con Resend): recupero via email; il link apre
+  Safari una volta per scegliere la password nuova, poi si entra nell'app con email e
+  password. È un caso raro e il passaggio da Safari è accettabile.
+- **Google** (decisione dell'utente del 13 ottobre 2026): comodità facoltativa, da
+  aggiungere solo dopo una prova sull'iPhone con l'app installata. Da verificare nel
+  progetto: se il ritorno dal redirect OAuth porta la sessione dentro la PWA
+  installata, e come collegare un'identità Google con le iscrizioni spente.
+- **Iscrizioni libere spente in produzione** (decisione dell'utente del 12 ottobre
+  2026, confermata il 13 ottobre anche per l'ondata 3): in Supabase Auth «Allow new
+  users to sign up» è disattivato; ogni anteprima di rilascio verifica
+  `disable_signup: true` leggendo le impostazioni di Auth, senza tentare un'iscrizione.
+  L'OAuth server degli agenti funziona comunque (sezione 1). Lo stack locale tiene le
+  iscrizioni accese.
+- **L'invito crea l'account** (ondata 3, decisione dell'utente del 13 ottobre 2026):
+  quando una persona senza account accetta un invito valido, alla famiglia o all'app, il
+  **server crea il suo account**; le iscrizioni libere restano spente. Il link
+  nell'email che riceve serve **solo a scegliere la password**: apre Safari una volta,
+  poi la persona entra nell'app con email e password. Serve l'invio di email (Resend).
+  Inviti, recupero della password e creazione ed eliminazione delle famiglie da parte
+  degli utenti arrivano nell'ondata 3. Restano da verificare nel progetto i dettagli
+  tecnici (sezione 15): API di Supabase per creare l'utente e inviare il link della
+  password.
 - **Uscita e revoca sul dispositivo**: «Esci» chiude la sessione solo su questo
   dispositivo e cancella i dati salvati dell'utente anche se il servizio non risponde;
   un accesso revocato a una famiglia ne toglie subito i dati dal dispositivo (sezione 1).
 - **Email con Resend** (deciso l'8 ottobre 2026), piano gratuito: 3.000 email al mese,
   al massimo 100 al giorno; oltre il limite l'invio si sospende, senza addebiti.
-  Supabase Auth lo usa come SMTP personalizzato per link di accesso e inviti; il server
+  Supabase Auth lo usa come SMTP personalizzato per le email degli inviti e del recupero
+  della password, che servono solo a scegliere la password (ondata 3); il server
   lo chiama via API per le proprie email (segnalazioni del job, sezione 4). Il servizio
   di default di Supabase non basta: consegna solo agli indirizzi dei membri del team
   dell'organizzazione Supabase, con pochi invii all'ora ed è solo per le prove. Con un
@@ -1508,8 +1640,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     gli amministratori lo creano, lo condividono e lo revocano dalla pagina dei membri,
     dove vedono i link attivi con autore e scadenza; i membri vedono a chi chiederlo;
   - la pagina dell'invito si legge anche senza accesso (famiglia e chi invita); chi lo
-    apre si iscrive se non ha un account ed entra nella famiglia con una conferma
-    esplicita; se ne fa già parte, non cambia niente;
+    apre, se non ha un account, lo ottiene accettando l'invito (sopra) ed entra nella
+    famiglia con una conferma esplicita, entrando poi con email e password; se ne fa
+    già parte, non cambia niente;
   - token scaduto o revocato: messaggio chiaro con l'invito a chiedere un link nuovo
     all'amministratore della famiglia;
   - **rientro dopo la rimozione** (review R2, deciso il 6 ottobre 2026): un membro
@@ -1524,9 +1657,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   invito alla stessa email sostituisce quello in attesa. A un'email che ha già un
   account non si crea un invito: i ruoli si cambiano dall'elenco degli utenti. La
   pagina `/invite/app/<token>` si legge senza accesso (chi invita, ruoli); chi non ha
-  un account si iscrive e torna all'invito; con un altro account la pagina propone di
-  uscire e rientrare. Nel prototipo il link si copia e si manda, senza email
-  dall'app. L'iscrizione aperta della specifica di base resta prevista.
+  un account lo ottiene accettando l'invito (sopra) ed entra con email e password;
+  con un altro account la pagina propone di uscire e rientrare. Nel
+  prototipo il link si copia e si manda, senza email dall'app. L'iscrizione aperta
+  della specifica di base non c'è più: le iscrizioni libere sono spente dal 12 ottobre
+  2026 e restano spente (decisione dell'utente del 13 ottobre 2026).
 - **Amministrazione globale**: pagina riservata agli `app_admin` per consultare e gestire
   utenti e inviti, cambiare i ruoli degli utenti, assegnare il ruolo di curatore,
   nominare altri amministratori e cancellare utenti. Le operazioni devono essere
@@ -1540,13 +1675,17 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   motivo. Le famiglie di un utente si vedono solo per nome e ruolo, senza contenuti.
   La cancellazione di un utente usa la stessa pagina e le stesse regole della
   cancellazione dell'account, in terza persona; il proprio account si cancella solo
-  dalle proprie preferenze. La nomina iniziale di Federico sarà prevista nella
-  configurazione iniziale, con identità verificata; i dettagli si definiscono nel piano.
+  dalle proprie preferenze. La nomina iniziale di Federico è avvenuta con lo script di
+  avvio della messa in produzione (13 ottobre 2026: `app_admin` e `recipe_curator`
+  sul suo account, creato a mano). Nel traguardo A non c'è un modo nell'app per
+  assegnare i ruoli globali: la pagina resta nell'ondata 3, da anticipare solo se serve
+  (issue #38, sezione 15).
 - **Recupero del ricettario**: il ripristino completo a una data è riservato agli
   amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
   i curatori hanno invece il ripristino della singola ricetta.
-- **Primo accesso** (quarto giro del prototipo): email con link di accesso o Google; a
-  un'email nuova si chiede solo il nome. Lingua iniziale dal browser (italiano →
+- **Primo accesso** (quarto giro del prototipo, aggiornato il 13 ottobre 2026): email
+  e password, su un account nato da un invito (nel traguardo A creato a mano); a chi
+  entra la prima volta si chiede solo il nome. Lingua iniziale dal browser (italiano →
   `it-IT`, altrimenti `en-GB`), modificabile già nella pagina di accesso. Senza
   famiglie l'utente sceglie "Crea la tua famiglia" o apre il link d'invito ricevuto.
 - **Wizard della famiglia nuova** (minimo, deciso il 6 ottobre 2026): nome e sistema di
@@ -1615,7 +1754,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   disattivato finché manca un successore o l'utente è l'ultimo amministratore
   dell'app.
 - **Privacy**: informativa, dati minimi (email, nome visualizzato, dati della famiglia).
-- **Limiti di frequenza**: iscrizioni (rate limit di Supabase Auth) e generazioni su
+- **Limiti di frequenza**: accessi ed email di Supabase Auth (rate limit) e generazioni su
   richiesta.
 
 ### 8. Ricettario: database, curatori, validazione e scambio dati
@@ -1896,7 +2035,9 @@ l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore).
 - **Collaudo in due prove** (sezione 9): una prova locale completa, criterio di fine
   della PR, ripetuta in CI; una prova di produzione, voce separata a carico
   dell'utente dopo la creazione del bucket, con la chiave presa dal gestore di
-  password, così si verifica anche la copia. L'email di allarme sui fallimenti arriva
+  password, così si verifica anche la copia: fatta il 13 ottobre 2026 sulla prima
+  esportazione notturna, prima dell'import dei dati veri, con ripristino locale
+  riuscito. L'email di allarme sui fallimenti arriva
   nell'ondata 3 con quelle del job (sezione 4). Restano da misurare i tempi di
   recupero con un'esportazione vera (sezione 15).
 
@@ -1904,6 +2045,24 @@ Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP c
 stessi permessi e controlli. Il design distinguerà queste azioni dai compiti operativi
 di backup dell'infrastruttura: esportazione e ripristino da esportazione sono compiti
 operativi, senza operazioni del contratto, schermate né strumenti MCP.
+
+**Azzeramento prima dell'uso** (messa in produzione, decisione del coordinatore dell'11
+ottobre 2026, corretta il 12 ottobre dopo la review della PR #34). Finché la famiglia
+non usa l'app, un avvio fallito si ritira con un **azzeramento** dei dati di `app`
+(famiglie, catalogo, dati delle famiglie), che lascia schema, account, profili e ruoli
+globali, cioè lo stato iniziale. È ammesso solo se l'impronta di tutto lo schema `app`
+coincide con l'ultima **impronta di avvio**, prodotta dentro la transazione del
+bootstrap (ammesso solo dallo stato iniziale) o del caricamento di avvio, con tutte le
+tabelle bloccate: qualsiasi scrittura successiva, anche una sola, la cambia e
+l'azzeramento si rifiuta. I rilanci non la rinnovano. Non si rimuove la sola famiglia:
+il catalogo resterebbe e non ci sarebbe più un'impronta da cui ripartire.
+**All'inizio del collaudo completo** l'impronta si chiude: da lì niente azzeramento e
+i dati si correggono in avanti, dall'app, dall'agente o, per un danno grave,
+con il ripristino dall'esportazione su un progetto nuovo. Per la famiglia di Federico
+l'impronta si è chiusa il 13 ottobre 2026, all'inizio del collaudo completo (passo R23
+del runbook); il collaudo completo è ancora in corso, compresa la verifica della prima
+generazione dal cron giovedì 15 ottobre. Particolari in
+`progetto/superpowers/specs/2026-10-11-messa-in-produzione.md`, sezione 8.
 
 **YAML per importazione ed esportazione:** formato di scambio con chiavi tecniche in
 inglese, da precisare nel piano. Un export rappresenta il catalogo a una certa data;
@@ -1918,7 +2077,12 @@ pubblicate con una deroga per i dati pregressi.
 Voti B, `storico` ed esclusioni nelle `note` del formato di origine diventano i **dati
 della famiglia di Federico**, separati dal catalogo. Conversione dei voti: B=1, BB=3,
 BBB=4, BBBB=5 stelle, come voto di Federico. I nomi italiani citati qui sono campi
-dell'input preesistente, non nomi da usare nel nuovo codice.
+dell'input preesistente, non nomi da usare nel nuovo codice. Le **preferenze
+condizionali** nelle note delle schede d'origine (per esempio «non proporla nelle cene
+per 4, solo per i 2 adulti») non diventano esclusioni, che sarebbero un divieto più
+ampio di quello voluto, né si perdono in silenzio. L'import le elenca nel report e
+nell'anteprima come «preferenze da sistemare a mano», con ricetta e nota, e si
+rivedono con l'utente (decisione del coordinatore, 11 ottobre 2026).
 
 ### 9. Test
 
@@ -2029,7 +2193,7 @@ dell'input preesistente, non nomi da usare nel nuovo codice.
   Da MCP si ottiene soltanto l'URL, senza eliminazioni, anche tentando la cancellazione
   dell'account dell'unico membro. Aprire il link non ha effetti di scrittura; il
   completamento richiede autenticazione, permessi validi e conferma nella pagina web.
-- **End to end** (agent-browser e iPhone): iscrizione, creazione della famiglia, invito, modifica di uno
+- **End to end** (agent-browser e iPhone): accettazione di un invito con creazione dell'account, scelta della password e accesso con email e password nella PWA installata, creazione della famiglia, invito, modifica di uno
   slot, voto, generazione della lista con pagina Bring!, cambio lingua e unità,
   collegamento MCP e operazioni di gestione del ricettario e amministrazione.
 
@@ -2058,9 +2222,9 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 |---|---|---|
 | **1 Fondamenta** | Piattaforma (Worker, contratto, verifica dei token, CI), schema e permessi, documento ricetta e import, dominio di unità e spesa, app web di base | Base comune per le attività del traguardo A |
 | **2 Traguardo A** | Profilo, famiglia e impostazioni senza inviti; ricettario e voti; menu, pianificatore, job del mercoledì e generazione pigra; revisione dei pasti; spesa, anche offline; gestione del ricettario tramite MCP, con le bozze visibili nell'app; collegamento degli agenti; esportazione notturna in R2; messa in produzione con l'import del ricettario e dei dati della famiglia | La famiglia di Federico usa l'app ogni settimana, con il ricettario gestito anche tramite agente MCP |
-| **3 Prodotto** | Inviti familiari e all'app, wizard e generazione su richiesta, accesso con Google, Resend (con le email del job) e dominio `cosasimangia.qunidi.it`, amministrazione dell'app, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
+| **3 Prodotto** | Inviti familiari e all'app, che creano l'account con la password scelta dalla persona, wizard e generazione su richiesta, recupero della password via email, Google facoltativo dopo la prova sull'iPhone, Resend (con le email del job) e dominio `cosasimangia.qunidi.it`, amministrazione dell'app, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
 
-**Stato al 12 ottobre 2026:**
+**Stato al 13 ottobre 2026:**
 
 | Attività | Stato |
 |---|---|
@@ -2071,13 +2235,39 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 | Spesa, anche offline | Server, pagina Bring!, coda offline e web uniti (PR #11, #22) |
 | Gestione del ricettario tramite MCP | Server, strumenti MCP e sezioni web delle bozze uniti (PR #23, #26) |
 | Revisione dei pasti | Server, dominio, strumenti MCP e web uniti (PR #29: azioni, suggerimenti, annullamento, registro; PR #33: pannello, foglio, «Annulla» e invalidazioni nel web) |
-| Collegamento degli agenti | Unito (PR #31: consenso, «Collega un agente», elenco e scollegamento, prova end-to-end in CI); attivazione del server OAuth e prova sul progetto di produzione nella messa in produzione |
-| Esportazione notturna in R2 | Unita (PR #30; migrazione `20261012110000_backup.sql`, rinominata nella PR #32 per una versione duplicata); bucket, chiave e prova di produzione nella messa in produzione |
-| Messa in produzione | Ultima; design approvato, spec e piano in corso. Il Worker non è ancora pubblicato e i passi di produzione (pool, password di `app_server`, Hyperdrive, bucket e chiave delle esportazioni, primo deploy) si concordano con l'utente prima della prima pubblicazione |
+| Collegamento degli agenti | Unito (PR #31: consenso, «Collega un agente», elenco e scollegamento, prova end-to-end in CI); OAuth server attivo in produzione e Claude Code collegato il 13 ottobre 2026, con ricettario tramite agente e «Scollega» verificati |
+| Esportazione notturna in R2 | Unita (PR #30; migrazione `20261012110000_backup.sql`, rinominata nella PR #32 per una versione duplicata); bucket e chiave in produzione, prima esportazione e prova di produzione il 13 ottobre 2026 |
+| Messa in produzione | Strumenti uniti (PR #34: caricamento, `npm run release`, `scripts/prod-sql.ts`, runbook), risorse compilate in `server/README.md` (PR #36). **Traguardo A in produzione**: primo rilascio il 12 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; il 13 ottobre famiglia avviata (50 ricette pubblicate, 6 bozze, 6 settimane importate) e primo collaudo riuscito, poi agenti collegati. Impronta di avvio chiusa il 13 ottobre all'inizio del collaudo completo, che è ancora in corso, con la verifica della prima generazione dal cron giovedì 15 ottobre. Rotazione delle password rimandata dall'utente (13 ottobre) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
-famiglie creati a mano; passi esterni (DNS di `qunidi.it`, Resend, Google) rimandati
-finché non servono, partendo dall'indirizzo `workers.dev`.
+famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
+esterni (DNS di `qunidi.it`, Resend, Google) rimandati finché non servono, partendo
+dall'indirizzo `workers.dev`. Aperte il 13 ottobre 2026: cambio della password dal
+Profilo nel traguardo A, ad alta priorità perché la password è la strada permanente
+(issue #37), pagina dei ruoli globali nell'ondata 3 (issue #38),
+foto delle ricette da progettare (issue #39); sezione 15.
+
+**Messa in produzione** (decisa l'11–12 ottobre 2026; particolari, runbook e ritorni
+indietro in `progetto/superpowers/specs/2026-10-11-messa-in-produzione.md` e nel suo
+piano):
+
+- **Avvio a fasi.** Prima l'infrastruttura senza famiglia (iscrizioni spente, OAuth
+  server e *Site URL*, migrazioni iniziali, password di `app_server`, Hyperdrive, bucket
+  e chiave delle esportazioni, primo rilascio, accesso di prova): scopre i problemi di
+  Hyperdrive, chiavi e build senza dati veri ed è smontabile senza perdite. Poi, dopo la
+  prima esportazione notturna provata, import e avvio della famiglia; infine le prove
+  degli agenti. Chiude la rotazione delle password.
+- **Avvio a finestra.** Famiglia, caricamento e primo collaudo in sola lettura si fanno
+  di seguito da lunedì a mercoledì entro le 19, prima che il job del mercoledì alle 20
+  generi la settimana successiva, e nessun altro apre l'app nel frattempo. Se non
+  terminano, o il primo collaudo fallisce, si **azzera** (sezione 8) e si ritenta in una
+  finestra successiva ripartendo dal bootstrap; non si rimuove la sola famiglia e non si
+  sospende la generazione (decisione del coordinatore, corretta il 12 ottobre 2026 dopo
+  la review della PR #34). All'inizio del collaudo completo l'impronta di avvio si
+  chiude: da lì la famiglia usa l'app e si corregge solo in avanti, anche se le prove
+  del collaudo completo non sono ancora finite.
+- **Pubblicazione** con `npm run release` e **operazioni sulla produzione** con
+  anteprima, impronta e «vai» dell'utente: sezione 1.
 
 Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
 rispetta dalla sua prima versione, con l'eccezione esplicita dell'eliminazione delle
@@ -2114,7 +2304,40 @@ richiesta insieme alla gestione del ricettario tramite MCP.
   (sezione 12). Nella messa in produzione la scrittura nel database riusa il modulo
   della gestione del ricettario (`server/src/catalogue/write.ts`), con canale `import` e
   gli slug dell'import conservati.
-- Quando spegnere il vecchio flusso lo decide l'utente, dopo il traguardo A.
+- **Caricamento nel database** (messa in produzione, 11 ottobre 2026):
+  `scripts/import/load.ts`, collegato come `postgres`, in **una sola transazione**: o
+  entra tutto o niente. L'anteprima esegue lo stesso codice e chiude con `rollback`, e
+  stampa un'impronta degli input (file d'origine letti una volta, commit, data, famiglia,
+  curatore, destinazione); il caricamento vero la richiede e si ferma se è cambiata. Il
+  catalogo si scrive come il curatore, con canale `import`; storico e menu in corso nel
+  ruolo `app_job`, perché possono citare bozze. Prende lo stesso lock della generazione
+  della famiglia, quindi una generazione concorrente aspetta e trova settimane e
+  impostazioni già scritte. Voti, ricette provate e storico si calcolano sull'intero
+  ricettario d'origine, così un rilancio aggiunge i voti rimasti in sospeso su ricette
+  pubblicate nel frattempo. È rilanciabile e scrive **solo in aggiunta**: nessun valore
+  del catalogo già presente (slug, ricette d'origine, equivalenze) si sovrascrive,
+  qualunque valore abbia, e le equivalenze divergenti vanno nel report; impostazioni
+  solo dove la chiave manca (sezione 2); una settimana già presente nell'app si salta.
+  Una ricetta importata si pubblica solo se la revisione non ha voci in sospeso.
+- **Menu in corso** (decisione del coordinatore e dell'utente, 11 ottobre 2026):
+  all'avvio l'import porta le settimane già pianificate nel progetto di origine e non
+  concluse alla data dell'import come settimane e pasti dell'app (ricetta e porzioni,
+  testi liberi, anche i giorni già passati), senza segnarle come mangiate: diventano
+  storico quando passano. Le note per pasto dell'origine non si importano (l'app
+  ricalcola le dosi) e il report le elenca. La prima settimana generata dall'app è la
+  successiva, dal job del mercoledì con impostazioni e storico già presenti. **Da quel
+  momento il vecchio flusso non pianifica più settimane**: due menu per la stessa
+  settimana no. Per la famiglia di Federico l'avvio è del 13 ottobre 2026 e la prima
+  settimana generata dall'app è quella del 19 ottobre.
+- **Due ricette nello stesso pasto storico** (R4, decisione del coordinatore, 11 ottobre
+  2026): il pasto prende la prima per slug; l'altra entra fra le ricette provate
+  (`family_tried_recipes`, `source: 'import'`) e nel report. L'informazione «l'abbiamo
+  mangiata» non si perde e non si inventa un pasto.
+- **Ripiego per la famiglia:** se l'app non è usabile, finché il progetto di origine
+  resta attivo la famiglia torna al suo PDF settimanale e riprende a pianificare lì; i
+  dati dell'app restano e si riprende con un nuovo passaggio di consegne.
+- Quando spegnere il vecchio flusso (YAML, PDF e sito) lo decide l'utente, dopo il
+  traguardo A.
 
 ### 12. Lingue e contenuti tradotti
 
@@ -2198,7 +2421,10 @@ non accesso generico alle tabelle.
   distingue il canale. Ogni client ha il proprio `client_id` e chiede un consenso
   separato. I token hanno `aud: authenticated` e valgono su tutte le rotte: la
   separazione fra web e MCP si regge sul claim `client_id`, presente anche dopo il
-  rinnovo.
+  rinnovo. **In produzione dal 13 ottobre 2026**: con le iscrizioni libere spente
+  (sezione 7) Claude Code si registra da solo e accede con un account esistente;
+  `session_whoami`, ricettario tramite agente, elenco degli agenti e «Scollega»
+  verificati sul progetto di produzione.
 - **Scollegamento con la gestione dei grant di Supabase** (prova della revoca dell'11
   ottobre 2026, PR #31). Supabase non pubblica endpoint di revoca né di introspezione dei
   token: `agents.disconnect` chiama `DELETE /auth/v1/user/oauth/grants` con il token di
@@ -2477,7 +2703,9 @@ testo e pulsanti primari `#232323`, verde `#067A46` per gli accenti e stato atti
 della navbar; titoli dei piatti in Agrandir Regular, sezioni in Agrandir Tight Bold,
 corpo e controlli in Roboto. Schede bianche con fotografia quando disponibile e
 ombra leggera; pulsanti da 8 px di raggio e separatori sottili. File dei font,
-dimensioni, pesi, spazi e stati sono definiti nella guida.
+dimensioni, pesi, spazi e stati sono definiti nella guida. Oggi le ricette dell'app
+non hanno foto (il modello dei dati non le prevede, sezione 2) e le schede si mostrano
+senza: le foto delle ricette sono da progettare (issue #39, sezione 15).
 
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
@@ -2553,12 +2781,13 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione) | Sezione 7 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account (ondata 3), dettagli tecnici da verificare nel progetto: API di Supabase per creare l'utente e inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Cambio della password dal Profilo nel traguardo A, oggi solo dalla dashboard (issue #37, priorità alta: la password è la strada permanente). Pagina dei ruoli globali da anticipare solo se serve (issue #38). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente | Sezione 7 |
 | Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
-| Backup e ripristino | Tempi di recupero misurati con un'esportazione vera e prova di produzione (a carico dell'utente dopo la creazione del bucket, con la chiave dal gestore di password). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
+| Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidate: password attuale richiesta per cambiarla, server di autorizzazione nel Worker). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
-| Implementazione | Automazione della pubblicazione del Worker prima del traguardo A (preferibilmente GitHub Actions a test verdi) e modo di applicare le migrazioni al progetto di produzione. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1) | Sezioni 1 e 10 |
+| Implementazione | Automazione della pubblicazione con GitHub Actions, da rivalutare quando i rilasci diventano frequenti. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1); l'11–12 ottobre, nella messa in produzione, pubblicazione a mano con `npm run release` al posto dell'automazione prima del traguardo A, migrazioni di produzione con la CLI di Supabase dentro `npm run release` prima del deploy, operazioni sulla produzione con anteprima e impronta (sezioni 1 e 10) | Sezioni 1 e 10 |
+| Foto delle ricette | Da progettare (issue #39, 13 ottobre 2026): archiviazione, chi le carica (curatore, agente o fonte), diritti d'uso, cache offline, esportazione e ripristino. Il linguaggio visivo prevede la fotografia quando disponibile, ma oggi le ricette non hanno foto | Sezioni 2, 8 e 14 |
 | Architettura | Valutare nell'ondata 2 `@orpc/tanstack-query` (per ora `queryOptions` scritte a mano). Decisi l'11 ottobre 2026 oRPC senza Hono, Postgres.js senza ORM e l'SDK ufficiale di MCP, provati su Workers con RLS tramite Hyperdrive, e cosa fa crescere i contatori di versione (sezione 1) | Sezione 1 |
 | Hosting e costi | Pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3; una richiesta all'API ne usa circa 7, una chiamata MCP circa 13, misurati l'11 ottobre), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare | Sezioni 1, 4, 7 e 8 |
 | Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta («rigenera») nell'ondata 3; il wizard non genera (deciso l'11 ottobre) (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre; l'11 ottobre regola unica di generazione all'apertura per la settimana in corso e la successiva, recupero e abbandono dei job, generazioni serializzate per famiglia, sezione 4) | Sezioni 2, 4 e 5 |
@@ -2601,6 +2830,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 11 ottobre 2026, decisioni dell'utente sul consolidamento | Ingrediente creabile con il solo nome italiano, con il nome inglese richiesto alla pubblicazione della ricetta; nessun pulsante «Genera la prima settimana» nel wizard, perché il menu si genera all'apertura; confermati il rinvio all'ondata 3 dell'email di allarme del job e del PDF della spesa; esportazione notturna in R2 con le ultime 7 copie; progetto Supabase `lronuqvtjdhfyychnscr` confermato come produzione |
 | 11–12 ottobre 2026, revisione dei pasti (server) ed esportazione notturna unite | Riportate le decisioni delle PR #29 e #30 (con la #32, che rinomina la migrazione dell'esportazione in `20261012110000_backup.sql`). Revisione dei pasti: area `meals` con azioni a `id` del client (`meal_actions`, `last_action_id`, registro veritiero), richieste senza effetti ricordate, annullamento della propria ultima azione senza limiti di tempo lato server (6 secondi nell'app, anche da una conversazione MCP nuova con `lastChange.undoable`), scambio annullato per intero, porzioni da 1 a 20, pasto libero fino a 60 caratteri con i quattro testi più usati, solo ricette pubblicate, bozze importate che seguono scambio e annullamento (con la bozza pubblicata nel frattempo ripristinata e quella scartata che blocca, decisione del coordinatore del 12 ottobre), «non proporre più» che resta chiudendo il foglio, ricerca del sostituto con i soli filtri, salvataggi delle porzioni respinti sempre spiegati; suggerimenti con `rankSuggestions` e ricette archiviate fissate anche nella generazione; nuovi motivi di `not_allowed`, UUID in minuscolo, suggerimenti non versionati. Note e testi dei pasti liberi come scritti. Esportazione: Worker su un Cron Trigger dedicato con secondo tentativo, ruolo `app_backup`, account compresi, JSON con gzip e AES-256-GCM, bucket UE, ultime 7 dal codice, limite di 8 MB, CLI di ripristino con verifiche e TLS verificato, prova in CI e prova di produzione separata; email di allarme nell'ondata 3. Chiuse in sezione 15 le voci «Lingue» e, salvo tempi di recupero e prova di produzione, «Backup e ripristino». Sezione 10 aggiornata |
 | 12 ottobre 2026, collegamento degli agenti e revisione dei pasti nel web unite | Riportate le decisioni delle PR #31 e #33. Agenti: consenso vero su `/authorize` e pagina «Collega un agente» con i comandi di Claude Code e Codex CLI verificati; area `agents` (`agents.list`, `agents.disconnect`, anche MCP) con `app.connected_agents()` al posto della tabella `agent_authorizations`; scollegamento con la gestione dei grant di Supabase e il controllo della sessione già presente, provato in CI con token reali; riautorizzazione dello stesso client che aggiunge un accesso; «ultimo rinnovo dell'accesso» al posto dell'ultimo uso; poteri dei token d'agente su Supabase Auth accettati come rischio aperto, con testi veritieri nel consenso, nella pagina e in «Scollega»; nome del client non verificato e scope come dati ricevuti; cambio account che riparte dall'agente; configurazione del server OAuth e `SUPABASE_PUBLISHABLE_KEY`. Revisione dei pasti nel web: matita e porzioni da 1 a 20 per ogni pasto, anche libero o vuoto; salvataggi respinti spiegati anche dopo la navigazione; «Annulla» per 6 secondi nell'app; `not_found` che chiude il foglio; ricerca con errore e «Riprova»; comandi disattivati offline anche nel foglio aperto; voto confermato che rende superata una risposta dei pasti. Sezione 15 «MCP» aggiornata; sezione 10 aggiornata |
+| 12–13 ottobre 2026, messa in produzione | Riportate le decisioni della spec `2026-10-11-messa-in-produzione.md` (PR #34, con le correzioni delle review) e l'esito del lancio (PR #36). Iscrizioni libere spente in produzione, verificate da ogni anteprima di rilascio; OAuth server, *Site URL* e *Redirect URLs* attivati prima del primo rilascio; pubblicazione con `npm run release` in due tempi con impronta, al posto dell'automazione prima del traguardo A, e migrazioni di produzione al suo interno; operazioni sulla produzione dal coordinatore con anteprima, impronta e «vai», SQL solo da una lista chiusa di script versionati, nessuna password negli argomenti, Hyperdrive creato dall'utente in dashboard, TLS verificato, progetto di destinazione in un file versionato; caricamento in una transazione con anteprima, solo in aggiunta, con impostazioni della famiglia, menu in corso, pasti doppi fra le provate e preferenze condizionali nel report; avvio a fasi e a finestra con azzeramento legato all'impronta di avvio al posto della rimozione della famiglia; ripiego sul PDF d'origine. Esito: primo rilascio il 12 ottobre su `cosasimangia.qunidi.workers.dev`, famiglia avviata e agenti collegati il 13, collaudo completo in corso, rotazione delle password rimandata dall'utente. Sezioni 1, 2, 7, 8, 10, 11, 13 e 15 aggiornate |
+| 13 ottobre 2026, accesso e inviti | Decisioni dell'utente: accesso principale con email e password dal traguardo A in poi, non provvisorio, perché sull'iPhone la PWA installata non condivide cookie e archivio con Safari e un link che apre Safari lascia lì la sessione; tolto il link via email come modo di entrare. L'invito crea l'account e le iscrizioni libere restano spente; il link nell'email serve solo a scegliere la password, come quello della «password dimenticata» (recupero via email, raro), entrambi con Resend. Google facoltativo, solo dopo una prova sull'iPhone con l'app installata (redirect OAuth nella PWA, identità Google con le iscrizioni spente: sezione 15). Cambio della password dal Profilo ad alta priorità nel traguardo A (issue #37); citate anche le issue #38 (pagina dei ruoli) e #39 (foto delle ricette). Sezioni Parte 1, 1, 7, 9, 10, 14 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
