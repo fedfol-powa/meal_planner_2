@@ -69,6 +69,11 @@ Prossimi passi:
    `node scripts/prod-sql.ts --preview check-first-generation --set family_id=f3eada3e-67fc-4386-b5ad-93fdb8fb91d3 --set week_start=2026-10-19`
    → `cron_generated = t` (job e settimana mercoledì 14/10 fra le 20 e le 21); la notte dopo, l'esportazione più grande.
    Esito in `server/README.md` e qui. Da qui il vecchio flusso non pianifica più settimane.
+   **R25 fatto (13/10):** nessun commit di codice dopo `b7322cf`, nessun rilascio. Scoperta MCP verificata
+   (resource `/mcp`, `/authorize` 200, `/mcp` senza token 401). L'utente ha collegato Claude Code
+   (registrazione dinamica con iscrizioni spente: funziona), `session_whoami` e ricettario via agente ok,
+   agente visibile nella pagina Agenti (quindi `app.connected_agents()` legge le tabelle `oauth_*`),
+   «Scollega» e nuova richiesta di accesso verificati. Restano R26 (rotazione password) e R27 (esito).
 4. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 5. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 6. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
