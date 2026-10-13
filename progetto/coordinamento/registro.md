@@ -73,7 +73,9 @@ Prossimi passi:
    (resource `/mcp`, `/authorize` 200, `/mcp` senza token 401). L'utente ha collegato Claude Code
    (registrazione dinamica con iscrizioni spente: funziona), `session_whoami` e ricettario via agente ok,
    agente visibile nella pagina Agenti (quindi `app.connected_agents()` legge le tabelle `oauth_*`),
-   «Scollega» e nuova richiesta di accesso verificati. Restano R26 (rotazione password) e R27 (esito).
+   «Scollega» e nuova richiesta di accesso verificati.
+   **R26 rimandato** per decisione dell'utente (13/10): le password restano quelle attuali per ora.
+   **R27:** PR #36 con «Risorse di produzione» in `server/README.md`; da unire dopo la CI.
 4. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 5. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 6. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
