@@ -136,9 +136,13 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     baseline = current.seq;
   })();
 
-  /** Takes the head as it is now, marks it sent and returns a copy: that copy is what leaves. */
+  /**
+   * Takes the head as it is now, marks it sent and returns a copy: that copy is what leaves.
+   * Not counted as busy (spec W8): it runs at every return to the foreground, mostly to find the
+   * queue empty, and a queue with operations is already busy through ShoppingQueueProvider.
+   */
   const takeHead = () =>
-    mutate((record) => {
+    mutateRecord((record) => {
       const head = record.ops[0];
       if (!head) return { value: null };
       const sent: QueuedOp = { ...head, state: 'sent' };

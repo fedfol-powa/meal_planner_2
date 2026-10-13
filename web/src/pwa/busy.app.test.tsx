@@ -25,10 +25,15 @@ function deferred<T = void>() {
 function holdingStore(when: (prefixes: string[]) => boolean) {
   const inner = createMemoryStore();
   let held: ReturnType<typeof deferred<void>> | null = null;
+  let waiting = 0;
   const store: KeyValueStore = {
     ...inner,
     transact: async (prefixes, change) => {
-      if (held && when(prefixes)) await held.promise;
+      if (held && when(prefixes)) {
+        waiting += 1;
+        await held.promise;
+        waiting -= 1;
+      }
       return inner.transact(prefixes, change);
     },
     delete: async (key) => {
@@ -38,6 +43,8 @@ function holdingStore(when: (prefixes: string[]) => boolean) {
   };
   return {
     store,
+    /** Writes waiting for the release. */
+    waiting: () => waiting,
     hold() {
       held = deferred();
     },
@@ -146,6 +153,19 @@ describe('busy page with the real providers (spec W8)', () => {
     fireEvent.click(box);
     // The transaction is held: the record has no operation yet, only mutate's trackBusy protects.
     await waitFor(() => expect(registeredBusy()).toBe(true));
+    device.release();
+  });
+  it('an empty queue read on return to the foreground is not busy: nothing to interrupt', async () => {
+    const device = holdingStore((prefixes) => prefixes.some((prefix) => prefix.startsWith(QUEUE_PREFIX)));
+    const server = createShoppingServer(undefined, DEMO_FAMILY_ID);
+    renderApp(SHOPPING, { store: device.store, createApi: () => (locale) => server.api(locale), backend: createStubBackend(DEMO_USER) });
+    await tomatoes();
+    await waitFor(() => expect(registeredBusy()).toBe(false));
+    device.hold();
+    // Back in the foreground the queue looks for something to send: one read of the empty record.
+    document.dispatchEvent(new Event('visibilitychange'));
+    await waitFor(() => expect(device.waiting()).toBe(1));
+    expect(registeredBusy()).toBe(false);
     device.release();
   });
   it('a shopping change waiting to be sent is busy with no device write running', async () => {
