@@ -1,6 +1,7 @@
 import { errorCodes, locales } from '@app/contract';
 import { ORPCError, ValidationError } from '@orpc/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AccountServiceError } from '../src/accounts/index.ts';
 import { appError, diagnosticOf, normalizeError, toolErrorBody } from '../src/errors.ts';
 import { messages } from '../src/messages.ts';
 
@@ -77,5 +78,16 @@ describe('toolErrorBody', () => {
 			data: { url: 'https://x/family' },
 			message: messages.web_only['en-GB'],
 		});
+	});
+});
+
+describe('account service errors', () => {
+	it('become internal with one log line: the reason and the HTTP status only', () => {
+		const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const error = normalizeError(new AccountServiceError('auth_admin_failed', 503), scope);
+		expect(error.code).toBe('internal');
+		expect(error.data).toEqual({ requestId: 'req-1' });
+		expect(log).toHaveBeenCalledTimes(1);
+		expect(JSON.parse(log.mock.calls[0]![0] as string)).toEqual({ event: 'auth_admin_failed', requestId: 'req-1', status: 503 });
 	});
 });
