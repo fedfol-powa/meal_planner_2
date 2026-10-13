@@ -3,9 +3,10 @@
 Spec di dettaglio dell'attività W8. Estende la specifica principale
 (`2026-09-29-app-famiglia-design.md`, sezioni 1, 6, 15 e 16) e non la sostituisce. Brief:
 `progetto/coordinamento/brief/w8-aggiornamento-pwa.md`. Design concordato con il
-coordinatore il 13 ottobre 2026; corretto dopo la prima revisione
-(`progetto/coordinamento/revisioni/w8-spec-piano.md`) con la decisione del coordinatore di
-semplificare l'architettura (`progetto/coordinamento/messaggi/w8-01-review-spec.md`).
+coordinatore il 13 ottobre 2026; corretto dopo due revisioni
+(`progetto/coordinamento/revisioni/w8-spec-piano.md`, `w8-spec-piano-2.md`) con le decisioni
+del coordinatore (`progetto/coordinamento/messaggi/w8-01-review-spec.md`,
+`w8-02-review-spec-2.md`).
 
 ## Problema
 
@@ -30,19 +31,20 @@ impossibile l'errore, senza librerie (service worker scritto a mano).
 
 ## Principio: pagina e file sempre della stessa versione
 
-Le navigazioni restano servite **dalla shell installata** del worker attivo, come oggi: shell e
-asset vengono sempre dalla stessa cache completa, quindi una pagina bianca o una pagina di una
-versione con i file di un'altra sono impossibili per costruzione. Il ritardo di oggi si toglie
-dal lato del worker e della pagina:
+Le navigazioni restano servite **dalla shell installata** del worker attivo, come oggi. La cache
+di una versione contiene **solo** file di quella versione, verificati all'installazione (sotto),
+quindi una pagina bianca o una pagina di una versione con i file di un'altra sono impossibili per
+costruzione. Il ritardo di oggi si toglie dal lato del worker e della pagina:
 
-- il worker nuovo prende il controllo appena il suo precache è completo (`skipWaiting`);
+- il worker nuovo prende il controllo appena il suo precache è completo e verificato
+  (`skipWaiting`);
 - la pagina chiede al browser di controllare `sw.js` all'avvio e a ogni ritorno in primo piano;
 - la pagina si ricarica quando il worker attivo ha una versione **diversa** dalla propria, solo
   se è libera, visibile e non toccata. Dopo il ricaricamento la shell viene dal worker attivo,
-  quindi le versioni coincidono: il ciclo è impossibile, anche dopo un rollback.
+  quindi le versioni coincidono e il tentativo converge, anche dopo un rollback.
 
 Questo cambia la specifica principale (sezione 1, «navigazioni dalla rete con ripiego sulla
-shell»): vedi «Decisioni da riportare».
+shell») e le «Interfacce decise» del piano generale: vedi «Decisioni da riportare».
 
 ## Comportamento per la famiglia
 
@@ -53,20 +55,23 @@ shell»): vedi «Decisioni da riportare».
   senza banner, prima che si tocchi lo schermo; la pagina resta quella in cui si era (stesso
   indirizzo), la copia e la coda della spesa restano, la sessione pure.
 - **Mai a metà di qualcosa:** il passaggio aspetta se c'è una scrittura in volo (anche il
-  cambio della password, della lingua o un'uscita in corso), un «Annulla» aperto, una modifica
-  della spesa in coda o in salvataggio, un foglio aperto o il cursore in un campo di testo; e
-  se l'utente ha toccato lo schermo dall'ultimo ritorno in primo piano, aspetta il prossimo.
+  cambio della password, della lingua o un'uscita in corso, pulizia compresa), un «Annulla»
+  aperto, una modifica della spesa in coda o in salvataggio, un foglio aperto o il cursore in
+  un campo di testo; e se l'utente ha toccato lo schermo dall'ultimo ritorno in primo piano,
+  aspetta il prossimo.
 - **Offline:** l'app si apre con la shell installata, come oggi; il passaggio avviene solo con
   la rete, perché solo con la rete si installa una versione nuova.
-- **Rollback del server:** il worker della versione precedente si reinstalla e l'app vi passa
-  con le stesse regole (versione diversa, non solo più nuova).
+- **Rollback del server fra versioni con questo meccanismo:** il worker della versione
+  precedente si reinstalla (o riusa la sua cache completa) e l'app vi passa con le stesse regole;
+  una ripubblicazione successiva funziona di nuovo.
 
 ### Il primo rilascio di questa correzione
 
 La versione oggi in produzione (chiamata qui A₀) non sa ricaricarsi: il suo worker non chiama
-`skipWaiting` e la sua pagina non chiede aggiornamenti. La correzione (B) non può cambiare il
-comportamento di A₀, solo quello che succede da B in poi. Procedura operativa da verificare nel
-collaudo (non un limite di tempo garantito):
+`skipWaiting`, non risponde alla domanda della versione e la sua pagina non chiede
+aggiornamenti. La correzione (B) non può cambiare il comportamento di A₀, solo quello che
+succede da B in poi. Procedura operativa da verificare nel collaudo (non un limite di tempo
+garantito):
 
 1. **Prima apertura a freddo con la rete dopo il rilascio:** si vede ancora A₀. La navigazione
    fa controllare `sw.js` al browser: il worker B si scarica, si installa e prende subito il
@@ -85,19 +90,60 @@ Il coordinatore comunica la procedura alla famiglia insieme al rilascio.
 Alternativa scartata: far ricaricare al worker B le pagine A₀ con `WindowClient.navigate()`.
 Accorcerebbe il primo passaggio, ma le pagine A₀ non sanno dire se sono a metà di una scrittura.
 
+### Tornare ad A₀ (procedura distinta)
+
+Il rollback automatico vale solo fra versioni con questo meccanismo. Ripubblicare A₀ dopo B
+installa un worker che non chiama `skipWaiting` e non risponde alla domanda della versione:
+resta in attesa e le pagine B non si ricaricano (nessuna risposta, nessun ricaricamento). Si
+passa ad A₀ solo quando tutte le finestre dell'app sono chiuse: sull'iPhone, chiudere l'app dal
+multitasking e riaprirla, due volte se la prima apertura avviene mentre A₀ si sta ancora
+installando. Da preferire sempre una correzione in avanti o un rollback a una versione
+successiva a B; se serve davvero A₀, il coordinatore comunica questa procedura alla famiglia.
+
 ## Design
+
+### Build (`web/vite.config.ts`, `web/src/pwa/precache.ts`)
+
+- **`sw.js` porta la propria versione e il proprio elenco.** La versione è `__BUILD_VERSION__`
+  come oggi; l'elenco dei file da mettere in cache (`precacheList`: `/index.html`, script e stili
+  con hash, font) si inserisce nel codice di `sw.js` alla fine della build, al posto di un
+  segnaposto, con una funzione pura `injectPrecache(code, list)` che fallisce la build se il
+  segnaposto non c'è o compare più di una volta. `/precache.json` non si emette più: senza
+  lettura a runtime non serve a nulla (via anche da `SERVER_PREFIXES` e da `PRECACHE_URL`).
+- **`index.html` porta la versione:** `<meta name="app-version" content="<versione>">`,
+  inserito dalla build con `transformIndexHtml`.
+- Gli asset con hash sono immutabili per nome: il nome basta a garantirne il contenuto. I font
+  in `/assets/fonts/` non hanno hash: si accetta il limite, e chi cambia il contenuto di un font
+  ne cambia anche il nome.
 
 ### Service worker (`sw-rules.ts`, `sw-core.ts`, `sw.ts`)
 
 **Navigazioni invariate:** shell installata della versione attiva (`SHELL_URL`), rete solo se
 manca dalla cache; rotte del server mai intercettate (`SERVER_PREFIXES`).
 
-**Presa di controllo subito.** `install` chiama `skipWaiting()` (in `WorkerDeps`) solo dopo un
-precache completo; se il precache fallisce la versione nuova non si installa, la cache parziale
-si cancella e resta la precedente, come oggi. Le pagine già controllate passano sotto il worker
-nuovo e ricevono `controllerchange`. Niente `clients.claim()`: la prima visita resta non
-controllata fino all'apertura successiva, come oggi, e la prima apertura offline resta
-garantita dalla seconda visita.
+**Installazione verificata e atomica** (`install`, con `precache` e `version` in `WorkerDeps`):
+
+1. se la cache `cosasimangia-<versione>` esiste e contiene il **segno di completezza**
+   (`COMPLETE_URL`, una voce scritta per ultima), si **riusa senza riscriverla** e si passa al
+   punto 5;
+2. se esiste senza segno (un tentativo interrotto), si cancella;
+3. si scaricano tutti i file dell'elenco con `cache: 'reload'`; ogni risposta deve essere `ok`;
+   l'`index.html` si legge per intero e la sua `app-version` deve coincidere con la versione del
+   worker, altrimenti l'installazione fallisce (rilascio cambiato fra `sw.js` e HTML). L'HTML si
+   salva come risposta nuova (testo e intestazioni), quindi mai come risposta reindirizzata;
+4. solo dopo aver scaricato e verificato tutto si scrive in cache, poi per ultimo il segno; se
+   una scrittura fallisce si cancella la cache appena creata (che non era completa) e
+   l'installazione fallisce;
+5. `skipWaiting()`.
+
+Se l'installazione fallisce resta il worker precedente; il browser riprova al controllo
+successivo (avvio o ritorno in primo piano), quando `sw.js` sarà quello del rilascio corrente.
+Una cache completa non viene mai toccata da un tentativo fallito: o si riusa, o non esiste.
+
+**Presa di controllo:** le pagine già controllate passano sotto il worker nuovo e ricevono
+`controllerchange`. Niente `clients.claim()`: la prima visita resta non controllata fino
+all'apertura successiva, come oggi, e la prima apertura offline resta garantita dalla seconda
+visita.
 
 **Conservazione delle cache: le ultime tre versioni.** `activate` tiene la cache corrente e le
 due più recenti fra le altre del prefisso `cosasimangia-` (i nomi `cosasimangia-<ISO>` si
@@ -107,11 +153,6 @@ ancora i propri font e le immagini con hash con `caches.match` su tutte le cache
 semplice, senza tracciare le pagine aperte: una pagina che salta più di due versioni può perdere
 font o immagini non ancora caricate (non il bundle, unico e già caricato) e si sistema al
 ricaricamento.
-
-**Rollback e cache già presente.** Se la versione che si installa ha già una cache (un rollback
-a una versione conservata), un'installazione fallita non la cancella: si cancella solo una cache
-creata da quell'installazione. Le risposte si scrivono solo dopo averle scaricate tutte, come
-oggi.
 
 **Versione del worker.** Il worker risponde a `{ type: 'version' }` con
 `{ type: 'version', version: __BUILD_VERSION__ }` sulla porta del messaggio
@@ -127,42 +168,48 @@ oggi.
 - gli ascoltatori si collegano subito, all'avvio del modulo: `pointerdown` e `keydown` in
   cattura alzano il segno di interazione; `visibilitychange` e `controllerchange` avviano un
   controllo;
-- al `load` si registra `/sw.js` con `updateViaCache: 'none'`, si chiama
-  `registration.update()` e si fa un controllo;
+- al `load` si **assicura la registrazione**: `register('/sw.js', { updateViaCache: 'none' })`;
+  se fallisce, `getRegistration()`; se manca ancora, si riprova al ritorno visibile successivo.
+  Poi `registration.update()` e un controllo;
 - a ogni `visibilitychange` verso `visible` si azzera il segno di interazione, si fa un
-  controllo e si chiama `registration.update()`; un worker nuovo installato dà
-  `controllerchange` e un nuovo controllo;
-- `update()` che fallisce (offline) si ignora.
+  controllo, si assicura la registrazione (se manca) e si chiama `registration.update()`; un
+  worker nuovo installato dà `controllerchange` e un nuovo controllo;
+- `register`, `getRegistration` e `update()` che falliscono (offline) si ignorano.
 
 **Il controllo:**
 
 1. ogni `visibilitychange` e ogni `controllerchange` incrementano una generazione; un
    controllo ricorda la generazione con cui è partito;
-2. se la pagina non è libera (sotto) si ferma;
-3. chiede la versione al worker che controlla la pagina, con un timeout di 1 secondo; senza
+2. chiede la versione al worker che controlla la pagina, con un timeout di 1 secondo; senza
    worker o senza risposta si ferma;
-4. dopo la risposta, si ferma se la generazione è cambiata (controllo superato), se la versione
-   del worker è uguale a quella della pagina, o se la pagina non è più libera: **i controlli si
-   ripetono subito prima di ricaricare**;
-5. **limite difensivo:** in `sessionStorage` si annota la coppia (versione della pagina,
-   versione del worker); se c'è già, o se `sessionStorage` non è disponibile, non si ricarica.
-   Al massimo un ricaricamento automatico per coppia;
-6. `location.reload()`.
+3. se la generazione è cambiata (controllo superato) si ferma;
+4. **se la versione del worker coincide con quella della pagina, la pagina è allineata:** si
+   cancella il segno dei tentativi (sotto) e ci si ferma;
+5. se la pagina non è libera (sotto) si ferma: **i controlli di libertà si fanno dopo la
+   risposta, subito prima di ricaricare**;
+6. **limite contro i tentativi senza convergenza:** in `sessionStorage` c'è al più un segno, la
+   coppia (versione della pagina, versione del worker) dell'ultimo ricaricamento automatico. Se
+   il segno è la stessa coppia di adesso, l'ultimo ricaricamento non ha portato progressi: non
+   si ricarica. Altrimenti si scrive la coppia e si ricarica (`location.reload()`). Il segno si
+   cancella al punto 4, quando pagina e worker risultano allineati. Senza `sessionStorage`
+   funzionante non si ricarica. Così B → C → B → C funziona sempre, e un ricaricamento che non
+   converge (per esempio una shell in cache di un'altra versione) non si ripete.
 
 **Pagina libera** = visibile, nessuna interazione dall'ultimo ritorno in primo piano (o dal
 caricamento), e non occupata. L'interazione blocca ogni controllo, anche quello all'avvio e al
 ritorno in primo piano che arriva dopo la risposta del worker.
 
-**Pagina occupata** (`busy.ts`):
+**Pagina occupata** (`busy.ts`), per finestre distinte, ciascuna con la propria protezione:
 
 - un contatore di operazioni in corso, `trackBusy(promise)`, che conta l'operazione dal momento
-  della chiamata fino al suo esito, usato nei punti di scrittura fuori da TanStack Query:
+  della chiamata fino al suo esito:
   - cambio della password (`PasswordPage`, invio a `backend.changePassword`);
   - cambio della lingua (`chooseLocale` in `SessionScope`, `runAreaMutation`);
   - uscita (`signOut` in `AuthProvider`, da prima di `signedOut` fino alla fine della pulizia e
     di `backend.signOut()`);
-  - coda della spesa (`add` e ogni scrittura del record in `queue.ts`, dall'inizio della
-    transazione IndexedDB);
+  - scrittura del record della coda della spesa (`mutate` in `queue.ts`, dall'inizio della
+    transazione IndexedDB alla sua fine). `add` si chiama solo dopo che la coda è stata letta,
+    quindi la sua attesa iniziale è già risolta e non apre finestre;
 - un registro di controlli, `registerBusyCheck` (hook `useBusyCheck`), per lo stato che dura:
   - `SessionScope`: `session.queryClient.isMutating() > 0`;
   - `UndoProvider`: un «Annulla» offerto;
@@ -207,48 +254,67 @@ schema `'1'`.
 
 ### Unità e integrazione (Vitest)
 
+- **`precache`:** `precacheList` invariato; `injectPrecache` sostituisce il segnaposto con
+  l'elenco, fallisce senza segnaposto o con due segnaposti.
 - **`sw-rules`:** `staleCaches` tiene la corrente e le due più recenti fra le altre; cancella le
   più vecchie; un rollback (corrente più vecchia di altre) tiene le più recenti; ignora altri
   prefissi.
-- **`sw-core`:** `skipWaiting` chiamato solo dopo un precache completo; risposta alla versione
-  sulla porta e nessuna risposta a messaggi malformati o senza porta; navigazione sempre dalla
-  shell anche dopo un nuovo deploy (test esistente); **primo passaggio da A₀** (cache di A₀,
-  install e activate di B: A₀ resta, la navigazione viene dalla shell B, offline compresa);
-  **tre versioni con una pagina occupata** (A aperta, arrivano B e C: gli asset di A si servono
-  ancora sotto C); **rollback** C → B: la cache di C resta, e un'installazione di B fallita
-  durante il rollback non cancella la cache B già presente.
-- **`update-rules`:** versione diversa o uguale, nessuna risposta; limite della coppia in
-  `sessionStorage`, anche con `sessionStorage` che lancia.
+- **`sw-core`:**
+  - `skipWaiting` solo dopo un precache completo e verificato;
+  - **cambio di rilascio fra script e HTML:** worker B, la rete serve l'HTML di C →
+    installazione fallita, nessuna cache B, nessun `skipWaiting`;
+  - **cambio di rilascio fra HTML e asset:** worker B, HTML B, asset di B non più sul server
+    (404) → installazione fallita, nessuna cache B;
+  - HTML reindirizzato salvato come risposta semplice (test esistente, adattato);
+  - **cache completa già presente:** reinstallazione della stessa versione (rollback) → nessuna
+    richiesta di rete per i file, cache identica, `skipWaiting`;
+  - **fallimento durante la scrittura con una cache completa già presente** di un'altra
+    versione: quella cache resta identica; la cache della versione che si installava non resta;
+  - cache senza segno di completezza (tentativo interrotto) → cancellata e ricostruita;
+  - risposta alla versione sulla porta e nessuna risposta a messaggi malformati o senza porta;
+  - navigazione sempre dalla shell anche dopo un nuovo deploy (test esistente);
+  - **primo passaggio da A₀** (cache di A₀ scritta come oggi, senza segno; install e activate di
+    B: A₀ resta, la navigazione viene dalla shell B, offline compresa, gli asset di A₀ si
+    trovano);
+  - **tre versioni con una pagina occupata** (A aperta, arrivano B e C: gli asset di A si servono
+    ancora sotto C); **rollback** C → B con la cache B completa riusata e la cache C conservata.
+- **`update-rules`:** versione diversa o uguale, nessuna risposta; segno dei tentativi: primo
+  tentativo consentito, stesso tentativo senza progresso negato, cancellato all'allineamento,
+  `sessionStorage` che lancia.
 - **`update`** (`navigator.serviceWorker`, documento, `sessionStorage` e `reload` finti, risposte
   del worker trattenute a mano):
   - ritorno in primo piano con worker diverso e pagina libera: ricarica una volta;
   - pagina occupata: non ricarica; libera al ritorno successivo: ricarica;
-  - **tocco durante l'attesa della risposta:** non ricarica, per ogni trigger;
-  - **pagina nascosta durante l'attesa:** non ricarica;
-  - **pagina diventata occupata durante l'attesa:** non ricarica;
-  - **controllo superato** da un `controllerchange` o da una nuova transizione di visibilità:
+  - tocco durante l'attesa della risposta, pagina nascosta durante l'attesa, pagina diventata
+    occupata durante l'attesa: non ricarica;
+  - controllo superato da un `controllerchange` o da una nuova transizione di visibilità:
     scartato; il controllo nuovo decide;
   - stesso worker, nessuna risposta, nessun worker: non ricarica;
-  - coppia già usata: non ricarica (limite difensivo);
-  - `update()` chiamato all'avvio e a ogni ritorno visibile; un `update()` che fallisce non lascia
-    errori non gestiti;
-  - un tocco prima della registrazione (prima del `load`) conta.
+  - **B → C → B → C** con lo stesso `sessionStorage` fra documenti: ogni passaggio avviene;
+  - **ricaricamento senza progresso:** dopo un ricaricamento la pagina è ancora diversa dal
+    worker con la stessa coppia → nessun secondo ricaricamento;
+  - **registrazione fallita → rete disponibile → ritorno visibile → `update()` chiamato** e
+    passaggio alla versione nuova; `getRegistration()` usato se `register` fallisce;
+  - `update()` all'avvio e a ogni ritorno visibile; errori di rete che non lasciano errori non
+    gestiti;
+  - un tocco prima del `load` conta.
 - **`busy`:** registro, `trackBusy` (conta fino all'esito, anche se rifiutata), `dialog[open]`,
   focus nei campi di testo, controllo che lancia.
-- **Con i provider veri** (`renderApp`): la pagina è occupata con una mutazione dei pasti
-  trattenuta, con «Annulla» offerto, con il cambio della password trattenuto, con il cambio
-  della lingua trattenuto, con l'uscita trattenuta (pulizia o `backend.signOut()`), con
-  l'accodamento della spesa mentre la transazione del dispositivo è trattenuta, con operazioni
-  in coda; libera senza nulla di questo; la pagina di login senza coda non è occupata. Ogni test
-  fallisce se si toglie il relativo collegamento (verificato a mano durante l'implementazione).
+- **Con i provider veri** (`renderApp`), per finestre distinte: mutazione dei pasti trattenuta;
+  «Annulla» offerto (dopo la risposta, nessuna mutazione in volo); cambio della password
+  trattenuto; cambio della lingua trattenuto; uscita con la **pulizia trattenuta** e poi con
+  `backend.signOut()` trattenuto; scrittura del record della coda trattenuta (operazioni ancora
+  vuote: protegge solo `trackBusy` di `mutate`); coda con operazioni e nessuna transazione in
+  corso (protegge solo il controllo del provider); libera senza nulla di questo; pagina di login
+  libera. Prove di rottura: togliere la protezione di una finestra fa fallire il test di quella
+  finestra.
 - **Copia e sessione:**
   - persister: una copia con `buster` `'1'` si ripristina; una con data ISO (A₀) si ripristina
     con lo schema `'1'`; una con data ISO **non** si ripristina se lo schema richiesto è `'2'`;
     una con un altro schema si scarta;
   - app intera: una lista riconoscibile salvata con una build, poi l'app riaperta sul Menu con
-    un'altra build (versione cambiata in `env.buildVersion`), poi riaperta offline sulla Spesa:
-    la lista è visibile e il server non riceve nuove letture; il test fallisce se il `buster`
-    torna alla versione della build;
+    un'altra build, poi riaperta offline sulla Spesa: la lista è visibile e il server non riceve
+    nuove letture; il test fallisce se il `buster` torna alla versione della build;
   - coda: operazioni accodate offline, app riaperta con un'altra build: stesse operazioni con
     gli stessi identificativi prima e dopo, inviate con quegli identificativi al ritorno della
     rete.
@@ -257,11 +323,11 @@ schema `'1'`.
 
 Senza dipendenze nuove, sulle build di produzione in modalità finta (senza le variabili di
 Supabase), servite da `vite preview --outDir <cartella>` su una cartella di cui si cambia il
-contenuto. La versione si riconosce dal bundle `/assets/main-<hash>.js` nel DOM e dalla
-risposta del worker al messaggio `version`.
+contenuto. La versione si riconosce da `<meta name="app-version">` (da B in poi), dal bundle
+`/assets/main-<hash>.js` nel DOM e dalla risposta del worker al messaggio `version`.
 
 - **A₀** = il `main` attuale (commit `3e043f6`), costruito prima di ogni modifica;
-- **B**, **C**, **D** = questo branch, costruito tre volte (versioni diverse).
+- **B**, **C**, **D**, **E** = questo branch, costruito più volte (versioni diverse).
 
 Passi:
 
@@ -269,15 +335,18 @@ Passi:
 2. B: ricaricamento a freddo, si vede A₀; il worker B diventa attivo (la pagina A₀ continua a
    funzionare); nuovo ricaricamento: si vede B, la lista è nella copia;
 3. C: ritorno in primo piano simulato (`visibilitychange`): la pagina passa a C da sola;
-4. **rollback C → B:** si torna a servire B; ritorno in primo piano: il worker B si reinstalla e
-   la pagina passa a B, una volta sola, senza cicli;
-5. **pagina occupata che salta una versione:** con «Annulla» aperto si serve C e poi D, con
+4. **rollback C → B e ripubblicazione di C:** si serve B, ritorno simulato: la pagina passa a B
+   una volta sola; si serve di nuovo C, ritorno simulato: la pagina passa a C;
+5. **pagina occupata che salta una versione:** con «Annulla» aperto si serve D e poi E, con
    ritorni simulati: nessun passaggio; i font e le icone restano; chiuso l'«Annulla», al
-   ritorno successivo la pagina passa a D;
+   ritorno successivo la pagina passa a E;
 6. **coda non vuota:** offline si spunta una voce della spesa; tornati online con una versione
    nuova servita, la pagina non passa finché la coda non è inviata; dopo il passaggio la voce
    resta spuntata;
-7. rete spenta e riapertura: shell dalla cache, lista della spesa visibile.
+7. **rilascio cambiato durante l'installazione:** si serve `sw.js` di una build con l'HTML di
+   un'altra (cartella mescolata a mano): il worker non si installa, la pagina resta com'è e
+   funziona; servita la build intera, al ritorno successivo passa;
+8. rete spenta e riapertura: shell dalla cache, lista della spesa visibile.
 
 La procedura è ripetibile a mano; gli esiti vanno nella descrizione della PR. Gli eventi
 sintetici di `visibilitychange` non riproducono sospensione e ripresa di iOS.
@@ -296,8 +365,10 @@ sintetici di `visibilitychange` non riproducono sospensione e ripresa di iOS.
 
 ## File toccati
 
-- `web/src/pwa/`: `sw-rules.ts`, `sw-core.ts`, `sw.ts`, nuovi `update-rules.ts`, `update.ts`,
-  `busy.ts` con i test; `register.ts` tolto.
+- `web/src/pwa/`: `precache.ts`, `sw-rules.ts`, `sw-core.ts`, `sw.ts`, nuovi `update-rules.ts`,
+  `update.ts`, `busy.ts` con i test; `register.ts` tolto.
+- `web/vite.config.ts`: elenco inserito in `sw.js` al posto di `/precache.json`, `app-version`
+  in `index.html`.
 - `web/src/main.tsx`: chiamata a `update.ts` al posto di `register.ts`.
 - `web/src/api/persister.ts`, `web/src/session/SessionScope.tsx`: `CACHE_SCHEMA` e copie di A₀;
   mutazioni in volo e cambio della lingua come «occupata».
@@ -309,6 +380,11 @@ sintetici di `visibilitychange` non riproducono sospensione e ripresa di iOS.
 Nessuna libreria nuova, nessuna modifica al server, nessuna risorsa esterna.
 
 ## Decisioni da riportare nella specifica
+
+Da riportare nella specifica principale **e** nelle «Interfacce decise» del piano generale
+(`progetto/superpowers/plans/2026-10-11-piano-generale.md`), che oggi dicono «navigazioni dalla
+rete con ripiego su `index.html`» (PWA, W5) e «`buster` sulla versione della build» (cache
+persistita, W5).
 
 ### Prodotto
 
@@ -322,32 +398,39 @@ Nessuna libreria nuova, nessuna modifica al server, nessuna risorsa esterna.
   solo all'apertura a freddo (su iOS l'app sospesa resta vecchia). → Sezione 1 (copia e
   sessione sul dispositivo).
 - Il primo rilascio di questa correzione richiede due aperture a freddo; poi il passaggio è
-  automatico. → Sezione 10 o registro del rilascio.
+  automatico. Il rollback automatico vale solo fra versioni con questo meccanismo; tornare ad A₀
+  richiede di chiudere tutte le finestre dell'app. → Sezione 10 o registro del rilascio.
 
 ### Tecniche
 
-- **Navigazioni dalla shell installata, non dalla rete** (cambia la sezione 1: oggi dice
-  «navigazioni dalla rete con ripiego sulla shell»). Motivo: shell e asset dalla stessa cache
-  completa rendono impossibili per costruzione la pagina bianca e le versioni mescolate
-  (pagina di una versione con i file di un'altra), senza timeout, guardie né stati volatili; il
-  ritardo si toglie con `skipWaiting()` dopo un precache completo, `updateViaCache: 'none'`,
-  `registration.update()` all'avvio e al ritorno visibile, e il ricaricamento della pagina
-  quando la versione del worker attivo è diversa dalla sua (al massimo una volta per coppia di
-  versioni). Niente `clients.claim()`. → Sezione 1 (paragrafo del service worker).
+- **Navigazioni dalla shell installata, non dalla rete** (cambia la sezione 1, oggi «navigazioni
+  dalla rete con ripiego sulla shell», e l'interfaccia PWA del piano generale). Motivo: shell e
+  asset dalla stessa cache completa e verificata rendono impossibili per costruzione la pagina
+  bianca e le versioni mescolate, senza timeout, guardie né stati volatili; il ritardo si toglie
+  con `skipWaiting()` dopo un precache completo, `updateViaCache: 'none'`,
+  `registration.update()` all'avvio e al ritorno visibile (con la registrazione recuperata se il
+  primo tentativo fallisce), e il ricaricamento della pagina quando la versione del worker
+  attivo è diversa dalla sua, con un limite contro i tentativi senza convergenza. Niente
+  `clients.claim()`. → Sezione 1 (paragrafo del service worker).
+- **Precache legato alla build:** elenco dei file dentro `sw.js`, versione in
+  `<meta name="app-version">` di `index.html` verificata all'installazione, scrittura in cache
+  solo dopo aver scaricato e verificato tutto, segno di completezza scritto per ultimo, cache
+  completa della stessa versione riusata senza riscriverla; `/precache.json` tolto. Font senza
+  hash: chi ne cambia il contenuto ne cambia il nome. → Sezione 1.
 - Conservazione delle ultime tre versioni in Cache Storage, come limite semplice per le pagine
   rimaste aperte. → Sezione 1.
 - Pagina occupata: contatore di operazioni in corso (`trackBusy`) per le scritture fuori da
-  TanStack Query, l'uscita e la coda della spesa, più mutazioni TanStack, «Annulla», fogli e
-  campi di testo. → Sezione 1.
-- `buster` della copia persistita: costante `CACHE_SCHEMA` al posto della versione della build;
-  le copie con `buster` in forma di data ISO valgono come schema `'1'`. **Accanto alla regola
-  delle modifiche solo additive:** chi cambia in modo incompatibile la forma dei dati salvati o
-  le chiavi delle query cambia `CACHE_SCHEMA`, e la copia sul dispositivo si scarta senza
-  migrazione: è l'unica eccezione alla conservazione offline, e il periodo di compatibilità
-  delle API resta richiesto. → Sezione 1 («Copia e sessione sul dispositivo» e «Modifiche solo
-  additive»).
+  TanStack Query, l'uscita e la scrittura della coda della spesa, più mutazioni TanStack,
+  «Annulla», coda non vuota, fogli e campi di testo. → Sezione 1.
+- `buster` della copia persistita: costante `CACHE_SCHEMA` al posto della versione della build
+  (cambia anche l'interfaccia «Cache persistita» del piano generale); le copie con `buster` in
+  forma di data ISO valgono come schema `'1'`. **Accanto alla regola delle modifiche solo
+  additive:** chi cambia in modo incompatibile la forma dei dati salvati o le chiavi delle query
+  cambia `CACHE_SCHEMA`, e la copia sul dispositivo si scarta senza migrazione: è l'unica
+  eccezione alla conservazione offline, e il periodo di compatibilità delle API resta richiesto.
+  → Sezione 1 («Copia e sessione sul dispositivo» e «Modifiche solo additive»).
 - La lista della spesa offline sopravvive agli aggiornamenti dell'app. → Sezione 6 (Offline).
-- Prova del passaggio fra versioni nel browser vero con agent-browser (compresi rollback e
-  pagina occupata) e prova a mano sull'iPhone dopo il rilascio, unica prova della sessione
-  Supabase vera. → Sezione 9.
+- Prova del passaggio fra versioni nel browser vero con agent-browser (compresi rollback,
+  ripubblicazione, rilascio cambiato durante l'installazione e pagina occupata) e prova a mano
+  sull'iPhone dopo il rilascio, unica prova della sessione Supabase vera. → Sezione 9.
 - Registro delle revisioni con la data della decisione. → Sezione 16.
