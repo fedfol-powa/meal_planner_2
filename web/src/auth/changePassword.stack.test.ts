@@ -1,16 +1,17 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createStack, sessionIdOf, stack, type StackPerson } from '../test/stack';
-import { AUTH_STORAGE_KEY, createSupabaseBackend } from './supabaseBackend';
+import { AUTH_STORAGE_KEY } from './supabaseBackend';
 
 describe.skipIf(!stack)('password change on the local stack', () => {
   const env = stack ? createStack() : null!;
   afterAll(() => env.cleanup());
   beforeEach(() => localStorage.clear());
+  afterEach(() => env.disposeClients());
 
   /** This device: the app's backend holding the sign-up session, as after a sign-in. */
   function device(person: StackPerson) {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(person.session));
-    return createSupabaseBackend(stack!.url, stack!.key, { storage: localStorage });
+    return env.backend();
   }
 
   it('changes the password and keeps exactly this device’s session', async () => {

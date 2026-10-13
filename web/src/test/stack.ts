@@ -1,4 +1,6 @@
 import postgres from 'postgres';
+import { sessionIdOf as readSessionId } from '../auth/passwordChangeRequests';
+import { createAuthClient, createSupabaseBackend } from '../auth/supabaseBackend';
 
 /** The local stack, from scripts/password/password-stack.sh; null outside it (suites skip). */
 const url = process.env.STACK_SUPABASE_URL;
@@ -10,20 +12,30 @@ if (stack) for (const target of [stack.url, stack.db]) if (!LOCAL.test(target)) 
 
 export interface StackPerson { email: string; id: string; session: { access_token: string; refresh_token: string; expires_at: number; user: unknown } }
 
-export const sessionIdOf = (accessToken: string): string =>
-  (JSON.parse(atob(accessToken.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/'))) as { session_id: string }).session_id;
+export const sessionIdOf = (accessToken: string): string => readSessionId(accessToken)!;
 
 export function createStack() {
   if (!stack) throw new Error('No local stack');
   const { url: base, key: apikey, db: dbUrl } = stack;
   const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
   const created: string[] = [];
+  const clients: ReturnType<typeof createAuthClient>[] = [];
   const headers = { apikey, 'content-type': 'application/json' };
   const post = (path: string, body: object, token?: string) =>
     fetch(`${base}/auth/v1${path}`, { method: 'POST', headers: token ? { ...headers, authorization: `Bearer ${token}` } : headers, body: JSON.stringify(body) });
 
   return {
     sql,
+    /** The app's real backend on this device's storage; its Auth client goes with `disposeClients`. */
+    backend(options: { fetch?: typeof fetch } = {}) {
+      const auth = createAuthClient(base, apikey);
+      clients.push(auth);
+      return createSupabaseBackend(base, apikey, { auth, oauth: auth.oauth, storage: localStorage, ...options });
+    },
+    /** After each test, before the storage is reused: no listeners or renewal timers left behind. */
+    async disposeClients() {
+      await Promise.all(clients.splice(0).map((client) => client.dispose()));
+    },
     /** A fresh person (local sign-ups are on); the sign-up session becomes the device session. */
     async person(password = 'first-password'): Promise<StackPerson> {
       const email = `password-${crypto.randomUUID()}@example.test`;
