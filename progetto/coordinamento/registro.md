@@ -69,8 +69,8 @@ Prossimi passi:
    `node scripts/prod-sql.ts --preview check-first-generation --set family_id=f3eada3e-67fc-4386-b5ad-93fdb8fb91d3 --set week_start=2026-10-19`
    → `cron_generated = t` (job e settimana mercoledì 14/10 fra le 20 e le 21); la notte dopo, l'esportazione più grande.
    Esito in `server/README.md` e qui. Da qui il vecchio flusso non pianifica più settimane.
-3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
-4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
-5. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
-6. **Merge:** `gh pr merge <n> --merge` solo dopo `gh pr checks` → `pass`; le PR non revisionate
+4. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
+5. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
+6. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
+7. **Merge:** `gh pr merge <n> --merge` solo dopo `gh pr checks` → `pass`; le PR non revisionate
    le unisce il coordinatore solo su richiesta esplicita dell'utente.
