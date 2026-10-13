@@ -25,10 +25,14 @@ describe('family state', () => {
   });
   it('says when the person has no family', async () => {
     renderApp('/menu', { api: withProfile(async () => profile({ families: [], currentFamilyId: null })) });
-    expect(await screen.findByText('Non fai parte di nessuna famiglia')).toBeTruthy();
+    expect(await screen.findByText('Non fai ancora parte di una famiglia')).toBeTruthy();
+  });
+  it('offers to create a family', async () => {
+    renderApp('/menu', { api: withProfile(async () => profile({ families: [], currentFamilyId: null })) });
+    expect((await screen.findByRole('link', { name: 'Crea la tua famiglia' })).getAttribute('href')).toBe('/family/new');
   });
   it('treats a vanished current family as no family', async () => {
     renderApp('/menu', { api: withProfile(async () => profile({ currentFamilyId: 'family-gone' })) });
-    expect(await screen.findByText('Non fai parte di nessuna famiglia')).toBeTruthy();
+    expect(await screen.findByText('Non fai ancora parte di una famiglia')).toBeTruthy();
   });
 });

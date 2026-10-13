@@ -28,7 +28,7 @@ describe('recipe book of a curator', () => {
     const get = api.profile.get;
     api.profile.get = async (...args) => ({ ...(await get(...args)), families: [], currentFamilyId: null });
     renderApp('/recipes', { api });
-    expect(await screen.findByText('Non fai parte di nessuna famiglia')).toBeTruthy();
+    expect(await screen.findByText('Non fai ancora parte di una famiglia')).toBeTruthy();
     expect(await screen.findByText('Zuppa di farro')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Archiviate/ })).toBeTruthy();
   });
