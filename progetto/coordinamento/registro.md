@@ -62,6 +62,7 @@ Prossimi passi:
    i due UID presenti. File scaricato cancellato.
 2. **Finestra del 13/10 aperta** (R18–R20 entro le 19). Impronte di avvio (vale l'ultima):
    - **B0 = `14f1d2ab274de7df828df39fcc6d72a9`** (bootstrap, R18, 13/10 mattina; famiglia `f3eada3e-67fc-4386-b5ad-93fdb8fb91d3`).
+   - **B1 = `3282a49aa50e57662c743052afb6793b`** (caricamento, R19, 13/10 mattina; input `bc9d6086d8a317ae`). **Vale B1.**
 3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 5. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
