@@ -73,7 +73,7 @@ schemas`): `anon` le raggiunge solo attraverso il Worker, nel ruolo `anon` impos
 | `id` | `uuid` primaria | generato dal client (idempotenza della creazione) |
 | `token_hash` | `bytea` not null unique | SHA-256 del token (32 byte), check `octet_length = 32` |
 | `email` | `text` not null | normalizzata: check `email = lower(btrim(email))`, non vuota, al più 320 caratteri |
-| `roles` | `text[]` not null default `{}` | check: sottoinsieme di `{recipe_curator, app_admin}`, senza doppioni |
+| `roles` | `text[]` not null default `{}` | check con la funzione immutabile `app.app_invitation_roles_valid(roles)`, definita prima della tabella (un `CHECK` non ammette sottoquery): sottoinsieme di `{recipe_curator, app_admin}`, senza doppioni |
 | `created_by` | `uuid` → `auth.users` `on delete set null` | |
 | `created_at` | `timestamptz` not null default `now()` | |
 | `expires_at` | `timestamptz` not null | `created_at + interval '7 days'`, impostato dalla funzione |
@@ -96,20 +96,33 @@ privilegi sulla tabella.
 ### Funzioni
 
 Tutte `security definer`, `set search_path = ''`, nomi qualificati; `EXECUTE` revocato a
-PUBLIC e concesso solo al ruolo indicato. Errori con `raise exception` e `errcode`
+PUBLIC e concesso solo al ruolo indicato.
+
+**Scambio con il Worker** (`withDb` lavora con `fetch_types: false`, senza parser né
+serializzatore degli array, come già in `server/src/profile/views.ts`): i ruoli entrano
+come `jsonb` (array di stringhe, convertito e validato dentro la funzione) ed escono come
+`jsonb`; l'impronta del token entra come testo esadecimale, convertita dal server con
+`decode(…, 'hex')` nella chiamata. Le firme sotto restano in `bytea` e `jsonb`.
+
+**Creazioni serializzate:** `FOR UPDATE` non blocca una riga che non esiste ancora, quindi
+le funzioni che creano prendono lucchetti consultivi di transazione, sempre nello stesso
+ordine: `create_app_invitation` prima su `app_invitation:id:<id>`, poi su
+`app_invitation:email:<email>`; `create_family` su `family:create:<id>`
+(`pg_advisory_xact_lock(hashtextextended(…, 0))`). Due creazioni concorrenti con lo stesso id
+o la stessa email si susseguono e danno lo stesso esito delle ripetizioni sequenziali. Errori con `raise exception` e `errcode`
 dedicati (classe `P0`, per esempio `P0A01` invito non disponibile), tradotti in codici del
 contratto da un piccolo modulo dell'area (`server/src/app-invitations/db-errors.ts`),
 senza toccare `server/src/db-errors.ts`.
 
 | Funzione | Ruolo | Comportamento |
 |---|---|---|
-| `app.create_app_invitation(p_id uuid, p_token_hash bytea, p_email text, p_roles text[])` | `authenticated` | Richiede `app.has_role('app_admin')` (altrimenti `forbidden`). Normalizza l'email e valida i ruoli anche qui (sottoinsieme ammesso, senza doppioni). Se in `auth.users` esiste un account con quell'email (confronto in minuscolo) → `account_exists`. Se `p_id` esiste già: stesso autore e ancora `pending` → sostituisce `token_hash` (la ripetizione dà un link nuovo, il vecchio smette di valere); stessa email e ruoli richiesti; altrimenti errore (`invalid` nel contratto). Altrimenti revoca l'eventuale invito `pending` per quell'email (`revoked_by` = chi crea) e inserisce il nuovo con `expires_at = now() + 7 giorni`. Restituisce la riga |
-| `app.revoke_app_invitation(p_id uuid)` | `authenticated` | Richiede `app_admin`. A stato assoluto: già revocato → nessun effetto; `accepted` → `not_allowed` (`already_accepted`); inesistente → `not_found` |
-| `app.app_invitations_view()` | `authenticated` | Richiede `app_admin`. Elenco con `created_by_name` e `accepted_by_name` dai profili (che `authenticated` legge solo fra co-membri), più recenti prima |
-| `app.app_invitation_by_token(p_token_hash bytea)` | `anon` | `valid` se `pending`, non revocato, e non scaduto **oppure** già prenotato (`reserved_user_id` non nullo); altrimenti nessuna riga. Restituisce solo stato, nome di chi invita (dal profilo, o null) e ruoli; **mai l'email** |
+| `app.create_app_invitation(p_id uuid, p_token_hash bytea, p_email text, p_roles jsonb)` | `authenticated` | Lucchetti su id ed email. Richiede `app.has_role('app_admin')` (altrimenti `forbidden`). Normalizza l'email e valida i ruoli anche qui (sottoinsieme ammesso, senza doppioni). Se in `auth.users` esiste un account con quell'email (confronto in minuscolo) → `account_exists`. Se `p_id` esiste già: stesso autore e ancora `pending` → sostituisce `token_hash` (la ripetizione dà un link nuovo, il vecchio smette di valere); stessa email e ruoli richiesti; altrimenti errore (`invalid` nel contratto). Altrimenti revoca l'eventuale invito `pending` per quell'email (`revoked_by` = chi crea) e inserisce il nuovo con `expires_at = now() + 7 giorni`. Restituisce la riga |
+| `app.revoke_app_invitation(p_id uuid)` | `authenticated` | Richiede `app_admin`. Revoca ogni invito `pending` nel database, **anche se già scaduto** (un invito prenotato e scaduto può ancora essere chiuso, quindi deve potersi fermare). A stato assoluto: già revocato → nessun effetto; `accepted` → `not_allowed` (`already_accepted`); inesistente → `not_found` |
+| `app.app_invitations_view()` | `authenticated` | Richiede `app_admin`. Elenco con `created_by_name` e `accepted_by_name` dai profili (che `authenticated` legge solo fra co-membri), ruoli come `jsonb`, più recenti prima |
+| `app.app_invitation_by_token(p_token_hash bytea)` | `anon` | `valid` se `pending`, non revocato, e non scaduto **oppure** già prenotato (`reserved_user_id` non nullo); altrimenti nessuna riga. Restituisce solo il nome di chi invita (dal profilo, o null) e i ruoli (`jsonb`); **mai l'email** |
 | `app.claim_app_invitation(p_token_hash bytea, p_email text)` | `anon` | Blocca la riga (`for update`). Non valida (inesistente, revocata, accettata, scaduta senza prenotazione) → `invitation_unavailable`. Email normalizzata diversa → `email_mismatch`. Esiste in `auth.users` un account con quell'email e id diverso da `reserved_user_id` → `account_exists`. Se `reserved_user_id` è nullo lo fissa (`gen_random_uuid()`, `reserved_at = now()`). Restituisce `reserved_user_id` ed email normalizzata. La scadenza si controlla solo prima della prenotazione |
 | `app.complete_app_invitation(p_token_hash bytea, p_user_id uuid)` | `anon` | Blocca la riga. Richiede: non revocata; `reserved_user_id = p_user_id`; in `auth.users` esiste quell'id con l'email dell'invito. Se `accepted` con `accepted_by = p_user_id` → nessun effetto, esito positivo. Altrimenti in una sola istruzione: `status = accepted`, `accepted_by`, `accepted_at`, e `insert` in `app.user_roles` dei ruoli dell'invito con `granted_by = created_by` (`on conflict do nothing`). La scadenza nel frattempo non blocca: conta la prenotazione. Qualunque requisito mancante → `invitation_unavailable` |
-| `app.create_family(p_id uuid, p_name text, p_measurement_system text, p_time_zone text)` | `authenticated` | Utente dal JWT (`auth.uid()`). Se `p_id` esiste: famiglia di cui l'utente è `family_admin` → nessun effetto; altrimenti errore (`invalid` sul campo `id` nel contratto). Altrimenti inserisce `families` (fuso validato dal trigger esistente; il server passa già `Europe/Rome` se il fuso manca o non è valido), `family_members` con ruolo `family_admin`, e imposta `profile_preferences.current_family_id` (upsert). **Non genera settimane**: il menu nasce alla prima lettura con il `prepare` esistente di `menu.getOpening`/`getWeek` (`ensureWeeks`). Il trigger su `family_members` incrementa il contatore della famiglia |
+| `app.create_family(p_id uuid, p_name text, p_measurement_system text, p_time_zone text)` | `authenticated` | Lucchetto sull'id. Utente dal JWT (`auth.uid()`). Se `p_id` esiste: famiglia di cui l'utente è `family_admin` → nessun effetto; altrimenti errore (`invalid` sul campo `id` nel contratto). Altrimenti inserisce `families` (fuso validato dal trigger esistente; il server passa già `Europe/Rome` se il fuso manca o non è valido), `family_members` con ruolo `family_admin`, e imposta `profile_preferences.current_family_id` (upsert). **Non genera settimane**: il menu nasce alla prima lettura con il `prepare` esistente di `menu.getOpening`/`getWeek` (`ensureWeeks`). Il trigger su `family_members` incrementa il contatore della famiglia |
 
 Le funzioni `anon` non si fidano dei parametri del Worker più dello stretto necessario:
 il token si confronta solo come impronta, l'id dell'account deve essere quello prenotato e
@@ -132,10 +145,19 @@ definer` dell'owner): ammessa; nessuna scrittura nello schema `auth`.
   1. limitatore `meta.rateLimit` con chiave `context.clientIp` (da `CF-Connecting-IP`,
      `'unknown'` se manca), prima di ogni accesso al database; superato → `rate_limited`;
   2. nessuna lettura del token, nessun `loadSession`, nessun controllo di ruolo;
-  3. `withDb(..., { kind: 'anon' })`;
-  4. contesto `PublicOperationContext` (`RequestContext` più `now`, `tx`, `public: true`),
-     letto dagli handler con `publicContext(context)`, che verifica il segno `public` e
-     fallisce altrimenti. `OperationContext` resta invariato per tutte le altre operazioni.
+  3. **nessuna transazione aperta dalla pipeline**: il contesto `PublicOperationContext`
+     (`RequestContext` più `now`, `public: true` e `anonDb(work)`, che apre una
+     transazione breve `withDb(..., { kind: 'anon' })` e la chiude) lascia al gestore
+     l'apertura delle transazioni. `get` ne apre una sola; `accept` solo quella della
+     prenotazione e quella della chiusura, e **nessuna connessione resta occupata durante
+     la chiamata ad Auth** (Hyperdrive restituisce la connessione al pool solo a fine
+     transazione, e il limite di produzione è 10). Un test verifica l'ordine;
+  4. gli handler leggono il contesto con `publicContext(context)`, che verifica il segno
+     `public` e fallisce altrimenti. `OperationContext` resta invariato per tutte le altre
+     operazioni.
+- `server/src/permissions.ts`: `checkRole` ha il caso esplicito `public`, che rifiuta
+  (`internal`) se un'operazione pubblica arrivasse per errore al controllo dei ruoli
+  autenticati.
 - `server/src/app.ts`: `contextFor` aggiunge `clientIp`. Nessun'altra rotta nuova.
 - `server/src/env.ts`: `SUPABASE_SECRET_KEY?: string` (segreto del Worker),
   `INVITE_READ_LIMIT: RateLimit`, `INVITE_ACCEPT_LIMIT: RateLimit`.
@@ -183,21 +205,31 @@ restituisce la stessa vista.
 
 `createInvitedAccount(env, {id, email, password, displayName, locale}, {fetch?})` →
 `{status: 'created' | 'existing'} | {status: 'email_taken'}`. Unico punto che legge
-`env.SUPABASE_SECRET_KEY`.
+`env.SUPABASE_SECRET_KEY`. **Non riscrive mai le credenziali né i metadati di un account
+esistente** (decisione del coordinatore dopo la revisione, rilievi 1, 5 e 11): niente
+`PUT`. Nome, lingua e password restano quelli del primo tentativo riuscito.
 
 1. `POST ${SUPABASE_URL}/auth/v1/admin/users` con intestazione `apikey:
    <SUPABASE_SECRET_KEY>` (la chiave segreta non è un JWT: mai `Authorization: Bearer`)
    e corpo `{id, email, password, email_confirm: true, user_metadata: {display_name,
    locale}}`. 200 → `created`.
-2. Risposta «email già registrata» (422 `email_exists`) → `GET /auth/v1/admin/users/{id}`:
-   - utente con quell'id e quell'email → `PUT /auth/v1/admin/users/{id}` con `password` e
-     `user_metadata` (vale l'ultima scelta) → `existing`. È ammesso solo perché il
-     chiamante ha appena prenotato quell'id su un invito ancora `pending`: dopo la
-     chiusura il token non vale più e non si arriva qui;
-   - altrimenti → `email_taken`.
-3. Ogni altra risposta, tempo scaduto (`AbortSignal.timeout`, 10 s) o chiave assente →
-   `AccountServiceError`, che diventa `internal` con `requestId` e una riga di log
-   (`auth_admin_failed` con lo stato HTTP, oppure `auth_admin_key_missing`).
+2. Ogni altro esito della creazione, compresi 422 `email_exists`, un 5xx, un tempo
+   scaduto (`AbortSignal.timeout`, 10 s) e un errore di rete, è **ambiguo**: due creazioni
+   simultanee possono superare entrambe il controllo dell'email di Auth, e la seconda può
+   fallire sull'unicità dell'id con un errore interno invece di `email_exists` (sorgente di
+   Supabase Auth v2.197.0, `internal/api/admin.go`); una creazione riuscita può anche
+   rispondere in ritardo. Si riconcilia leggendo `GET /auth/v1/admin/users/{id}` con l'id
+   prenotato:
+   - utente con quell'id e l'email dell'invito → `existing` (la creazione è avvenuta, in
+     questa o in un'altra richiesta), si prosegue con la chiusura;
+   - 404 dopo un `email_exists`, oppure utente con quell'id ma un'altra email →
+     `email_taken` (`account_exists` nel contratto: l'email appartiene a un altro
+     account, creato nel frattempo a mano);
+   - 404 dopo un esito non `email_exists` (la creazione non è avvenuta) o lettura fallita
+     → `AccountServiceError` (`internal`): la persona riprova dallo stesso link.
+3. Chiave assente → `AccountServiceError` senza chiamate. Ogni `AccountServiceError`
+   diventa `internal` con `requestId` e una riga di log (`auth_admin_failed` con lo stato
+   HTTP, oppure `auth_admin_key_missing`).
 
 Mai nei log: password, token, corpi di richiesta e risposta, email. `fetch` iniettabile
 per i test, come `server/src/agents/grants.ts`.
@@ -210,21 +242,32 @@ per i test, come `server/src/agents/grants.ts`.
 2. **Prenotazione**: transazione `anon`, `app.claim_app_invitation(hash, email)` →
    `reservedUserId`. Errori: `invitation_unavailable`, `invalid` sul campo `email`,
    `not_allowed`/`account_exists`.
-3. **Account**: `createInvitedAccount` con `id = reservedUserId`, fuori da ogni
-   transazione. `email_taken` → `not_allowed`/`account_exists` (un account creato nel
-   frattempo a mano).
+3. **Account**: `createInvitedAccount` con `id = reservedUserId`, senza transazioni né
+   connessioni aperte. `email_taken` → `not_allowed`/`account_exists` (un account creato
+   nel frattempo a mano).
 4. **Chiusura**: transazione `anon`, `app.complete_app_invitation(hash, reservedUserId)`:
    invito `accepted` e ruoli globali nella stessa istruzione.
-5. Risposta `{email}`; la SPA entra con `signInWithPassword(email, password)`.
+5. Risposta `{email}`; la SPA entra con `signInWithPassword(email, password)` usando la
+   password appena scritta. Se l'accesso fallisce (per esempio perché l'account era già
+   stato creato da un tentativo precedente con un'altra password), la pagina dice «Il tuo
+   account è pronto: entra con la password che hai scelto la prima volta» e porta a
+   `/login` con l'email già scritta. Una password dimenticata la reimposta
+   l'amministratore dalla dashboard di Supabase finché non c'è il dominio (attività D).
+
+Concorrenza: due accettazioni dello stesso link prenotano lo stesso id (`claim` blocca la
+riga). Se la seconda arriva dopo la chiusura della prima riceve `invitation_unavailable`;
+se arriva prima, la sua creazione è riconciliata come `existing` e la sua chiusura è un
+no-op. In nessun caso cambia la password, il nome o la lingua dell'account: la finestra di
+concorrenza sulle credenziali non esiste.
 
 Fallimenti a metà:
 
 | Si ferma dopo | Stato | Cosa succede ripetendo dallo stesso link |
 |---|---|---|
-| 2 | invito prenotato, nessun account | stesso id, l'account si crea |
-| 3 | account senza ruoli, invito `pending` prenotato | la creazione trova l'utente con quell'id e quell'email, aggiorna password e nome, la chiusura completa. Nel frattempo la persona potrebbe entrare da `/login` senza ruoli: limite accettato |
+| 2 | invito prenotato, nessun account | stesso id, l'account si crea con i dati del nuovo modulo |
+| 3 | account senza ruoli, invito `pending` prenotato | la creazione è riconciliata come `existing`, la chiusura completa; password, nome e lingua restano quelli del primo tentativo (se la password scritta ora è diversa, l'ingresso automatico fallisce e la pagina porta all'accesso). Nel frattempo la persona potrebbe entrare da `/login` senza ruoli: limite accettato |
 | 3, poi scadenza | come sopra | lettura e prenotazione valgono ancora (prenotato e non revocato); la chiusura completa |
-| 3, poi revoca | account senza ruoli né famiglia, invito revocato | il link non vale più; nuovo invito impossibile (l'email ha un account): caso consegnato a B, «Interfaccia per B e C» |
+| 3, poi revoca | account senza ruoli né famiglia, invito revocato | il link non vale più; l'amministratore può revocare anche un invito scaduto ma ancora `pending`, quindi può sempre fermarlo; nuovo invito impossibile (l'email ha un account): caso consegnato a B, «Interfaccia per B e C» |
 | 4 | invito `accepted` | il link non vale più (`invitation_unavailable`); la persona entra da `/login` |
 
 ### Limiti di frequenza
@@ -275,9 +318,9 @@ curatore del ricettario»). Errori del modulo: email diversa sul campo («Non è
 questo invito»); `account_exists`: «Esiste già un account con questa email: entra dalla
 pagina di accesso», con il collegamento; password troppo corta, troppo lunga (72 byte:
 «Password troppo lunga: al massimo 72 byte, e lettere accentate ed emoji ne usano più di
-uno»), diverse. Accesso fallito dopo la creazione: «L'account è pronto, ma non è stato
-possibile entrare» e il pulsante «Vai all'accesso» verso `/login` con l'email già
-scritta (`validateLoginSearch` aggiunge `email` facoltativa).
+uno»), diverse. Accesso fallito dopo la creazione: «Il tuo account è pronto: entra con la
+password che hai scelto la prima volta» e il pulsante «Vai all'accesso» verso `/login`
+con l'email già scritta (`validateLoginSearch` aggiunge `email` facoltativa).
 
 ### Senza famiglia
 
@@ -330,13 +373,25 @@ Nel layout dell'app; nella barra in basso resta attivo Profilo. Senza `app_admin
   account» (con B diventerà un collegamento all'utente).
 - Elenco: email, ruoli come etichette («nessun ruolo» se vuoto), stato con data («Scade
   il…», «Scaduto il…», «Accettato da {nome} il…», «Revocato il…»), autore.
-- Azioni: «Nuovo link» per gli inviti in attesa e scaduti (nuova `create` con stessa
-  email e ruoli e id nuovo: sostituisce quello in attesa) e «Revoca» con conferma per
-  quelli in attesa. Offline i comandi sono disattivati.
+- Azioni: «Nuovo link» e «Revoca» (con conferma) per gli inviti in attesa **e per quelli
+  scaduti**, che nel database sono ancora `pending` e, se prenotati, possono ancora essere
+  chiusi: l'amministratore deve poterli fermare. «Nuovo link» fa una nuova `create` con
+  stessa email e ruoli e id nuovo (sostituisce quello in attesa). Offline i comandi sono
+  disattivati.
 
-Query: `['appInvitations', 'list', {}]`, non versionata; le mutazioni applicano la risposta
-e invalidano l'elenco (nessun aggiornamento ottimistico). `family.create` scrive la vista
-del profilo nella sua chiave.
+Query: `['appInvitations', 'list', {}]`, non versionata. **Mutazioni nel registro
+`INVALIDATIONS` di `web/src/api/mutations.ts`** (le chiamate passano da
+`useAreaMutation`/`runAreaMutation`, che oggi accettano solo i nomi del registro):
+
+- `family.create`: destinazione `profile` (la risposta è la vista del profilo, scritta
+  nella sua chiave come `profile.setCurrentFamily`), nessun'altra lettura scaduta;
+- `appInvitations.create` e `appInvitations.revoke`: destinazione nuova `appInvitations`
+  che non scrive la risposta nella cache ma invalida `['appInvitations']`. L'esito è
+  `applied` solo se la sessione che ha inviato è ancora aperta (`sessionOpen()`); il
+  cambio di lingua non conta, perché il link non dipende dalla lingua. Il foglio mostra il
+  link solo con `applied`: una risposta arrivata dopo l'uscita o un cambio d'utente non
+  mostra nulla. Test su risposta tardiva dopo l'uscita, cambio di lingua durante la
+  richiesta e due creazioni in fila.
 
 ### Modalità finta
 
@@ -357,10 +412,13 @@ Dizionari nuovi `web/src/i18n/messages/invitations.ts`, `admin.ts`, `onboarding.
 - RLS: chi non è `app_admin` non legge righe; nessun ruolo dell'app scrive la tabella
   direttamente; `anon` esegue solo le tre funzioni per token, `authenticated` non le
   esegue.
+- Tutte le letture fatte nel ruolo `anon` usano solo le funzioni per token; i valori di
+  confronto si salvano con `set_config` prima di cambiare ruolo (nessun privilegio in
+  più per i test).
 - `create_app_invitation`: non `app_admin`, ruoli non ammessi o doppi, email con account
   (anche con maiuscole diverse), sostituzione dell'invito in attesa, ripetizione con lo
   stesso id (token nuovo, nessun doppione), id di un altro autore.
-- `revoke_app_invitation`: ripetuta, su accettato, inesistente.
+- `revoke_app_invitation`: ripetuta, su accettato, inesistente, **su un invito scaduto ma ancora `pending`**, poi chiusura rifiutata.
 - `app_invitation_by_token`: valido, scaduto, prenotato e scaduto, revocato, accettato;
   nessuna email nell'uscita.
 - `claim_app_invitation`: email diversa, prenotazione ripetuta con lo stesso id, scadenza
@@ -373,9 +431,23 @@ Dizionari nuovi `web/src/i18n/messages/invitations.ts`, `admin.ts`, `onboarding.
 
 **Server** (Vitest, database locale, Auth finta con `fetch` iniettato):
 
-- `createInvitedAccount`: creato; `email_exists` con lo stesso id (aggiornamento) e con
-  un altro; errore e tempo scaduto (`internal`); chiave assente; nei log nessun campo
+- `createInvitedAccount`: creato; esiti ambigui (`email_exists`, 5xx, tempo scaduto,
+  errore di rete) riconciliati con la lettura dell'id prenotato (`existing`,
+  `email_taken` o `internal`); **mai un `PUT`**; chiave assente; nei log nessun campo
   sensibile.
+- Concorrenza deterministica con barriere nell'Auth finta: due accettazioni dello stesso
+  link con password e nomi diversi, la seconda sospesa fino a dopo la chiusura della
+  prima e, in un secondo caso, fino a dopo la sola creazione: un solo account, password,
+  nome e lingua del primo tentativo (verificati con `profile.get` e con l'accesso);
+  revoca fra la creazione e la chiusura; creazione Auth che risponde 500 dopo aver creato
+  l'utente (riconciliata come `existing`).
+- Creazioni concorrenti: due `appInvitations.create` con lo stesso id e due con id diversi
+  e la stessa email (un solo invito in attesa, nessun errore); due `family.create` con lo
+  stesso id (una famiglia).
+- Connessioni: durante la chiamata ad Auth di `accept` nessuna transazione di `app_server`
+  è aperta (`pg_stat_activity` letto dall'Auth finta nel momento della chiamata).
+- Ruoli attraverso il vero `withDb`: inviti con `[]`, un ruolo e due ruoli, in creazione,
+  elenco, lettura pubblica e assegnazione.
 - Operazioni: invito valido, scaduto, revocato, usato, inesistente (stesso codice), email
   diversa, email con account esistente (alla creazione e all'accettazione), non
   `app_admin` su `create/list/revoke`, accettazione ripetuta dopo ogni passo fallito
@@ -392,21 +464,29 @@ la settimana caricata, tolta con `replace`, nota solo su iOS non standalone), Pr
 e senza `app_admin`, `/admin` (creazione, link mostrato una volta, «Nuovo link»,
 revoca, `account_exists`).
 
-**Stack locale** (`supabase start`, script `scripts/invitations/invite-stack.sh` in CI
-come `password-stack.sh`): il percorso completo da invito a menu della famiglia nuova
-contro Auth vera, con la chiave segreta locale da `supabase status -o env`
-(`SECRET_KEY`); creazione amministrativa con `email_confirm: true` **con le iscrizioni
-spente**; `signInWithPassword` riuscito; rifiuto della Data API su `app` (RPC
-`app_invitation_by_token` con la chiave pubblicabile e `Content-Profile: app`).
+**Stack locale con le iscrizioni spente** (decisione del coordinatore, rilievo 10): lo stack
+comune (`supabase/config.toml`) ha `enable_signup = false`, come la produzione. Le persone di
+prova si creano con l'API di amministrazione e la chiave segreta locale (`SECRET_KEY` di
+`supabase status -o env`), con modifiche minime e dichiarate a: `web/src/test/stack.ts`
+(`person()`), `scripts/oauth/agents-e2e.mjs` (prova del cambio di password),
+`scripts/password/password-stack.sh` e `scripts/oauth/agents-e2e.sh` (passano la chiave).
 
-Iscrizioni spente in locale: oggi `supabase/config.toml` le tiene accese e due prove le
-usano (`web/src/test/stack.ts` e `scripts/oauth/agents-e2e.mjs` chiamano `/signup`).
-Proposta: spegnerle anche in locale come in produzione e far creare le persone di prova a
-quelle due prove con l'API di amministrazione e la chiave segreta locale (file fuori dalla
-mia area: chiedo il via al coordinatore). Ripiego, se il coordinatore preferisce non
-toccarle: lo script dello stack degli inviti avvia un secondo stack con una copia della
-configurazione con le iscrizioni spente (`supabase start --workdir`, porte diverse), più
-lento in CI.
+`scripts/invitations/invite-stack.sh` (in CI dopo le prove della password e di OAuth)
+esegue con le variabili `STACK_*` i test dello stack del server, che stanno nella
+configurazione normale di Vitest e si saltano senza quelle variabili (come quelli del
+web), quindi non vengono esclusi dal filtro:
+
+- impostazioni di Auth con `disable_signup: true`;
+- **percorso completo** attraverso contratto e pipeline veri (`createApp` con il router
+  dell'app, chiavi JWKS dello stack, Auth reale): l'amministratore (creato con l'API di
+  amministrazione e reso `app_admin` via SQL) entra con la password e crea un invito con il
+  ruolo di curatore; un client senza token legge l'invito e lo accetta; la persona entra
+  con `/token?grant_type=password`; i ruoli finali sono quelli dell'invito; `family.create`
+  crea la famiglia; `menu.getOpening` genera la settimana;
+- due accettazioni concorrenti contro Auth reale: un solo account, la seconda non cambia
+  la password;
+- rifiuto della Data API su `app` (RPC `app_invitation_by_token` con la chiave
+  pubblicabile e `Content-Profile: app`).
 
 **Interfaccia** con la skill agent-browser su `wrangler dev` e stack locale, anche a
 larghezza da telefono (390 px): percorso completo, `/admin`, intestazione
@@ -462,7 +542,8 @@ Ciò che le attività successive riusano, da registrare in «Interfacce decise»
 **Per C (gestione della famiglia):**
 
 - Ruolo `public` e limitatori: un'operazione pubblica dichiara `role: 'public'`,
-  `mcp: false`, `rateLimit`; l'handler usa `publicContext(context)`; i dati passano solo
+  `mcp: false`, `rateLimit`; l'handler usa `publicContext(context)` e apre le sue
+  transazioni brevi con `anonDb` (la pipeline non ne apre); i dati passano solo
   da funzioni `security definer` per impronta del token con `EXECUTE` ad `anon`. C può
   aggiungere un binding `ratelimit` proprio o riusare `INVITE_READ_LIMIT`/
   `INVITE_ACCEPT_LIMIT`.
@@ -470,7 +551,7 @@ Ciò che le attività successive riusano, da registrare in «Interfacce decise»
   frammento (`/invite#<token>` consigliato), `Referrer-Policy: no-referrer` su
   `/invite/*` già impostata.
 - `createInvitedAccount(env, {id, email, password, displayName, locale})` di
-  `server/src/accounts/`: idempotente sull'id, l'unico che usa la chiave segreta. Lo
+  `server/src/accounts/`: l'unico che usa la chiave segreta; con un id prenotato riconcilia ogni esito ambiguo leggendo l'utente e non riscrive mai un account esistente. Lo
   schema prenotazione → creazione → chiusura si ripete con funzioni proprie di C.
 - `family.create` e `app.create_family`; il wizard `/family/new`; la scheda di benvenuto,
   dove C aggiunge «Invita la famiglia».
@@ -492,9 +573,11 @@ migrazione e i test pgTAP nuovi, `scripts/invitations/`.
 `web/src/components/FamilyGate.tsx`, `web/src/routes/MenuPage.tsx`,
 `web/src/routes/ProfilePage.tsx`, `web/src/i18n/messages/index.ts` ed `errors.ts`,
 `web/src/api/fake/`, `web/public/_headers`,
-`.github/workflows/ci.yml` (passo dello stack degli inviti). Da approvare dal
-coordinatore: `supabase/config.toml`, `web/src/test/stack.ts`,
-`scripts/oauth/agents-e2e.mjs` (iscrizioni spente in locale).
+`.github/workflows/ci.yml` (passo dello stack degli inviti), `server/src/permissions.ts`
+(caso `public`), `web/src/api/mutations.ts` (registro e destinazione `appInvitations`).
+Approvati dal coordinatore per le iscrizioni spente in locale: `supabase/config.toml`,
+`web/src/test/stack.ts`, `scripts/oauth/agents-e2e.mjs`,
+`scripts/password/password-stack.sh`, `scripts/oauth/agents-e2e.sh`.
 
 **Tabelle e colonne:** nuova `app.app_invitations`; nessuna colonna cambiata altrove.
 Funzioni nuove: quelle della sezione 1.
@@ -530,5 +613,9 @@ Funzioni nuove: quelle della sezione 1.
   frequenza»).
 - `family.create` con `app.create_family`, senza generazione nella funzione (sezioni 2, 4,
   13).
-- Iscrizioni spente anche nello stack locale, se approvato (sezione 7, «Iscrizioni
-  libere spente»; sezione 9).
+- Iscrizioni spente anche nello stack locale; persone di prova create con l'API di
+  amministrazione (sezione 7, «Iscrizioni libere spente»; sezione 9).
+- Il server non riscrive mai le credenziali di un account esistente: un'accettazione
+  ripresa conserva password, nome e lingua del primo tentativo riuscito (sezione 7).
+- Operazioni `public` senza transazione della pipeline: nessuna connessione occupata
+  durante le chiamate ad Auth (sezione 1).
