@@ -209,6 +209,27 @@ describe('install bound to the build', () => {
     await expect(install(depsFor(buildB, 'B', caches, mixed.fetch))).rejects.toThrow();
     expect(caches.names()).toEqual([]);
   });
+  it('release changed between HTML and assets on a host that answers missing files with index.html: install fails', async () => {
+    const caches = memoryCaches();
+    const skipWaiting = vi.fn(async () => {});
+    // Like production (assets with single-page-application fallback): B's bundle is gone, the
+    // host answers 200 with C's index.html.
+    const fetch = async (input: RequestInfo) => {
+      const path = new URL(typeof input === 'string' ? input : input.url, origin).pathname;
+      if (path === '/index.html') return new Response(page('B'), { headers: { 'content-type': 'text/html' } });
+      return new Response(page('C'), { headers: { 'content-type': 'text/html' } });
+    };
+    await expect(install(depsFor(buildB, 'B', caches, fetch, skipWaiting))).rejects.toThrow(/index\.html instead/);
+    expect(caches.names()).toEqual([]);
+    expect(skipWaiting).not.toHaveBeenCalled();
+  });
+  it('never caches index.html served for a missing asset at runtime', async () => {
+    const { caches, deps } = await installed(buildB, 'B');
+    const fallback = async () => new Response(page('C'), { headers: { 'content-type': 'text/html' } });
+    const before = await caches.dump('cosasimangia-B');
+    await respond(asset('/assets/img-x.png'), url('/assets/img-x.png'), { ...deps, fetch: fallback });
+    expect(await caches.dump('cosasimangia-B')).toEqual(before);
+  });
   it('reuses a complete cache of the same version without the network and without writing', async () => {
     const { caches } = await installed(buildB, 'B');
     const before = await caches.dump('cosasimangia-B');

@@ -38,11 +38,22 @@ function versionOf(html: string): string | null {
   return VERSION_META.exec(html)?.[0].match(/content=["']([^"']*)["']/i)?.[1] ?? null;
 }
 
-/** One file of the build, checked: ok, and for the index the same version as this worker. */
+/**
+ * The host answers a file it does not have with index.html and 200 (single-page-application
+ * fallback): a file of another release, or one already gone, must never enter a cache (W8 review).
+ */
+function isFallbackPage(response: Response): boolean {
+  return (response.headers.get('content-type') ?? '').toLowerCase().startsWith('text/html');
+}
+
+/** One file of the build, checked: ok, not the fallback page, and for the index the same version as this worker. */
 async function download(url: string, deps: WorkerDeps): Promise<Response> {
   const response = await deps.fetch(url, { cache: 'reload' });
   if (!response.ok) throw new Error(`precache ${url}: ${response.status}`);
-  if (url !== SHELL_URL) return withoutRedirect(response);
+  if (url !== SHELL_URL) {
+    if (isFallbackPage(response)) throw new Error(`precache ${url}: index.html instead of the file`);
+    return withoutRedirect(response);
+  }
   const html = await response.text();
   if (versionOf(html) !== deps.version) throw new Error(`precache ${url}: another release`);
   // A new response: never marked as redirected, whatever the host did.
@@ -105,7 +116,7 @@ export async function respond(info: { url: string; method: string; mode: string 
     const cached = (await cache.match(info.url)) ?? (await caches.match(info.url));
     if (cached) return cached;
     const response = await fetch(target);
-    if (response.ok) await cache.put(info.url, response.clone());
+    if (response.ok && !isFallbackPage(response)) await cache.put(info.url, response.clone());
     return response;
   }
   return fetch(target);

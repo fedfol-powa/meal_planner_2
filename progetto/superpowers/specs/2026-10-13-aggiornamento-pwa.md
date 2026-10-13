@@ -127,7 +127,10 @@ manca dalla cache; rotte del server mai intercettate (`SERVER_PREFIXES`).
    (`COMPLETE_URL`, una voce scritta per ultima), si **riusa senza riscriverla** e si passa al
    punto 5;
 2. se esiste senza segno (un tentativo interrotto), si cancella;
-3. si scaricano tutti i file dell'elenco con `cache: 'reload'`; ogni risposta deve essere `ok`;
+3. si scaricano tutti i file dell'elenco con `cache: 'reload'`; ogni risposta deve essere `ok` e,
+   per i file diversi da `index.html`, non una pagina HTML (in produzione l'hosting risponde a un
+   file che non ha con `index.html` e 200, per la regola «single-page-application»; la stessa
+   regola vale per gli asset messi in cache durante l'uso);
    l'`index.html` si legge per intero e la sua `app-version` deve coincidere con la versione del
    worker, altrimenti l'installazione fallisce (rilascio cambiato fra `sw.js` e HTML). L'HTML si
    salva come risposta nuova (testo e intestazioni), quindi mai come risposta reindirizzata;
@@ -217,7 +220,9 @@ ritorno in primo piano che arriva dopo la risposta del worker.
     presa interrotta lascia l'operazione in coda, inviata di nuovo con lo stesso identificativo;
 - un registro di controlli, `registerBusyCheck` (hook `useBusyCheck`), per lo stato che dura:
   - `SessionScope`: `session.queryClient.isMutating() > 0`;
-  - `UndoProvider`: un «Annulla» offerto;
+  - `UndoProvider`: un «Annulla» offerto ancora utilizzabile: della famiglia mostrata ed entro i suoi
+    6 secondi misurati con l'orologio (il timer può scattare in ritardo dopo la ripresa su iOS, e
+    un'offerta di un'altra famiglia non ha un avviso che la chiuda);
   - `ShoppingQueueProvider`: coda non ancora letta dal dispositivo, oppure con operazioni (in
     attesa o inviate), per una persona collegata; senza persona la coda non conta, altrimenti
     la pagina di login non si aggiornerebbe mai (l'uscita in corso è coperta da `trackBusy`);

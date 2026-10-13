@@ -4,6 +4,7 @@ import { fakeClients } from '../api/fake/fakeApi';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import { createMemoryStore, type KeyValueStore } from '../api/persister';
 import { DEMO_USER } from '../auth/backend';
+import { undoOf } from '../features/meals/sessionState';
 import { realMealsApp } from '../features/meals/testApp';
 import { MONDAY } from '../features/shopping/fixtures';
 import { QUEUE_PREFIX } from '../features/shopping/storage';
@@ -11,6 +12,7 @@ import { createShoppingServer } from '../features/shopping/testServer';
 import { LanguageSwitch } from '../test/LanguageSwitch';
 import { renderApp } from '../test/renderApp';
 import { createStubBackend } from '../test/stubBackend';
+import { useSession } from '../session/SessionScope';
 import { registeredBusy, resetBusy } from './busy';
 
 afterEach(() => resetBusy());
@@ -63,6 +65,12 @@ async function changeServings() {
   fireEvent.click(within(lunch).getByRole('button', { name: 'Una porzione in più' }));
   fireEvent.click(within(lunch).getByRole('button', { name: 'Modifica il pasto' }));
 }
+/** Exposes the session's «Annulla» slot to the test. */
+let undoSlot: ReturnType<typeof undoOf> | null = null;
+function UndoSlotProbe() {
+  undoSlot = undoOf(useSession());
+  return null;
+}
 const SHOPPING = `/shopping/${MONDAY}?day=2026-10-14`;
 const tomatoes = () => screen.findByRole('checkbox', { name: 'Preso o già in casa: Pomodori' });
 
@@ -93,6 +101,20 @@ describe('busy page with the real providers (spec W8)', () => {
     await screen.findByRole('button', { name: 'Annulla' });
     // No mutation in flight any more: only the undo check protects this moment.
     expect(registeredBusy()).toBe(true);
+  });
+  it('an «Annulla» that cannot be used any more is not busy: another family, or past its 6 seconds', async () => {
+    realMealsApp('/menu', { extra: <UndoSlotProbe /> });
+    await changeServings();
+    await screen.findByRole('button', { name: 'Annulla' });
+    const offer = undoSlot!.get()!;
+    // Offered in another family (the family was switched within the 6 seconds): no toast, no timer.
+    undoSlot!.set({ ...offer, familyId: 'another-family' });
+    expect(registeredBusy()).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(registeredBusy()).toBe(false);
+    // Back in the foreground after iOS kept the timer from firing: the clock decides.
+    undoSlot!.set({ ...offer, at: Date.now() - 7000 });
+    expect(registeredBusy()).toBe(false);
   });
   it('a password change is busy until its answer', async () => {
     const backend = createStubBackend(DEMO_USER);
