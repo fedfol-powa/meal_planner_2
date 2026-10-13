@@ -97,19 +97,22 @@ additive; altrimenti correzione in avanti.
 
 ## Risorse di produzione
 
-Da compilare durante il runbook del piano
-`progetto/superpowers/plans/2026-10-11-messa-in-produzione.md` (parte B).
+Compilata durante il runbook del piano
+`progetto/superpowers/plans/2026-10-11-messa-in-produzione.md` (parte B), 12–13 ottobre 2026.
 
 | Risorsa | Valore |
 |---|---|
-| Account Cloudflare | POWA, `account_id` in `wrangler.jsonc` |
-| Progetto Supabase | `lronuqvtjdhfyychnscr` (`scripts/production-target.json`) |
-| Hyperdrive | id, limite di connessioni (pool − 5) e perché |
-| Bucket delle esportazioni | `cosasimangia-backups`, giurisdizione `eu` |
-| Indirizzo | `workers.dev` (anche in `scripts/release.config.json`) |
-| Primo rilascio | data e commit |
-| Collaudo completo | data ed esito |
-| Rotazione delle password | data |
+| Account Cloudflare | `Federico.folloni@powa.space's Account`, `account_id` `d0deb498ea6d174e013c878ff38d8dfb` (in `wrangler.jsonc`) |
+| Progetto Supabase | `lronuqvtjdhfyychnscr`, eu-west-2, Postgres 17 (`scripts/production-target.json`); iscrizioni spente, OAuth server attivo con registrazione dinamica |
+| Accesso al database | Session pooler `aws-0-eu-west-2.pooler.supabase.com:5432`, TLS `verify-full` con il certificato del progetto |
+| Hyperdrive | `cosasimangia`, id `4c2038adf73d4ed094584a3244f7fbf2`, utente `app_server`, cache spenta; limite di connessioni **10** = pool di Supabase (15) − 5, per lasciare connessioni a migrazioni, strumenti e dashboard |
+| Bucket delle esportazioni | `cosasimangia-backups`, giurisdizione `eu`; prima esportazione il 13 ottobre 2026 alle 02:30 UTC, ripristinata in locale con la chiave del gestore di password |
+| Indirizzo | `https://cosasimangia.qunidi.workers.dev` (anche in `scripts/release.config.json`) |
+| Primo rilascio | 12 ottobre 2026, commit `b7322cf`, versione `e0cab6a9-49f9-4689-ab6a-13d6dea7139c` (poi `6382d9b5-9187-47d6-bb6c-2e188e46cc4d` con il segreto `BACKUP_ENCRYPTION_KEY`) |
+| Avvio della famiglia | 13 ottobre 2026: famiglia, caricamento (50 ricette pubblicate, 6 bozze, 6 settimane) e primo collaudo in sola lettura riuscito |
+| Agenti | 13 ottobre 2026: Claude Code collegato con registrazione dinamica, «Scollega» verificato |
+| Collaudo completo | in corso; giovedì 15 ottobre 2026 la verifica della prima generazione dal cron |
+| Rotazione delle password | rimandata per decisione dell'utente (13 ottobre 2026) |
 
 Al passaggio al dominio `cosasimangia.qunidi.it` (ondata 3) vanno aggiornati *Site URL* e
 *Redirect URLs* di Supabase Auth.
