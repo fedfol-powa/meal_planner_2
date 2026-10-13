@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
-import { measurementSystemSchema } from '../profile/index.ts';
+import { measurementSystemSchema, profileViewSchema } from '../profile/index.ts';
 import { exclusionsViewSchema, familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './views.ts';
 
 export * from './views.ts';
@@ -22,6 +22,22 @@ const memberRead = (reads?: ('family' | 'catalogue')[]) =>
 	op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', ...(reads ? { reads } : {}) });
 
 export const familyContract = {
+	create: op({ mcp: { readOnly: false }, offline: false, role: 'user', creates: true })
+		.route({
+			method: 'POST',
+			path: '/families',
+			summary:
+				'Create a family you will administer: name, metric or UK imperial units and an IANA time zone (default Europe/Rome). The menu is prepared at the first menu read. Returns your profile with the new family shown',
+		})
+		.input(
+			z.object({
+				id: z.uuid(),
+				name: z.string().trim().min(1).max(60),
+				measurementSystem: measurementSystemSchema,
+				timeZone: z.string().max(64).optional(),
+			}),
+		)
+		.output(profileViewSchema),
 	get: memberRead(['family'])
 		.route({
 			method: 'GET',

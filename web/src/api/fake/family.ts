@@ -5,7 +5,7 @@ import type { Api, ExclusionsView, FamilyDetailView, FamilyRole, Read, SettingsV
 import { DEMO_FAMILY, DEMO_PEOPLE } from './seed';
 import type { Translated } from './quantity';
 
-type FamilyApi = Api['family'];
+type FamilyApi = Omit<Api['family'], 'create'>;
 type Restriction = { restriction: 'avoid' | 'limit'; weeklyMax: number | null };
 
 /** What the fake backend remembers of the demo family (W2): settings, books, restrictions, exclusions. */

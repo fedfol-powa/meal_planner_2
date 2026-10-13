@@ -10,6 +10,7 @@ describe('profile and family operations', () => {
 		'profile.get': ['user', true],
 		'profile.update': ['user', false],
 		'profile.setCurrentFamily': ['user', false],
+		'family.create': ['user', false],
 		'family.get': ['familyMember', true],
 		'family.getSettings': ['familyMember', true],
 		'family.searchIngredients': ['familyMember', true],

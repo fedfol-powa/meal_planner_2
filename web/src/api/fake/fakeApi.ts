@@ -63,6 +63,9 @@ export interface FakeData {
   readonly catalogue: FakeCatalogueData;
   /** Agents connected to the account (Profile › Connect an agent). */
   readonly agents: FakeAgent[];
+  /** Families created in this session (W9): shown in the profile, without menus. */
+  readonly createdFamilies: { id: string; name: string; timeZone: string; measurementSystem: 'metric' | 'uk_imperial' }[];
+  currentFamilyId?: string;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -100,7 +103,8 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
   return {
     user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData(),
     catalogue: createFakeCatalogueData(recipes),
-    agents: createFakeAgentsData()
+    agents: createFakeAgentsData(),
+    createdFamilies: []
   };
 }
 
@@ -147,8 +151,11 @@ export function createFakeApi(options: FakeApiOptions): Api {
         // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
         globalRoles: userId === DEMO_USER_ID ? ['recipe_curator' as const] : []
       },
-      families: [{ id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' }],
-      currentFamilyId: DEMO_FAMILY.id
+      families: [
+        { id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' },
+        ...state.createdFamilies.map((f) => ({ ...f, role: 'family_admin' as const }))
+      ],
+      currentFamilyId: state.currentFamilyId ?? DEMO_FAMILY.id
     } satisfies Awaited<ReturnType<Api['profile']['get']>>;
   }
   function checkFamily(familyId: string) {
@@ -295,29 +302,40 @@ export function createFakeApi(options: FakeApiOptions): Api {
         if (locale !== undefined) state.profile.locale = locale;
         return delayed(profileView());
       },
-      // One demo family: choosing another one is choosing a family the person is not in.
+      // The demo family or one created in this session: any other is a family the person is not in.
       async setCurrentFamily({ familyId }) {
-        checkFamily(familyId);
+        if (!state.createdFamilies.some((f) => f.id === familyId)) checkFamily(familyId);
+        state.currentFamilyId = familyId;
         return delayed(profileView());
       }
     },
-    family: createFakeFamily({
-      data: state.family,
-      userId,
-      role: DEMO_PEOPLE.find((p) => p.id === userId)?.role ?? 'member',
-      displayName: () => profileView().user.displayName,
-      locale: options.getLocale,
-      books: data.books,
-      ingredients: data.ingredients,
-      recipeName: (recipeId, locale) => {
-        const recipe = recipes.find((r) => r.id === recipeId);
-        return recipe ? localized(recipe.name, locale) : null;
-      },
-      checkFamily,
-      respond,
-      delayed,
-      bump: () => void (state.revision += 1)
-    }),
+    family: {
+      ...createFakeFamily({
+        data: state.family,
+        userId,
+        role: DEMO_PEOPLE.find((p) => p.id === userId)?.role ?? 'member',
+        displayName: () => profileView().user.displayName,
+        locale: options.getLocale,
+        books: data.books,
+        ingredients: data.ingredients,
+        recipeName: (recipeId, locale) => {
+          const recipe = recipes.find((r) => r.id === recipeId);
+          return recipe ? localized(recipe.name, locale) : null;
+        },
+        checkFamily,
+        respond,
+        delayed,
+        bump: () => void (state.revision += 1)
+      }),
+      // W9: the creator administers it and sees it; the fake has no menu for it.
+      async create({ id, name, measurementSystem, timeZone }) {
+        if (!state.createdFamilies.some((f) => f.id === id)) {
+          state.createdFamilies.push({ id, name: name.trim(), measurementSystem, timeZone: timeZone ?? 'Europe/Rome' });
+        }
+        state.currentFamilyId = id;
+        return delayed(profileView());
+      }
+    },
     menu: {
       async getOpening({ familyId, today: requested }) {
         checkFamily(familyId);
