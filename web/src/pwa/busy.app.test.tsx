@@ -1,8 +1,8 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeClients } from '../api/fake/fakeApi';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
-import { createMemoryStore, type KeyValueStore } from '../api/persister';
+import { createMemoryStore, revokedKey, type KeyValueStore } from '../api/persister';
 import { DEMO_USER } from '../auth/backend';
 import { undoOf } from '../features/meals/sessionState';
 import { realMealsApp } from '../features/meals/testApp';
@@ -13,7 +13,8 @@ import { LanguageSwitch } from '../test/LanguageSwitch';
 import { renderApp } from '../test/renderApp';
 import { createStubBackend } from '../test/stubBackend';
 import { useSession } from '../session/SessionScope';
-import { registeredBusy, resetBusy } from './busy';
+import { isBusy, registeredBusy, resetBusy } from './busy';
+import { startUpdates, type ContainerLike, type DocumentLike } from './update';
 
 afterEach(() => resetBusy());
 
@@ -69,6 +70,12 @@ async function changeServings() {
 let undoSlot: ReturnType<typeof undoOf> | null = null;
 function UndoSlotProbe() {
   undoSlot = undoOf(useSession());
+  return null;
+}
+/** Exposes the session to the test. */
+let shownSession: ReturnType<typeof useSession> | null = null;
+function SessionProbe() {
+  shownSession = useSession();
   return null;
 }
 const SHOPPING = `/shopping/${MONDAY}?day=2026-10-14`;
@@ -201,5 +208,140 @@ describe('busy page with the real providers (spec W8)', () => {
     await waitFor(() => expect(server.calls).toEqual(['setItemChecked']));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(registeredBusy()).toBe(true);
+  });
+});
+
+/**
+ * The real update loop of the page (`startUpdates`) with a worker of another version: `resume()`
+ * brings the page back to the foreground, which resets the interaction and checks the version.
+ */
+function newVersionWaiting() {
+  const doc = Object.assign(new EventTarget(), { visibilityState: 'visible' as DocumentVisibilityState });
+  const reload = vi.fn();
+  const container = Object.assign(new EventTarget(), {
+    controller: { postMessage: (_: unknown, ports: MessagePort[]) => ports[0]!.postMessage({ type: 'version', version: 'next' }) },
+    register: async () => ({ update: async () => {} }),
+    getRegistration: async () => undefined
+  });
+  const entries = new Map<string, string>();
+  void startUpdates({
+    container: container as ContainerLike,
+    document: doc as DocumentLike,
+    loaded: new Promise(() => {}),
+    storage: { getItem: (k) => entries.get(k) ?? null, setItem: (k, v) => void entries.set(k, v), removeItem: (k) => void entries.delete(k) },
+    reload,
+    pageVersion: 'current',
+    isBusy
+  });
+  return {
+    reload,
+    async resume() {
+      doc.visibilityState = 'hidden';
+      doc.dispatchEvent(new Event('visibilitychange'));
+      doc.visibilityState = 'visible';
+      doc.dispatchEvent(new Event('visibilitychange'));
+      // The worker answers through a MessageChannel.
+      await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    }
+  };
+}
+
+describe('no reload into a new version during operations outside TanStack Query (PR #43 review)', () => {
+  it('reloads a free page: the harness works', async () => {
+    realMealsApp('/menu');
+    await lunchCard();
+    await waitFor(() => expect(isBusy()).toBe(false));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).toHaveBeenCalledTimes(1);
+  });
+  it('servings waiting for the delayed save', async () => {
+    const { server } = realMealsApp('/menu');
+    const lunch = await lunchCard();
+    await waitFor(() => expect(isBusy()).toBe(false));
+    fireEvent.click(within(lunch).getByRole('button', { name: 'Modifica il pasto' }));
+    fireEvent.click(within(lunch).getByRole('button', { name: 'Una porzione in più' }));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(server.mealCalls.filter((c) => c.op === 'meals.setServings')).toHaveLength(0);
+    expect(update.reload).not.toHaveBeenCalled();
+    // The delayed save leaves as usual.
+    await waitFor(() => expect(server.mealCalls.filter((c) => c.op === 'meals.setServings')).toHaveLength(1), { timeout: 2000 });
+  });
+  it('servings saved by leaving the Menu, until the answer', async () => {
+    const { server, history } = realMealsApp('/menu');
+    let answer!: () => void;
+    const held = new Promise<void>((resolve) => (answer = resolve));
+    server.answerMeals({ setServings: () => held.then(() => new Promise(() => {})) });
+    const lunch = await lunchCard();
+    await waitFor(() => expect(isBusy()).toBe(false));
+    fireEvent.click(within(lunch).getByRole('button', { name: 'Modifica il pasto' }));
+    fireEvent.click(within(lunch).getByRole('button', { name: 'Una porzione in più' }));
+    await act(() => history.push('/recipes'));
+    await waitFor(() => expect(server.mealCalls.filter((c) => c.op === 'meals.setServings')).toHaveLength(1));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    answer();
+  });
+  it('a sign-in waiting for its answer; the idle sign-in page reloads', async () => {
+    const backend = createStubBackend(null);
+    let answer!: (result: { ok: false; reason: 'invalid_credentials' }) => void;
+    const signIn = vi.spyOn(backend, 'signIn').mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+    renderApp('/login', { backend });
+    const button = await screen.findByRole('button', { name: 'Accedi' });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'person@example.test' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-password' } });
+    fireEvent.submit(button.closest('form')!);
+    await waitFor(() => expect(signIn).toHaveBeenCalledTimes(1));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    answer({ ok: false, reason: 'invalid_credentials' });
+    await screen.findByRole('alert');
+    await update.resume();
+    expect(update.reload).toHaveBeenCalledTimes(1);
+  });
+  it('an agent consent waiting for its answer', async () => {
+    const backend = createStubBackend(DEMO_USER);
+    backend.holdDecision();
+    renderApp('/authorize?authorization_id=auth-1', { backend });
+    const allow = (await screen.findByRole('button', { name: 'Consenti' })) as HTMLButtonElement;
+    await waitFor(() => expect(allow.disabled).toBe(false));
+    await waitFor(() => expect(isBusy()).toBe(false));
+    fireEvent.click(allow);
+    await waitFor(() => expect(backend.decisions).toHaveLength(1));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+  });
+  it('a shopping item typed and not added yet, with the keyboard closed', async () => {
+    const server = createShoppingServer(undefined, DEMO_FAMILY_ID);
+    renderApp(SHOPPING, { createApi: () => (locale) => server.api(locale), backend: createStubBackend(DEMO_USER) });
+    await tomatoes();
+    await waitFor(() => expect(isBusy()).toBe(false));
+    const field = screen.getByRole('textbox', { name: 'Aggiungi una voce' });
+    fireEvent.change(field, { target: { value: 'Latte' } });
+    expect(document.activeElement).not.toBe(field);
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: '  ' } });
+    await update.resume();
+    expect(update.reload).toHaveBeenCalledTimes(1);
+  });
+  it('a revoked family while its mark is written on the device', async () => {
+    const mark = revokedKey(DEMO_USER.id, 'gone-family');
+    const device = holdingStore((prefixes) => prefixes.includes(mark));
+    renderApp('/menu', { backend: createStubBackend(DEMO_USER), store: device.store, extra: <SessionProbe /> });
+    await screen.findByRole('navigation', { name: 'Giorni della settimana' });
+    await waitFor(() => expect(isBusy()).toBe(false));
+    device.hold();
+    act(() => shownSession!.revoke('gone-family', { announce: false }));
+    await waitFor(() => expect(device.waiting()).toBe(1));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    device.release();
   });
 });

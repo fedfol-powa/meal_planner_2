@@ -218,6 +218,13 @@ ritorno in primo piano che arriva dopo la risposta del worker.
     risposta del worker arrivava durante quella breve transazione (trovato nella prova nel
     browser). Una coda con operazioni è già occupata tramite il controllo del provider, e una
     presa interrotta lascia l'operazione in coda, inviata di nuovo con lo stesso identificativo;
+  - accesso (`LoginPage`, da `backend.signIn` alla gestione dell'esito);
+  - decisione sul consenso a un agente (`AuthorizePage`, da `backend.decideAuthorization` alla
+    gestione dell'esito, ritorno all'agente compreso);
+  - salvataggio delle porzioni avviato dall'uscita dal Menu (`useServingsDraft`, il
+    `runMealMutation` del cleanup, che non è una mutazione TanStack), fino all'esito;
+  - segno di una famiglia revocata sul dispositivo (`markRevoked` in `session.ts`), che tiene
+    fuori dalla copia i dati della famiglia;
 - un registro di controlli, `registerBusyCheck` (hook `useBusyCheck`), per lo stato che dura:
   - `SessionScope`: `session.queryClient.isMutating() > 0`;
   - `UndoProvider`: un «Annulla» offerto ancora utilizzabile: della famiglia mostrata ed entro i suoi
@@ -226,10 +233,44 @@ ritorno in primo piano che arriva dopo la risposta del worker.
   - `ShoppingQueueProvider`: coda non ancora letta dal dispositivo, oppure con operazioni (in
     attesa o inviate), per una persona collegata; senza persona la coda non conta, altrimenti
     la pagina di login non si aggiornerebbe mai (l'uscita in corso è coperta da `trackBusy`);
+  - `useServingsDraft`: porzioni cambiate in attesa del salvataggio differito (800 ms), che
+    esistono solo in memoria;
+  - `FreeItems`: voce della spesa scritta e non ancora aggiunta, anche con la tastiera chiusa;
 - due controlli sul DOM: un `dialog[open]` (i fogli) e il focus in un campo di testo (`input`
   non pulsante, `textarea`, `select`, `contenteditable`).
 
 Un controllo che lancia un errore conta come «occupata».
+
+**Ricognizione di `web/src`** (revisione della PR #43): ogni scrittura od operazione asincrona
+che non passa da una mutazione TanStack, e le bozze tenute solo in memoria.
+
+| Operazione | Dove | Esito | Perché |
+|---|---|---|---|
+| Mutazioni TanStack (`useMealMutation`, `useAreaMutation`, `useRateRecipe`, scollegamento agenti, ripristino ricette archiviate) | `features/meals`, `routes/profile`, `api/ratings.ts`, `features/agents/AgentsPage.tsx`, `features/catalogue/queries.ts` | già coperta | `isMutating()` in `SessionScope` fino all'esito, `onSuccess` asincroni compresi |
+| Porzioni in attesa del timer di 800 ms | `useServingsDraft.ts` | protetta | `useBusyCheck` su `pending` |
+| Porzioni salvate all'uscita dal Menu (`runMealMutation` nel cleanup) | `useServingsDraft.ts` | protetta | `trackBusy` fino all'esito e all'avviso di rifiuto |
+| Cambio della lingua (`runAreaMutation` diretto) | `SessionScope.tsx` | già coperta | `trackBusy` |
+| Cambio della password (`backend.changePassword`, `fetch` diretti di `passwordChangeRequests.ts`) | `PasswordPage.tsx` | già coperta | `trackBusy` |
+| Uscita (pulizia, `persister.close`, `backend.signOut`) | `AuthProvider.tsx` | già coperta | `trackBusy` |
+| Accesso (`backend.signIn`) | `LoginPage.tsx` | protetta | `trackBusy` fino alla gestione dell'esito |
+| Consenso a un agente (`backend.decideAuthorization`, `leavePage.to`) | `AuthorizePage.tsx` | protetta | `trackBusy` fino alla gestione dell'esito |
+| Coda della spesa: scrittura del record, invii, `renew` dopo un rifiuto | `queue.ts`, `ShoppingQueueProvider.tsx` | già coperta | `trackBusy` sulle scritture e controllo della coda con operazioni |
+| Coda della spesa: presa della testa su coda vuota | `queue.ts` | innocua | niente da interrompere; vedi sopra |
+| Voce della spesa scritta e non aggiunta | `FreeItems.tsx` | protetta | `useBusyCheck` sul testo |
+| Segno della famiglia revocata (`markRevoked`) | `session.ts` | protetta | `trackBusy`: senza segno la copia sul dispositivo potrebbe tornare con i dati della famiglia revocata |
+| «Annulla» offerto | `UndoProvider.tsx`, `UndoToast.tsx` | già coperta | controllo registrato |
+| Fogli: nota, pasto libero, ricetta, scambio, «Chi mangia quando», regole | `NoteForm`, `FreeMealForm`, `RecipePicker`, `SwapPicker`, `DinersGrid`, `MealRules` | già coperta | stanno in un `dialog` aperto (`BottomSheet`) |
+| Nome della famiglia, nome della persona | `SettingsPage.tsx`, `PreferencesPage.tsx` | già coperta | il testo esiste solo con il focus nel campo; all'uscita dal campo parte la mutazione |
+| Campi di accesso scritti e non inviati | `LoginPage.tsx` | innocua | nessun dato della famiglia; il portachiavi li riempie di nuovo, e contarli terrebbe ferma per sempre una pagina di accesso riempita in automatico |
+| Ricerca ricette, ricerca ingredienti, filtri | `RecipeFilters.tsx`, `IngredientRestrictions.tsx` | innocua | ricerche, non scritture; il testo delle ricette sta già nell'indirizzo |
+| Link per Bring! (`createBringLink`) | `ShareMenu.tsx` | innocua | esportazione temporanea della lista, nessun dato della famiglia scritto; un altro tocco la ricrea |
+| Condividi, copia negli appunti | `ShareMenu.tsx`, `CopyField.tsx` | innocua | foglio di sistema e appunti, nulla di salvato dall'app |
+| Letture del consenso e verifica della sessione (`getAuthorization`, `backend.check`) | `AuthorizePage.tsx`, `AuthProvider.tsx` | innocua | letture, ripetute al caricamento |
+| Rinnovo della sessione (`backend.refresh`) | `session.ts` | innocua | durante una scrittura è già coperto dalla scrittura; durante una lettura il ricaricamento riparte con il refresh token salvato, che Supabase accetta ancora nell'intervallo di riuso, come per un'app chiusa da iOS a metà rinnovo |
+| Copia delle letture (`persistClient`, `clearRevoked`) | `persister.ts`, `session.ts` | innocua | transazioni IndexedDB atomiche: un ricaricamento lascia la copia precedente, che si rilegge con la rete; un segno di revoca non tolto rinuncia solo alla copia di quella famiglia |
+| `fetch` delle letture RPC | `api/rpc.ts`, `api/queries.ts` | innocua | letture, ripetute dopo il ricaricamento |
+| Timer dell'orologio dei pasti e dello scorrimento | `useMealClock.ts`, `MenuPage.tsx` | innocua | solo interfaccia |
+| Richiamata `onSuccess` di `mutate` dopo l'esito (per esempio l'offerta di «Annulla») | componenti dei pasti | innocua | la scrittura è conclusa; la finestra fra la fine della mutazione e la richiamata è di un giro di eventi, dopo un tocco che rende comunque la pagina non libera fino al ritorno successivo |
 
 **Cosa sopravvive al ricaricamento:** la sessione di Supabase (`localStorage`), la coda della
 spesa (IndexedDB, con gli stessi identificativi delle operazioni) e la copia delle letture
@@ -318,6 +359,13 @@ schema `'1'`.
   corso (protegge solo il controllo del provider); la lettura della coda vuota al ritorno in
   primo piano non conta; libera senza nulla di questo; pagina di login libera. Prove di rottura: togliere la protezione di una finestra fa fallire il test di quella
   finestra.
+- **Attraverso `startUpdates` vero** (provider veri, worker di un'altra versione che risponde
+  su `MessageChannel`, ritorno in primo piano): una pagina libera ricarica; non ricaricano le
+  porzioni in attesa del timer (e il salvataggio parte dopo), il salvataggio delle porzioni
+  avviato dall'uscita dal Menu con risposta trattenuta, l'accesso con risposta trattenuta (poi,
+  gestito l'esito, la pagina di login ricarica), il consenso a un agente con risposta
+  trattenuta, la voce della spesa scritta senza focus (vuotata, ricarica), il segno di una
+  famiglia revocata trattenuto sul dispositivo. Prova di rottura per ciascuna protezione.
 - **Copia e sessione:**
   - persister: una copia con `buster` `'1'` si ripristina; una con data ISO (A₀) si ripristina
     con lo schema `'1'`; una con data ISO **non** si ripristina se lo schema richiesto è `'2'`;
@@ -391,6 +439,9 @@ sintetici di `visibilitychange` non riproducono sospensione e ripresa di iOS.
   `web/src/features/shopping/ShoppingQueueProvider.tsx`,
   `web/src/features/shopping/queue/queue.ts`, `web/src/routes/profile/PasswordPage.tsx`,
   `web/src/auth/AuthProvider.tsx`: registrazione di «occupata».
+- Dopo la revisione della PR #43: `web/src/features/meals/useServingsDraft.ts`,
+  `web/src/auth/LoginPage.tsx`, `web/src/features/agents/AuthorizePage.tsx`,
+  `web/src/features/shopping/FreeItems.tsx`, `web/src/session/session.ts`.
 
 Nessuna libreria nuova, nessuna modifica al server, nessuna risorsa esterna.
 
@@ -405,8 +456,9 @@ persistita, W5).
 
 - Con la rete, aprire o riportare in primo piano l'app porta alla versione pubblicata: il
   passaggio è un ricaricamento silenzioso, senza banner, solo con la pagina libera (nessuna
-  scrittura in volo, compresi password, lingua e uscita; nessun «Annulla»; coda della spesa
-  vuota e non in salvataggio; nessun foglio aperto; cursore fuori dai campi di testo), visibile
+  scrittura in volo, compresi password, lingua, uscita, accesso e consenso agli agenti; nessun
+  «Annulla»; nessuna porzione o voce della spesa ancora da inviare; coda della spesa vuota e
+  non in salvataggio; nessun foglio aperto; cursore fuori dai campi di testo), visibile
   e non toccata dall'ultimo ritorno in primo piano; altrimenti al ritorno successivo. Dopo un
   rilascio, alla prima apertura con la rete, l'app può mostrare la versione precedente per
   qualche secondo. Scartati il banner «Aggiorna» (si può ignorare per sempre) e il passaggio
@@ -435,8 +487,12 @@ persistita, W5).
 - Conservazione delle ultime tre versioni in Cache Storage, come limite semplice per le pagine
   rimaste aperte. → Sezione 1.
 - Pagina occupata: contatore di operazioni in corso (`trackBusy`) per le scritture fuori da
-  TanStack Query, l'uscita e la scrittura della coda della spesa, più mutazioni TanStack,
-  «Annulla», coda non vuota, fogli e campi di testo. → Sezione 1.
+  TanStack Query (password, lingua, accesso, consenso agli agenti, porzioni salvate all'uscita
+  dal Menu, segno di famiglia revocata), l'uscita e la scrittura della coda della spesa, più
+  mutazioni TanStack, «Annulla», porzioni in attesa del salvataggio, voce della spesa non
+  ancora aggiunta, coda non vuota, fogli e campi di testo. Chi aggiunge una scrittura fuori da
+  TanStack Query o una bozza solo in memoria fuori da un foglio la registra come «occupata».
+  → Sezione 1.
 - `buster` della copia persistita: costante `CACHE_SCHEMA` al posto della versione della build
   (cambia anche l'interfaccia «Cache persistita» del piano generale); le copie con `buster` in
   forma di data ISO valgono come schema `'1'`. **Accanto alla regola delle modifiche solo

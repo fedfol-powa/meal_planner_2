@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import type { AgentAuthorization, AuthorizationFailure } from '../../auth/backend';
 import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
+import { trackBusy } from '../../pwa/busy';
 import { useSession, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import { leavePage } from './leave';
@@ -91,16 +92,22 @@ export function AuthorizePage() {
     sending.current = true;
     setDeciding(true);
     setDecisionFailure(null);
-    const result = await backend.decideAuthorization(phase.request.id, decision);
-    if (generation.current !== mine || of.isClosed()) return;
-    if (!result.ok) {
-      sending.current = false;
-      setDeciding(false);
-      if (result.reason === 'not_found') return setPhase({ kind: 'invalid' });
-      return setDecisionFailure(result.reason);
-    }
-    setPhase({ kind: 'leaving' });
-    leavePage.to(result.value);
+    const request = phase.request.id;
+    // Busy until the answer is handled, the way back to the agent included (spec W8).
+    await trackBusy(
+      (async () => {
+        const result = await backend.decideAuthorization(request, decision);
+        if (generation.current !== mine || of.isClosed()) return;
+        if (!result.ok) {
+          sending.current = false;
+          setDeciding(false);
+          if (result.reason === 'not_found') return setPhase({ kind: 'invalid' });
+          return setDecisionFailure(result.reason);
+        }
+        setPhase({ kind: 'leaving' });
+        leavePage.to(result.value);
+      })()
+    );
   }
 
   // Supabase binds the request to the first person who read it (gotrue v2.197.0): another
