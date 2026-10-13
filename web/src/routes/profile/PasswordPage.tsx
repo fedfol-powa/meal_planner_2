@@ -102,7 +102,7 @@ export function PasswordPage() {
     <section className="secondary-view app-view" aria-labelledby="password-title">
       <div className="page-column">
         <PageHeader back={<BackToProfile />} title={t('password.title')} titleId="password-title" />
-        <form className="settings-card" onSubmit={submit} noValidate>
+        <form className={`settings-card ${styles.form}`} onSubmit={submit} noValidate>
           {input('current')}
           {input('next', t('password.hint', { min: PASSWORD_MIN_LENGTH }))}
           {input('confirm')}
