@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { localeSchema } from './locale.ts';
 import { op } from './op.ts';
 import { agentsContract } from './agents/index.ts';
+import { appInvitationsContract } from './app-invitations/index.ts';
 import { catalogueContract } from './catalogue/index.ts';
 import { familyContract } from './family/index.ts';
 import { profileContract } from './profile/index.ts';
@@ -33,6 +34,7 @@ export const contract = {
 	meals: mealsContract,
 	catalogue: catalogueContract,
 	agents: agentsContract,
+	appInvitations: appInvitationsContract,
 	...shoppingContract,
 };
 
