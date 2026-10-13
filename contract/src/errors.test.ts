@@ -22,3 +22,12 @@ describe('catalogue errors', () => {
 		expect(() => conflictData.parse({ by, at, fields: [] })).toThrow();
 	});
 });
+
+describe('invitation errors', () => {
+	it('has the invitation and rate-limit codes', () => {
+		expect(errorDefinitions.invitation_unavailable.status).toBe(410);
+		expect(errorDefinitions.rate_limited.status).toBe(429);
+		expect(notAllowedData.parse({ reason: 'account_exists' })).toEqual({ reason: 'account_exists' });
+		expect(notAllowedData.parse({ reason: 'already_accepted' })).toEqual({ reason: 'already_accepted' });
+	});
+});

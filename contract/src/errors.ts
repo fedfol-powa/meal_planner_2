@@ -12,6 +12,8 @@ export const errorCodes = [
 	'last_app_admin',
 	'sole_member',
 	'web_only',
+	'invitation_unavailable',
+	'rate_limited',
 	'internal',
 ] as const;
 export type ErrorCode = (typeof errorCodes)[number];
@@ -42,7 +44,7 @@ export type ConflictData = z.infer<typeof conflictData>;
 /** A rule of state, not wrong data: a cited draft, a never-published recipe, the current version. */
 /** A rule of state, not wrong data: catalogue states and meal undos that are no longer possible. */
 export const notAllowedData = z.object({
-	reason: z.enum(['cited_by_meals', 'not_published', 'already_current', 'not_own_change', 'changed_since', 'draft_closed']),
+	reason: z.enum(['cited_by_meals', 'not_published', 'already_current', 'not_own_change', 'changed_since', 'draft_closed', 'account_exists', 'already_accepted']),
 });
 export type NotAllowedReason = z.infer<typeof notAllowedData>['reason'];
 export const webOnlyData = z.object({ url: z.url() });
@@ -60,6 +62,9 @@ export const errorDefinitions = {
 	last_app_admin: { status: 409 },
 	sole_member: { status: 409 },
 	web_only: { status: 403, data: webOnlyData },
+	/** An app invitation that is expired, revoked, used or unknown: one answer for all (spec W9). */
+	invitation_unavailable: { status: 410 },
+	rate_limited: { status: 429 },
 	internal: { status: 500, data: internalData },
 } as const satisfies Record<ErrorCode, { status: number; data?: z.ZodType }>;
 

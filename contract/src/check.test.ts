@@ -163,3 +163,23 @@ describe('checkContract', () => {
 		expect(checkContract(contract)).toEqual(['area.inner: offline or creating operation needs a uuid id input']);
 	});
 });
+
+describe('public operations', () => {
+	const route = { method: 'POST', path: '/x', summary: 'x' } as const;
+	const input = z.object({ token: z.string() });
+	const output = z.object({ ok: z.literal(true) });
+	const check = (meta: Parameters<typeof op>[0]) => checkContract({ a: { b: op(meta).route(route).input(input).output(output) } });
+
+	it('accepts a public operation without MCP and with a rate limit', () => {
+		expect(check({ mcp: false, offline: false, role: 'public', rateLimit: 'read' })).toEqual([]);
+	});
+	it('refuses MCP exposure, a missing limit, versioned reads and webOnly', () => {
+		expect(check({ mcp: { readOnly: true }, offline: false, role: 'public', rateLimit: 'read' })).toContain('a.b: public operation cannot be an MCP tool');
+		expect(check({ mcp: false, offline: false, role: 'public' })).toContain('a.b: public operation needs rateLimit');
+		expect(check({ mcp: false, offline: false, role: 'public', rateLimit: 'read', reads: ['family'] })).toContain('a.b: public operation cannot be a versioned read');
+		expect(check({ mcp: { readOnly: true }, offline: false, role: 'public', rateLimit: 'read', webOnly: { path: '/x' } })).toContain('a.b: public operation cannot be webOnly');
+	});
+	it('refuses a rate limit on a signed-in operation', () => {
+		expect(check({ mcp: false, offline: false, role: 'user', rateLimit: 'accept' })).toContain('a.b: rateLimit only on public operations');
+	});
+});

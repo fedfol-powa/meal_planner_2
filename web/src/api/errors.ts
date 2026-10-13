@@ -13,6 +13,8 @@ export const CONTRACT_ERROR_CODES = [
   'last_app_admin',
   'sole_member',
   'web_only',
+  'invitation_unavailable',
+  'rate_limited',
   'internal'
 ] as const satisfies readonly ErrorCode[];
 // Fails to compile when the contract adds a code missing above.

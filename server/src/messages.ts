@@ -39,6 +39,11 @@ export const messages: Record<ErrorCode, Record<Locale, string>> = {
 		'it-IT': 'Questa operazione si completa solo nell’app: apri il collegamento indicato.',
 		'en-GB': 'This operation can only be completed in the app: open the link provided.',
 	},
+	invitation_unavailable: {
+		'it-IT': 'Questo invito non vale più. Chiedi un link nuovo a chi ti ha invitato.',
+		'en-GB': 'This invitation is no longer valid. Ask whoever invited you for a new link.',
+	},
+	rate_limited: { 'it-IT': 'Troppi tentativi. Riprova tra un minuto.', 'en-GB': 'Too many attempts. Try again in a minute.' },
 	internal: {
 		'it-IT': 'Si è verificato un errore imprevisto. Riprova più tardi.',
 		'en-GB': 'An unexpected error occurred. Please try again later.',

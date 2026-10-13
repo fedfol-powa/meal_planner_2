@@ -58,6 +58,14 @@ export function checkContract(router: object): string[] {
 		if (typeof meta.offline !== 'boolean') problems.push(`${name}: missing offline`);
 		if (meta.role === undefined) problems.push(`${name}: missing role`);
 		if (meta.webOnly && meta.mcp === false) problems.push(`${name}: webOnly needs mcp exposure to answer web_only`);
+		if (meta.role === 'public') {
+			if (meta.mcp !== false) problems.push(`${name}: public operation cannot be an MCP tool`);
+			if (!meta.rateLimit) problems.push(`${name}: public operation needs rateLimit`);
+			if (meta.reads) problems.push(`${name}: public operation cannot be a versioned read`);
+			if (meta.webOnly) problems.push(`${name}: public operation cannot be webOnly`);
+		} else if (meta.rateLimit) {
+			problems.push(`${name}: rateLimit only on public operations`);
+		}
 		if (!def.route.method || !def.route.path || !def.route.summary) {
 			problems.push(`${name}: route needs method, path and summary`);
 		}
