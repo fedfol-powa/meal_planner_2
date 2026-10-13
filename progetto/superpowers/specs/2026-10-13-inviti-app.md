@@ -147,7 +147,9 @@ definer` dell'owner): ammessa; nessuna scrittura nello schema `auth`.
 ### Ruolo `public`
 
 - `contract/src/op.ts`: `Role` aggiunge `'public'`; `OperationMeta` aggiunge
-  `rateLimit?: 'read' | 'accept'`.
+  `rateLimit?: 'read' | 'accept'`. `op()` deriva dal ruolo `public` `security: []`
+  nell'operazione OpenAPI (il requisito globale resta `bearerAuth`); test sul documento
+  generato in `server/test/app.test.ts`.
 - `contract/src/check.ts`: `public` solo con `mcp: false`, senza `reads` né `webOnly`,
   e con `rateLimit`; `rateLimit` solo con `public`. Test in `contract/src/check.test.ts`.
 - `contract/src/errors.ts`: codici nuovi `invitation_unavailable` (410) e `rate_limited`
@@ -359,7 +361,8 @@ rimontata nel frattempo (dal proprio ingresso): qualunque navigazione che lasci
 link (quello è un tentativo nuovo); lo chiude anche l'apertura di una sessione di un altro
 account (un accesso da un'altra scheda). Dopo la risposta di `accept` è atteso il proprio
 ingresso: un evento con l'email dell'invito non chiude il tentativo, uno con un'altra email
-sì. Prima di `signIn` valgono anche la generazione della pagina e l'assenza di sessione.
+sì; dopo quell'evento un'uscita (da un'altra scheda) lo chiude per sempre, a differenza
+dell'uscita iniziale di «Esci e continua». Prima di `signIn` valgono anche la generazione della pagina e l'assenza di sessione.
 Non si usa la chiusura della sessione «senza utente» di `SessionScope`: dopo «Esci e
 continua» Supabase può notificare ancora l'account appena chiuso, e quella sessione restava
 chiusa bloccando il modulo (trovato con agent-browser, test di regressione). Per questo gli

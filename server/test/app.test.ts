@@ -27,6 +27,14 @@ describe('routes', () => {
 		expect(spec.servers).toEqual([{ url: 'https://app.test/api' }]);
 	});
 
+	it('declares the public operations without authentication and keeps the others protected', async () => {
+		const spec: any = await (await rest(app, testEnv(), 'GET', '/api/openapi.json')).json();
+		expect(spec.security).toEqual([{ bearerAuth: [] }]);
+		for (const path of ['/app-invitations/open', '/app-invitations/accept']) expect(spec.paths[path].post.security, path).toEqual([]);
+		for (const [path, method] of [['/app-invitations', 'post'], ['/session/whoami', 'get']] as const)
+			expect(spec.paths[path][method].security, path).toBeUndefined();
+	});
+
 	it('answers 404 not_found for unknown API paths, never the SPA', async () => {
 		for (const path of ['/api/nothing', '/api/rpc/nothing/here']) {
 			const response = await rest(app, testEnv(), 'POST', path, undefined, {});

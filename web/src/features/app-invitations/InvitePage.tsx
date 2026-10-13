@@ -129,9 +129,17 @@ export function InvitePage() {
     let valid = true;
     // Once the account exists, a sign-in with its email is ours, not someone else's.
     let ours: string | null = null;
+    // Our session was reported: a sign-out from now on ends the attempt (the earlier one of
+    // «Esci e continua» does not).
+    let entered = false;
     const stopAuth = backend.onChange((event) => {
-      if (!event.user || event.user.id === closingAccount) return;
-      if (ours === null || event.user.email.toLowerCase() !== ours) valid = false;
+      if (!event.user) {
+        if (entered) valid = false;
+        return;
+      }
+      if (event.user.id === closingAccount) return;
+      if (ours !== null && event.user.email.toLowerCase() === ours) entered = true;
+      else valid = false;
     });
     const stopHistory = router.history.subscribe(() => {
       const at = router.history.location;

@@ -25,7 +25,12 @@ export interface OperationMeta {
 
 const base = oc.$meta<Partial<OperationMeta>>({}).errors(commonErrors);
 
-/** Starts an operation; the metadata argument makes the exposure choice explicit. */
+/**
+ * Starts an operation; the metadata argument makes the exposure choice explicit. A `public` one is
+ * declared without authentication in the OpenAPI document (the global requirement is the bearer
+ * token); later `.route()` calls keep this, as routes merge shallowly.
+ */
 export function op(meta: OperationMeta) {
-	return base.meta(meta);
+	const operation = base.meta(meta);
+	return meta.role === 'public' ? operation.route({ spec: (current) => ({ ...current, security: [] }) }) : operation;
 }

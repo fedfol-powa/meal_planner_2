@@ -314,4 +314,31 @@ describe('/invite/app', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(history.location.pathname).toBe('/invite/app');
   });
+
+  it('a sign-out after our own session was reported ends the pending sign-in attempt', async () => {
+    let accepted = false;
+    setInvitationClient(valid({
+      get: vi.fn(async () => {
+        if (accepted) throw new ApiError('invitation_unavailable');
+        return { invitedBy: 'Federico', roles: [] };
+      }),
+      accept: vi.fn(async ({ email }: { email: string }) => {
+        accepted = true;
+        return { email };
+      })
+    }));
+    const backend = createStubBackend(null);
+    const held = heldSignIn(backend);
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(held.signIn).toHaveBeenCalled());
+    backend.setUser({ id: 'user-giulia', email: 'giulia@x.it' }); // our own sign-in, reported
+    await screen.findByText('Questo invito non vale più');
+    backend.setUser(null); // a sign-out in another tab
+    await new Promise((r) => setTimeout(r, 20));
+    held.answer();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(history.location.pathname).toBe('/invite/app');
+  });
 });
