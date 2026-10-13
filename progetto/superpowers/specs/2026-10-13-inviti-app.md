@@ -116,8 +116,9 @@ rileggono la riga con `FOR UPDATE`, controllando di nuovo stato e, per la chiusu
 l'impronta del token sia ancora quella del link (un rinnovo nel frattempo la invalida).
 `claim_app_invitation` blocca solo la riga, che basta perché non crea righe e il rinnovo la
 blocca a sua volta. `create_family` prende `family:create:<id>`. Due scritture concorrenti
-danno così lo stesso esito di quelle sequenziali: un rinnovo dopo una revoca o una chiusura
-risponde `invalid` (id già usato), una chiusura dopo un rinnovo risponde
+danno così lo stesso esito di quelle sequenziali: un rinnovo dopo una revoca risponde
+`invalid` (id già usato), uno dopo una chiusura `not_allowed`/`account_exists` (la chiusura
+richiede l'account, e il controllo dell'email viene prima), una chiusura dopo un rinnovo risponde
 `invitation_unavailable`, e nessun link restituito appartiene a un invito già revocato o
 chiuso. Errori con `raise exception` e `errcode`
 dedicati (classe `P0`, per esempio `P0A01` invito non disponibile), tradotti in codici del
@@ -327,7 +328,10 @@ frammento (un ricaricamento funziona).
 
 Invio: `accept`, poi `backend.signIn(email, password)`, poi `/family/new` con
 sostituzione della cronologia e un avviso se l'invito dava ruoli («Ora sei anche
-curatore del ricettario»). Errori del modulo: email diversa sul campo («Non è l'email di
+curatore del ricettario», parametro `granted` del wizard). Il passaggio al wizard avviene
+tramite `/login?redirect=/family/new…`: Supabase notifica la sessione nuova dopo che
+`signIn` ha risposto, e la guardia della pagina di accesso inoltra al wizard appena l'app la
+vede (verificato con agent-browser: la navigazione diretta finiva sul Menu). Errori del modulo: email diversa sul campo («Non è l'email di
 questo invito»); `account_exists`: «Esiste già un account con questa email: entra dalla
 pagina di accesso», con il collegamento; password troppo corta, troppo lunga (72 byte:
 «Password troppo lunga: al massimo 72 byte, e lettere accentate ed emoji ne usano più di
@@ -340,7 +344,10 @@ legata alla pagina, al token del frammento e all'identità (nessuna sessione ape
 riferimento sincrono (`sending`) ammette un solo invio alla volta, anche con due tocchi prima
 del nuovo rendering. Qualunque navigazione che lasci `/invite/app` o cambi il frammento, lo
 smontaggio della pagina e l'apertura di una sessione nel frattempo (un accesso da un'altra
-scheda, per esempio) chiudono la generazione. Quando arriva la risposta di `accept`, e di
+scheda, per esempio, osservato con `backend.onChange` durante il tentativo) chiudono la
+generazione. Non si usa la chiusura della sessione «senza utente» di `SessionScope`: dopo
+«Esci e continua» Supabase può notificare ancora l'account appena chiuso, e quella sessione
+restava chiusa bloccando il modulo (trovato con agent-browser, test di regressione). Quando arriva la risposta di `accept`, e di
 nuovo prima della navigazione, la pagina controlla che la generazione sia ancora quella
 dell'invio: altrimenti non chiama `signIn`, non naviga e non mostra nulla. L'account creato
 resta valido: la persona entra da `/login`.
@@ -495,7 +502,10 @@ e senza `app_admin`, `/admin` (creazione, link mostrato una volta, «Nuovo link�
 revoca, `account_exists`).
 
 **Stack locale con le iscrizioni spente** (decisione del coordinatore, rilievo 10): lo stack
-comune (`supabase/config.toml`) ha `enable_signup = false`, come la produzione. Le persone di
+comune (`supabase/config.toml`) ha `[auth] enable_signup = false`, come la produzione.
+`[auth.email] enable_signup` resta `true`: nella CLI spegne il provider email intero
+(l'accesso con password risponde `email_provider_disabled`), mentre «Allow new users to sign
+up» della produzione corrisponde al solo `[auth]`. Le persone di
 prova si creano con l'API di amministrazione e la chiave segreta locale (`SECRET_KEY` di
 `supabase status -o env`), con modifiche minime e dichiarate a: `web/src/test/stack.ts`
 (`person()`), `scripts/oauth/agents-e2e.mjs` (prova del cambio di password),
@@ -532,11 +542,22 @@ web), quindi non vengono esclusi dal filtro:
 larghezza da telefono (390 px): percorso completo, `/admin`, intestazione
 `Referrer-Policy` su `/invite/app`.
 
+**Provato con agent-browser** (13 ottobre 2026, `wrangler dev` sullo stack locale con iscrizioni
+spente, 1280 e 390 px): `/admin` (creazione con ruolo, link mostrato una volta, elenco, Profilo
+attivo nella barra), link aperto con l'amministratore collegato, «Esci e continua», cambio di
+lingua, email diversa sul campo, creazione e ingresso, wizard (en-GB con misure britanniche),
+menu generato con la scheda, chiusura senza ritorno col tasto indietro, Profilo della persona
+nuova (famiglia corrente, «Crea un'altra famiglia», nessuna amministrazione), ruolo di curatore
+nel database, link usato «non vale più», `Referrer-Policy: no-referrer` su `/invite/app`,
+nessun token, password o email nei log di `wrangler dev`.
+
 **Da provare a mano sull'iPhone** (dopo il rilascio, dal coordinatore con l'utente):
-link aperto da WhatsApp in Safari; modulo con la tastiera dell'iPhone (email senza
-maiuscola automatica, gestione delle password di iOS); ingresso e wizard; nota della
-schermata Home visibile in Safari e assente nella PWA installata; aggiunta alla schermata
-Home e accesso nella PWA con email e password; menu pronto.
+link aperto da WhatsApp in Safari (il frammento deve arrivare intero); modulo con la
+tastiera dell'iPhone (email senza maiuscola automatica, suggerimento e salvataggio della
+password di iOS con `new-password`); «Condividi» del link dal foglio di `/admin` (Web Share);
+ingresso e wizard; fuso del telefono nella famiglia nuova; nota della schermata Home visibile
+in Safari e assente nella PWA installata; aggiunta alla schermata Home e accesso nella PWA
+con email e password; menu pronto.
 
 ## 5. Rilascio
 
