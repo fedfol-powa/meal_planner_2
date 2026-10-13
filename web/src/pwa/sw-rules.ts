@@ -1,9 +1,10 @@
 export type Strategy = 'shell' | 'asset' | 'passthrough';
 
 /** Routes answered by the Worker, never by the app shell (spec section 1, routes table). */
-export const SERVER_PREFIXES = ['/api', '/mcp', '/internal', '/shopping-lists', '/.well-known', '/openapi.json', '/sw.js', '/precache.json'];
+export const SERVER_PREFIXES = ['/api', '/mcp', '/internal', '/shopping-lists', '/.well-known', '/openapi.json', '/sw.js'];
 export const SHELL_URL = '/index.html';
-export const PRECACHE_URL = '/precache.json';
+/** Written last in a version's cache: without it the cache is an interrupted attempt (spec W8). */
+export const COMPLETE_URL = '/__precache-complete';
 const PREFIX = 'cosasimangia-';
 
 export function strategyFor(request: { url: string; method: string; mode: string; origin: string }): Strategy {

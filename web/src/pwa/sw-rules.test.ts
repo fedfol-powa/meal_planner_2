@@ -21,7 +21,6 @@ describe('service worker rules', () => {
     expect(strategyFor(req('/shopping-lists/abc', 'navigate'))).toBe('passthrough');
     expect(strategyFor(req('/internal/jobs/weekly', 'navigate'))).toBe('passthrough');
     expect(strategyFor(req('/sw.js'))).toBe('passthrough');
-    expect(strategyFor(req('/precache.json'))).toBe('passthrough');
     expect(strategyFor(req('/assets/x.js', 'cors', 'GET', 'https://cdn.example'))).toBe('passthrough');
   });
   it('names caches by build and keeps the current one plus the two most recent others', () => {
