@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import type { Api } from '../../api/types';
+import { useBusyCheck } from '../../pwa/busy';
 import { useSession } from '../../session/SessionScope';
 import { applyConfirmedList } from './listQuery';
 import type { LockManagerLike } from './queue/locks';
@@ -35,6 +36,9 @@ export function ShoppingQueueProvider({ children, locks }: { children: ReactNode
   const apiRef = useRef(api);
   apiRef.current = api;
   const [queue, setQueue] = useState<ShoppingQueue | null>(null);
+  // Busy until the record is read and while it holds operations; never without a person, or the
+  // sign-in page would never update (a sign-out in progress is tracked by AuthProvider).
+  useBusyCheck(() => Boolean(session.userId) && (queue === null || queue.record().ops.length > 0));
   useEffect(() => {
     if (!session.userId) return;
     const created = createShoppingQueue({

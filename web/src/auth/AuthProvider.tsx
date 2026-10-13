@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { subscribeConnectivity } from '../lib/connectivity';
+import { trackBusy } from '../pwa/busy';
 import type { AuthBackend, AuthEvent, AuthUser, SessionCheck } from './backend';
 
 /** loading: identity not known yet, nothing may be closed or deleted (second review, C1). */
@@ -78,21 +79,25 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
   }, [unverified, runCheck]);
 
   const signOut = useCallback(
-    async (userId: string, cleanup: () => Promise<void>) => {
-      if (currentUser(stateRef.current) !== userId) return;
-      closing.current = userId;
-      commit({ status: 'signedOut' });
-      try {
-        await cleanup().catch(() => undefined);
-        // Someone else signed in meanwhile (another tab): their session is not ours to end.
-        if (stateRef.current.status !== 'signedOut') return;
-        await backend.signOut();
-      } catch {
-        // Local data are already gone; the session is over on this device anyway.
-      } finally {
-        if (closing.current === userId) closing.current = null;
-      }
-    },
+    (userId: string, cleanup: () => Promise<void>) =>
+      // From signedOut to the end of the cleanup and of backend.signOut(): busy (spec W8).
+      trackBusy(
+        (async () => {
+          if (currentUser(stateRef.current) !== userId) return;
+          closing.current = userId;
+          commit({ status: 'signedOut' });
+          try {
+            await cleanup().catch(() => undefined);
+            // Someone else signed in meanwhile (another tab): their session is not ours to end.
+            if (stateRef.current.status !== 'signedOut') return;
+            await backend.signOut();
+          } catch {
+            // Local data are already gone; the session is over on this device anyway.
+          } finally {
+            if (closing.current === userId) closing.current = null;
+          }
+        })()
+      ),
     [backend, commit]
   );
 

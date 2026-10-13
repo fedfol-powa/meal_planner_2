@@ -16,6 +16,7 @@ import { initialLocale, type Locale } from '../i18n/translate';
 import type { SessionChannel } from './channel';
 import { clearPreference, readPreference, userScope, writePreference } from './localePreference';
 import { createSession, persisterOf, wrapApi, type Session } from './session';
+import { trackBusy, useBusyCheck } from '../pwa/busy';
 
 /**
  * Called once per session, then once per language: the clients share what the session knows
@@ -163,8 +164,10 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
       const client = clients(localeRef.current);
       if (!identity || !session || !client || !isOnline()) return temporary();
       try {
-        const { view: saved, applied } = await runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
-          client.profile.update({ locale: next })
+        const { view: saved, applied } = await trackBusy(
+          runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, 'profile.updateLocale', undefined, () =>
+            client.profile.update({ locale: next })
+          )
         );
         // A superseded answer changes neither the language nor the copies of the profile (PR #21 review, finding 3).
         if (!applied) return;
@@ -189,6 +192,8 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     () => (session ? { session, signOut, chooseLocale, currentLocale } : null),
     [session, signOut, chooseLocale, currentLocale]
   );
+  // A write in flight keeps the page from reloading into a new version (spec W8).
+  useBusyCheck(() => (session ? session.queryClient.isMutating() > 0 : false));
   if (!session || !api || !value) return null;
 
   const content = (

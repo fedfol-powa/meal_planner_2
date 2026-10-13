@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { useBusyCheck } from '../../pwa/busy';
 import { useSession } from '../../session/SessionScope';
 import { nextOfferKey, undoOf, type UndoOffer } from './sessionState';
 import { UndoToast } from './UndoToast';
@@ -10,6 +11,8 @@ const UndoContext = createContext<UndoState | null>(null);
 /** The last action the user can undo (one at a time: a new one replaces it), kept by the session. */
 export function UndoProvider({ familyId, children }: { familyId: string; children: ReactNode }) {
   const slot = undoOf(useSession());
+  // An offered «Annulla» keeps the page from reloading into a new version (spec W8).
+  useBusyCheck(() => slot.get() !== null);
   const stored = useSyncExternalStore(slot.subscribe, slot.get, slot.get);
   const current = stored?.familyId === familyId ? stored : null;
   const offer = useCallback(

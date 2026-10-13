@@ -5,6 +5,7 @@ import { PASSWORD_MIN_LENGTH, validatePasswordChange, type PasswordField, type P
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { useT } from '../../i18n/LocaleProvider';
+import { trackBusy } from '../../pwa/busy';
 import { useSignOut } from '../../session/SessionScope';
 import { BackToProfile } from './BackToProfile';
 import styles from './PasswordPage.module.css';
@@ -51,7 +52,7 @@ export function PasswordPage() {
     const asker = shown.current;
     sending.current = true;
     setBusy(true);
-    const result = await backend.changePassword(values.current, values.next);
+    const result = await trackBusy(backend.changePassword(values.current, values.next));
     sending.current = false;
     setBusy(false);
     // Someone else is on this device now: nothing of the previous account stays on screen.
