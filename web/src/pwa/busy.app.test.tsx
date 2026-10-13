@@ -1,9 +1,11 @@
+import { ORPCError } from '@orpc/server';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeClients } from '../api/fake/fakeApi';
 import { DEMO_FAMILY_ID } from '../api/fake/seed';
 import { createMemoryStore, revokedKey, type KeyValueStore } from '../api/persister';
 import { DEMO_USER } from '../auth/backend';
+import { leavePage } from '../features/agents/leave';
 import { undoOf } from '../features/meals/sessionState';
 import { realMealsApp } from '../features/meals/testApp';
 import { MONDAY } from '../features/shopping/fixtures';
@@ -123,16 +125,18 @@ describe('busy page with the real providers (spec W8)', () => {
     undoSlot!.set({ ...offer, at: Date.now() - 7000 });
     expect(registeredBusy()).toBe(false);
   });
-  it('a password change is busy until its answer', async () => {
+  it('a password change is busy from the filled-in form until its answer', async () => {
     const backend = createStubBackend(DEMO_USER);
     const answer = backend.holdChangePassword();
     renderApp('/profile/password', { backend });
     // As in routes/profile/PasswordPage.test.tsx: fill the three fields and submit.
     const field = (label: string) => screen.findByLabelText(label, { exact: true });
+    await field('Password attuale');
+    await waitFor(() => expect(registeredBusy()).toBe(false));
     fireEvent.change(await field('Password attuale'), { target: { value: 'old-password' } });
     fireEvent.change(await field('Nuova password'), { target: { value: 'new-password' } });
     fireEvent.change(await field('Conferma la nuova password'), { target: { value: 'new-password' } });
-    await waitFor(() => expect(registeredBusy()).toBe(false));
+    expect(registeredBusy()).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Cambia password' }));
     await waitFor(() => expect(backend.changePasswordCalls).toHaveLength(1));
     expect(registeredBusy()).toBe(true);
@@ -268,11 +272,17 @@ describe('no reload into a new version during operations outside TanStack Query 
     // The delayed save leaves as usual.
     await waitFor(() => expect(server.mealCalls.filter((c) => c.op === 'meals.setServings')).toHaveLength(1), { timeout: 2000 });
   });
-  it('servings saved by leaving the Menu, until the answer', async () => {
+  it.each([
+    ['accepted', (input: Parameters<ReturnType<typeof realMealsApp>['server']['defaultMeals']['setServings']>[0], server: ReturnType<typeof realMealsApp>['server']) => server.defaultMeals.setServings(input)],
+    ['refused', () => {
+      // Not `forbidden`: that one revokes the family and closes the menu (SessionScope).
+      throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+    }]
+  ] as const)('servings saved by leaving the Menu, until the answer (%s)', async (_, outcome) => {
     const { server, history } = realMealsApp('/menu');
     let answer!: () => void;
     const held = new Promise<void>((resolve) => (answer = resolve));
-    server.answerMeals({ setServings: () => held.then(() => new Promise(() => {})) });
+    server.answerMeals({ setServings: async (input) => (await held, outcome(input, server)) });
     const lunch = await lunchCard();
     await waitFor(() => expect(isBusy()).toBe(false));
     fireEvent.click(within(lunch).getByRole('button', { name: 'Modifica il pasto' }));
@@ -282,7 +292,11 @@ describe('no reload into a new version during operations outside TanStack Query 
     const update = newVersionWaiting();
     await update.resume();
     expect(update.reload).not.toHaveBeenCalled();
+    // Answered and handled: the next return to the foreground reloads.
     answer();
+    await waitFor(() => expect(isBusy()).toBe(false));
+    await update.resume();
+    expect(update.reload).toHaveBeenCalledTimes(1);
   });
   it('a sign-in waiting for its answer; the idle sign-in page reloads', async () => {
     const backend = createStubBackend(null);
@@ -314,6 +328,43 @@ describe('no reload into a new version during operations outside TanStack Query 
     const update = newVersionWaiting();
     await update.resume();
     expect(update.reload).not.toHaveBeenCalled();
+  });
+  it('an agent request read and approved by the server at once, until the way back to the agent', async () => {
+    const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
+    const backend = createStubBackend(DEMO_USER);
+    const answer = backend.holdAuthorization();
+    renderApp('/authorize?authorization_id=auth-1', { backend });
+    await screen.findByText('…');
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=y' } });
+    await waitFor(() => expect(leave).toHaveBeenCalledWith('http://127.0.0.1:9/callback?code=y'));
+    leave.mockRestore();
+  });
+  it('an agent consent waiting for a choice is free', async () => {
+    const backend = createStubBackend(DEMO_USER);
+    const answer = backend.holdAuthorization();
+    renderApp('/authorize?authorization_id=auth-1', { backend });
+    answer(backend.authorization);
+    const allow = (await screen.findByRole('button', { name: 'Consenti' })) as HTMLButtonElement;
+    await waitFor(() => expect(allow.disabled).toBe(false));
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).toHaveBeenCalledTimes(1);
+  });
+  it('a password change filled in and not sent, with the keyboard closed; the empty form is free', async () => {
+    renderApp('/profile/password', { backend: createStubBackend(DEMO_USER) });
+    const field = await screen.findByLabelText('Nuova password', { exact: true });
+    await waitFor(() => expect(isBusy()).toBe(false));
+    fireEvent.change(field, { target: { value: 'new-password' } });
+    expect(document.activeElement).not.toBe(field);
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    fireEvent.change(field, { target: { value: '' } });
+    await update.resume();
+    expect(update.reload).toHaveBeenCalledTimes(1);
   });
   it('a shopping item typed and not added yet, with the keyboard closed', async () => {
     const server = createShoppingServer(undefined, DEMO_FAMILY_ID);

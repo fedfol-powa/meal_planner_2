@@ -56,14 +56,20 @@ export function AuthorizePage() {
     if (switched) return setPhase({ kind: 'switched' });
     if (!id) return setPhase({ kind: 'invalid' });
     setPhase({ kind: 'loading' });
-    const result = await backend.getAuthorization(id);
-    if (generation.current !== mine || of.isClosed()) return;
-    if (!result.ok) return setPhase({ kind: result.reason === 'not_found' ? 'invalid' : 'failed' });
-    if (result.value.kind === 'redirect') {
-      setPhase({ kind: 'leaving' });
-      return leavePage.to(result.value.url);
-    }
-    setPhase({ kind: 'consent', request: result.value });
+    // Not just a read: with a consent already given Supabase approves the request here and the
+    // way back to the agent is in the answer, once. Busy until the answer is handled (spec W8).
+    await trackBusy(
+      (async () => {
+        const result = await backend.getAuthorization(id);
+        if (generation.current !== mine || of.isClosed()) return;
+        if (!result.ok) return setPhase({ kind: result.reason === 'not_found' ? 'invalid' : 'failed' });
+        if (result.value.kind === 'redirect') {
+          setPhase({ kind: 'leaving' });
+          return leavePage.to(result.value.url);
+        }
+        setPhase({ kind: 'consent', request: result.value });
+      })()
+    );
   }, [backend, id, switched, session]);
 
   useEffect(() => {
