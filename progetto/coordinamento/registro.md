@@ -56,7 +56,10 @@ Stato della fase 1 (runbook in `progetto/superpowers/plans/2026-10-11-messa-in-p
 
 Prossimi passi:
 
-1. **R13 (mattina del 13/10):** nei log del Worker `backup_export_done`, in R2 un oggetto in `exports/`.
+1. **R13 fatto (13/10):** in R2 `exports/2026-10-13T02-30Z.json.gz.enc` (1369 byte), nessun duplicato alle 04:30.
+   **R15 fatto (13/10):** l'utente ha decifrato con la chiave del gestore di password; `inspect` → Worker
+   `6382d9b5…`, 17 migrazioni, commit `a567c03`; ripristino locale riuscito (32 tabelle, 2 utenti, 2 identità),
+   i due UID presenti. File scaricato cancellato.
 2. **R15** con l'utente in mattinata, poi **finestra il 13/10** (R18–R20 entro le 19), sempre anteprima → «vai».
 3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
