@@ -10,15 +10,17 @@ import { CopyField } from '../agents/CopyField';
 import styles from './AdminPage.module.css';
 
 /**
- * «Nuovo invito» (spec W9). Mounted once per opening: one attempt, one id. The link is shown only
- * for this attempt and only while the session that asked is open (`applied`); it is never shown again.
+ * «Nuovo invito» (spec W9). Mounted once per opening. A retry with the same email and roles keeps the
+ * id (the first write may have happened, its answer lost); other data are a new invitation, a new id.
+ * The link is shown only for this attempt and only while the session that asked is open (`applied`);
+ * it is never shown again.
  */
 export function InviteSheet({ again, onClose }: { again?: { email: string; roles: GlobalRole[] }; onClose: () => void }) {
   const t = useT();
   const deps = useQueryDeps();
   const online = useOnline();
   const ids = useId();
-  const [id] = useState(() => crypto.randomUUID());
+  const attempt = useRef<{ id: string; data: string } | null>(null);
   const [email, setEmail] = useState(again?.email ?? '');
   const [roles, setRoles] = useState<GlobalRole[]>(again?.roles ?? []);
   const [link, setLink] = useState<string | null>(null);
@@ -38,8 +40,10 @@ export function InviteSheet({ again, onClose }: { again?: { email: string; roles
     if (sending.current || !email.trim()) return;
     sending.current = true;
     setFailure(null);
+    const data = JSON.stringify([email.trim().toLowerCase(), [...roles].sort()]);
+    if (attempt.current?.data !== data) attempt.current = { id: crypto.randomUUID(), data };
     try {
-      const outcome = await create.mutateAsync({ id, email: email.trim(), roles });
+      const outcome = await create.mutateAsync({ id: attempt.current.id, email: email.trim(), roles });
       // The list is read again in any case (mutations.ts); the link only for this attempt, same session.
       if (outcome.applied && alive.current) setLink(outcome.view.url);
     } catch (error) {

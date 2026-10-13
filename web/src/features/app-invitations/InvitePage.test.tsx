@@ -87,9 +87,46 @@ describe('/invite/app', () => {
     const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
     await screen.findByLabelText('Email');
     fill();
-    expect(await screen.findByText('Il tuo account è pronto: entra con la password che hai scelto la prima volta.')).toBeTruthy();
+    expect(await screen.findByText('Il tuo account è pronto, ma l’accesso non è riuscito: controlla la connessione ed entra con la password che hai appena scelto.')).toBeTruthy();
     fireEvent.click(screen.getByRole('link', { name: 'Vai all’accesso' }));
     await waitFor(() => expect(history.location.href).toBe('/login?email=giulia%40x.it'));
+  });
+
+  it('when the password is refused after a repeated acceptance, speaks of the first password', async () => {
+    setInvitationClient(valid());
+    const backend = createStubBackend(null);
+    vi.spyOn(backend, 'signIn').mockResolvedValue({ ok: false, reason: 'invalid_credentials' });
+    renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText('Il tuo account è pronto: entra con la password che hai scelto la prima volta.')).toBeTruthy();
+  });
+
+  it('tells a malformed email from the email of another invitation', async () => {
+    setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('invalid', { issues: [{ path: ['email'], code: 'invalid_format' }] }); }) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText('Email non valida')).toBeTruthy();
+    expect(screen.queryByText('Non è l’email di questo invito')).toBeNull();
+  });
+
+  it('translates password_too_long from the server', async () => {
+    setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('invalid', { issues: [{ path: ['password'], code: 'password_too_long' }] }); }) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText(/Password troppo lunga/)).toBeTruthy();
+  });
+
+  it('too many attempts while loading: «Riprova» reads the link again', async () => {
+    const get = vi.fn().mockRejectedValueOnce(new ApiError('rate_limited')).mockResolvedValue({ invitedBy: 'Federico', roles: [] });
+    setInvitationClient(valid({ get }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    expect(await screen.findByText('Troppi tentativi. Riprova tra un minuto.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByLabelText('Email')).toBeTruthy();
+    expect(get).toHaveBeenCalledTimes(2);
   });
 
   it('with another account open, signs out and keeps the link', async () => {

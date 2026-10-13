@@ -29,6 +29,11 @@ export function InvitationsSection() {
   const date = (iso: string) => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(new Date(iso));
   // Each opening is its own attempt: a new key remounts the sheet, so a late answer of a closed one shows nothing.
   const open = (again?: Opening['again']) => setOpening((current) => ({ key: (current?.key ?? 0) + Date.now(), again }));
+  // Each confirmation starts clean: the outcome of an earlier revocation is not about this one.
+  const confirmRevoke = (invitation: AppInvitationView) => {
+    revoke.reset();
+    setRevoking(invitation);
+  };
 
   function status(invitation: AppInvitationView): string {
     switch (invitation.status) {
@@ -63,7 +68,7 @@ export function InvitationsSection() {
                 {open_ && (
                   <span className={styles.actions}>
                     <button type="button" className="text-button" disabled={!online} onClick={() => open({ email: invitation.email, roles: invitation.roles })}>{t('admin.newLink')}</button>
-                    <button type="button" className="text-button" disabled={!online} onClick={() => setRevoking(invitation)}>{t('admin.revoke')}</button>
+                    <button type="button" className="text-button" disabled={!online} onClick={() => confirmRevoke(invitation)}>{t('admin.revoke')}</button>
                   </span>
                 )}
               </li>

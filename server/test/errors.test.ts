@@ -30,6 +30,17 @@ describe('normalizeError', () => {
 		expect(error.data).toEqual({ issues: [{ path: ['familyId'], code: 'invalid_format' }] });
 	});
 
+	it("a contract refinement names its code in the message (e.g. password_too_long)", () => {
+		const validation = new ORPCError('BAD_REQUEST', {
+			cause: new ValidationError({
+				message: 'Input validation failed',
+				issues: [{ message: 'password_too_long', path: ['password'], code: 'custom' } as never],
+				data: {},
+			}),
+		});
+		expect(normalizeError(validation, scope).data).toEqual({ issues: [{ path: ['password'], code: 'password_too_long' }] });
+	});
+
 	it('keeps known codes', () => {
 		const error = normalizeError(appError('forbidden'), scope);
 		expect(error.code).toBe('forbidden');

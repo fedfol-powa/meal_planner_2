@@ -3,6 +3,7 @@ import { Link, useRouter, useRouterState } from '@tanstack/react-router';
 import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAuth } from '../../auth/AuthProvider';
+import type { SignInFailure } from '../../auth/backend';
 import { useOnline } from '../../components/OfflineBanner';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../../i18n/messages';
@@ -18,6 +19,8 @@ const fragment = (hash: string) => hash.replace(/^#/, '');
 const PASSWORD_MIN = 8;
 /** bcrypt's limit, in UTF-8 bytes (spec W9). */
 const PASSWORD_MAX_BYTES = 72;
+/** Codes of the password field from the server; any other one is the 72-byte limit. */
+const PASSWORD_ISSUES: Record<string, MessageKey> = { weak_password: 'invite.passwordWeak', password_too_long: 'invite.passwordLong', too_small: 'invite.passwordShort' };
 
 type Phase =
   | { kind: 'loading' }
@@ -25,7 +28,7 @@ type Phase =
   | { kind: 'unavailable' }
   | { kind: 'limited' }
   | { kind: 'failed'; error: unknown }
-  | { kind: 'signInFailed'; email: string };
+  | { kind: 'signInFailed'; email: string; reason: SignInFailure };
 
 /**
  * The account being closed from this page with «Esci e continua», until its sign-out ends: Supabase
@@ -151,16 +154,16 @@ export function InvitePage() {
             // then): the sign-in route forwards to the wizard once the app sees the session.
             const granted = roles.length ? `?granted=${roles.join(',')}` : '';
             await router.navigate({ to: '/login', search: { redirect: `/family/new${granted}` }, replace: true });
-          } else setPhase({ kind: 'signInFailed', email });
+          } else setPhase({ kind: 'signInFailed', email, reason: result.reason });
         } catch (error) {
           if (!valid || generation.current !== mine) return;
           const failure = toApiError(error);
           const issues = (failure.data as { issues?: { path: (string | number)[]; code: string }[] } | undefined)?.issues ?? [];
+          const issue = (field: string) => issues.find((i) => i.path[0] === field)?.code;
           if (failure.code === 'invitation_unavailable') setPhase({ kind: 'unavailable' });
           else if (failure.code === 'rate_limited') setFormError({ kind: 'message', key: 'invite.limited' });
-          else if (failure.code === 'invalid' && issues.some((i) => i.path[0] === 'email')) setFieldErrors({ email: 'invite.wrongEmail' });
-          else if (failure.code === 'invalid' && issues.some((i) => i.path[0] === 'password' && i.code === 'weak_password')) setFieldErrors({ password: 'invite.passwordWeak' });
-          else if (failure.code === 'invalid' && issues.some((i) => i.path[0] === 'password')) setFieldErrors({ password: 'invite.passwordLong' });
+          else if (failure.code === 'invalid' && issue('email')) setFieldErrors({ email: issue('email') === 'email_mismatch' ? 'invite.wrongEmail' : 'invite.emailInvalid' });
+          else if (failure.code === 'invalid' && issue('password')) setFieldErrors({ password: PASSWORD_ISSUES[issue('password')!] ?? 'invite.passwordLong' });
           else if (failure.code === 'not_allowed') setFormError({ kind: 'accountExists', email: values.email.trim() });
           else setFormError({ kind: 'message', key: errorKey(error) });
         } finally {
@@ -212,7 +215,12 @@ export function InvitePage() {
           {toLogin()}
         </>
       )}
-      {phase.kind === 'limited' && <p className="form-error" role="alert">{t('invite.limited')}</p>}
+      {phase.kind === 'limited' && (
+        <>
+          <p className="form-error" role="alert">{t('invite.limited')}</p>
+          <button type="button" className="text-button wide" onClick={() => void load()}>{t('authorize.retry')}</button>
+        </>
+      )}
       {phase.kind === 'failed' && (
         <>
           <p className="form-error" role="alert">{t(errorKey(phase.error))}</p>
@@ -222,7 +230,7 @@ export function InvitePage() {
       {phase.kind === 'signInFailed' && (
         <>
           <h1 className="entry-title">{t('invite.ready')}</h1>
-          <p>{t('invite.signInFailed')}</p>
+          <p>{t(phase.reason === 'invalid_credentials' ? 'invite.signInFailed' : 'invite.signInUnreachable')}</p>
           {toLogin(phase.email)}
         </>
       )}

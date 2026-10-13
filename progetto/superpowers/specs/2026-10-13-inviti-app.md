@@ -184,7 +184,7 @@ definer` dell'owner): ammessa; nessuna scrittura nello schema `auth`.
 | `list` | `appAdmin` | sì, sola lettura | `{}` → `{invitations: AppInvitationView[]}` | — |
 | `revoke` | `appAdmin` | sì | `{id}` → `{invitation: AppInvitationView}` | `not_found`, `not_allowed` (`already_accepted`) |
 | `get` | `public`, `rateLimit: 'read'` | no | `{token}` → `{invitedBy: string \| null, roles}` | `invitation_unavailable`, `rate_limited` |
-| `accept` | `public`, `rateLimit: 'accept'` | no | `{token, email, displayName, password, locale}` → `{email}` | `invitation_unavailable`, `invalid` (campo `email`: `email_mismatch`), `not_allowed` (`account_exists`), `rate_limited` |
+| `accept` | `public`, `rateLimit: 'accept'` | no | `{token, email, displayName, password, locale}` → `{email}` | `invitation_unavailable`, `invalid` (campo `email`: `email_mismatch` o un codice di formato di Zod; campo `password`: `password_too_long`, `weak_password`), `not_allowed` (`account_exists`), `rate_limited` |
 
 `AppInvitationView`: `id`, `email`, `roles`, `status` (`pending`/`expired`/`accepted`/
 `revoked`, «scaduto» calcolato con `now` della richiesta), `createdBy` e `createdByName`,
@@ -194,7 +194,9 @@ Schemi: `email` con `z.email()` e normalizzazione (trim, minuscole) nel contratt
 `roles` array di `recipe_curator | app_admin` senza doppioni; `token` stringa base64url di
 43 caratteri; `displayName` come `displayNameSchema` del profilo; `password` da 8
 caratteri a 72 **byte** UTF-8 (limite di bcrypt), contati con `TextEncoder`, con un codice
-di validazione dedicato (`password_too_long`) che il web traduce; `locale` `it-IT` |
+di validazione dedicato (`password_too_long`) che il web traduce (`normalizeError` espone come
+codice dell'errore il messaggio di una `refine` del contratto quando è un identificatore, al
+posto di `custom`: vale per tutte le `refine` così scritte); `locale` `it-IT` |
 `en-GB` (la lingua della pagina, scritta nel profilo).
 
 Token: 32 byte da `crypto.getRandomValues`, base64url senza riempimento; impronta con
@@ -207,7 +209,9 @@ dalla `create` (anche ripetuta, con token nuovo); nessun'altra operazione lo ric
 
 `family.create`: ruolo `user`, `creates`, MCP sì (non in sola lettura). Input `{id, name,
 measurementSystem, timeZone?}`; `name` come `family.rename`; `timeZone` validato come
-fuso IANA con `Intl.DateTimeFormat`, altrimenti `Europe/Rome` (sezione 2). Output: la
+fuso IANA con `Intl.DateTimeFormat`, altrimenti `Europe/Rome` (sezione 2); gli scostamenti
+(`+01:00`, `-0500`), che i runtime recenti accettano ma Postgres non riconosce come nome di
+fuso, ripiegano anch'essi su `Europe/Rome`. Output: la
 vista del profilo aggiornata (`profileViewSchema`), con la nuova famiglia corrente, così
 il web cambia famiglia senza un'altra lettura. Ripetere con lo stesso id non crea nulla e
 restituisce la stessa vista.
@@ -308,7 +312,10 @@ dev` il binding funziona in locale; nei test in Node è finto.
 Rotte nuove in `web/src/router.tsx`: `/invite/app` sulla radice (pubblica, come `/login`);
 `/family/new` e `/admin` nel layout dell'app. `web/public/_headers`:
 `/invite/*` → `Referrer-Policy: no-referrer` (si applica alle risposte statiche, quindi
-anche al ripiego su `index.html`; verificato con `wrangler dev`).
+anche al ripiego su `index.html`; verificato con `wrangler dev`). Con il service worker attivo
+la navigazione riceve invece la shell dalla cache, senza le intestazioni di `_headers`: per
+questo `index.html` porta anche `<meta name="referrer" content="no-referrer">`, che vale per
+tutta l'app (nessuna funzione dipende dal referrer).
 
 ### Pagina dell'invito `/invite/app#<token>` (`web/src/features/app-invitations/`)
 
@@ -324,7 +331,7 @@ frammento (un ricaricamento funziona).
 | Valido, nessun accesso | «Hai un invito per Cosa si mangia?»; «Te l'ha mandato {nome}» (senza nome: «Hai ricevuto un link d'invito»); ruoli se presenti («Con questo invito diventi anche: curatore del ricettario»); modulo: Email (aiuto: «Quella a cui è arrivato l'invito»), Nome (aiuto: «Come ti vedranno in famiglia»), Password, Ripeti la password; pulsante «Crea l'account» |
 | Valido, con un altro account aperto | «Hai aperto l'app come {nome}. Per usare questo invito esci e torna qui»; pulsante «Esci e continua»: chiusura unica della sessione (`useSignOut`), si resta sulla pagina con il frammento e compare il modulo |
 | Non valido | `invitation_unavailable`: «Questo invito non vale più» e «Chiedi un link nuovo a chi ti ha invitato». Stesso testo per scaduto, revocato, usato o inesistente |
-| Troppi tentativi | `rate_limited`: «Troppi tentativi. Riprova tra un minuto» |
+| Troppi tentativi | `rate_limited`: «Troppi tentativi. Riprova tra un minuto» e «Riprova», che rilegge il link |
 
 Invio: `accept`, poi `backend.signIn(email, password)`, poi `/family/new` con
 sostituzione della cronologia e un avviso se l'invito dava ruoli («Ora sei anche
@@ -332,25 +339,35 @@ curatore del ricettario», parametro `granted` del wizard). Il passaggio al wiza
 tramite `/login?redirect=/family/new…`: Supabase notifica la sessione nuova dopo che
 `signIn` ha risposto, e la guardia della pagina di accesso inoltra al wizard appena l'app la
 vede (verificato con agent-browser: la navigazione diretta finiva sul Menu). Errori del modulo: email diversa sul campo («Non è l'email di
-questo invito»); `account_exists`: «Esiste già un account con questa email: entra dalla
+questo invito»), email malformata sul campo («Email non valida»); `account_exists`: «Esiste già un account con questa email: entra dalla
 pagina di accesso», con il collegamento; password troppo corta, troppo lunga (72 byte:
 «Password troppo lunga: al massimo 72 byte, e lettere accentate ed emoji ne usano più di
-uno»), diverse. Accesso fallito dopo la creazione: «Il tuo account è pronto: entra con la
-password che hai scelto la prima volta» e il pulsante «Vai all'accesso» verso `/login`
-con l'email già scritta (`validateLoginSearch` aggiunge `email` facoltativa).
+uno»; anche il codice `password_too_long` del server), diverse. Accesso fallito dopo la
+creazione: con credenziali rifiutate (account creato da un tentativo precedente con un'altra
+password) «Il tuo account è pronto: entra con la password che hai scelto la prima volta»; per
+rete o altro «Il tuo account è pronto, ma l'accesso non è riuscito: controlla la connessione ed
+entra con la password che hai appena scelto». In entrambi i casi il pulsante «Vai all'accesso»
+verso `/login` con l'email già scritta (`validateLoginSearch` aggiunge `email` facoltativa).
 
-**Validità del tentativo** (come `AuthorizePage`): ogni invio appartiene a una generazione
-legata alla pagina, al token del frammento e all'identità (nessuna sessione aperta). Un
-riferimento sincrono (`sending`) ammette un solo invio alla volta, anche con due tocchi prima
-del nuovo rendering. Qualunque navigazione che lasci `/invite/app` o cambi il frammento, lo
-smontaggio della pagina e l'apertura di una sessione nel frattempo (un accesso da un'altra
-scheda, per esempio, osservato con `backend.onChange` durante il tentativo) chiudono la
-generazione. Non si usa la chiusura della sessione «senza utente» di `SessionScope`: dopo
-«Esci e continua» Supabase può notificare ancora l'account appena chiuso, e quella sessione
-restava chiusa bloccando il modulo (trovato con agent-browser, test di regressione). Quando arriva la risposta di `accept`, e di
-nuovo prima della navigazione, la pagina controlla che la generazione sia ancora quella
-dell'invio: altrimenti non chiama `signIn`, non naviga e non mostra nulla. L'account creato
-resta valido: la persona entra da `/login`.
+**Validità del tentativo** (come `AuthorizePage`): ogni invio è un tentativo legato alla
+pagina, al token del frammento e all'identità (nessuna sessione aperta). Un riferimento
+sincrono (`sending`) ammette un solo invio alla volta, anche con due tocchi prima del nuovo
+rendering. Il tentativo sorveglia da sé, fino alla gestione della risposta di `signIn`
+compresa, la cronologia del router e `backend.onChange`, perché la pagina può essere
+rimontata nel frattempo (dal proprio ingresso): qualunque navigazione che lasci
+`/invite/app` o cambi il frammento lo chiude **per sempre**, anche se si torna allo stesso
+link (quello è un tentativo nuovo); lo chiude anche l'apertura di una sessione di un altro
+account (un accesso da un'altra scheda). Dopo la risposta di `accept` è atteso il proprio
+ingresso: un evento con l'email dell'invito non chiude il tentativo, uno con un'altra email
+sì. Prima di `signIn` valgono anche la generazione della pagina e l'assenza di sessione.
+Non si usa la chiusura della sessione «senza utente» di `SessionScope`: dopo «Esci e
+continua» Supabase può notificare ancora l'account appena chiuso, e quella sessione restava
+chiusa bloccando il modulo (trovato con agent-browser, test di regressione). Per questo gli
+eventi di quell'account sono ignorati **solo finché la sua uscita è in corso**: un suo nuovo
+accesso dopo la fine dell'uscita chiude il tentativo come ogni altro. Quando arriva la
+risposta di `accept` la pagina controlla che il tentativo sia ancora valido, e di nuovo alla
+risposta di `signIn`: altrimenti non chiama `signIn`, non naviga e non mostra nulla.
+L'account creato resta valido: la persona entra da `/login`.
 
 ### Senza famiglia
 
@@ -401,15 +418,18 @@ Nel layout dell'app; nella barra in basso resta attivo Profilo. Senza `app_admin
   con `CopyField` (importato da `features/agents` così com'è) e «Condividi» (Web Share API, se presente), più la nota «Il link si vede solo
   ora: se lo perdi, crea un nuovo link». `account_exists`: «Questa email ha già un
   account» (con B diventerà un collegamento all'utente). Un riferimento sincrono blocca il
-  doppio invio; ogni apertura del foglio è un tentativo con il suo id, e il foglio mostra il
-  link solo se la risposta appartiene al tentativo ancora aperto e la sessione è la stessa.
+  doppio invio. Un ritentativo con la stessa email (normalizzata) e gli stessi ruoli riusa
+  l'id (la prima scrittura può essere avvenuta con la risposta persa); email o ruoli diversi
+  sono un invito nuovo con un id nuovo, anche nello stesso foglio. Il foglio mostra il
+  link solo se la risposta appartiene al foglio ancora aperto e la sessione è la stessa.
   L'elenco si rilegge comunque, anche per le risposte superate.
 - Elenco: email, ruoli come etichette («nessun ruolo» se vuoto), stato con data («Scade
   il…», «Scaduto il…», «Accettato da {nome} il…», «Revocato il…»), autore.
 - Azioni: «Nuovo link» e «Revoca» (con conferma) per gli inviti in attesa **e per quelli
   scaduti**, che nel database sono ancora `pending` e, se prenotati, possono ancora essere
   chiusi: l'amministratore deve poterli fermare. «Nuovo link» fa una nuova `create` con
-  stessa email e ruoli e id nuovo (sostituisce quello in attesa). Offline i comandi sono
+  stessa email e ruoli e id nuovo (sostituisce quello in attesa). Ogni conferma di revoca
+  parte senza l'errore di una revoca precedente. Offline i comandi sono
   disattivati.
 
 Query: `['appInvitations', 'list', {}]`, non versionata. **Mutazioni nel registro
@@ -687,3 +707,9 @@ Funzioni nuove: quelle della sezione 1.
   ripresa conserva password, nome e lingua del primo tentativo riuscito (sezione 7).
 - Operazioni `public` senza transazione della pipeline: nessuna connessione occupata
   durante le chiamate ad Auth (sezione 1).
+- Codice di validazione delle `refine` del contratto: il messaggio, se è un identificatore,
+  al posto di `custom` (sezione 1, «Errori»).
+- `Referrer-Policy: no-referrer` anche nell'HTML della shell, perché il service worker la
+  serve dalla cache senza le intestazioni di `_headers` (sezioni 7 e 14).
+- Fusi a scostamento (`+01:00`) trattati come non validi: ripiego su `Europe/Rome`
+  (sezione 2).

@@ -161,7 +161,8 @@ describe.skipIf(!hasDatabase)('app invitations: link and acceptance', () => {
 
 	it('refuses a 73-byte password before any work', async () => {
 		const { email, token } = await invite();
-		expect((await errorOf(anonymous().appInvitations.accept(form(token, email, { password: 'a'.repeat(73) })))).code).toBe('invalid');
+		const error = await errorOf(anonymous().appInvitations.accept(form(token, email, { password: 'a'.repeat(73) })));
+		expect([error.code, error.data]).toEqual(['invalid', { issues: [{ path: ['password'], code: 'password_too_long' }] }]);
 		expect(auth.calls).toEqual([]);
 	});
 });

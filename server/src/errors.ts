@@ -27,6 +27,12 @@ export function diagnosticOf(error: unknown): { name: string; code?: string } {
 }
 
 /** Every error leaving an operation becomes one of the contract codes. */
+/** A refinement of the contract names its code in the message (`password_too_long`, `not_monday`). */
+function issueCode({ code, message }: { code?: string; message?: string }): string {
+	if (code === 'custom' && message && /^[a-z][a-z0-9_]*$/.test(message)) return message;
+	return code ?? 'invalid';
+}
+
 export function normalizeError(error: unknown, scope: ErrorScope): ORPCError<ErrorCode, unknown> {
 	if (error instanceof ORPCError) {
 		if (error.code === 'BAD_REQUEST' && error.cause instanceof ValidationError) {
@@ -35,7 +41,7 @@ export function normalizeError(error: unknown, scope: ErrorScope): ORPCError<Err
 					const key = typeof part === 'object' ? part.key : part;
 					return typeof key === 'number' ? key : String(key);
 				}),
-				code: (issue as { code?: string }).code ?? 'invalid',
+				code: issueCode(issue as { code?: string; message?: string }),
 			}));
 			return new ORPCError('invalid', { status: 400, data: { issues } });
 		}

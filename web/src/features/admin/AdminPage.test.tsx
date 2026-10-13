@@ -89,6 +89,45 @@ it('one creation per tap burst, and a late answer of a closed sheet never shows 
   expect(shown.endsWith(fakeTokenOf(api, pending[0]!.id))).toBe(true); // the shown link is the valid one
 });
 
+it('a retry with the same data keeps the id; a change of email or roles is a new invitation', async () => {
+  const api = adminApi();
+  const create = vi.spyOn(api.appInvitations, 'create').mockRejectedValueOnce(new ApiError('internal')).mockRejectedValueOnce(new ApiError('internal')).mockRejectedValueOnce(new ApiError('internal'));
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  const send = async (calls: number) => {
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(calls));
+  };
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'uno@x.it' } });
+  await send(1);
+  await send(2); // the same: perhaps written, its answer lost
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'due@x.it' } });
+  await send(3);
+  fireEvent.click(within(sheet).getByLabelText('Curatore del ricettario'));
+  await send(4);
+  const ids = create.mock.calls.map((call) => call[0].id);
+  expect(ids[1]).toBe(ids[0]);
+  expect(new Set([ids[0], ids[2], ids[3]]).size).toBe(3);
+});
+
+it('the error of an earlier revocation does not show on another invitation', async () => {
+  const api = adminApi();
+  await api.appInvitations.create({ id: crypto.randomUUID(), email: 'prima@x.it', roles: [] });
+  await api.appInvitations.create({ id: crypto.randomUUID(), email: 'seconda@x.it', roles: [] });
+  vi.spyOn(api.appInvitations, 'revoke').mockRejectedValueOnce(new ApiError('internal'));
+  renderApp('/admin', { api });
+  fireEvent.click(within((await screen.findByText('prima@x.it')).closest('li')!).getByRole('button', { name: 'Revoca' }));
+  let confirm = await screen.findByRole('dialog', { name: 'Revocare l’invito?' });
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Revoca' }));
+  expect(await within(confirm).findByRole('alert')).toBeTruthy();
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Chiudi' }));
+  fireEvent.click(within((await screen.findByText('seconda@x.it')).closest('li')!).getByRole('button', { name: 'Revoca' }));
+  confirm = await screen.findByRole('dialog', { name: 'Revocare l’invito?' });
+  expect(within(confirm).getByText('seconda@x.it')).toBeTruthy();
+  expect(within(confirm).queryByRole('alert')).toBeNull();
+});
+
 it('revokes an expired invitation too', async () => {
   const api = adminApi();
   const { invitation } = await api.appInvitations.create({ id: crypto.randomUUID(), email: 'old@x.it', roles: [] });
