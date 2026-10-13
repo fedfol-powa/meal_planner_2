@@ -62,7 +62,13 @@ Prossimi passi:
    i due UID presenti. File scaricato cancellato.
 2. **Finestra del 13/10 aperta** (R18–R20 entro le 19). Impronte di avvio (vale l'ultima):
    - **B0 = `14f1d2ab274de7df828df39fcc6d72a9`** (bootstrap, R18, 13/10 mattina; famiglia `f3eada3e-67fc-4386-b5ad-93fdb8fb91d3`).
-   - **B1 = `3282a49aa50e57662c743052afb6793b`** (caricamento, R19, 13/10 mattina; input `bc9d6086d8a317ae`). **Vale B1.**
+   - **B1 = `3282a49aa50e57662c743052afb6793b`** (caricamento, R19, 13/10 mattina; input `bc9d6086d8a317ae`).
+   - **R20 positivo (13/10):** collaudo dell'utente tutto a posto; `show-fingerprint` = B1.
+   - **Impronta di avvio CHIUSA (13/10, inizio di R23):** da qui niente azzeramento; si corregge in avanti.
+3. **R23 in corso:** la famiglia usa l'app. **Giovedì 15/10, prima di aprire il menu:**
+   `node scripts/prod-sql.ts --preview check-first-generation --set family_id=f3eada3e-67fc-4386-b5ad-93fdb8fb91d3 --set week_start=2026-10-19`
+   → `cron_generated = t` (job e settimana mercoledì 14/10 fra le 20 e le 21); la notte dopo, l'esportazione più grande.
+   Esito in `server/README.md` e qui. Da qui il vecchio flusso non pianifica più settimane.
 3. **Specifica principale:** riportare le decisioni della messa in produzione con un agente in worktree.
 4. **Pulizia facoltativa** dei worktree di PR già unite in `.worktrees/`.
 5. **Revisori Codex:** prompt come revisione di qualità, non «avversariale».
