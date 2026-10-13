@@ -37,12 +37,12 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
    dipendenze (inviti che creano l'account con iscrizioni spente, Resend e dominio, creazione delle
    famiglie dagli utenti, amministrazione dell'app #38, wizard…), con la mappa produttore→consumatore
    prima di lanciare worker; limite di un worker Claude, revisori Codex senza limite; solito giro.
-2. **PR della specifica W7/W8 in preparazione** da un sottoagente del coordinatore (branch
-   `traguardo/specifica-w7-w8`, worktree in `.claude/worktrees/`): riporta nella specifica principale e
-   nelle «Interfacce decise» del piano generale le decisioni di `specs/2026-10-13-cambio-password.md` e
-   `specs/2026-10-13-aggiornamento-pwa.md`. Se dopo il /clear la PR esiste: revisione Codex, poi
-   **«mergia» esplicito dell'utente** (PR scritta dal coordinatore), poi rimuovere il worktree. Se non
-   esiste o è incompleta, rifarla.
+2. **PR #44 aperta** (branch `traguardo/specifica-w7-w8`, commit `c5656f8`, worktree del sottoagente
+   `.claude/worktrees/agent-afff511744cf9c57e`): riporta nella specifica principale e nelle «Interfacce
+   decise» del piano generale le decisioni di `specs/2026-10-13-cambio-password.md` e
+   `specs/2026-10-13-aggiornamento-pwa.md`. Da fare: revisione Codex (`avvia-revisore.sh`), correzioni,
+   poi **«mergia» esplicito dell'utente** (PR scritta dal coordinatore), poi rimuovere il worktree (il
+   checkout deve essere pulito per `npm run release`).
 3. **#42 aperta:** verificare al prossimo rilascio il passaggio automatico al ritorno in primo piano
    sull'iPhone. Il primo passaggio dalla versione vecchia non è avvenuto con due aperture: l'utente ha
    dovuto togliere l'app, cancellare i dati di `qunidi.workers.dev` (Impostazioni › Safari › Avanzate)
