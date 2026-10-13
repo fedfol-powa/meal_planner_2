@@ -31,7 +31,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 **Aggiornato il 13 ottobre 2026 sera, prima di un /clear chiesto dall'utente. Si riparte da qui.**
 
-**Da registrare nelle «Interfacce decise» del piano generale dopo il merge della #44** (decisioni del coordinatore a W9, 13/10): ruolo `public` nel contratto solo con `mcp: false` (regola e test in `check.ts`), pipeline senza token per quelle operazioni e ruolo `anon`, dati solo da funzioni security definer per token; nome chiesto nella pagina dell'invito (`user_metadata.display_name`), nessuna schermata di primo accesso; `family.create` anche MCP; inviti all'app su MCP solo `app_admin`; lettura e accettazione solo web; token degli inviti salvato solo come impronta SHA-256, link mostrato alla creazione e «Nuovo link» nell'elenco.
+Decisioni del brainstorming di W9 registrate nelle «Interfacce decise» del piano generale (13/10).
 0. **Ondata 3 avviata (13/10 sera):** ordine approvato (A → B → C, D quando c'è il DNS, poi E; piano generale nella PR #44). W9 su A. Alla chiusura della revisione della #44: correzioni nel worktree del sottoagente, poi «mergia» dell'utente.
 1. **Prossimo lavoro: ondata 3** (decisione dell'utente del 13/10). L'utente vuole aggiungere un'altra
    persona che si crea la propria famiglia: ha preferito non usare il `bootstrap` a mano (possibile
