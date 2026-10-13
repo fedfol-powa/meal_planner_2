@@ -8,6 +8,7 @@ import { ProfilePage } from './routes/ProfilePage';
 import { MembersPage } from './routes/profile/MembersPage';
 import { ExclusionsPage } from './routes/profile/ExclusionsPage';
 import { PreferencesPage } from './routes/profile/PreferencesPage';
+import { PasswordPage } from './routes/profile/PasswordPage';
 import { SettingsPage } from './routes/profile/SettingsPage';
 import { RecipePage } from './routes/RecipePage';
 import { RecipesPage } from './routes/RecipesPage';
@@ -72,6 +73,7 @@ const recipesRoute = createRoute({ getParentRoute: () => appRoute, path: '/recip
 const draftRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes/drafts/$draftId', component: DraftPage });
 const recipeRoute = createRoute({ getParentRoute: () => appRoute, path: '/recipes/$recipeId', validateSearch: validateRecipeSearch, component: RecipePage });
 const profileRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile', component: ProfilePage });
+const passwordRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/password', component: PasswordPage });
 const preferencesRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/preferences', component: PreferencesPage });
 const membersRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family', component: MembersPage });
 const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/settings', component: SettingsPage });
@@ -83,7 +85,7 @@ const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shop
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authorizeRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
