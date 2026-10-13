@@ -9,9 +9,9 @@ const methods = (fetch: ReturnType<typeof vi.fn>) => fetch.mock.calls.map(([, in
 
 describe('createInvitedAccount', () => {
 	it('creates a confirmed user with the reserved id, the secret key in apikey and no bearer', async () => {
-		const fetch = vi.fn(async () => json(200, { id: account.id }));
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => json(200, { id: account.id }));
 		expect(await createInvitedAccount(env, account, { fetch })).toEqual({ status: 'created' });
-		const [url, init] = fetch.mock.calls[0]! as [string, RequestInit];
+		const [url, init] = fetch.mock.calls[0]! as unknown as [string, RequestInit];
 		expect(url).toBe('https://auth.test/auth/v1/admin/users');
 		expect(init.method).toBe('POST');
 		expect(new Headers(init.headers).get('apikey')).toBe('sb_secret_x');
