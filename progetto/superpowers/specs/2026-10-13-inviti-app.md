@@ -104,12 +104,22 @@ come `jsonb` (array di stringhe, convertito e validato dentro la funzione) ed es
 `jsonb`; l'impronta del token entra come testo esadecimale, convertita dal server con
 `decode(…, 'hex')` nella chiamata. Le firme sotto restano in `bytea` e `jsonb`.
 
-**Creazioni serializzate:** `FOR UPDATE` non blocca una riga che non esiste ancora, quindi
-le funzioni che creano prendono lucchetti consultivi di transazione, sempre nello stesso
-ordine: `create_app_invitation` prima su `app_invitation:id:<id>`, poi su
-`app_invitation:email:<email>`; `create_family` su `family:create:<id>`
-(`pg_advisory_xact_lock(hashtextextended(…, 0))`). Due creazioni concorrenti con lo stesso id
-o la stessa email si susseguono e danno lo stesso esito delle ripetizioni sequenziali. Errori con `raise exception` e `errcode`
+**Scritture serializzate:** `FOR UPDATE` non blocca una riga che non esiste ancora, quindi
+le funzioni prendono lucchetti consultivi di transazione
+(`pg_advisory_xact_lock(hashtextextended(…, 0))`), **sempre nello stesso ordine**: prima
+`app_invitation:id:<id>`, poi `app_invitation:email:<email>`, poi il lucchetto di riga
+(`FOR UPDATE`) sulla riga esistente, ricontrollata dopo averlo preso. Lo fanno
+`create_app_invitation` (anche nel rinnovo, che blocca la riga esistente e ricontrolla che
+sia ancora `pending` prima di sostituire il token), `revoke_app_invitation` e
+`complete_app_invitation`; queste due ricavano id ed email dalla riga, prendono i lucchetti e
+rileggono la riga con `FOR UPDATE`, controllando di nuovo stato e, per la chiusura, che
+l'impronta del token sia ancora quella del link (un rinnovo nel frattempo la invalida).
+`claim_app_invitation` blocca solo la riga, che basta perché non crea righe e il rinnovo la
+blocca a sua volta. `create_family` prende `family:create:<id>`. Due scritture concorrenti
+danno così lo stesso esito di quelle sequenziali: un rinnovo dopo una revoca o una chiusura
+risponde `invalid` (id già usato), una chiusura dopo un rinnovo risponde
+`invitation_unavailable`, e nessun link restituito appartiene a un invito già revocato o
+chiuso. Errori con `raise exception` e `errcode`
 dedicati (classe `P0`, per esempio `P0A01` invito non disponibile), tradotti in codici del
 contratto da un piccolo modulo dell'area (`server/src/app-invitations/db-errors.ts`),
 senza toccare `server/src/db-errors.ts`.
@@ -225,8 +235,11 @@ esistente** (decisione del coordinatore dopo la revisione, rilievi 1, 5 e 11): n
    - 404 dopo un `email_exists`, oppure utente con quell'id ma un'altra email →
      `email_taken` (`account_exists` nel contratto: l'email appartiene a un altro
      account, creato nel frattempo a mano);
-   - 404 dopo un esito non `email_exists` (la creazione non è avvenuta) o lettura fallita
-     → `AccountServiceError` (`internal`): la persona riprova dallo stesso link.
+   - 404 dopo un esito non `email_exists` (**account non ancora osservabile**: la creazione
+     originale può non essere avvenuta o essere ancora in corso) o lettura fallita →
+     `AccountServiceError` (`internal`): la persona riprova dallo stesso link, con lo stesso
+     id prenotato; se nel frattempo la creazione originale è diventata visibile, la ripresa
+     la trova e chiude (decisione del coordinatore, w9-06).
 3. Chiave assente → `AccountServiceError` senza chiamate. Ogni `AccountServiceError`
    diventa `internal` con `requestId` e una riga di log (`auth_admin_failed` con lo stato
    HTTP, oppure `auth_admin_key_missing`).
@@ -322,6 +335,16 @@ uno»), diverse. Accesso fallito dopo la creazione: «Il tuo account è pronto: 
 password che hai scelto la prima volta» e il pulsante «Vai all'accesso» verso `/login`
 con l'email già scritta (`validateLoginSearch` aggiunge `email` facoltativa).
 
+**Validità del tentativo** (come `AuthorizePage`): ogni invio appartiene a una generazione
+legata alla pagina, al token del frammento e all'identità (nessuna sessione aperta). Un
+riferimento sincrono (`sending`) ammette un solo invio alla volta, anche con due tocchi prima
+del nuovo rendering. Qualunque navigazione che lasci `/invite/app` o cambi il frammento, lo
+smontaggio della pagina e l'apertura di una sessione nel frattempo (un accesso da un'altra
+scheda, per esempio) chiudono la generazione. Quando arriva la risposta di `accept`, e di
+nuovo prima della navigazione, la pagina controlla che la generazione sia ancora quella
+dell'invio: altrimenti non chiama `signIn`, non naviga e non mostra nulla. L'account creato
+resta valido: la persona entra da `/login`.
+
 ### Senza famiglia
 
 `FamilyGate` con `state.status === 'none'`: «Non fai ancora parte di una famiglia» e il
@@ -370,7 +393,10 @@ Nel layout dell'app; nella barra in basso resta attivo Profilo. Senza `app_admin
   e «Amministratore dell'app», «Crea il link». Dopo la creazione il foglio mostra il link
   con `CopyField` (importato da `features/agents` così com'è) e «Condividi» (Web Share API, se presente), più la nota «Il link si vede solo
   ora: se lo perdi, crea un nuovo link». `account_exists`: «Questa email ha già un
-  account» (con B diventerà un collegamento all'utente).
+  account» (con B diventerà un collegamento all'utente). Un riferimento sincrono blocca il
+  doppio invio; ogni apertura del foglio è un tentativo con il suo id, e il foglio mostra il
+  link solo se la risposta appartiene al tentativo ancora aperto e la sessione è la stessa.
+  L'elenco si rilegge comunque, anche per le risposte superate.
 - Elenco: email, ruoli come etichette («nessun ruolo» se vuoto), stato con data («Scade
   il…», «Scaduto il…», «Accettato da {nome} il…», «Revocato il…»), autore.
 - Azioni: «Nuovo link» e «Revoca» (con conferma) per gli inviti in attesa **e per quelli
@@ -445,7 +471,11 @@ Dizionari nuovi `web/src/i18n/messages/invitations.ts`, `admin.ts`, `onboarding.
   e la stessa email (un solo invito in attesa, nessun errore); due `family.create` con lo
   stesso id (una famiglia).
 - Connessioni: durante la chiamata ad Auth di `accept` nessuna transazione di `app_server`
-  è aperta (`pg_stat_activity` letto dall'Auth finta nel momento della chiamata).
+  è aperta (`pg_stat_activity` letto da una connessione amministrativa del test nel
+  momento della chiamata; un controllo di riprova con una transazione esterna tenuta
+  aperta deve rilevarla).
+- Rinnovo concorrente, deterministico (una transazione tenuta aperta su una connessione del
+  test): rinnovo contro revoca e contro chiusura, in entrambi gli ordini.
 - Ruoli attraverso il vero `withDb`: inviti con `[]`, un ruolo e due ruoli, in creazione,
   elenco, lettura pubblica e assegnazione.
 - Operazioni: invito valido, scaduto, revocato, usato, inesistente (stesso codice), email
@@ -483,8 +513,18 @@ web), quindi non vengono esclusi dal filtro:
   ruolo di curatore; un client senza token legge l'invito e lo accetta; la persona entra
   con `/token?grant_type=password`; i ruoli finali sono quelli dell'invito; `family.create`
   crea la famiglia; `menu.getOpening` genera la settimana;
-- due accettazioni concorrenti contro Auth reale: un solo account, la seconda non cambia
-  la password;
+- **la prima creazione prevale**, contro Auth reale, in modo controllato: l'id viene
+  prenotato con `claim` e l'account creato direttamente con l'API di amministrazione (password,
+  nome e lingua «del primo tentativo»), come una prima accettazione interrotta prima della
+  chiusura; poi un'accettazione dal Worker con un'altra password, un altro nome e l'altra
+  lingua riesce e chiude, la password iniziale funziona, la seconda no, `profile.get` mostra
+  nome e lingua iniziali;
+- **ripresa dopo `internal`**: la prima `POST` di creazione è intercettata e risponde 500
+  senza raggiungere Auth, la lettura dell'id va ad Auth reale e risponde 404 (account non
+  ancora osservabile) → `internal`; l'account con l'id prenotato compare poi (creato con
+  l'API di amministrazione, come una creazione arrivata in ritardo) e la ripetizione dallo
+  stesso link lo trova, chiude e assegna i ruoli;
+- due accettazioni concorrenti dal Worker: un solo account;
 - rifiuto della Data API su `app` (RPC `app_invitation_by_token` con la chiave
   pubblicabile e `Content-Profile: app`).
 
@@ -569,10 +609,17 @@ migrazione e i test pgTAP nuovi, `scripts/invitations/`.
 `contract/src/family/index.ts`, `contract/src/index.ts`, `server/src/pipeline.ts`,
 `server/src/app.ts` (`clientIp`), `server/src/env.ts`, `server/src/router.ts`,
 `server/src/family/router.ts`, `server/wrangler.jsonc`,
-`server/test/support/requests.ts`, `web/src/router.tsx`, `web/src/routes/search.ts`,
-`web/src/components/FamilyGate.tsx`, `web/src/routes/MenuPage.tsx`,
-`web/src/routes/ProfilePage.tsx`, `web/src/i18n/messages/index.ts` ed `errors.ts`,
-`web/src/api/fake/`, `web/public/_headers`,
+`server/src/errors.ts` (`AccountServiceError` come `internal`), `server/src/messages.ts`,
+`server/test/support/requests.ts`, `server/test/support/context.ts`,
+`server/test/support/test-contract.ts`, `web/src/router.tsx`, `web/src/routes/search.ts`,
+`web/src/auth/LoginPage.tsx` (email iniziale), `web/src/session/SessionScope.tsx`
+(`useOptionalSignOut`, se serve), `web/src/components/FamilyGate.tsx`,
+`web/src/components/StateNotice.tsx` (azione facoltativa, se serve),
+`web/src/components/BottomNav.tsx` (Profilo attivo su `/admin`, se serve),
+`web/src/routes/MenuPage.tsx`, `web/src/routes/ProfilePage.tsx`,
+`web/src/api/types.ts`, `web/src/api/clients.ts`, `web/src/api/errors.ts`,
+`web/src/i18n/messages/index.ts`, `errors.ts` e `family.ts`, `web/src/api/fake/`
+(`fakeApi.ts`, `family.ts`), `web/public/_headers`,
 `.github/workflows/ci.yml` (passo dello stack degli inviti), `server/src/permissions.ts`
 (caso `public`), `web/src/api/mutations.ts` (registro e destinazione `appInvitations`).
 Approvati dal coordinatore per le iscrizioni spente in locale: `supabase/config.toml`,

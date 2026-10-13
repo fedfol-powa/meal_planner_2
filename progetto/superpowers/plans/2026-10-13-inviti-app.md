@@ -408,7 +408,8 @@ begin
 	if exists (select 1 from auth.users u where lower(u.email) = v_email) then
 		raise exception 'account exists' using errcode = 'P0A03';
 	end if;
-	select * into v_row from app.app_invitations where id = p_id;
+	-- Same order everywhere: id lock, email lock, then the row lock, and the row checked again under it.
+	select * into v_row from app.app_invitations where id = p_id for update;
 	if found then
 		if v_row.created_by is distinct from auth.uid() or v_row.status <> 'pending'
 			or v_row.email <> v_email or v_row.roles <> v_roles then
@@ -435,8 +436,12 @@ begin
 	if not app.has_role('app_admin') then
 		raise exception 'app admins only' using errcode = '42501';
 	end if;
-	select * into v_row from app.app_invitations where id = p_id for update;
+	select * into v_row from app.app_invitations where id = p_id;
 	if not found then raise exception 'unknown invitation' using errcode = 'P0A06'; end if;
+	-- The locks of create_app_invitation, in the same order, then the row lock.
+	perform pg_advisory_xact_lock(hashtextextended('app_invitation:id:' || p_id::text, 0));
+	perform pg_advisory_xact_lock(hashtextextended('app_invitation:email:' || v_row.email, 0));
+	select * into v_row from app.app_invitations where id = p_id for update;
 	if v_row.status = 'accepted' then raise exception 'already accepted' using errcode = 'P0A04'; end if;
 	if v_row.status = 'pending' then
 		update app.app_invitations set status = 'revoked', revoked_at = now(), revoked_by = auth.uid()
@@ -502,8 +507,14 @@ returns void language plpgsql security definer set search_path = '' as $$
 declare
 	v_row app.app_invitations;
 begin
-	select * into v_row from app.app_invitations i where i.token_hash = p_token_hash for update;
-	if not found or v_row.status = 'revoked' or v_row.reserved_user_id is distinct from p_user_id then
+	select * into v_row from app.app_invitations i where i.token_hash = p_token_hash;
+	if not found then raise exception 'invitation unavailable' using errcode = 'P0A01'; end if;
+	-- The locks of create_app_invitation, in the same order, then the row read again under its lock:
+	-- a renewal meanwhile changed the token hash, and this link is no longer the invitation's.
+	perform pg_advisory_xact_lock(hashtextextended('app_invitation:id:' || v_row.id::text, 0));
+	perform pg_advisory_xact_lock(hashtextextended('app_invitation:email:' || v_row.email, 0));
+	select * into v_row from app.app_invitations i where i.id = v_row.id for update;
+	if v_row.token_hash <> p_token_hash or v_row.status = 'revoked' or v_row.reserved_user_id is distinct from p_user_id then
 		raise exception 'invitation unavailable' using errcode = 'P0A01';
 	end if;
 	if v_row.status = 'accepted' then
@@ -609,21 +620,33 @@ export function publicContext(context: unknown): PublicOperationContext
 ```ts
 		open: op({ mcp: false, offline: false, role: 'public', rateLimit: 'read' })
 			.route({ method: 'POST', path: '/test/open', summary: 'Public' })
-			.input(z.object({ echo: z.string() }))
-			.output(z.object({ echo: z.string(), role: z.string(), inTransaction: z.boolean() })),
+			.input(z.object({ echo: z.string(), nested: z.boolean().optional() }))
+			.output(z.object({ echo: z.string(), role: z.string(), openAtProbe: z.number() })),
 ```
 
-con il gestore (importa `publicContext`):
+una sonda impostata dal test, accanto a `testHandlerCalls`:
+
+```ts
+/**
+ * Set by the pipeline test to a read of pg_stat_activity on an admin connection: `anon` cannot
+ * see the columns of app_server's sessions, so the count must not be read through anonDb.
+ */
+export let publicProbe: () => Promise<number> = async () => 0;
+export function setPublicProbe(probe: () => Promise<number>): void {
+	publicProbe = probe;
+}
+```
+
+e il gestore (importa `publicContext`):
 
 ```ts
 		open: os.test.open.handler(async ({ context, input }) => {
 			const ctx = publicContext(context);
-			// Before anonDb: the pipeline must not hold a transaction of its own.
-			const outside = await ctx.anonDb((tx) => tx<{ n: number }[]>`
-				select count(*)::int as n from pg_stat_activity
-				where usename = 'app_server' and xact_start is not null and pid <> pg_backend_pid()`);
 			const [{ role }] = await ctx.anonDb((tx) => tx<{ role: string }[]>`select current_user as role`);
-			return { echo: input.echo, role, inTransaction: outside[0]!.n > 0 };
+			// The probe runs where Auth would be called: outside any transaction, unless `nested`
+			// deliberately holds one (the counter-check that the probe can see it).
+			const openAtProbe = input.nested ? await ctx.anonDb(() => publicProbe()) : await publicProbe();
+			return { echo: input.echo, role, openAtProbe };
 		}),
 ```
 
@@ -637,9 +660,19 @@ describe.skipIf(!hasDatabase)('public operations', () => {
 	});
 	afterAll(() => db?.close());
 
+	const openAppServerTransactions = async () =>
+		(await db.admin<{ n: number }[]>`
+			select count(*)::int as n from pg_stat_activity where usename = 'app_server' and xact_start is not null`)[0]!.n;
+
 	it('run as anon without a token and without a transaction of the pipeline', async () => {
+		setPublicProbe(openAppServerTransactions);
 		const result = await call(testRouter.test.open, { echo: 'hi' }, options(contextFor(keys, undefined, db.appServerUrl)));
-		expect(result).toEqual({ echo: 'hi', role: 'anon', inTransaction: false });
+		expect(result).toEqual({ echo: 'hi', role: 'anon', openAtProbe: 0 });
+	});
+	it('the probe sees a transaction held around it (counter-check)', async () => {
+		setPublicProbe(openAppServerTransactions);
+		const result = await call(testRouter.test.open, { echo: 'hi', nested: true }, options(contextFor(keys, undefined, db.appServerUrl)));
+		expect(result.openAtProbe).toBe(1);
 	});
 	it('ignore a token, even an invalid one', async () => {
 		const result = await call(testRouter.test.open, { echo: 'x' }, options(contextFor(keys, 'not-a-jwt', db.appServerUrl)));
@@ -669,7 +702,7 @@ it('checkRole refuses the public role: it never reaches the signed-in checks', a
 });
 ```
 
-(`checkRole` da `../src/permissions.ts`, `Tx` da `../src/db.ts`.) In `contextFor` (`support/context.ts`) aggiungi all'`env` `INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll, SUPABASE_SECRET_KEY: 'sb_secret_test'` e al contesto `clientIp: '198.51.100.1'`; lo stesso in `testEnv()` di `requests.ts`, dove definisci:
+(`checkRole` da `../src/permissions.ts`, `Tx` da `../src/db.ts`, `setPublicProbe` da `./support/test-contract.ts`.) In `contextFor` (`support/context.ts`) aggiungi all'`env` `INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll, SUPABASE_SECRET_KEY: 'sb_secret_test'` e al contesto `clientIp: '198.51.100.1'`; lo stesso in `testEnv()` di `requests.ts`, dove definisci:
 
 ```ts
 export const allowAll: RateLimiter = { limit: async () => ({ success: true }) };
@@ -1325,8 +1358,8 @@ git commit -m "W9: creazione, elenco e revoca degli inviti all'app, anche via MC
 
 **Files:**
 - Modify: `server/src/app-invitations/router.ts`
-- Create: `server/test/support/fake-auth.ts`
-- Test: `server/test/app-invitations-accept.test.ts`
+- Create: `server/test/support/fake-auth.ts`, `server/test/support/hold.ts`
+- Test: `server/test/app-invitations-accept.test.ts`, `server/test/app-invitations-locks.test.ts`
 
 **Interfaces:**
 - Consumes: `publicContext`, `PublicOperationContext.anonDb` (Task 3); `createInvitedAccount` (Task 4); `hashTokenHex`, `mapInvitationError` (Task 5).
@@ -1576,7 +1609,127 @@ describe.skipIf(!hasDatabase)('app invitations: link and acceptance', () => {
 });
 ```
 
-- [ ] **Step 3: Esegui** `npm test -w server -- app-invitations-accept` → FAIL.
+Rinnovo concorrente con revoca e chiusura, deterministico: una transazione tenuta aperta su una connessione del test (`server/test/support/hold.ts`):
+
+```ts
+import postgres from 'postgres';
+
+type Sql = postgres.TransactionSql;
+/** Runs `work` in a transaction on its own admin connection and keeps it open until `release()`. */
+export async function holdTransaction(url: string, work: (tx: Sql) => Promise<void>) {
+	const sql = postgres(url, { max: 1, onnotice: () => {} });
+	let release!: () => void;
+	let ready!: () => void;
+	const released = new Promise<void>((r) => (release = r));
+	const isReady = new Promise<void>((r) => (ready = r));
+	const done = sql.begin(async (tx) => { await work(tx); ready(); await released; }).finally(() => sql.end());
+	await isReady;
+	return { release: async () => { release(); await done; } };
+}
+/** As the given app user, inside a held transaction. */
+export async function asUser(tx: Sql, userId: string) {
+	await tx`select set_config('request.jwt.claims', ${JSON.stringify({ sub: userId, role: 'authenticated' })}, true)`;
+	await tx`set local role authenticated`;
+}
+/** Still waiting after a short while: blocked on a lock (the final assertions do not depend on it). */
+export const stillPending = (promise: Promise<unknown>) =>
+	Promise.race([promise.then(() => false, () => false), new Promise<boolean>((r) => setTimeout(() => r(true), 200))]);
+```
+
+`server/test/app-invitations-locks.test.ts` (`TEST_DATABASE_URL` è la connessione amministrativa dei test; `installFakeAuth` come sopra):
+
+```ts
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { errorOf, setupActors, type Actors } from './support/actors.ts';
+import { hasDatabase } from './support/db.ts';
+import { asUser, holdTransaction, stillPending } from './support/hold.ts';
+
+const adminUrl = process.env.TEST_DATABASE_URL!;
+const hex = async (token: string) => Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))).toString('hex');
+
+describe.skipIf(!hasDatabase)('app invitations: renewal against revocation and closing', () => {
+	let actors: Actors;
+	beforeAll(async () => {
+		actors = await setupActors();
+	});
+	afterAll(() => actors?.close());
+
+	const setup = async () => {
+		const admin = await actors.user();
+		await actors.db.grantGlobalRole(admin.userId, 'app_admin');
+		const input = { id: crypto.randomUUID(), email: `l${crypto.randomUUID().slice(0, 8)}@x.it`, roles: [] as [] };
+		const { url } = await admin.client.appInvitations.create(input);
+		return { admin, input, token: url.split('#')[1]! };
+	};
+	/** Reserves the id and creates the account, as an acceptance stopped before closing. */
+	const reserveAndCreate = async (token: string, email: string) => {
+		const [{ user_id }] = await actors.db.admin<{ user_id: string }[]>`
+			select user_id from app.claim_app_invitation(decode(${await hex(token)}, 'hex'), ${email})`;
+		await actors.db.admin`insert into auth.users (id, email, aud, role) values (${user_id}, ${email}, 'authenticated', 'authenticated')`;
+		return user_id;
+	};
+
+	it('a revocation held open: the renewal waits, then refuses (no link of a revoked invitation)', async () => {
+		const { admin, input } = await setup();
+		const held = await holdTransaction(adminUrl, async (tx) => {
+			await asUser(tx, admin.userId);
+			await tx`select app.revoke_app_invitation(${input.id}::uuid)`;
+		});
+		const renewal = admin.client.appInvitations.create(input);
+		expect(await stillPending(renewal)).toBe(true);
+		await held.release();
+		expect((await errorOf(renewal)).code).toBe('invalid');
+	});
+
+	it('a renewal held open: the revocation waits, then revokes the renewed invitation', async () => {
+		const { admin, input } = await setup();
+		const held = await holdTransaction(adminUrl, async (tx) => {
+			await asUser(tx, admin.userId);
+			await tx`select app.create_app_invitation(${input.id}::uuid, decode(${await hex('renewed'.padEnd(43, 'r'))}, 'hex'), ${input.email}, '[]'::jsonb)`;
+		});
+		const revocation = admin.client.appInvitations.revoke({ id: input.id });
+		expect(await stillPending(revocation)).toBe(true);
+		await held.release();
+		expect((await revocation).invitation.status).toBe('revoked');
+	});
+
+	it('a closing held open: the renewal waits, then refuses', async () => {
+		const { admin, input, token } = await setup();
+		const userId = await reserveAndCreate(token, input.email);
+		const held = await holdTransaction(adminUrl, async (tx) => {
+			await tx`set local role anon`;
+			await tx`select app.complete_app_invitation(decode(${await hex(token)}, 'hex'), ${userId}::uuid)`;
+		});
+		const renewal = admin.client.appInvitations.create(input);
+		expect(await stillPending(renewal)).toBe(true);
+		await held.release();
+		expect((await errorOf(renewal)).code).toBe('invalid');
+	});
+
+	it('a renewal held open: the closing with the old link waits, then refuses', async () => {
+		const { admin, input, token } = await setup();
+		const userId = await reserveAndCreate(token, input.email);
+		const held = await holdTransaction(adminUrl, async (tx) => {
+			await asUser(tx, admin.userId);
+			await tx`select app.create_app_invitation(${input.id}::uuid, decode(${await hex('renewed'.padEnd(43, 's'))}, 'hex'), ${input.email}, '[]'::jsonb)`;
+		});
+		const other = postgres(adminUrl, { max: 1, onnotice: () => {} });
+		const closing = other.begin(async (tx) => {
+			await tx`set local role anon`;
+			await tx`select app.complete_app_invitation(decode(${await hex(token)}, 'hex'), ${userId}::uuid)`;
+		});
+		expect(await stillPending(closing)).toBe(true);
+		await held.release();
+		await expect(closing).rejects.toMatchObject({ code: 'P0A01' });
+		await other.end();
+		expect((await actors.db.admin`select status from app.app_invitations where id = ${input.id}`)[0]!.status).toBe('pending');
+	});
+});
+```
+
+(Importa `postgres` da `postgres` per la connessione della chiusura concorrente.)
+
+- [ ] **Step 3: Esegui** `npm test -w server -- app-invitations-accept app-invitations-locks` → FAIL.
 
 - [ ] **Step 4: Implementa** in `server/src/app-invitations/router.ts` (importa `publicContext` da `../pipeline.ts`, `createInvitedAccount` da `../accounts/index.ts`, `appError` da `../errors.ts`, il tipo `GlobalRole` dal contratto):
 
@@ -1635,8 +1788,9 @@ git commit -m "W9: lettura pubblica dell'invito e accettazione che crea l'accoun
 
 **Files:**
 - Modify: `contract/src/family/index.ts`, `server/src/family/router.ts`
+- Modify: `web/src/api/fake/family.ts` (il tipo `Api['family']` del web deriva dal contratto: la finta deve avere `create` perché il typecheck resti verde)
 - Create: `server/src/family/time-zone.ts`, `server/src/family/time-zone.test.ts`
-- Test: `server/test/family-create.test.ts`
+- Test: `server/test/family-create.test.ts`, `web/src/api/fake/family.test.ts`
 
 **Interfaces:**
 - Consumes: `app.create_family` (Task 2); `profileView(tx, locale)` di `server/src/profile/views.ts`; `profileViewSchema`, `measurementSystemSchema`.
@@ -1770,12 +1924,14 @@ In `server/src/family/router.ts`:
 
 Se il trigger del database rifiutasse un fuso che `Intl` accetta (un alias), `create_family` risponde `22023`: in quel caso il gestore non può riprovare nella stessa transazione (annullata); per evitarlo `resolveTimeZone` restituisce il nome canonico di `resolvedOptions()`, che è quello che il trigger accetta. Se il test di un alias fallisse, valida il fuso con la stessa funzione del trigger in una query prima della creazione.
 
-- [ ] **Step 4: Esegui** `npm test -w contract && npm test -w server && npm run typecheck` → PASS.
+Finta del web (`web/src/api/fake/family.ts`, accanto alle altre operazioni dell'oggetto restituito): `create({ id, name, measurementSystem, timeZone })` aggiunge allo stato finto una famiglia con quell'id (se non c'è già), con `role: 'family_admin'`, `timeZone ?? 'Europe/Rome'`, la rende corrente e restituisce la vista del profilo come `profile.get` della finta. Test in `web/src/api/fake/family.test.ts`: dopo `create` il profilo ha la famiglia nuova, corrente; ripetere con lo stesso id non la duplica.
+
+- [ ] **Step 4: Esegui** `npm test -w contract && npm test -w server && npm test -w web -- fake && npm run typecheck` → PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add contract server
+git add contract server web/src/api/fake
 git commit -m "W9: creazione della famiglia da parte di chi la amministrerà, anche via MCP"
 ```
 
@@ -1847,52 +2003,82 @@ In testa al file: `const secret = process.env.STACK_SUPABASE_SECRET_KEY;`, aggiu
 
 e in testa al file un controllo che `SUPABASE_SECRET_KEY` sia presente.
 
-- [ ] **Step 4: Test dello stack del server** (`server/test/stack/invitations.stack.test.ts`). Sta nella configurazione normale di Vitest (`test/**/*.test.ts` lo include) e si salta senza le variabili, come i test dello stack del web: nessuna esclusione. Usa l'app vera (`createApp` con contratto e router dell'app, chiavi JWKS dello stack, nessun `keys` di prova):
+- [ ] **Step 4: Test dello stack del server** (`server/test/stack/invitations.stack.test.ts`). Sta nella configurazione normale di Vitest (`test/**/*.test.ts` lo include) e si salta senza le variabili, come i test dello stack del web: nessuna esclusione. Vitest esegue il corpo di un `describe` anche quando lo salta, quindi **nel corpo non c'è nulla che legga le variabili**: connessioni, URL e app nascono in `beforeAll`, che valida tutte le variabili, e la pulizia è condizionale. Usa l'app vera (`createApp` con contratto e router dell'app, chiavi JWKS dello stack, nessun `keys` di prova):
 
 ```ts
 import { contract, type Contract } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
 import postgres from 'postgres';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.ts';
+import type { Env } from '../../src/env.ts';
 import { router } from '../../src/router.ts';
 import { allowAll, rpcClient, testEnv } from '../support/requests.ts';
 
-const env = process.env;
-const url = env.STACK_SUPABASE_URL;
-const publishable = env.STACK_SUPABASE_PUBLISHABLE_KEY!;
-const secret = env.STACK_SUPABASE_SECRET_KEY!;
+const NAMES = ['STACK_SUPABASE_URL', 'STACK_SUPABASE_PUBLISHABLE_KEY', 'STACK_SUPABASE_SECRET_KEY', 'STACK_DB_URL'] as const;
+const present = NAMES.every((name) => process.env[name]);
 
-describe.skipIf(!url)('invitations against the local stack', () => {
-	const admin = postgres(env.STACK_DB_URL!, { max: 1, onnotice: () => {} });
-	const appServer = new URL(env.STACK_DB_URL!);
-	appServer.username = 'app_server';
-	appServer.password = 'app_server_test';
-	const workerEnv = { ...testEnv(appServer.toString()), SUPABASE_URL: url!, SUPABASE_PUBLISHABLE_KEY: publishable, SUPABASE_SECRET_KEY: secret, INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll };
-	const app = createApp({ contract, router, resourceName: 'stack' });
-	const client = (token?: string) => rpcClient<ContractRouterClient<Contract>>(app, workerEnv, token);
+describe.skipIf(!present)('invitations against the local stack', () => {
+	let url: string;
+	let publishable: string;
+	let secret: string;
+	let admin: postgres.Sql | undefined;
+	let workerEnv: Env;
+	let app: ReturnType<typeof createApp>;
 	const emails: string[] = [];
+
+	beforeAll(() => {
+		const missing = NAMES.filter((name) => !process.env[name]);
+		if (missing.length) throw new Error(`missing ${missing.join(', ')}`);
+		url = process.env.STACK_SUPABASE_URL!;
+		publishable = process.env.STACK_SUPABASE_PUBLISHABLE_KEY!;
+		secret = process.env.STACK_SUPABASE_SECRET_KEY!;
+		admin = postgres(process.env.STACK_DB_URL!, { max: 1, onnotice: () => {} });
+		const appServer = new URL(process.env.STACK_DB_URL!);
+		appServer.username = 'app_server';
+		appServer.password = 'app_server_test';
+		workerEnv = { ...testEnv(appServer.toString()), SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: publishable, SUPABASE_SECRET_KEY: secret, INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll };
+		app = createApp({ contract, router, resourceName: 'stack' });
+	});
 	afterAll(async () => {
+		if (!admin) return;
 		if (emails.length) await admin`delete from auth.users where email = any(${emails})`;
 		await admin.end();
 	});
+
+	const client = (token?: string) => rpcClient<ContractRouterClient<Contract>>(app, workerEnv, token);
+	const fresh = (prefix: string) => {
+		const email = `${prefix}-${crypto.randomUUID().slice(0, 8)}@x.it`;
+		emails.push(email);
+		return email;
+	};
 	const signIn = async (email: string, password: string) => {
 		const response = await fetch(`${url}/auth/v1/token?grant_type=password`, {
 			method: 'POST', headers: { apikey: publishable, 'content-type': 'application/json' }, body: JSON.stringify({ email, password }),
 		});
 		return response.ok ? ((await response.json()) as { access_token: string }).access_token : null;
 	};
-	const newAdmin = async () => {
-		const email = `admin-${crypto.randomUUID().slice(0, 8)}@x.it`;
-		emails.push(email);
-		const made = await fetch(`${url}/auth/v1/admin/users`, {
-			method: 'POST', headers: { apikey: secret, 'content-type': 'application/json' },
-			body: JSON.stringify({ email, password: 'admin-pass-1', email_confirm: true, user_metadata: { display_name: 'Federico' } }),
+	/** Real Auth admin API, as the test's own hand (not the Worker's). */
+	const adminCreate = async (body: Record<string, unknown>) => {
+		const response = await fetch(`${url}/auth/v1/admin/users`, {
+			method: 'POST', headers: { apikey: secret, 'content-type': 'application/json' }, body: JSON.stringify({ email_confirm: true, ...body }),
 		});
-		const { id } = (await made.json()) as { id: string };
-		await admin`insert into app.user_roles (user_id, role) values (${id}, 'app_admin')`;
+		if (!response.ok) throw new Error(`admin create: ${response.status}`);
+		return ((await response.json()) as { id: string }).id;
+	};
+	const newAdmin = async () => {
+		const email = fresh('admin');
+		const id = await adminCreate({ email, password: 'admin-pass-1', user_metadata: { display_name: 'Federico' } });
+		await admin!`insert into app.user_roles (user_id, role) values (${id}, 'app_admin')`;
 		return client((await signIn(email, 'admin-pass-1'))!);
 	};
+	const inviteFor = async (email: string, roles: ('recipe_curator' | 'app_admin')[] = []) => {
+		const federico = await newAdmin();
+		return (await federico.appInvitations.create({ id: crypto.randomUUID(), email, roles })).url.split('#')[1]!;
+	};
+	const hex = async (token: string) => Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))).toString('hex');
+	const reserve = async (token: string, email: string) =>
+		(await admin!<{ user_id: string }[]>`select user_id from app.claim_app_invitation(decode(${await hex(token)}, 'hex'), ${email})`)[0]!.user_id;
 
 	it('sign-ups are off', async () => {
 		const settings = await (await fetch(`${url}/auth/v1/settings`, { headers: { apikey: publishable } })).json();
@@ -1900,35 +2086,68 @@ describe.skipIf(!url)('invitations against the local stack', () => {
 	});
 
 	it('the whole path: invitation, account, roles, family and menu', async () => {
-		const federico = await newAdmin();
-		const email = `giulia-${crypto.randomUUID().slice(0, 8)}@x.it`;
-		emails.push(email);
-		const { url: link } = await federico.appInvitations.create({ id: crypto.randomUUID(), email, roles: ['recipe_curator'] });
-		const token = link.split('#')[1]!;
+		const email = fresh('giulia');
+		const token = await inviteFor(email, ['recipe_curator']);
 		expect((await client().appInvitations.get({ token })).invitedBy).toBe('Federico');
 		expect(await client().appInvitations.accept({ token, email, displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' })).toEqual({ email });
 		const access = await signIn(email, 'segreta123');
 		expect(access).not.toBeNull();
 		const giulia = client(access!);
-		expect((await giulia.profile.get({})).user).toMatchObject({ displayName: 'Giulia', globalRoles: ['recipe_curator'] });
+		expect((await giulia.profile.get({})).user).toMatchObject({ displayName: 'Giulia', locale: 'it-IT', globalRoles: ['recipe_curator'] });
 		const familyId = crypto.randomUUID();
 		await giulia.family.create({ id: familyId, name: 'Casa Giulia', measurementSystem: 'metric', timeZone: 'Europe/Rome' });
 		await giulia.menu.getOpening({ familyId });
-		expect((await admin`select count(*)::int as n from app.weeks where family_id = ${familyId}`)[0]!.n).toBeGreaterThan(0);
+		expect((await admin!`select count(*)::int as n from app.weeks where family_id = ${familyId}`)[0]!.n).toBeGreaterThan(0);
 	});
 
-	it('two concurrent acceptances with different passwords: one account, one password works', async () => {
-		const federico = await newAdmin();
-		const email = `twice-${crypto.randomUUID().slice(0, 8)}@x.it`;
-		emails.push(email);
-		const token = (await federico.appInvitations.create({ id: crypto.randomUUID(), email, roles: [] })).url.split('#')[1]!;
+	it('the first creation prevails: a later acceptance changes neither password nor profile', async () => {
+		const email = fresh('first');
+		const token = await inviteFor(email, ['recipe_curator']);
+		// A first acceptance stopped after the creation: id reserved, account created with its data.
+		const id = await reserve(token, email);
+		await adminCreate({ id, email, password: 'prima-pass-1', user_metadata: { display_name: 'Prima', locale: 'en-GB' } });
+		expect(await client().appInvitations.accept({ token, email, displayName: 'Seconda', password: 'seconda-pass-2', locale: 'it-IT' })).toEqual({ email });
+		expect(await signIn(email, 'seconda-pass-2')).toBeNull();
+		const access = await signIn(email, 'prima-pass-1');
+		expect(access).not.toBeNull();
+		expect((await client(access!).profile.get({})).user).toMatchObject({ displayName: 'Prima', locale: 'en-GB', globalRoles: ['recipe_curator'] });
+	});
+
+	it('after internal (account not observable yet), the repeat finds the late creation and closes', async () => {
+		const email = fresh('late');
+		const token = await inviteFor(email, ['recipe_curator']);
+		const real = globalThis.fetch;
+		let intercepted = false;
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+			const target = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+			// The first creation answers 500 without reaching Auth; the read of the id goes to the real Auth (404).
+			if (!intercepted && target === `${url}/auth/v1/admin/users` && init?.method === 'POST') {
+				intercepted = true;
+				return new Response('{}', { status: 500 });
+			}
+			return real(input, init);
+		});
+		try {
+			const first = await client().appInvitations.accept({ token, email, displayName: 'Tarda', password: 'tarda-pass-1', locale: 'it-IT' }).catch((e) => e);
+			expect(first.code).toBe('internal');
+		} finally {
+			spy.mockRestore();
+		}
+		// The original creation becomes visible late, with the reserved id.
+		const id = (await admin!<{ reserved_user_id: string }[]>`select reserved_user_id from app.app_invitations where email = ${email}`)[0]!.reserved_user_id;
+		await adminCreate({ id, email, password: 'tarda-pass-1', user_metadata: { display_name: 'Tarda', locale: 'it-IT' } });
+		expect(await client().appInvitations.accept({ token, email, displayName: 'Tarda', password: 'tarda-pass-1', locale: 'it-IT' })).toEqual({ email });
+		expect((await admin!`select role from app.user_roles where user_id = ${id}`).map((r) => r.role)).toEqual(['recipe_curator']);
+	});
+
+	it('two concurrent acceptances from the Worker: one account', async () => {
+		const email = fresh('twice');
+		const token = await inviteFor(email);
 		const accept = (password: string) => client().appInvitations.accept({ token, email, displayName: 'Due', password, locale: 'it-IT' });
 		const results = await Promise.allSettled([accept('prima-pass-1'), accept('seconda-pass-2')]);
 		expect(results.some((r) => r.status === 'fulfilled')).toBe(true);
 		for (const r of results) if (r.status === 'rejected') expect((r.reason as { code: string }).code).toBe('invitation_unavailable');
-		expect((await admin`select count(*)::int as n from auth.users where email = ${email}`)[0]!.n).toBe(1);
-		const works = [await signIn(email, 'prima-pass-1'), await signIn(email, 'seconda-pass-2')].filter(Boolean);
-		expect(works).toHaveLength(1);
+		expect((await admin!`select count(*)::int as n from auth.users where email = ${email}`)[0]!.n).toBe(1);
 	});
 
 	it('the Data API does not reach the app schema', async () => {
@@ -1943,7 +2162,7 @@ describe.skipIf(!url)('invitations against the local stack', () => {
 });
 ```
 
-(`PGRST106` è il codice di PostgREST per uno schema non esposto: verificalo al primo giro e adegua l'asserzione sul codice se la versione locale risponde diversamente, sempre con `response.ok === false`.)
+(`PGRST106` è il codice di PostgREST per uno schema non esposto: verificalo al primo giro e adegua l'asserzione sul codice se la versione locale risponde diversamente, sempre con `response.ok === false`. `fetch` della libreria `postgres` non passa da `globalThis.fetch`, quindi l'intercettazione tocca solo Auth e JWKS, e lascia passare tutto tranne la prima creazione.)
 
 - [ ] **Step 5: Script** `scripts/invitations/invite-stack.sh`, sul modello di `password-stack.sh`:
 
@@ -1971,7 +2190,9 @@ TEST_DATABASE_URL="$DB_URL" STACK_SUPABASE_URL="$API_URL" STACK_SUPABASE_PUBLISH
 
 - [ ] **Step 6: CI.** In `.github/workflows/ci.yml`, dopo il passo della password: `- name: Invitations against the local stack` con `run: scripts/invitations/invite-stack.sh`. Controlla che i passi esistenti di password e OAuth ricevano la chiave tramite i loro script (Step 3), senza variabili nuove nel workflow.
 
-- [ ] **Step 7: Esegui** in locale, con lo stack riavviato: `scripts/invitations/invite-stack.sh`, `scripts/password/password-stack.sh`, `scripts/oauth/agents-e2e.sh` → tutti PASS. Poi `npm test` dalla radice (i test dello stack si saltano senza variabili).
+- [ ] **Step 7: Esegui i due comandi, esplicitamente:**
+  1. senza variabili `STACK_*`: `env -u STACK_SUPABASE_URL -u STACK_SUPABASE_PUBLISHABLE_KEY -u STACK_SUPABASE_SECRET_KEY -u STACK_DB_URL npm test -w server` → PASS, con `invitations.stack.test.ts` saltato (nessun errore di raccolta: è il caso di ogni CI normale);
+  2. con lo stack riavviato: `scripts/invitations/invite-stack.sh` → PASS con tutti i test dello stack eseguiti (nessuno saltato), poi `scripts/password/password-stack.sh` e `scripts/oauth/agents-e2e.sh` → PASS.
 
 - [ ] **Step 8: Commit**
 
@@ -1995,10 +2216,10 @@ git commit -m "W9: iscrizioni spente anche in locale e prova del percorso comple
 - Produces:
   - `Api.appInvitations` (create/list/revoke; get/accept non usati dalla sessione) e `Api.family.create`;
   - `invitationClient: { get(input: { token: string }): Promise<{ invitedBy: string | null; roles: GlobalRole[] }>; accept(input: AcceptInput): Promise<{ email: string }> }` e `setInvitationClient(client)` per i test, in `features/app-invitations/client.ts`;
-  - fake: `createFakeAppInvitations(latencyMs?)` ed `expireFakeInvitation(api, id)` per i test (sposta `expiresAt` nel passato; la finta calcola `expired` come il server e ammette la revoca), con token demo `FAKE_INVITE_TOKEN = 'demo'.padEnd(43, 'x')` valido;
+  - fake: `createFakeAppInvitations(latencyMs?)`, `expireFakeInvitation(api, id)` e `fakeTokenOf(api, id)` (il token valido di un invito) per i test (sposta `expiresAt` nel passato; la finta calcola `expired` come il server e ammette la revoca), con token demo `FAKE_INVITE_TOKEN = 'demo'.padEnd(43, 'x')` valido;
   - `MutationName` con `'family.create'`, `'appInvitations.create'`, `'appInvitations.revoke'`; `MutationTarget` con `'appInvitations'`: `runAreaMutation` per queste due restituisce `{ view, applied }` con `applied` vero solo se la sessione che ha inviato è ancora aperta.
 
-- [ ] **Step 1: Test che falliscono** (`fakeAppInvitations.test.ts`): `create` restituisce un link con `#`, `list` lo mostra `pending`, `revoke` lo segna `revoked`, `get(FAKE_INVITE_TOKEN)` dà `invitedBy: 'Federico'`, un token sconosciuto rifiuta con `new ApiError('invitation_unavailable')`; `family.create` della finta aggiunge la famiglia al profilo e la rende corrente.
+- [ ] **Step 1: Test che falliscono** (`fakeAppInvitations.test.ts`): `create` restituisce un link con `#`, `list` lo mostra `pending`, `revoke` lo segna `revoked`, `get(FAKE_INVITE_TOKEN)` dà `invitedBy: 'Federico'`, un token sconosciuto rifiuta con `new ApiError('invitation_unavailable')`.
 
 In `web/src/api/mutations.test.ts` (sul modello dei test esistenti di `runAreaMutation`, con la sessione e il `QueryClient` di prova del file):
 
@@ -2025,11 +2246,16 @@ describe('app invitation mutations', () => {
     expect(outcome.applied).toBe(false);
   });
 
-  it('two creations in a row are both applied', async () => {
-    const { deps } = setup();
-    const call = async () => ({ invitation: { id: crypto.randomUUID() }, url: 'https://app.test/invite/app#t' });
-    const [a, b] = await Promise.all([runAreaMutation(deps, 'appInvitations.create', undefined, call), runAreaMutation(deps, 'appInvitations.create', undefined, call)]);
-    expect([a.applied, b.applied]).toEqual([true, true]);
+  it('a superseded answer still makes the list stale', async () => {
+    const { deps, queryClient } = setup();
+    queryClient.setQueryData(['appInvitations', 'list', {}], { invitations: [] });
+    let finishFirst!: () => void;
+    const first = runAreaMutation(deps, 'appInvitations.create', undefined, () => new Promise((r) => (finishFirst = () => r({ invitation: { id: 'a' }, url: 'https://app.test/invite/app#a' }))));
+    await runAreaMutation(deps, 'appInvitations.create', undefined, async () => ({ invitation: { id: 'b' }, url: 'https://app.test/invite/app#b' }));
+    queryClient.setQueryData(['appInvitations', 'list', {}], { invitations: [] }); // read again meanwhile
+    finishFirst();
+    await first;
+    expect(queryClient.getQueryState(['appInvitations', 'list', {}])?.isInvalidated).toBe(true);
   });
 
   it('family.create writes the profile view', async () => {
@@ -2115,20 +2341,34 @@ nel registro `INVALIDATIONS`:
   'appInvitations.revoke': { target: 'appInvitations', stale: [] },
 ```
 
-`TARGET_KEY` diventa `Record<Exclude<MutationTarget, 'profile' | 'appInvitations'>, [string, string]>`; in `applyMutation`, all'inizio:
+Le destinazioni con una vista in cache restano quelle di oggi: i loro helper ricevono un tipo ristretto, così l'indicizzazione di `TARGET_KEY` compila (senza, `targetKey` e `sameView` danno TS7053):
 
 ```ts
+/** The targets whose answer is written in the cache; `appInvitations` only makes the list stale. */
+type CachedTarget = Exclude<MutationTarget, 'appInvitations'>;
+
+const TARGET_KEY: Record<Exclude<CachedTarget, 'profile'>, [string, string]> = { /* as today */ };
+const targetKey = (target: CachedTarget, familyId: string | undefined, locale: string, weekStartsOn?: string) => /* as today */;
+function sameView(target: CachedTarget, familyId: string | undefined, weekStartsOn?: string) { /* as today */ }
+```
+
+In `applyMutation` il ritorno anticipato sta subito dopo la lettura di `target`, prima della costruzione della chiave (da lì `target` è ristretto a `CachedTarget`):
+
+```ts
+  const { target, stale } = INVALIDATIONS[options.name] as Invalidation;
   if (target === 'appInvitations') {
-    // The link does not depend on the language: only a closed session drops the answer.
+    // Not written: the list is read again for every answer, also a superseded one. Only a
+    // closed session drops it; showing a link is the sheet's decision (its own attempt).
     if (!options.sessionOpen()) return false;
     void queryClient.invalidateQueries({ queryKey: ['appInvitations'] });
     return true;
   }
+  const key = JSON.stringify(targetKey(target, options.familyId, options.locale, options.weekStartsOn));
 ```
 
-e in `runAreaMutation` la chiave di tracciamento è il nome della destinazione per `profile` e `appInvitations` (nessuna famiglia), altrimenti quella di oggi con la famiglia. Le pagine usano `useAreaMutation('appInvitations.create', undefined, …)` e leggono `outcome.applied` per mostrare il link.
+In `runAreaMutation` la chiave di tracciamento è il nome della destinazione per `profile` e `appInvitations` (nessuna famiglia), altrimenti quella di oggi con la famiglia. `applied` delle mutazioni degli inviti dice solo che la sessione è la stessa: il foglio lo combina con il suo tentativo (Task 12). Le pagine usano `useAreaMutation('appInvitations.create', undefined, …)`.
 
-In `fakeApi.ts` aggiungi `appInvitations: createFakeAppInvitations(options.latencyMs)` e `family.create` che aggiunge una famiglia allo stato finto (con il nome, `role: 'family_admin'`, il fuso e il sistema dati) e restituisce `profileView()`. In `clients.ts` (`realClients`) l'area arriva dal client RPC come le altre, aggiungendo `'appInvitations'` a `SERVER_AREAS`.
+In `fakeApi.ts` aggiungi `appInvitations: createFakeAppInvitations(options.latencyMs)` (`family.create` della finta c'è già dal Task 7). In `clients.ts` (`realClients`) l'area arriva dal client RPC come le altre, aggiungendo `'appInvitations'` a `SERVER_AREAS`.
 
 - [ ] **Step 4: Esegui** `npm test -w web && npm run typecheck -w web` → PASS.
 
@@ -2148,7 +2388,7 @@ git commit -m "W9: client degli inviti, API finta e testi delle pagine nuove"
 - Modify: `web/src/router.tsx`, `web/src/routes/search.ts` (`LoginSearch.email`), `web/src/auth/LoginPage.tsx` (email iniziale), `web/public/_headers` (crea se manca)
 
 **Interfaces:**
-- Consumes: `invitationClient`, `setInvitationClient` (Task 9); `useAuth()` (`backend.signIn(email, password)` → `{ ok: true } | { ok: false; failure }`, controlla la forma in `auth/backend.ts`); `useSignOut()` e `useSession()` di `session/SessionScope.tsx` (possono essere assenti senza sessione: usa le varianti che restituiscono `null`, come `AuthorizePage`).
+- Consumes: `invitationClient`, `setInvitationClient` (Task 9); `useRouter()` (per `router.history.subscribe`, come `AuthorizePage`); `useAuth()` (`backend.signIn(email, password)` → `{ ok: true } | { ok: false; failure }`, controlla la forma in `auth/backend.ts`); `useSignOut()` e `useSession()` di `session/SessionScope.tsx` (possono essere assenti senza sessione: usa le varianti che restituiscono `null`, come `AuthorizePage`).
 - Produces: rotta `/invite/app`; `LoginSearch = { redirect?: string; email?: string }`.
 
 - [ ] **Step 1: Test che falliscono** (`InvitePage.test.tsx`, con `renderApp` e uno stub del client):
@@ -2245,6 +2485,70 @@ describe('/invite/app', () => {
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     expect(await screen.findByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
   });
+
+  /** An acceptance whose answer the test releases. */
+  function deferredAccept() {
+    let answer!: () => void;
+    const accept = vi.fn(({ email }: { email: string }) => new Promise<{ email: string }>((r) => (answer = () => r({ email }))));
+    return { accept, answer: () => answer() };
+  }
+
+  it('one submission at a time, also with two taps before the next render', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Crea l’account' }));
+    expect(deferred.accept).toHaveBeenCalledTimes(1);
+  });
+
+  it('a late answer after leaving the page neither signs in nor navigates', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    const backend = createStubBackend(null);
+    const signIn = vi.spyOn(backend, 'signIn');
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
+    history.push('/login');
+    deferred.answer();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(signIn).not.toHaveBeenCalled();
+    expect(history.location.pathname).toBe('/login');
+  });
+
+  it('a late answer after someone signed in meanwhile neither signs in nor navigates', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    const backend = createStubBackend(null);
+    const signIn = vi.spyOn(backend, 'signIn');
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
+    backend.emit('SIGNED_IN', { id: 'other', email: 'altro@x.it' } as never); // a sign-in from another tab
+    deferred.answer();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(signIn).not.toHaveBeenCalled();
+    expect(history.location.pathname).not.toBe('/family/new');
+  });
+
+  it('a late answer for another link (fragment changed) neither signs in nor navigates', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    const backend = createStubBackend(null);
+    const signIn = vi.spyOn(backend, 'signIn');
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
+    history.replace(`/invite/app#${'b'.repeat(43)}`);
+    deferred.answer();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(signIn).not.toHaveBeenCalled();
+  });
 });
 ```
 
@@ -2280,11 +2584,62 @@ export function InvitePage() {
   //    (prima `navigate({ to: '/invite/app', hash: token, replace: true })`, come AuthorizePage fa con `switched`)
   //  - form: modulo controllato (Email type=email autoComplete=email autoCapitalize=none; Nome autoComplete=name; Password e Ripeti autoComplete=new-password)
   //    submit: controlli locali (8 caratteri, 72 byte con TextEncoder, uguaglianza) → invitationClient.accept({token, email, displayName, password, locale})
-  //            → backend.signIn(result.email, password) → ok: navigate({ to: '/family/new', replace: true }) + avviso ruoli; ko: signInFailed
+  //            → (generazione ancora valida?) backend.signIn(result.email, password) → (ancora valida?) ok: navigate({ to: '/family/new', replace: true }) + avviso ruoli; ko: signInFailed
   //    errori: invalid con path email → errore sul campo; not_allowed/account_exists → messaggio con <Link to="/login" search={{ email }}>; altri → errorKey
   //  - unavailable / signInFailed: titolo, testo e <Link to="/login" search={signInFailed ? { email } : {}}>Vai all’accesso</Link>
 }
 ```
+
+**Validità del tentativo** (spec §3), sul modello di `AuthorizePage`:
+
+```tsx
+  // Generation of (page, link, identity): an answer of an older one changes nothing and never
+  // signs in or navigates. The ref, not the state, keeps one submission even with two taps
+  // before the next render.
+  const generation = useRef(0);
+  const sending = useRef(false);
+  const signedOut = useRef(state.status === 'signedOut');
+  signedOut.current = state.status === 'signedOut';
+  useEffect(() => {
+    // Leaving /invite/app or changing the fragment ends this generation at once (the router
+    // unmounts the page only after its transition); so do unmounting and any sign-in.
+    const unsubscribe = router.history.subscribe(() => {
+      const at = router.history.location;
+      if (at.pathname !== '/invite/app' || at.hash !== token) generation.current += 1;
+    });
+    return () => { unsubscribe(); generation.current += 1; };
+  }, [router, token]);
+  useEffect(() => { if (state.status !== 'signedOut') generation.current += 1; }, [state.status]);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (sending.current || !signedOut.current) return;
+    /* local checks */
+    sending.current = true;
+    const mine = generation.current;
+    // Before the sign-in: same page, same link, still nobody signed in.
+    const current = () => generation.current === mine && signedOut.current;
+    // After our own sign-in the identity changes on purpose: only page and link still count.
+    const onThisLink = () => router.history.location.pathname === '/invite/app' && router.history.location.hash === token;
+    await trackBusy((async () => {
+      try {
+        const { email } = await invitationClient.accept({ token, email: typed, displayName, password, locale });
+        if (!current()) return; // left, another link, or someone signed in meanwhile: no sign-in
+        const result = await backend.signIn(email, password);
+        if (!onThisLink()) return;
+        if (result.ok) await navigate({ to: '/family/new', replace: true }); // plus the roles notice
+        else setPhase({ kind: 'signInFailed', email });
+      } catch (error) {
+        if (!current()) return;
+        /* errors of the form */
+      } finally {
+        sending.current = false;
+      }
+    })());
+  }
+```
+
+Dopo il nostro `signIn` la sessione nuova chiude la generazione (cambia `state.status`), per questo dopo l'accesso si controllano solo pagina e link (`onThisLink`), letti dalla cronologia del router, non dallo stato React.
 
 Scrivi il componente completo seguendo questa struttura e i test; usa `trackBusy` come `LoginPage` durante l'invio, e disattiva il pulsante offline o durante l'invio. Se `useSignOut` lancia senza sessione, aggiungi in `SessionScope.tsx` un `useOptionalSignOut()` che legge il contesto e restituisce `null` (modifica minima a un file condiviso).
 
@@ -2464,6 +2819,38 @@ it('revokes after confirmation', async () => {
   expect(await within((await screen.findByText('via@x.it')).closest('li')!).findByText(/^Revocato il /)).toBeTruthy();
 });
 
+it('one creation per tap burst, and a late answer of a closed sheet never shows its link', async () => {
+  const api = adminApi();
+  const answers: (() => void)[] = [];
+  const real = api.appInvitations.create.bind(api.appInvitations);
+  // Written at once (as the database commits A, then B), answered when the test says.
+  const create = vi.spyOn(api.appInvitations, 'create').mockImplementation((input) => {
+    const done = real(input);
+    return new Promise((resolve) => answers.push(() => void done.then(resolve)));
+  });
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  let sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'a@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  expect(create).toHaveBeenCalledTimes(1); // attempt A, still waiting
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nuovo invito' }));
+  sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'a@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' })); // attempt B
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+  answers[1]!(); // B answers first
+  const shown = (await within(sheet).findByText(/\/invite\/app#/)).textContent!;
+  answers[0]!(); // A answers late: its link was replaced by B (same email) and must not appear
+  await new Promise((r) => setTimeout(r, 20));
+  expect(within(sheet).getByText(/\/invite\/app#/).textContent).toBe(shown);
+  const pending = (await api.appInvitations.list({})).invitations.filter((i) => i.email === 'a@x.it' && i.status === 'pending');
+  expect(pending).toHaveLength(1);
+  expect(shown.endsWith(fakeTokenOf(api, pending[0]!.id))).toBe(true); // the shown link is the valid one
+});
+
 it('revokes an expired invitation too', async () => {
   const api = adminApi();
   const { invitation } = await api.appInvitations.create({ id: crypto.randomUUID(), email: 'old@x.it', roles: [] });
@@ -2531,7 +2918,30 @@ export function appInvitationsQuery({ api }: QueryDeps) {
 
 `InvitationsSection.tsx`: titolo «Inviti all'app», pulsante «Nuovo invito» (apre `InviteSheet` vuoto), elenco da `appInvitationsQuery`: per ogni invito email, ruoli come etichette (`role.*` o «nessun ruolo»), riga di stato (`admin.expires`, `admin.expired`, `admin.acceptedBy`, `admin.revokedOn` con data in `Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' })`) e autore; «Nuovo link» e «Revoca» per `pending` **ed `expired`** (uno scaduto è ancora `pending` nel database e, se prenotato, può ancora essere chiuso: deve potersi fermare). «Nuovo link» apre `InviteSheet` precompilato e lo invia subito con un id nuovo; «Revoca» apre la conferma (`BottomSheet` con `admin.revokeConfirm` e pulsante rosso). Le mutazioni passano da `useAreaMutation('appInvitations.create' | 'appInvitations.revoke', undefined, …)` (registro del Task 9): l'elenco si rilegge, nessun aggiornamento ottimistico, e il foglio mostra il link solo se `outcome.applied` (una risposta arrivata dopo l'uscita non mostra nulla). Comandi disattivati con `!online`.
 
-`InviteSheet.tsx`: `BottomSheet` «Nuovo invito»; fase modulo (Email, due caselle, «Crea il link»; id generato all'apertura del foglio, così un doppio tocco non crea due inviti); fase link (`CopyField value={url} label={t('admin.link')}`, «Condividi» se `navigator.share` esiste, nota `admin.linkOnce`); errori `not_allowed/account_exists` → `admin.accountExists`, altri con `errorKey`.
+`InviteSheet.tsx`: `BottomSheet` «Nuovo invito»; fase modulo (Email, due caselle, «Crea il link»; id generato all'apertura del foglio). **Un invio alla volta e link solo del tentativo corrente:**
+
+```tsx
+  // One attempt per opening of the sheet; a ref blocks a second tap before the next render.
+  const attempt = useRef(0);
+  const sending = useRef(false);
+  useEffect(() => { if (open) attempt.current += 1; }, [open]); // a new opening is a new attempt
+  async function send(input: { id: string; email: string; roles: GlobalRole[] }) {
+    if (sending.current) return;
+    sending.current = true;
+    const mine = attempt.current;
+    try {
+      const outcome = await create.mutateAsync(input); // useAreaMutation('appInvitations.create', undefined, …)
+      // The list is read again in any case (mutations.ts); the link only for this attempt, same session.
+      if (outcome.applied && attempt.current === mine) setLink(outcome.view.url);
+    } catch (error) {
+      if (attempt.current === mine) setFailure(error);
+    } finally {
+      sending.current = false;
+    }
+  }
+```
+
+Fase link (`CopyField value={url} label={t('admin.link')}`, «Condividi» se `navigator.share` esiste, nota `admin.linkOnce`); errori `not_allowed/account_exists` → `admin.accountExists`, altri con `errorKey`.
 
 `ProfilePage.tsx`: nella sezione delle famiglie un `Link to="/family/new"` «Crea un'altra famiglia»; nella sezione Account, se `hasAppAdmin(profile)`, un `Link to="/admin"` «Amministrazione dell'app» con lo stesso stile delle altre righe (come «Collega un agente»). Rotta `/admin` sotto `appRoute` in `router.tsx`. Verifica che la barra in basso marchi Profilo attivo su `/admin` (in `BottomNav.tsx`, se l'attivo si calcola dal prefisso, aggiungi `/admin` a Profilo).
 
