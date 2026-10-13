@@ -1,14 +1,18 @@
 import { useState, type FormEvent } from 'react';
+import { getRouteApi } from '@tanstack/react-router';
 import { useT } from '../i18n/LocaleProvider';
 import { trackBusy } from '../pwa/busy';
 import { useAuth } from './AuthProvider';
 import type { SignInFailure } from './backend';
 
+const route = getRouteApi('/login');
+
 /** Entry page (round 4 pattern): no navbar, 420 px column, green brand. Email and password only. */
 export function LoginPage() {
   const t = useT();
   const { backend } = useAuth();
-  const [email, setEmail] = useState('');
+  const search = route.useSearch();
+  const [email, setEmail] = useState(search.email ?? '');
   const [password, setPassword] = useState('');
   const [failure, setFailure] = useState<SignInFailure | null>(null);
   const [busy, setBusy] = useState(false);

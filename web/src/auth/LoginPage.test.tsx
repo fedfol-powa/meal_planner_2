@@ -11,6 +11,10 @@ function fill(email: string, password: string) {
 }
 
 describe('sign-in page', () => {
+  it('writes the email given by the link in advance (spec W9)', async () => {
+    renderApp('/login?email=giulia%40x.it', { backend: createStubBackend(null) });
+    expect(((await screen.findByLabelText('Email')) as HTMLInputElement).value).toBe('giulia@x.it');
+  });
   it('explains wrong credentials and network problems', async () => {
     const backend = createStubBackend(null);
     renderApp('/login', { backend });

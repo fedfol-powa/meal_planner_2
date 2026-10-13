@@ -8,7 +8,8 @@ export interface RecipesSearch {
   sort?: 'rating' | 'added' | 'lastEaten'; dir?: 'reverse';
 }
 export interface RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate; slot?: string }
-export interface LoginSearch { redirect?: string }
+/** `email`: written in advance, e.g. after an invitation whose automatic sign-in failed (spec W9). */
+export interface LoginSearch { redirect?: string; email?: string }
 
 const SORTS = ['rating', 'added', 'lastEaten'] as const;
 const MEALS = ['lunch', 'dinner'] as const;
@@ -54,7 +55,8 @@ export function validateRecipeSearch(raw: Record<string, unknown>): RecipeSearch
 export function validateLoginSearch(raw: Record<string, unknown>): LoginSearch {
   const target = raw.redirect;
   const local = typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/login');
-  return { redirect: local ? target : undefined };
+  const email = typeof raw.email === 'string' && raw.email.length <= 320 ? raw.email : undefined;
+  return { redirect: local ? target : undefined, email };
 }
 
 export function toRecipeQuery(search: RecipesSearch): RecipeQuery {

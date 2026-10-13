@@ -16,6 +16,7 @@ import { RouteError } from './routes/RouteError';
 import { AgentsPage } from './features/agents/AgentsPage';
 import { AuthorizePage } from './features/agents/AuthorizePage';
 import { validateAuthorizeSearch } from './features/agents/search';
+import { InvitePage } from './features/app-invitations/InvitePage';
 import { DraftPage } from './features/catalogue/DraftPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
@@ -48,6 +49,9 @@ const authorizeRoute = createRoute({
   },
   component: AuthorizePage
 });
+
+// App invitation (spec W9): public, the token in the fragment; signs out another account on request.
+const appInviteRoute = createRoute({ getParentRoute: () => rootRoute, path: '/invite/app', component: InvitePage });
 
 // Pathless layout: every view behind sign-in, with the navbar.
 const appRoute = createRoute({
@@ -85,6 +89,7 @@ const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shop
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authorizeRoute,
+  appInviteRoute,
   appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, shoppingRoute])
 ]);
 
