@@ -9,7 +9,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 | Worker | Tab | Pane | Branch | Worktree | Fase | Ultimo controllo |
 |---|---|---|---|---|---|---|
-| W9 inviti | W9 inviti | w1:p3H | `ondata3/inviti-app` | `.worktrees/inviti` | brainstorming | 13/10 sera |
+| W9 inviti | W9 inviti | w1:p3H | `ondata3/inviti-app` | `.worktrees/inviti` | spec e piano pronti (8e25c44), in revisione; domande aperte: iscrizioni spente anche in locale (helper di test con API admin), seconda connessione nell'accettazione | 13/10 sera |
 
 Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server), #30 (esportazione notturna in R2), #32 (versione di migrazione duplicata), #31 (collegamento degli agenti), #33 (revisione dei pasti, web), #34 (strumenti della messa in produzione), #35, #36, #40 (specifica dopo la produzione), #41 (cambio della password, W7), #43 (aggiornamento della PWA, W8). Ondata 1 completata.
@@ -18,6 +18,7 @@ Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 
 
 | Revisore | Di cosa | Tab | Stato |
 |---|---|---|---|
+| R w9 spec | spec e piano di W9 | w1:p3K | in corso, `revisioni/w9-spec-piano.md` |
 
 ## Decisioni dell'utente da ricordare (11–12/10)
 

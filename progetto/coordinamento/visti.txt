@@ -200,3 +200,4 @@ w1:p3H	STATO: DOMANDA design sezione 1 (schema e funzioni) #59533d5b
 w1:p3H	STATO: DOMANDA design sezione 2 (contratto, server, piattaforma, MCP) #6a01fe43
 w1:p3J	REVISORE_FINITO
 w1:p3H	STATO: DOMANDA design sezione 3 (web) #3bc29965
+w1:p3H	STATO: SPEC_E_PIANO_PRONTI #6c615d93
