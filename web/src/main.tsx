@@ -13,7 +13,7 @@ import { createSupabaseBackend } from './auth/supabaseBackend';
 import { env } from './env';
 import { registerShoppingStorage } from './features/shopping/storage';
 import { createBroadcastChannel } from './session/channel';
-import { registerServiceWorker } from './pwa/register';
+import { registerServiceWorker } from './pwa/update';
 import type { CreateApi } from './session/SessionScope';
 
 const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supabase.publishableKey) : createFakeBackend();
