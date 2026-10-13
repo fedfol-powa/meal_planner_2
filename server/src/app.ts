@@ -64,6 +64,7 @@ export function createApp(options: AppOptions) {
 			verify: (t) => verifyAccessToken(t, { issuer, keys: keysFor(env) }),
 			deployId: env.CF_VERSION_METADATA?.id ?? 'dev',
 			state: {},
+			clientIp: request.headers.get('cf-connecting-ip') ?? 'unknown',
 		};
 	}
 

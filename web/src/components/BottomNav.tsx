@@ -3,6 +3,8 @@ import { useT } from '../i18n/LocaleProvider';
 import { rememberedMenuDay } from '../routes/menu/lastDay';
 import { Icon } from './Icon';
 
+const underProfile = (pathname: string) => pathname === '/admin' || pathname === '/family/new';
+
 export function BottomNav() {
   const t = useT();
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -16,7 +18,8 @@ export function BottomNav() {
       <Link to="/recipes" className="navigation-item" aria-label={t('nav.recipes')} activeOptions={{ includeSearch: false }}>
         <span className="navigation-icon"><Icon name="book" /></span>
       </Link>
-      <Link to="/profile" className="navigation-item" aria-label={t('nav.profile')}>
+      {/* The administration and the new family wizard are reached from the profile: it stays marked there. */}
+      <Link to="/profile" className="navigation-item" aria-label={t('nav.profile')} {...(underProfile(pathname) ? { 'aria-current': 'page' as const } : {})}>
         <span className="navigation-icon"><Icon name="user" /></span>
       </Link>
     </nav>

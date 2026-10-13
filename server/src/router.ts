@@ -1,5 +1,6 @@
 import { contract } from '@app/contract';
 import { agentsRouter } from './agents/router.ts';
+import { appInvitationsRouter } from './app-invitations/router.ts';
 import { catalogueRouter } from './catalogue/router.ts';
 import { mealsRouter } from './meals/router.ts';
 import { menuPrepare, menuRouter } from './menu/router.ts';
@@ -30,5 +31,6 @@ export const router = os.router({
 	meals: mealsRouter(os),
 	catalogue: catalogueRouter(os),
 	agents: agentsRouter(os),
+	appInvitations: appInvitationsRouter(os),
 	shopping: createShoppingRouter(os, { mealRecipeVersions: mealRecipeVersionsAt }),
 });

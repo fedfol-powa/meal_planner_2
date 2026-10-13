@@ -7,8 +7,10 @@ import { AUTH_OPTIONS, createSupabaseBackend } from '../auth/supabaseBackend';
 const url = process.env.STACK_SUPABASE_URL;
 const key = process.env.STACK_SUPABASE_PUBLISHABLE_KEY;
 const db = process.env.STACK_DB_URL;
+/** Sign-ups are off locally too (spec W9): people are created with the admin API. */
+const secret = process.env.STACK_SUPABASE_SECRET_KEY;
 const LOCAL = /^(http|postgresql):\/\/(postgres:postgres@)?(127\.0\.0\.1|localhost)[:/]/;
-export const stack = url && key && db ? { url, key, db } : null;
+export const stack = url && key && db && secret ? { url, key, db, secret } : null;
 if (stack) for (const target of [stack.url, stack.db]) if (!LOCAL.test(target)) throw new Error(`Local stack only: ${target}`);
 
 export interface StackPerson { email: string; id: string; session: { access_token: string; refresh_token: string; expires_at: number; user: unknown } }
@@ -26,7 +28,7 @@ export function createTestAuthClient(base: string, apikey: string) {
 
 export function createStack() {
   if (!stack) throw new Error('No local stack');
-  const { url: base, key: apikey, db: dbUrl } = stack;
+  const { url: base, key: apikey, db: dbUrl, secret } = stack;
   const sql = postgres(dbUrl, { max: 1, onnotice: () => {} });
   const created: string[] = [];
   const clients: ReturnType<typeof createTestAuthClient>[] = [];
@@ -46,12 +48,18 @@ export function createStack() {
     async disposeClients() {
       await Promise.all(clients.splice(0).map((client) => client.dispose()));
     },
-    /** A fresh person (local sign-ups are on); the sign-up session becomes the device session. */
+    /** A fresh person, created with the admin API (sign-ups are off locally too), then signed in on this device. */
     async person(password = 'first-password'): Promise<StackPerson> {
       const email = `password-${crypto.randomUUID()}@example.test`;
-      const response = await post('/signup', { email, password });
+      const made = await fetch(`${base}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: { apikey: secret, 'content-type': 'application/json' },
+        body: JSON.stringify({ email, password, email_confirm: true })
+      });
+      if (!made.ok) throw new Error(`admin create: ${made.status}`);
+      const response = await post('/token?grant_type=password', { email, password });
       const session = (await response.json()) as StackPerson['session'] & { user: { id: string } };
-      if (!response.ok || !session.access_token) throw new Error(`sign-up: ${response.status}`);
+      if (!response.ok || !session.access_token) throw new Error(`sign-in: ${response.status}`);
       created.push(session.user.id);
       return { email, id: session.user.id, session };
     },

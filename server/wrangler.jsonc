@@ -33,6 +33,11 @@
 			"id": "4c2038adf73d4ed094584a3244f7fbf2"
 		}
 	],
+	// Public invitation operations (spec W9): per-IP limits; namespace ids unique in the Cloudflare account.
+	"ratelimits": [
+		{ "name": "INVITE_READ_LIMIT", "namespace_id": "9101", "simple": { "limit": 30, "period": 60 } },
+		{ "name": "INVITE_ACCEPT_LIMIT", "namespace_id": "9102", "simple": { "limit": 5, "period": 60 } }
+	],
 	// Nightly exports: private bucket in the EU jurisdiction, created on 12 October 2026.
 	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }]
 }

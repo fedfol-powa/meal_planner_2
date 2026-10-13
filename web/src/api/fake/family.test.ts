@@ -59,3 +59,16 @@ describe('fake family area', () => {
     await expect(admin.family.get({ familyId: 'other' })).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
+
+describe('fake family creation', () => {
+  it('adds the new family, shown, and does not duplicate it on repeat', async () => {
+    const api = as('user-federico');
+    const id = '00000000-0000-4000-8000-0000000000aa';
+    const view = await api.family.create({ id, name: 'Casa nuova', measurementSystem: 'uk_imperial', timeZone: 'Europe/London' });
+    expect(view.currentFamilyId).toBe(id);
+    expect(view.families.find((f) => f.id === id)).toEqual({ id, name: 'Casa nuova', role: 'family_admin', timeZone: 'Europe/London', measurementSystem: 'uk_imperial' });
+    const again = await api.family.create({ id, name: 'Casa nuova', measurementSystem: 'uk_imperial' });
+    expect(again.families.filter((f) => f.id === id)).toHaveLength(1);
+    expect((await api.profile.get({})).currentFamilyId).toBe(id);
+  });
+});

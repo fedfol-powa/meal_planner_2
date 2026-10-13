@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { activate, handleMessage, install, respond, type CacheLike, type CachesLike, type WorkerDeps } from './sw-core';
 import { COMPLETE_URL } from './sw-rules';
@@ -307,5 +308,21 @@ describe('install bound to the build', () => {
     offline.state.offline = true;
     expect(await text(await respond(navigate('/menu'), url('/menu'), { ...depsB, fetch: offline.fetch }))).toContain('index B');
     expect(await text(await respond(asset('/assets/c.js'), url('/assets/c.js'), { ...depsB, fetch: offline.fetch }))).toBe('script C');
+  });
+});
+
+describe('referrer of the invitation page', () => {
+  it('the shell served by the active worker keeps no-referrer for /invite/app (spec W9)', async () => {
+    // The response of the worker carries no header of _headers: the policy lives in the page.
+    // index.html as the build ships it: the version meta added (spec W8).
+    const shell = readFileSync(new URL('../../index.html', import.meta.url), 'utf8').replace('<head>', `<head>${page('A')}`);
+    const live = { '/index.html': shell, '/assets/a.js': 'script' };
+    const caches = memoryCaches();
+    const deps = depsFor(live, 'A', caches);
+    await install(deps);
+    await activate(deps);
+    const response = await respond(navigate('/invite/app'), url('/invite/app'), deps);
+    const policy = response.headers.get('Referrer-Policy') ?? /<meta name="referrer" content="([^"]+)"/.exec(await response.text())?.[1];
+    expect(policy).toBe('no-referrer');
   });
 });

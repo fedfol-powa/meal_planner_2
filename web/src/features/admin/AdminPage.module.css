@@ -1,0 +1,9 @@
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.list { margin: 0; padding: 0; list-style: none; }
+.item { display: grid; gap: 4px; padding: 12px 0; border-top: 1px solid var(--rule); }
+.email { font-weight: 700; overflow-wrap: anywhere; }
+.roles { display: flex; flex-wrap: wrap; gap: 6px; }
+.role { padding: 2px 8px; border-radius: 999px; background: var(--soft-green); font-size: 0.75rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 0.875rem; }
+.danger { border-color: var(--danger); color: #fff; background: var(--danger); }

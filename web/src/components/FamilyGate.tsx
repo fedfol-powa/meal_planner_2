@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from '@tanstack/react-router';
 import type { FamilyView } from '../api/types';
 import { useT } from '../i18n/LocaleProvider';
 import { useFamily } from '../session/useFamily';
@@ -20,7 +21,11 @@ export function FamilyGate({ children, before, after }: { children: (family: Fam
       {before}
       {state.status === 'loading' && <Loading />}
       {state.status === 'error' && <QueryError error={state.error} onRetry={state.retry} />}
-      {state.status === 'none' && <StateNotice title={t('family.none.title')} body={t('family.none.body')} />}
+      {state.status === 'none' && (
+        <StateNotice title={t('family.none.title')} body={t('family.none.body')}>
+          <Link to="/family/new" className="text-button primary">{t('family.none.create')}</Link>
+        </StateNotice>
+      )}
       {state.status === 'revoked' && <StateNotice title={t('errors.forbidden')} />}
       {after}
     </section>

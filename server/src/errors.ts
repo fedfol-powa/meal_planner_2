@@ -1,5 +1,6 @@
 import { errorDefinitions, isErrorCode, type ErrorCode, type Locale } from '@app/contract';
 import { ORPCError, ValidationError } from '@orpc/server';
+import { AccountServiceError } from './accounts/index.ts';
 import { messageFor } from './messages.ts';
 
 export interface ErrorScope {
@@ -26,6 +27,12 @@ export function diagnosticOf(error: unknown): { name: string; code?: string } {
 }
 
 /** Every error leaving an operation becomes one of the contract codes. */
+/** A refinement of the contract names its code in the message (`password_too_long`, `not_monday`). */
+function issueCode({ code, message }: { code?: string; message?: string }): string {
+	if (code === 'custom' && message && /^[a-z][a-z0-9_]*$/.test(message)) return message;
+	return code ?? 'invalid';
+}
+
 export function normalizeError(error: unknown, scope: ErrorScope): ORPCError<ErrorCode, unknown> {
 	if (error instanceof ORPCError) {
 		if (error.code === 'BAD_REQUEST' && error.cause instanceof ValidationError) {
@@ -34,11 +41,16 @@ export function normalizeError(error: unknown, scope: ErrorScope): ORPCError<Err
 					const key = typeof part === 'object' ? part.key : part;
 					return typeof key === 'number' ? key : String(key);
 				}),
-				code: (issue as { code?: string }).code ?? 'invalid',
+				code: issueCode(issue as { code?: string; message?: string }),
 			}));
 			return new ORPCError('invalid', { status: 400, data: { issues } });
 		}
 		if (isErrorCode(error.code)) return error as ORPCError<ErrorCode, unknown>;
+	}
+	if (error instanceof AccountServiceError) {
+		// Supabase Auth unreachable or the secret key missing: the reason and the HTTP status, nothing else.
+		console.error(JSON.stringify({ event: error.reason, requestId: scope.requestId, status: error.status }));
+		return new ORPCError('internal', { status: 500, data: { requestId: scope.requestId } });
 	}
 	console.error(
 		JSON.stringify({ event: 'unexpected_error', requestId: scope.requestId, path: scope.path?.join('.'), ...diagnosticOf(error) }),

@@ -262,3 +262,47 @@ describe('meal mutations', () => {
     expect(result.applied).toBe(true);
   });
 });
+
+describe('app invitation mutations', () => {
+  const listKey = ['appInvitations', 'list', {}];
+
+  it('invalidate the list and are applied while the session is open, also after a change of language', async () => {
+    const { client, setLocale, run } = harness();
+    client.setQueryData(listKey, { invitations: [] });
+    const outcome = await run('appInvitations.create', undefined, async () => {
+      setLocale('en-GB'); // the language changes while the request runs
+      return { invitation: { id: 'i' }, url: 'https://app.test/invite/app#t' };
+    });
+    expect(outcome.applied).toBe(true);
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+  });
+
+  it('a late answer after the session closed is not applied', async () => {
+    const { client, session, run } = harness();
+    client.setQueryData(listKey, { invitations: [] });
+    const outcome = await run('appInvitations.revoke', undefined, async () => {
+      await session.close();
+      return { invitation: { id: 'i' } };
+    });
+    expect(outcome.applied).toBe(false);
+  });
+
+  it('a superseded answer still makes the list stale', async () => {
+    const { client, run } = harness();
+    client.setQueryData(listKey, { invitations: [] });
+    const answer = deferred<unknown>();
+    const first = run('appInvitations.create', undefined, () => answer.promise);
+    await run('appInvitations.create', undefined, async () => ({ invitation: { id: 'b' }, url: 'https://app.test/invite/app#b' }));
+    client.setQueryData(listKey, { invitations: [] }); // read again meanwhile
+    answer.resolve({ invitation: { id: 'a' }, url: 'https://app.test/invite/app#a' });
+    await first;
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+  });
+
+  it('family.create writes the profile view', async () => {
+    const { client, run } = harness();
+    const view = { user: { id: 'u' }, families: [{ id: 'f' }], currentFamilyId: 'f' };
+    await run('family.create', undefined, async () => view);
+    expect(client.getQueryData(['profile', 'get', { locale: 'it-IT' }])).toEqual(view);
+  });
+});

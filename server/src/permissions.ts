@@ -25,6 +25,9 @@ export async function checkRole(tx: Tx, role: Role, input: unknown): Promise<voi
 		case 'appAdmin':
 			rows = await tx`select app.has_role('app_admin') as ok`;
 			break;
+		case 'public':
+			// Public operations leave the pipeline before the role check: reaching it is a bug.
+			throw new Error('public operation reached the signed-in role check');
 	}
 	if (!rows[0]?.ok) throw appError('forbidden');
 }

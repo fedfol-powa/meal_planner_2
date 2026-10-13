@@ -13,6 +13,7 @@ import { useOnline } from '../components/OfflineBanner';
 import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { StateNotice } from '../components/StateNotice';
+import { WelcomeCard } from '../features/family-new/WelcomeCard';
 import { useMealActions } from '../features/meals/MealActions';
 import { SaveNotices } from '../features/meals/SaveNotices';
 import { UndoProvider } from '../features/meals/UndoProvider';
@@ -65,7 +66,13 @@ function MenuView({ family }: { family: FamilyView }) {
   const t = useT();
   const { locale } = useLocale();
   const deps = useQueryDeps();
-  const { day: requested } = route.useSearch();
+  const { day: requested, welcome: welcomeAsked } = route.useSearch();
+  // The card stays until closed: the menu's own navigations (days) do not carry the parameter.
+  const [welcome, setWelcome] = useState(!!welcomeAsked && family.role === 'family_admin');
+  const closeWelcome = () => {
+    setWelcome(false);
+    void navigate({ search: (s) => ({ ...s, welcome: undefined }), replace: true });
+  };
   const navigate = route.useNavigate();
   const familyId = family.id;
 
@@ -148,6 +155,7 @@ function MenuView({ family }: { family: FamilyView }) {
   return (
     <section className="calendar app-view" aria-label={t('nav.menu')}>
       <SaveNotices />
+      {welcome && <WelcomeCard onClose={closeWelcome} />}
       <nav className="day-navigation" aria-label={t('menu.days')}>
         <div className={styles.toolbar}>
           <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>

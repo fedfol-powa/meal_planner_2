@@ -5,7 +5,9 @@ import type { Implementer } from '../pipeline.ts';
 import { fresh } from '../pipeline.ts';
 import { groupRangeSchema, normalizeRules, resolveFamilySettings, sameRule } from '@app/domain/family';
 import type { MealRule } from '@app/domain/planner';
+import { profileView } from '../profile/views.ts';
 import { writeSettingsKey } from './settings-writes.ts';
+import { resolveTimeZone } from './time-zone.ts';
 import { exclusionsView, familyView, searchIngredients, settingsView } from './views.ts';
 
 /** No row: the family is gone or the caller is no longer one of its administrators. */
@@ -132,6 +134,16 @@ function exclusionHandlers(os: Implementer) {
 
 export function familyRouter(os: Implementer) {
 	return {
+		/** Spec W9: the creator becomes family_admin and the family is shown; no week is generated here. */
+		create: os.family.create.handler(async ({ context, input }) => {
+			try {
+				await context.tx`select app.create_family(${input.id}::uuid, ${input.name}, ${input.measurementSystem}, ${resolveTimeZone(input.timeZone)})`;
+			} catch (error) {
+				if ((error as { code?: string }).code === 'P0A05') throw appError('invalid', { issues: [{ path: ['id'], code: 'in_use' }] });
+				throw error;
+			}
+			return profileView(context.tx, context.locale);
+		}),
 		...identityHandlers(os),
 		...settingsHandlers(os),
 		...catalogueHandlers(os),
