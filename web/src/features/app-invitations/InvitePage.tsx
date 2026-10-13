@@ -27,6 +27,12 @@ type Phase =
   | { kind: 'failed'; error: unknown }
   | { kind: 'signInFailed'; email: string };
 
+/**
+ * Accounts closed from this page with «Esci e continua»: Supabase may report them once more while
+ * ending them, which is not someone signing in. Module state: the page remounts when the identity changes.
+ */
+const closedAccounts = new Set<string>();
+
 type Field = 'email' | 'name' | 'password' | 'again';
 type FormError = { kind: 'message'; key: MessageKey } | { kind: 'accountExists'; email: string };
 
@@ -119,7 +125,7 @@ export function InvitePage() {
     // closed once more while ending it, and that must not block the form.
     let foreign = false;
     const stopWatching = backend.onChange((event) => {
-      if (event.user) foreign = true;
+      if (event.user && !closedAccounts.has(event.user.id)) foreign = true;
     });
     const { password } = values;
     // Before the sign-in: same page, same link, still nobody signed in.
@@ -148,6 +154,7 @@ export function InvitePage() {
           if (failure.code === 'invitation_unavailable') setPhase({ kind: 'unavailable' });
           else if (failure.code === 'rate_limited') setFormError({ kind: 'message', key: 'invite.limited' });
           else if (failure.code === 'invalid' && issues.some((i) => i.path[0] === 'email')) setFieldErrors({ email: 'invite.wrongEmail' });
+          else if (failure.code === 'invalid' && issues.some((i) => i.path[0] === 'password' && i.code === 'weak_password')) setFieldErrors({ password: 'invite.passwordWeak' });
           else if (failure.code === 'invalid' && issues.some((i) => i.path[0] === 'password')) setFieldErrors({ password: 'invite.passwordLong' });
           else if (failure.code === 'not_allowed') setFormError({ kind: 'accountExists', email: values.email.trim() });
           else setFormError({ kind: 'message', key: errorKey(error) });
@@ -219,7 +226,13 @@ export function InvitePage() {
           <p>{phase.invitedBy ? t('invite.from', { name: phase.invitedBy }) : t('invite.fromUnknown')}</p>
           {phase.roles.length > 0 && <p>{t('invite.roles', { roles: phase.roles.map((role) => t(`role.${role}`)).join(', ') })}</p>}
           {state.status === 'signedIn' ? (
-            <OtherAccount email={state.user.email} onSignOut={() => void signOut()} />
+            <OtherAccount
+              email={state.user.email}
+              onSignOut={() => {
+                closedAccounts.add(state.user.id);
+                void signOut();
+              }}
+            />
           ) : (
             <form onSubmit={(event) => void submit(event, phase.roles)} noValidate>
               {formError?.kind === 'message' && <p className="form-error" role="alert">{t(formError.key)}</p>}

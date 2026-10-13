@@ -125,6 +125,32 @@ describe('/invite/app', () => {
     await waitFor(() => expect(client.accept).toHaveBeenCalled());
   });
 
+  it('says when Auth refuses the password as weak', async () => {
+    setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('invalid', { issues: [{ path: ['password'], code: 'weak_password' }] }); }) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText('Password troppo debole: scegline una più lunga o meno comune')).toBeTruthy();
+  });
+
+  it('an event of the account being signed out during the request does not drop the answer', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    const backend = createStubBackend({ id: 'user-federico', email: 'federico@example.com' });
+    const signIn = vi.spyOn(backend, 'signIn');
+    renderApp(`/invite/app#${TOKEN}`, { backend });
+    const endSignOut = backend.holdSignOut();
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
+    // Supabase reports the closing account once more while it ends it.
+    backend.emit('TOKEN_REFRESHED', { id: 'user-federico', email: 'federico@example.com' });
+    endSignOut();
+    deferred.answer();
+    await waitFor(() => expect(signIn).toHaveBeenCalledWith('giulia@x.it', 'segreta123'));
+  });
+
   it('after a reload of a used link, the page says it is no longer valid and offers sign-in', async () => {
     setInvitationClient(valid({ get: vi.fn(async () => { throw new ApiError('invitation_unavailable'); }) }));
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });

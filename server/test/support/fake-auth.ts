@@ -2,6 +2,9 @@ import { vi } from 'vitest';
 import type { TestDatabase } from './db.ts';
 import { TEST_SUPABASE_URL } from './keys.ts';
 
+/** Refused by the fake Auth as `weak_password`. */
+export const WEAK_PASSWORD = 'weak-password-1';
+
 function barrier() {
 	let release!: () => void;
 	let arrived!: () => void;
@@ -29,6 +32,8 @@ export function installFakeAuth(db: TestDatabase) {
 			const [{ n }] = await db.admin<{ n: number }[]>`
 				select count(*)::int as n from pg_stat_activity where usename = 'app_server' and xact_start is not null`;
 			openTransactionsAtCreate.push(n);
+			// A password the Auth policy refuses (production may be stricter than the contract).
+			if (body.password === WEAK_PASSWORD) return Response.json({ error_code: 'weak_password' }, { status: 422 });
 			const hold = before; before = null;
 			if (hold) { hold.arrived(); await hold.released; }
 			const inserted = await db.admin`

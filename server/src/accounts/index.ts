@@ -10,7 +10,8 @@ export interface InvitedAccount {
 	displayName: string;
 	locale: Locale;
 }
-export type AccountOutcome = { status: 'created' } | { status: 'existing' } | { status: 'email_taken' };
+/** `weak_password`: Auth's password policy refused it and nothing was created (production may be stricter than the contract). */
+export type AccountOutcome = { status: 'created' } | { status: 'existing' } | { status: 'email_taken' } | { status: 'weak_password' };
 
 /** Supabase Auth could not be used: an outage, answered as `internal`. The message never carries data. */
 export class AccountServiceError extends Error {
@@ -59,11 +60,13 @@ export async function createInvitedAccount(
 		user_metadata: { display_name: account.displayName, locale: account.locale },
 	});
 	if (created?.ok) return { status: 'created' };
-	const emailExists = created?.status === 422 && (await errorCode(created)) === 'email_exists';
+	const refusal = created?.status === 422 ? await errorCode(created) : undefined;
+	const emailExists = refusal === 'email_exists';
 	const read = await send('GET', `/${account.id}`);
 	if (!read) throw new AccountServiceError('auth_admin_failed', created?.status ?? null);
 	if (read.status === 404) {
 		if (emailExists) return { status: 'email_taken' };
+		if (refusal === 'weak_password') return { status: 'weak_password' };
 		throw new AccountServiceError('auth_admin_failed', created?.status ?? null);
 	}
 	if (!read.ok) throw new AccountServiceError('auth_admin_failed', read.status);

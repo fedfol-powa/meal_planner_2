@@ -58,3 +58,10 @@ describe('createInvitedAccount', () => {
 		expect(String(error.message)).not.toContain('segreta123');
 	});
 });
+
+describe('createInvitedAccount and the password policy of Auth', () => {
+	it('a password refused as weak creates nothing and says so', async () => {
+		const fetch = vi.fn().mockResolvedValueOnce(json(422, { error_code: 'weak_password' })).mockResolvedValueOnce(json(404, { error_code: 'user_not_found' }));
+		expect(await createInvitedAccount(env, account, { fetch })).toEqual({ status: 'weak_password' });
+	});
+});

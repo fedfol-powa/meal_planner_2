@@ -3,7 +3,7 @@ import type { ContractRouterClient } from '@orpc/contract';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { errorOf, setupActors, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
-import { installFakeAuth } from './support/fake-auth.ts';
+import { installFakeAuth, WEAK_PASSWORD } from './support/fake-auth.ts';
 import { refuseAll, rpcClient } from './support/requests.ts';
 
 describe.skipIf(!hasDatabase)('app invitations: link and acceptance', () => {
@@ -149,6 +149,14 @@ describe.skipIf(!hasDatabase)('app invitations: link and acceptance', () => {
 		const { email, token } = await invite();
 		const client = rpcClient<ContractRouterClient<Contract>>(actors.app, { ...actors.env, INVITE_ACCEPT_LIMIT: refuseAll });
 		expect((await errorOf(client.appInvitations.accept(form(token, email)))).code).toBe('rate_limited');
+	});
+
+	it('a password refused by Auth is an invalid password field; the invitation stays usable', async () => {
+		const { email, id, token } = await invite();
+		const error = await errorOf(anonymous().appInvitations.accept(form(token, email, { password: WEAK_PASSWORD })));
+		expect([error.code, error.data]).toEqual(['invalid', { issues: [{ path: ['password'], code: 'weak_password' }] }]);
+		expect((await actors.db.admin`select status from app.app_invitations where id = ${id}`)[0]!.status).toBe('pending');
+		expect(await anonymous().appInvitations.accept(form(token, email))).toEqual({ email });
 	});
 
 	it('refuses a 73-byte password before any work', async () => {

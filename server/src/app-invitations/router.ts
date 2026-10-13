@@ -64,6 +64,8 @@ export function appInvitationsRouter(os: Implementer) {
 				locale: input.locale,
 			});
 			if (outcome.status === 'email_taken') throw appError('not_allowed', { reason: 'account_exists' });
+			// Nothing was created: the invitation stays reserved and usable with another password.
+			if (outcome.status === 'weak_password') throw appError('invalid', { issues: [{ path: ['password'], code: 'weak_password' }] });
 			await ctx
 				.anonDb((tx) => tx`select app.complete_app_invitation(decode(${hex}, 'hex'), ${reserved.user_id}::uuid)`)
 				.catch(mapInvitationError);
