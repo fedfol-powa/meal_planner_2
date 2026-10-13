@@ -220,4 +220,61 @@ describe('/invite/app', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(signIn).not.toHaveBeenCalled();
   });
+
+  /** A sign-in whose answer the test releases; the session is reported by the test, if at all. */
+  function heldSignIn(backend: ReturnType<typeof createStubBackend>) {
+    let answer!: () => void;
+    const signIn = vi.spyOn(backend, 'signIn').mockImplementation(() => new Promise((r) => (answer = () => r({ ok: true }))));
+    return { signIn, answer: () => answer() };
+  }
+
+  it('the account closed earlier signing in again ends the attempt (the exception lasts only while it is closed)', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    const federico = { id: 'user-federico', email: 'federico@example.com' };
+    const backend = createStubBackend(federico);
+    const signIn = vi.spyOn(backend, 'signIn');
+    renderApp(`/invite/app#${TOKEN}`, { backend });
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
+    await screen.findByLabelText('Email');
+    await waitFor(() => expect(backend.signOutCalls).toBe(1));
+    await new Promise((r) => setTimeout(r, 0)); // the sign-out is over
+    fill();
+    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
+    // A signs in again (another tab), then the answer arrives before React re-renders.
+    backend.setUser(federico);
+    deferred.answer();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it('someone else signing in while our sign-in is pending: the old attempt does not navigate', async () => {
+    setInvitationClient(valid());
+    const backend = createStubBackend(null);
+    const held = heldSignIn(backend);
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(held.signIn).toHaveBeenCalled());
+    backend.setUser({ id: 'other', email: 'altro@x.it' }); // another tab
+    held.answer();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(history.location.pathname).not.toBe('/family/new');
+    expect(history.location.pathname).not.toBe('/login');
+  });
+
+  it('leaving and coming back to the same link while our sign-in is pending: the old attempt does not navigate', async () => {
+    setInvitationClient(valid());
+    const backend = createStubBackend(null);
+    const held = heldSignIn(backend);
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(held.signIn).toHaveBeenCalled());
+    history.push('/login');
+    history.push(`/invite/app#${TOKEN}`);
+    held.answer();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(history.location.pathname).toBe('/invite/app');
+  });
 });

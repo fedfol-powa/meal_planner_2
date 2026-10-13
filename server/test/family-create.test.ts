@@ -27,9 +27,9 @@ describe.skipIf(!hasDatabase)('family.create', () => {
 		expect((await actors.db.admin`select count(*)::int as n from app.family_members where family_id = ${id}`)[0]!.n).toBe(1);
 	});
 
-	it('falls back to Europe/Rome for a missing or invalid time zone', async () => {
+	it('falls back to Europe/Rome for a missing or invalid time zone, offsets included', async () => {
 		const ugo = await actors.user();
-		for (const timeZone of [undefined, 'Etc/Unknown', 'Mars/Base']) {
+		for (const timeZone of [undefined, 'Etc/Unknown', 'Mars/Base', '+01:00']) {
 			const id = crypto.randomUUID();
 			const view = await ugo.client.family.create({ id, name: 'X', measurementSystem: 'metric', ...(timeZone ? { timeZone } : {}) });
 			expect(view.families.find((f) => f.id === id)?.timeZone, String(timeZone)).toBe('Europe/Rome');

@@ -28,10 +28,11 @@ type Phase =
   | { kind: 'signInFailed'; email: string };
 
 /**
- * Accounts closed from this page with «Esci e continua»: Supabase may report them once more while
- * ending them, which is not someone signing in. Module state: the page remounts when the identity changes.
+ * The account being closed from this page with «Esci e continua», until its sign-out ends: Supabase
+ * may report it once more meanwhile, which is not someone signing in; afterwards it is. Module
+ * state: the page remounts when the identity changes.
  */
-const closedAccounts = new Set<string>();
+let closingAccount: string | null = null;
 
 type Field = 'email' | 'name' | 'password' | 'again';
 type FormError = { kind: 'message'; key: MessageKey } | { kind: 'accountExists'; email: string };
@@ -120,27 +121,31 @@ export function InvitePage() {
     sending.current = true;
     setBusy(true);
     const mine = generation.current;
-    // A sign-in reported meanwhile (another tab) ends the attempt at once, before React re-renders.
-    // Watched here, not through the signed-out session: Supabase may report the account just
-    // closed once more while ending it, and that must not block the form.
-    let foreign = false;
-    const stopWatching = backend.onChange((event) => {
-      if (event.user && !closedAccounts.has(event.user.id)) foreign = true;
+    // The attempt watches page, link and identity itself, until its answer is handled: the page
+    // may remount meanwhile (our own sign-in), and coming back to the same link is a new attempt.
+    let valid = true;
+    // Once the account exists, a sign-in with its email is ours, not someone else's.
+    let ours: string | null = null;
+    const stopAuth = backend.onChange((event) => {
+      if (!event.user || event.user.id === closingAccount) return;
+      if (ours === null || event.user.email.toLowerCase() !== ours) valid = false;
+    });
+    const stopHistory = router.history.subscribe(() => {
+      const at = router.history.location;
+      if (at.pathname !== '/invite/app' || fragment(at.hash) !== token) valid = false;
     });
     const { password } = values;
-    // Before the sign-in: same page, same link, still nobody signed in.
-    const current = () => generation.current === mine && signedOut.current && !foreign;
-    // After our own sign-in the identity changes on purpose: only page and link still count.
-    const onThisLink = () => router.history.location.pathname === '/invite/app' && fragment(router.history.location.hash) === token;
+    // Before the sign-in also: this page still in place, still nobody signed in.
+    const current = () => valid && generation.current === mine && signedOut.current;
     // Busy until the answer is handled, the sign-in included (spec W8).
     await trackBusy(
       (async () => {
         try {
           const { email } = await invitationClient.accept({ token, email: values.email.trim(), displayName: values.name.trim(), password, locale });
           if (!current()) return; // left, another link, or someone signed in meanwhile: no sign-in
-          stopWatching(); // our own sign-in follows
+          ours = email.toLowerCase(); // our own sign-in follows
           const result = await backend.signIn(email, password);
-          if (!onThisLink()) return;
+          if (!valid) return; // left (even if back on this link) or someone else signed in
           if (result.ok) {
             // Supabase reports the new session after signIn() resolves (and the page may be remounted
             // then): the sign-in route forwards to the wizard once the app sees the session.
@@ -148,7 +153,7 @@ export function InvitePage() {
             await router.navigate({ to: '/login', search: { redirect: `/family/new${granted}` }, replace: true });
           } else setPhase({ kind: 'signInFailed', email });
         } catch (error) {
-          if (!current()) return;
+          if (!valid || generation.current !== mine) return;
           const failure = toApiError(error);
           const issues = (failure.data as { issues?: { path: (string | number)[]; code: string }[] } | undefined)?.issues ?? [];
           if (failure.code === 'invitation_unavailable') setPhase({ kind: 'unavailable' });
@@ -159,7 +164,8 @@ export function InvitePage() {
           else if (failure.code === 'not_allowed') setFormError({ kind: 'accountExists', email: values.email.trim() });
           else setFormError({ kind: 'message', key: errorKey(error) });
         } finally {
-          stopWatching();
+          stopAuth();
+          stopHistory();
           sending.current = false;
           setBusy(false);
         }
@@ -229,8 +235,11 @@ export function InvitePage() {
             <OtherAccount
               email={state.user.email}
               onSignOut={() => {
-                closedAccounts.add(state.user.id);
-                void signOut();
+                const closing = state.user.id;
+                closingAccount = closing;
+                void signOut().finally(() => {
+                  if (closingAccount === closing) closingAccount = null;
+                });
               }}
             />
           ) : (
