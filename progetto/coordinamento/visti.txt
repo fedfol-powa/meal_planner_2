@@ -177,3 +177,11 @@ w1:p36	STATO: SPEC_E_PIANO_PRONTI #5e658e13
 w1:p36	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/41 #84700966
 w1:p36	STATO: PR_CORRETTA #e3e759df
 w1:p36	STATO: PR_CORRETTA #99d91d60
+w1:p3B	STATO: DOMANDA brainstorming 1: momento del passaggio alla versione nuova #8c33f144
+w1:p3B	STATO: DOMANDA brainstorming 2: buster della copia persistita #a892018a
+w1:p3B	STATO: DOMANDA design sezione 1: service worker #2dc67501
+w1:p3B	STATO: DOMANDA design sezione 2: pagina e guardia #2416eb32
+w1:p3B	STATO: DOMANDA design sezione 3: test #8dcd9ede
+w1:p3B	STATO: SPEC_E_PIANO_PRONTI #f5c6b5d9
+w1:p3B	STATO: SPEC_E_PIANO_CORRETTI #0f357996
+w1:p3B	STATO: SPEC_E_PIANO_CORRETTI #a9a7e3b5
