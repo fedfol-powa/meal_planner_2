@@ -32,6 +32,9 @@ jobs:
       - run: scripts/oauth/agents-e2e.sh
       # Password change on the local stack, backend and page: wrong current password, weak, expired session, other sessions.
       - run: scripts/password/password-stack.sh
+      # App invitations with sign-ups off: the whole path through the real contract and Auth.
+      - name: Invitations against the local stack
+        run: scripts/invitations/invite-stack.sh
       # Resets the database, then restores an export into it with the real CLI.
       - run: npm run test:drill -w server
       # After the drill: service SQL that empties the database (reset, launch), through the real prod-sql.ts.

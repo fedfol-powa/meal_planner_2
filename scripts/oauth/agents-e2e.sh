@@ -12,7 +12,9 @@ value() { printf '%s\n' "$status" | sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/
 API_URL=$(value API_URL)
 DB_URL=$(value DB_URL)
 KEY=$(value PUBLISHABLE_KEY)
-[ -n "$API_URL" ] && [ -n "$DB_URL" ] && [ -n "$KEY" ] || { echo "supabase status: API_URL, DB_URL or PUBLISHABLE_KEY missing (is Auth running?)"; exit 1; }
+# Sign-ups are off locally too (spec W9): the password check creates its person with the admin API.
+SECRET=$(value SECRET_KEY)
+[ -n "$API_URL" ] && [ -n "$DB_URL" ] && [ -n "$KEY" ] && [ -n "$SECRET" ] || { echo "supabase status: API_URL, DB_URL, PUBLISHABLE_KEY or SECRET_KEY missing (is Auth running?)"; exit 1; }
 
 # The Worker connects as app_server, as through Hyperdrive in production (same password as the server tests).
 DB_URL="$DB_URL" node --input-type=module -e "import postgres from 'postgres'; const sql = postgres(process.env.DB_URL, { max: 1 }); await sql.unsafe(\"alter role app_server password 'app_server_test'\"); await sql.end();"
@@ -36,4 +38,4 @@ for _ in $(seq 1 60); do
 done
 curl -sf -o /dev/null "http://127.0.0.1:$port/.well-known/oauth-protected-resource/mcp" || { echo "Worker did not start"; cat "$log"; exit 1; }
 
-APP_URL="http://127.0.0.1:$port" SUPABASE_URL="$API_URL" DB_URL="$DB_URL" SUPABASE_PUBLISHABLE_KEY="$KEY" node scripts/oauth/agents-e2e.mjs || { cat "$log"; exit 1; }
+APP_URL="http://127.0.0.1:$port" SUPABASE_URL="$API_URL" DB_URL="$DB_URL" SUPABASE_PUBLISHABLE_KEY="$KEY" SUPABASE_SECRET_KEY="$SECRET" node scripts/oauth/agents-e2e.mjs || { cat "$log"; exit 1; }

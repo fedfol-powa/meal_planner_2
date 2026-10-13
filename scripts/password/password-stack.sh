@@ -10,7 +10,9 @@ value() { printf '%s\n' "$status" | sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/
 API_URL=$(value API_URL)
 DB_URL=$(value DB_URL)
 KEY=$(value PUBLISHABLE_KEY)
-[ -n "$API_URL" ] && [ -n "$DB_URL" ] && [ -n "$KEY" ] || { echo "supabase status: API_URL, DB_URL or PUBLISHABLE_KEY missing (is Auth running?)"; exit 1; }
+# Sign-ups are off locally too (spec W9): the test people are created with the admin API.
+SECRET=$(value SECRET_KEY)
+[ -n "$API_URL" ] && [ -n "$DB_URL" ] && [ -n "$KEY" ] && [ -n "$SECRET" ] || { echo "supabase status: API_URL, DB_URL, PUBLISHABLE_KEY or SECRET_KEY missing (is Auth running?)"; exit 1; }
 
-STACK_SUPABASE_URL="$API_URL" STACK_SUPABASE_PUBLISHABLE_KEY="$KEY" STACK_DB_URL="$DB_URL" \
+STACK_SUPABASE_URL="$API_URL" STACK_SUPABASE_PUBLISHABLE_KEY="$KEY" STACK_SUPABASE_SECRET_KEY="$SECRET" STACK_DB_URL="$DB_URL" \
   npm test -w web -- src/auth/changePassword.stack.test.ts src/routes/profile/PasswordPage.stack.test.tsx

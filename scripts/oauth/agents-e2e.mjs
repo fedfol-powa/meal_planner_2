@@ -4,7 +4,8 @@
 // agents.disconnect. Local stack only: it registers OAuth clients and forces an expiry.
 //   SUPABASE_URL (default http://127.0.0.1:54321), APP_URL (default http://127.0.0.1:8787),
 //   SITE_URL (default http://127.0.0.1:5174), DB_URL (default the local database),
-//   SUPABASE_PUBLISHABLE_KEY (from `supabase status`).
+//   SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY (from `supabase status`; sign-ups are off,
+//   the password check creates its person with the admin API).
 import { createHash, randomBytes } from 'node:crypto';
 import postgres from 'postgres';
 
@@ -17,6 +18,7 @@ const KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
 const REDIRECT = 'http://127.0.0.1:9/callback';
 const LOCAL = /^(http|postgresql):\/\/(postgres:postgres@)?(127\.0\.0\.1|localhost)[:/]/;
 if (!KEY) throw new Error('SUPABASE_PUBLISHABLE_KEY is required (supabase status)');
+if (!process.env.SUPABASE_SECRET_KEY) throw new Error('SUPABASE_SECRET_KEY is required (supabase status)');
 for (const url of [SUPABASE, APP, DB]) if (!LOCAL.test(url)) throw new Error(`Local stack only: ${url}`);
 
 let failures = 0;
@@ -297,13 +299,19 @@ await channelEverywhere('web of Anna after B left', anna.access_token, 'web');
 // session of the person, the agents' too; the web session that asked stays.
 {
 	const email = `password-${randomBytes(6).toString('hex')}@example.test`;
-	const signup = await read(await fetch(`${AUTH}/signup`, {
+	const created = await fetch(`${AUTH}/admin/users`, {
+		method: 'POST',
+		headers: { apikey: process.env.SUPABASE_SECRET_KEY, 'content-type': 'application/json' },
+		body: JSON.stringify({ email, password: 'first-password', email_confirm: true }),
+	});
+	if (!created.ok) throw new Error(`admin create for the password check: ${created.status}`);
+	const signin = await read(await fetch(`${AUTH}/token?grant_type=password`, {
 		method: 'POST',
 		headers: { apikey: KEY, 'content-type': 'application/json' },
 		body: JSON.stringify({ email, password: 'first-password' }),
 	}));
-	if (signup.status !== 200 || !signup.body.access_token) throw new Error(`sign-up for the password check: ${signup.status} ${JSON.stringify(signup.body)}`);
-	const web = signup.body;
+	if (signin.status !== 200 || !signin.body.access_token) throw new Error(`sign-in for the password check: ${signin.status}`);
+	const web = signin.body;
 	try {
 		const clientP = await register('E2E agent P');
 		const agent = await connect(clientP, web.access_token);
