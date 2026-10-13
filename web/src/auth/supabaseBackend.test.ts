@@ -76,7 +76,9 @@ describe('supabase backend', () => {
     expect(await offline.backend.refresh()).toEqual({ kind: 'network' });
   });
   it('changes the password with the device session, without touching the shared client', async () => {
-    const session = { user: { id: 'u1', email: 'anna@example.com' }, access_token: 'device-token' };
+    // Shaped like Supabase's: the change is bound to the token's session_id.
+    const deviceToken = `header.${btoa(JSON.stringify({ sub: 'u1', session_id: 's1' }))}.signature`;
+    const session = { user: { id: 'u1', email: 'anna@example.com' }, access_token: deviceToken };
     const sent: { path: string; authorization: string | null }[] = [];
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input));
@@ -96,10 +98,16 @@ describe('supabase backend', () => {
     const storage = { getItem: (k: string) => stored.get(k) ?? null, removeItem: (k: string) => void stored.delete(k) };
     const backend = createSupabaseBackend('http://127.0.0.1:54321', 'key', { auth: auth as unknown as AuthClient, storage, fetch: fetchImpl as unknown as typeof fetch });
     expect(await backend.changePassword('old-password', 'old-password!')).toEqual({ ok: false, reason: 'same_password' });
-    expect(sent.find((r) => r.path.endsWith('/user'))?.authorization).toBe('Bearer device-token');
+    expect(sent.find((r) => r.path.endsWith('/user'))?.authorization).toBe(`Bearer ${deviceToken}`);
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(auth.signOut).not.toHaveBeenCalled();
     expect(stored.get(AUTH_STORAGE_KEY)).toBe(JSON.stringify(session));
+
+    // A token without its session id cannot be bound to the change: nothing is sent.
+    session.access_token = 'no-session-id';
+    sent.length = 0;
+    expect(await backend.changePassword('old-password', 'new-password')).toEqual({ ok: false, reason: 'session_expired' });
+    expect(sent).toEqual([]);
   });
 });
 

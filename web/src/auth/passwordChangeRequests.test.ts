@@ -1,10 +1,15 @@
 import { AuthRetryableFetchError, AuthSessionMissingError } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
-import { changePasswordFailure, changePasswordWith, type DeviceSession, type PasswordChangeDeps, type SessionRead } from './passwordChangeRequests';
+import { changePasswordFailure, changePasswordWith, sessionIdOf, type DeviceSession, type PasswordChangeDeps, type SessionRead } from './passwordChangeRequests';
 
 const URL_ = 'http://127.0.0.1:54321';
-const A: DeviceSession = { userId: 'user-a', email: 'a@example.test', accessToken: 'token-a' };
-const B: DeviceSession = { userId: 'user-b', email: 'b@example.test', accessToken: 'token-b' };
+const A: DeviceSession = { userId: 'user-a', sessionId: 'session-a1', email: 'a@example.test', accessToken: 'token-a' };
+/** The same session after a renewal: new token, same session id. */
+const A_RENEWED: DeviceSession = { ...A, accessToken: 'token-a-renewed' };
+/** A new sign-in of the same person: same user, another session. */
+const A_AGAIN: DeviceSession = { ...A, sessionId: 'session-a2', accessToken: 'token-a-again' };
+const B: DeviceSession = { userId: 'user-b', sessionId: 'session-b1', email: 'b@example.test', accessToken: 'token-b' };
+const offline: SessionRead = { session: null, error: new AuthRetryableFetchError('offline', 0) };
 
 type Answer = Response | Promise<Response> | Error;
 interface Sent { method: string; path: string; authorization: string | null; apikey: string | null; version: string | null; body: unknown }
@@ -53,27 +58,40 @@ function deps(fetchImpl: typeof fetch, reads: (SessionRead | (() => SessionRead)
 
 describe('changePasswordFailure', () => {
   it('maps every Supabase answer to our reasons', () => {
-    expect(changePasswordFailure(new AuthRetryableFetchError('offline', 0), 'verify')).toBe('network');
-    expect(changePasswordFailure({ name: 'TypeError', status: 0 }, 'update')).toBe('network');
-    expect(changePasswordFailure({ code: 'over_request_rate_limit', status: 429 }, 'verify')).toBe('rate_limited');
-    expect(changePasswordFailure({ status: 429 }, 'update')).toBe('rate_limited');
-    expect(changePasswordFailure({ code: 'current_password_mismatch', status: 400 }, 'update')).toBe('current_invalid');
-    expect(changePasswordFailure({ code: 'invalid_credentials', status: 400 }, 'verify')).toBe('current_invalid');
-    expect(changePasswordFailure({ status: 400 }, 'verify')).toBe('current_invalid');
-    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['characters'] }, 'update')).toBe('weak_characters');
-    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['length', 'characters'] }, 'update')).toBe('weak_characters');
-    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['length'] }, 'update')).toBe('weak_length');
-    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['pwned'] }, 'update')).toBe('weak');
-    expect(changePasswordFailure({ code: 'weak_password', status: 422 }, 'update')).toBe('weak');
-    expect(changePasswordFailure({ code: 'same_password', status: 422 }, 'update')).toBe('same_password');
-    expect(changePasswordFailure({ code: 'reauthentication_needed', status: 400 }, 'update')).toBe('reauthentication_needed');
-    expect(changePasswordFailure(new AuthSessionMissingError(), 'update')).toBe('session_expired');
-    expect(changePasswordFailure({ status: 401 }, 'update')).toBe('session_expired');
-    expect(changePasswordFailure({ code: 'session_not_found', status: 403 }, 'update')).toBe('session_expired');
-    expect(changePasswordFailure({ code: 'refresh_token_not_found', status: 400 }, 'update')).toBe('session_expired');
-    expect(changePasswordFailure({ code: 'bad_jwt', status: 403 }, 'update')).toBe('session_expired');
-    expect(changePasswordFailure({ code: 'validation_failed', status: 400 }, 'update')).toBe('unknown');
-    expect(changePasswordFailure({ status: 500 }, 'update')).toBe('unknown');
+    expect(changePasswordFailure(new AuthRetryableFetchError('offline', 0))).toBe('network');
+    expect(changePasswordFailure({ name: 'TypeError', status: 0 })).toBe('network');
+    expect(changePasswordFailure({ code: 'over_request_rate_limit', status: 429 })).toBe('rate_limited');
+    expect(changePasswordFailure({ status: 429 })).toBe('rate_limited');
+    expect(changePasswordFailure({ code: 'current_password_mismatch', status: 400 })).toBe('current_invalid');
+    expect(changePasswordFailure({ code: 'invalid_credentials', status: 400 })).toBe('current_invalid');
+    // Other refusals of the sign-in are not about the password (Auth v2.197.0, token.go).
+    expect(changePasswordFailure({ status: 400 })).toBe('unknown');
+    expect(changePasswordFailure({ code: 'user_banned', status: 400 })).toBe('unknown');
+    expect(changePasswordFailure({ code: 'email_not_confirmed', status: 400 })).toBe('unknown');
+    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['characters'] })).toBe('weak_characters');
+    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['length', 'characters'] })).toBe('weak_characters');
+    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['length'] })).toBe('weak_length');
+    expect(changePasswordFailure({ code: 'weak_password', status: 422, reasons: ['pwned'] })).toBe('weak');
+    expect(changePasswordFailure({ code: 'weak_password', status: 422 })).toBe('weak');
+    expect(changePasswordFailure({ code: 'same_password', status: 422 })).toBe('same_password');
+    expect(changePasswordFailure({ code: 'reauthentication_needed', status: 400 })).toBe('reauthentication_needed');
+    expect(changePasswordFailure(new AuthSessionMissingError())).toBe('session_expired');
+    expect(changePasswordFailure({ status: 401 })).toBe('session_expired');
+    expect(changePasswordFailure({ code: 'session_not_found', status: 403 })).toBe('session_expired');
+    expect(changePasswordFailure({ code: 'refresh_token_not_found', status: 400 })).toBe('session_expired');
+    expect(changePasswordFailure({ code: 'bad_jwt', status: 403 })).toBe('session_expired');
+    expect(changePasswordFailure({ code: 'validation_failed', status: 400 })).toBe('unknown');
+    expect(changePasswordFailure({ status: 500 })).toBe('unknown');
+  });
+});
+
+describe('sessionIdOf', () => {
+  it('reads the session_id claim of an access token, null when there is none', () => {
+    const payload = btoa(JSON.stringify({ sub: 'user-a', session_id: 'session-a1', note: '??>>' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    expect(payload).toMatch(/[-_]/); // base64url, unpadded, as in real tokens
+    expect(sessionIdOf(`header.${payload}.signature`)).toBe('session-a1');
+    expect(sessionIdOf(`header.${btoa(JSON.stringify({ sub: 'user-a' }))}.signature`)).toBeNull();
+    expect(sessionIdOf('not-a-jwt')).toBeNull();
   });
 });
 
@@ -101,51 +119,92 @@ describe('changePasswordWith', () => {
     expect(await changePasswordWith(deps(twice.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: true });
     expect(twice.sent.filter((r) => r.path.startsWith('/auth/v1/logout')).map((r) => r.authorization)).toEqual(['Bearer check-token', 'Bearer check-token']);
 
-    const offline = fakeAuth({ logout: [new TypeError('Failed to fetch'), new TypeError('Failed to fetch')], user: errorAnswer(422, 'same_password') });
-    expect(await changePasswordWith(deps(offline.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: false, reason: 'same_password' });
-    expect(offline.sent.filter((r) => r.path.startsWith('/auth/v1/logout'))).toHaveLength(2);
+    const unreachable = fakeAuth({ logout: [new TypeError('Failed to fetch'), new TypeError('Failed to fetch')], user: errorAnswer(422, 'same_password') });
+    expect(await changePasswordWith(deps(unreachable.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: false, reason: 'same_password' });
+    expect(unreachable.sent.filter((r) => r.path.startsWith('/auth/v1/logout'))).toHaveLength(2);
   });
   it('tells a renewal blocked by the network from a session that is over, without any request', async () => {
     const network = fakeAuth();
-    expect(await changePasswordWith(deps(network.fetchImpl, [{ session: null, error: new AuthRetryableFetchError('offline', 0) }]), 'a', 'b')).toEqual({ ok: false, reason: 'network' });
+    expect(await changePasswordWith(deps(network.fetchImpl, [offline]), 'a', 'b')).toEqual({ ok: false, reason: 'network' });
     const refused = fakeAuth();
     expect(await changePasswordWith(deps(refused.fetchImpl, [{ session: null, error: { name: 'AuthApiError', status: 400, code: 'refresh_token_not_found' } }]), 'a', 'b')).toEqual({ ok: false, reason: 'session_expired' });
     const none = fakeAuth();
     expect(await changePasswordWith(deps(none.fetchImpl, [{ session: null, error: null }]), 'a', 'b')).toEqual({ ok: false, reason: 'session_expired' });
     expect([...network.sent, ...refused.sent, ...none.sent]).toEqual([]);
   });
+  /** A check held open until `answer`; `device` is what the shared client holds meanwhile. */
+  function heldCheck() {
+    let answer!: (response: Response) => void;
+    const auth = fakeAuth({ token: new Promise<Response>((resolve) => (answer = resolve)) });
+    let device: SessionRead = { session: A, error: null };
+    const running = changePasswordWith(deps(auth.fetchImpl, [() => device]), 'password-a', 'new-password-a');
+    return {
+      ...auth,
+      during(read: SessionRead) {
+        device = read;
+        answer(Response.json({ access_token: 'check-token' }));
+        return running;
+      }
+    };
+  }
   it('sends no change when another tab switched to B during the check', async () => {
-    let answer!: (response: Response) => void;
-    const held = new Promise<Response>((resolve) => (answer = resolve));
-    const { fetchImpl, sent } = fakeAuth({ token: held });
-    let device: SessionRead = { session: A, error: null };
-    const running = changePasswordWith(deps(fetchImpl, [() => device]), 'password-a', 'new-password-a');
-    device = { session: B, error: null };
-    answer(Response.json({ access_token: 'check-token' }));
-    expect(await running).toEqual({ ok: false, reason: 'account_changed' });
-    expect(sent.some((r) => r.method === 'PUT')).toBe(false);
-    expect(sent.some((r) => r.authorization === 'Bearer token-b')).toBe(false);
+    const check = heldCheck();
+    expect(await check.during({ session: B, error: null })).toEqual({ ok: false, reason: 'account_changed' });
+    expect(check.sent.some((r) => r.method === 'PUT')).toBe(false);
+    expect(check.sent.some((r) => r.authorization === 'Bearer token-b')).toBe(false);
   });
-  it('sends no change when the person signed out during the check', async () => {
-    let answer!: (response: Response) => void;
-    const { fetchImpl, sent } = fakeAuth({ token: new Promise<Response>((resolve) => (answer = resolve)) });
-    let device: SessionRead = { session: A, error: null };
-    const running = changePasswordWith(deps(fetchImpl, [() => device]), 'password-a', 'new-password-a');
-    device = { session: null, error: null };
-    answer(Response.json({ access_token: 'check-token' }));
-    expect(await running).toEqual({ ok: false, reason: 'account_changed' });
-    expect(sent.some((r) => r.method === 'PUT')).toBe(false);
+  it('sends no change when the same person signed in again with another session during the check', async () => {
+    const check = heldCheck();
+    expect(await check.during({ session: A_AGAIN, error: null })).toEqual({ ok: false, reason: 'account_changed' });
+    expect(check.sent.some((r) => r.method === 'PUT')).toBe(false);
   });
-  it('reports a neutral outcome when the account changed while the change was on its way', async () => {
+  it('keeps the captured token when the same session was renewed during the check', async () => {
+    const check = heldCheck();
+    expect(await check.during({ session: A_RENEWED, error: null })).toEqual({ ok: true });
+    expect(check.sent.find((r) => r.method === 'PUT')!.authorization).toBe('Bearer token-a');
+  });
+  it('reports a session that ended during the check, without sending the change', async () => {
+    const signedOut = heldCheck();
+    expect(await signedOut.during({ session: null, error: null })).toEqual({ ok: false, reason: 'session_expired' });
+    const refused = heldCheck();
+    expect(await refused.during({ session: null, error: { name: 'AuthApiError', status: 400, code: 'refresh_token_not_found' } })).toEqual({ ok: false, reason: 'session_expired' });
+    expect([...signedOut.sent, ...refused.sent].some((r) => r.method === 'PUT')).toBe(false);
+  });
+  it('reports the network, not a change of account, when the session cannot be read before the change', async () => {
+    const check = heldCheck();
+    expect(await check.during(offline)).toEqual({ ok: false, reason: 'network' });
+    expect(check.sent.some((r) => r.method === 'PUT')).toBe(false);
+  });
+  /** The change held open until `answer`; `device` is what the shared client holds meanwhile. */
+  function heldChange() {
     let answer!: (response: Response) => void;
-    const { fetchImpl, sent } = fakeAuth({ user: new Promise<Response>((resolve) => (answer = resolve)) });
+    const auth = fakeAuth({ user: new Promise<Response>((resolve) => (answer = resolve)) });
     let device: SessionRead = { session: A, error: null };
-    const running = changePasswordWith(deps(fetchImpl, [() => device]), 'password-a', 'new-password-a');
-    await vi.waitFor(() => expect(sent.some((r) => r.method === 'PUT')).toBe(true));
-    device = { session: B, error: null };
-    answer(Response.json({ id: 'user-a' }));
-    expect(await running).toEqual({ ok: false, reason: 'account_changed' });
-    expect(sent.find((r) => r.method === 'PUT')!.authorization).toBe('Bearer token-a');
+    const running = changePasswordWith(deps(auth.fetchImpl, [() => device]), 'password-a', 'new-password-a');
+    return {
+      ...auth,
+      async during(read: SessionRead, response: Response) {
+        await vi.waitFor(() => expect(auth.sent.some((r) => r.method === 'PUT')).toBe(true));
+        device = read;
+        answer(response);
+        return running;
+      }
+    };
+  }
+  it('a change the server confirmed stays a success, whatever the device holds afterwards', async () => {
+    const switched = heldChange();
+    expect(await switched.during({ session: B, error: null }, Response.json({ id: 'user-a' }))).toEqual({ ok: true });
+    expect(switched.sent.find((r) => r.method === 'PUT')!.authorization).toBe('Bearer token-a');
+    const unreadable = heldChange();
+    expect(await unreadable.during(offline, Response.json({ id: 'user-a' }))).toEqual({ ok: true });
+  });
+  it('a refused change reports the account change, or the server’s answer when the device cannot be read', async () => {
+    const switched = heldChange();
+    expect(await switched.during({ session: B, error: null }, errorAnswer(403, 'session_not_found'))).toEqual({ ok: false, reason: 'account_changed' });
+    const again = heldChange();
+    expect(await again.during({ session: A_AGAIN, error: null }, errorAnswer(403, 'session_not_found'))).toEqual({ ok: false, reason: 'account_changed' });
+    const unreadable = heldChange();
+    expect(await unreadable.during(offline, errorAnswer(422, 'same_password'))).toEqual({ ok: false, reason: 'same_password' });
   });
   it('reads error codes from the body or only from the header, and survives a body that is not JSON', async () => {
     const weak = fakeAuth({ user: Response.json({ code: 'weak_password', message: 'weak', weak_password: { reasons: ['pwned'] } }, { status: 422 }) });
@@ -154,7 +213,7 @@ describe('changePasswordWith', () => {
     expect(await changePasswordWith(deps(headerOnly.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: false, reason: 'session_expired' });
     const broken = fakeAuth({ user: new Response('<html>', { status: 502 }) });
     expect(await changePasswordWith(deps(broken.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: false, reason: 'unknown' });
-    const offline = fakeAuth({ token: new TypeError('Failed to fetch') });
-    expect(await changePasswordWith(deps(offline.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: false, reason: 'network' });
+    const unreachable = fakeAuth({ token: new TypeError('Failed to fetch') });
+    expect(await changePasswordWith(deps(unreachable.fetchImpl), 'old-password', 'new-password')).toEqual({ ok: false, reason: 'network' });
   });
 });
