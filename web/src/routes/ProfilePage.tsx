@@ -4,6 +4,7 @@ import { errorKey, isBlocking } from '../api/errors';
 import { exclusionsQuery, familyQuery } from '../api/family';
 import { useAreaMutation } from '../api/mutations';
 import { useQueryDeps } from '../api/queries';
+import { hasAppAdmin } from '../features/admin/access';
 import { agentsQuery } from '../features/agents/api';
 import type { FamilyView } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
@@ -62,6 +63,7 @@ export function ProfilePage() {
               })}
             </ul>
             {choose.isError && <p className="meta-line" role="alert">{t(errorKey(choose.error))}</p>}
+            <Link to="/family/new" className="link-inline">{t('profile.newFamily')}</Link>
           </section>
         )}
         {/* Always reachable: language and sign-out must work even without a profile or a family. */}
@@ -94,6 +96,15 @@ export function ProfilePage() {
                 <Icon name="chevron-right" />
               </Link>
             </li>
+            {hasAppAdmin(profile) && (
+              <li>
+                <Link to="/admin" className="row-link">
+                  <Icon name="gear" />
+                  <span className="row-main">{t('profile.admin')}<small>{t('profile.adminHint')}</small></span>
+                  <Icon name="chevron-right" />
+                </Link>
+              </li>
+            )}
           </ul>
         </section>
       </div>

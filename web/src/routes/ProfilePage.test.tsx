@@ -23,10 +23,23 @@ describe('profile', () => {
     expect(screen.getByRole('link', { name: 'Impostazioni della famiglia' })).toBeTruthy();
     expect(await screen.findByRole('link', { name: /Non proporre più.*2 ricette/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Famiglia Folloni/, pressed: true })).toBeTruthy();
-    expect(screen.queryByText(/Crea un’altra famiglia/)).toBeNull();
     expect(screen.queryByText(/inviti/i)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Esci' })).toBeNull();
     expect(screen.queryByRole('link', { name: /Cambia password/ })).toBeNull();
+  });
+  it('creates another family from the families section', async () => {
+    const { history } = renderApp('/profile');
+    fireEvent.click(await screen.findByRole('link', { name: 'Crea un’altra famiglia' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/family/new'));
+  });
+  it('shows the app administration to app administrators only', async () => {
+    renderApp('/profile', { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] }) });
+    expect((await screen.findByRole('link', { name: /Amministrazione dell’app/ })).getAttribute('href')).toBe('/admin');
+  });
+  it('hides the app administration from the others', async () => {
+    renderApp('/profile', { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 }) });
+    expect(await screen.findByRole('heading', { name: 'Federico' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /Amministrazione dell’app/ })).toBeNull();
   });
   it('offers the password change with Supabase only', async () => {
     renderApp('/profile', { backend: createStubBackend(DEMO_USER) });

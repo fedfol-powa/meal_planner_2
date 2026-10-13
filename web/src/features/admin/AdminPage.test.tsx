@@ -1,0 +1,134 @@
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../api/errors';
+import { expireFakeInvitation, fakeTokenOf } from '../../api/fake/fakeAppInvitations';
+import { createFakeApi } from '../../api/fake/fakeApi';
+import { setOnline } from '../../test/connectivity';
+import { renderApp } from '../../test/renderApp';
+
+describe('/admin', () => {
+afterEach(() => vi.restoreAllMocks());
+
+it('creates an invitation, shows the link once with copy, and lists it', async () => {
+  const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] });
+  const create = vi.spyOn(api.appInvitations, 'create');
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'nuova@x.it' } });
+  fireEvent.click(within(sheet).getByLabelText('Curatore del ricettario'));
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  await waitFor(() => expect(create).toHaveBeenCalledWith({ id: expect.any(String), email: 'nuova@x.it', roles: ['recipe_curator'] }, expect.anything()));
+  expect(await within(sheet).findByText(/\/invite\/app#/)).toBeTruthy();
+  expect(within(sheet).getByText('Il link si vede solo ora: se lo perdi, crea un nuovo link.')).toBeTruthy();
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
+  const row = (await screen.findByText('nuova@x.it')).closest('li')!;
+  expect(within(row).getByText('curatore del ricettario')).toBeTruthy();
+  expect(within(row).queryByText(/invite\/app#/)).toBeNull();
+});
+
+const adminApi = () => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] });
+
+it('«Nuovo link» recreates the invitation with the same email and roles', async () => {
+  const api = adminApi();
+  const first = await api.appInvitations.create({ id: crypto.randomUUID(), email: 'zia@x.it', roles: ['app_admin'] });
+  const create = vi.spyOn(api.appInvitations, 'create');
+  renderApp('/admin', { api });
+  const row = (await screen.findByText('zia@x.it')).closest('li')!;
+  fireEvent.click(within(row).getByRole('button', { name: 'Nuovo link' }));
+  await waitFor(() => expect(create).toHaveBeenCalledWith({ id: expect.any(String), email: 'zia@x.it', roles: ['app_admin'] }, expect.anything()));
+  expect(create.mock.calls[0]![0].id).not.toBe(first.invitation.id);
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  expect(await within(sheet).findByText(/\/invite\/app#/)).toBeTruthy();
+});
+
+it('revokes after confirmation', async () => {
+  const api = adminApi();
+  const { invitation } = await api.appInvitations.create({ id: crypto.randomUUID(), email: 'via@x.it', roles: [] });
+  const revoke = vi.spyOn(api.appInvitations, 'revoke');
+  renderApp('/admin', { api });
+  const row = (await screen.findByText('via@x.it')).closest('li')!;
+  fireEvent.click(within(row).getByRole('button', { name: 'Revoca' }));
+  const confirm = await screen.findByRole('dialog', { name: 'Revocare l’invito?' });
+  fireEvent.click(within(confirm).getByRole('button', { name: 'Revoca' }));
+  await waitFor(() => expect(revoke).toHaveBeenCalledWith({ id: invitation.id }, expect.anything()));
+  expect(await within((await screen.findByText('via@x.it')).closest('li')!).findByText(/^Revocato il /)).toBeTruthy();
+});
+
+it('one creation per tap burst, and a late answer of a closed sheet never shows its link', async () => {
+  const api = adminApi();
+  const answers: (() => void)[] = [];
+  const real = api.appInvitations.create.bind(api.appInvitations);
+  // Written at once (as the database commits A, then B), answered when the test says.
+  const create = vi.spyOn(api.appInvitations, 'create').mockImplementation((input) => {
+    const done = real(input);
+    return new Promise((resolve) => answers.push(() => void done.then(resolve)));
+  });
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  let sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'a@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(1)); // attempt A, still waiting
+  await new Promise((r) => setTimeout(r, 20));
+  expect(create).toHaveBeenCalledTimes(1); // the second tap was blocked
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Nuovo invito' }));
+  sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'a@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' })); // attempt B
+  await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+  answers[1]!(); // B answers first
+  const shown = (await within(sheet).findByText(/\/invite\/app#/)).textContent!;
+  answers[0]!(); // A answers late: its link was replaced by B (same email) and must not appear
+  await new Promise((r) => setTimeout(r, 20));
+  expect(within(sheet).getByText(/\/invite\/app#/).textContent).toBe(shown);
+  const pending = (await api.appInvitations.list({})).invitations.filter((i) => i.email === 'a@x.it' && i.status === 'pending');
+  expect(pending).toHaveLength(1);
+  expect(shown.endsWith(fakeTokenOf(api, pending[0]!.id))).toBe(true); // the shown link is the valid one
+});
+
+it('revokes an expired invitation too', async () => {
+  const api = adminApi();
+  const { invitation } = await api.appInvitations.create({ id: crypto.randomUUID(), email: 'old@x.it', roles: [] });
+  expireFakeInvitation(api, invitation.id); // helper of fakeAppInvitations: moves expiresAt to the past
+  const revoke = vi.spyOn(api.appInvitations, 'revoke');
+  renderApp('/admin', { api });
+  const row = (await screen.findByText('old@x.it')).closest('li')!;
+  expect(within(row).getByText(/^Scaduto il /)).toBeTruthy();
+  fireEvent.click(within(row).getByRole('button', { name: 'Revoca' }));
+  fireEvent.click(within(await screen.findByRole('dialog', { name: 'Revocare l’invito?' })).getByRole('button', { name: 'Revoca' }));
+  await waitFor(() => expect(revoke).toHaveBeenCalledWith({ id: invitation.id }, expect.anything()));
+});
+
+it('says when the email already has an account', async () => {
+  const api = adminApi();
+  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'gia@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  expect(await within(sheet).findByText('Questa email ha già un account')).toBeTruthy();
+});
+
+it('is closed to people without app_admin', async () => {
+  const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+  const list = vi.spyOn(api.appInvitations, 'list');
+  renderApp('/admin', { api });
+  expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+  // The page's own link back, besides the one of the bottom bar.
+  expect(screen.getAllByRole('link', { name: 'Profilo' }).length).toBeGreaterThan(1);
+  expect(list).not.toHaveBeenCalled();
+});
+
+it('disables the commands offline', async () => {
+  renderApp('/admin', { api: adminApi() });
+  const button = (await screen.findByRole('button', { name: 'Nuovo invito' })) as HTMLButtonElement;
+  expect(button.disabled).toBe(false);
+  setOnline(false);
+  await waitFor(() => expect(button.disabled).toBe(true));
+  setOnline(true);
+});
+});

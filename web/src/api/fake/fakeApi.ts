@@ -1,5 +1,5 @@
 import { createFakeAgents, createFakeAgentsData, type FakeAgent } from './fakeAgents';
-import { createFakeAppInvitations } from './fakeAppInvitations';
+import { createFakeAppInvitations, registerFakeInvitations } from './fakeAppInvitations';
 import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Department } from '@app/domain/shopping';
 import type { Locale } from '../../i18n/translate';
@@ -46,6 +46,8 @@ export interface FakeApiOptions {
   latencyMs?: number;
   /** State shared with the clients of the other languages; a fresh one when missing. */
   data?: FakeData;
+  /** Global roles of the person, replacing the demo ones (tests of the app administration). */
+  globalRoles?: ('recipe_curator' | 'app_admin')[];
 }
 
 /** What the fake backend remembers for one session: menus, recipes, ratings and the version counter. */
@@ -152,7 +154,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         email,
         locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
         // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
-        globalRoles: userId === DEMO_USER_ID ? ['recipe_curator' as const] : []
+        globalRoles: options.globalRoles ?? (userId === DEMO_USER_ID ? ['recipe_curator' as const] : [])
       },
       families: [
         { id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' },
@@ -447,7 +449,9 @@ export function createFakeApi(options: FakeApiOptions): Api {
     },
     meals: meals.api
   };
-  return withTransport(api);
+  const wrapped = withTransport(api);
+  registerFakeInvitations(wrapped, state.appInvitations!);
+  return wrapped;
 }
 
 /** Every method fails with `network` while the device is offline, before touching any data. */

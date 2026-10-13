@@ -84,14 +84,20 @@ export function createFakeAppInvitations(latencyMs = 0) {
 }
 
 type FakeArea = ReturnType<typeof createFakeAppInvitations>;
+/** The fake Api (or a wrapped area) that serves these invitations, for the test helpers below. */
+export function registerFakeInvitations(owner: object, area: FakeArea): void {
+  const rows = stores.get(area);
+  if (rows) stores.set(owner, rows);
+}
+const rowOf = (owner: object, id: string) => [...(stores.get(owner)?.values() ?? [])].find((r) => r.id === id);
 /** Tests: moves the expiry of an invitation into the past. */
-export function expireFakeInvitation(area: FakeArea | Area, id: string): void {
-  const row = [...(stores.get(area)?.values() ?? [])].find((r) => r.id === id);
+export function expireFakeInvitation(owner: FakeArea | Area | Api, id: string): void {
+  const row = rowOf(owner, id);
   if (row) row.expiresAt = new Date(Date.now() - 1000).toISOString();
 }
 /** Tests: the valid link token of an invitation. */
-export function fakeTokenOf(area: FakeArea | Area, id: string): string {
-  const row = [...(stores.get(area)?.values() ?? [])].find((r) => r.id === id);
+export function fakeTokenOf(owner: FakeArea | Area | Api, id: string): string {
+  const row = rowOf(owner, id);
   if (!row) throw new Error(`no fake invitation ${id}`);
   return row.token;
 }
