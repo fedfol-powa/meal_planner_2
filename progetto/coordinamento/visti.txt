@@ -168,3 +168,12 @@ w1:pX	STATO: PR_CORRETTA #3bb78ade
 w1:p35	REVISORE_FINITO
 w1:pX	STATO: PR_CORRETTA #0c69020f
 w1:pX	STATO: PR_CORRETTA #0c69020f
+w1:p36	STATO: DOMANDA brainstorming 1: verifica della password attuale (consigliata A) #d8e74baa
+w1:p36	STATO: DOMANDA brainstorming 2: regole della nuova password (consigliata A, minimo 8 nella SPA) #bd44d6c4
+w1:p36	STATO: DOMANDA sezione 1 del design (posizione, modulo, esiti) #13afb442
+w1:p36	STATO: DOMANDA sezione 2 del design (interfaccia, client di prova, errori) #d0e7ddba
+w1:p36	STATO: DOMANDA sezione 3 del design (test) #2e0d52a3
+w1:p36	STATO: SPEC_E_PIANO_PRONTI #5e658e13
+w1:p36	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/41 #84700966
+w1:p36	STATO: PR_CORRETTA #e3e759df
+w1:p36	STATO: PR_CORRETTA #99d91d60
