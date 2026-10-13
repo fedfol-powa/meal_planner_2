@@ -103,13 +103,13 @@ senza toccare `server/src/db-errors.ts`.
 
 | Funzione | Ruolo | Comportamento |
 |---|---|---|
-| `app.create_app_invitation(p_id uuid, p_token_hash bytea, p_email text, p_roles text[])` | `authenticated` | Richiede `app.has_role('app_admin')` (altrimenti `forbidden`). Normalizza l'email e valida i ruoli anche qui (sottoinsieme ammesso, senza doppioni). Se in `auth.users` esiste un account con quell'email (confronto in minuscolo) → `account_exists`. Se `p_id` esiste già: stesso autore e ancora `pending` → sostituisce `token_hash` (la ripetizione dà un link nuovo, il vecchio smette di valere); stessa email e ruoli richiesti; altrimenti `conflict`. Altrimenti revoca l'eventuale invito `pending` per quell'email (`revoked_by` = chi crea) e inserisce il nuovo con `expires_at = now() + 7 giorni`. Restituisce la riga |
+| `app.create_app_invitation(p_id uuid, p_token_hash bytea, p_email text, p_roles text[])` | `authenticated` | Richiede `app.has_role('app_admin')` (altrimenti `forbidden`). Normalizza l'email e valida i ruoli anche qui (sottoinsieme ammesso, senza doppioni). Se in `auth.users` esiste un account con quell'email (confronto in minuscolo) → `account_exists`. Se `p_id` esiste già: stesso autore e ancora `pending` → sostituisce `token_hash` (la ripetizione dà un link nuovo, il vecchio smette di valere); stessa email e ruoli richiesti; altrimenti errore (`invalid` nel contratto). Altrimenti revoca l'eventuale invito `pending` per quell'email (`revoked_by` = chi crea) e inserisce il nuovo con `expires_at = now() + 7 giorni`. Restituisce la riga |
 | `app.revoke_app_invitation(p_id uuid)` | `authenticated` | Richiede `app_admin`. A stato assoluto: già revocato → nessun effetto; `accepted` → `not_allowed` (`already_accepted`); inesistente → `not_found` |
 | `app.app_invitations_view()` | `authenticated` | Richiede `app_admin`. Elenco con `created_by_name` e `accepted_by_name` dai profili (che `authenticated` legge solo fra co-membri), più recenti prima |
 | `app.app_invitation_by_token(p_token_hash bytea)` | `anon` | `valid` se `pending`, non revocato, e non scaduto **oppure** già prenotato (`reserved_user_id` non nullo); altrimenti nessuna riga. Restituisce solo stato, nome di chi invita (dal profilo, o null) e ruoli; **mai l'email** |
 | `app.claim_app_invitation(p_token_hash bytea, p_email text)` | `anon` | Blocca la riga (`for update`). Non valida (inesistente, revocata, accettata, scaduta senza prenotazione) → `invitation_unavailable`. Email normalizzata diversa → `email_mismatch`. Esiste in `auth.users` un account con quell'email e id diverso da `reserved_user_id` → `account_exists`. Se `reserved_user_id` è nullo lo fissa (`gen_random_uuid()`, `reserved_at = now()`). Restituisce `reserved_user_id` ed email normalizzata. La scadenza si controlla solo prima della prenotazione |
 | `app.complete_app_invitation(p_token_hash bytea, p_user_id uuid)` | `anon` | Blocca la riga. Richiede: non revocata; `reserved_user_id = p_user_id`; in `auth.users` esiste quell'id con l'email dell'invito. Se `accepted` con `accepted_by = p_user_id` → nessun effetto, esito positivo. Altrimenti in una sola istruzione: `status = accepted`, `accepted_by`, `accepted_at`, e `insert` in `app.user_roles` dei ruoli dell'invito con `granted_by = created_by` (`on conflict do nothing`). La scadenza nel frattempo non blocca: conta la prenotazione. Qualunque requisito mancante → `invitation_unavailable` |
-| `app.create_family(p_id uuid, p_name text, p_measurement_system text, p_time_zone text)` | `authenticated` | Utente dal JWT (`auth.uid()`). Se `p_id` esiste: famiglia di cui l'utente è `family_admin` → nessun effetto; altrimenti `conflict`. Altrimenti inserisce `families` (fuso validato dal trigger esistente; il server passa già `Europe/Rome` se il fuso manca o non è valido), `family_members` con ruolo `family_admin`, e imposta `profile_preferences.current_family_id` (upsert). **Non genera settimane**: il menu nasce alla prima lettura con il `prepare` esistente di `menu.getOpening`/`getWeek` (`ensureWeeks`). Il trigger su `family_members` incrementa il contatore della famiglia |
+| `app.create_family(p_id uuid, p_name text, p_measurement_system text, p_time_zone text)` | `authenticated` | Utente dal JWT (`auth.uid()`). Se `p_id` esiste: famiglia di cui l'utente è `family_admin` → nessun effetto; altrimenti errore (`invalid` sul campo `id` nel contratto). Altrimenti inserisce `families` (fuso validato dal trigger esistente; il server passa già `Europe/Rome` se il fuso manca o non è valido), `family_members` con ruolo `family_admin`, e imposta `profile_preferences.current_family_id` (upsert). **Non genera settimane**: il menu nasce alla prima lettura con il `prepare` esistente di `menu.getOpening`/`getWeek` (`ensureWeeks`). Il trigger su `family_members` incrementa il contatore della famiglia |
 
 Le funzioni `anon` non si fidano dei parametri del Worker più dello stretto necessario:
 il token si confronta solo come impronta, l'id dell'account deve essere quello prenotato e
@@ -147,7 +147,7 @@ definer` dell'owner): ammessa; nessuna scrittura nello schema `auth`.
 
 | Operazione | Ruolo | MCP | Input → output | Errori propri |
 |---|---|---|---|---|
-| `create` | `appAdmin`, `creates` | sì | `{id, email, roles}` → `{invitation: AppInvitationView, url}` | `not_allowed` (`account_exists`), `conflict` |
+| `create` | `appAdmin`, `creates` | sì | `{id, email, roles}` → `{invitation: AppInvitationView, url}` | `not_allowed` (`account_exists`), `invalid` (id già usato con dati diversi) |
 | `list` | `appAdmin` | sì, sola lettura | `{}` → `{invitations: AppInvitationView[]}` | — |
 | `revoke` | `appAdmin` | sì | `{id}` → `{invitation: AppInvitationView}` | `not_found`, `not_allowed` (`already_accepted`) |
 | `get` | `public`, `rateLimit: 'read'` | no | `{token}` → `{invitedBy: string \| null, roles}` | `invitation_unavailable`, `rate_limited` |
@@ -325,8 +325,7 @@ Nel layout dell'app; nella barra in basso resta attivo Profilo. Senza `app_admin
 
 - «Nuovo invito» apre un foglio (`BottomSheet`): Email, caselle «Curatore del ricettario»
   e «Amministratore dell'app», «Crea il link». Dopo la creazione il foglio mostra il link
-  con `CopyField` (da `features/agents`, spostato in `components/` con una modifica
-  minima) e «Condividi» (Web Share API, se presente), più la nota «Il link si vede solo
+  con `CopyField` (importato da `features/agents` così com'è) e «Condividi» (Web Share API, se presente), più la nota «Il link si vede solo
   ora: se lo perdi, crea un nuovo link». `account_exists`: «Questa email ha già un
   account» (con B diventerà un collegamento all'utente).
 - Elenco: email, ruoli come etichette («nessun ruolo» se vuoto), stato con data («Scade
@@ -492,7 +491,7 @@ migrazione e i test pgTAP nuovi, `scripts/invitations/`.
 `server/test/support/requests.ts`, `web/src/router.tsx`, `web/src/routes/search.ts`,
 `web/src/components/FamilyGate.tsx`, `web/src/routes/MenuPage.tsx`,
 `web/src/routes/ProfilePage.tsx`, `web/src/i18n/messages/index.ts` ed `errors.ts`,
-`web/src/api/fake/`, `web/public/_headers`, `features/agents/CopyField.tsx` (spostato),
+`web/src/api/fake/`, `web/public/_headers`,
 `.github/workflows/ci.yml` (passo dello stack degli inviti). Da approvare dal
 coordinatore: `supabase/config.toml`, `web/src/test/stack.ts`,
 `scripts/oauth/agents-e2e.mjs` (iscrizioni spente in locale).
