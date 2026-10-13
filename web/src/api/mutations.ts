@@ -4,8 +4,10 @@ import type { Session } from '../session/session';
 import { familyOfKey } from './queries';
 import type { MealActionResult } from './types';
 
-/** The view a mutation answers with: the profile, one of the versioned views of a family, or a week of the menu. */
-export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week';
+/** The view a mutation answers with: the profile, one of the versioned views of a family, a week of the menu, or the app invitations. */
+export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations';
+/** The targets whose answer is written in the cache; `appInvitations` only makes the list stale. */
+type CachedTarget = Exclude<MutationTarget, 'appInvitations'>;
 type Scope = 'all' | 'profile' | { area: string; operation?: string };
 
 export interface Invalidation {
@@ -33,6 +35,11 @@ export const INVALIDATIONS = {
   'profile.updateName': { target: 'profile', stale: ['all'] },
   'profile.updateLocale': { target: 'profile', stale: [] },
   'profile.setCurrentFamily': { target: 'profile', stale: [] },
+  // The answer is the profile with the new family shown (spec W9).
+  'family.create': { target: 'profile', stale: [] },
+  // Not written in the cache: the list is read again; the link only reaches a session still open.
+  'appInvitations.create': { target: 'appInvitations', stale: [] },
+  'appInvitations.revoke': { target: 'appInvitations', stale: [] },
   'family.rename': { target: 'family', stale: ['profile'] },
   'family.setMeasurementSystem': {
     target: 'family',
@@ -60,14 +67,14 @@ export const INVALIDATIONS = {
 } as const satisfies Record<string, Invalidation>;
 export type MutationName = keyof typeof INVALIDATIONS;
 
-const TARGET_KEY: Record<Exclude<MutationTarget, 'profile'>, [string, string]> = {
+const TARGET_KEY: Record<Exclude<CachedTarget, 'profile'>, [string, string]> = {
   family: ['family', 'get'],
   settings: ['family', 'getSettings'],
   exclusions: ['family', 'listExclusions'],
   week: ['menu', 'getWeek']
 };
 
-const targetKey = (target: MutationTarget, familyId: string | undefined, locale: string, weekStartsOn?: string) =>
+const targetKey = (target: CachedTarget, familyId: string | undefined, locale: string, weekStartsOn?: string) =>
   target === 'profile'
     ? ['profile', 'get', { locale }]
     : target === 'week'
@@ -101,7 +108,7 @@ export interface ApplyOptions {
  * The same view in another language: same area, operation, family and, for a week, Monday
  * (PR #21 review, finding 2).
  */
-function sameView(target: MutationTarget, familyId: string | undefined, weekStartsOn?: string) {
+function sameView(target: CachedTarget, familyId: string | undefined, weekStartsOn?: string) {
   const [area, operation] = target === 'profile' ? ['profile', 'get'] : TARGET_KEY[target];
   return (query: Query) =>
     query.queryKey[0] === area &&
@@ -116,6 +123,13 @@ function sameView(target: MutationTarget, familyId: string | undefined, weekStar
  */
 export async function applyMutation(queryClient: QueryClient, options: ApplyOptions): Promise<boolean> {
   const { target, stale } = INVALIDATIONS[options.name] as Invalidation;
+  if (target === 'appInvitations') {
+    // Not written: the list is read again for every answer, also a superseded one. Only a
+    // closed session drops it; showing a link is the sheet's decision (its own attempt).
+    if (!options.sessionOpen()) return false;
+    void queryClient.invalidateQueries({ queryKey: ['appInvitations'] });
+    return true;
+  }
   const key = JSON.stringify(targetKey(target, options.familyId, options.locale, options.weekStartsOn));
   const isTarget = (query: Query) => JSON.stringify(query.queryKey) === key;
   // The answer is in the language it was sent in: the other languages of the view are only made stale.
@@ -173,7 +187,7 @@ export interface MutationOutcome<T> {
  */
 export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName, familyId: string | undefined, call: () => Promise<T>): Promise<MutationOutcome<T>> {
   const { target } = INVALIDATIONS[name] as Invalidation;
-  const trackKey = target === 'profile' ? 'profile' : `${target}:${familyId}`;
+  const trackKey = target === 'profile' || target === 'appInvitations' ? target : `${target}:${familyId}`;
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
   const view = await call();
