@@ -209,7 +209,12 @@ ritorno in primo piano che arriva dopo la risposta del worker.
     di `backend.signOut()`);
   - scrittura del record della coda della spesa (`mutate` in `queue.ts`, dall'inizio della
     transazione IndexedDB alla sua fine). `add` si chiama solo dopo che la coda è stata letta,
-    quindi la sua attesa iniziale è già risolta e non apre finestre;
+    quindi la sua attesa iniziale è già risolta e non apre finestre. Fa eccezione la presa della
+    testa della coda prima dell'invio (`takeHead`): la coda la esegue a ogni ritorno in primo
+    piano, quasi sempre su una coda vuota, e contarla faceva perdere il passaggio quando la
+    risposta del worker arrivava durante quella breve transazione (trovato nella prova nel
+    browser). Una coda con operazioni è già occupata tramite il controllo del provider, e una
+    presa interrotta lascia l'operazione in coda, inviata di nuovo con lo stesso identificativo;
 - un registro di controlli, `registerBusyCheck` (hook `useBusyCheck`), per lo stato che dura:
   - `SessionScope`: `session.queryClient.isMutating() > 0`;
   - `UndoProvider`: un «Annulla» offerto;
@@ -305,8 +310,8 @@ schema `'1'`.
   trattenuto; cambio della lingua trattenuto; uscita con la **pulizia trattenuta** e poi con
   `backend.signOut()` trattenuto; scrittura del record della coda trattenuta (operazioni ancora
   vuote: protegge solo `trackBusy` di `mutate`); coda con operazioni e nessuna transazione in
-  corso (protegge solo il controllo del provider); libera senza nulla di questo; pagina di login
-  libera. Prove di rottura: togliere la protezione di una finestra fa fallire il test di quella
+  corso (protegge solo il controllo del provider); la lettura della coda vuota al ritorno in
+  primo piano non conta; libera senza nulla di questo; pagina di login libera. Prove di rottura: togliere la protezione di una finestra fa fallire il test di quella
   finestra.
 - **Copia e sessione:**
   - persister: una copia con `buster` `'1'` si ripristina; una con data ISO (A₀) si ripristina
@@ -348,7 +353,12 @@ Passi:
    funziona; servita la build intera, al ritorno successivo passa;
 8. rete spenta e riapertura: shell dalla cache, lista della spesa visibile.
 
-La procedura è ripetibile a mano; gli esiti vanno nella descrizione della PR. Gli eventi
+La procedura è ripetibile a mano; gli esiti vanno nella descrizione della PR. Le build della
+prova si fanno con `vite build --mode <altro>`, perché `web/.env.production` è nel repository e
+`npm run build` produrrebbe build in modalità vera. Il backend finto tiene i dati nella memoria
+della pagina: dopo un ricaricamento la lista riparte dai dati dimostrativi, quindi al passo 6 si
+verifica che la voce sia spuntata e la coda vuota sul dispositivo prima del passaggio, non dopo;
+la conservazione degli identificativi fra versioni la prova il test `survives-update`. Gli eventi
 sintetici di `visibilitychange` non riproducono sospensione e ripresa di iOS.
 
 ### Da provare a mano sull'iPhone (lo fa l'utente dopo il rilascio)
