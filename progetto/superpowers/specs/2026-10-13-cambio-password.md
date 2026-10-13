@@ -87,10 +87,18 @@ sorgente di `supabase/auth` v2.197.0 (la versione dello stack locale): `internal
    solo l'opzione di produzione (non provabile in locale e silenziosamente assente se spenta)
    e nessuna verifica (il brief chiede la password attuale).
 2. **Tutto legato alla sessione catturata all'inizio** (review, rilievo 1, bloccante). Il metodo
-   legge una sola volta la sessione del dispositivo (id utente, email, access token) e fa il
-   cambio con **quell'access token**. Prima e dopo il cambio controlla che sul dispositivo ci
-   sia ancora lo stesso utente; se no, non manda il cambio (prima) o non tocca lo stato
-   locale (dopo) e risponde con un esito neutro, `account_changed`.
+   legge una sola volta la sessione del dispositivo (id utente, id della sessione, email,
+   access token) e fa il cambio con **quell'access token**. L'id della sessione è il claim
+   `session_id` dell'access token: resta uguale nei rinnovi, cambia con un nuovo accesso
+   anche dello stesso utente (review della PR #41, rilievo 1: con S1 sostituita da S2 dello
+   stesso utente, il cambio con S1 farebbe chiudere S2 a Supabase). Prima del cambio ogni
+   lettura ha tre esiti distinti (rilievo 2): **identità cambiata** (altro utente o altra
+   sessione) → `account_changed`; **non verificabile** (rinnovo bloccato dalla rete) →
+   `network`; **sessione terminata** (uscita o rinnovo rifiutato) → `session_expired`; in
+   tutti e tre il cambio non parte. **Un cambio confermato dal server è un successo**: nessuna
+   lettura successiva lo trasforma in interruzione; se nel frattempo l'utente mostrato è
+   cambiato, la pagina scarta l'esito (`shown !== asker`). Un cambio rifiutato dopo che il
+   dispositivo è passato a un'altra identità dà `account_changed`.
 3. **Tre richieste dirette a Supabase Auth, senza client supabase-js per la prova** (review,
    rilievi 1–3). `POST /auth/v1/token?grant_type=password` (verifica),
    `POST /auth/v1/logout?scope=local` con il token della prova (revoca della prova),
@@ -230,29 +238,35 @@ Modulo nuovo `web/src/auth/passwordChangeRequests.ts`, con `fetch` iniettabile, 
 0. **Cattura.** `auth.getSession()` una volta sola. Prima si guarda l'errore, come fa già
    `check()` in `supabaseBackend.ts`: errore ritentabile di rete → `network` (il rinnovo non
    si può fare ora, la sessione resta salvata); altro errore o nessuna sessione →
-   `session_expired`. Si conservano id utente, email e access token.
+   `session_expired`. Si conservano id utente, id della sessione (`session_id` del token,
+   letto da `sessionIdOf`; un token senza è trattato come nessuna sessione), email e access
+   token.
 1. **Verifica.** `POST /auth/v1/token?grant_type=password` con `apikey`, intestazione della
-   versione dell'API ed `{ email, password: current }`. Errore → esito della tabella (passo
-   `verify`). Successo → si conserva solo l'access token della prova.
+   versione dell'API ed `{ email, password: current }`. Errore → esito della tabella.
+   Successo → si conserva solo l'access token della prova.
 2. **Revoca della prova.** `POST /auth/v1/logout?scope=local` con `Authorization: Bearer
    <token della prova>`; se fallisce, un secondo tentativo subito. Gli esiti non cambiano
    l'esito del cambio (limite noto, scelta 4).
-3. **Controllo dell'identità.** Nuova `auth.getSession()`: se l'utente non c'è più o è un altro,
-   `account_changed` senza mandare il cambio. Lettura locale: nessuna chiamata di rete salvo
-   il rinnovo che supabase-js farebbe comunque.
+3. **Controllo dell'identità.** Nuova `auth.getSession()`, con gli esiti della cattura più
+   uno: stesso utente e stesso id di sessione (anche con un token rinnovato) → si prosegue;
+   altro utente o altra sessione → `account_changed`; errore di rete → `network`; uscita o
+   rinnovo rifiutato → `session_expired`. Negli ultimi tre il cambio non parte. Lettura
+   locale: nessuna chiamata di rete salvo il rinnovo che supabase-js farebbe comunque.
 4. **Cambio.** `PUT /auth/v1/user` con `apikey`, `Authorization: Bearer <token catturato>` e
-   `{ password: next, current_password: current }`. Errore → esito della tabella (passo
-   `update`).
-5. **Controllo finale.** Se dopo il cambio sul dispositivo c'è un altro utente o nessuno,
-   `account_changed` (il cambio può essere avvenuto sull'account che l'ha chiesto, che lo
-   scoprirà al prossimo accesso: l'esito resta neutro); altrimenti l'esito del passo 4.
+   `{ password: next, current_password: current }`. Il token resta quello catturato anche se
+   il client ne ha nel frattempo uno rinnovato. Successo → **esito riuscito**, senza altre
+   letture.
+5. **Dopo un rifiuto.** Una lettura: se il dispositivo è passato a un altro utente o a
+   un'altra sessione, `account_changed` (il rifiuto riguarda una sessione non più mostrata);
+   altrimenti, anche se la lettura non riesce, l'esito della tabella per la risposta del
+   passo 4.
 
 Sul server, un'uscita da un'altra scheda chiude la sessione del token catturato (`signOut`
 con scope `local`): un cambio partito dopo riceve `session_not_found` e non tocca nulla.
 
 ### Errori
 
-`changePasswordFailure(error, step)`, funzione pura, testata come `signInFailure`. `error` è
+`changePasswordFailure(error)`, funzione pura, testata come `signInFailure`. `error` è
 `{ code?: string; status?: number; name?: string; reasons?: string[] }`: per le risposte HTTP
 `code` viene da `x-sb-error-code` o dal corpo, `reasons` da `weak_password.reasons`; un
 `fetch` che lancia dà `{ name: 'TypeError', status: 0 }`.
@@ -261,15 +275,14 @@ con scope `local`): un cambio partito dopo riceve `session_not_found` e non tocc
 |---|---|
 | eccezione di `fetch` (`status` 0), `AuthRetryableFetchError` | `network` |
 | 429, `over_request_rate_limit` | `rate_limited` |
-| `current_password_mismatch` | `current_invalid` |
-| passo `verify`: `invalid_credentials` o 400 | `current_invalid` |
+| `current_password_mismatch`, `invalid_credentials` | `current_invalid` |
 | `weak_password` con `characters` fra i motivi | `weak_characters` |
 | `weak_password` con solo `length` | `weak_length` |
 | `weak_password` con altri motivi (per esempio `pwned`) | `weak` |
 | `same_password` | `same_password` |
 | `reauthentication_needed` | `reauthentication_needed` |
 | `AuthSessionMissingError`, 401, `session_not_found`, `refresh_token_not_found`, `bad_jwt` | `session_expired` |
-| altro (compreso `validation_failed`, che la SPA previene) | `unknown` |
+| altro, compresi `validation_failed` (che la SPA previene) e gli altri 400 della verifica (`user_banned`, `email_not_confirmed`…: non riguardano la password) | `unknown` |
 
 ### Validazione del modulo
 
@@ -337,21 +350,30 @@ mappatura di `current_password_mismatch` è già coperta dai test.
 - `passwordChangeRequests.test.ts`, con `fetch` finto e `getSession` finta:
   - `changePasswordFailure` per ogni riga della tabella;
   - richieste esatte: percorsi, intestazioni (`apikey`, versione dell'API, `Authorization`
-    col token giusto) e corpi; il cambio usa il token catturato, non quello del momento;
+    col token giusto) e corpi; il cambio usa il token catturato, non quello del momento:
+    con la stessa sessione rinnovata durante la verifica (token nuovo, stesso `session_id`)
+    il cambio parte con l'header catturato (la prova fallisce se il `PUT` rilegge il token);
+  - `sessionIdOf`: claim letto da un token base64url senza padding, `null` senza claim o con
+    un token illeggibile;
   - password attuale errata: nessun cambio e nessuna revoca (non c'è sessione di prova);
   - revoca della prova: inviata con il token della prova; un fallimento la ritenta una volta;
     il doppio fallimento non cambia l'esito;
   - `getSession()` con errore di rete → `network`; con errore definitivo o senza sessione →
     `session_expired`; in entrambi i casi nessuna richiesta;
   - **cambio d'account A→B durante la verifica sospesa**: nessun `PUT` parte, esito
-    `account_changed`; **uscita** durante la verifica: stesso esito; **cambio d'account
-    durante il `PUT` sospeso**: esito `account_changed`; in ogni caso nessuna richiesta porta
-    il token di B;
+    `account_changed`, nessuna richiesta porta il token di B; **nuova sessione S2 dello
+    stesso utente**: stesso esito; **uscita** o rinnovo rifiutato durante la verifica:
+    `session_expired` senza `PUT`; **errore di rete** nella lettura prima del cambio:
+    `network` senza `PUT`;
+  - **durante il `PUT` sospeso**: cambio riuscito → successo anche se il dispositivo è
+    passato a B o la lettura non riesce; cambio rifiutato → `account_changed` se il
+    dispositivo è passato a B o a S2, l'esito del server se la lettura non riesce;
   - corpi d'errore nei due formati (codice nel corpo o solo nell'intestazione) e risposta non
     JSON.
 - `supabaseBackend.test.ts`: `changePassword` del backend usa la sessione del client del
   dispositivo e non chiama `updateUser`, `signInWithPassword` né `signOut` del client del
-  dispositivo; archivio del dispositivo identico dopo un fallimento.
+  dispositivo; archivio del dispositivo identico dopo un fallimento; un token senza
+  `session_id` dà `session_expired` senza richieste.
 - `PasswordPage.test.tsx`, con `stubBackend`: nomi accessibili dei campi uguali prima e dopo
   gli errori, suggerimento ed errori collegati con `aria-describedby`, errori per campo,
   pulsante disattivato offline e durante l'invio, un solo invio con doppio tocco e Invio,
@@ -364,7 +386,11 @@ mappatura di `current_password_mismatch` è già coperta dai test.
 **Sullo stack locale, backend reale** (`changePassword.stack.test.ts`, in CI dopo la prova
 degli agenti). Ogni prova crea un utente suo con la registrazione (iscrizioni locali accese),
 **usa la sessione della registrazione come sessione del dispositivo**, chiude
-esplicitamente ogni altro accesso che apre e alla fine cancella gli utenti creati. Le
+esplicitamente ogni altro accesso che apre e alla fine cancella gli utenti creati. Il
+backend di ogni prova nasce dalla fixture (`env.backend()`, client Auth costruito con
+`createAuthClient`, lo stesso dell'app) e dopo ogni prova il suo client è smaltito
+(`auth.dispose()`: ascoltatori e rinnovo automatico), prima che l'archivio venga riusato;
+nella suite della pagina prima si smonta l'app, poi si smaltisce il client. Le
 sessioni si confrontano per id (`session_id` dei token), non solo per numero:
 
 - cambio riuscito: la nuova entra, la vecchia no; in `auth.sessions` resta esattamente la
@@ -385,10 +411,15 @@ jsdom, la stessa CI): l'app montata con `renderApp`, il backend Supabase vero e 
 
 - cambio riuscito: messaggio, identità invariata, sessione salvata sul dispositivo identica;
 - password attuale errata: messaggio sul campo;
-- rifiuto del server: con il minimo locale uguale a quello della SPA, password debole e
-  uguale non sono raggiungibili dal modulo; il rifiuto del server provato dalla pagina è la
-  password attuale errata (risposta del server al passo di verifica), mentre `weak_length` e
-  `same_password` sono provati sul backend reale (sopra) e sulla pagina con lo stub;
+- rifiuto della **nuova** password da parte del server: con regole locali uguali a quelle
+  della SPA nessuna password accettata dal modulo è rifiutata dal server, e cambiare
+  `config.toml` toccherebbe le altre prove. La prova passa quindi al backend un `fetch` che
+  inoltra tutto allo stack e sostituisce solo nel `PUT /auth/v1/user` la nuova password con
+  una sotto il minimo del server (6 caratteri): la risposta `weak_password` è quella vera
+  del server. Si verificano messaggio sul campo «Nuova password», `aria-invalid` solo lì,
+  campi conservati, archivio del dispositivo identico, sola sessione del dispositivo in
+  `auth.sessions` e password invariata. La password attuale errata (sopra) è un rifiuto del
+  passo di verifica, distinto da questo;
 - sessione revocata: messaggio, «Accedi di nuovo», pagina di accesso, dati della sessione
   cancellati dall'archivio.
 
@@ -434,7 +465,8 @@ l'icona `lock`. Nessuna dipendenza nuova.
 - Verifica della password attuale nella SPA con un accesso di prova diretto
   (`/auth/v1/token`), revocato con il suo token (un nuovo tentativo; limite noto con la rete
   assente), poi cambio con `PUT /auth/v1/user` e il token della sessione catturata
-  all'inizio, con controllo dell'identità prima e dopo; il server riverifica la password
+  all'inizio, con controllo dell'identità (utente e `session_id`) prima del cambio e dopo un
+  rifiuto, mai dopo un successo; il server riverifica la password
   attuale solo con l'opzione accesa, che la CLI non esprime in `config.toml`. Sezioni 1 e 7.
 - Metodo `changePassword` di `AuthBackend` ed esiti tradotti; il cambio non passa dal client
   supabase-js e non emette eventi, `session_expired` porta all'uscita comune con un pulsante.
