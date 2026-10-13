@@ -24,6 +24,8 @@ export interface RequestContext {
 	verify(token: string): Promise<Claims>;
 	deployId: string;
 	state: RequestState;
+	/** CF-Connecting-IP, the key of the public limiters. */
+	clientIp: string;
 	/** Current time; tests replace it. The pipeline reads it once per request into `now`. */
 	clock?: () => Date;
 }
@@ -39,6 +41,22 @@ export interface OperationContext extends RequestContext {
 	/** Set for versioned reads: handlers return `fresh(context, view)`. */
 	version?: string;
 }
+
+/** Context of a `public` operation: no user, no transaction held by the pipeline (spec W9). */
+export interface PublicOperationContext extends RequestContext {
+	public: true;
+	now: Date;
+	/** One short `anon` transaction, opened and closed here: nothing stays busy while the handler waits on Auth. */
+	anonDb<T>(work: (tx: Tx) => Promise<T>): Promise<T>;
+}
+
+/** The context of a public handler; throws when used by a signed-in operation. */
+export function publicContext(context: unknown): PublicOperationContext {
+	if ((context as { public?: unknown }).public !== true) throw new Error('publicContext() used outside a public operation');
+	return context as PublicOperationContext;
+}
+
+const LIMITERS = { read: 'INVITE_READ_LIMIT', accept: 'INVITE_ACCEPT_LIMIT' } as const;
 
 export function webOnlyUrl(origin: string, path: string, input: unknown): string {
 	const values = (input ?? {}) as Record<string, unknown>;
@@ -79,7 +97,8 @@ export interface ImplementerOptions {
  * Implementer shared by every operation. Input is validated first and output last
  * (validation indexes around all middleware); in between: token and claims, transaction
  * as the user, profile and session, web-only check, role, prepare, version; the handler runs
- * inside the transaction.
+ * inside the transaction. Public operations: limiter, then the handler opens its own short
+ * anon transactions (no token read, no transaction of the pipeline).
  */
 export function createImplementer<C extends AnyContractRouter>(contract: C, options: ImplementerOptions = {}) {
 	// With a generic contract the implementer is a deferred conditional type: name the
@@ -94,6 +113,18 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 		.$context<RequestContext>() as unknown as RouterImplementer<C, RequestContext, RequestContext>;
 	return base.use<OperationContext>(async ({ context, procedure, path, next }, input) => {
 		const meta = procedure['~orpc'].meta as OperationMeta;
+		if (meta.role === 'public') {
+			// Before any database access; the token, if any, is never read (spec W9).
+			const limiter = context.env[LIMITERS[meta.rateLimit!]];
+			if (!(await limiter.limit({ key: context.clientIp })).success) throw appError('rate_limited');
+			const operation: PublicOperationContext = {
+				...context,
+				public: true,
+				now: context.clock?.() ?? new Date(),
+				anonDb: (work) => withDb(context.env.HYPERDRIVE.connectionString, { kind: 'anon' }, work),
+			};
+			return next({ context: operation as unknown as OperationContext });
+		}
 		const claims = await authenticate(context);
 		const channel = channelOf(claims);
 		return withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {

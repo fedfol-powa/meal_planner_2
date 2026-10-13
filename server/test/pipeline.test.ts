@@ -2,13 +2,16 @@ import { checkContract } from '@app/contract';
 import { call, ORPCError } from '@orpc/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { KeySourceError } from '../src/auth.ts';
+import type { Tx } from '../src/db.ts';
 import { mapErrors } from '../src/errors.ts';
-import type { RequestContext } from '../src/pipeline.ts';
+import { publicContext, type RequestContext } from '../src/pipeline.ts';
+import { checkRole } from '../src/permissions.ts';
 import { router } from '../src/router.ts';
 import { contextFor } from './support/context.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
-import { preparedCalls, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
+import { refuseAll } from './support/requests.ts';
+import { preparedCalls, setPublicProbe, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
 
 let keys: TestKeys;
 beforeAll(async () => {
@@ -226,4 +229,52 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 		const again = await call(testRouter.test.familyView, { familyId: a, knownVersion: viewA.version }, options(await asUser(user)));
 		expect(again).toEqual({ unchanged: true, version: viewA.version });
 	});
+});
+
+describe.skipIf(!hasDatabase)('public operations', () => {
+	let db: TestDatabase;
+	beforeAll(async () => {
+		db = await setupDatabase();
+	});
+	afterAll(() => db?.close());
+
+	const openAppServerTransactions = async () =>
+		(await db.admin<{ n: number }[]>`
+			select count(*)::int as n from pg_stat_activity where usename = 'app_server' and xact_start is not null`)[0]!.n;
+
+	it('run as anon without a token and without a transaction of the pipeline', async () => {
+		setPublicProbe(openAppServerTransactions);
+		const result = await call(testRouter.test.open, { echo: 'hi' }, options(contextFor(keys, undefined, db.appServerUrl)));
+		expect(result).toEqual({ echo: 'hi', role: 'anon', openAtProbe: 0 });
+	});
+	it('the probe sees a transaction held around it (counter-check)', async () => {
+		setPublicProbe(openAppServerTransactions);
+		const result = await call(testRouter.test.open, { echo: 'hi', nested: true }, options(contextFor(keys, undefined, db.appServerUrl)));
+		expect(result.openAtProbe).toBe(1);
+	});
+	it('ignore a token, even an invalid one', async () => {
+		const result = await call(testRouter.test.open, { echo: 'x' }, options(contextFor(keys, 'not-a-jwt', db.appServerUrl)));
+		expect(result.role).toBe('anon');
+	});
+	it('answer rate_limited before touching the database', async () => {
+		const context = contextFor(keys, undefined); // unreachable database
+		context.env.INVITE_READ_LIMIT = refuseAll;
+		expect((await errorOf(call(testRouter.test.open, { echo: 'x' }, options(context)))).code).toBe('rate_limited');
+	});
+	it('key the limiter on the client IP', async () => {
+		const seen: string[] = [];
+		const context = contextFor(keys, undefined, db.appServerUrl);
+		context.clientIp = '203.0.113.7';
+		context.env.INVITE_READ_LIMIT = { limit: async ({ key }) => (seen.push(key), { success: true }) };
+		await call(testRouter.test.open, { echo: 'x' }, options(context));
+		expect(seen).toEqual(['203.0.113.7']);
+	});
+});
+
+it('publicContext refuses a signed-in context', () => {
+	expect(() => publicContext({ userId: 'x' })).toThrow();
+});
+
+it('checkRole refuses the public role: it never reaches the signed-in checks', async () => {
+	await expect(checkRole({} as Tx, 'public', {})).rejects.toThrow('public operation');
 });
