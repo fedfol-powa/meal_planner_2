@@ -7,7 +7,7 @@ import { useOnline } from '../../components/OfflineBanner';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../../i18n/messages';
 import { trackBusy } from '../../pwa/busy';
-import { useChooseLocale, useSession, useSignOut } from '../../session/SessionScope';
+import { useChooseLocale, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import { invitationClient } from './client';
 import styles from './InvitePage.module.css';
@@ -40,7 +40,6 @@ export function InvitePage() {
   const chooseLocale = useChooseLocale();
   const { state, backend } = useAuth();
   const signOut = useSignOut();
-  const session = useSession();
   const router = useRouter();
   const online = useOnline();
   const token = useRouterState({ select: (s) => s.location.hash });
@@ -107,7 +106,7 @@ export function InvitePage() {
 
   async function submit(event: FormEvent, roles: GlobalRole[]) {
     event.preventDefault();
-    if (sending.current || !signedOut.current || session.isClosed()) return;
+    if (sending.current || !signedOut.current) return;
     const errors = localErrors();
     setFieldErrors(errors);
     setFormError(null);
@@ -115,12 +114,16 @@ export function InvitePage() {
     sending.current = true;
     setBusy(true);
     const mine = generation.current;
-    // SessionScope closes this (signed-out) session synchronously when Supabase reports a sign-in,
-    // before React re-renders: an answer arriving right after it is already stale.
-    const of = session;
+    // A sign-in reported meanwhile (another tab) ends the attempt at once, before React re-renders.
+    // Watched here, not through the signed-out session: Supabase may report the account just
+    // closed once more while ending it, and that must not block the form.
+    let foreign = false;
+    const stopWatching = backend.onChange((event) => {
+      if (event.user) foreign = true;
+    });
     const { password } = values;
     // Before the sign-in: same page, same link, still nobody signed in.
-    const current = () => generation.current === mine && signedOut.current && !of.isClosed();
+    const current = () => generation.current === mine && signedOut.current && !foreign;
     // After our own sign-in the identity changes on purpose: only page and link still count.
     const onThisLink = () => router.history.location.pathname === '/invite/app' && fragment(router.history.location.hash) === token;
     // Busy until the answer is handled, the sign-in included (spec W8).
@@ -129,11 +132,14 @@ export function InvitePage() {
         try {
           const { email } = await invitationClient.accept({ token, email: values.email.trim(), displayName: values.name.trim(), password, locale });
           if (!current()) return; // left, another link, or someone signed in meanwhile: no sign-in
+          stopWatching(); // our own sign-in follows
           const result = await backend.signIn(email, password);
           if (!onThisLink()) return;
           if (result.ok) {
+            // Supabase reports the new session after signIn() resolves (and the page may be remounted
+            // then): the sign-in route forwards to the wizard once the app sees the session.
             const granted = roles.length ? `?granted=${roles.join(',')}` : '';
-            await router.navigate({ href: `/family/new${granted}`, replace: true });
+            await router.navigate({ to: '/login', search: { redirect: `/family/new${granted}` }, replace: true });
           } else setPhase({ kind: 'signInFailed', email });
         } catch (error) {
           if (!current()) return;
@@ -146,6 +152,7 @@ export function InvitePage() {
           else if (failure.code === 'not_allowed') setFormError({ kind: 'accountExists', email: values.email.trim() });
           else setFormError({ kind: 'message', key: errorKey(error) });
         } finally {
+          stopWatching();
           sending.current = false;
           setBusy(false);
         }

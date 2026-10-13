@@ -37,6 +37,22 @@ describe('/invite/app', () => {
     await waitFor(() => expect(history.location.pathname).toBe('/family/new'));
   });
 
+  it('opens the wizard also when the sign-in is reported after it resolves (Supabase)', async () => {
+    setInvitationClient(valid({ get: vi.fn(async () => ({ invitedBy: 'Federico', roles: ['recipe_curator'] })) }));
+    const backend = createStubBackend({ id: 'user-federico', email: 'federico@example.com' });
+    vi.spyOn(backend, 'signIn').mockImplementation(async (email) => {
+      setTimeout(() => backend.setUser({ id: 'user-giulia', email }), 20);
+      return { ok: true };
+    });
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    // After «Esci e continua», as from WhatsApp with the administrator's session open.
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(history.location.pathname).toBe('/family/new'));
+    expect(history.location.search).toContain('recipe_curator');
+  });
+
   it('one message for every unusable link', async () => {
     setInvitationClient(valid({ get: vi.fn(async () => { throw new ApiError('invitation_unavailable'); }) }));
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
@@ -82,6 +98,31 @@ describe('/invite/app', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
     expect(await screen.findByLabelText('Email')).toBeTruthy();
     expect(history.location.hash).toBe(`#${TOKEN}`);
+  });
+
+  it('after «Esci e continua» the form sends', async () => {
+    const client = valid();
+    setInvitationClient(client);
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend({ id: 'user-federico', email: 'federico@example.com' }) });
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(client.accept).toHaveBeenCalled());
+  });
+
+  it('a late event of the account just closed does not block the form', async () => {
+    const client = valid();
+    setInvitationClient(client);
+    const backend = createStubBackend({ id: 'user-federico', email: 'federico@example.com' });
+    renderApp(`/invite/app#${TOKEN}`, { backend });
+    const endSignOut = backend.holdSignOut();
+    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
+    await screen.findByLabelText('Email');
+    // Supabase can report the closing session once more while it ends it.
+    backend.emit('TOKEN_REFRESHED', { id: 'user-federico', email: 'federico@example.com' });
+    endSignOut();
+    fill();
+    await waitFor(() => expect(client.accept).toHaveBeenCalled());
   });
 
   it('after a reload of a used link, the page says it is no longer valid and offers sign-in', async () => {
