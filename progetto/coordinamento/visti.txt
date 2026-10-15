@@ -217,3 +217,4 @@ w1:p3V	STATO: DOMANDA brainstorming 3/3, conferme via MCP (consigliata A) #fb8b3
 w1:p3V	STATO: DOMANDA design sezioni 1-2 (database; contratto, server e MCP) #b430da05
 w1:p3V	STATO: DOMANDA design sezione 3 (web e test) #7fbf4c0a
 w1:p3V	STATO: SPEC_E_PIANO_PRONTI #f09a2958
+w1:p3V	STATO: SPEC_E_PIANO_CORRETTI #e0a89344
