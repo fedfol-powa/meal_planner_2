@@ -3,7 +3,7 @@ import { useT } from '../i18n/LocaleProvider';
 import { rememberedMenuDay } from '../routes/menu/lastDay';
 import { Icon } from './Icon';
 
-const underProfile = (pathname: string) => pathname === '/admin' || pathname === '/family/new';
+const underProfile = (pathname: string) => pathname === '/admin' || pathname.startsWith('/admin/') || pathname === '/family/new';
 
 export function BottomNav() {
   const t = useT();

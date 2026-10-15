@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { expireFakeInvitation, fakeTokenOf } from '../../api/fake/fakeAppInvitations';
 import { createFakeApi } from '../../api/fake/fakeApi';
+import { FAKE_GUEST_ID } from '../../api/fake/fakeUsers';
+import { DEMO_USER_ID } from '../../api/fake/seed';
 import { setOnline } from '../../test/connectivity';
 import { renderApp } from '../../test/renderApp';
 
@@ -150,6 +152,73 @@ it('says when the email already has an account', async () => {
   fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'gia@x.it' } });
   fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
   expect(await within(sheet).findByText('Questa email ha già un account')).toBeTruthy();
+});
+
+it('turns «Questa email ha già un account» into a link to the user (fake mode answers account_exists)', async () => {
+  const { history } = renderApp('/admin', { api: adminApi() });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'OSPITE@example.com' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  expect(await within(sheet).findByText('Questa email ha già un account')).toBeTruthy();
+  fireEvent.click(await within(sheet).findByRole('link', { name: 'Apri l’utente' }));
+  await waitFor(() => expect(history.location.pathname).toBe(`/admin/users/${FAKE_GUEST_ID}`));
+});
+
+it('keeps only the text when the user cannot be found', async () => {
+  const api = adminApi();
+  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
+  vi.spyOn(api.users, 'list').mockResolvedValue({ users: [], more: false });
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'altro@example.com' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  expect(await within(sheet).findByText('Questa email ha già un account')).toBeTruthy();
+  await new Promise((r) => setTimeout(r, 20));
+  expect(within(sheet).queryByRole('link', { name: 'Apri l’utente' })).toBeNull();
+});
+
+it('links the user of the latest attempt even when the searches answer in reverse order, and drops the link when the email changes', async () => {
+  const api = adminApi();
+  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
+  const answers = new Map<string, (value: { users: { id: string; displayName: string; email: string; roles: [] }[]; more: boolean }) => void>();
+  vi.spyOn(api.users, 'list').mockImplementation((input) => new Promise((resolve) => answers.set(input.query ?? '', resolve)));
+  const row = (id: string, email: string) => ({ users: [{ id, displayName: email, email, roles: [] as [] }], more: false });
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  const field = within(sheet).getByLabelText('Email');
+  fireEvent.change(field, { target: { value: 'a@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  await waitFor(() => expect(answers.has('a@x.it')).toBe(true));
+  fireEvent.change(field, { target: { value: 'b@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  await waitFor(() => expect(answers.has('b@x.it')).toBe(true));
+  answers.get('b@x.it')!(row('00000000-0000-4000-8000-0000000000b0', 'b@x.it'));
+  const link = await within(sheet).findByRole('link', { name: 'Apri l’utente' });
+  answers.get('a@x.it')!(row('00000000-0000-4000-8000-0000000000a0', 'a@x.it'));
+  await new Promise((r) => setTimeout(r, 20));
+  expect(within(sheet).getByRole('link', { name: 'Apri l’utente' }).getAttribute('href')).toBe('/admin/users/00000000-0000-4000-8000-0000000000b0');
+  expect(link.getAttribute('href')).toBe('/admin/users/00000000-0000-4000-8000-0000000000b0');
+  fireEvent.change(field, { target: { value: 'c@x.it' } });
+  expect(within(sheet).queryByRole('link', { name: 'Apri l’utente' })).toBeNull();
+});
+
+it('a forbidden search for account_exists hides the administration and denies access', async () => {
+  const api = adminApi();
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  // Another administrator appears and takes the role away; the creation still answers account_exists.
+  await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+  await api.users.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'ospite@example.com' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+  expect(screen.queryByRole('dialog', { name: 'Nuovo invito' })).toBeNull();
+  expect(screen.queryByText('ospite@example.com')).toBeNull();
 });
 
 it('is closed to people without app_admin', async () => {

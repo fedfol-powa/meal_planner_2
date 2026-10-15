@@ -11,6 +11,7 @@ import { menuContract } from './menu/operations.ts';
 import { ratingsContract } from './recipes/ratings.ts';
 import { recipesContract } from './recipes/recipes.ts';
 import { shoppingContract } from './shopping/operations.ts';
+import { usersContract } from './users/index.ts';
 
 export const contract = {
 	session: {
@@ -35,6 +36,7 @@ export const contract = {
 	catalogue: catalogueContract,
 	agents: agentsContract,
 	appInvitations: appInvitationsContract,
+	users: usersContract,
 	...shoppingContract,
 };
 

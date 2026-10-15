@@ -7,7 +7,8 @@ type Stored = Omit<AppInvitationView, 'status'> & { status: 'pending' | 'accepte
 
 /** A valid link of the fake mode: /invite/app#ddd…x shows the page without the stack. */
 export const FAKE_INVITE_TOKEN = 'demo'.padEnd(43, 'x');
-const DEMO_EMAIL = 'ospite@example.com';
+// Not an existing account's email: «Ospite» (ospite@example.com) is the account of fakeUsers (spec W10).
+const DEMO_EMAIL = 'invitata@example.com';
 const DAY = 24 * 60 * 60 * 1000;
 
 const stores = new WeakMap<object, Map<string, Stored>>();
@@ -24,7 +25,7 @@ const view = ({ token: _token, ...row }: Stored): AppInvitationView => ({
 const usable = (row: Stored | undefined): row is Stored => row !== undefined && view(row).status === 'pending';
 
 /** The app invitations of the fake mode (spec W9): the server's rules, in memory. */
-export function createFakeAppInvitations(latencyMs = 0) {
+export function createFakeAppInvitations(latencyMs = 0, accountExists: (email: string) => boolean = () => false) {
   const rows = new Map<string, Stored>();
   const now = new Date();
   rows.set('demo', {
@@ -41,6 +42,8 @@ export function createFakeAppInvitations(latencyMs = 0) {
   const area = {
     async create({ id, email, roles }: { id: string; email: string; roles: GlobalRole[] }) {
       const normalized = email.trim().toLowerCase();
+      // As app.create_app_invitation: an email with an account gets no invitation (spec W10, fake mode).
+      if (accountExists(normalized)) throw new ApiError('not_allowed', { reason: 'account_exists' });
       const existing = byId(id);
       const link = token();
       if (existing) {

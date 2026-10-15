@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
@@ -7,6 +8,7 @@ import { BottomSheet } from '../../components/BottomSheet';
 import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
 import { CopyField } from '../agents/CopyField';
+import { useAdminAccess } from './AdminAccess';
 import styles from './AdminPage.module.css';
 
 /**
@@ -25,6 +27,10 @@ export function InviteSheet({ again, onClose }: { again?: { email: string; roles
   const [roles, setRoles] = useState<GlobalRole[]>(again?.roles ?? []);
   const [link, setLink] = useState<string | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
+  /** The user who has the email of the latest attempt; only the latest attempt's search may set it (spec W10). */
+  const [existingUser, setExistingUser] = useState<string | null>(null);
+  const attemptNumber = useRef(0);
+  const access = useAdminAccess();
   const create = useAreaMutation('appInvitations.create', undefined, (input: { id: string; email: string; roles: GlobalRole[] }) => deps.api.appInvitations.create(input));
   // A ref blocks a second tap before the next render; `alive` drops the answer of a closed sheet.
   const sending = useRef(false);
@@ -39,6 +45,8 @@ export function InviteSheet({ again, onClose }: { again?: { email: string; roles
   async function send() {
     if (sending.current || !email.trim()) return;
     sending.current = true;
+    const attemptNow = ++attemptNumber.current;
+    setExistingUser(null);
     setFailure(null);
     const data = JSON.stringify([email.trim().toLowerCase(), [...roles].sort()]);
     if (attempt.current?.data !== data) attempt.current = { id: crypto.randomUUID(), data };
@@ -47,7 +55,21 @@ export function InviteSheet({ again, onClose }: { again?: { email: string; roles
       // The list is read again in any case (mutations.ts); the link only for this attempt, same session.
       if (outcome.applied && alive.current) setLink(outcome.view.url);
     } catch (error) {
-      if (alive.current) setFailure(error);
+      if (!alive.current) return;
+      setFailure(error);
+      const apiError = toApiError(error);
+      if (apiError.code === 'not_allowed' && (apiError.data as { reason?: string } | undefined)?.reason === 'account_exists') {
+        // The account is found by its email; an answer of an older attempt is dropped.
+        const wanted = email.trim().toLowerCase();
+        void deps.api.users
+          .list({ query: wanted })
+          .then(({ users }) => {
+            if (!alive.current || attemptNow !== attemptNumber.current) return;
+            setExistingUser(users.find((user) => user.email.toLowerCase() === wanted)?.id ?? null);
+          })
+          // forbidden goes to AdminAccess like any users operation; other errors leave only the text.
+          .catch((searchError: unknown) => void access.report(searchError));
+      }
     } finally {
       sending.current = false;
     }
@@ -82,10 +104,29 @@ export function InviteSheet({ again, onClose }: { again?: { email: string; roles
         </>
       ) : (
         <form onSubmit={submit}>
-          {failure !== null && <p className="form-error" role="alert">{accountExists ? t('admin.accountExists') : t(errorKey(failure))}</p>}
+          {failure !== null && (
+            <p className="form-error" role="alert">
+              {accountExists ? t('admin.accountExists') : t(errorKey(failure))}
+              {accountExists && existingUser && (
+                <> <Link to="/admin/users/$userId" params={{ userId: existingUser }} className="link-inline" onClick={onClose}>{t('admin.openUser')}</Link></>
+              )}
+            </p>
+          )}
           <div className="field">
             <label htmlFor={`${ids}-email`}>{t('invite.email')}</label>
-            <input id={`${ids}-email`} type="email" autoComplete="off" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              id={`${ids}-email`}
+              type="email"
+              autoComplete="off"
+              autoCapitalize="none"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                // A new email: the link goes, and a search still running is superseded.
+                attemptNumber.current += 1;
+                setExistingUser(null);
+              }}
+            />
           </div>
           <label className={styles.check}>
             <input type="checkbox" checked={roles.includes('recipe_curator')} onChange={() => toggle('recipe_curator')} />

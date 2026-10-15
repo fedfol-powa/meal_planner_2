@@ -11,6 +11,7 @@ import { ratingsRouter, recipesRouter } from './recipes/router.ts';
 import { mealRecipeVersionsAt } from './menu/versions.ts';
 import { createShoppingRouter } from './shopping/router.ts';
 import { shoppingPrepare } from './shopping/version.ts';
+import { usersRouter } from './users/router.ts';
 
 const os = createImplementer(contract, { prepare: { ...menuPrepare, ...shoppingPrepare } });
 
@@ -32,5 +33,6 @@ export const router = os.router({
 	catalogue: catalogueRouter(os),
 	agents: agentsRouter(os),
 	appInvitations: appInvitationsRouter(os),
+	users: usersRouter(os),
 	shopping: createShoppingRouter(os, { mealRecipeVersions: mealRecipeVersionsAt }),
 });

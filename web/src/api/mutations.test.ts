@@ -28,8 +28,8 @@ function harness() {
     client: session.queryClient,
     session,
     setLocale: (next: string) => (locale = next),
-    run: <T,>(name: MutationName, familyId: string | undefined, call: () => Promise<T>) =>
-      runAreaMutation({ queryClient: session.queryClient, session, currentLocale: () => locale }, name, familyId, call)
+    run: <T,>(name: MutationName, familyId: string | undefined, call: () => Promise<T>, options?: { track?: string }) =>
+      runAreaMutation({ queryClient: session.queryClient, session, currentLocale: () => locale }, name, familyId, call, options)
   };
 }
 
@@ -304,5 +304,56 @@ describe('app invitation mutations', () => {
     const view = { user: { id: 'u' }, families: [{ id: 'f' }], currentFamilyId: 'f' };
     await run('family.create', undefined, async () => view);
     expect(client.getQueryData(['profile', 'get', { locale: 'it-IT' }])).toEqual(view);
+  });
+});
+
+describe('user role mutations', () => {
+  const detailKey = ['users', 'get', { id: 'u' }];
+  const listKey = ['users', 'list', { query: '' }];
+  const profileKey = ['profile', 'get', { locale: 'it-IT' }];
+  const detail = (roles: string[]) => ({ user: { id: 'u', roles }, families: [] });
+
+  it('read the users and the profile again; the registry never writes the answer itself', async () => {
+    const { client, run } = harness();
+    client.setQueryData(detailKey, detail([]));
+    client.setQueryData(listKey, { users: [], more: false });
+    client.setQueryData(profileKey, { user: { globalRoles: ['app_admin'] } });
+    const outcome = await run('users.setRole', undefined, async () => detail(['recipe_curator']), { track: 'users:u' });
+    expect(outcome.applied).toBe(true);
+    expect(client.getQueryData(detailKey)).toEqual(detail([]));
+    expect(client.getQueryState(detailKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(client.getQueryState(profileKey)?.isInvalidated).toBe(true);
+  });
+
+  it('answers in reverse order: only the latest for the same user is applied, both make the views stale', async () => {
+    const { client, run } = harness();
+    const older = deferred<ReturnType<typeof detail>>();
+    const first = run('users.setRole', undefined, () => older.promise, { track: 'users:u' });
+    const second = await run('users.setRole', undefined, async () => detail([]), { track: 'users:u' });
+    expect(second.applied).toBe(true);
+    client.setQueryData(detailKey, detail([])); // read again meanwhile
+    older.resolve(detail(['recipe_curator']));
+    const late = await first;
+    expect(late.applied).toBe(false);
+    expect(client.getQueryState(detailKey)?.isInvalidated).toBe(true);
+  });
+
+  it('another user’s change does not supersede this one', async () => {
+    const { run } = harness();
+    const slow = deferred<ReturnType<typeof detail>>();
+    const first = run('users.setRole', undefined, () => slow.promise, { track: 'users:u' });
+    await run('users.setRole', undefined, async () => detail([]), { track: 'users:v' });
+    slow.resolve(detail(['recipe_curator']));
+    expect((await first).applied).toBe(true);
+  });
+
+  it('a late answer after the session closed is not applied', async () => {
+    const { session, run } = harness();
+    const outcome = await run('users.setRole', undefined, async () => {
+      await session.close();
+      return detail([]);
+    }, { track: 'users:u' });
+    expect(outcome.applied).toBe(false);
   });
 });
