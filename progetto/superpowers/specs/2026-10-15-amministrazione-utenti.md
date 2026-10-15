@@ -77,8 +77,9 @@ Restituisce `(id uuid, display_name text, email text, roles jsonb)`.
 - Filtro: con `p_query` vuoto o nullo, tutti; altrimenti `display_name ilike` o
   `email ilike` sul modello `'%' || testo || '%'`, con `\`, `%` e `_` del testo resi
   letterali (`escape '\'`). Solo maiuscole e minuscole, non gli accenti (decisione 2).
-- Ordine `lower(display_name), id`; limite `p_limit + 1` righe: il server usa la riga in
-  più per `more` e non la restituisce.
+- Ordine `lower(display_name), id` sul nome restituito, quindi anche su quello ricavato
+  dall'email per un account senza profilo (revisione della PR, rilievo 4); limite
+  `p_limit + 1` righe: il server usa la riga in più per `more` e non la restituisce.
 - `p_limit` fuori da 1–200 è rifiutato con `22023`.
 
 ### `app.admin_user(p_user_id uuid)`
@@ -96,7 +97,9 @@ famiglie). L'ordine lo decide il server con `Intl.Collator`, come per il profilo
 
 ### `app.set_user_role(p_user_id uuid, p_role text, p_granted boolean)`
 
-Restituisce `void`.
+Restituisce i ruoli dell'utente dopo la modifica (`jsonb`, come `roles` di
+`admin_users`), letti dentro la funzione: chi ha appena rinunciato al proprio
+`app_admin` non potrebbe più rileggerli (revisione della PR, rilievo 2).
 
 1. Chi chiama non è `app_admin`: `42501`.
 2. `p_role` diverso da `recipe_curator` e `app_admin`, o `p_granted` nullo: `22023`.
@@ -162,7 +165,10 @@ userDetailSchema = z.object({
 - `globalRoleSchema` viene da `contract/src/app-invitations/` (già esportato),
   `familyRoleSchema` da `contract/src/profile/`.
 - `users.setRole` è idempotente: ripetuta con lo stesso input dà lo stesso esito.
-  Restituisce il dettaglio letto nella stessa transazione dopo la modifica.
+  Restituisce il dettaglio letto nella stessa transazione dopo la modifica. Dopo la
+  rinuncia al proprio `app_admin` le funzioni di lettura rifiutano: i ruoli sono quelli
+  restituiti da `set_user_role` (letti sotto il lucchetto, dopo le modifiche confermate
+  da altri), nome, email e famiglie quelli letti subito prima, che i ruoli non toccano.
 - Descrizione MCP di `users.setRole` (in inglese, come le altre): assegna o toglie un
   ruolo globale; **prima di nominare un amministratore dell'app e prima di togliere a
   sé stessi `app_admin`, chiedi conferma esplicita all'utente**; chi rinuncia al proprio
@@ -192,7 +198,7 @@ Nessun componente condiviso nuovo; si usano `PageHeader`, `StateNotice`, `Loadin
 In `AdminPage` sopra `InvitationsSection`, nella forma del sesto giro:
 
 - titolo «Utenti», campo di ricerca (`type="search"`, segnaposto «Cerca per nome o
-  email»); la query parte 250 ms dopo l'ultima battuta, chiave
+  email», al più 100 caratteri come il contratto, `USER_QUERY_MAX`); la query parte 250 ms dopo l'ultima battuta, chiave
   `['users', 'list', { query }]` (`usersQuery` in `api.ts`);
 - righe come collegamenti a `/admin/users/$userId`: nome con « · Tu » per il proprio
   account, email, ruoli come etichette (stile delle etichette degli inviti);
@@ -249,19 +255,31 @@ Cambio di ruolo:
 - **accesso da verificare** (revisioni, rilievo 3 della prima e 1 della seconda): `/admin`
   e il dettaglio hanno uno stato esplicito dell'accesso (`AdminAccess`, in
   `web/src/features/admin/AdminAccess.tsx`), condiviso dalle sezioni e dal foglio del
-  nuovo invito. Al primo `forbidden` di un'operazione `users` (elenco, dettaglio,
-  `setRole`, **e la ricerca di `account_exists`**):
+  nuovo invito. Lo stato appartiene alla sessione, non alla pagina: è legato al
+  `QueryClient` della sessione, quindi **sopravvive a uscita e rientro** e si azzera
+  con una sessione nuova (revisione della PR, rilievo 1). Al primo `forbidden` di
+  un'operazione `users` o `appInvitations` (letture, colte dalla cache delle query
+  nello stesso passaggio che mostrerebbe l'errore; `setRole`; **la ricerca di
+  `account_exists`**):
+  - le query `['users']` e `['appInvitations']` escono **subito** dalla cache, senza
+    aspettare l'esito della verifica: le risposte ancora in viaggio finiscono in query
+    staccate e non ripopolano nulla; la risposta di `setRole` si scrive nel dettaglio
+    solo con l'accesso confermato;
   - lo stato passa a «verifica»: sezioni, dati e comandi **non si montano più**
-    (si vede solo il caricamento), senza fidarsi del profilo in cache; le query
-    `['users']` e `['appInvitations']` escono dalla cache;
+    (si vede solo il caricamento), senza fidarsi del profilo in cache;
   - il profilo si rilegge con una lettura che segnala l'errore
     (`queryClient.fetchQuery` con `staleTime: 0`);
   - senza `app_admin`: «Non hai accesso a questa pagina», anche se una copia del
     profilo in memoria dicesse il contrario;
-  - con `app_admin` ancora presente (un `forbidden` per altri motivi): lo stato torna
-    normale e le sezioni si rimontano, quindi rileggono i dati da capo;
+  - con `app_admin` ancora presente (un `forbidden` per altri motivi): le viste escono
+    di nuovo dalla cache, lo stato torna normale e le sezioni si rimontano, quindi
+    rileggono i dati da capo. Un `forbidden` arrivato durante la lettura del profilo la
+    fa ripetere;
   - lettura del profilo fallita: errore con «Riprova», che ripete la verifica; nel
-    frattempo nessun dato e nessun comando, e il permesso precedente non si riusa.
+    frattempo nessun dato e nessun comando, e il permesso precedente non si riusa,
+    nemmeno uscendo dalla pagina e rientrando. Il controllo legge il profilo da sé, non
+    da una prop della pagina: alla fine della verifica deve vedere il profilo appena
+    letto.
 
   Il gestore condiviso degli errori (`SessionScope.tsx`) non cambia;
 - conferme con `BottomSheet`:
@@ -318,11 +336,14 @@ testo.
 - Chi non è `app_admin`: `42501` su tutte e quattro.
 - `admin_users`: l'account senza ruoli né famiglie compare; ricerca per nome
   e per email senza distinzione di maiuscole; `%` e `_` nel testo trattati come
-  caratteri; `p_limit + 1` righe; `p_limit` fuori intervallo rifiutato.
+  caratteri; `\` come carattere, da solo, tra due lettere e prima di `%` e `_`, con
+  corrispondenze positive; ordine sul nome ricavato dall'email per un account senza
+  profilo; `p_limit + 1` righe; `p_limit` fuori intervallo rifiutato.
 - `admin_user`: `last_app_admin` vero e falso; nessuna riga per un id inesistente.
 - `admin_user_families`: solo le colonne `name` e `role`.
 - `set_user_role`: assegnazione e rimozione idempotenti per entrambi i ruoli;
-  `granted_by` di chi assegna; ruolo non valido `22023`; utente inesistente `P0A07`;
+  `granted_by` di chi assegna; ruoli restituiti dopo la modifica, anche dopo la propria
+  rinuncia; ruolo non valido `22023`; utente inesistente `P0A07`;
   ultimo amministratore `P0A08` (nella transazione del test si tolgono prima gli altri
   `app_admin`; il rollback finale li rimette).
 
@@ -358,6 +379,11 @@ un'altra connessione:
    B (ancora amministratore) riceve `P0A08` e resta esattamente un amministratore, B;
 3. **retrocesso in fila**, A, B e C: A toglie il ruolo a B, B prova a toglierlo a C.
    Rilasciata A, B riceve `42501` e restano A e C.
+4. **risposta della rinuncia** (revisione della PR, rilievo 2), A, B e C: B tiene il
+   lucchetto togliendo il ruolo a C e, nella stessa transazione, dà ad A il ruolo di
+   curatore; A rinuncia al proprio `app_admin` tramite l'API e aspetta. Rilasciata B, la
+   risposta di A dice `['recipe_curator']`: i ruoli letti dopo la rimozione, non la copia
+   letta prima del lucchetto.
 
 Come si accerta l'attesa: la connessione della seconda operazione comunica il proprio
 `pg_backend_pid()`; la connessione di controllo legge `pg_stat_activity` finché quel
@@ -408,6 +434,10 @@ non vedrebbe le modifiche confermate e il test lo segnalerebbe.
     profilo dice ancora `app_admin`, le sezioni tornano e rileggono; se non lo dice,
     «Non hai accesso a questa pagina». In `/admin`, nel dettaglio e per un `forbidden`
     della ricerca di `account_exists` nel foglio del nuovo invito;
+  - uscita e rientro dopo il `forbidden` con le letture fallite, in `/admin` e nel
+    dettaglio: errore con «Riprova», nessun dato, nessun interruttore; in `/admin` anche
+    con la risposta tardiva di una ricerca precedente e con l'elenco che non risponde
+    più (senza la pulizia immediata si vedrebbe la copia di prima);
   - due tentativi di invito con email diverse e risposte della ricerca in ordine
     inverso: il collegamento è quello dell'ultimo tentativo; cambiare l'email lo toglie
     (rilievo 4);
@@ -474,6 +504,16 @@ non vedrebbe le modifiche confermate e il test lo segnalerebbe.
   dettaglio della persona giusta.
 - Correzioni nate dalla prova: righe dell'elenco e delle famiglie con `row-list`, email
   non in grassetto e campo di ricerca con bordo e margini come nel prototipo.
+- **Correzione della revisione della PR, rilievo 1** (15 ottobre 2026, stack locale,
+  390 e 1280 px): amministratrice nel dettaglio di un'altra persona, ruolo tolto via SQL
+  e letture del profilo bloccate (`network route` su `/api/rpc/profile/get`). Il tocco
+  sull'interruttore del curatore riceve `forbidden`: spariscono dati e interruttori,
+  compare l'errore con «Riprova». Uscita verso il Profilo dalla barra in basso e ritorno
+  con «indietro» nella stessa SPA: di nuovo solo l'errore con «Riprova», nessuna email,
+  nessun interruttore; lo stesso entrando in `/admin` dal collegamento, senza campo di
+  ricerca. Sbloccato il profilo, «Riprova» porta a «Non hai accesso a questa pagina».
+  Con il ruolo restituito, ricerca (`maxLength` 100) e assegnazione del curatore come
+  prima.
 
 ## 5. Rilascio
 
