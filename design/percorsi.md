@@ -1,7 +1,7 @@
 # Percorsi del prototipo di Cosa si mangia
 
 Creato: 6 ottobre 2026
-Ultimo aggiornamento: 11 ottobre 2026
+Ultimo aggiornamento: 15 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
 (Gestione del ricettario) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre;
@@ -1084,3 +1084,13 @@ si ricostruisce dallo storico (specifica, sezioni 2 e 8). Nel prototipo:
 
 L'app vera sarà scritta in React (specifica, sezione 1); il prototipo resta in Svelte
 come riferimento eseguibile dei percorsi.
+
+### Differenze dell'app negli inviti all'app (15 ottobre 2026)
+
+Nell'app rilasciata con la PR #45 (specifica, sezioni 7 e 14) il link dell'invito si
+vede solo alla creazione, nel foglio di «Nuovo invito», con la nota «Il link si vede
+solo ora: se lo perdi, crea un nuovo link». Nell'elenco non c'è «Copia il link»: per gli
+inviti in attesa e scaduti c'è «Nuovo link», che crea un invito nuovo con la stessa
+email e gli stessi ruoli e sostituisce quello in attesa. Il motivo è che il database
+conserva solo l'impronta del token. Il link è `/invite/app#<token>` al posto di
+`/invite/app/[token]`.

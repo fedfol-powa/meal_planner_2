@@ -111,7 +111,8 @@ Compilata durante il runbook del piano
 | Primo rilascio | 12 ottobre 2026, commit `b7322cf`, versione `e0cab6a9-49f9-4689-ab6a-13d6dea7139c` (poi `6382d9b5-9187-47d6-bb6c-2e188e46cc4d` con il segreto `BACKUP_ENCRYPTION_KEY`) |
 | Avvio della famiglia | 13 ottobre 2026: famiglia, caricamento (50 ricette pubblicate, 6 bozze, 6 settimane) e primo collaudo in sola lettura riuscito |
 | Agenti | 13 ottobre 2026: Claude Code collegato con registrazione dinamica, «Scollega» verificato |
-| Collaudo completo | in corso; giovedì 15 ottobre 2026 la verifica della prima generazione dal cron |
+| Collaudo completo | in corso; prima generazione dal cron verificata il 15 ottobre 2026 (settimana del 19/10 generata dal job il 14/10 alle 20:00, `cron_generated = t`) |
+| Inviti all'app | rilasciati il 15 ottobre 2026 (commit `8c69336`, versione `25039e50-79ca-46db-ae23-833e34483530`); segreto `SUPABASE_SECRET_KEY` = chiave segreta Supabase `worker-invitations`, revocabile da sola; limitatori `namespace_id` 9101 e 9102 |
 | Rotazione delle password | rimandata per decisione dell'utente (13 ottobre 2026) |
 
 Al passaggio al dominio `cosasimangia.qunidi.it` (ondata 3) vanno aggiornati *Site URL* e
