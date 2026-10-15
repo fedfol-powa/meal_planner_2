@@ -225,25 +225,45 @@ Cambio di ruolo:
   `users` che, come `appInvitations`, non scrive la risposta nella cache in modo
   generico: rende da rileggere le query `['users']` (dettaglio ed elenco) e, con
   `stale: ['profile']`, il profilo (i propri ruoli possono essere cambiati);
-- **interruttori bloccati fino allo stato confermato** (revisione, rilievo 5): dal tocco
-  fino a quando il dettaglio mostrato è quello confermato, entrambi gli interruttori
-  sono disattivati. La pagina scrive nella cache del dettaglio la risposta di
-  `setRole`, che è già il dettaglio aggiornato, quando la mutazione è applicata
-  (sessione aperta, risposta più recente); se non è applicata, attende la rilettura
-  del dettaglio. La rilettura avviata dal registro può restare in corso o fallire senza
-  toccare lo stato mostrato: se fallisce, sopra la card compare l'errore con
-  «Riprova» e gli interruttori restano sullo stato confermato. Un secondo tocco
-  durante l'attesa non manda nulla;
+- **interruttori bloccati fino allo stato confermato** (prima revisione, rilievo 5):
+  dal tocco fino a quando lo stato confermato è disponibile, entrambi gli interruttori
+  sono disattivati. Lo stato confermato è la risposta di `setRole`, che è già il
+  dettaglio aggiornato: la pagina la scrive nella cache del dettaglio se è
+  **applicata**, cioè sessione aperta e risposta più recente **per quell'utente**;
+  altrimenti attende la rilettura del dettaglio. Gli interruttori si riattivano appena
+  la risposta è scritta, senza aspettare la rilettura avviata dal registro, che può
+  restare in corso o fallire senza toccare lo stato mostrato: se fallisce, compare
+  l'errore con «Riprova» e gli interruttori restano sullo stato confermato. Un secondo
+  tocco durante l'attesa non manda nulla;
+- **risposte superate** (seconda revisione, rilievo 2): per `users.setRole`
+  l'invalidazione di `['users']` e del profilo avviene **sempre** (sessione aperta),
+  mentre l'autorizzazione a scrivere la risposta (`applied`) vale solo per la più
+  recente dello stesso utente. Il tracciamento è per utente: `useAreaMutation` e
+  `runAreaMutation` accettano un'opzione `track` (per gli utenti `users:<id>`), che
+  sostituisce la chiave di tracciamento senza toccare `familyId` (usato dal gestore di
+  sessione). Il comportamento degli inviti non cambia: per `appInvitations` `applied`
+  resta «sessione aperta», come oggi. Il tracciamento appartiene alla sessione, non
+  alla pagina, quindi vale anche dopo uscita e rientro nel dettaglio;
 - errore della mutazione: avviso sotto la card con il testo del codice
   (`last_app_admin` se un altro amministratore ha tolto il ruolo nel frattempo);
-- **perdita di `app_admin` accertata** (revisione, rilievo 3): se un'operazione `users`
-  (lettura o mutazione) risponde `forbidden`, la pagina toglie dalla cache le query
-  `['users']` e `['appInvitations']` e rilegge il profilo. Se il profilo non ha più
-  `app_admin`, `/admin` e il dettaglio mostrano «Non hai accesso a questa pagina»
-  senza i dati di prima. Se lo ha ancora (un `forbidden` per altri motivi), la pagina
-  rilegge e mostra l'errore. È una funzione dell'area (`onAdminForbidden` in
-  `web/src/features/admin/access.ts`); il gestore condiviso degli errori
-  (`SessionScope.tsx`) non cambia;
+- **accesso da verificare** (revisioni, rilievo 3 della prima e 1 della seconda): `/admin`
+  e il dettaglio hanno uno stato esplicito dell'accesso (`AdminAccess`, in
+  `web/src/features/admin/AdminAccess.tsx`), condiviso dalle sezioni e dal foglio del
+  nuovo invito. Al primo `forbidden` di un'operazione `users` (elenco, dettaglio,
+  `setRole`, **e la ricerca di `account_exists`**):
+  - lo stato passa a «verifica»: sezioni, dati e comandi **non si montano più**
+    (si vede solo il caricamento), senza fidarsi del profilo in cache; le query
+    `['users']` e `['appInvitations']` escono dalla cache;
+  - il profilo si rilegge con una lettura che segnala l'errore
+    (`queryClient.fetchQuery` con `staleTime: 0`);
+  - senza `app_admin`: «Non hai accesso a questa pagina», anche se una copia del
+    profilo in memoria dicesse il contrario;
+  - con `app_admin` ancora presente (un `forbidden` per altri motivi): lo stato torna
+    normale e le sezioni si rimontano, quindi rileggono i dati da capo;
+  - lettura del profilo fallita: errore con «Riprova», che ripete la verifica; nel
+    frattempo nessun dato e nessun comando, e il permesso precedente non si riusa.
+
+  Il gestore condiviso degli errori (`SessionScope.tsx`) non cambia;
 - conferme con `BottomSheet`:
   - **nomina di un amministratore** (accendere `app_admin` di chiunque): «Nominare
     {name} amministratore dell'app?», testo «Potrà gestire utenti, ruoli e inviti
@@ -268,7 +288,10 @@ errore di rete) resta solo il testo.
 La ricerca è **legata al tentativo** (revisione, rilievo 4): ogni invio ha un numero
 progressivo e la risposta della ricerca si usa solo se appartiene ancora all'ultimo
 tentativo e il foglio è aperto. Cambiare l'email toglie il collegamento. Così una
-risposta lenta per un'email precedente non collega mai la persona sbagliata.
+risposta lenta per un'email precedente non collega mai la persona sbagliata. Un
+`forbidden` della ricerca non si scarta: passa ad `AdminAccess` come ogni altro
+`forbidden` delle operazioni `users`; gli altri errori della ricerca lasciano solo il
+testo.
 
 ### Modalità finta e testi
 
@@ -346,6 +369,16 @@ dopo, nell'ordine: numero finale di amministratori, codici, attesa accertata. Co
 prova senza lucchetto (funzione sostituita a mano, solo in locale) conclude entrambe le
 transazioni e fallisce mostrando l'invariante violata (zero amministratori).
 
+Nessuna attesa resta appesa (seconda revisione, rilievo 3): se la seconda connessione
+fallisce prima di comunicare il PID, la promessa del PID rigetta; se il lavoro iniziale
+della prima transazione fallisce, `holdTransaction` rigetta invece di aspettare per
+sempre (`server/test/support/hold.ts`, modifica compatibile con
+`app-invitations-locks.test.ts`); il rilascio e la raccolta dei due esiti avvengono
+insieme e si completano anche se il rilascio rigetta. Due casi lo dimostrano: seconda
+connessione verso un indirizzo irraggiungibile (errore prima del PID: il test termina,
+la prima transazione è rilasciata) e lavoro iniziale che fallisce (chi non è
+amministratore: `holdTransaction` rigetta con `42501`, nessuna seconda operazione).
+
 Il test verifica anche l'isolamento: una transazione aperta con `withDbOn` di
 `server/src/db.ts` come utente risponde `read committed` a `show transaction_isolation`.
 Se un giorno la pipeline passasse a `repeatable read`, il ricontrollo dopo il lucchetto
@@ -361,12 +394,20 @@ non vedrebbe le modifiche confermate e il test lo segnalerebbe.
   motivo; `not_found`; nessun accesso; collegamento «Apri l'utente» da
   `account_exists`.
 - Revisione di spec e piano:
-  - interruttori bloccati con la mutazione risolta e la rilettura del dettaglio ancora
-    sospesa, poi fallita: lo stato mostrato è quello della risposta, compare l'errore
-    con «Riprova», un tocco durante l'attesa non manda nulla (rilievo 5);
-  - retrocessione effettiva nell'API simulata (un altro amministratore toglie il ruolo
-    alla persona collegata): al tocco successivo la pagina mostra «Non hai accesso a
-    questa pagina» e non più l'email dell'utente; lo stesso per `/admin` (rilievo 3);
+  - interruttori bloccati dal tocco fino alla risposta di `setRole`, poi attivi con lo
+    stato della risposta mentre la rilettura del dettaglio è ancora sospesa; se poi la
+    rilettura fallisce, compare l'errore con «Riprova» e lo stato resta quello della
+    risposta; un tocco durante l'attesa non manda nulla;
+  - due mutazioni sullo stesso utente con risposte in ordine inverso, anche dopo uscita
+    e rientro nel dettaglio e con le riletture sospese: la risposta vecchia non
+    sostituisce quella nuova (nel registro: `applied` falso per la vecchia, entrambe
+    invalidano; gli inviti restano come prima);
+  - accesso da verificare, con retrocessione effettiva nell'API simulata: dopo il
+    `forbidden` dati e comandi spariscono **dal DOM** subito, mentre la rilettura del
+    profilo è sospesa; se fallisce, errore con «Riprova» e ancora nessun dato; se il
+    profilo dice ancora `app_admin`, le sezioni tornano e rileggono; se non lo dice,
+    «Non hai accesso a questa pagina». In `/admin`, nel dettaglio e per un `forbidden`
+    della ricerca di `account_exists` nel foglio del nuovo invito;
   - due tentativi di invito con email diverse e risposte della ricerca in ordine
     inverso: il collegamento è quello dell'ultimo tentativo; cambiare l'email lo toglie
     (rilievo 4);
@@ -438,6 +479,10 @@ produzione, poi il Worker. Nessun segreto, binding o risorsa esterna nuovi.
 (`SERVER_AREAS`), `web/src/api/mutations.ts` (bersaglio `users`),
 `web/src/api/fake/fakeApi.ts` (registrazione, opzione `globalRoles` di `fakeClients`),
 `web/src/main.tsx` (demo amministratore nella modalità finta),
+`web/src/api/mutations.ts` anche per l'opzione `track` di `useAreaMutation` e
+`runAreaMutation` e per `applied` dei soli `users` legato alla risposta più recente,
+`server/test/support/hold.ts` (`holdTransaction` rigetta se il lavoro iniziale fallisce,
+invece di restare in attesa),
 `web/src/api/fake/fakeAppInvitations.ts` (`account_exists` dagli utenti finti),
 `web/src/i18n/messages/admin.ts`,
 `supabase/tests/coverage_test.sql` (le quattro funzioni nell'elenco di

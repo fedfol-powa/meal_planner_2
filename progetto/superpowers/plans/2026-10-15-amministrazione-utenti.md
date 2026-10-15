@@ -9,8 +9,8 @@
 anche sotto concorrenza.
 
 **Architettura:** quattro funzioni `security definer` nello schema `app` (lettura di
-`auth.users`, solo `app_admin`, lucchetto consultivo `app_admin_roles` per ogni modifica
-di ruolo); area `users` del contratto con tre operazioni e strumenti MCP derivati; nel
+`auth.users`, solo `app_admin`, lucchetto consultivo `app_admin_roles` sulle sole
+rimozioni di `app_admin`); area `users` del contratto con tre operazioni e strumenti MCP derivati; nel
 web la sezione Utenti di `/admin`, la pagina `/admin/users/$userId` e il collegamento da
 `account_exists`.
 
@@ -761,14 +761,44 @@ git commit -m "Server: operazioni e strumenti MCP dell'amministrazione degli ute
 ### Compito 4: concorrenza sull'ultimo amministratore
 
 **File:**
+- Modifica: `server/test/support/hold.ts` (`holdTransaction` rigetta se il lavoro
+  iniziale fallisce)
 - Crea: `server/test/users-locks.test.ts`
 
 **Interfacce:**
-- Consuma: `holdTransaction`, `asUser`, `stillPending` (`server/test/support/hold.ts`),
-  `withDbOn` (`server/src/db.ts`), `onlyAppAdmins` (Compito 3), `app.set_user_role`
-  (Compito 1).
+- Consuma: `asUser`, `stillPending` (`server/test/support/hold.ts`), `withDbOn`
+  (`server/src/db.ts`), `onlyAppAdmins` (Compito 3), `app.set_user_role` (Compito 1).
+- Produce: `holdTransaction(url, work)` invariata nella firma; ora rigetta con l'errore
+  di `work` (o della connessione) invece di restare in attesa di `isReady`.
 
-- [ ] **Passo 1: scrivi il test**
+- [ ] **Passo 1: `holdTransaction` non resta appesa**
+
+In `server/test/support/hold.ts` sostituisci `holdTransaction` con:
+
+```ts
+/**
+ * Runs `work` in a transaction on its own admin connection and keeps it open until `release()`.
+ * Rejects with the error of `work` (or of the connection) instead of waiting for ever.
+ */
+export async function holdTransaction(url: string, work: (tx: Sql) => Promise<void>) {
+	const sql = postgres(url, { max: 1, onnotice: () => {} });
+	let release!: () => void;
+	let ready!: () => void;
+	let failed!: (error: unknown) => void;
+	const released = new Promise<void>((r) => (release = r));
+	const isReady = new Promise<void>((resolve, reject) => ((ready = resolve), (failed = reject)));
+	const done = sql.begin(async (tx) => { await work(tx); ready(); await released; }).finally(() => sql.end());
+	// Before `ready` an error of `work` would leave `isReady` pending: it rejects it instead.
+	done.catch(failed);
+	await isReady;
+	return { release: async () => { release(); await done; } };
+}
+```
+
+`app-invitations-locks.test.ts` la usa con lavori che riescono: per quei test non cambia
+nulla.
+
+- [ ] **Passo 2: scrivi il test**
 
 `server/test/users-locks.test.ts`:
 
@@ -783,6 +813,8 @@ import { asUser, holdTransaction, stillPending } from './support/hold.ts';
 
 const adminUrl = process.env.TEST_DATABASE_URL!;
 const LOCK_WAIT_TIMEOUT_MS = 3000;
+/** Nothing listens there: the second connection fails before it can report its backend. */
+const UNREACHABLE_URL = 'postgresql://postgres:postgres@127.0.0.1:1/postgres';
 
 describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 	let actors: Actors;
@@ -810,13 +842,15 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 		(await actors.db.admin<{ user_id: string }[]>`select user_id from app.user_roles where role = 'app_admin'`).map((r) => r.user_id).sort();
 
 	/**
-	 * Starts `target`'s app_admin removal as `caller` on a connection of its own. `pid` resolves
-	 * with the backend before the call; `outcome` with 'ok' or the SQLSTATE, never rejecting.
+	 * Starts `target`'s app_admin removal as `caller` on a connection of its own. `pid` resolves with
+	 * the backend before the call and rejects if the transaction fails before reporting it;
+	 * `outcome` resolves with 'ok' or the SQLSTATE (or the error's message), never rejecting.
 	 */
-	function removeAs(caller: string, target: string) {
-		const sql = postgres(adminUrl, { max: 1, onnotice: () => {} });
+	function removeAs(caller: string, target: string, url = adminUrl) {
+		const sql = postgres(url, { max: 1, onnotice: () => {}, connect_timeout: 2 });
 		let gotPid!: (pid: number) => void;
-		const pid = new Promise<number>((resolve) => (gotPid = resolve));
+		let noPid!: (error: unknown) => void;
+		const pid = new Promise<number>((resolve, reject) => ((gotPid = resolve), (noPid = reject)));
 		const outcome = sql
 			.begin(async (tx) => {
 				const [{ pid: backend }] = await tx<{ pid: number }[]>`select pg_backend_pid() as pid`;
@@ -824,7 +858,13 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 				await asUser(tx, caller);
 				await tx`select app.set_user_role(${target}::uuid, 'app_admin', false)`;
 			})
-			.then(() => 'ok', (error: { code?: string }) => String(error.code))
+			.then(
+				() => 'ok',
+				(error: { code?: string; message?: string }) => {
+					noPid(error); // no effect once the pid was given
+					return String(error.code ?? error.message);
+				},
+			)
 			.finally(() => sql.end());
 		return { pid, outcome };
 	}
@@ -840,31 +880,40 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 		return false;
 	}
 	/**
-	 * First removal held open, second one on its own connection. Release and outcome are collected
-	 * in `finally`, before the fixtures are restored, also when an assertion would fail: without the
-	 * lock both transactions still end and the final count shows the broken invariant.
+	 * First removal held open, second one on its own connection. However the steps end, the first
+	 * transaction is released and both outcomes are collected before the test goes on (and before
+	 * `afterEach` restores the fixtures): without the lock both transactions still end and the
+	 * final count shows the broken invariant. A start-up error is thrown after that, never left pending.
 	 */
-	async function race(first: [string, string], second: [string, string]) {
+	async function race(first: [string, string], second: [string, string], secondUrl = adminUrl) {
+		// Rejects (nothing to release) if the first removal itself fails: see holdTransaction.
 		const held = await holdTransaction(adminUrl, async (tx) => {
 			await asUser(tx, first[0]);
 			await tx`select app.set_user_role(${first[1]}::uuid, 'app_admin', false)`;
 		});
-		const removal = removeAs(...second);
+		let removal: ReturnType<typeof removeAs> | undefined;
 		let waited = false;
 		let pendingAfter200ms = false;
-		let code = '';
+		let stepError: unknown;
 		try {
+			removal = removeAs(...second, secondUrl);
 			pendingAfter200ms = await stillPending(removal.outcome);
 			waited = await waitsOnAdvisoryLock(await removal.pid);
-		} finally {
-			await held.release();
-			code = await removal.outcome;
+		} catch (error) {
+			stepError = error;
 		}
+		// Both settle whatever happens: release errors are collected, not allowed to skip the outcome.
+		const [released, code] = await Promise.all([
+			held.release().then(() => null, (error: unknown) => error),
+			removal ? removal.outcome : Promise.resolve('not started'),
+		]);
+		if (stepError) throw stepError;
+		if (released) throw released;
 		return { code, waited, pendingAfter200ms };
 	}
 
 	it('runs user transactions in read committed, which the check after the lock relies on', async () => {
-		const sql = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
+		const sql = postgres(adminUrl, { max: 1, onnotice: () => {} });
 		try {
 			const person = await actors.user();
 			const claims = { sub: person.userId, role: 'authenticated' as const, session_id: person.sessionId, exp: Math.floor(Date.now() / 1000) + 60 };
@@ -899,18 +948,39 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 		expect(result.code).toBe('42501');
 		expect(result.waited).toBe(true);
 	});
+
+	it('a second connection failing before its pid ends the race and releases the first transaction', async () => {
+		const [a, b, c] = await admins(3);
+		await expect(race([a!, b!], [b!, c!], UNREACHABLE_URL)).rejects.toBeTruthy();
+		// The first removal was released (committed): nothing was left open.
+		expect(await appAdmins()).toEqual([a, c].sort());
+		const [{ open }] = await actors.db.admin<{ open: number }[]>`
+			select count(*)::int as open from pg_stat_activity where state like 'idle in transaction%' and pid <> pg_backend_pid()`;
+		expect(open).toBe(0);
+	});
+
+	it('a failing first removal rejects at once instead of waiting', async () => {
+		const [a] = await admins(1);
+		const outsider = await actors.user();
+		const error = await race([outsider.userId, a!], [a!, a!]).then(() => null, (e: { code?: string }) => e);
+		expect(error?.code).toBe('42501');
+		expect(await appAdmins()).toEqual([a]);
+	});
 });
 ```
 
-Nota: se `Claims` di `server/src/auth.ts` richiede altri campi obbligatori, costruiscili
-come nel tipo (gli unici obbligatori sono `sub`, `role`, `session_id`, `exp`).
+Nota: se il conteggio `idle in transaction` vedesse connessioni di altri test ancora
+aperte nello stesso processo (i file girano uno alla volta, quindi non dovrebbe), limita
+il conteggio alle connessioni con `application_name` impostato dal test o togli
+l'asserzione: quella sugli amministratori basta a dimostrare il rilascio.
 
-- [ ] **Passo 2: esegui e verifica**
+- [ ] **Passo 3: esegui e verifica**
 
-Run: `TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- test/users-locks.test.ts`
-Atteso: PASS dei quattro casi.
+Run: `TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- test/users-locks.test.ts test/app-invitations-locks.test.ts`
+Atteso: PASS dei sei casi nuovi e di quelli degli inviti (la modifica di `hold.ts` è
+compatibile).
 
-- [ ] **Passo 3: prova che il test dimostra qualcosa (solo in locale, senza commit)**
+- [ ] **Passo 4: prova che il test dimostra qualcosa (solo in locale, senza commit)**
 
 Da `psql "$TEST_DATABASE_URL"` sostituisci la funzione con una copia identica senza la
 riga `perform pg_advisory_xact_lock(...)` (`create or replace function app.set_user_role ...`).
@@ -919,10 +989,10 @@ asserzione** con `[]` (zero amministratori) al posto di `[a]`, e il processo di 
 deve terminare senza transazioni appese (nessun timeout). Poi `supabase db reset` per
 tornare alla migrazione vera e riesegui: PASS.
 
-- [ ] **Passo 4: commit**
+- [ ] **Passo 5: commit**
 
 ```bash
-git add server/test/users-locks.test.ts
+git add server/test/users-locks.test.ts server/test/support/hold.ts
 git commit -m "Test: concorrenza sull'ultimo amministratore dell'app (W10)"
 ```
 
@@ -1041,7 +1111,8 @@ git commit -m "Test: amministrazione degli utenti sullo stack locale (W10)"
 ### Compito 6: registro delle mutazioni e API del web
 
 **File:**
-- Modifica: `web/src/api/mutations.ts` (bersaglio `users`, voce `users.setRole`)
+- Modifica: `web/src/api/mutations.ts` (bersaglio `users`, voce `users.setRole`,
+  `applied` dei soli `users` legato alla risposta più recente, opzione `track`)
 - Modifica: `web/src/api/mutations.test.ts`
 - Modifica: `web/src/api/types.ts` (`SERVER_AREAS` con `users`)
 - Modifica: `web/src/features/admin/api.ts` (`usersQuery`, `userQuery`)
@@ -1050,41 +1121,78 @@ git commit -m "Test: amministrazione degli utenti sullo stack locale (W10)"
 - Consuma: `UserRow`, `UserDetail` del contratto.
 - Produce: `usersQuery(deps, query: string)` con chiave `['users', 'list', { query }]`;
   `userQuery(deps, id: string)` con chiave `['users', 'get', { id }]`; nome di mutazione
-  `'users.setRole'`.
+  `'users.setRole'`;
+  `runAreaMutation(deps, name, familyId, call, options?: { track?: string })` e
+  `useAreaMutation(name, familyId, call, options?: { track?: string })`: `track`
+  sostituisce la chiave di tracciamento (per gli utenti `users:<id>`), senza toccare
+  `familyId`, che il gestore di sessione usa per le famiglie.
 
 - [ ] **Passo 1: test del registro (fallisce)**
 
-In fondo a `web/src/api/mutations.test.ts`:
+In `web/src/api/mutations.test.ts`, estendi `run` dell'`harness` con l'opzione:
+
+```ts
+    run: <T,>(name: MutationName, familyId: string | undefined, call: () => Promise<T>, options?: { track?: string }) =>
+      runAreaMutation({ queryClient: session.queryClient, session, currentLocale: () => locale }, name, familyId, call, options)
+```
+
+e in fondo al file:
 
 ```ts
 describe('user role mutations', () => {
   const detailKey = ['users', 'get', { id: 'u' }];
   const listKey = ['users', 'list', { query: '' }];
   const profileKey = ['profile', 'get', { locale: 'it-IT' }];
+  const detail = (roles: string[]) => ({ user: { id: 'u', roles }, families: [] });
 
-  it('read the users and the profile again, never writing the answer', async () => {
+  it('read the users and the profile again; the registry never writes the answer itself', async () => {
     const { client, run } = harness();
-    client.setQueryData(detailKey, { user: { id: 'u', roles: [] }, families: [] });
+    client.setQueryData(detailKey, detail([]));
     client.setQueryData(listKey, { users: [], more: false });
     client.setQueryData(profileKey, { user: { globalRoles: ['app_admin'] } });
-    const outcome = await run('users.setRole', undefined, async () => ({ user: { id: 'u', roles: ['recipe_curator'] }, families: [] }));
+    const outcome = await run('users.setRole', undefined, async () => detail(['recipe_curator']), { track: 'users:u' });
     expect(outcome.applied).toBe(true);
-    expect(client.getQueryData(detailKey)).toEqual({ user: { id: 'u', roles: [] }, families: [] });
+    expect(client.getQueryData(detailKey)).toEqual(detail([]));
     expect(client.getQueryState(detailKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
     expect(client.getQueryState(profileKey)?.isInvalidated).toBe(true);
+  });
+
+  it('answers in reverse order: only the latest for the same user is applied, both make the views stale', async () => {
+    const { client, run } = harness();
+    const older = deferred<ReturnType<typeof detail>>();
+    const first = run('users.setRole', undefined, () => older.promise, { track: 'users:u' });
+    const second = await run('users.setRole', undefined, async () => detail([]), { track: 'users:u' });
+    expect(second.applied).toBe(true);
+    client.setQueryData(detailKey, detail([])); // read again meanwhile
+    older.resolve(detail(['recipe_curator']));
+    const late = await first;
+    expect(late.applied).toBe(false);
+    expect(client.getQueryState(detailKey)?.isInvalidated).toBe(true);
+  });
+
+  it('another user’s change does not supersede this one', async () => {
+    const { run } = harness();
+    const slow = deferred<ReturnType<typeof detail>>();
+    const first = run('users.setRole', undefined, () => slow.promise, { track: 'users:u' });
+    await run('users.setRole', undefined, async () => detail([]), { track: 'users:v' });
+    slow.resolve(detail(['recipe_curator']));
+    expect((await first).applied).toBe(true);
   });
 
   it('a late answer after the session closed is not applied', async () => {
     const { session, run } = harness();
     const outcome = await run('users.setRole', undefined, async () => {
       await session.close();
-      return { user: { id: 'u', roles: [] }, families: [] };
-    });
+      return detail([]);
+    }, { track: 'users:u' });
     expect(outcome.applied).toBe(false);
   });
 });
 ```
+
+I test esistenti di `appInvitations` (risposta superata ancora `applied` perché il
+foglio mostra il link del proprio tentativo) devono restare verdi senza modifiche.
 
 - [ ] **Passo 2: esegui**
 
@@ -1098,7 +1206,7 @@ In `web/src/api/mutations.ts`:
 ```ts
 /** The view a mutation answers with: the profile, one of the versioned views of a family, a week of the menu, the app invitations or the users. */
 export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations' | 'users';
-/** Lists read again instead of written: their answer is never put in the cache. */
+/** Lists read again instead of written by the registry: their answer is never put in the cache here. */
 const LIST_TARGETS = ['appInvitations', 'users'] as const;
 type ListTarget = (typeof LIST_TARGETS)[number];
 const isListTarget = (target: MutationTarget): target is ListTarget => (LIST_TARGETS as readonly string[]).includes(target);
@@ -1109,7 +1217,8 @@ type CachedTarget = Exclude<MutationTarget, ListTarget>;
 Nel registro, dopo le voci `appInvitations`:
 
 ```ts
-  // Not written: the users are read again; the profile too, as one's own roles may have changed (spec W10).
+  // Read again; the profile too, as one's own roles may have changed. `applied` only for the
+  // latest answer for that user: the page may then write it as the confirmed detail (spec W10).
   'users.setRole': { target: 'users', stale: ['profile'] },
 ```
 
@@ -1117,19 +1226,44 @@ In `applyMutation` sostituisci il ramo `if (target === 'appInvitations') { ... }
 
 ```ts
   if (isListTarget(target)) {
-    // Not written: the list is read again for every answer, also a superseded one. Only a
-    // closed session drops it; showing a link is the sheet's decision (its own attempt).
+    // Read again for every answer, also a superseded one; only a closed session drops it.
     if (!options.sessionOpen()) return false;
     void queryClient.invalidateQueries({ queryKey: [target] });
     if (stale.length) void queryClient.invalidateQueries({ predicate: (query) => stale.some((scope) => matches(scope, options.familyId)(query)) });
-    return true;
+    // Invitations: showing a link is the sheet's decision (its own attempt), so any answer counts.
+    // Users: only the latest answer for the user may be written by the page (spec W10).
+    return target === 'users' ? options.isLatest() : true;
   }
 ```
 
-In `runAreaMutation` la chiave di tracciamento:
+In `runAreaMutation` aggiungi il parametro e usa `track`:
 
 ```ts
-  const trackKey = target === 'profile' || isListTarget(target) ? target : `${target}:${familyId}`;
+export async function runAreaMutation<T>(
+  deps: MutationDeps,
+  name: MutationName,
+  familyId: string | undefined,
+  call: () => Promise<T>,
+  options: { track?: string } = {}
+): Promise<MutationOutcome<T>> {
+  const { target } = INVALIDATIONS[name] as Invalidation;
+  // `track` groups the answers that supersede each other (for users: one user), without touching familyId.
+  const trackKey = options.track ?? (target === 'profile' || isListTarget(target) ? target : `${target}:${familyId}`);
+```
+
+(il resto della funzione resta com'è: usa già `trackKey` per `track` e `isLatest`).
+
+E in `useAreaMutation`:
+
+```ts
+export function useAreaMutation<I, T>(name: MutationName, familyId: string | undefined, call: (input: I) => Promise<T>, options: { track?: string } = {}) {
+  const session = useSession();
+  const currentLocale = useCurrentLocale();
+  return useMutation({
+    meta: familyId ? { familyId } : undefined,
+    mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input), options)
+  });
+}
 ```
 
 In `web/src/api/types.ts` aggiungi `'users'` in fondo a `SERVER_AREAS`.
@@ -1410,7 +1544,7 @@ git commit -m "Web: registro delle mutazioni, letture e modalità finta degli ut
 - Modifica: `web/src/i18n/messages/admin.ts`
 - Crea: `web/src/features/admin/UsersSection.tsx`
 - Modifica: `web/src/features/admin/AdminPage.tsx`, `web/src/features/admin/AdminPage.module.css`
-- Modifica: `web/src/features/admin/access.ts` (`onAdminForbidden`)
+- Crea: `web/src/features/admin/AdminAccess.tsx` (stato «accesso da verificare»)
 - Crea: `web/src/features/admin/UsersSection.test.tsx`
 
 **Interfacce:**
@@ -1418,10 +1552,12 @@ git commit -m "Web: registro delle mutazioni, letture e modalità finta degli ut
   (Compito 9: il `Link` tipato richiede la rotta; scrivi prima la registrazione della
   rotta del Compito 9, Passo 3, punto 1, con un `UserPage` provvisorio che restituisce
   `null`, e completalo nel Compito 9).
-- Produce: chiavi di testo usate anche nel Compito 9 e 10;
-  `onAdminForbidden(queryClient: QueryClient, error: unknown): Promise<boolean>` in
-  `web/src/features/admin/access.ts` (vero se l'errore era `forbidden` ed è stato
-  gestito), usata anche nel Compito 9.
+- Produce: chiavi di testo usate anche nel Compito 9 e 10; da
+  `web/src/features/admin/AdminAccess.tsx`: `AdminAccessProvider` (avvolge una pagina
+  dell'amministrazione), `useAdminAccess(): { state, report(error): boolean, retry() }`
+  (`report` gestisce solo `forbidden` e restituisce vero se lo era) e
+  `AdminAccessGate({ profile, children })`, che mostra il contenuto solo con l'accesso
+  verificato e `app_admin` nel profilo. Usati nei Compiti 9 e 10.
 
 - [ ] **Passo 1: testi**
 
@@ -1491,10 +1627,19 @@ del Profilo cercava la vecchia descrizione e aggiornalo.
 ```tsx
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../api/errors';
 import { createFakeApi } from '../../api/fake/fakeApi';
+import { FAKE_GUEST_ID } from '../../api/fake/fakeUsers';
+import { DEMO_USER_ID } from '../../api/fake/seed';
 import { renderApp } from '../../test/renderApp';
 
 const adminApi = () => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] });
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => ((resolve = res), (reject = rej)));
+  return { promise, resolve, reject };
+}
 
 describe('/admin users', () => {
   afterEach(() => {
@@ -1536,16 +1681,49 @@ describe('/admin users', () => {
     expect(await screen.findByText('Ci sono altri utenti: restringi la ricerca.')).toBeTruthy();
   });
 
-  it('after a demotion made elsewhere, the next search shows «Non hai accesso» and no user data', async () => {
+  /** Another administrator appears and takes the role away from the signed-in person. */
+  async function demoteElsewhere(api: ReturnType<typeof adminApi>) {
+    await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+    await api.users.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+  }
+  const search = (value: string) => fireEvent.change(screen.getByRole('searchbox', { name: 'Cerca per nome o email' }), { target: { value } });
+  /** Nothing of the administration is in the page: no data, no search, no commands. */
+  function nothingShown() {
+    expect(screen.queryByText('ospite@example.com')).toBeNull();
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Nuovo invito' })).toBeNull();
+  }
+
+  it('a forbidden search hides data and commands at once, keeps them hidden if the profile cannot be read, then denies access', async () => {
     const api = adminApi();
     renderApp('/admin', { api });
     await screen.findByText('ospite@example.com');
-    // Another administrator appears and takes the role away from the signed-in person.
-    await api.users.setRole({ id: '00000000-0000-4000-8000-00000000a5e1', role: 'app_admin', granted: true });
-    await api.users.setRole({ id: 'user-federico', role: 'app_admin', granted: false });
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Cerca per nome o email' }), { target: { value: 'o' } });
+    await demoteElsewhere(api);
+    const profileRead = deferred<never>();
+    const realProfile = api.profile.get.bind(api.profile);
+    const getProfile = vi.spyOn(api.profile, 'get').mockImplementation(() => profileRead.promise);
+    search('o');
+    await waitFor(() => expect(getProfile).toHaveBeenCalled());
+    nothingShown(); // the profile read is still pending: the cached profile (still admin) is not trusted
+    profileRead.reject(new ApiError('internal'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Riprova' }));
+    nothingShown();
+    getProfile.mockImplementation(realProfile);
+    fireEvent.click(await screen.findByRole('button', { name: 'Riprova' }));
     expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
-    expect(screen.queryByText('ospite@example.com')).toBeNull();
+    nothingShown();
+  });
+
+  it('a forbidden answer while the profile still says app_admin reads the sections again', async () => {
+    const api = adminApi();
+    renderApp('/admin', { api });
+    await screen.findByText('ospite@example.com');
+    const list = vi.spyOn(api.users, 'list').mockRejectedValueOnce(new ApiError('forbidden'));
+    search('o');
+    // Back after the check, mounted again and read from scratch.
+    expect(await screen.findByText('ospite@example.com')).toBeTruthy();
+    expect(screen.getByRole('searchbox', { name: 'Cerca per nome o email' })).toBeTruthy();
+    expect(list.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it('opens the detail of a user', async () => {
@@ -1566,22 +1744,108 @@ Atteso: FAIL (nessun titolo «Utenti»).
 Prima registra la rotta (Compito 9, Passo 3, punto 1) con un `UserPage` provvisorio
 (`export function UserPage() { return null; }` in `web/src/features/admin/UserPage.tsx`).
 
-In `web/src/features/admin/access.ts` aggiungi (con gli import di `QueryClient` da
-`@tanstack/react-query` e `toApiError` da `../../api/errors`):
+`web/src/features/admin/AdminAccess.tsx`:
 
-```ts
+```tsx
+import { Fragment, createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link } from '@tanstack/react-router';
+import type { ProfileView } from '@app/contract';
+import { toApiError } from '../../api/errors';
+import { profileQuery } from '../../api/profile';
+import { useQueryDeps } from '../../api/queries';
+import { Loading } from '../../components/Loading';
+import { QueryError } from '../../components/QueryError';
+import { StateNotice } from '../../components/StateNotice';
+import { useT } from '../../i18n/LocaleProvider';
+import { hasAppAdmin } from './access';
+
+type AccessState = { status: 'ok' } | { status: 'checking' } | { status: 'denied' } | { status: 'error'; error: unknown };
+interface AdminAccess {
+  state: AccessState;
+  /** Remounts the content when access is confirmed again: its views are read from scratch. */
+  generation: number;
+  /** Handles a `forbidden` of a users operation (true); any other error is the caller's (false). */
+  report(error: unknown): boolean;
+  retry(): void;
+}
+
+const Context = createContext<AdminAccess | null>(null);
+
 /**
- * A users or invitations operation answered `forbidden` (spec W10): the administration data
- * leave the cache and the profile is read again. Without app_admin the pages show «Non hai
- * accesso a questa pagina»; with it (forbidden for another reason) they read again and show the
- * error. The shared error handler (SessionScope) is not involved.
+ * «Accesso da verificare» (spec W10): after a `forbidden` nothing of the administration is shown
+ * until a fresh read of the profile says whether app_admin remains. The cached profile is never
+ * trusted for that, and a failed read never reuses the old permission. SessionScope is not involved.
  */
-export async function onAdminForbidden(queryClient: QueryClient, error: unknown): Promise<boolean> {
-  if (toApiError(error).code !== 'forbidden') return false;
-  queryClient.removeQueries({ queryKey: ['users'] });
-  queryClient.removeQueries({ queryKey: ['appInvitations'] });
-  await queryClient.refetchQueries({ queryKey: ['profile'] }).catch(() => undefined);
-  return true;
+export function AdminAccessProvider({ children }: { children: ReactNode }) {
+  // useQueryDeps answers a new object at every render: kept in a ref, so report stays stable.
+  const depsNow = useQueryDeps();
+  const depsRef = useRef(depsNow);
+  depsRef.current = depsNow;
+  const [state, setState] = useState<AccessState>({ status: 'ok' });
+  const [generation, setGeneration] = useState(0);
+  const running = useRef(false);
+  const verify = useCallback(async () => {
+    if (running.current) return;
+    running.current = true;
+    setState({ status: 'checking' });
+    const deps = depsRef.current;
+    try {
+      // fetchQuery rejects when the read fails (refetchQueries would swallow it).
+      const profile = await deps.queryClient.fetchQuery({ ...profileQuery(deps), staleTime: 0 });
+      deps.queryClient.removeQueries({ queryKey: ['users'] });
+      deps.queryClient.removeQueries({ queryKey: ['appInvitations'] });
+      if (hasAppAdmin(profile)) {
+        setGeneration((current) => current + 1);
+        setState({ status: 'ok' });
+      } else {
+        setState({ status: 'denied' });
+      }
+    } catch (error) {
+      setState({ status: 'error', error });
+    } finally {
+      running.current = false;
+    }
+  }, []);
+  const report = useCallback((error: unknown) => {
+    if (toApiError(error).code !== 'forbidden') return false;
+    void verify();
+    return true;
+  }, [verify]);
+  const value = useMemo(() => ({ state, generation, report, retry: () => void verify() }), [state, generation, report, verify]);
+  return <Context.Provider value={value}>{children}</Context.Provider>;
+}
+
+export function useAdminAccess(): AdminAccess {
+  const value = useContext(Context);
+  if (!value) throw new Error('useAdminAccess outside AdminAccessProvider');
+  return value;
+}
+
+/**
+ * The content of an administration page, only with access settled and app_admin in the profile;
+ * otherwise loading, the check's error with «Riprova», or «Non hai accesso a questa pagina».
+ * A new generation remounts the content, so nothing of the earlier answers stays in the page.
+ */
+export function AdminAccessGate({ profile, fallbackHeader, children }: {
+  profile: { data?: ProfileView; isError: boolean; error: unknown; refetch: () => unknown };
+  /** Shown above loading, the check's error and «Non hai accesso» (the detail page's header). */
+  fallbackHeader?: ReactNode;
+  children: ReactNode;
+}) {
+  const t = useT();
+  const { state, generation, retry } = useAdminAccess();
+  const instead = (content: ReactNode) => <>{fallbackHeader}{content}</>;
+  if (state.status === 'checking') return instead(<Loading />);
+  if (state.status === 'error') return instead(<QueryError error={state.error} onRetry={retry} />);
+  if (!profile.data) return instead(profile.isError ? <QueryError error={profile.error} onRetry={() => void profile.refetch()} /> : <Loading />);
+  if (state.status === 'denied' || !hasAppAdmin(profile.data)) {
+    return instead(
+      <StateNotice title={t('admin.noAccess')}>
+        <Link to="/profile" className="text-button">{t('nav.profile')}</Link>
+      </StateNotice>
+    );
+  }
+  return <Fragment key={generation}>{children}</Fragment>;
 }
 ```
 
@@ -1597,7 +1861,7 @@ import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
-import { onAdminForbidden } from './access';
+import { useAdminAccess } from './AdminAccess';
 import { usersQuery } from './api';
 import styles from './AdminPage.module.css';
 
@@ -1617,9 +1881,10 @@ export function UsersSection() {
   }, [text]);
   // The previous answer stays while the next one loads: the page does not jump on the phone.
   const list = useQuery({ ...usersQuery(deps, query), placeholderData: keepPreviousData });
+  const { report } = useAdminAccess();
   useEffect(() => {
-    if (list.error) void onAdminForbidden(deps.queryClient, list.error);
-  }, [list.error, deps.queryClient]);
+    if (list.error) report(list.error);
+  }, [list.error, report]);
 
   return (
     <section className="settings-card" aria-labelledby="users-title">
@@ -1675,18 +1940,43 @@ In `AdminPage.module.css` aggiungi:
 (Gli ultimi quattro servono al Compito 9. Se `.search` stona con i campi di ricerca
 esistenti, riusa la classe del ricettario: `grep -rn 'type="search"' web/src`.)
 
-In `AdminPage.tsx`: importa `UsersSection`, aggiorna il commento in testa («Utenti (B),
-poi Inviti all'app; il ripristino (E) dopo») e sostituisci
-`{hasAppAdmin(profile.data) && <InvitationsSection />}` con:
+`AdminPage.tsx` diventa (il controllo dell'accesso passa ad `AdminAccessGate`):
 
 ```tsx
-        {hasAppAdmin(profile.data) && (
-          <>
+import { PageHeader } from '../../components/PageHeader';
+import { useT } from '../../i18n/LocaleProvider';
+import { BackToProfile } from '../../routes/profile/BackToProfile';
+import { useProfile } from '../../session/useFamily';
+import { AdminAccessGate, AdminAccessProvider } from './AdminAccess';
+import { InvitationsSection } from './InvitationsSection';
+import { UsersSection } from './UsersSection';
+
+/**
+ * App administration (spec section 7, W9 and W10): its sections in sequence, Utenti (B) then
+ * «Inviti all'app»; the restore (E) goes after. No placeholders.
+ */
+export function AdminPage() {
+  const t = useT();
+  const profile = useProfile();
+  return (
+    <section className="secondary-view app-view">
+      <div className="page-column">
+        <PageHeader back={<BackToProfile />} title={t('admin.title')} />
+        <AdminAccessProvider>
+          <AdminAccessGate profile={profile}>
             <UsersSection />
             <InvitationsSection />
-          </>
-        )}
+          </AdminAccessGate>
+        </AdminAccessProvider>
+      </div>
+    </section>
+  );
+}
 ```
+
+I test esistenti di `/admin` («Non hai accesso a questa pagina» per chi non è
+amministratore, caricamento, errore del profilo) devono restare verdi: `AdminAccessGate`
+ripete quei tre stati.
 
 - [ ] **Passo 5: esegui**
 
@@ -1712,8 +2002,9 @@ git commit -m "Web: sezione Utenti in /admin (W10)"
 - Crea: `web/src/features/admin/UserPage.test.tsx`
 
 **Interfacce:**
-- Consuma: `userQuery` e `'users.setRole'` (Compito 6), `FAKE_GUEST_ID` (Compito 7),
-  `hasAppAdmin` e `onAdminForbidden` (Compito 8), testi del Compito 8.
+- Consuma: `userQuery`, `'users.setRole'` e l'opzione `track` di `useAreaMutation`
+  (Compito 6), `FAKE_GUEST_ID` (Compito 7), `AdminAccessProvider`, `useAdminAccess`,
+  `AdminAccessGate` (Compito 8), testi del Compito 8.
 
 - [ ] **Passo 1: test (fallisce)**
 
@@ -1821,17 +2112,68 @@ describe('/admin/users/$userId', () => {
     await waitFor(() => expect(screen.queryByText('Amministrazione dell’app')).toBeNull());
   });
 
-  it('after a demotion made elsewhere, the next tap shows «Non hai accesso» and hides the user', async () => {
+  it('after a demotion made elsewhere, the next tap hides the user at once, then shows «Non hai accesso»', async () => {
     const api = adminApi();
     renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
     const box = await curator();
     // Another administrator appears and takes the role away from the signed-in person.
     await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
     await api.users.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+    const profileRead = deferred<never>();
+    const realProfile = api.profile.get.bind(api.profile);
+    const getProfile = vi.spyOn(api.profile, 'get').mockImplementation(() => profileRead.promise);
     fireEvent.click(box);
+    await waitFor(() => expect(getProfile).toHaveBeenCalled());
+    // The profile read hangs: the cached profile still says app_admin, and is not trusted.
+    expect(screen.queryByText('ospite@example.com')).toBeNull();
+    expect(screen.queryByRole('switch')).toBeNull();
+    profileRead.reject(new ApiError('internal'));
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    expect(screen.queryByRole('switch')).toBeNull();
+    getProfile.mockImplementation(realProfile);
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
     expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
     expect(screen.queryByText('ospite@example.com')).toBeNull();
     expect(screen.queryByRole('switch')).toBeNull();
+  });
+
+  it('a forbidden answer while still app_admin shows the user again, read from scratch', async () => {
+    const api = adminApi();
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    const get = vi.spyOn(api.users, 'get');
+    vi.spyOn(api.users, 'setRole').mockRejectedValueOnce(new ApiError('forbidden'));
+    fireEvent.click(await curator());
+    await waitFor(() => expect(get).toHaveBeenCalled());
+    expect(await screen.findByText('ospite@example.com')).toBeTruthy();
+    expect((await curator()).checked).toBe(false);
+  });
+
+  it('an older answer never replaces a newer one for the same user, also after leaving and reopening the page', async () => {
+    const api = adminApi();
+    const realSet = api.users.setRole.bind(api.users);
+    const realGet = api.users.get.bind(api.users);
+    let hangReads = false;
+    vi.spyOn(api.users, 'get').mockImplementation((input) => (hangReads ? new Promise(() => undefined) : realGet(input)));
+    const slow = deferred<void>();
+    let calls = 0;
+    vi.spyOn(api.users, 'setRole').mockImplementation(async (input) => {
+      const first = calls++ === 0;
+      const answer = await realSet(input); // written at once on the "server"
+      if (first) await slow.promise; // its answer arrives late
+      return answer;
+    });
+    const { history } = renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    fireEvent.click(await curator()); // give curator: the answer is late
+    await waitFor(() => expect(calls).toBe(1));
+    await history.push('/admin');
+    await history.push(`/admin/users/${FAKE_GUEST_ID}`);
+    await waitFor(async () => expect((await curator()).checked).toBe(true)); // read again: given
+    fireEvent.click(await curator()); // take it away: answered at once
+    await waitFor(async () => expect((await curator()).checked).toBe(false));
+    hangReads = true; // no reread can fix a wrong write from now on
+    slow.resolve(); // the older answer (curator given) arrives last
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await curator()).checked).toBe(false);
   });
 
   it('shows not found for an unknown id', async () => {
@@ -1881,7 +2223,7 @@ Atteso: FAIL (la pagina provvisoria non mostra nulla).
 ```tsx
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
@@ -1895,7 +2237,7 @@ import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
-import { hasAppAdmin, onAdminForbidden } from './access';
+import { AdminAccessGate, AdminAccessProvider, useAdminAccess } from './AdminAccess';
 import { userQuery } from './api';
 import styles from './AdminPage.module.css';
 
@@ -1910,35 +2252,45 @@ const route = getRouteApi('/_app/admin/users/$userId');
  */
 export function UserPage() {
   const t = useT();
+  const profile = useProfile();
+  const back = (
+    <Link to="/admin" className="page-back"><Icon name="chevron-left" />{t('admin.title')}</Link>
+  );
+  return (
+    <section className="secondary-view app-view">
+      <div className="page-column">
+        <AdminAccessProvider>
+          {/* Loading, check error and «Non hai accesso» keep a header; the detail has its own, with the name. */}
+          <AdminAccessGate profile={profile} fallbackHeader={<PageHeader back={back} title={t('admin.users')} />}>
+            <UserDetailView back={back} />
+          </AdminAccessGate>
+        </AdminAccessProvider>
+      </div>
+    </section>
+  );
+}
+
+function UserDetailView({ back }: { back: ReactNode }) {
+  const t = useT();
   const deps = useQueryDeps();
   const online = useOnline();
   const navigate = useNavigate();
   const profile = useProfile();
+  const { report } = useAdminAccess();
   const { userId } = route.useParams();
-  const allowed = hasAppAdmin(profile.data);
   const detailQuery = userQuery(deps, userId);
-  const user = useQuery({ ...detailQuery, enabled: allowed });
+  const user = useQuery(detailQuery);
   const [confirming, setConfirming] = useState<'appoint' | 'dropSelf' | null>(null);
   // From the tap until a confirmed state is shown; the ref also blocks taps before the next render.
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
-  // A forbidden answer: nothing of this user is shown until the profile says whether access remains.
-  const [checkingAccess, setCheckingAccess] = useState(false);
-  const setRole = useAreaMutation('users.setRole', undefined, (change: Change) => deps.api.users.setRole({ id: userId, ...change }));
+  // Answers that supersede each other are those for this user, in this session (also across remounts).
+  const setRole = useAreaMutation('users.setRole', undefined, (change: Change) => deps.api.users.setRole({ id: userId, ...change }), { track: `users:${userId}` });
   const isSelf = profile.data?.user.id === userId;
 
-  async function lostAccess(error: unknown): Promise<boolean> {
-    if (toApiError(error).code !== 'forbidden') return false;
-    setCheckingAccess(true);
-    await onAdminForbidden(deps.queryClient, error);
-    setCheckingAccess(false);
-    return true;
-  }
   useEffect(() => {
-    if (user.error) void lostAccess(user.error);
-    // lostAccess only reads stable values.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user.error]);
+    if (user.error) report(user.error);
+  }, [user.error, report]);
 
   async function apply(change: Change) {
     setConfirming(null);
@@ -1956,7 +2308,8 @@ export function UserPage() {
       // Giving up one's own app_admin closes this page: the profile, read again, no longer offers it.
       if (outcome.applied && isSelf && change.role === 'app_admin' && !change.granted) void navigate({ to: '/profile' });
     } catch (error) {
-      await lostAccess(error);
+      // forbidden: AdminAccess hides the page and checks the profile; other errors show below the card.
+      report(error);
     } finally {
       sending.current = false;
       setBusy(false);
@@ -1969,31 +2322,16 @@ export function UserPage() {
     void apply({ role, granted });
   }
 
-  const back = (
-    <Link to="/admin" className="page-back"><Icon name="chevron-left" />{t('admin.title')}</Link>
-  );
-  if (profile.data && !allowed) {
-    return (
-      <section className="secondary-view app-view">
-        <div className="page-column">
-          <PageHeader back={back} title={t('admin.users')} />
-          <StateNotice title={t('admin.noAccess')}><Link to="/profile" className="text-button">{t('nav.profile')}</Link></StateNotice>
-        </div>
-      </section>
-    );
-  }
   const notFound = user.isError && toApiError(user.error).code === 'not_found';
-  const detail = checkingAccess ? undefined : user.data;
+  const detail = user.data;
   const mutationError = setRole.isError && toApiError(setRole.error).code !== 'forbidden';
   return (
-    <section className="secondary-view app-view">
-      <div className="page-column">
-        <PageHeader back={back} title={detail?.user.displayName ?? t('admin.users')} />
-        {profile.isError && <QueryError error={profile.error} onRetry={() => void profile.refetch()} />}
-        {!profile.isError && (checkingAccess || !profile.data || (!detail && !user.isError)) && <Loading />}
-        {!checkingAccess && notFound && <StateNotice title={t('errors.not_found')} />}
-        {/* A failed (re)read: with a confirmed detail the switches keep it, and the error offers a retry. */}
-        {!checkingAccess && user.isError && !notFound && <QueryError error={user.error} onRetry={() => void user.refetch()} />}
+    <>
+      <PageHeader back={back} title={detail?.user.displayName ?? t('admin.users')} />
+      {!detail && !user.isError && <Loading />}
+      {notFound && <StateNotice title={t('errors.not_found')} />}
+      {/* A failed (re)read: with a confirmed detail the switches keep it, and the error offers a retry. */}
+      {user.isError && !notFound && toApiError(user.error).code !== 'forbidden' && <QueryError error={user.error} onRetry={() => void user.refetch()} />}
         {detail && (
           <>
             <p className={`meta-line ${styles.email}`}>{detail.user.email}</p>
@@ -2048,8 +2386,7 @@ export function UserPage() {
             </BottomSheet>
           </>
         )}
-      </div>
-    </section>
+    </>
   );
 }
 ```
@@ -2089,7 +2426,8 @@ git commit -m "Web: dettaglio dell'utente con i ruoli e le conferme (W10)"
 
 **Interfacce:**
 - Consuma: `api.users.list` (Compito 7, che dà anche `account_exists` nella modalità
-  finta), `FAKE_GUEST_ID` (Compito 7), rotta `/admin/users/$userId` (Compito 9).
+  finta), `FAKE_GUEST_ID` (Compito 7), `useAdminAccess` (Compito 8: il foglio è dentro
+  `AdminAccessGate`), rotta `/admin/users/$userId` (Compito 9).
 
 - [ ] **Passo 1: test (fallisce)**
 
@@ -2149,8 +2487,26 @@ it('links the user of the latest attempt even when the searches answer in revers
 });
 ```
 
-Il test esistente di `account_exists` (con `mockRejectedValue`) resta valido: controlla
-solo il testo.
+```tsx
+it('a forbidden search for account_exists hides the administration and denies access', async () => {
+  const api = adminApi();
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  // Another administrator appears and takes the role away; the creation still answers account_exists.
+  await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+  await api.users.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
+  fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'ospite@example.com' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+  expect(screen.queryByRole('dialog', { name: 'Nuovo invito' })).toBeNull();
+  expect(screen.queryByText('ospite@example.com')).toBeNull();
+});
+```
+
+(con l'import di `DEMO_USER_ID` da `../../api/fake/seed`). Il test esistente di
+`account_exists` (con `mockRejectedValue`) resta valido: controlla solo il testo.
 
 - [ ] **Passo 2: esegui**
 
@@ -2190,9 +2546,16 @@ Nel `catch` di `send()`:
             if (!alive.current || attemptNow !== attemptNumber.current) return;
             setExistingUser(users.find((user) => user.email.toLowerCase() === wanted)?.id ?? null);
           })
-          .catch(() => undefined);
+          // forbidden goes to AdminAccess like any users operation; other errors leave only the text.
+          .catch((searchError: unknown) => void access.report(searchError));
       }
     }
+```
+
+e in testa al componente, con l'import da `./AdminAccess`:
+
+```tsx
+  const access = useAdminAccess();
 ```
 
 Nel campo email, l'`onChange` toglie il collegamento e rende superata la ricerca in
@@ -2316,9 +2679,10 @@ git commit -m "Spec: esito della prova dell'interfaccia (W10)"
 | 3 Dettaglio, conferme, interruttore bloccato, rinuncia → Profilo | 9 |
 | 3 `account_exists` → «Apri l'utente» | 10 |
 | 3 Modalità finta (demo amministratore, `account_exists`) | 7 |
-| 3 Interruttori bloccati fino allo stato confermato; perdita di `app_admin` | 8, 9 |
+| 3 Interruttori bloccati fino allo stato confermato; risposte superate per utente | 6, 9 |
+| 3 Accesso da verificare dopo un `forbidden` (`/admin`, dettaglio, ricerca di `account_exists`) | 8, 9, 10 |
 | 3 «Questo è il tuo account» in due lingue | 8, 9 |
 | 3 Ricerca di `account_exists` legata al tentativo | 10 |
 | 4 Verifica in inglese e con nomi lunghi | 11 |
-| 4 pgTAP, server, concorrenza, stack, web, agent-browser | 1, 3, 4, 5, 6–10, 11 |
+| 4 pgTAP, server, concorrenza (senza attese appese, `hold.ts`), stack, web, agent-browser | 1, 3, 4, 5, 6–10, 11 |
 | 6 Interfaccia per C (regola del lucchetto nel commento) | 1 |
