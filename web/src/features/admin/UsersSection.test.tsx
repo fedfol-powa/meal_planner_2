@@ -1,9 +1,11 @@
+import { focusManager } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { createFakeApi } from '../../api/fake/fakeApi';
 import { FAKE_GUEST_ID } from '../../api/fake/fakeUsers';
 import { DEMO_USER_ID } from '../../api/fake/seed';
+import { LanguageSwitch } from '../../test/LanguageSwitch';
 import { renderApp } from '../../test/renderApp';
 
 const adminApi = () => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] });
@@ -119,6 +121,58 @@ describe('/admin users', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
     expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
     nothingShown();
+  });
+
+  it('a profile read started before the forbidden does not give access back when it answers', async () => {
+    const api = adminApi();
+    const { history } = renderApp('/admin', { api });
+    await screen.findByText('ospite@example.com');
+    const stillAdmin = await api.profile.get({});
+    const early = deferred<typeof stillAdmin>();
+    // The first read hangs and will answer with the profile from before; later ones fail.
+    const getProfile = vi.spyOn(api.profile, 'get').mockImplementationOnce(() => early.promise).mockRejectedValue(new ApiError('internal'));
+    focusManager.setFocused(false);
+    focusManager.setFocused(true); // the window comes back: the profile is read again
+    await waitFor(() => expect(getProfile).toHaveBeenCalledTimes(1));
+    await demoteElsewhere(api);
+    vi.spyOn(api.users, 'list').mockRejectedValueOnce(new ApiError('forbidden')).mockImplementation(() => new Promise(() => undefined));
+    vi.spyOn(api.appInvitations, 'list').mockImplementation(() => new Promise(() => undefined));
+    search('o');
+    await waitFor(() => expect(screen.queryByRole('searchbox')).toBeNull());
+    early.resolve(stillAdmin); // the answer from before arrives
+    await new Promise((r) => setTimeout(r, 20));
+    nothingShown();
+    // The check made a request of its own, which failed.
+    expect(getProfile).toHaveBeenCalledTimes(2);
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    await history.push('/profile');
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Amministrazione dell’app' })).toBeNull());
+    await history.push('/admin');
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+    nothingShown();
+  });
+
+  it('after a check confirms the role is gone, the profile cached in another language does not bring the page back', async () => {
+    const api = adminApi();
+    renderApp('/admin', { api, extra: <LanguageSwitch /> });
+    await screen.findByText('ospite@example.com');
+    // The profile, still with app_admin, is cached in both languages.
+    fireEvent.click(screen.getByRole('button', { name: 'test: english' }));
+    await screen.findByRole('searchbox', { name: 'Search by name or email' });
+    fireEvent.click(screen.getByRole('button', { name: 'test: italiano' }));
+    await screen.findByRole('searchbox', { name: 'Cerca per nome o email' });
+    await demoteElsewhere(api);
+    search('o');
+    expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+    vi.spyOn(api.profile, 'get').mockRejectedValue(new ApiError('internal'));
+    vi.spyOn(api.users, 'list').mockImplementation(() => new Promise(() => undefined));
+    vi.spyOn(api.appInvitations, 'list').mockImplementation(() => new Promise(() => undefined));
+    fireEvent.click(screen.getByRole('button', { name: 'test: english' }));
+    expect(await screen.findByText('You don’t have access to this page')).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('searchbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'New invitation' })).toBeNull();
   });
 
   it('a forbidden answer while the profile still says app_admin reads the sections again', async () => {

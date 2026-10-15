@@ -1,6 +1,7 @@
 import { Fragment, useSyncExternalStore, type ReactNode } from 'react';
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import type { ProfileView } from '@app/contract';
 import { toApiError } from '../../api/errors';
 import { profileQuery } from '../../api/profile';
 import { useQueryDeps, type QueryDeps } from '../../api/queries';
@@ -11,7 +12,15 @@ import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
 import { hasAppAdmin } from './access';
 
-type AccessState = { status: 'ok' } | { status: 'checking' } | { status: 'error'; error: unknown };
+/**
+ * `profile`: no forbidden yet in this session, the profile decides. After a forbidden only the
+ * outcome of a check started after it counts (`verified`), in any language, until the next one.
+ */
+type AccessState =
+  | { status: 'profile' }
+  | { status: 'checking' }
+  | { status: 'error'; error: unknown }
+  | { status: 'verified'; admin: boolean };
 interface Snapshot {
   state: AccessState;
   /** Remounts the content when access is confirmed again: its views are read from scratch. */
@@ -36,12 +45,13 @@ const isForbidden = (error: unknown) => toApiError(error).code === 'forbidden';
 
 /**
  * «Accesso da verificare» (spec W10): after a `forbidden` nothing of the administration is shown
- * until a fresh read of the profile says whether app_admin remains. The cached profile is never
- * trusted for that, and a failed read never reuses the old permission. The state belongs to the
- * session's QueryClient, not to a page: leaving and reopening keeps it, a new session starts clean.
+ * until a read of the profile started after it says whether app_admin remains; from then on that
+ * outcome decides, not a cached profile (of this language or another), until the next check. A
+ * failed read never reuses the old permission. The state belongs to the session's QueryClient,
+ * not to a page: leaving and reopening keeps it, a new session starts clean.
  */
 function createStore(queryClient: QueryClient, deps: QueryDeps): Store {
-  let current: Snapshot = { state: { status: 'ok' }, generation: 0 };
+  let current: Snapshot = { state: { status: 'profile' }, generation: 0 };
   const listeners = new Set<() => void>();
   const set = (next: Partial<Snapshot>) => {
     current = { ...current, ...next };
@@ -56,15 +66,18 @@ function createStore(queryClient: QueryClient, deps: QueryDeps): Store {
     if (running) return;
     running = true;
     try {
+      let profile: ProfileView;
       do {
         reportedAgain = false;
         const deps = store.deps;
-        // fetchQuery rejects when the read fails (refetchQueries would swallow it).
-        await deps.queryClient.fetchQuery({ ...profileQuery(deps), staleTime: 0 });
+        // A request of its own, started now: fetchQuery would join a read already in flight,
+        // begun before the forbidden. The cache gets it too, for the rest of the app.
+        profile = await deps.api.profile.get({});
+        deps.queryClient.setQueryData(profileQuery(deps).queryKey, profile);
       } while (reportedAgain); // a forbidden during the read: the answer may predate it
-      // Anything written meanwhile goes too; without app_admin the gate shows «Non hai accesso».
+      // Anything written meanwhile goes too.
       dropViews();
-      set({ state: { status: 'ok' }, generation: current.generation + 1 });
+      set({ state: { status: 'verified', admin: hasAppAdmin(profile) }, generation: current.generation + 1 });
     } catch (error) {
       set({ state: { status: 'error', error } });
     } finally {
@@ -88,7 +101,7 @@ function createStore(queryClient: QueryClient, deps: QueryDeps): Store {
       return true;
     },
     retry: () => void verify(),
-    allowed: () => current.state.status === 'ok'
+    allowed: () => current.state.status === 'profile' || (current.state.status === 'verified' && current.state.admin)
   };
   // A forbidden read hides the views in the same pass that would show its error next to the old data.
   queryClient.getQueryCache().subscribe((event) => {
@@ -110,7 +123,8 @@ export function useAdminAccess(): AdminAccess {
 }
 
 /**
- * The content of an administration page, only with access settled and app_admin in the profile;
+ * The content of an administration page, only with access settled and app_admin in the profile
+ * (or, after a forbidden, in the check's outcome);
  * otherwise loading, the check's error with «Riprova», or «Non hai accesso a questa pagina».
  * A new generation remounts the content, so nothing of the earlier answers stays in the page.
  * The profile is read here: when a check ends, this render must see the profile it read, not
@@ -127,8 +141,10 @@ export function AdminAccessGate({ fallbackHeader, children }: {
   const instead = (content: ReactNode) => <>{fallbackHeader}{content}</>;
   if (state.status === 'checking') return instead(<Loading />);
   if (state.status === 'error') return instead(<QueryError error={state.error} onRetry={retry} />);
-  if (!profile.data) return instead(profile.isError ? <QueryError error={profile.error} onRetry={() => void profile.refetch()} /> : <Loading />);
-  if (!hasAppAdmin(profile.data)) {
+  if (state.status === 'profile' && !profile.data) {
+    return instead(profile.isError ? <QueryError error={profile.error} onRetry={() => void profile.refetch()} /> : <Loading />);
+  }
+  if (state.status === 'verified' ? !state.admin : !hasAppAdmin(profile.data)) {
     return instead(
       <StateNotice title={t('admin.noAccess')}>
         <Link to="/profile" className="text-button">{t('nav.profile')}</Link>

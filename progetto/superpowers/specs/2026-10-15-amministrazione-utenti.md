@@ -267,10 +267,20 @@ Cambio di ruolo:
     solo con l'accesso confermato;
   - lo stato passa a «verifica»: sezioni, dati e comandi **non si montano più**
     (si vede solo il caricamento), senza fidarsi del profilo in cache;
-  - il profilo si rilegge con una lettura che segnala l'errore
-    (`queryClient.fetchQuery` con `staleTime: 0`);
+  - il profilo si rilegge con una **richiesta propria, partita dopo il `forbidden`**
+    (`api.profile.get`, poi scritta nella cache): `fetchQuery` si accoderebbe a una
+    lettura già in corso, iniziata prima della revoca (seconda revisione della PR,
+    rilievo 1);
+  - **regola unica** (seconda revisione della PR, rilievi 1 e 2): dopo un `forbidden`
+    l'accesso vale solo dall'esito di una verifica avviata dopo quel `forbidden`,
+    salvato nello stato della sessione (consentito o negato), qualunque sia la lingua.
+    La pagina decide da quell'esito, non dal profilo in cache (nemmeno da quello di
+    un'altra lingua), finché la verifica successiva non lo cambia; lo rispetta anche la
+    scrittura della risposta di `setRole`. Prima di ogni `forbidden` decide il profilo,
+    come sempre. Conseguenza: chi riceve di nuovo `app_admin` dopo un diniego confermato
+    rivede l'amministrazione riaprendo l'app (sessione nuova);
   - senza `app_admin`: «Non hai accesso a questa pagina», anche se una copia del
-    profilo in memoria dicesse il contrario;
+    profilo in memoria, in qualunque lingua, dicesse il contrario;
   - con `app_admin` ancora presente (un `forbidden` per altri motivi): le viste escono
     di nuovo dalla cache, lo stato torna normale e le sezioni si rimontano, quindi
     rileggono i dati da capo. Un `forbidden` arrivato durante la lettura del profilo la
@@ -438,6 +448,12 @@ non vedrebbe le modifiche confermate e il test lo segnalerebbe.
     dettaglio: errore con «Riprova», nessun dato, nessun interruttore; in `/admin` anche
     con la risposta tardiva di una ricerca precedente e con l'elenco che non risponde
     più (senza la pulizia immediata si vedrebbe la copia di prima);
+  - in `/admin`, una rilettura del profilo partita prima del `forbidden` che risponde
+    dopo, ancora con `app_admin`, mentre le letture successive falliscono e gli elenchi
+    non rispondono: nessun dato, poi «Riprova», anche dopo uscita e rientro;
+  - in `/admin`, profilo con `app_admin` in cache nelle due lingue, diniego confermato
+    in italiano, poi cambio in inglese con letture del profilo fallite: «You don’t have
+    access to this page», nessun campo di ricerca e nessun «New invitation».
   - due tentativi di invito con email diverse e risposte della ricerca in ordine
     inverso: il collegamento è quello dell'ultimo tentativo; cambiare l'email lo toglie
     (rilievo 4);
