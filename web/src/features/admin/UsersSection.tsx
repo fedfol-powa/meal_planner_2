@@ -49,13 +49,13 @@ export function UsersSection() {
       {!list.data && !list.isError && <Loading />}
       {list.data && list.data.users.length === 0 && <p className="meta-line">{t('admin.noUsers')}</p>}
       {list.data && list.data.users.length > 0 && (
-        <ul className={styles.list}>
+        <ul className="row-list">
           {list.data.users.map((user) => (
             <li key={user.id}>
               <Link to="/admin/users/$userId" params={{ userId: user.id }} className="row-link">
                 <span className="row-main">
                   <span>{user.displayName}{user.id === me && <span className={styles.you}>{` · ${t('admin.you')}`}</span>}</span>
-                  <small className={styles.email}>{user.email}</small>
+                  <small>{user.email}</small>
                   {user.roles.length > 0 && (
                     <span className={styles.roles}>{user.roles.map((role) => <span key={role} className={styles.role}>{t(`role.${role}`)}</span>)}</span>
                   )}

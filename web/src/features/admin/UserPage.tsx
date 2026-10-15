@@ -111,7 +111,7 @@ function UserDetailView({ back }: { back: ReactNode }) {
       {user.isError && !notFound && toApiError(user.error).code !== 'forbidden' && <QueryError error={user.error} onRetry={() => void user.refetch()} />}
       {detail && (
         <>
-          <p className={`meta-line ${styles.email}`}>{detail.user.email}</p>
+          <p className={`meta-line ${styles.userEmail}`}>{detail.user.email}</p>
           {isSelf && <p className="meta-line">{t('admin.yourAccount')}</p>}
           <section className="settings-card" aria-labelledby="roles-title">
             <h2 id="roles-title">{t('admin.roles')}</h2>
@@ -135,9 +135,9 @@ function UserDetailView({ back }: { back: ReactNode }) {
             {detail.families.length === 0 ? (
               <p>{t('admin.noFamilies')}</p>
             ) : (
-              <ul className={styles.list}>
+              <ul className="row-list">
                 {detail.families.map((family, index) => (
-                  <li key={index} className="row-main">{family.name}<small>{t(`profile.role.${family.role}`)}</small></li>
+                  <li key={index}><span className="row-main">{family.name}<small>{t(`profile.role.${family.role}`)}</small></span></li>
                 ))}
               </ul>
             )}
