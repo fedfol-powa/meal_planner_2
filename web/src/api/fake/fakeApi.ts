@@ -1,5 +1,7 @@
 import { createFakeAgents, createFakeAgentsData, type FakeAgent } from './fakeAgents';
+import type { GlobalRole } from '@app/contract';
 import { createFakeAppInvitations, registerFakeInvitations } from './fakeAppInvitations';
+import { createFakeUsers } from './fakeUsers';
 import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Department } from '@app/domain/shopping';
 import type { Locale } from '../../i18n/translate';
@@ -71,6 +73,8 @@ export interface FakeData {
   currentFamilyId?: string;
   /** App invitations (W9), made by the first client of the session. */
   appInvitations?: ReturnType<typeof createFakeAppInvitations>;
+  /** Users and global roles (W10), made by the first client of the session. */
+  users?: ReturnType<typeof createFakeUsers>;
 }
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
@@ -117,10 +121,10 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
  * One fake backend per session, one client per language on top of it (PR review, C13): the
  * language stays fixed per request, ratings and versions are the same in every language.
  */
-export function fakeClients(options: { latencyMs?: number } = {}) {
+export function fakeClients(options: { latencyMs?: number; globalRoles?: GlobalRole[] } = {}) {
   return (user: { id: string; email: string } | null) => {
     const shared = createFakeData(user ?? undefined);
-    return (locale: Locale) => createFakeApi({ getLocale: () => locale, data: shared, latencyMs: options.latencyMs });
+    return (locale: Locale) => createFakeApi({ getLocale: () => locale, data: shared, latencyMs: options.latencyMs, globalRoles: options.globalRoles });
   };
 }
 
@@ -131,6 +135,19 @@ export function createFakeApi(options: FakeApiOptions): Api {
   const user = state.user;
   const userId = user?.id ?? DEMO_USER_ID;
   const memberIds = new Set([...DEMO_PEOPLE.map((p) => p.id), userId]);
+  const seedPerson = DEMO_PEOPLE.find((p) => p.id === userId);
+  state.users ??= createFakeUsers({
+    self: {
+      id: userId,
+      displayName: () => profileView().user.displayName,
+      email: user?.email ?? seedPerson?.email ?? '',
+      // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
+      roles: options.globalRoles ?? (userId === DEMO_USER_ID ? ['recipe_curator'] : []),
+      family: seedPerson?.role ?? 'member'
+    },
+    familyName: () => state.family.name,
+    latencyMs: options.latencyMs
+  });
 
   async function respond<T>(value: T): Promise<Read<T>> {
     if (options.latencyMs) await new Promise((resolve) => setTimeout(resolve, options.latencyMs));
@@ -153,8 +170,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         displayName: state.profile.displayName ?? person?.displayName ?? (fromEmail.charAt(0).toUpperCase() + fromEmail.slice(1)),
         email,
         locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
-        // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
-        globalRoles: options.globalRoles ?? (userId === DEMO_USER_ID ? ['recipe_curator' as const] : [])
+        globalRoles: state.users!.rolesOf(userId)
       },
       families: [
         { id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' },
@@ -419,7 +435,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
       }
     },
     agents: createFakeAgents(state.agents, options.latencyMs),
-    appInvitations: (state.appInvitations ??= createFakeAppInvitations(options.latencyMs)),
+    appInvitations: (state.appInvitations ??= createFakeAppInvitations(options.latencyMs, (email) => state.users!.hasEmail(email))),
+    users: state.users!.area,
     shopping: createFakeShopping({
       familyId: DEMO_FAMILY.id, userId, getLocale: options.getLocale, latencyMs: options.latencyMs,
       ingredients: data.ingredients, recipes, data: state,
@@ -463,5 +480,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), appInvitations: wrap(api.appInvitations), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals), agents: wrap(api.agents) };
+  return { session: wrap(api.session), appInvitations: wrap(api.appInvitations), users: wrap(api.users), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals), agents: wrap(api.agents) };
 }

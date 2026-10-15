@@ -24,7 +24,7 @@ const view = ({ token: _token, ...row }: Stored): AppInvitationView => ({
 const usable = (row: Stored | undefined): row is Stored => row !== undefined && view(row).status === 'pending';
 
 /** The app invitations of the fake mode (spec W9): the server's rules, in memory. */
-export function createFakeAppInvitations(latencyMs = 0) {
+export function createFakeAppInvitations(latencyMs = 0, accountExists: (email: string) => boolean = () => false) {
   const rows = new Map<string, Stored>();
   const now = new Date();
   rows.set('demo', {
@@ -41,6 +41,8 @@ export function createFakeAppInvitations(latencyMs = 0) {
   const area = {
     async create({ id, email, roles }: { id: string; email: string; roles: GlobalRole[] }) {
       const normalized = email.trim().toLowerCase();
+      // As app.create_app_invitation: an email with an account gets no invitation (spec W10, fake mode).
+      if (accountExists(normalized)) throw new ApiError('not_allowed', { reason: 'account_exists' });
       const existing = byId(id);
       const link = token();
       if (existing) {

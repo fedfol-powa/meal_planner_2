@@ -35,4 +35,9 @@ describe('fake app invitations', () => {
   it('refuses an unknown link', async () => {
     await expect(createFakeAppInvitations().get({ token: 'z'.repeat(43) })).rejects.toEqual(new ApiError('invitation_unavailable'));
   });
+
+  it('refuses an email that has an account, as the server', async () => {
+    const area = createFakeAppInvitations(0, (email) => email === 'ospite@example.com');
+    await expect(area.create({ id: crypto.randomUUID(), email: ' Ospite@example.com', roles: [] })).rejects.toEqual(new ApiError('not_allowed', { reason: 'account_exists' }));
+  });
 });

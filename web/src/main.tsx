@@ -20,7 +20,8 @@ const backend = env.supabase ? createSupabaseBackend(env.supabase.url, env.supab
 // Real mode: the areas served by the Worker through oRPC, the others still fake (spec, «Seconda PR»).
 const createApi: CreateApi = env.supabase
   ? realClients({ rpc: createRpcClient({ getCredentials: () => backend.getCredentials() }), latencyMs: 150 })
-  : fakeClients({ latencyMs: 150 });
+  : // Fake mode: the demo person is also an app admin, so /admin can be tried without the stack (spec W10).
+    fakeClients({ latencyMs: 150, globalRoles: ['recipe_curator', 'app_admin'] });
 
 // Before any purge of other people's copies: their shopping queues go too.
 registerShoppingStorage();

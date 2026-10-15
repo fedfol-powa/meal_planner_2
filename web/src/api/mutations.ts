@@ -4,10 +4,14 @@ import type { Session } from '../session/session';
 import { familyOfKey } from './queries';
 import type { MealActionResult } from './types';
 
-/** The view a mutation answers with: the profile, one of the versioned views of a family, a week of the menu, or the app invitations. */
-export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations';
-/** The targets whose answer is written in the cache; `appInvitations` only makes the list stale. */
-type CachedTarget = Exclude<MutationTarget, 'appInvitations'>;
+/** The view a mutation answers with: the profile, one of the versioned views of a family, a week of the menu, the app invitations or the users. */
+export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations' | 'users';
+/** Lists read again instead of written by the registry: their answer is never put in the cache here. */
+const LIST_TARGETS = ['appInvitations', 'users'] as const;
+type ListTarget = (typeof LIST_TARGETS)[number];
+const isListTarget = (target: MutationTarget): target is ListTarget => (LIST_TARGETS as readonly string[]).includes(target);
+/** The targets whose answer is written in the cache. */
+type CachedTarget = Exclude<MutationTarget, ListTarget>;
 type Scope = 'all' | 'profile' | { area: string; operation?: string };
 
 export interface Invalidation {
@@ -40,6 +44,9 @@ export const INVALIDATIONS = {
   // Not written in the cache: the list is read again; the link only reaches a session still open.
   'appInvitations.create': { target: 'appInvitations', stale: [] },
   'appInvitations.revoke': { target: 'appInvitations', stale: [] },
+  // Read again; the profile too, as one's own roles may have changed. `applied` only for the
+  // latest answer for that user: the page may then write it as the confirmed detail (spec W10).
+  'users.setRole': { target: 'users', stale: ['profile'] },
   'family.rename': { target: 'family', stale: ['profile'] },
   'family.setMeasurementSystem': {
     target: 'family',
@@ -123,12 +130,14 @@ function sameView(target: CachedTarget, familyId: string | undefined, weekStarts
  */
 export async function applyMutation(queryClient: QueryClient, options: ApplyOptions): Promise<boolean> {
   const { target, stale } = INVALIDATIONS[options.name] as Invalidation;
-  if (target === 'appInvitations') {
-    // Not written: the list is read again for every answer, also a superseded one. Only a
-    // closed session drops it; showing a link is the sheet's decision (its own attempt).
+  if (isListTarget(target)) {
+    // Read again for every answer, also a superseded one; only a closed session drops it.
     if (!options.sessionOpen()) return false;
-    void queryClient.invalidateQueries({ queryKey: ['appInvitations'] });
-    return true;
+    void queryClient.invalidateQueries({ queryKey: [target] });
+    if (stale.length) void queryClient.invalidateQueries({ predicate: (query) => stale.some((scope) => matches(scope, options.familyId)(query)) });
+    // Invitations: showing a link is the sheet's decision (its own attempt), so any answer counts.
+    // Users: only the latest answer for the user may be written by the page (spec W10).
+    return target === 'users' ? options.isLatest() : true;
   }
   const key = JSON.stringify(targetKey(target, options.familyId, options.locale, options.weekStartsOn));
   const isTarget = (query: Query) => JSON.stringify(query.queryKey) === key;
@@ -185,9 +194,16 @@ export interface MutationOutcome<T> {
  * Sends one mutation and applies its answer; the logic of useAreaMutation without React. Effects
  * beyond the cache (e.g. the language) belong only to an applied answer (PR #21 review, finding 3).
  */
-export async function runAreaMutation<T>(deps: MutationDeps, name: MutationName, familyId: string | undefined, call: () => Promise<T>): Promise<MutationOutcome<T>> {
+export async function runAreaMutation<T>(
+  deps: MutationDeps,
+  name: MutationName,
+  familyId: string | undefined,
+  call: () => Promise<T>,
+  options: { track?: string } = {}
+): Promise<MutationOutcome<T>> {
   const { target } = INVALIDATIONS[name] as Invalidation;
-  const trackKey = target === 'profile' || target === 'appInvitations' ? target : `${target}:${familyId}`;
+  // `track` groups the answers that supersede each other (for users: one user), without touching familyId.
+  const trackKey = options.track ?? (target === 'profile' || isListTarget(target) ? target : `${target}:${familyId}`);
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
   const view = await call();
@@ -237,11 +253,11 @@ export async function runMealMutation(
  * The hook of every profile and family screen (model of useRateRecipe): no optimistic update,
  * the control shows the value sent until the answer, which replaces the cached view.
  */
-export function useAreaMutation<I, T>(name: MutationName, familyId: string | undefined, call: (input: I) => Promise<T>) {
+export function useAreaMutation<I, T>(name: MutationName, familyId: string | undefined, call: (input: I) => Promise<T>, options: { track?: string } = {}) {
   const session = useSession();
   const currentLocale = useCurrentLocale();
   return useMutation({
     meta: familyId ? { familyId } : undefined,
-    mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input))
+    mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input), options)
   });
 }
