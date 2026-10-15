@@ -85,8 +85,13 @@ function UserDetailView({ back }: { back: ReactNode }) {
       // Giving up one's own app_admin closes this page: the profile, read again, no longer offers it.
       if (outcome.applied && isSelf && change.role === 'app_admin' && !change.granted) void navigate({ to: '/profile' });
     } catch (error) {
-      // forbidden: AdminAccess hides the page and checks the profile; other errors show below the card.
-      report(error);
+      // forbidden: AdminAccess hides the page and checks the profile; other errors show below the card,
+      // and the detail is read again: the change may have happened (answer lost) or the state moved
+      // (e.g. now the last administrator), and the switches show only confirmed states.
+      if (!report(error)) {
+        await deps.queryClient.refetchQueries({ queryKey: detailQuery.queryKey }).catch(() => undefined);
+        void deps.queryClient.invalidateQueries({ queryKey: ['users', 'list'] });
+      }
     } finally {
       sending.current = false;
       setBusy(false);

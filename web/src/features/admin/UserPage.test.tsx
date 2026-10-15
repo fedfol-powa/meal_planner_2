@@ -167,6 +167,21 @@ describe('/admin/users/$userId', () => {
     expect((await curator()).checked).toBe(false);
   });
 
+  it('after a failed change the detail is read again: a last_app_admin refusal locks the switch with the reason', async () => {
+    const api = adminApi();
+    await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+    renderApp(`/admin/users/${DEMO_USER_ID}`, { api });
+    const box = await appAdmin();
+    expect(box.disabled).toBe(false);
+    // Meanwhile the other administrator goes: the signed-in person is now the last one.
+    await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: false });
+    fireEvent.click(box);
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Rinunciare al ruolo di amministratore?' })).getByRole('button', { name: 'Rinuncia' }));
+    expect(await screen.findByText('È l’unico amministratore dell’app: nominane un altro prima.')).toBeTruthy();
+    expect((await appAdmin()).disabled).toBe(true);
+    expect((await appAdmin()).checked).toBe(true);
+  });
+
   it('shows not found for an unknown id', async () => {
     renderApp('/admin/users/00000000-0000-4000-8000-000000000000', { api: adminApi() });
     expect(await screen.findByText('Contenuto non trovato.')).toBeTruthy();
