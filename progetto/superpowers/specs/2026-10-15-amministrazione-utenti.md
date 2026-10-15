@@ -444,7 +444,36 @@ non vedrebbe le modifiche confermate e il test lo segnalerebbe.
 - Ricerca: tastiera con «Cerca», ritardo, nessun salto della pagina mentre l'elenco si
   aggiorna.
 - Ritorno al Profilo dopo la rinuncia, in una PWA aggiunta alla schermata Home.
-- Collegamento «Apri l'utente» dal foglio del nuovo invito.
+- Collegamento «Apri l'utente» dal foglio del nuovo invito: a 390 px va a capo su due
+  righe dopo «Questa email ha già un account»; controllare che il tocco su entrambe le
+  righe apra l'utente.
+- Interruttori: nella prova sono caselle di spunta native con `role="switch"`, come nel
+  prototipo; controllare che sull'iPhone si leggano come interruttori di un ruolo.
+
+**Provato con agent-browser** (15 ottobre 2026):
+
+- **Modalità finta** (`vite`, persona demo amministratrice), a 1280 e 390 px, in inglese
+  (lingua del browser) e in italiano: Utenti sopra «App invitations», ricerca, « · You»,
+  ruoli come etichette; dettaglio di «Ospite» senza famiglie; curatore assegnato e
+  ritrovato come etichetta nell'elenco; foglio della nomina e nomina; interruttore
+  bloccato con il motivo sul proprio account quando è l'unico amministratore; rinuncia
+  con il foglio rosso e ritorno a `/profile` senza la voce «App administration»;
+  «Open the user» dal foglio del nuovo invito con `OSPITE@example.com`; «Profilo»
+  attivo nella barra in basso nel dettaglio. Nome lungo («Maria Alessandra Benedetta
+  Castiglioni di Valdobbiadene», dalle Preferenze) nell'elenco e nell'intestazione del
+  dettaglio a 390 px, in italiano: va a capo, nessuno scorrimento orizzontale
+  (`scrollWidth` 390).
+- **Stack locale** (`wrangler dev` con Auth, Worker e database veri), a 1280 e 390 px:
+  accesso con password come `app_admin`; elenco con i molti utenti dei test e «Ci sono
+  altri utenti: restringi la ricerca.»; ricerca per email in maiuscolo; dettaglio della
+  persona con nome ed email lunghi; curatore assegnato e ritrovato come etichetta;
+  foglio della nomina con il nome lungo (titolo su quattro righe, pulsanti visibili) e
+  nomina; in inglese, rinuncia al proprio ruolo con ritorno a `/profile`, poi `/admin`
+  risponde «You don’t have access to this page» e il database non ha più il ruolo;
+  entrando come la nuova amministratrice, «Apri l'utente» da `account_exists` porta al
+  dettaglio della persona giusta.
+- Correzioni nate dalla prova: righe dell'elenco e delle famiglie con `row-list`, email
+  non in grassetto e campo di ricerca con bordo e margini come nel prototipo.
 
 ## 5. Rilascio
 
