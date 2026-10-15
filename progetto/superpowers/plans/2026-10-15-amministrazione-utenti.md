@@ -36,6 +36,11 @@ prima di cominciare; vale su questo piano in caso di dubbio).
 - Dettaglio: famiglie **solo per nome e ruolo**; niente numero di agenti; niente comando
   di cancellazione né segnaposto.
 - Nessuna dipendenza nuova.
+- Lucchetto `app_admin_roles`: lo prende **ogni percorso che toglie `app_admin`**, che
+  sotto il lucchetto ricontrolla chi chiama e il numero di amministratori. Le
+  assegnazioni non lo prendono (eccezione documentata nella spec, sezione 1).
+- Il ricontrollo dopo il lucchetto vale solo in `read committed`: il Compito 4 lo
+  verifica.
 - I test che tolgono gli `app_admin` di prova li **rimettono sempre** (`afterEach` o
   `finally`), anche se falliscono.
 - Commit piccoli in italiano, come nella storia del repository, con la riga
@@ -65,8 +70,9 @@ prima di cominciare; vale su questo piano in caso di dubbio).
    precedente resta visibile durante il caricamento (niente salto della pagina
    sull'iPhone). Test nel Compito 8.
 5. **Dettaglio dopo che l'utente ha perso `app_admin` da un'altra parte** (un altro
-   amministratore lo ha retrocesso): la mutazione successiva riceve `forbidden` e la
-   pagina lo mostra come errore, senza restare bloccata. Test nel Compito 9.
+   amministratore lo ha retrocesso): la risposta `forbidden` porta a «Non hai accesso a
+   questa pagina» senza i dati di prima, nel dettaglio e in `/admin`. Test nei Compiti 8
+   e 9.
 
 ---
 
@@ -264,21 +270,28 @@ $$;
 create function app.set_user_role(p_user_id uuid, p_role text, p_granted boolean)
 returns void language plpgsql security definer set search_path = '' as $$
 begin
-	-- Checked before the lock too, so that non admins never wait in the queue.
 	if not app.has_role('app_admin') then
 		raise exception 'app admins only' using errcode = '42501';
 	end if;
 	if p_role is null or p_role not in ('recipe_curator', 'app_admin') or p_granted is null then
 		raise exception 'unknown role' using errcode = '22023';
 	end if;
-	-- RULE: every path that removes app_admin (this function, the account deletion of activity C,
-	-- any future script) takes this same lock and checks again under it. Otherwise two
-	-- administrators removing each other at the same moment can leave the app without one.
-	-- Every role change queues here (they are rare), so the caller's role is checked again below.
-	perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0));
-	-- New statements after the lock: under read committed they see what the previous holder committed.
-	if not app.has_role('app_admin') then
-		raise exception 'app admins only' using errcode = '42501';
+	if not p_granted and p_role = 'app_admin' then
+		-- RULE: every path that removes app_admin (this function, the account deletion of activity C,
+		-- any future script) takes this same lock and, under it, checks again both the caller and
+		-- the number of administrators. Otherwise two administrators removing each other at the
+		-- same moment can leave the app without one. Assignments (here and in
+		-- app.complete_app_invitation) do not take it: they can only add administrators.
+		perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0));
+		-- New statements after the lock: under read committed they see what the previous holder
+		-- committed. A caller demoted while waiting is refused.
+		if not app.has_role('app_admin') then
+			raise exception 'app admins only' using errcode = '42501';
+		end if;
+		if exists (select 1 from app.user_roles r where r.user_id = p_user_id and r.role = 'app_admin')
+			and not exists (select 1 from app.user_roles r where r.user_id <> p_user_id and r.role = 'app_admin') then
+			raise exception 'last app admin' using errcode = 'P0A08';
+		end if;
 	end if;
 	if not exists (select 1 from auth.users u where u.id = p_user_id) then
 		raise exception 'unknown user' using errcode = 'P0A07';
@@ -286,14 +299,9 @@ begin
 	if p_granted then
 		insert into app.user_roles (user_id, role, granted_by) values (p_user_id, p_role, auth.uid())
 			on conflict (user_id, role) do nothing;
-		return;
+	else
+		delete from app.user_roles r where r.user_id = p_user_id and r.role = p_role;
 	end if;
-	if p_role = 'app_admin'
-		and exists (select 1 from app.user_roles r where r.user_id = p_user_id and r.role = 'app_admin')
-		and not exists (select 1 from app.user_roles r where r.user_id <> p_user_id and r.role = 'app_admin') then
-		raise exception 'last app admin' using errcode = 'P0A08';
-	end if;
-	delete from app.user_roles r where r.user_id = p_user_id and r.role = p_role;
 end;
 $$;
 
@@ -757,7 +765,8 @@ git commit -m "Server: operazioni e strumenti MCP dell'amministrazione degli ute
 
 **Interfacce:**
 - Consuma: `holdTransaction`, `asUser`, `stillPending` (`server/test/support/hold.ts`),
-  `onlyAppAdmins` (Compito 3), `app.set_user_role` (Compito 1).
+  `withDbOn` (`server/src/db.ts`), `onlyAppAdmins` (Compito 3), `app.set_user_role`
+  (Compito 1).
 
 - [ ] **Passo 1: scrivi il test**
 
@@ -766,12 +775,14 @@ git commit -m "Server: operazioni e strumenti MCP dell'amministrazione degli ute
 ```ts
 import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { withDbOn } from '../src/db.ts';
 import { setupActors, type Actors } from './support/actors.ts';
 import { onlyAppAdmins } from './support/app-admins.ts';
 import { hasDatabase } from './support/db.ts';
 import { asUser, holdTransaction, stillPending } from './support/hold.ts';
 
 const adminUrl = process.env.TEST_DATABASE_URL!;
+const LOCK_WAIT_TIMEOUT_MS = 3000;
 
 describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 	let actors: Actors;
@@ -786,7 +797,7 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 	afterAll(() => actors?.close());
 
 	const admins = async (count: number) => {
-		const people = [];
+		const people: string[] = [];
 		for (let i = 0; i < count; i++) {
 			const person = await actors.user();
 			await actors.db.grantGlobalRole(person.userId, 'app_admin');
@@ -795,66 +806,124 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 		restore = await onlyAppAdmins(actors.db.admin, people);
 		return people;
 	};
-	/** Removes `target`'s app_admin as `caller` on a connection of its own; resolves to the SQLSTATE or 'ok'. */
-	async function removeAs(caller: string, target: string): Promise<string> {
+	const appAdmins = async () =>
+		(await actors.db.admin<{ user_id: string }[]>`select user_id from app.user_roles where role = 'app_admin'`).map((r) => r.user_id).sort();
+
+	/**
+	 * Starts `target`'s app_admin removal as `caller` on a connection of its own. `pid` resolves
+	 * with the backend before the call; `outcome` with 'ok' or the SQLSTATE, never rejecting.
+	 */
+	function removeAs(caller: string, target: string) {
 		const sql = postgres(adminUrl, { max: 1, onnotice: () => {} });
-		try {
-			await sql.begin(async (tx) => {
+		let gotPid!: (pid: number) => void;
+		const pid = new Promise<number>((resolve) => (gotPid = resolve));
+		const outcome = sql
+			.begin(async (tx) => {
+				const [{ pid: backend }] = await tx<{ pid: number }[]>`select pg_backend_pid() as pid`;
+				gotPid(backend);
 				await asUser(tx, caller);
 				await tx`select app.set_user_role(${target}::uuid, 'app_admin', false)`;
-			});
-			return 'ok';
-		} catch (error) {
-			return String((error as { code?: string }).code);
+			})
+			.then(() => 'ok', (error: { code?: string }) => String(error.code))
+			.finally(() => sql.end());
+		return { pid, outcome };
+	}
+	/** True once the backend waits on an advisory lock (the reliable check); false after the timeout. */
+	async function waitsOnAdvisoryLock(pid: number): Promise<boolean> {
+		const deadline = Date.now() + LOCK_WAIT_TIMEOUT_MS;
+		while (Date.now() < deadline) {
+			const [row] = await actors.db.admin<{ wait_event_type: string | null; wait_event: string | null }[]>`
+				select wait_event_type, wait_event from pg_stat_activity where pid = ${pid}`;
+			if (row?.wait_event_type === 'Lock' && row.wait_event === 'advisory') return true;
+			await new Promise((r) => setTimeout(r, 20));
+		}
+		return false;
+	}
+	/**
+	 * First removal held open, second one on its own connection. Release and outcome are collected
+	 * in `finally`, before the fixtures are restored, also when an assertion would fail: without the
+	 * lock both transactions still end and the final count shows the broken invariant.
+	 */
+	async function race(first: [string, string], second: [string, string]) {
+		const held = await holdTransaction(adminUrl, async (tx) => {
+			await asUser(tx, first[0]);
+			await tx`select app.set_user_role(${first[1]}::uuid, 'app_admin', false)`;
+		});
+		const removal = removeAs(...second);
+		let waited = false;
+		let pendingAfter200ms = false;
+		let code = '';
+		try {
+			pendingAfter200ms = await stillPending(removal.outcome);
+			waited = await waitsOnAdvisoryLock(await removal.pid);
+		} finally {
+			await held.release();
+			code = await removal.outcome;
+		}
+		return { code, waited, pendingAfter200ms };
+	}
+
+	it('runs user transactions in read committed, which the check after the lock relies on', async () => {
+		const sql = postgres(process.env.TEST_DATABASE_URL!, { max: 1, onnotice: () => {} });
+		try {
+			const person = await actors.user();
+			const claims = { sub: person.userId, role: 'authenticated' as const, session_id: person.sessionId, exp: Math.floor(Date.now() / 1000) + 60 };
+			const level = await withDbOn(sql, { kind: 'user', claims }, async (tx) => (await tx<{ transaction_isolation: string }[]>`show transaction_isolation`)[0]!.transaction_isolation);
+			expect(level).toBe('read committed');
 		} finally {
 			await sql.end();
 		}
-	}
-	const appAdmins = async () =>
-		(await actors.db.admin<{ user_id: string }[]>`select user_id from app.user_roles where role = 'app_admin'`).map((r) => r.user_id);
-
-	it('two admins removing each other: one wins, the other gets P0A08, one admin remains', async () => {
-		const [a, b] = await admins(2);
-		const held = await holdTransaction(adminUrl, async (tx) => {
-			await asUser(tx, a!);
-			await tx`select app.set_user_role(${b!}::uuid, 'app_admin', false)`;
-		});
-		const second = removeAs(b!, a!);
-		expect(await stillPending(second)).toBe(true);
-		await held.release();
-		expect(await second).toBe('P0A08');
-		expect(await appAdmins()).toEqual([a]);
 	});
 
-	it('an admin demoted while waiting can no longer change roles', async () => {
+	it('two admins removing each other: the second, already demoted, is refused; one admin remains', async () => {
+		const [a, b] = await admins(2);
+		const result = await race([a!, b!], [b!, a!]);
+		expect(await appAdmins()).toEqual([a]);
+		expect(result.code).toBe('42501');
+		expect(result.waited).toBe(true);
+		expect(result.pendingAfter200ms).toBe(true);
+	});
+
+	it('two admins each giving up their own role: the second gets P0A08; one admin remains', async () => {
+		const [a, b] = await admins(2);
+		const result = await race([a!, a!], [b!, b!]);
+		expect(await appAdmins()).toEqual([b]);
+		expect(result.code).toBe('P0A08');
+		expect(result.waited).toBe(true);
+	});
+
+	it('an admin demoted while waiting can no longer remove app_admin', async () => {
 		const [a, b, c] = await admins(3);
-		const held = await holdTransaction(adminUrl, async (tx) => {
-			await asUser(tx, a!);
-			await tx`select app.set_user_role(${b!}::uuid, 'app_admin', false)`;
-		});
-		const second = removeAs(b!, c!);
-		expect(await stillPending(second)).toBe(true);
-		await held.release();
-		expect(await second).toBe('42501');
-		expect((await appAdmins()).sort()).toEqual([a, c].sort());
+		const result = await race([a!, b!], [b!, c!]);
+		expect(await appAdmins()).toEqual([a, c].sort());
+		expect(result.code).toBe('42501');
+		expect(result.waited).toBe(true);
 	});
 });
 ```
 
+Nota: se `Claims` di `server/src/auth.ts` richiede altri campi obbligatori, costruiscili
+come nel tipo (gli unici obbligatori sono `sub`, `role`, `session_id`, `exp`).
+
 - [ ] **Passo 2: esegui e verifica**
 
 Run: `TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm test -w server -- test/users-locks.test.ts`
-Atteso: PASS. Per controllare che il test dimostri qualcosa, commenta in locale (senza
-commit) la riga `perform pg_advisory_xact_lock(...)` in una copia della funzione
-applicata a mano (`create or replace` da `psql`), riesegui: il primo caso deve fallire
-(entrambe le rimozioni riescono, zero amministratori). Poi `supabase db reset` per
-tornare alla migrazione vera.
+Atteso: PASS dei quattro casi.
 
-- [ ] **Passo 3: commit**
+- [ ] **Passo 3: prova che il test dimostra qualcosa (solo in locale, senza commit)**
+
+Da `psql "$TEST_DATABASE_URL"` sostituisci la funzione con una copia identica senza la
+riga `perform pg_advisory_xact_lock(...)` (`create or replace function app.set_user_role ...`).
+Riesegui il file: il caso «removing each other» deve fallire **sulla prima
+asserzione** con `[]` (zero amministratori) al posto di `[a]`, e il processo di Vitest
+deve terminare senza transazioni appese (nessun timeout). Poi `supabase db reset` per
+tornare alla migrazione vera e riesegui: PASS.
+
+- [ ] **Passo 4: commit**
 
 ```bash
 git add server/test/users-locks.test.ts
-git commit -m "Test: rimozione incrociata concorrente dell'ultimo amministratore (W10)"
+git commit -m "Test: concorrenza sull'ultimo amministratore dell'app (W10)"
 ```
 
 ---
@@ -1091,12 +1160,19 @@ Compito 7 e fai il commit insieme.
 
 **File:**
 - Crea: `web/src/api/fake/fakeUsers.ts`, `web/src/api/fake/fakeUsers.test.ts`
-- Modifica: `web/src/api/fake/fakeApi.ts` (stato, registrazione, ruoli del profilo, `withTransport`)
+- Modifica: `web/src/api/fake/fakeApi.ts` (stato, registrazione, ruoli del profilo,
+  `withTransport`, opzione `globalRoles` di `fakeClients`)
+- Modifica: `web/src/api/fake/fakeAppInvitations.ts` (`account_exists`) e
+  `web/src/api/fake/fakeAppInvitations.test.ts`
+- Modifica: `web/src/main.tsx` (demo amministratore nella modalità finta)
 
 **Interfacce:**
-- Consuma: `DEMO_PEOPLE`, `DEMO_FAMILY`, `DEMO_USER_ID` (`seed.ts`); `ApiError`.
-- Produce: `createFakeUsers(options: { self: { id: string; displayName: () => string; email: string; roles: GlobalRole[] }; familyName: () => string; latencyMs?: number })`
-  con `area: Api['users']` e `rolesOf(id): GlobalRole[]`.
+- Consuma: `DEMO_PEOPLE`, `DEMO_USER_ID` (`seed.ts`); `ApiError`; `USERS_LIST_LIMIT`.
+- Produce: `createFakeUsers(options: { self: { id: string; displayName: () => string; email: string; roles: GlobalRole[]; family: 'family_admin' | 'member' }; familyName: () => string; latencyMs?: number })`
+  → `{ area: Api['users']; rolesOf(id: string): GlobalRole[]; hasEmail(email: string): boolean }`;
+  `createFakeAppInvitations(latencyMs?: number, accountExists?: (email: string) => boolean)`;
+  `fakeClients(options: { latencyMs?: number; globalRoles?: GlobalRole[] })`;
+  id fisso dell'account «Ospite»: `FAKE_GUEST_ID = '00000000-0000-4000-8000-00000000a5e1'`.
 
 - [ ] **Passo 1: test (fallisce)**
 
@@ -1105,40 +1181,68 @@ Compito 7 e fai il commit insieme.
 ```ts
 import { describe, expect, it } from 'vitest';
 import { ApiError } from '../errors';
-import { createFakeUsers } from './fakeUsers';
+import { FAKE_GUEST_ID, createFakeUsers } from './fakeUsers';
+import { DEMO_USER_ID } from './seed';
 
-const make = () =>
-  createFakeUsers({ self: { id: 'me', displayName: () => 'Federico', email: 'federico@example.com', roles: ['app_admin'] }, familyName: () => 'Famiglia Folloni' });
+/** The signed-in person is the seed's Federico, as in the fake API. */
+const make = (roles: ('recipe_curator' | 'app_admin')[] = ['app_admin']) =>
+  createFakeUsers({
+    self: { id: DEMO_USER_ID, displayName: () => 'Federico', email: 'federico@example.com', roles, family: 'family_admin' },
+    familyName: () => 'Famiglia Folloni'
+  });
 
 describe('fake users', () => {
-  it('searches by name or email, any case, and lists the account with no roles and no family', async () => {
+  it('lists the seed people once, the signed-in one included, and the account with no roles and no family', async () => {
     const { area } = make();
-    expect((await area.list({ query: 'FEDERICO' })).users.map((u) => u.id)).toEqual(['me']);
-    expect((await area.list({ query: 'ospite@' })).users).toEqual([{ id: expect.any(String), displayName: 'Ospite', email: 'ospite@example.com', roles: [] }]);
+    expect((await area.list({ query: 'FEDERICO' })).users.map((u) => u.id)).toEqual([DEMO_USER_ID]);
+    expect((await area.list({})).users.map((u) => u.displayName)).toEqual(['Anna', 'Federico', 'Ospite', 'Tom']);
+    expect((await area.list({ query: 'ospite@' })).users).toEqual([{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: [] }]);
     expect((await area.list({})).more).toBe(false);
   });
   it('protects the last app admin and is idempotent', async () => {
     const users = make();
-    await expect(users.area.setRole({ id: 'me', role: 'app_admin', granted: false })).rejects.toEqual(new ApiError('last_app_admin'));
-    const other = (await users.area.list({ query: 'ospite' })).users[0]!.id;
-    await users.area.setRole({ id: other, role: 'app_admin', granted: true });
-    await users.area.setRole({ id: other, role: 'app_admin', granted: true });
-    expect((await users.area.get({ id: other })).user.roles).toEqual(['app_admin']);
-    await users.area.setRole({ id: 'me', role: 'app_admin', granted: false });
-    expect(users.rolesOf('me')).toEqual([]);
+    await expect(users.area.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false })).rejects.toEqual(new ApiError('last_app_admin'));
+    await users.area.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+    await users.area.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+    expect((await users.area.get({ id: FAKE_GUEST_ID })).user.roles).toEqual(['app_admin']);
+    await users.area.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+    expect(users.rolesOf(DEMO_USER_ID)).toEqual([]);
+  });
+  it('refuses a signed-in person without app_admin, as the server', async () => {
+    const { area } = make(['recipe_curator']);
+    await expect(area.list({})).rejects.toEqual(new ApiError('forbidden'));
+    await expect(area.get({ id: FAKE_GUEST_ID })).rejects.toEqual(new ApiError('forbidden'));
   });
   it('answers not_found for an unknown id and shows families by name and role', async () => {
     const { area } = make();
     await expect(area.get({ id: 'nobody' })).rejects.toEqual(new ApiError('not_found'));
-    expect((await area.get({ id: 'me' })).families).toEqual([{ name: 'Famiglia Folloni', role: 'family_admin' }]);
+    expect((await area.get({ id: DEMO_USER_ID })).families).toEqual([{ name: 'Famiglia Folloni', role: 'family_admin' }]);
+    expect((await area.get({ id: FAKE_GUEST_ID })).families).toEqual([]);
+  });
+  it('knows which emails have an account', () => {
+    const users = make();
+    expect(users.hasEmail(' OSPITE@example.com')).toBe(true);
+    expect(users.hasEmail('nuova@x.it')).toBe(false);
   });
 });
 ```
 
+In `web/src/api/fake/fakeAppInvitations.test.ts` aggiungi:
+
+```ts
+it('refuses an email that has an account, as the server', async () => {
+  const area = createFakeAppInvitations(0, (email) => email === 'ospite@example.com');
+  await expect(area.create({ id: crypto.randomUUID(), email: ' Ospite@example.com', roles: [] })).rejects.toEqual(new ApiError('not_allowed', { reason: 'account_exists' }));
+});
+```
+
+(con gli import di `ApiError` e `createFakeAppInvitations` se mancano; se il file
+esistente usa un'altra forma per creare l'area, segui quella).
+
 - [ ] **Passo 2: esegui**
 
-Run: `npm test -w web -- src/api/fake/fakeUsers.test.ts`
-Atteso: FAIL (modulo assente).
+Run: `npm test -w web -- src/api/fake/`
+Atteso: FAIL (modulo `fakeUsers` assente; `create` non rifiuta).
 
 - [ ] **Passo 3: implementa**
 
@@ -1151,26 +1255,34 @@ import type { Api } from '../types';
 import { DEMO_PEOPLE } from './seed';
 
 type Area = Api['users'];
-interface Person { id: string; displayName: () => string; email: string; roles: GlobalRole[]; family: 'family_admin' | 'member' | null }
+type FamilyRole = 'family_admin' | 'member';
+interface Person { id: string; displayName: () => string; email: string; roles: GlobalRole[]; family: FamilyRole | null }
 
+/** The account born from an invitation revoked after the reservation: no roles, no family (delivery of A). */
+export const FAKE_GUEST_ID = '00000000-0000-4000-8000-00000000a5e1';
+/** The server's order: jsonb_agg(role order by role). */
 const ROLE_ORDER: GlobalRole[] = ['app_admin', 'recipe_curator'];
 const sorted = (roles: Iterable<GlobalRole>) => ROLE_ORDER.filter((role) => [...roles].includes(role));
 
 /** Users and global roles of the fake mode (spec W10): the server's rules, in memory. */
 export function createFakeUsers(options: {
-  self: { id: string; displayName: () => string; email: string; roles: GlobalRole[] };
+  self: { id: string; displayName: () => string; email: string; roles: GlobalRole[]; family: FamilyRole };
   familyName: () => string;
   latencyMs?: number;
 }) {
   const people: Person[] = [
-    { ...options.self, roles: sorted(options.self.roles), family: 'family_admin' },
+    { ...options.self, roles: sorted(options.self.roles) },
     ...DEMO_PEOPLE.filter((p) => p.id !== options.self.id).map((p) => ({ id: p.id, displayName: () => p.displayName, email: p.email, roles: [] as GlobalRole[], family: p.role })),
-    // An account born from an invitation revoked after the reservation: no roles, no family (delivery of A).
-    { id: '00000000-0000-4000-8000-00000000a5e1', displayName: () => 'Ospite', email: 'ospite@example.com', roles: [], family: null }
+    { id: FAKE_GUEST_ID, displayName: () => 'Ospite', email: 'ospite@example.com', roles: [], family: null }
   ];
   const delayed = async <T,>(value: T): Promise<T> => {
     if (options.latencyMs) await new Promise((resolve) => setTimeout(resolve, options.latencyMs));
     return structuredClone(value);
+  };
+  const self = people[0]!;
+  /** As the database functions: the signed-in person must be an app admin at the moment of the call. */
+  const guard = () => {
+    if (!self.roles.includes('app_admin')) throw new ApiError('forbidden');
   };
   const row = (p: Person): UserRow => ({ id: p.id, displayName: p.displayName(), email: p.email, roles: [...p.roles] });
   const find = (id: string) => {
@@ -1183,8 +1295,9 @@ export function createFakeUsers(options: {
     user: { ...row(p), lastAppAdmin: p.roles.includes('app_admin') && admins().length === 1 },
     families: p.family ? [{ name: options.familyName(), role: p.family }] : []
   });
-  const area: Area = {
+  const area = {
     async list({ query }: { query?: string }) {
+      guard();
       const text = (query ?? '').trim().toLowerCase();
       const found = people
         .filter((p) => !text || p.displayName().toLowerCase().includes(text) || p.email.toLowerCase().includes(text))
@@ -1192,60 +1305,100 @@ export function createFakeUsers(options: {
       return delayed({ users: found.slice(0, USERS_LIST_LIMIT).map(row), more: found.length > USERS_LIST_LIMIT });
     },
     async get({ id }: { id: string }) {
+      guard();
       return delayed(detail(find(id)));
     },
     async setRole({ id, role, granted }: { id: string; role: GlobalRole; granted: boolean }) {
+      guard();
       const person = find(id);
       if (!granted && role === 'app_admin' && person.roles.includes('app_admin') && admins().length === 1) throw new ApiError('last_app_admin');
       person.roles = sorted(granted ? [...person.roles, role] : person.roles.filter((r) => r !== role));
       return delayed(detail(person));
     }
-  } as Area;
-  return { area, rolesOf: (id: string) => [...(people.find((p) => p.id === id)?.roles ?? [])] };
+  } as unknown as Area;
+  return {
+    area,
+    rolesOf: (id: string) => [...(people.find((p) => p.id === id)?.roles ?? [])],
+    hasEmail: (email: string) => people.some((p) => p.email.toLowerCase() === email.trim().toLowerCase())
+  };
 }
 ```
 
-L'ordine dei ruoli (`app_admin` prima di `recipe_curator`) è quello del server
-(`jsonb_agg(r.role order by r.role)`).
+In `web/src/api/fake/fakeAppInvitations.ts`:
+
+```ts
+export function createFakeAppInvitations(latencyMs = 0, accountExists: (email: string) => boolean = () => false) {
+```
+
+e in `create`, subito dopo `const normalized = ...`:
+
+```ts
+      // As app.create_app_invitation: an email with an account gets no invitation (spec W10, fake mode).
+      if (accountExists(normalized)) throw new ApiError('not_allowed', { reason: 'account_exists' });
+```
 
 In `web/src/api/fake/fakeApi.ts`:
 
-1. import: `import { createFakeUsers } from './fakeUsers';`
+1. import: `import { createFakeUsers } from './fakeUsers';` e il tipo `GlobalRole` da
+   `@app/contract` se non c'è.
 2. in `FakeData`, dopo `appInvitations?`:
    ```ts
      /** Users and global roles (W10), made by the first client of the session. */
      users?: ReturnType<typeof createFakeUsers>;
    ```
-3. prima di `profileView()`, dopo `const memberIds = ...`:
+3. `fakeClients` accetta e inoltra i ruoli:
    ```ts
-     const person0 = DEMO_PEOPLE.find((p) => p.id === userId);
-     // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
+   export function fakeClients(options: { latencyMs?: number; globalRoles?: GlobalRole[] } = {}) {
+     return (user: { id: string; email: string } | null) => {
+       const shared = createFakeData(user ?? undefined);
+       return (locale: Locale) => createFakeApi({ getLocale: () => locale, data: shared, latencyMs: options.latencyMs, globalRoles: options.globalRoles });
+     };
+   }
+   ```
+4. in `createFakeApi`, dopo `const memberIds = ...`:
+   ```ts
+     const seedPerson = DEMO_PEOPLE.find((p) => p.id === userId);
      state.users ??= createFakeUsers({
        self: {
          id: userId,
-         displayName: () => state.profile.displayName ?? person0?.displayName ?? (user?.email ?? '').split('@')[0] ?? '',
-         email: user?.email ?? person0?.email ?? '',
-         roles: options.globalRoles ?? (userId === DEMO_USER_ID ? ['recipe_curator'] : [])
+         displayName: () => profileView().user.displayName,
+         email: user?.email ?? seedPerson?.email ?? '',
+         // The demo user curates the recipe book, so the fake mode shows drafts and archived recipes.
+         roles: options.globalRoles ?? (userId === DEMO_USER_ID ? ['recipe_curator'] : []),
+         family: seedPerson?.role ?? 'member'
        },
        familyName: () => state.family.name,
        latencyMs: options.latencyMs
      });
    ```
-4. in `profileView()`, al posto della riga `globalRoles: options.globalRoles ?? (...)`
-   (e del suo commento): `globalRoles: state.users!.rolesOf(userId)`.
-5. nell'oggetto `api`, dopo `appInvitations`: `users: state.users!.area,`
-6. in `withTransport`, aggiungi `users: wrap(api.users),`.
+   (`profileView` è una dichiarazione di funzione: è già disponibile; il nome si legge
+   solo quando serve, quindi non c'è ricorsione con `globalRoles`.)
+5. in `profileView()`, al posto della riga `globalRoles: options.globalRoles ?? (...)` e
+   del suo commento: `globalRoles: state.users!.rolesOf(userId)`.
+6. nell'oggetto `api`: `appInvitations: (state.appInvitations ??= createFakeAppInvitations(options.latencyMs, (email) => state.users!.hasEmail(email))),`
+   e dopo, `users: state.users!.area,`.
+7. in `withTransport`, aggiungi `users: wrap(api.users),`.
+
+In `web/src/main.tsx`:
+
+```ts
+  : fakeClients({ latencyMs: 150, globalRoles: ['recipe_curator', 'app_admin'] });
+```
+
+con il commento sopra la riga: `// Fake mode: the demo person is also an app admin, so /admin can be tried without the stack (spec W10).`
 
 - [ ] **Passo 4: esegui**
 
-Run: `npm test -w web -- src/api/fake/ src/api/mutations.test.ts` e `npm run typecheck -w web`
-Atteso: PASS (i test esistenti del profilo e di `/admin` restano verdi: i ruoli
-iniziali sono gli stessi di prima).
+Run: `npm test -w web` e `npm run typecheck -w web`
+Atteso: PASS (i test del Profilo e di `/admin` restano verdi: i ruoli predefiniti di
+`fakeClients` e `createFakeApi` non cambiano). Se un test di `/admin` creava un invito
+per un'email del seed (per esempio `anna@example.com`) e ora riceve `account_exists`,
+cambia l'email del test in una nuova.
 
 - [ ] **Passo 5: commit (Compiti 6 e 7)**
 
 ```bash
-git add web/src/api web/src/features/admin/api.ts
+git add web/src/api web/src/features/admin/api.ts web/src/main.tsx
 git commit -m "Web: registro delle mutazioni, letture e modalità finta degli utenti (W10)"
 ```
 
@@ -1257,6 +1410,7 @@ git commit -m "Web: registro delle mutazioni, letture e modalità finta degli ut
 - Modifica: `web/src/i18n/messages/admin.ts`
 - Crea: `web/src/features/admin/UsersSection.tsx`
 - Modifica: `web/src/features/admin/AdminPage.tsx`, `web/src/features/admin/AdminPage.module.css`
+- Modifica: `web/src/features/admin/access.ts` (`onAdminForbidden`)
 - Crea: `web/src/features/admin/UsersSection.test.tsx`
 
 **Interfacce:**
@@ -1264,7 +1418,10 @@ git commit -m "Web: registro delle mutazioni, letture e modalità finta degli ut
   (Compito 9: il `Link` tipato richiede la rotta; scrivi prima la registrazione della
   rotta del Compito 9, Passo 3, punto 1, con un `UserPage` provvisorio che restituisce
   `null`, e completalo nel Compito 9).
-- Produce: chiavi di testo usate anche nel Compito 9 e 10.
+- Produce: chiavi di testo usate anche nel Compito 9 e 10;
+  `onAdminForbidden(queryClient: QueryClient, error: unknown): Promise<boolean>` in
+  `web/src/features/admin/access.ts` (vero se l'errore era `forbidden` ed è stato
+  gestito), usata anche nel Compito 9.
 
 - [ ] **Passo 1: testi**
 
@@ -1274,6 +1431,7 @@ In `web/src/i18n/messages/admin.ts`, nell'oggetto `it` (prima di `profile.newFam
   'admin.users': 'Utenti',
   'admin.search': 'Cerca per nome o email',
   'admin.you': 'Tu',
+  'admin.yourAccount': 'Questo è il tuo account',
   'admin.noUsers': 'Nessun utente',
   'admin.moreUsers': 'Ci sono altri utenti: restringi la ricerca.',
   'admin.roles': 'Ruoli',
@@ -1301,6 +1459,7 @@ Nell'oggetto `en`:
   'admin.users': 'Users',
   'admin.search': 'Search by name or email',
   'admin.you': 'You',
+  'admin.yourAccount': 'This is your account',
   'admin.noUsers': 'No users',
   'admin.moreUsers': 'There are more users: narrow the search.',
   'admin.roles': 'Roles',
@@ -1377,6 +1536,18 @@ describe('/admin users', () => {
     expect(await screen.findByText('Ci sono altri utenti: restringi la ricerca.')).toBeTruthy();
   });
 
+  it('after a demotion made elsewhere, the next search shows «Non hai accesso» and no user data', async () => {
+    const api = adminApi();
+    renderApp('/admin', { api });
+    await screen.findByText('ospite@example.com');
+    // Another administrator appears and takes the role away from the signed-in person.
+    await api.users.setRole({ id: '00000000-0000-4000-8000-00000000a5e1', role: 'app_admin', granted: true });
+    await api.users.setRole({ id: 'user-federico', role: 'app_admin', granted: false });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Cerca per nome o email' }), { target: { value: 'o' } });
+    expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+    expect(screen.queryByText('ospite@example.com')).toBeNull();
+  });
+
   it('opens the detail of a user', async () => {
     const { history } = renderApp('/admin', { api: adminApi() });
     fireEvent.click((await screen.findByText('ospite@example.com')).closest('a')!);
@@ -1395,6 +1566,25 @@ Atteso: FAIL (nessun titolo «Utenti»).
 Prima registra la rotta (Compito 9, Passo 3, punto 1) con un `UserPage` provvisorio
 (`export function UserPage() { return null; }` in `web/src/features/admin/UserPage.tsx`).
 
+In `web/src/features/admin/access.ts` aggiungi (con gli import di `QueryClient` da
+`@tanstack/react-query` e `toApiError` da `../../api/errors`):
+
+```ts
+/**
+ * A users or invitations operation answered `forbidden` (spec W10): the administration data
+ * leave the cache and the profile is read again. Without app_admin the pages show «Non hai
+ * accesso a questa pagina»; with it (forbidden for another reason) they read again and show the
+ * error. The shared error handler (SessionScope) is not involved.
+ */
+export async function onAdminForbidden(queryClient: QueryClient, error: unknown): Promise<boolean> {
+  if (toApiError(error).code !== 'forbidden') return false;
+  queryClient.removeQueries({ queryKey: ['users'] });
+  queryClient.removeQueries({ queryKey: ['appInvitations'] });
+  await queryClient.refetchQueries({ queryKey: ['profile'] }).catch(() => undefined);
+  return true;
+}
+```
+
 `web/src/features/admin/UsersSection.tsx`:
 
 ```tsx
@@ -1407,6 +1597,7 @@ import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
+import { onAdminForbidden } from './access';
 import { usersQuery } from './api';
 import styles from './AdminPage.module.css';
 
@@ -1426,6 +1617,9 @@ export function UsersSection() {
   }, [text]);
   // The previous answer stays while the next one loads: the page does not jump on the phone.
   const list = useQuery({ ...usersQuery(deps, query), placeholderData: keepPreviousData });
+  useEffect(() => {
+    if (list.error) void onAdminForbidden(deps.queryClient, list.error);
+  }, [list.error, deps.queryClient]);
 
   return (
     <section className="settings-card" aria-labelledby="users-title">
@@ -1518,7 +1712,8 @@ git commit -m "Web: sezione Utenti in /admin (W10)"
 - Crea: `web/src/features/admin/UserPage.test.tsx`
 
 **Interfacce:**
-- Consuma: `userQuery` e `'users.setRole'` (Compito 6), `hasAppAdmin`, testi del Compito 8.
+- Consuma: `userQuery` e `'users.setRole'` (Compito 6), `FAKE_GUEST_ID` (Compito 7),
+  `hasAppAdmin` e `onAdminForbidden` (Compito 8), testi del Compito 8.
 
 - [ ] **Passo 1: test (fallisce)**
 
@@ -1529,48 +1724,78 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { createFakeApi } from '../../api/fake/fakeApi';
+import { FAKE_GUEST_ID } from '../../api/fake/fakeUsers';
 import { DEMO_USER_ID } from '../../api/fake/seed';
 import { renderApp } from '../../test/renderApp';
 
-const OSPITE = '00000000-0000-4000-8000-00000000a5e1';
-const adminApi = () => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] });
+const adminApi = (locale: 'it-IT' | 'en-GB' = 'it-IT') => createFakeApi({ getLocale: () => locale, latencyMs: 0, globalRoles: ['app_admin'] });
 const curator = () => screen.findByRole('switch', { name: /Curatore del ricettario/ }) as Promise<HTMLInputElement>;
 const appAdmin = () => screen.findByRole('switch', { name: /Amministratore dell’app/ }) as Promise<HTMLInputElement>;
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((res, rej) => ((resolve = res), (reject = rej)));
+  return { promise, resolve, reject };
+}
 
 describe('/admin/users/$userId', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('shows email, roles, and no families for the invited account', async () => {
-    renderApp(`/admin/users/${OSPITE}`, { api: adminApi() });
+  it('shows email, roles, and no families for the invited account, with no deletion', async () => {
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api: adminApi() });
     expect(await screen.findByRole('heading', { name: 'Ospite', level: 1 })).toBeTruthy();
     expect(screen.getByText('ospite@example.com')).toBeTruthy();
     expect((await curator()).checked).toBe(false);
     expect(screen.getByText('Nessuna famiglia')).toBeTruthy();
     expect(screen.getByText('Si vedono solo nome e ruolo.')).toBeTruthy();
+    expect(screen.queryByText('Questo è il tuo account')).toBeNull();
     expect(screen.queryByText(/Elimina/)).toBeNull();
   });
 
-  it('gives the curator role directly, without an optimistic switch, once per tap burst', async () => {
+  it('marks one’s own account, in Italian and in English', async () => {
+    const first = renderApp(`/admin/users/${DEMO_USER_ID}`, { api: adminApi() });
+    expect(await screen.findByText('Questo è il tuo account')).toBeTruthy();
+    first.unmount();
+    renderApp(`/admin/users/${DEMO_USER_ID}`, { api: adminApi('en-GB'), locale: 'en-GB' });
+    expect(await screen.findByText('This is your account')).toBeTruthy();
+  });
+
+  it('keeps both switches locked until the confirmed state is shown, then keeps it if the reread fails', async () => {
     const api = adminApi();
-    let answer!: () => void;
-    const real = api.users.setRole.bind(api.users);
-    const setRole = vi.spyOn(api.users, 'setRole').mockImplementation((input) => new Promise((resolve) => (answer = () => void real(input).then(resolve))));
-    renderApp(`/admin/users/${OSPITE}`, { api });
+    const realGet = api.users.get.bind(api.users);
+    const reread = deferred<never>();
+    let gets = 0;
+    // The first read is real; every later one (the reread the registry starts) hangs, then fails.
+    vi.spyOn(api.users, 'get').mockImplementation((input) => (gets++ === 0 ? realGet(input) : reread.promise));
+    const answer = deferred<void>();
+    const realSet = api.users.setRole.bind(api.users);
+    const setRole = vi.spyOn(api.users, 'setRole').mockImplementation(async (input) => {
+      await answer.promise;
+      return realSet(input);
+    });
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
     const box = await curator();
     fireEvent.click(box);
     fireEvent.click(box);
     await waitFor(() => expect(setRole).toHaveBeenCalledTimes(1));
     expect(box.checked).toBe(false);
     expect(box.disabled).toBe(true);
-    answer();
+    expect((await appAdmin()).disabled).toBe(true);
+    answer.resolve();
+    // The answer of setRole is the confirmed state: shown at once, while the reread still hangs.
     await waitFor(async () => expect((await curator()).checked).toBe(true));
-    expect(setRole).toHaveBeenCalledWith({ id: OSPITE, role: 'recipe_curator', granted: true }, expect.anything());
+    expect((await curator()).disabled).toBe(false);
+    reread.reject(new ApiError('internal'));
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    expect((await curator()).checked).toBe(true);
+    expect(setRole).toHaveBeenCalledTimes(1);
+    expect(setRole).toHaveBeenCalledWith({ id: FAKE_GUEST_ID, role: 'recipe_curator', granted: true }, expect.anything());
   });
 
   it('asks before appointing an administrator', async () => {
     const api = adminApi();
     const setRole = vi.spyOn(api.users, 'setRole');
-    renderApp(`/admin/users/${OSPITE}`, { api });
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
     fireEvent.click(await appAdmin());
     const sheet = await screen.findByRole('dialog', { name: 'Nominare Ospite amministratore dell’app?' });
     expect(setRole).not.toHaveBeenCalled();
@@ -1587,7 +1812,7 @@ describe('/admin/users/$userId', () => {
 
   it('giving up one’s own role asks, then leads to the profile without the administration', async () => {
     const api = adminApi();
-    await api.users.setRole({ id: OSPITE, role: 'app_admin', granted: true });
+    await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
     const { history } = renderApp(`/admin/users/${DEMO_USER_ID}`, { api });
     fireEvent.click(await appAdmin());
     const sheet = await screen.findByRole('dialog', { name: 'Rinunciare al ruolo di amministratore?' });
@@ -1596,13 +1821,17 @@ describe('/admin/users/$userId', () => {
     await waitFor(() => expect(screen.queryByText('Amministrazione dell’app')).toBeNull());
   });
 
-  it('shows the error when the role changed elsewhere', async () => {
+  it('after a demotion made elsewhere, the next tap shows «Non hai accesso» and hides the user', async () => {
     const api = adminApi();
-    vi.spyOn(api.users, 'setRole').mockRejectedValue(new ApiError('forbidden'));
-    renderApp(`/admin/users/${OSPITE}`, { api });
-    fireEvent.click(await curator());
-    expect(await screen.findByRole('alert')).toBeTruthy();
-    expect((await curator()).disabled).toBe(false);
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    const box = await curator();
+    // Another administrator appears and takes the role away from the signed-in person.
+    await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+    await api.users.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+    fireEvent.click(box);
+    expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+    expect(screen.queryByText('ospite@example.com')).toBeNull();
+    expect(screen.queryByRole('switch')).toBeNull();
   });
 
   it('shows not found for an unknown id', async () => {
@@ -1611,11 +1840,19 @@ describe('/admin/users/$userId', () => {
   });
 
   it('refuses people without app_admin', async () => {
-    renderApp(`/admin/users/${OSPITE}`, { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: [] }) });
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: [] }) });
     expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
   });
 });
 ```
+
+Note sui test:
+- nel test della rinuncia, «Ospite» diventa amministratore chiamando l'API finta
+  direttamente (la persona collegata è ancora amministratrice, quindi passa la guardia);
+- `Riprova` è il testo di `common.retry` (`QueryError`); se il testo è diverso, usa
+  quello del dizionario;
+- `ApiError('internal')`: un codice che `persister.ts` non ritenta (ritenta solo
+  `network`), così il test non aspetta.
 
 - [ ] **Passo 2: esegui**
 
@@ -1644,7 +1881,7 @@ Atteso: FAIL (la pagina provvisoria non mostra nulla).
 ```tsx
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
@@ -1658,7 +1895,7 @@ import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
-import { hasAppAdmin } from './access';
+import { hasAppAdmin, onAdminForbidden } from './access';
 import { userQuery } from './api';
 import styles from './AdminPage.module.css';
 
@@ -1668,6 +1905,7 @@ const route = getRouteApi('/_app/admin/users/$userId');
 /**
  * One user (spec W10): the two global roles, families by name and role only. Appointing an
  * administrator and giving up one's own role ask first; the last administrator's switch is locked.
+ * The switches show only confirmed states and stay locked from the tap until one is shown.
  * No deletion here: activity C adds it below the families.
  */
 export function UserPage() {
@@ -1678,25 +1916,57 @@ export function UserPage() {
   const profile = useProfile();
   const { userId } = route.useParams();
   const allowed = hasAppAdmin(profile.data);
-  const user = useQuery({ ...userQuery(deps, userId), enabled: allowed });
+  const detailQuery = userQuery(deps, userId);
+  const user = useQuery({ ...detailQuery, enabled: allowed });
   const [confirming, setConfirming] = useState<'appoint' | 'dropSelf' | null>(null);
+  // From the tap until a confirmed state is shown; the ref also blocks taps before the next render.
+  const [busy, setBusy] = useState(false);
+  const sending = useRef(false);
+  // A forbidden answer: nothing of this user is shown until the profile says whether access remains.
+  const [checkingAccess, setCheckingAccess] = useState(false);
   const setRole = useAreaMutation('users.setRole', undefined, (change: Change) => deps.api.users.setRole({ id: userId, ...change }));
   const isSelf = profile.data?.user.id === userId;
 
-  function apply(change: Change) {
+  async function lostAccess(error: unknown): Promise<boolean> {
+    if (toApiError(error).code !== 'forbidden') return false;
+    setCheckingAccess(true);
+    await onAdminForbidden(deps.queryClient, error);
+    setCheckingAccess(false);
+    return true;
+  }
+  useEffect(() => {
+    if (user.error) void lostAccess(user.error);
+    // lostAccess only reads stable values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.error]);
+
+  async function apply(change: Change) {
     setConfirming(null);
-    if (setRole.isPending) return;
-    setRole.mutate(change, {
-      onSuccess: () => {
-        // Giving up one's own app_admin closes this page: the profile, read again, no longer offers it.
-        if (isSelf && change.role === 'app_admin' && !change.granted) void navigate({ to: '/profile' });
+    if (sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    try {
+      const outcome = await setRole.mutateAsync(change);
+      if (outcome.applied) {
+        // The answer is the confirmed detail: shown at once, whatever the reread started by the registry does.
+        deps.queryClient.setQueryData(detailQuery.queryKey, outcome.view);
+      } else {
+        await deps.queryClient.refetchQueries({ queryKey: detailQuery.queryKey }).catch(() => undefined);
       }
-    });
+      // Giving up one's own app_admin closes this page: the profile, read again, no longer offers it.
+      if (outcome.applied && isSelf && change.role === 'app_admin' && !change.granted) void navigate({ to: '/profile' });
+    } catch (error) {
+      await lostAccess(error);
+    } finally {
+      sending.current = false;
+      setBusy(false);
+    }
   }
   function toggle(role: GlobalRole, granted: boolean) {
+    if (sending.current) return;
     if (role === 'app_admin' && granted) return setConfirming('appoint');
     if (role === 'app_admin' && !granted && isSelf) return setConfirming('dropSelf');
-    apply({ role, granted });
+    void apply({ role, granted });
   }
 
   const back = (
@@ -1713,18 +1983,21 @@ export function UserPage() {
     );
   }
   const notFound = user.isError && toApiError(user.error).code === 'not_found';
-  const detail = user.data;
+  const detail = checkingAccess ? undefined : user.data;
+  const mutationError = setRole.isError && toApiError(setRole.error).code !== 'forbidden';
   return (
     <section className="secondary-view app-view">
       <div className="page-column">
         <PageHeader back={back} title={detail?.user.displayName ?? t('admin.users')} />
-        {(!profile.data || (!detail && !user.isError)) && !profile.isError && <Loading />}
         {profile.isError && <QueryError error={profile.error} onRetry={() => void profile.refetch()} />}
-        {notFound && <StateNotice title={t('errors.not_found')} />}
-        {user.isError && !notFound && <QueryError error={user.error} onRetry={() => void user.refetch()} />}
+        {!profile.isError && (checkingAccess || !profile.data || (!detail && !user.isError)) && <Loading />}
+        {!checkingAccess && notFound && <StateNotice title={t('errors.not_found')} />}
+        {/* A failed (re)read: with a confirmed detail the switches keep it, and the error offers a retry. */}
+        {!checkingAccess && user.isError && !notFound && <QueryError error={user.error} onRetry={() => void user.refetch()} />}
         {detail && (
           <>
             <p className={`meta-line ${styles.email}`}>{detail.user.email}</p>
+            {isSelf && <p className="meta-line">{t('admin.yourAccount')}</p>}
             <section className="settings-card" aria-labelledby="roles-title">
               <h2 id="roles-title">{t('admin.roles')}</h2>
               {(['recipe_curator', 'app_admin'] as const).map((role) => {
@@ -1732,13 +2005,7 @@ export function UserPage() {
                 const on = detail.user.roles.includes(role);
                 return (
                   <label key={role} className={styles.switch}>
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      checked={on}
-                      disabled={locked || !online || setRole.isPending}
-                      onChange={() => toggle(role, !on)}
-                    />
+                    <input type="checkbox" role="switch" checked={on} disabled={locked || !online || busy} onChange={() => toggle(role, !on)} />
                     <span>
                       {t(role === 'app_admin' ? 'admin.appAdmin' : 'admin.curator')}
                       <small>{locked ? t('admin.lastAppAdmin') : t(role === 'app_admin' ? 'admin.appAdminHint' : 'admin.curatorHint')}</small>
@@ -1746,7 +2013,7 @@ export function UserPage() {
                   </label>
                 );
               })}
-              {setRole.isError && <p className="form-error" role="alert">{t(errorKey(setRole.error))}</p>}
+              {mutationError && <p className="form-error" role="alert">{t(errorKey(setRole.error))}</p>}
             </section>
             <section className="settings-card" aria-labelledby="families-title">
               <h2 id="families-title">{t('admin.families')}</h2>
@@ -1772,8 +2039,8 @@ export function UserPage() {
                 <button
                   type="button"
                   className={`text-button ${confirming === 'dropSelf' ? styles.danger : 'primary'}`}
-                  disabled={!online || setRole.isPending}
-                  onClick={() => apply({ role: 'app_admin', granted: confirming === 'appoint' })}
+                  disabled={!online || busy}
+                  onClick={() => void apply({ role: 'app_admin', granted: confirming === 'appoint' })}
                 >
                   {t(confirming === 'dropSelf' ? 'admin.dropSelf' : 'admin.appoint')}
                 </button>
@@ -1790,12 +2057,15 @@ export function UserPage() {
 Note per l'implementatore:
 - `getRouteApi('/_app/admin/users/$userId')` come `RecipePage.tsx`
   (`getRouteApi('/_app/recipes/$recipeId')`).
-- Il doppio tocco: `setRole.isPending` disattiva l'interruttore al rendering
-  successivo; la guardia `if (setRole.isPending) return` copre i tocchi prima del
-  rendering solo se React ha già aggiornato lo stato. Se il test del doppio tocco
-  fallisce, aggiungi un `useRef` come in `InviteSheet.tsx` (`sending.current`).
+- Ordine degli eventi dopo una mutazione riuscita: il registro (`applyMutation`)
+  invalida `['users']` e il profilo, e TanStack Query annulla la lettura in corso e ne
+  avvia una nuova (`cancelRefetch` predefinito); poi la pagina scrive la risposta con
+  `setQueryData`. Una rilettura che arriva dopo porta lo stato del server, uguale o più
+  recente; una che fallisce lascia i dati scritti e mette la query in errore, e la
+  pagina mostra dettaglio confermato più `QueryError`.
+- Se il linter del progetto non usa `react-hooks/exhaustive-deps`, togli il commento
+  `eslint-disable`.
 - `errors.not_found` esiste già nei dizionari (`'Contenuto non trovato.'`).
-- La chiave `profile.role.${role}` esiste in `messages/profile.ts`.
 
 - [ ] **Passo 4: esegui**
 
@@ -1818,25 +2088,24 @@ git commit -m "Web: dettaglio dell'utente con i ruoli e le conferme (W10)"
 - Modifica: `web/src/features/admin/AdminPage.test.tsx`
 
 **Interfacce:**
-- Consuma: `api.users.list` (Compito 7), rotta `/admin/users/$userId` (Compito 9).
+- Consuma: `api.users.list` (Compito 7, che dà anche `account_exists` nella modalità
+  finta), `FAKE_GUEST_ID` (Compito 7), rotta `/admin/users/$userId` (Compito 9).
 
 - [ ] **Passo 1: test (fallisce)**
 
 In `AdminPage.test.tsx`, accanto al test esistente di `account_exists` (riga ~146),
-aggiungi:
+aggiungi (con l'import di `FAKE_GUEST_ID` da `../../api/fake/fakeUsers`):
 
 ```tsx
-it('turns «Questa email ha già un account» into a link to the user', async () => {
-  const api = adminApi();
-  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
-  const { history } = renderApp('/admin', { api });
+it('turns «Questa email ha già un account» into a link to the user (fake mode answers account_exists)', async () => {
+  const { history } = renderApp('/admin', { api: adminApi() });
   fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
   const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
   fireEvent.change(within(sheet).getByLabelText('Email'), { target: { value: 'OSPITE@example.com' } });
   fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
   expect(await within(sheet).findByText('Questa email ha già un account')).toBeTruthy();
   fireEvent.click(await within(sheet).findByRole('link', { name: 'Apri l’utente' }));
-  await waitFor(() => expect(history.location.pathname).toBe('/admin/users/00000000-0000-4000-8000-00000000a5e1'));
+  await waitFor(() => expect(history.location.pathname).toBe(`/admin/users/${FAKE_GUEST_ID}`));
 });
 
 it('keeps only the text when the user cannot be found', async () => {
@@ -1852,7 +2121,36 @@ it('keeps only the text when the user cannot be found', async () => {
   await new Promise((r) => setTimeout(r, 20));
   expect(within(sheet).queryByRole('link', { name: 'Apri l’utente' })).toBeNull();
 });
+
+it('links the user of the latest attempt even when the searches answer in reverse order, and drops the link when the email changes', async () => {
+  const api = adminApi();
+  vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
+  const answers = new Map<string, (value: { users: { id: string; displayName: string; email: string; roles: [] }[]; more: boolean }) => void>();
+  vi.spyOn(api.users, 'list').mockImplementation((input) => new Promise((resolve) => answers.set(input.query ?? '', resolve)));
+  const row = (id: string, email: string) => ({ users: [{ id, displayName: email, email, roles: [] as [] }], more: false });
+  renderApp('/admin', { api });
+  fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
+  const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });
+  const field = within(sheet).getByLabelText('Email');
+  fireEvent.change(field, { target: { value: 'a@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  await waitFor(() => expect(answers.has('a@x.it')).toBe(true));
+  fireEvent.change(field, { target: { value: 'b@x.it' } });
+  fireEvent.click(within(sheet).getByRole('button', { name: 'Crea il link' }));
+  await waitFor(() => expect(answers.has('b@x.it')).toBe(true));
+  answers.get('b@x.it')!(row('00000000-0000-4000-8000-0000000000b0', 'b@x.it'));
+  const link = await within(sheet).findByRole('link', { name: 'Apri l’utente' });
+  answers.get('a@x.it')!(row('00000000-0000-4000-8000-0000000000a0', 'a@x.it'));
+  await new Promise((r) => setTimeout(r, 20));
+  expect(within(sheet).getByRole('link', { name: 'Apri l’utente' }).getAttribute('href')).toBe('/admin/users/00000000-0000-4000-8000-0000000000b0');
+  expect(link.getAttribute('href')).toBe('/admin/users/00000000-0000-4000-8000-0000000000b0');
+  fireEvent.change(field, { target: { value: 'c@x.it' } });
+  expect(within(sheet).queryByRole('link', { name: 'Apri l’utente' })).toBeNull();
+});
 ```
+
+Il test esistente di `account_exists` (con `mockRejectedValue`) resta valido: controlla
+solo il testo.
 
 - [ ] **Passo 2: esegui**
 
@@ -1861,12 +2159,19 @@ Atteso: FAIL (nessun link).
 
 - [ ] **Passo 3: implementa**
 
-In `InviteSheet.tsx`:
+In `InviteSheet.tsx` (import di `Link` da `@tanstack/react-router`):
 
 ```tsx
-import { Link } from '@tanstack/react-router';
-...
+  /** The user who has the email of the latest attempt; only the latest attempt's search may set it (spec W10). */
   const [existingUser, setExistingUser] = useState<string | null>(null);
+  const attemptNumber = useRef(0);
+```
+
+All'inizio di `send()`, dopo il controllo di `sending.current`:
+
+```tsx
+    const attemptNow = ++attemptNumber.current;
+    setExistingUser(null);
 ```
 
 Nel `catch` di `send()`:
@@ -1877,17 +2182,30 @@ Nel `catch` di `send()`:
       setFailure(error);
       const apiError = toApiError(error);
       if (apiError.code === 'not_allowed' && (apiError.data as { reason?: string } | undefined)?.reason === 'account_exists') {
-        // Spec W10: the account is found by its email; without a match only the text stays.
+        // The account is found by its email; an answer of an older attempt is dropped.
         const wanted = email.trim().toLowerCase();
         void deps.api.users
           .list({ query: wanted })
-          .then(({ users }) => alive.current && setExistingUser(users.find((user) => user.email.toLowerCase() === wanted)?.id ?? null))
+          .then(({ users }) => {
+            if (!alive.current || attemptNow !== attemptNumber.current) return;
+            setExistingUser(users.find((user) => user.email.toLowerCase() === wanted)?.id ?? null);
+          })
           .catch(() => undefined);
       }
     }
 ```
 
-All'inizio di `send()`, accanto a `setFailure(null)`: `setExistingUser(null);`.
+Nel campo email, l'`onChange` toglie il collegamento e rende superata la ricerca in
+corso:
+
+```tsx
+<input id={`${ids}-email`} type="email" autoComplete="off" autoCapitalize="none" value={email}
+  onChange={(e) => {
+    setEmail(e.target.value);
+    attemptNumber.current += 1;
+    setExistingUser(null);
+  }} />
+```
 
 Nel messaggio d'errore:
 
@@ -1902,9 +2220,9 @@ Nel messaggio d'errore:
           )}
 ```
 
-Se `ApiError` espone il motivo con un nome diverso da `data.reason`, controlla in
-`web/src/api/errors.ts` (il test esistente lo costruisce con
-`new ApiError('not_allowed', { reason: 'account_exists' })`) e usa lo stesso campo.
+`ApiError` espone il motivo in `data` (`new ApiError('not_allowed', { reason: 'account_exists' })`,
+`web/src/api/errors.ts`). Nota: `email` letto nel `catch` è quello del rendering in cui
+`send()` è partito, cioè l'email del tentativo.
 
 - [ ] **Passo 4: esegui**
 
@@ -1942,7 +2260,8 @@ Atteso: tutto verde. Annota i numeri (test pgTAP, server, web) per la descrizion
 
 - [ ] **Passo 2: interfaccia con agent-browser (modalità finta)**
 
-`npm run dev -w web`, poi con la skill agent-browser, a 1280 e a 390 px di larghezza:
+`npm run dev -w web` (la modalità finta rende la persona demo amministratrice, Compito
+7), poi con la skill agent-browser, a 1280 e a 390 px di larghezza:
 `/admin` (Utenti sopra gli inviti, ricerca, «Tu», etichette, `more` non visibile con i
 dati demo), dettaglio di «Ospite» (nessuna famiglia), assegnazione del curatore,
 conferma della nomina, interruttore bloccato del proprio account, rinuncia dopo aver
@@ -1950,6 +2269,18 @@ nominato un altro amministratore con ritorno al Profilo, «Apri l'utente» dal f
 «Nuovo invito» con `ospite@example.com`, barra in basso con «Profilo» attivo. Se gli
 screenshot si bloccano, il Mac ha spento lo schermo: `caffeinate -d` e una sessione
 nuova.
+
+- [ ] **Passo 2b: lingue e nomi lunghi**
+
+Sia in modalità finta sia sullo stack, ripeti a 390 px con l'interfaccia in inglese
+(lingua cambiata dalle Preferenze) e con un nome lungo: in modalità finta cambia il
+proprio nome nelle Preferenze in «Maria Alessandra Benedetta Castiglioni di
+Valdobbiadene»; sullo stack crea la persona con quel nome e un'email lunga
+(`maria.alessandra.benedetta.castiglioni@example.com`). Controlla elenco, intestazione
+del dettaglio, «Questo è il tuo account»/«This is your account» e il foglio della nomina:
+nessun testo tagliato, nessuno scorrimento orizzontale (`design/design.md`). Se qualcosa
+va a capo male, correggi il CSS in `AdminPage.module.css` (per esempio
+`overflow-wrap: anywhere` sul nome) e fai un commit a parte.
 
 - [ ] **Passo 3: interfaccia sullo stack locale**
 
@@ -1984,6 +2315,10 @@ git commit -m "Spec: esito della prova dell'interfaccia (W10)"
 | 3 Sezione Utenti, ricerca con ritardo, `more`, «Tu» | 8 |
 | 3 Dettaglio, conferme, interruttore bloccato, rinuncia → Profilo | 9 |
 | 3 `account_exists` → «Apri l'utente» | 10 |
-| 3 Modalità finta | 7 |
+| 3 Modalità finta (demo amministratore, `account_exists`) | 7 |
+| 3 Interruttori bloccati fino allo stato confermato; perdita di `app_admin` | 8, 9 |
+| 3 «Questo è il tuo account» in due lingue | 8, 9 |
+| 3 Ricerca di `account_exists` legata al tentativo | 10 |
+| 4 Verifica in inglese e con nomi lunghi | 11 |
 | 4 pgTAP, server, concorrenza, stack, web, agent-browser | 1, 3, 4, 5, 6–10, 11 |
 | 6 Interfaccia per C (regola del lucchetto nel commento) | 1 |

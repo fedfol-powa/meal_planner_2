@@ -48,7 +48,7 @@ ricettario (E), inviti alla famiglia, email.
 | 3 | Il dettaglio mostra nome, email, «Tu», i due interruttori, le famiglie per nome e ruolo e l'indicazione dell'ultimo amministratore; **tolto il numero di agenti collegati** del prototipo | `app.connected_agents()` legge solo le sessioni di chi chiama: contarle per un altro utente richiede una lettura nuova di `auth` per un dato che l'amministratore non può usare (dal dettaglio non si scollegano agenti). Se servirà, arriva con la cancellazione di C, che deve già revocare gli accessi |
 | 4 | MCP: la conferma per nominare un amministratore e per rinunciare al proprio `app_admin` è affidata alle istruzioni dell'agente (descrizione dello strumento); il server non chiede campi in più | Coerente con la decisione dell'utente dell'11 ottobre sulla pubblicazione delle ricette e con la parità della sezione 13. L'ultimo amministratore resta protetto sul server |
 | 5 | Lettura dell'email con funzioni `security definer` nello schema `app` che leggono `auth.users` e verificano `app_admin` al loro interno; niente chiave segreta | Stesso schema degli inviti di A (`app.create_app_invitation` legge già `auth.users`); nessuna scrittura in `auth`; la chiave segreta resta solo in `server/src/accounts/` per creare account |
-| 6 | Ultimo amministratore protetto da un lucchetto consultivo preso da ogni modifica di ruolo e da **ogni** percorso che toglie `app_admin`; sotto il lucchetto si ricontrolla anche il ruolo di chi chiama | Due amministratori che si tolgono il ruolo a vicenda si mettono in fila; il secondo trova un solo amministratore. Chi viene retrocesso mentre aspetta non cambia più ruoli (trovato scrivendo il piano, dopo l'approvazione della sezione 1) |
+| 6 | Ultimo amministratore protetto da un lucchetto consultivo preso da **ogni** percorso che toglie `app_admin`; sotto il lucchetto si ricontrollano chi chiama e il numero di amministratori. Le assegnazioni non lo prendono (eccezione documentata nella sezione 1) | Due amministratori che si tolgono il ruolo a vicenda si mettono in fila: il secondo, già retrocesso, riceve `forbidden`; due che rinunciano ciascuno al proprio: il secondo riceve `last_app_admin`. Portata decisa dal coordinatore dopo la revisione di spec e piano |
 | 7 | Dopo la propria rinuncia il web rilegge il profilo e porta a `/profile`, senza avviso a comparsa | Il web non ha un componente generico per gli avvisi (c'è solo quello per annullare un pasto, legato al menu) e la conferma ha già spiegato la conseguenza. **Scostamento dal prototipo**, che mostrava un avviso |
 | 8 | `account_exists` risolto nel web: dopo l'errore il foglio cerca l'email con `users.list` e collega al dettaglio; il contratto di A non cambia | Nessuna modifica all'interfaccia di A già rilasciata |
 
@@ -98,32 +98,35 @@ famiglie). L'ordine lo decide il server con `Intl.Collator`, come per il profilo
 
 Restituisce `void`.
 
-1. `p_role` diverso da `recipe_curator` e `app_admin`, o `p_granted` nullo: `22023`.
-2. `perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))`: **ogni**
-   modifica di ruolo si mette in fila, anche le assegnazioni. Le modifiche sono rare e
-   così il controllo successivo su chi chiama è affidabile: un amministratore
-   retrocesso da un altro mentre aspettava il lucchetto non può più cambiare ruoli.
-3. Dopo il lucchetto, in istruzioni successive (le richieste degli utenti girano in
-   `read committed`, quindi ognuna vede ciò che chi aveva il lucchetto prima ha
-   confermato): chi chiama non è `app_admin`, `42501`; utente inesistente in
-   `auth.users`, `P0A07`.
-4. `p_granted = true`: `insert ... (user_id, role, granted_by) values (..., auth.uid())
+1. Chi chiama non è `app_admin`: `42501`.
+2. `p_role` diverso da `recipe_curator` e `app_admin`, o `p_granted` nullo: `22023`.
+3. **Solo per la rimozione di `app_admin`** (`p_granted = false` e
+   `p_role = 'app_admin'`): `perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))`,
+   poi, in istruzioni successive (le richieste degli utenti girano in `read committed`,
+   quindi ognuna vede ciò che chi aveva il lucchetto prima ha confermato):
+   - chi chiama non è più `app_admin` (retrocesso da un altro mentre aspettava):
+     `42501`;
+   - il bersaglio ha `app_admin` e nessun altro utente lo ha: `P0A08`.
+4. Utente inesistente in `auth.users`: `P0A07`.
+5. `p_granted = true`: `insert ... (user_id, role, granted_by) values (..., auth.uid())
    on conflict do nothing`. Idempotente.
-5. `p_granted = false` e `p_role = 'app_admin'`: se il bersaglio ha `app_admin` e
-   nessun altro utente lo ha, `P0A08`.
 6. `p_granted = false`: `delete`; se il ruolo era già tolto non fa nulla.
 
-Un controllo di `app_admin` anche prima del lucchetto evita che chi non è
-amministratore resti in fila: la funzione lo fa all'inizio e lo ripete dopo.
+**Regola del lucchetto** (decisione del coordinatore, revisione di spec e piano): ogni
+percorso che **toglie** `app_admin` (questa funzione, la cancellazione di un account in
+C, qualunque script futuro) prende il lucchetto `app_admin_roles` e, sotto il lucchetto,
+ricontrolla chi chiama e il numero di amministratori. È la stessa regola
+dell'«Interfaccia per C» e va scritta come commento nella funzione.
 
-Commento obbligatorio nella funzione: **ogni percorso che toglie `app_admin`** (questa
-funzione, la cancellazione di un account in C, qualunque script futuro) deve prendere
-lo stesso lucchetto `app_admin_roles` e rifare il controllo sotto il lucchetto,
-altrimenti la protezione sotto concorrenza non vale.
+**Eccezione delle assegnazioni:** assegnare `app_admin` o `recipe_curator` e togliere
+`recipe_curator` non prendono il lucchetto, né qui né in `app.complete_app_invitation`
+di A, che resta com'è (nessuna migrazione su A). Un'assegnazione può solo aumentare il
+numero di amministratori, quindi non mette a rischio l'ultimo. Un amministratore
+retrocesso nello stesso istante in cui assegna un ruolo equivale a uno che lo ha
+assegnato un attimo prima della retrocessione.
 
 Le scritture dirette su `app.user_roles` restano negate (`authenticated` ha solo
-`SELECT`, con la politica `user_roles_select_own`). `app.complete_app_invitation` di A
-aggiunge soltanto ruoli e non cambia.
+`SELECT`, con la politica `user_roles_select_own`).
 
 Codici SQLSTATE nuovi: `P0A07` (utente inesistente), `P0A08` (ultimo amministratore
 dell'app). Oggi sono in uso `P0A01`–`P0A06`.
@@ -203,7 +206,9 @@ In `AdminPage` sopra `InvitationsSection`, nella forma del sesto giro:
   sottopercorsi).
 - Stesso controllo di `/admin`: `hasAppAdmin(profile)`, altrimenti «Non hai accesso a
   questa pagina» con il link al Profilo; utente inesistente: stato `not_found`.
-- Intestazione con il nome e ritorno ad «Amministrazione dell'app»; sotto, l'email.
+- Intestazione con il nome e ritorno ad «Amministrazione dell'app»; sotto, l'email e,
+  per il proprio account, la riga «Questo è il tuo account» («This is your account»),
+  che rende riconoscibile il contesto della rinuncia.
 - Card «Ruoli»: due interruttori (`input type="checkbox" role="switch"`) «Curatore del
   ricettario» e «Amministratore dell'app», ciascuno con una spiegazione breve. Per
   l'ultimo amministratore l'interruttore di `app_admin` è disattivato e la spiegazione
@@ -214,15 +219,31 @@ In `AdminPage` sopra `InvitationsSection`, nella forma del sesto giro:
 
 Cambio di ruolo:
 
-- **senza aggiornamento ottimistico** (interfacce decise): l'interruttore mostra lo
-  stato del server; durante la mutazione entrambi sono disattivati;
+- **senza aggiornamento ottimistico** (interfacce decise): l'interruttore mostra solo
+  stati confermati dal server;
 - `users.setRole` entra nel registro di `web/src/api/mutations.ts` con un bersaglio
-  `users` che, come `appInvitations`, **non scrive la risposta nella cache**: rende da
-  rileggere le query `['users']` (dettaglio ed elenco) e, con `stale: ['profile']`, il
-  profilo (i propri ruoli possono essere cambiati). È più semplice che scrivere la
-  risposta nel dettaglio e segue lo schema già usato per gli inviti;
-- errore: avviso sotto la card con il testo del codice (`last_app_admin` se un altro
-  amministratore ha tolto il ruolo nel frattempo);
+  `users` che, come `appInvitations`, non scrive la risposta nella cache in modo
+  generico: rende da rileggere le query `['users']` (dettaglio ed elenco) e, con
+  `stale: ['profile']`, il profilo (i propri ruoli possono essere cambiati);
+- **interruttori bloccati fino allo stato confermato** (revisione, rilievo 5): dal tocco
+  fino a quando il dettaglio mostrato è quello confermato, entrambi gli interruttori
+  sono disattivati. La pagina scrive nella cache del dettaglio la risposta di
+  `setRole`, che è già il dettaglio aggiornato, quando la mutazione è applicata
+  (sessione aperta, risposta più recente); se non è applicata, attende la rilettura
+  del dettaglio. La rilettura avviata dal registro può restare in corso o fallire senza
+  toccare lo stato mostrato: se fallisce, sopra la card compare l'errore con
+  «Riprova» e gli interruttori restano sullo stato confermato. Un secondo tocco
+  durante l'attesa non manda nulla;
+- errore della mutazione: avviso sotto la card con il testo del codice
+  (`last_app_admin` se un altro amministratore ha tolto il ruolo nel frattempo);
+- **perdita di `app_admin` accertata** (revisione, rilievo 3): se un'operazione `users`
+  (lettura o mutazione) risponde `forbidden`, la pagina toglie dalla cache le query
+  `['users']` e `['appInvitations']` e rilegge il profilo. Se il profilo non ha più
+  `app_admin`, `/admin` e il dettaglio mostrano «Non hai accesso a questa pagina»
+  senza i dati di prima. Se lo ha ancora (un `forbidden` per altri motivi), la pagina
+  rilegge e mostra l'errore. È una funzione dell'area (`onAdminForbidden` in
+  `web/src/features/admin/access.ts`); il gestore condiviso degli errori
+  (`SessionScope.tsx`) non cambia;
 - conferme con `BottomSheet`:
   - **nomina di un amministratore** (accendere `app_admin` di chiunque): «Nominare
     {name} amministratore dell'app?», testo «Potrà gestire utenti, ruoli e inviti
@@ -244,11 +265,25 @@ minuscolo). Se la trova, accanto a «Questa email ha già un account» compare i
 collegamento «Apri l'utente» a `/admin/users/$userId`; se non la trova (concorrenza,
 errore di rete) resta solo il testo.
 
+La ricerca è **legata al tentativo** (revisione, rilievo 4): ogni invio ha un numero
+progressivo e la risposta della ricerca si usa solo se appartiene ancora all'ultimo
+tentativo e il foglio è aperto. Cambiare l'email toglie il collegamento. Così una
+risposta lenta per un'email precedente non collega mai la persona sbagliata.
+
 ### Modalità finta e testi
 
-- `web/src/api/fake/fakeUsers.ts`: le tre operazioni sui dati demo (utenti con email e
-  ruoli, famiglie per nome e ruolo), con `last_app_admin` e `not_found` come sul
+- `web/src/api/fake/fakeUsers.ts`: le tre operazioni sui dati demo (le persone del
+  seed, compresa quella collegata, più l'account «Ospite» senza ruoli né famiglia),
+  con `forbidden` per chi non è `app_admin`, `last_app_admin` e `not_found` come sul
   server; registrata in `fakeApi.ts`; `users` aggiunta a `SERVER_AREAS`.
+- **Demo amministratore:** `fakeClients` accetta `globalRoles`, e solo la modalità
+  finta dell'app (`web/src/main.tsx`) gli passa `recipe_curator` e `app_admin`, così
+  `/admin` si prova senza stack. I predefiniti di `fakeClients` e `createFakeApi`
+  restano solo curatore, perché i test (`renderApp`, Profilo senza amministrazione) li
+  usano così.
+- **`account_exists` nella modalità finta:** `fakeAppInvitations.ts` riceve una
+  funzione che dice se un'email ha già un account (dagli utenti finti) e in quel caso
+  risponde `not_allowed`/`account_exists` come il server.
 - Testi nuovi in `web/src/i18n/messages/admin.ts`, in italiano e inglese britannico.
   Testi italiani senza genere dove possibile.
 
@@ -289,22 +324,54 @@ I test che dipendono dal numero di amministratori tolgono gli `app_admin` degli 
 utenti di prova e **li rimettono sempre**, anche se il test fallisce (`afterEach` o
 `finally`). I file del server girano uno alla volta (`fileParallelism: false`).
 
-`server/test/users-locks.test.ts`: due amministratori A e B soli nel database; con
-`holdTransaction` A toglie il ruolo a B tenendo aperta la transazione; B, su un'altra
-connessione, toglie il ruolo ad A e resta in attesa sul lucchetto (`stillPending`);
-rilasciata A, B riceve `P0A08`. Alla fine resta esattamente un amministratore. Secondo
-caso, con tre amministratori A, B e C: A toglie il ruolo a B tenendo aperta la
-transazione; B intanto prova a togliere il ruolo a C e resta in fila; rilasciata A, B
-riceve `42501` e C resta amministratore. Lo stesso ripristino garantito degli
-`app_admin` di prova.
+`server/test/users-locks.test.ts` (revisione, rilievi 1 e 2). In ogni caso la prima
+operazione tiene aperta la transazione con `holdTransaction`, la seconda gira su
+un'altra connessione:
+
+1. **rimozione incrociata**, A e B soli: A toglie il ruolo a B, B toglie il ruolo ad A.
+   Rilasciata A, B riceve `42501` (ha già perso il ruolo) e resta esattamente un
+   amministratore, A;
+2. **due rinunce**, A e B soli: A rinuncia al proprio ruolo, B al proprio. Rilasciata A,
+   B (ancora amministratore) riceve `P0A08` e resta esattamente un amministratore, B;
+3. **retrocesso in fila**, A, B e C: A toglie il ruolo a B, B prova a toglierlo a C.
+   Rilasciata A, B riceve `42501` e restano A e C.
+
+Come si accerta l'attesa: la connessione della seconda operazione comunica il proprio
+`pg_backend_pid()`; la connessione di controllo legge `pg_stat_activity` finché quel
+processo ha `wait_event_type = 'Lock'` e `wait_event = 'advisory'`, con un tempo
+massimo. L'attesa di 200 ms (`stillPending`) resta solo come controllo accessorio. In
+`try/finally` la prima transazione si rilascia e l'esito della seconda si raccoglie
+**sempre**, prima del ripristino degli `app_admin` di prova. Le asserzioni vengono
+dopo, nell'ordine: numero finale di amministratori, codici, attesa accertata. Così la
+prova senza lucchetto (funzione sostituita a mano, solo in locale) conclude entrambe le
+transazioni e fallisce mostrando l'invariante violata (zero amministratori).
+
+Il test verifica anche l'isolamento: una transazione aperta con `withDbOn` di
+`server/src/db.ts` come utente risponde `read committed` a `show transaction_isolation`.
+Se un giorno la pipeline passasse a `repeatable read`, il ricontrollo dopo il lucchetto
+non vedrebbe le modifiche confermate e il test lo segnalerebbe.
 
 ### Web
 
-- Componenti con l'API simulata (`AdminPage.test.tsx`, `UserPage.test.tsx`): sezione
-  Utenti sopra gli inviti, ricerca con ritardo, etichette, « · Tu », `more`, nessun
-  utente; interruttori senza ottimismo; conferma della nomina; conferma della rinuncia e
-  uscita verso `/profile`; interruttore bloccato con il motivo; `not_found`; nessun
-  accesso; collegamento «Apri l'utente» da `account_exists`.
+- Componenti con l'API simulata (`AdminPage.test.tsx`, `UsersSection.test.tsx`,
+  `UserPage.test.tsx`): sezione Utenti sopra gli inviti, ricerca con ritardo,
+  etichette, « · Tu », `more`, nessun utente; «Questo è il tuo account» nel dettaglio,
+  in italiano e in inglese; interruttori senza ottimismo; conferma della nomina;
+  conferma della rinuncia e uscita verso `/profile`; interruttore bloccato con il
+  motivo; `not_found`; nessun accesso; collegamento «Apri l'utente» da
+  `account_exists`.
+- Revisione di spec e piano:
+  - interruttori bloccati con la mutazione risolta e la rilettura del dettaglio ancora
+    sospesa, poi fallita: lo stato mostrato è quello della risposta, compare l'errore
+    con «Riprova», un tocco durante l'attesa non manda nulla (rilievo 5);
+  - retrocessione effettiva nell'API simulata (un altro amministratore toglie il ruolo
+    alla persona collegata): al tocco successivo la pagina mostra «Non hai accesso a
+    questa pagina» e non più l'email dell'utente; lo stesso per `/admin` (rilievo 3);
+  - due tentativi di invito con email diverse e risposte della ricerca in ordine
+    inverso: il collegamento è quello dell'ultimo tentativo; cambiare l'email lo toglie
+    (rilievo 4);
+  - modalità finta: `account_exists` per `ospite@example.com` e persona demo
+    amministratrice nei client della modalità finta (rilievo 6).
 - Registro delle mutazioni (`mutations.test.ts`): `users.setRole` rilegge `['users']` e
   il profilo, non scrive la cache.
 - I test web sullo stack (`*.stack.test.tsx`) usano Auth vero ma dati finti per le
@@ -323,6 +390,11 @@ riceve `42501` e C resta amministratore. Lo stesso ripristino garantito degli
     dettaglio, assegnazione del curatore ritrovata come etichetta nell'elenco, conferma
     della nomina, interruttore bloccato con il motivo, rinuncia con ritorno al Profilo,
     «Apri l'utente» da `account_exists`. Anche in modalità finta (`npm run dev -w web`).
+  - In entrambe le prove: interfaccia **in italiano e in inglese** e un **nome lungo**
+    (per esempio «Maria Alessandra Benedetta Castiglioni di Valdobbiadene» con un'email
+    altrettanto lunga) nell'elenco, nell'intestazione del dettaglio e nel foglio della
+    nomina, a 390 px, senza testo tagliato né scorrimento orizzontale
+    (`design/design.md`).
 
 ### Da provare a mano sull'iPhone
 
@@ -364,7 +436,10 @@ produzione, poi il Worker. Nessun segreto, binding o risorsa esterna nuovi.
 `contract/src/index.ts`, `server/src/router.ts`, `web/src/router.tsx`,
 `web/src/components/BottomNav.tsx` (`underProfile`), `web/src/api/types.ts`
 (`SERVER_AREAS`), `web/src/api/mutations.ts` (bersaglio `users`),
-`web/src/api/fake/fakeApi.ts` (registrazione), `web/src/i18n/messages/admin.ts`,
+`web/src/api/fake/fakeApi.ts` (registrazione, opzione `globalRoles` di `fakeClients`),
+`web/src/main.tsx` (demo amministratore nella modalità finta),
+`web/src/api/fake/fakeAppInvitations.ts` (`account_exists` dagli utenti finti),
+`web/src/i18n/messages/admin.ts`,
 `supabase/tests/coverage_test.sql` (le quattro funzioni nell'elenco di
 `authenticated`), `scripts/invitations/invite-stack.sh` (cartella `test/stack/`).
 
@@ -387,6 +462,9 @@ produzione, poi il Worker. Nessun segreto, binding o risorsa esterna nuovi.
   istruzioni dell'agente, come per la pubblicazione delle ricette (sezione 13).
 - `account_exists` nel foglio del nuovo invito con il collegamento «Apri l'utente»
   (sezione 7).
+- Nel dettaglio del proprio account la riga «Questo è il tuo account» (sezione 7).
+- Un amministratore retrocesso altrove vede «Non hai accesso a questa pagina» alla
+  prima risposta `forbidden`, senza i dati di prima (sezione 7).
 - Dal rilascio di B i ruoli di chi ha già un account si cambiano dall'app e via MCP;
   la frase «fino ad allora i ruoli … non si cambiano dall'app» della Parte 1 e della
   sezione 7 va aggiornata.
@@ -397,8 +475,12 @@ produzione, poi il Worker. Nessun segreto, binding o risorsa esterna nuovi.
   `app.set_user_role` (`security definer`, solo `app_admin`, lettura di `auth.users`
   senza scritture) (sezione 2, «Funzioni»; sezione 1).
 - Lucchetto consultivo `app_admin_roles` obbligatorio per ogni percorso che toglie
-  `app_admin`, compresa la cancellazione di un account (sezione 7, «Ultimo
-  amministratore dell'app»; sezione 2).
+  `app_admin`, compresa la cancellazione di un account, con il ricontrollo di chi chiama
+  e del numero di amministratori sotto il lucchetto; le assegnazioni (anche
+  `app.complete_app_invitation`) non lo prendono perché possono solo aumentare gli
+  amministratori (sezione 7, «Ultimo amministratore dell'app»; sezione 2).
+- Isolamento `read committed` delle transazioni degli utenti come requisito del
+  ricontrollo dopo il lucchetto, verificato da un test (sezione 1).
 - Codici SQLSTATE `P0A07` e `P0A08` (sezione 1, «Errori a codici», solo come dettaglio
   della traduzione in `not_found` e `last_app_admin`).
 - Area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`
