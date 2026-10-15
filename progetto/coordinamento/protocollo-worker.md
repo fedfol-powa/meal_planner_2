@@ -57,3 +57,12 @@ fare; qui c'è come.
 - Le regole di `AGENTS.md` valgono sempre: codice in inglese, documenti in italiano,
   testi per l'utente localizzabili in italiano e inglese britannico, ingredienti mai
   dedotti dal nome del piatto.
+
+## Prove sullo stack locale
+
+`web/.env.production` è versionato e punta alla produzione: una `vite build` normale
+produce una SPA che parla con l'Auth di produzione. Per le prove con lo stack locale
+passa esplicitamente le variabili dello stack (`VITE_SUPABASE_URL`, chiave pubblicabile
+locale) o usa il server di sviluppo, e controlla l'URL di Auth nelle richieste prima di
+accedere. Mai credenziali di prova verso la produzione (15/10: due accessi di prova di W10
+sono arrivati lì, rifiutati).
