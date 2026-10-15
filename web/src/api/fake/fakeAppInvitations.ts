@@ -7,7 +7,8 @@ type Stored = Omit<AppInvitationView, 'status'> & { status: 'pending' | 'accepte
 
 /** A valid link of the fake mode: /invite/app#ddd…x shows the page without the stack. */
 export const FAKE_INVITE_TOKEN = 'demo'.padEnd(43, 'x');
-const DEMO_EMAIL = 'ospite@example.com';
+// Not an existing account's email: «Ospite» (ospite@example.com) is the account of fakeUsers (spec W10).
+const DEMO_EMAIL = 'invitata@example.com';
 const DAY = 24 * 60 * 60 * 1000;
 
 const stores = new WeakMap<object, Map<string, Stored>>();

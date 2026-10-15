@@ -17,6 +17,7 @@ import { AgentsPage } from './features/agents/AgentsPage';
 import { AuthorizePage } from './features/agents/AuthorizePage';
 import { validateAuthorizeSearch } from './features/agents/search';
 import { AdminPage } from './features/admin/AdminPage';
+import { UserPage } from './features/admin/UserPage';
 import { InvitePage } from './features/app-invitations/InvitePage';
 import { DraftPage } from './features/catalogue/DraftPage';
 import { NewFamilyPage } from './features/family-new/NewFamilyPage';
@@ -88,6 +89,7 @@ const exclusionsRoute = createRoute({ getParentRoute: () => appRoute, path: '/pr
 const newFamilyRoute = createRoute({ getParentRoute: () => appRoute, path: '/family/new', validateSearch: validateNewFamilySearch, component: NewFamilyPage });
 // App administration (spec W9): app_admin only, also checked by the server.
 const adminRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin', component: AdminPage });
+const userRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin/users/$userId', component: UserPage });
 const agentsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/agents', component: AgentsPage });
 // `day`: the menu day the list was opened from, where «Menu» goes back to.
 const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shopping/$weekStartsOn', validateSearch: validateMenuSearch, component: ShoppingPage });
@@ -96,7 +98,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   authorizeRoute,
   appInviteRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, newFamilyRoute, adminRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

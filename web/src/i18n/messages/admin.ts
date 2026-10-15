@@ -1,4 +1,4 @@
-// App administration (spec W9): only the app invitations for now.
+// App administration (spec W9 and W10): users, roles and app invitations.
 export const it = {
   'admin.title': 'Amministrazione dell’app',
   'admin.invitations': 'Inviti all’app',
@@ -20,9 +20,30 @@ export const it = {
   'admin.noAccess': 'Non hai accesso a questa pagina',
   'admin.share': 'Condividi',
   'admin.link': 'Link d’invito',
+  'admin.users': 'Utenti',
+  'admin.search': 'Cerca per nome o email',
+  'admin.you': 'Tu',
+  'admin.yourAccount': 'Questo è il tuo account',
+  'admin.noUsers': 'Nessun utente',
+  'admin.moreUsers': 'Ci sono altri utenti: restringi la ricerca.',
+  'admin.roles': 'Ruoli',
+  'admin.curatorHint': 'Aggiunge e modifica le ricette del ricettario.',
+  'admin.appAdminHint': 'Gestisce utenti, ruoli e inviti dell’app.',
+  'admin.lastAppAdmin': 'È l’unico amministratore dell’app: nominane un altro prima.',
+  'admin.families': 'Famiglie',
+  'admin.noFamilies': 'Nessuna famiglia',
+  'admin.familiesNote': 'Si vedono solo nome e ruolo.',
+  'admin.appointTitle': 'Nominare {name} amministratore dell’app?',
+  'admin.appointBody': 'Potrà gestire utenti, ruoli e inviti dell’app, anche nominare o togliere altri amministratori.',
+  'admin.appoint': 'Nomina',
+  'admin.dropSelfTitle': 'Rinunciare al ruolo di amministratore?',
+  'admin.dropSelfBody': 'Non vedrai più questa pagina. Potrà ridartelo solo un altro amministratore.',
+  'admin.dropSelf': 'Rinuncia',
+  'admin.cancel': 'Annulla',
+  'admin.openUser': 'Apri l’utente',
   'profile.newFamily': 'Crea un’altra famiglia',
   'profile.admin': 'Amministrazione dell’app',
-  'profile.adminHint': 'Inviti all’app'
+  'profile.adminHint': 'Utenti, ruoli e inviti'
 };
 
 export const en = {
@@ -46,7 +67,28 @@ export const en = {
   'admin.noAccess': 'You don’t have access to this page',
   'admin.share': 'Share',
   'admin.link': 'Invitation link',
+  'admin.users': 'Users',
+  'admin.search': 'Search by name or email',
+  'admin.you': 'You',
+  'admin.yourAccount': 'This is your account',
+  'admin.noUsers': 'No users',
+  'admin.moreUsers': 'There are more users: narrow the search.',
+  'admin.roles': 'Roles',
+  'admin.curatorHint': 'Adds and edits the recipes of the recipe book.',
+  'admin.appAdminHint': 'Manages the app’s users, roles and invitations.',
+  'admin.lastAppAdmin': 'This is the app’s only administrator: appoint another one first.',
+  'admin.families': 'Families',
+  'admin.noFamilies': 'No families',
+  'admin.familiesNote': 'Only the name and role are shown.',
+  'admin.appointTitle': 'Make {name} an app administrator?',
+  'admin.appointBody': 'They will manage the app’s users, roles and invitations, including appointing or removing other administrators.',
+  'admin.appoint': 'Appoint',
+  'admin.dropSelfTitle': 'Give up the administrator role?',
+  'admin.dropSelfBody': 'You will no longer see this page. Only another administrator can give it back.',
+  'admin.dropSelf': 'Give up',
+  'admin.cancel': 'Cancel',
+  'admin.openUser': 'Open the user',
   'profile.newFamily': 'Create another family',
   'profile.admin': 'App administration',
-  'profile.adminHint': 'App invitations'
+  'profile.adminHint': 'Users, roles and invitations'
 } satisfies Record<keyof typeof it, string>;

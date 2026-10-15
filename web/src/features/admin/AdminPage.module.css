@@ -7,3 +7,9 @@
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 0.875rem; }
 .danger { border-color: var(--danger); color: #fff; background: var(--danger); }
+.search { width: 100%; min-height: 44px; margin: 8px 0 4px; }
+.you { color: var(--muted); font-weight: 400; }
+.switch { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 8px 0; cursor: pointer; }
+.switch input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--green); }
+.switch small { display: block; color: var(--muted); }
+.sheetActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
