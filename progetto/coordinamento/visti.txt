@@ -219,3 +219,4 @@ w1:p3V	STATO: DOMANDA design sezione 3 (web e test) #7fbf4c0a
 w1:p3V	STATO: SPEC_E_PIANO_PRONTI #f09a2958
 w1:p3V	STATO: SPEC_E_PIANO_CORRETTI #e0a89344
 w1:p3V	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/47 #feec9d14
+w1:p3V	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/47 (disable recaps in /config) #c7f0f473
