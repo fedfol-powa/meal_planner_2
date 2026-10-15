@@ -46,8 +46,9 @@ sezione 15 e non vanno trattati come decisioni approvate.
 - ingredienti verificati, quantità e unità quando applicabili e porzioni di riferimento
   obbligatori per pubblicare, anche per le ricette importate; ammesse indicazioni
   esplicite come "q.b.", senza usarle per sostituire dati mancanti;
-- operazioni dell'app disponibili anche tramite MCP, con l'eccezione dell'eliminazione
-  di una famiglia: esecuzione solo nell'app web e risposta MCP con URL alla pagina
+- operazioni dell'app disponibili anche tramite MCP, con due eccezioni: le operazioni
+  `public` senza utente (lettura e accettazione dell'invito all'app), mai esposte, e
+  l'eliminazione di una famiglia: esecuzione solo nell'app web e risposta MCP con URL alla pagina
   dedicata. Browser previsto anche per collegare l'account e riautenticarsi;
 - client MCP obiettivo della prima versione: Codex CLI, Claude Code, ChatGPT e Claude
   Desktop, con istruzioni dedicate e compatibilità da verificare nel design tecnico;
@@ -756,7 +757,7 @@ generico alle tabelle. Le operazioni stanno in `contract/src/`, divise per area
 `catalogue`, `agents`); il
 prototipo le abbozzava in `prototype/src/lib/operations/`. L'implementatore del server
 si costruisce in un solo punto, `server/src/router.ts`, e ogni area esporta un factory
-che lo riceve. Ogni richiesta segue lo stesso percorso:
+che lo riceve. Ogni operazione autenticata segue lo stesso percorso:
 
 ```
 Worker → verifica del JWT di Supabase → contesto (utente, canale, lingua)
@@ -764,6 +765,10 @@ Worker → verifica del JWT di Supabase → contesto (utente, canale, lingua)
      → transazione Postgres → dominio puro → registro (meal_changes, canale)
      → vista localizzata
 ```
+
+Le operazioni `public` (pagina dell'invito all'app) seguono un percorso separato, sotto
+in «Operazioni senza utente»: limitatore per IP, nessuna verifica del token né della
+sessione, transazioni brevi `anon` aperte dal gestore.
 
 L'istante della richiesta si fissa una volta nel contesto. Un'operazione può dichiarare
 un passo `prepare`, eseguito nella transazione dell'utente dopo i controlli di sessione e
@@ -777,7 +782,7 @@ e scrivere (la generazione pigra del menu, sezione 4).
   Supabase nel browser, gli agenti dal server OAuth (sezione 13). Claim obbligatori e
   validati: `exp`, `sub` e `session_id` (UUID); `client_id` assente oppure non vuoto,
   altrimenti `unauthorized`, mai il canale web.
-- **Query nel ruolo dell'utente.** Ogni operazione apre una transazione e imposta per
+- **Query nel ruolo dell'utente.** Ogni operazione autenticata apre una transazione e imposta per
   prima cosa `set local role authenticated` e `set_config('request.jwt.claims', …, true)`
   con i campi del token verificato, così `auth.uid()` e le policy valgono come per
   l'utente. Le impostazioni durano solo la transazione e non passano ad altre richieste
@@ -807,7 +812,7 @@ e scrivere (la generazione pigra del menu, sezione 4).
   modo verificabile, richiesto dalla sezione 13, per distinguere web e MCP senza fidarsi
   di un parametro dell'agente.
 - **Revoca immediata.** Un JWT resta valido fino alla scadenza anche dopo la
-  cancellazione di un account (sezione 17): le operazioni verificano a ogni richiesta
+  cancellazione di un account (sezione 17): le operazioni autenticate verificano a ogni richiesta
   che l'utente esista e che l'accesso dell'agente non sia stato revocato. La verifica è
   `app.session_is_active()` sulla sessione del token, anche all'ingresso di `/mcp` per
   `initialize` e `tools/list`, prima della risposta `web_only`; appartenenze e ruoli si
@@ -1841,8 +1846,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   successo (email già usata, errore del server, tempo scaduto, rete) è ambiguo e si
   riconcilia leggendo l'utente con l'id prenotato: se c'è con l'email dell'invito la
   creazione è avvenuta e si prosegue; se l'email appartiene a un altro account la
-  risposta è `account_exists`; se l'account non si vede ancora la risposta è `internal`
-  e la persona riprova dallo stesso link. **Il server non riscrive mai le credenziali né i
+  risposta è `account_exists`; se Auth ha rifiutato la password come debole e l'account
+  non esiste la risposta è `invalid` sul campo `password` con codice `weak_password`
+  (l'invito resta prenotato e si riprova con un'altra password); se l'account non si vede
+  ancora la risposta è `internal` e la persona riprova dallo stesso link. **Il server non riscrive mai le credenziali né i
   metadati di un account esistente**: un'accettazione ripresa conserva password, nome e
   lingua del primo tentativo riuscito. **Chiusura**: una seconda transazione breve segna
   l'invito accettato e assegna i ruoli globali. Un account creato e poi rimasto senza
@@ -2592,8 +2599,9 @@ piano):
   anteprima, impronta e «vai» dell'utente: sezione 1.
 
 Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
-rispetta dalla sua prima versione, con l'eccezione esplicita dell'eliminazione delle
-famiglie, per cui MCP restituisce il link all'app. La collocazione delle attività nella
+rispetta dalla sua prima versione, con due eccezioni esplicite: le operazioni `public`
+senza utente, fuori da MCP (sezione 13), e l'eliminazione delle famiglie, per cui MCP
+restituisce il link all'app. La collocazione delle attività nella
 roadmap non rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
 La priorità finale riguarda il modulo manuale, non la consultazione delle bozze nell'app,
 richiesta insieme alla gestione del ricettario tramite MCP.
@@ -2722,9 +2730,11 @@ dei libri.
 
 ### 13. MCP e guida al collegamento
 
-**Requisito:** ogni operazione disponibile nell'app deve avere un equivalente MCP per
-lo stesso utente e con gli stessi permessi, **tranne l'eliminazione di una famiglia**,
-che MCP può soltanto indirizzare alla pagina dell'app. Il server espone operazioni applicative,
+**Requisito:** ogni operazione dell'utente autenticato disponibile nell'app deve avere un
+equivalente MCP per lo stesso utente e con gli stessi permessi, **tranne l'eliminazione di
+una famiglia**, che MCP può soltanto indirizzare alla pagina dell'app. Le operazioni
+`public` senza utente (lettura e accettazione dell'invito all'app) restano fuori da MCP
+per costruzione (`mcp: false` imposto da `contract/src/check.ts`). Il server espone operazioni applicative,
 non accesso generico alle tabelle.
 
 **Architettura decisa l'8 ottobre 2026** (sezione 1):
