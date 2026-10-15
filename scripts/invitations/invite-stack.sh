@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/invitations/invite-stack.sh — app invitations against the local stack (sign-ups off):
+# scripts/invitations/invite-stack.sh — app invitations and user administration against the local stack (sign-ups off):
 # the whole path through the real contract and pipeline with Supabase Auth. Used by CI.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -14,4 +14,4 @@ SECRET=$(value SECRET_KEY)
 
 TEST_DATABASE_URL="$DB_URL" STACK_SUPABASE_URL="$API_URL" STACK_SUPABASE_PUBLISHABLE_KEY="$KEY" \
   STACK_SUPABASE_SECRET_KEY="$SECRET" STACK_DB_URL="$DB_URL" \
-  npm test -w server -- test/stack/invitations.stack.test.ts
+  npm test -w server -- test/stack/
