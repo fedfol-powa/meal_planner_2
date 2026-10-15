@@ -34,9 +34,12 @@ export function usersRouter(os: Implementer) {
 		setRole: os.users.setRole.handler(async ({ context, input }) => {
 			// The detail first: after giving up one's own app_admin the reading functions refuse.
 			const before = await detail(context.tx, input.id, context.locale);
-			await context.tx`select app.set_user_role(${input.id}::uuid, ${input.role}, ${input.granted})`.catch(mapUsersError);
+			const [{ roles }] = await context.tx<{ roles: GlobalRole[] }[]>`
+				select app.set_user_role(${input.id}::uuid, ${input.role}, ${input.granted}) as roles`.catch(mapUsersError);
 			if (input.id === context.userId && input.role === 'app_admin' && !input.granted) {
-				return { ...before, user: { ...before.user, roles: before.user.roles.filter((role) => role !== 'app_admin'), lastAppAdmin: false } };
+				// Roles as left by the removal, under its lock (another administrator may have changed
+				// curator meanwhile); name, email and families from just before, which roles do not touch.
+				return { ...before, user: { ...before.user, roles, lastAppAdmin: false } };
 			}
 			return detail(context.tx, input.id, context.locale);
 		}),

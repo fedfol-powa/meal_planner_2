@@ -15,8 +15,17 @@ select throws_ok($$select app.set_user_role(tests.uid('anna'), 'recipe_curator',
 reset role;
 
 -- An account with no profile, no roles and no family (spec W10, delivery of A)
-insert into auth.users (id, email, aud, role) values ('00000000-0000-4000-8000-0000000000a1', 'orphan_100%@test.local', 'authenticated', 'authenticated');
-delete from app.profiles where user_id = '00000000-0000-4000-8000-0000000000a1';
+insert into auth.users (id, email, aud, role) values
+	('00000000-0000-4000-8000-0000000000a1', 'orphan_100%@test.local', 'authenticated', 'authenticated'),
+	-- Backslashes in the text, alone and before a percent sign or an underscore (no profile either).
+	('00000000-0000-4000-8000-0000000000a2', 'back\slash@test.local', 'authenticated', 'authenticated'),
+	('00000000-0000-4000-8000-0000000000a3', 'pct\%und\_@test.local', 'authenticated', 'authenticated'),
+	-- Order: no profile, named from the email, against a profile name between that name and the email.
+	('00000000-0000-4000-8000-0000000000a4', 'ordtest@test.local', 'authenticated', 'authenticated'),
+	('00000000-0000-4000-8000-0000000000a5', 'other@test.local', 'authenticated', 'authenticated');
+delete from app.profiles where user_id in ('00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2',
+	'00000000-0000-4000-8000-0000000000a3', '00000000-0000-4000-8000-0000000000a4');
+update app.profiles set display_name = 'ordtest-a' where user_id = '00000000-0000-4000-8000-0000000000a5';
 
 select tests.login('elena');
 select is((select display_name from app.admin_users('orphan', 50)), 'orphan_100%', 'no profile: name from the email');
@@ -27,7 +36,11 @@ select is((select count(*) from app.admin_users('ANNA', 50) where id = tests.uid
 select is((select count(*) from app.admin_users('anna@TEST', 50) where id = tests.uid('anna')), 1::bigint, 'email, any case');
 select is((select count(*) from app.admin_users('100%', 50)), 1::bigint, '% is text');
 select is((select count(*) from app.admin_users('n_a', 50) where id = tests.uid('anna')), 0::bigint, '_ is text, not a wildcard');
-select is((select count(*) from app.admin_users('\', 50)), 0::bigint, 'a backslash is text');
+select is(array(select email from app.admin_users('\', 50) order by 1), array['back\slash@test.local', 'pct\%und\_@test.local'], 'a backslash is text');
+select is(array(select email from app.admin_users('k\s', 50)), array['back\slash@test.local'], 'a backslash between letters');
+select is(array(select email from app.admin_users('\%', 50)), array['pct\%und\_@test.local'], '\% is a backslash and a percent sign');
+select is(array(select email from app.admin_users('\_', 50)), array['pct\%und\_@test.local'], '\_ is a backslash and an underscore');
+select is(array(select display_name from app.admin_users('ordtest', 50)), array['ordtest', 'ordtest-a'], 'no profile: ordered by the name made from the email');
 select is((select count(*) from app.admin_users('D''Angelo', 50)), 0::bigint, 'an apostrophe is text');
 select is((select roles from app.admin_users('elena', 50)), '["app_admin"]'::jsonb, 'roles as a jsonb array');
 
@@ -50,7 +63,7 @@ select is(
 
 -- Set role: idempotent both ways, granted_by recorded, bad role refused, unknown user refused
 select tests.login('elena');
-select lives_ok($$select app.set_user_role(tests.uid('anna'), 'recipe_curator', true)$$, 'grant curator');
+select is(app.set_user_role(tests.uid('anna'), 'recipe_curator', true), '["recipe_curator"]'::jsonb, 'grant curator: the roles after the change');
 select lives_ok($$select app.set_user_role(tests.uid('anna'), 'recipe_curator', true)$$, 'grant again');
 reset role;
 select is((select count(*) from app.user_roles where user_id = tests.uid('anna') and role = 'recipe_curator'), 1::bigint, 'one row');
@@ -71,7 +84,7 @@ select is((select last_app_admin from app.admin_user(tests.uid('elena'))), true,
 select throws_ok($$select app.set_user_role(tests.uid('elena'), 'app_admin', false)$$, 'P0A08', null, 'the last admin keeps the role');
 select lives_ok($$select app.set_user_role(tests.uid('anna'), 'app_admin', true)$$, 'appoint anna');
 select is((select last_app_admin from app.admin_user(tests.uid('elena'))), false, 'no longer the last');
-select lives_ok($$select app.set_user_role(tests.uid('elena'), 'app_admin', false)$$, 'elena gives up her role');
+select is(app.set_user_role(tests.uid('elena'), 'app_admin', false), '[]'::jsonb, 'elena gives up her role: her roles after the change');
 select throws_ok($$select * from app.admin_users('', 50)$$, '42501', null, 'and loses access at once');
 reset role;
 select tests.login('anna');

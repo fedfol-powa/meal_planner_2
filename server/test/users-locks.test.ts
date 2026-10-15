@@ -144,6 +144,28 @@ describe.skipIf(!hasDatabase)('last app admin under concurrency', () => {
 		expect(result.waited).toBe(true);
 	});
 
+	it('giving up one’s own role answers the roles left under the lock, with a curator change made meanwhile', async () => {
+		const people = [await actors.user(), await actors.user(), await actors.user()];
+		for (const person of people) await actors.db.grantGlobalRole(person.userId, 'app_admin');
+		restore = await onlyAppAdmins(actors.db.admin, people.map((person) => person.userId));
+		const [a, b, c] = people as [(typeof people)[0], (typeof people)[0], (typeof people)[0]];
+		// b holds the lock (removing c) and gives a the curator role in the same transaction.
+		const held = await holdTransaction(adminUrl, async (tx) => {
+			await asUser(tx, b.userId);
+			await tx`select app.set_user_role(${c.userId}::uuid, 'app_admin', false)`;
+			await tx`select app.set_user_role(${a.userId}::uuid, 'recipe_curator', true)`;
+		});
+		const answer = a.client.users.setRole({ id: a.userId, role: 'app_admin', granted: false });
+		let pending = false;
+		try {
+			pending = await stillPending(answer);
+		} finally {
+			await held.release();
+		}
+		expect(pending).toBe(true);
+		expect((await answer).user.roles).toEqual(['recipe_curator']);
+	});
+
 	it('a second connection failing before its pid ends the race and releases the first transaction', async () => {
 		const [a, b, c] = await admins(3);
 		await expect(race([a!, b!], [b!, c!], UNREACHABLE_URL)).rejects.toBeTruthy();

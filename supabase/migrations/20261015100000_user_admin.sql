@@ -18,15 +18,19 @@ begin
 	end if;
 	-- The person's \, % and _ are text, not wildcards.
 	v_pattern := '%' || replace(replace(replace(v_text, '\', '\\'), '%', '\%'), '_', '\_') || '%';
+	-- Ordered by the name it answers, the one made from the email included.
 	return query
-		select u.id,
-			coalesce(p.display_name, nullif(split_part(coalesce(u.email, ''), '@', 1), ''), 'User'),
-			coalesce(u.email, '')::text,
-			coalesce((select jsonb_agg(r.role order by r.role) from app.user_roles r where r.user_id = u.id), '[]'::jsonb)
-		from auth.users u
-		left join app.profiles p on p.user_id = u.id
-		where v_text = '' or p.display_name ilike v_pattern escape '\' or u.email ilike v_pattern escape '\'
-		order by lower(coalesce(p.display_name, u.email, '')), u.id
+		select n.id, n.display_name, n.email, n.roles
+		from (
+			select u.id,
+				coalesce(p.display_name, nullif(split_part(coalesce(u.email, ''), '@', 1), ''), 'User') as display_name,
+				coalesce(u.email, '')::text as email,
+				coalesce((select jsonb_agg(r.role order by r.role) from app.user_roles r where r.user_id = u.id), '[]'::jsonb) as roles
+			from auth.users u
+			left join app.profiles p on p.user_id = u.id
+			where v_text = '' or p.display_name ilike v_pattern escape '\' or u.email ilike v_pattern escape '\'
+		) n
+		order by lower(n.display_name), n.id
 		limit p_limit + 1;
 end;
 $$;
@@ -68,9 +72,10 @@ begin
 end;
 $$;
 
--- Gives or removes a global role; idempotent. The last app admin keeps the role.
+-- Gives or removes a global role; idempotent. The last app admin keeps the role. Answers the
+-- user's roles after the change, read here: one who gave up app_admin can no longer read them.
 create function app.set_user_role(p_user_id uuid, p_role text, p_granted boolean)
-returns void language plpgsql security definer set search_path = '' as $$
+returns jsonb language plpgsql security definer set search_path = '' as $$
 begin
 	if not app.has_role('app_admin') then
 		raise exception 'app admins only' using errcode = '42501';
@@ -104,6 +109,7 @@ begin
 	else
 		delete from app.user_roles r where r.user_id = p_user_id and r.role = p_role;
 	end if;
+	return coalesce((select jsonb_agg(r.role order by r.role) from app.user_roles r where r.user_id = p_user_id), '[]'::jsonb);
 end;
 $$;
 
