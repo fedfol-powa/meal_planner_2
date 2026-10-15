@@ -1,13 +1,13 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { USER_QUERY_MAX } from '@app/contract';
 import { useQueryDeps } from '../../api/queries';
 import { Icon } from '../../components/Icon';
 import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
-import { useAdminAccess } from './AdminAccess';
 import { usersQuery } from './api';
 import styles from './AdminPage.module.css';
 
@@ -27,10 +27,6 @@ export function UsersSection() {
   }, [text]);
   // The previous answer stays while the next one loads: the page does not jump on the phone.
   const list = useQuery({ ...usersQuery(deps, query), placeholderData: keepPreviousData });
-  const { report } = useAdminAccess();
-  useEffect(() => {
-    if (list.error) report(list.error);
-  }, [list.error, report]);
 
   return (
     <section className="settings-card" aria-labelledby="users-title">
@@ -40,6 +36,7 @@ export function UsersSection() {
         type="search"
         enterKeyHint="search"
         autoCapitalize="none"
+        maxLength={USER_QUERY_MAX}
         placeholder={t('admin.search')}
         aria-label={t('admin.search')}
         value={text}

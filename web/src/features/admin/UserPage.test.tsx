@@ -127,6 +127,31 @@ describe('/admin/users/$userId', () => {
     expect(screen.queryByRole('switch')).toBeNull();
   });
 
+  it('after a forbidden and a failed check, leaving and reopening the page shows nothing until a check succeeds', async () => {
+    const api = adminApi();
+    const { history } = renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    const box = await curator();
+    await api.users.setRole({ id: FAKE_GUEST_ID, role: 'app_admin', granted: true });
+    await api.users.setRole({ id: DEMO_USER_ID, role: 'app_admin', granted: false });
+    const realProfile = api.profile.get.bind(api.profile);
+    const getProfile = vi.spyOn(api.profile, 'get').mockRejectedValue(new ApiError('internal'));
+    vi.spyOn(api.users, 'get').mockRejectedValue(new ApiError('internal'));
+    fireEvent.click(box);
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    // Out and back in, with every read still failing: the earlier permission is not reused.
+    await history.push('/profile');
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Utenti', level: 1 })).toBeNull());
+    await history.push(`/admin/users/${FAKE_GUEST_ID}`);
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('ospite@example.com')).toBeNull();
+    expect(screen.queryByRole('switch')).toBeNull();
+    getProfile.mockImplementation(realProfile);
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+    expect(screen.queryByRole('switch')).toBeNull();
+  });
+
   it('a forbidden answer while still app_admin shows the user again, read from scratch', async () => {
     const api = adminApi();
     renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });

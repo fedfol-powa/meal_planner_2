@@ -1,8 +1,7 @@
 import { PageHeader } from '../../components/PageHeader';
 import { useT } from '../../i18n/LocaleProvider';
 import { BackToProfile } from '../../routes/profile/BackToProfile';
-import { useProfile } from '../../session/useFamily';
-import { AdminAccessGate, AdminAccessProvider } from './AdminAccess';
+import { AdminAccessGate } from './AdminAccess';
 import { InvitationsSection } from './InvitationsSection';
 import { UsersSection } from './UsersSection';
 
@@ -12,17 +11,14 @@ import { UsersSection } from './UsersSection';
  */
 export function AdminPage() {
   const t = useT();
-  const profile = useProfile();
   return (
     <section className="secondary-view app-view">
       <div className="page-column">
         <PageHeader back={<BackToProfile />} title={t('admin.title')} />
-        <AdminAccessProvider>
-          <AdminAccessGate profile={profile}>
-            <UsersSection />
-            <InvitationsSection />
-          </AdminAccessGate>
-        </AdminAccessProvider>
+        <AdminAccessGate>
+          <UsersSection />
+          <InvitationsSection />
+        </AdminAccessGate>
       </div>
     </section>
   );

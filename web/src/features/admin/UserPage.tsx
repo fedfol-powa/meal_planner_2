@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
@@ -14,7 +14,7 @@ import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
-import { AdminAccessGate, AdminAccessProvider, useAdminAccess } from './AdminAccess';
+import { AdminAccessGate, useAdminAccess } from './AdminAccess';
 import { userQuery } from './api';
 import styles from './AdminPage.module.css';
 
@@ -29,19 +29,16 @@ const route = getRouteApi('/_app/admin/users/$userId');
  */
 export function UserPage() {
   const t = useT();
-  const profile = useProfile();
   const back = (
     <Link to="/admin" className="page-back"><Icon name="chevron-left" />{t('admin.title')}</Link>
   );
   return (
     <section className="secondary-view app-view">
       <div className="page-column">
-        <AdminAccessProvider>
-          {/* Loading, check error and «Non hai accesso» keep a header; the detail has its own, with the name. */}
-          <AdminAccessGate profile={profile} fallbackHeader={<PageHeader back={back} title={t('admin.users')} />}>
-            <UserDetailView back={back} />
-          </AdminAccessGate>
-        </AdminAccessProvider>
+        {/* Loading, check error and «Non hai accesso» keep a header; the detail has its own, with the name. */}
+        <AdminAccessGate fallbackHeader={<PageHeader back={back} title={t('admin.users')} />}>
+          <UserDetailView back={back} />
+        </AdminAccessGate>
       </div>
     </section>
   );
@@ -53,7 +50,7 @@ function UserDetailView({ back }: { back: ReactNode }) {
   const online = useOnline();
   const navigate = useNavigate();
   const profile = useProfile();
-  const { report } = useAdminAccess();
+  const { report, allowed } = useAdminAccess();
   const { userId } = route.useParams();
   const detailQuery = userQuery(deps, userId);
   const user = useQuery(detailQuery);
@@ -65,10 +62,6 @@ function UserDetailView({ back }: { back: ReactNode }) {
   const setRole = useAreaMutation('users.setRole', undefined, (change: Change) => deps.api.users.setRole({ id: userId, ...change }), { track: `users:${userId}` });
   const isSelf = profile.data?.user.id === userId;
 
-  useEffect(() => {
-    if (user.error) report(user.error);
-  }, [user.error, report]);
-
   async function apply(change: Change) {
     setConfirming(null);
     if (sending.current) return;
@@ -77,8 +70,9 @@ function UserDetailView({ back }: { back: ReactNode }) {
     try {
       const outcome = await setRole.mutateAsync(change);
       if (outcome.applied) {
-        // The answer is the confirmed detail: shown at once, whatever the reread started by the registry does.
-        deps.queryClient.setQueryData(detailQuery.queryKey, outcome.view);
+        // The answer is the confirmed detail: shown at once, whatever the reread started by the registry does;
+        // never written into a view no longer allowed (a forbidden meanwhile, also after leaving the page).
+        if (allowed()) deps.queryClient.setQueryData(detailQuery.queryKey, outcome.view);
       } else {
         await deps.queryClient.refetchQueries({ queryKey: detailQuery.queryKey }).catch(() => undefined);
       }

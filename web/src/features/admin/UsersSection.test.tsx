@@ -87,6 +87,40 @@ describe('/admin users', () => {
     nothingShown();
   });
 
+  it('after a forbidden and a failed check, a late answer and leaving and reopening /admin show nothing until a check succeeds', async () => {
+    const api = adminApi();
+    const { history } = renderApp('/admin', { api });
+    await screen.findByText('ospite@example.com');
+    await demoteElsewhere(api);
+    const realList = api.users.list.bind(api.users);
+    const late = deferred<Awaited<ReturnType<typeof api.users.list>>>();
+    const list = vi.spyOn(api.users, 'list').mockImplementation((input) => (input.query === 'o' ? late.promise : realList(input)));
+    const realProfile = api.profile.get.bind(api.profile);
+    const getProfile = vi.spyOn(api.profile, 'get').mockRejectedValue(new ApiError('internal'));
+    vi.spyOn(api.appInvitations, 'list').mockRejectedValue(new ApiError('internal'));
+    search('o'); // answers late
+    await waitFor(() => expect(list).toHaveBeenCalledWith({ query: 'o' }, expect.anything()));
+    search('os'); // forbidden
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    // The answer of the earlier search arrives: it was for a view no longer allowed.
+    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'] }], more: false });
+    await new Promise((r) => setTimeout(r, 20));
+    nothingShown();
+    // Out and back in, the profile still failing and the list never answering: the earlier
+    // permission is not reused, and no copy of the earlier list is shown.
+    list.mockImplementation(() => new Promise(() => undefined));
+    await history.push('/profile');
+    await waitFor(() => expect(screen.queryByRole('searchbox')).toBeNull());
+    await history.push('/admin');
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    await new Promise((r) => setTimeout(r, 20));
+    nothingShown();
+    getProfile.mockImplementation(realProfile);
+    fireEvent.click(screen.getByRole('button', { name: 'Riprova' }));
+    expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+    nothingShown();
+  });
+
   it('a forbidden answer while the profile still says app_admin reads the sections again', async () => {
     const api = adminApi();
     renderApp('/admin', { api });

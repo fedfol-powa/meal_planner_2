@@ -6,7 +6,9 @@ import { familyRoleSchema } from '../profile/index.ts';
 
 /** At most this many users per answer; `more` says there are others (spec W10, decision 1). */
 export const USERS_LIST_LIMIT = 50;
-export const userQuerySchema = z.string().trim().max(100);
+/** The longest search accepted, after trimming; the web field stops typing here. */
+export const USER_QUERY_MAX = 100;
+export const userQuerySchema = z.string().trim().max(USER_QUERY_MAX);
 
 export const userRowSchema = z.object({
 	id: z.uuid(),
