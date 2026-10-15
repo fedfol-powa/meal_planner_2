@@ -48,7 +48,7 @@ ricettario (E), inviti alla famiglia, email.
 | 3 | Il dettaglio mostra nome, email, «Tu», i due interruttori, le famiglie per nome e ruolo e l'indicazione dell'ultimo amministratore; **tolto il numero di agenti collegati** del prototipo | `app.connected_agents()` legge solo le sessioni di chi chiama: contarle per un altro utente richiede una lettura nuova di `auth` per un dato che l'amministratore non può usare (dal dettaglio non si scollegano agenti). Se servirà, arriva con la cancellazione di C, che deve già revocare gli accessi |
 | 4 | MCP: la conferma per nominare un amministratore e per rinunciare al proprio `app_admin` è affidata alle istruzioni dell'agente (descrizione dello strumento); il server non chiede campi in più | Coerente con la decisione dell'utente dell'11 ottobre sulla pubblicazione delle ricette e con la parità della sezione 13. L'ultimo amministratore resta protetto sul server |
 | 5 | Lettura dell'email con funzioni `security definer` nello schema `app` che leggono `auth.users` e verificano `app_admin` al loro interno; niente chiave segreta | Stesso schema degli inviti di A (`app.create_app_invitation` legge già `auth.users`); nessuna scrittura in `auth`; la chiave segreta resta solo in `server/src/accounts/` per creare account |
-| 6 | Ultimo amministratore protetto da un lucchetto consultivo nella funzione che toglie `app_admin`, preso da **ogni** percorso che toglie quel ruolo | Due amministratori che si tolgono il ruolo a vicenda si mettono in fila; il secondo trova un solo amministratore |
+| 6 | Ultimo amministratore protetto da un lucchetto consultivo preso da ogni modifica di ruolo e da **ogni** percorso che toglie `app_admin`; sotto il lucchetto si ricontrolla anche il ruolo di chi chiama | Due amministratori che si tolgono il ruolo a vicenda si mettono in fila; il secondo trova un solo amministratore. Chi viene retrocesso mentre aspetta non cambia più ruoli (trovato scrivendo il piano, dopo l'approvazione della sezione 1) |
 | 7 | Dopo la propria rinuncia il web rilegge il profilo e porta a `/profile`, senza avviso a comparsa | Il web non ha un componente generico per gli avvisi (c'è solo quello per annullare un pasto, legato al menu) e la conferma ha già spiegato la conseguenza. **Scostamento dal prototipo**, che mostrava un avviso |
 | 8 | `account_exists` risolto nel web: dopo l'errore il foglio cerca l'email con `users.list` e collega al dettaglio; il contratto di A non cambia | Nessuna modifica all'interfaccia di A già rilasciata |
 
@@ -98,19 +98,23 @@ famiglie). L'ordine lo decide il server con `Intl.Collator`, come per il profilo
 
 Restituisce `void`.
 
-1. Chi chiama non è `app_admin`: `42501`.
-2. `p_role` diverso da `recipe_curator` e `app_admin`: `22023`.
-3. Utente inesistente in `auth.users`: `P0A07`.
+1. `p_role` diverso da `recipe_curator` e `app_admin`, o `p_granted` nullo: `22023`.
+2. `perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))`: **ogni**
+   modifica di ruolo si mette in fila, anche le assegnazioni. Le modifiche sono rare e
+   così il controllo successivo su chi chiama è affidabile: un amministratore
+   retrocesso da un altro mentre aspettava il lucchetto non può più cambiare ruoli.
+3. Dopo il lucchetto, in istruzioni successive (le richieste degli utenti girano in
+   `read committed`, quindi ognuna vede ciò che chi aveva il lucchetto prima ha
+   confermato): chi chiama non è `app_admin`, `42501`; utente inesistente in
+   `auth.users`, `P0A07`.
 4. `p_granted = true`: `insert ... (user_id, role, granted_by) values (..., auth.uid())
-   on conflict do nothing`. Idempotente; non prende il lucchetto (un'aggiunta in volo
-   può solo far rifiutare una rimozione, mai lasciare l'app senza amministratori).
-5. `p_granted = false` e `p_role = 'recipe_curator'`: `delete`; idempotente.
-6. `p_granted = false` e `p_role = 'app_admin'`:
-   - `perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))`;
-   - poi, in un'istruzione successiva (le richieste degli utenti girano in
-     `read committed`, quindi vede ciò che chi aveva il lucchetto prima ha confermato):
-     se il bersaglio ha `app_admin` e nessun altro utente lo ha, `P0A08`;
-   - altrimenti `delete`; se il ruolo era già tolto non fa nulla.
+   on conflict do nothing`. Idempotente.
+5. `p_granted = false` e `p_role = 'app_admin'`: se il bersaglio ha `app_admin` e
+   nessun altro utente lo ha, `P0A08`.
+6. `p_granted = false`: `delete`; se il ruolo era già tolto non fa nulla.
+
+Un controllo di `app_admin` anche prima del lucchetto evita che chi non è
+amministratore resti in fila: la funzione lo fa all'inizio e lo ripete dopo.
 
 Commento obbligatorio nella funzione: **ogni percorso che toglie `app_admin`** (questa
 funzione, la cancellazione di un account in C, qualunque script futuro) deve prendere
@@ -288,8 +292,11 @@ utenti di prova e **li rimettono sempre**, anche se il test fallisce (`afterEach
 `server/test/users-locks.test.ts`: due amministratori A e B soli nel database; con
 `holdTransaction` A toglie il ruolo a B tenendo aperta la transazione; B, su un'altra
 connessione, toglie il ruolo ad A e resta in attesa sul lucchetto (`stillPending`);
-rilasciata A, B riceve `P0A08`. Alla fine resta esattamente un amministratore. Lo stesso
-ripristino garantito degli `app_admin` di prova.
+rilasciata A, B riceve `P0A08`. Alla fine resta esattamente un amministratore. Secondo
+caso, con tre amministratori A, B e C: A toglie il ruolo a B tenendo aperta la
+transazione; B intanto prova a togliere il ruolo a C e resta in fila; rilasciata A, B
+riceve `42501` e C resta amministratore. Lo stesso ripristino garantito degli
+`app_admin` di prova.
 
 ### Web
 
@@ -300,12 +307,22 @@ ripristino garantito degli `app_admin` di prova.
   accesso; collegamento «Apri l'utente» da `account_exists`.
 - Registro delle mutazioni (`mutations.test.ts`): `users.setRole` rilegge `['users']` e
   il profilo, non scrive la cache.
-- Stack locale (`web/src/features/admin/UsersSection.stack.test.tsx`, sul modello di
-  `PasswordPage.stack.test.tsx`): da `/admin` ricerca un utente, apre il dettaglio,
-  assegna il curatore e lo ritrova come etichetta nell'elenco.
-- Verifica con la skill agent-browser in modalità finta e sullo stack locale, a
-  larghezza desktop e da telefono (390 px): ricerca, dettaglio, conferme, interruttore
-  bloccato, rinuncia.
+- I test web sullo stack (`*.stack.test.tsx`) usano Auth vero ma dati finti per le
+  pagine, senza Worker: non provano il percorso. Il percorso dalla ricerca al cambio di
+  ruolo con Auth, Worker e database veri si prova in due modi, come in A:
+  - `server/test/stack/users.stack.test.ts` (variabili `STACK_*`, contratto e pipeline
+    veri con `createApp` e le chiavi JWKS dello stack): l'amministratore, creato con
+    l'API di amministrazione di Auth e reso `app_admin` via SQL, entra con la password,
+    cerca la persona per email con `users.list`, apre `users.get`, le assegna il
+    curatore con `users.setRole`; la persona, con il proprio token già emesso, vede il
+    ruolo in `profile.get` alla richiesta successiva, e dopo la rimozione non lo vede
+    più. `scripts/invitations/invite-stack.sh` esegue l'intera cartella
+    `test/stack/` invece del solo file degli inviti (modifica minima, già in CI);
+  - la skill agent-browser su `wrangler dev` con lo stack locale (`server/README.md`,
+    «Sviluppo locale»), a larghezza desktop e da telefono (390 px): da `/admin` ricerca,
+    dettaglio, assegnazione del curatore ritrovata come etichetta nell'elenco, conferma
+    della nomina, interruttore bloccato con il motivo, rinuncia con ritorno al Profilo,
+    «Apri l'utente» da `account_exists`. Anche in modalità finta (`npm run dev -w web`).
 
 ### Da provare a mano sull'iPhone
 
@@ -340,13 +357,16 @@ produzione, poi il Worker. Nessun segreto, binding o risorsa esterna nuovi.
 **Miei:** `contract/src/users/`, `server/src/users/`, `web/src/features/admin/`
 (`UsersSection.tsx`, `UserPage.tsx`, `api.ts`, test e CSS),
 `web/src/api/fake/fakeUsers.ts` (e test), la migrazione e il test pgTAP nuovi,
-`server/test/users.test.ts`, `server/test/users-locks.test.ts`.
+`server/test/users.test.ts`, `server/test/users-locks.test.ts`,
+`server/test/stack/users.stack.test.ts`.
 
 **Condivisi, con modifiche minime:** `contract/src/contract.ts`,
 `contract/src/index.ts`, `server/src/router.ts`, `web/src/router.tsx`,
 `web/src/components/BottomNav.tsx` (`underProfile`), `web/src/api/types.ts`
 (`SERVER_AREAS`), `web/src/api/mutations.ts` (bersaglio `users`),
-`web/src/api/fake/fakeApi.ts` (registrazione), `web/src/i18n/messages/admin.ts`.
+`web/src/api/fake/fakeApi.ts` (registrazione), `web/src/i18n/messages/admin.ts`,
+`supabase/tests/coverage_test.sql` (le quattro funzioni nell'elenco di
+`authenticated`), `scripts/invitations/invite-stack.sh` (cartella `test/stack/`).
 
 **Tabelle e colonne:** nessuna nuova o cambiata. Funzioni nuove: `app.admin_users`,
 `app.admin_user`, `app.admin_user_families`, `app.set_user_role`.
