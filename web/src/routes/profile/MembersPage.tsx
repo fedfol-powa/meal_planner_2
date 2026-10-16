@@ -390,10 +390,10 @@ function CreateLinkSheet({ familyId, familyName, onClose }: { familyId: string; 
 
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
   return (
-    <BottomSheet open title={t('familyLinks.title')} onClose={onClose}>
+    <BottomSheet open title={t('familyLinks.sheetTitle')} onClose={onClose}>
       {link ? (
         <>
-          <CopyField value={link} label={t('familyLinks.title')} />
+          <CopyField value={link} label={t('familyLinks.sheetTitle')} />
           {canShare && (
             <button type="button" className="text-button wide" onClick={() => void navigator.share({ title: t('familyLinks.shareTitle', { family: familyName }), url: link }).catch(() => undefined)}>
               {t('familyLinks.share')}

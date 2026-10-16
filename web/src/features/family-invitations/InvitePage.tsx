@@ -13,6 +13,7 @@ import { trackBusy } from '../../pwa/busy';
 import { useChooseLocale, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import styles from '../app-invitations/InvitePage.module.css';
+import own from './InvitePage.module.css';
 import { accountFormErrors, fragment, isClosingAccount, PASSWORD_ISSUES, signOutAndContinue, TOKEN, type AccountField as Field } from '../app-invitations/token';
 import { familyInvitationClient } from './client';
 
@@ -360,9 +361,11 @@ function SignedIn({ link, token, user, generation, isCurrent, onUnavailable, hea
       {heading}
       <p>{t('familyInvite.as', { name: profile.data?.user.displayName ?? user.email })}</p>
       {alert}
-      <button type="button" className="text-button primary wide" disabled={join.isPending || !online} onClick={enter}>{t('familyInvite.join')}</button>
-      {/* Another person's account open on this device: «Esci e continua» of A. */}
-      <button type="button" className="text-button wide" disabled={join.isPending} onClick={() => signOutAndContinue(user.id, signOut)}>{t('invite.signOut')}</button>
+      <div className={own.actions}>
+        <button type="button" className="text-button primary wide" disabled={join.isPending || !online} onClick={enter}>{t('familyInvite.join')}</button>
+        {/* Another person's account open on this device: «Esci e continua» of A. */}
+        <button type="button" className="text-button wide" disabled={join.isPending} onClick={() => signOutAndContinue(user.id, signOut)}>{t('invite.signOut')}</button>
+      </div>
     </>
   );
 }
