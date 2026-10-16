@@ -311,8 +311,9 @@ particolari in `progetto/superpowers/specs/2026-10-15-amministrazione-utenti.md`
 - via MCP la conferma per nominare un amministratore o rinunciare al proprio ruolo sta
   nelle istruzioni dell'agente, come per la pubblicazione delle ricette (sezione 13);
 - l'ultimo amministratore dell'app è protetto da un lucchetto consultivo che ogni
-  percorso che toglie `app_admin` deve prendere, compresa la cancellazione di un account
-  (sezioni 1, 2 e 7);
+  percorso che toglie `app_admin` deve prendere nella stessa transazione, compresa la
+  cancellazione di un account, ricontrollando sotto il lucchetto l'autorizzazione di chi
+  chiama per l'operazione richiesta (sezioni 1, 2 e 7);
 - **decisione dell'utente del 15 ottobre 2026**: la cancellazione degli utenti
   dall'amministrazione passa dall'attività B all'attività C, insieme alla cancellazione
   dell'account (Parte 1 e sezione 7).
@@ -1244,10 +1245,13 @@ ruolo**; `app.set_user_role` assegna (idempotente, con `granted_by`) o toglie un
 globale e restituisce i ruoli dopo la modifica. **Lucchetto dell'ultimo amministratore
 dell'app:** ogni percorso che toglie `app_admin` (oggi `app.set_user_role`, poi la
 cancellazione di un account nell'attività C, qualunque script futuro) prende
-`pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))` e, sotto il lucchetto,
-ricontrolla che chi chiama sia ancora `app_admin` (altrimenti `42501`) e che il
-bersaglio non sia l'unico amministratore (altrimenti `P0A08`); un utente inesistente dà
-`P0A07`. Le assegnazioni, compresa `app.complete_app_invitation`, e la rimozione di
+`pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))` nella stessa
+transazione e, sotto il lucchetto, ricontrolla l'autorizzazione di chi chiama per
+l'operazione richiesta e che il bersaglio non sia l'unico amministratore (altrimenti
+`P0A08`). Per `app.set_user_role` ricontrollare l'autorizzazione significa verificare di
+nuovo che chi chiama sia ancora `app_admin` (altrimenti `42501`); la cancellazione del
+proprio account resta invece consentita anche a chi non ha ruoli globali. Un utente
+inesistente dà `P0A07`. Le assegnazioni, compresa `app.complete_app_invitation`, e la rimozione di
 `recipe_curator` non lo prendono, perché non possono lasciare l'app senza
 amministratori. Due amministratori che si tolgono il ruolo a vicenda si mettono in fila:
 il secondo, già retrocesso, riceve `forbidden`; due che rinunciano ciascuno al proprio:
@@ -2019,8 +2023,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   cancellazione dell'account, in terza persona; il proprio account si cancella solo
   dalle proprie preferenze. La nomina iniziale di Federico è avvenuta con lo script di
   avvio della messa in produzione (13 ottobre 2026: `app_admin` e `recipe_curator`
-  sul suo account, creato a mano). **Dal 15 ottobre 2026** (attività A, PR #45) `/admin`
-  c'è con la sola sezione «Inviti all'app»; la voce «Amministrazione dell'app» compare
+  sul suo account, creato a mano). **Al rilascio del 15 ottobre 2026** (attività A, PR
+  #45) `/admin` aveva soltanto la sezione «Inviti all'app», che resta com'era; la voce «Amministrazione dell'app» compare
   nel Profilo, in Account, solo con `app_admin`, e chi non lo è vede «Non hai accesso a
   questa pagina» (il server rifiuta comunque). «Nuovo invito» apre un foglio con l'email
   e le caselle «Curatore del ricettario» e «Amministratore dell'app»; dopo «Crea il
@@ -2055,10 +2059,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   nominane un altro prima». Gli interruttori mostrano solo stati confermati dal server,
   restano bloccati dal tocco alla risposta e sono disattivati senza connessione. **Dopo
   la propria rinuncia** il profilo si rilegge e l'app porta a `/profile` senza avviso a
-  comparsa (scostamento dal prototipo, sezione 14). Un amministratore retrocesso altrove
-  vede «Non hai accesso a questa pagina» alla prima risposta `forbidden`, senza più i
-  dati di prima, anche se il profilo in memoria dice ancora il contrario: l'accesso si
-  verifica rileggendo il profilo. Nel foglio del nuovo invito, accanto a «Questa email
+  comparsa (scostamento dal prototipo, sezione 14). Per un amministratore retrocesso
+  altrove, alla prima risposta `forbidden` dati e comandi spariscono subito e l'accesso
+  si verifica rileggendo il profilo, senza fidarsi della copia in memoria: solo dopo la
+  verifica compare «Non hai accesso a questa pagina»; se la verifica fallisce compare
+  l'errore con «Riprova», senza recuperare i dati precedenti. Nel foglio del nuovo invito, accanto a «Questa email
   ha già un account» compare «Apri l'utente», che porta al dettaglio di quella persona
   (il web la cerca con `users.list`; il contratto degli inviti non cambia). La
   sezione Ripristino del ricettario arriva dopo, nella stessa pagina; il comando di
@@ -2135,8 +2140,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `app_admin_roles`, **obbligatorio per ogni percorso che toglie `app_admin`**: la
   rimozione del ruolo dall'amministrazione, la cancellazione di un account (proprio o di
   un altro utente, attività C, che toglie il ruolo per cascata) e qualunque script
-  futuro. Sotto il lucchetto, nella stessa transazione, si ricontrollano chi chiama e il
-  numero di amministratori; se il bersaglio è l'ultimo la risposta è `last_app_admin`.
+  futuro. Sotto il lucchetto, nella stessa transazione, si ricontrollano l'autorizzazione
+  di chi chiama per l'operazione richiesta (per la rimozione del ruolo, che sia ancora
+  `app_admin`; la cancellazione del proprio account resta consentita anche senza ruoli
+  globali) e il numero di amministratori; se il bersaglio è l'ultimo la risposta è
+  `last_app_admin`.
   Le assegnazioni non lo prendono, perché possono solo aumentare gli amministratori
   (sezione 2). L'indicazione «ultimo amministratore» del dettaglio serve solo
   all'interfaccia: la protezione vera è nel database.
@@ -2676,7 +2684,7 @@ sono raccolte nell'attività D, che può restare bloccata senza fermare le altre
 trasferimento dell'app su `cosasimangia.qunidi.it` non fa parte dell'ondata 3 e
 richiederà una decisione distinta (sezione 7).
 
-**Stato al 15 ottobre 2026:**
+**Stato al 16 ottobre 2026:**
 
 | Attività | Stato |
 |---|---|
@@ -3333,7 +3341,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 13 ottobre 2026, cambio della password e aggiornamento della PWA rilasciati | Riportate le decisioni delle spec `2026-10-13-cambio-password.md` (W7, PR #41, issue #37) e `2026-10-13-aggiornamento-pwa.md` (W8, PR #43, issue #42), entrambe rilasciate il 13 ottobre. Cambio della password dal Profilo senza email, con verifica della password attuale nella SPA e chiusura delle altre sessioni, agenti compresi; in produzione «Secure password change» spento (precondizione) e «Require current password when updating» acceso dall'utente, che chiude in parte il rischio dei poteri dei token d'agente; minimo di produzione non verificato (la SPA impone 8). Navigazioni dalla shell installata al posto di quelle dalla rete con ripiego sulla shell, perché rendono impossibili versioni mescolate e pagine bianche; precache dentro `sw.js` verificato con la versione di `index.html`, `skipWaiting`, ricaricamento quando la versione del worker attivo è diversa, solo con la pagina libera, visibile e non toccata; pagina occupata registrata con `trackBusy`; `CACHE_SCHEMA` al posto della versione della build come `buster`, con la regola accanto a quella delle modifiche solo additive. Esito: cambio della password provato dall'utente sull'iPhone; versione `759ce4d6` in produzione, ma sull'iPhone dell'utente il primo passaggio non è avvenuto con due aperture a freddo ed è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo; passaggio automatico da verificare al prossimo rilascio, #42 aperta. Sezioni Parte 1, 1, 6, 7, 9, 10, 13 e 15 aggiornate |
 | 13 ottobre 2026, ondata 3 senza email | Decisione dell'utente: il DNS di `qunidi.it` per ora non si può modificare e `workers.dev` non permette di verificare un dominio in Resend, quindi finché manca il dominio di invio l'invito all'app si accetta scegliendo la password sulla pagina dell'invito (email dell'invito da ridigitare, account creato già confermato, link mandato a mano), il recupero della password via email aspetta il dominio e l'app resta su `workers.dev`. Ordine dell'ondata 3 nel piano generale. Con la revisione della PR #44: distinti ovunque il flusso prima della verifica del dominio di invio (attività A, password sulla pagina dell'invito) e quello dopo l'attività D (link nell'email, recupero della password, email operative di job ed esportazione); dominio di invio separato dall'origine dell'app, con *Site URL* e *Redirect URLs* su `workers.dev` e il trasferimento dell'app fuori dall'ondata 3, da decidere a parte; decisioni del coordinatore: dopo la creazione dell'account la pagina dell'invito fa entrare con email e password e, se l'accesso fallisce, porta all'accesso normale; fino agli inviti alla famiglia (C) la scheda dopo la prima generazione mostra solo «Sistema le impostazioni». Riportati anche il secondo tentativo di revoca dell'accesso di prova e il pulsante «Accedi di nuovo» (W7), il recupero della registrazione e il ritorno ad A₀ chiudendo tutte le finestre (W8). Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
 | 15 ottobre 2026, inviti all'app e famiglie nuove | Riportate le decisioni della spec `2026-10-13-inviti-app.md` (W9, attività A dell'ondata 3, PR #45, rilasciata il 15 ottobre). Pagina dell'invito con email, nome e password in un solo modulo, che vale come primo accesso; link `/invite/app#<token>` con il token nel frammento, solo l'impronta SHA-256 nel database, link visibile solo alla creazione e «Nuovo link» nell'elenco (differenza dal sesto giro); un solo messaggio per invito scaduto, revocato, usato o inesistente; «Crea la tua famiglia» senza famiglie, wizard `/family/new` e scheda di benvenuto con il solo «Sistema le impostazioni» e la nota della schermata Home su iOS in Safari. Tecniche: ruolo `public` del contratto con `mcp: false` e `rateLimit`, pipeline in `anon` senza token e senza transazione propria; codici `invitation_unavailable` e `rate_limited`, motivi `account_exists` e `already_accepted`, codice delle `refine` dal messaggio; tabella `app_invitations` con prenotazione e funzioni per token; account creato dal Worker con l'API di amministrazione di Supabase Auth e la chiave segreta dedicata, senza mai riscrivere un account esistente; limiti di frequenza con il binding `ratelimit`; `family.create` con `app.create_family`, senza generazione; iscrizioni spente anche nello stack locale; `Referrer-Policy: no-referrer` anche nella shell; fusi a scostamento trattati come non validi. Chiusa in sezione 15 l'API di Supabase per creare l'utente. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 4, 5, 7, 9, 10, 13, 14 e 15 aggiornate |
-| 15–16 ottobre 2026, amministrazione di utenti e ruoli | Riportate le decisioni della spec `2026-10-15-amministrazione-utenti.md` (W10, attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16 con la versione `75d29930-6125-41bd-acf4-786814218171`). Decisione dell'utente del 15 ottobre: la cancellazione degli utenti dall'amministrazione passa all'attività C, con la cancellazione dell'account. Prodotto: sezione Utenti di `/admin` sopra «Inviti all'app», ricerca per nome o email che ignora le maiuscole ma non gli accenti, al più 50 risultati con l'invito a restringere; dettaglio con «Questo è il tuo account», interruttori dei due ruoli e famiglie per solo nome e ruolo, senza il numero di agenti collegati del prototipo; conferma per nominare un amministratore e per rinunciare al proprio ruolo, ritorno al Profilo senza avviso a comparsa dopo la rinuncia (scostamenti dal sesto giro); «Apri l'utente» da `account_exists`; «Non hai accesso a questa pagina» alla prima risposta `forbidden` per un amministratore retrocesso altrove; ruoli di chi ha già un account cambiati dall'app e via MCP, con la conferma affidata alle istruzioni dell'agente. Tecniche: funzioni `app.admin_users`, `app.admin_user`, `app.admin_user_families`, `app.set_user_role` (`security definer`, solo `app_admin`, letture di `auth.users` senza scritture); lucchetto consultivo `app_admin_roles` obbligatorio per ogni percorso che toglie `app_admin`, compresa la cancellazione di un account, con ricontrollo sotto il lucchetto, e assegnazioni senza lucchetto; transazioni degli utenti in `read committed`, verificato da un test; codici SQLSTATE `P0A07` e `P0A08`; area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`; ruoli letti a ogni richiesta, validi subito anche per gli agenti collegati; bersaglio `users` nel registro delle mutazioni del web senza scrittura generica della risposta. Chiusa in sezione 15 la pagina dei ruoli globali. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 7, 10, 13, 14 e 15 aggiornate |
+| 15–16 ottobre 2026, amministrazione di utenti e ruoli | Riportate le decisioni della spec `2026-10-15-amministrazione-utenti.md` (W10, attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16 con la versione `75d29930-6125-41bd-acf4-786814218171`). Decisione dell'utente del 15 ottobre: la cancellazione degli utenti dall'amministrazione passa all'attività C, con la cancellazione dell'account. Prodotto: sezione Utenti di `/admin` sopra «Inviti all'app», ricerca per nome o email che ignora le maiuscole ma non gli accenti, al più 50 risultati con l'invito a restringere; dettaglio con «Questo è il tuo account», interruttori dei due ruoli e famiglie per solo nome e ruolo, senza il numero di agenti collegati del prototipo; conferma per nominare un amministratore e per rinunciare al proprio ruolo, ritorno al Profilo senza avviso a comparsa dopo la rinuncia (scostamenti dal sesto giro); «Apri l'utente» da `account_exists`; per un amministratore retrocesso altrove dati e comandi che spariscono alla prima risposta `forbidden`, poi «Non hai accesso a questa pagina» dopo la verifica del profilo o, se fallisce, l'errore con «Riprova» senza i dati precedenti; ruoli di chi ha già un account cambiati dall'app e via MCP, con la conferma affidata alle istruzioni dell'agente. Tecniche: funzioni `app.admin_users`, `app.admin_user`, `app.admin_user_families`, `app.set_user_role` (`security definer`, solo `app_admin`, letture di `auth.users` senza scritture); lucchetto consultivo `app_admin_roles` obbligatorio nella stessa transazione per ogni percorso che toglie `app_admin`, compresa la cancellazione di un account, con il ricontrollo sotto il lucchetto dell'autorizzazione di chi chiama per l'operazione richiesta (per `app.set_user_role` di nuovo `app_admin`; la cancellazione del proprio account resta consentita senza ruoli globali) e dell'ultimo amministratore, e assegnazioni senza lucchetto; transazioni degli utenti in `read committed`, verificato da un test; codici SQLSTATE `P0A07` e `P0A08`; area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`; ruoli letti a ogni richiesta, validi subito anche per gli agenti collegati; bersaglio `users` nel registro delle mutazioni del web senza scrittura generica della risposta. Chiusa in sezione 15 la pagina dei ruoli globali. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 7, 10, 13, 14 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
