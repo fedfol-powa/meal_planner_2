@@ -250,14 +250,40 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		return { photos, document, a, b };
 	}
 
-	it('exports photo references without image bytes', async () => {
-		const { document, a } = await photoReplacedAfterExport();
-		const doc = JSON.parse(document);
-		const rows = JSON.stringify(doc.tables['app.recipe_photos']);
-		expect(rows).toContain(a);
-		// Keys and sizes only: the bytes stay in the photo bucket, which the export never reads.
-		expect(rows).not.toContain('RIFF');
-		expect(document).not.toContain('UklGR');
+	it('exports photo references without image bytes, never reading the photo bucket', async () => {
+		const { a, b } = await photoReplacedAfterExport();
+		// Any use of the photo bucket by the export (get, head, list…) is recorded.
+		const touched: string[] = [];
+		const photosBucket = new Proxy({}, { get: (_target, name) => (touched.push(String(name)), () => Promise.reject(new Error('read'))) });
+		const backups = new MemoryBucket();
+		quiet();
+		const env = {
+			HYPERDRIVE: { connectionString: db.appServerUrl },
+			BACKUPS: backups.asBucket(),
+			PHOTOS: photosBucket,
+			BACKUP_ENCRYPTION_KEY: keyB64,
+			BACKUP_KEY_ID: 'k1',
+		} as unknown as Env;
+		expect(await runNightlyExport(env, night(12))).toBe('done');
+		vi.restoreAllMocks();
+		expect(touched).toEqual([]);
+
+		const [stored] = backups.objects.values();
+		const doc = JSON.parse(await decodeExport(stored!.body, { k1: key }));
+		const all = doc.tables['app.recipe_photos'] as Record<string, unknown>[];
+		const exported = [a, b].flatMap((k) => all.filter((row) => row.storage_key === k));
+		// The rows exactly as in the database, columns and values: references and sizes, nothing else.
+		const inDatabase = await db.admin<{ row: Record<string, unknown> }[]>`
+			select to_jsonb(p) as row from app.recipe_photos p where storage_key in (${a}, ${b}) order by created_at`;
+		const columns = await db.admin<{ column_name: string }[]>`
+			select column_name from information_schema.columns where table_schema = 'app' and table_name = 'recipe_photos'`;
+		expect(exported).toHaveLength(2);
+		for (const row of exported) expect(Object.keys(row).sort()).toEqual(columns.map((c) => c.column_name).sort());
+		expect(exported.map((row) => [row.storage_key, row.content_type, row.width, row.height, row.bytes, row.removed_at === null])).toEqual([
+			[a, 'image/webp', 1600, 1067, 4, false],
+			[b, 'image/webp', 1600, 1067, 4, true],
+		]);
+		expect(exported.map((row) => row.id)).toEqual(inDatabase.map(({ row }) => row.id));
 	});
 
 	it('a restored export finds its photo again', async () => {
