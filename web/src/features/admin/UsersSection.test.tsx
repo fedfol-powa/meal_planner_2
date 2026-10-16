@@ -105,7 +105,7 @@ describe('/admin users', () => {
     search('os'); // forbidden
     expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
     // The answer of the earlier search arrives: it was for a view no longer allowed.
-    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'] }], more: false });
+    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'], deletion: null }], more: false });
     await new Promise((r) => setTimeout(r, 20));
     nothingShown();
     // Out and back in, the profile still failing and the list never answering: the earlier

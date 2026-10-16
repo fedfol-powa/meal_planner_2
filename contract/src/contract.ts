@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { localeSchema } from './locale.ts';
 import { op } from './op.ts';
+import { accountContract } from './account/index.ts';
 import { agentsContract } from './agents/index.ts';
 import { appInvitationsContract } from './app-invitations/index.ts';
 import { catalogueContract } from './catalogue/index.ts';
@@ -38,6 +39,7 @@ export const contract = {
 	agents: agentsContract,
 	appInvitations: appInvitationsContract,
 	familyInvitations: familyInvitationsContract,
+	account: accountContract,
 	users: usersContract,
 	...shoppingContract,
 };

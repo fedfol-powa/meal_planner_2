@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { globalRoleSchema } from '../app-invitations/index.ts';
 import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
+import { deletionInputSchema, deletionPlanSchema } from '../account/index.ts';
 import { familyRoleSchema } from '../profile/index.ts';
 
 /** At most this many users per answer; `more` says there are others (spec W10, decision 1). */
@@ -10,11 +11,15 @@ export const USERS_LIST_LIMIT = 50;
 export const USER_QUERY_MAX = 100;
 export const userQuerySchema = z.string().trim().max(USER_QUERY_MAX);
 
+/** A deletion started and waiting for Auth (spec W11): «Cancellazione in corso». */
+export const userDeletionSchema = z.object({ requestedAt: z.iso.datetime({ offset: true }), attempts: z.number().int().min(0) });
+
 export const userRowSchema = z.object({
 	id: z.uuid(),
 	displayName: z.string(),
 	email: z.string(),
 	roles: z.array(globalRoleSchema),
+	deletion: userDeletionSchema.nullable(),
 });
 export type UserRow = z.infer<typeof userRowSchema>;
 
@@ -51,4 +56,23 @@ export const usersContract = {
 		.errors({ not_found: errorDefinitions.not_found, last_app_admin: errorDefinitions.last_app_admin })
 		.input(z.object({ id: z.uuid(), role: globalRoleSchema, granted: z.boolean() }))
 		.output(userDetailSchema),
+	getDeletionPlan: adminOp(true)
+		.route({
+			method: 'GET',
+			path: '/users/{id}/deletion',
+			summary: 'What deleting another user does: their families, whether they are the last app administrator, their open invitations (app administrators)',
+		})
+		.errors({ not_found: errorDefinitions.not_found, not_allowed: errorDefinitions.not_allowed })
+		.input(z.object({ id: z.uuid() }))
+		.output(deletionPlanSchema.extend({ user: z.object({ id: z.uuid(), displayName: z.string(), email: z.string() }) })),
+	delete: adminOp(false)
+		.route({
+			method: 'POST',
+			path: '/users/{id}/deletion',
+			summary:
+				'Delete another user for good, or complete a deletion in progress (app administrators). Ask for explicit confirmation first. Name a successor for each family where they are the only administrator; when a family would be deleted, agents get the link to the page of the app. Your own account is deleted from your preferences',
+		})
+		.errors({ not_found: errorDefinitions.not_found, not_allowed: errorDefinitions.not_allowed, last_app_admin: errorDefinitions.last_app_admin })
+		.input(deletionInputSchema.extend({ id: z.uuid() }))
+		.output(z.object({ completed: z.boolean() })),
 };

@@ -33,7 +33,7 @@ export function createFakeUsers(options: {
   const guard = () => {
     if (!self.roles.includes('app_admin')) throw new ApiError('forbidden');
   };
-  const row = (p: Person): UserRow => ({ id: p.id, displayName: p.displayName(), email: p.email, roles: [...p.roles] });
+  const row = (p: Person): UserRow => ({ id: p.id, displayName: p.displayName(), email: p.email, roles: [...p.roles], deletion: null });
   const find = (id: string) => {
     const person = people.find((p) => p.id === id);
     if (!person) throw new ApiError('not_found');
