@@ -1,7 +1,7 @@
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { withDbOn } from '../src/db.ts';
-import { errorOf, setupActors, type Actors } from './support/actors.ts';
+import { errorOf, setupActors, type Actor, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
 import { holdTransaction } from './support/hold.ts';
 import { actAs, startTransaction, waitsOnLock } from './support/locks.ts';
@@ -162,44 +162,85 @@ describe.skipIf(!hasDatabase)('last family administrator under concurrency', () 
 		}
 	});
 
-	it('6. family.delete against an ordinary meal change holding its row: the family is gone, never 40P01', async () => {
-		const admin = await actors.user();
-		const familyId = await actors.db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+	/**
+	 * An ordinary meal change holds its slot row (then, through the version trigger, the family);
+	 * `caller` deletes the family meanwhile. Rejects, never leaving the change open, when the change
+	 * ends before holding the row or the deletion ends without waiting on a lock.
+	 */
+	let lastChangePid: number | undefined;
+	async function deletionAgainstHeldSlot(caller: Actor, familyId: string) {
 		const [{ id: weekId }] = await actors.db.admin<{ id: string }[]>`
 			insert into app.weeks (family_id, starts_on) values (${familyId}, '2031-03-03') returning id`;
 		const [{ id: slotId }] = await actors.db.admin<{ id: string }[]>`
 			insert into app.meal_slots (week_id, date, meal_type, free_text, servings) values (${weekId}, '2031-03-03', 'lunch', 'Pizza', 2) returning id`;
 		let reached!: () => void;
+		let notReached!: (error: Error) => void;
+		const atRow = new Promise<void>((resolve, reject) => ((reached = resolve), (notReached = reject)));
 		let go!: () => void;
-		const atRow = new Promise<void>((r) => (reached = r));
 		const proceed = new Promise<void>((r) => (go = r));
-		// The change locks its slot first, then (through the version trigger) the family.
 		const change = startTransaction(adminUrl, async (tx) => {
+			// Bounded on the server too: a test that stops here never keeps the row for long.
+			await tx`set local lock_timeout = '5s'`;
+			await tx`set local idle_in_transaction_session_timeout = '10s'`;
 			await tx`select 1 from app.meal_slots where id = ${slotId} for update`;
 			reached();
 			await proceed;
 			await tx`update app.meal_slots set free_text = 'Pasta' where id = ${slotId}`;
 		});
-		await atRow;
-		const deletion = admin.client.family.delete({ familyId }).then(() => 'ok', (error: { code?: string }) => error.code);
-		// The deletion holds the family and waits on the slot row.
-		const [deleter] = await (async () => {
+		void change.pid.then((pid) => (lastChangePid = pid), () => undefined);
+		// Ended before the barrier (connection, SQL): the wait below fails at once.
+		void change.outcome.then(({ code }) => notReached(new Error(`the change ended before holding its row: ${code ?? 'ok'}`)));
+		let deletion: Promise<string> | undefined;
+		try {
+			await atRow;
+			let settled = false;
+			deletion = caller.client.family.delete({ familyId }).then(
+				() => 'ok',
+				(error: { code?: string }) => String(error.code),
+			).finally(() => (settled = true));
+			// The deletion holds the family and waits on the slot row; it may also end first.
 			const deadline = Date.now() + 3000;
-			while (Date.now() < deadline) {
-				const rows = await actors.db.admin<{ pid: number }[]>`
-					select pid from pg_stat_activity where usename = 'app_server' and wait_event_type = 'Lock'`;
-				if (rows.length) return rows.map((r) => r.pid);
-				await new Promise((r) => setTimeout(r, 20));
+			let waited = false;
+			while (!waited && !settled && Date.now() < deadline) {
+				const rows = await actors.db.admin`select 1 from pg_stat_activity where usename = 'app_server' and wait_event_type = 'Lock'`;
+				waited = rows.length > 0;
+				if (!waited) await new Promise((r) => setTimeout(r, 20));
 			}
-			return [];
-		})();
-		expect(deleter).toBeDefined();
-		go();
+			if (!waited) throw new Error(`the deletion did not wait on the slot (${settled ? `ended: ${await deletion}` : 'timed out'})`);
+		} finally {
+			go();
+			// Both closed before anything else: the next test finds no open transaction.
+			await Promise.allSettled([change.outcome, deletion]);
+		}
 		const [changed, deleted] = await Promise.all([change.outcome, deletion]);
+		return { changed: changed.code, deleted };
+	}
+
+	it('6. family.delete against an ordinary meal change holding its row: the family is gone, never 40P01', async () => {
+		const admin = await actors.user();
+		const familyId = await actors.db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+		const { changed, deleted } = await deletionAgainstHeldSlot(admin, familyId);
 		// Either outcome of the cycle is fine: Postgres picks the victim.
-		expect([undefined, '40P01']).toContain(changed.code);
+		expect([undefined, '40P01']).toContain(changed);
 		expect(deleted).toBe('ok');
 		expect(await exists(familyId)).toBe(false);
+	});
+
+	it('6a. the same case fails cleanly when the deletion ends before the lock: nothing left open', async () => {
+		const admin = await actors.user();
+		const member = await actors.user();
+		const familyId = await actors.db.createFamily([{ userId: admin.userId, role: 'family_admin' }, { userId: member.userId, role: 'member' }]);
+		const before = Date.now();
+		// A plain member is refused before any lock.
+		await expect(deletionAgainstHeldSlot(member, familyId)).rejects.toThrow('the deletion did not wait on the slot (ended: forbidden)');
+		expect(Date.now() - before).toBeLessThan(3000);
+		// The connection of the change is gone, so its transaction too.
+		expect(lastChangePid).toBeDefined();
+		const [{ n }] = await actors.db.admin<{ n: number }[]>`select count(*)::int as n from pg_stat_activity where pid = ${lastChangePid!}`;
+		expect(n).toBe(0);
+		const [{ text }] = await actors.db.admin<{ text: string }[]>`select free_text as text from app.meal_slots s join app.weeks w on w.id = s.week_id where w.family_id = ${familyId}`;
+		expect(text).toBe('Pasta');
+		expect(await exists(familyId)).toBe(true);
 	});
 
 	it('6b. creating a family or joining one against the deletion of the account: refused, nothing left half-way', async () => {

@@ -207,4 +207,3 @@ describe('/admin users', () => {
     expect(screen.getAllByText('Cancellazione in corso')).toHaveLength(1);
   });
 });
-

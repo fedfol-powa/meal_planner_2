@@ -101,4 +101,3 @@ describe('fake family creation', () => {
     await expect(on('user-anna').family.get({ familyId })).rejects.toMatchObject({ code: 'forbidden' });
   });
 });
-
