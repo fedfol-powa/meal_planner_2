@@ -21,6 +21,7 @@ export function testEnv(connectionString = UNREACHABLE_DB): Env {
 		SUPABASE_SECRET_KEY: 'sb_secret_test',
 		INVITE_READ_LIMIT: allowAll,
 		INVITE_ACCEPT_LIMIT: allowAll,
+		PHOTO_READ_LIMIT: allowAll,
 	};
 }
 

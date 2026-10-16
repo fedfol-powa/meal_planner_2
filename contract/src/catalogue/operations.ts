@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
+import { PHOTO_INPUT_TYPES, PHOTO_MAX_INPUT_BYTES, photoView } from './photos.ts';
 import {
 	bookView,
 	checkView,
@@ -37,6 +38,11 @@ const draftId = z.object({ draftId: z.uuid() });
 const recipeId = z.object({ recipeId: z.uuid() });
 const ingredientId = z.object({ ingredientId: z.uuid() });
 const revision = z.number().int().min(1);
+/** Checked again on the bytes by the server; the codes are those of the image field. */
+const photoFile = z
+	.file()
+	.refine((file) => (PHOTO_INPUT_TYPES as readonly string[]).includes(file.type), 'photo_type')
+	.refine((file) => file.size <= PHOTO_MAX_INPUT_BYTES, 'photo_too_large');
 const nameInput = z.object({ 'it-IT': z.string().trim().min(1).max(80), 'en-GB': z.string().trim().max(80).nullable() });
 
 export const catalogueContract = {
@@ -290,4 +296,32 @@ export const catalogueContract = {
 		})
 		.input(z.object({ id: z.uuid(), title: z.string().trim().min(1).max(200) }))
 		.output(bookView.omit({ archived: true })),
+	uploadPhoto: op({ mcp: false, offline: false, role: 'curator', creates: true })
+		.route({
+			method: 'POST',
+			path: '/catalogue/recipes/{recipeId}/photo/upload',
+			summary: 'Add or replace the photo of a recipe with a JPEG, PNG or WebP file (web app only: agents use catalogue_setPhotoFromUrl)',
+		})
+		.errors(notFound)
+		.input(z.object({ id: z.uuid(), recipeId: z.uuid(), file: photoFile }))
+		.output(photoView),
+	setPhotoFromUrl: create()
+		.route({
+			method: 'PUT',
+			path: '/catalogue/recipes/{recipeId}/photo',
+			summary:
+				'Add or replace the photo of a recipe from the https address of a JPEG, PNG or WebP image, usually from the source page (og:image or the schema.org recipe image). Show the image to the curator first and set it only after an explicit yes',
+		})
+		.errors(notFound)
+		.input(z.object({ id: z.uuid(), recipeId: z.uuid(), imageUrl: z.string().trim().min(1).max(2048) }))
+		.output(photoView),
+	removePhoto: write()
+		.route({
+			method: 'DELETE',
+			path: '/catalogue/recipes/{recipeId}/photo',
+			summary: 'Remove the photo of a recipe, after the curator confirmed; removing one already gone is fine',
+		})
+		.errors(notFound)
+		.input(recipeId)
+		.output(photoView),
 };

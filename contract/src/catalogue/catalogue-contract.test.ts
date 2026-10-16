@@ -13,16 +13,18 @@ describe('catalogue contract', () => {
 		expect(checkContract(contract)).toEqual([]);
 	});
 
-	it('is for curators only, exposed to MCP, never offline, without familyId', () => {
+	it('is for curators only, exposed to MCP (but the file upload), never offline, without familyId', () => {
 		expect(ops.map(([name]) => name).sort()).toEqual([
 			'checkDraft', 'checkVariety', 'createBook', 'createDraft', 'createIngredient', 'discardDraft', 'getDraft', 'getDraftSave', 'getGuide',
 			'getIngredient', 'getVersion', 'listBooks', 'listDraftSaves', 'listVarieties', 'listVersions', 'overview', 'publish', 'removeEquivalence',
-			'restoreVersion', 'saveDraft', 'searchIngredients', 'searchRecipes', 'setArchived', 'setEquivalence', 'startRevision',
-			'updateIngredient',
+			'removePhoto', 'restoreVersion', 'saveDraft', 'searchIngredients', 'searchRecipes', 'setArchived', 'setEquivalence', 'setPhotoFromUrl',
+			'startRevision', 'updateIngredient', 'uploadPhoto',
 		]);
 		for (const [name, def] of ops) {
 			expect(def.meta, name).toMatchObject({ role: 'curator', offline: false });
-			expect(def.meta.mcp, name).not.toBe(false);
+			// MCP carries no files: agents set the photo from an address (spec W12, section 5).
+			if (name === 'uploadPhoto') expect(def.meta.mcp).toBe(false);
+			else expect(def.meta.mcp, name).not.toBe(false);
 			expect(def.route.path.startsWith('/catalogue/'), name).toBe(true);
 			const shape = def.inputSchema instanceof z.ZodObject ? def.inputSchema.shape : {};
 			expect(Object.keys(shape), name).not.toContain('familyId');

@@ -21,7 +21,13 @@ describe('scheduled dispatch', () => {
 		const text = await readFile(join(import.meta.dirname, '..', 'wrangler.jsonc'), 'utf8');
 		const config = JSON.parse(text.replace(/^\s*\/\/.*$/gm, ''));
 		expect(config.triggers.crons).toEqual([HOURLY_CRON, NIGHTLY_EXPORT_CRON]);
-		expect(config.r2_buckets).toEqual([{ binding: 'BACKUPS', bucket_name: 'cosasimangia-backups', jurisdiction: 'eu' }]);
+		expect(config.r2_buckets).toEqual([
+			{ binding: 'BACKUPS', bucket_name: 'cosasimangia-backups', jurisdiction: 'eu' },
+			// Recipe photos (W12): never touched by the export or a cron.
+			{ binding: 'PHOTOS', bucket_name: 'cosasimangia-photos', jurisdiction: 'eu' },
+		]);
+		expect(config.images).toEqual({ binding: 'IMAGES' });
+		expect(config.ratelimits).toContainEqual({ name: 'PHOTO_READ_LIMIT', namespace_id: '9103', simple: { limit: 300, period: 60 } });
 		expect(config.vars.BACKUP_KEY_ID).toBe('k1');
 	});
 

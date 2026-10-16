@@ -1,4 +1,6 @@
 /** Workers `ratelimit` binding (spec W9): per-location counters, a brake not a guarantee. */
+import type { PhotoImages } from './catalogue/photos/process.ts';
+
 export interface RateLimiter {
 	limit(options: { key: string }): Promise<{ success: boolean }>;
 }
@@ -19,4 +21,12 @@ export interface Env {
 	SUPABASE_SECRET_KEY?: string;
 	INVITE_READ_LIMIT: RateLimiter;
 	INVITE_ACCEPT_LIMIT: RateLimiter;
+	/** Recipe photos (W12): private bucket, EU jurisdiction. Without it or IMAGES the photo writes are `internal`. */
+	PHOTOS?: R2Bucket;
+	/** Images binding: one WebP per upload. */
+	IMAGES?: PhotoImages;
+	/** Per-IP limiter of the public route /photos/<key>. */
+	PHOTO_READ_LIMIT: RateLimiter;
+	/** Tests only: replaces the global fetch of setPhotoFromUrl. */
+	PHOTO_FETCH?: typeof fetch;
 }

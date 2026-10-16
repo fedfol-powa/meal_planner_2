@@ -84,6 +84,7 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
     checkDraft: notServed, publish: notServed, discardDraft: notServed, searchRecipes: notServed, listVersions: notServed, getVersion: notServed,
     restoreVersion: notServed, searchIngredients: notServed, getIngredient: notServed, listVarieties: notServed, checkVariety: notServed,
     createIngredient: notServed, updateIngredient: notServed, setEquivalence: notServed, removeEquivalence: notServed, listBooks: notServed, createBook: notServed,
+    uploadPhoto: notServed, setPhotoFromUrl: notServed, removePhoto: notServed,
     async overview() {
       const locale = deps.getLocale();
       return delayed({

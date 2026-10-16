@@ -1,14 +1,33 @@
-/** The R2 calls of the export, in memory. Pages of two objects exercise the list cursor. */
+/** The R2 calls of the export and of the photos, in memory. Pages of two objects exercise the list cursor. */
 export class MemoryBucket {
-	objects = new Map<string, { body: Uint8Array; customMetadata: Record<string, string> }>();
+	objects = new Map<string, { body: Uint8Array; customMetadata: Record<string, string>; contentType?: string }>();
 	failPut = false;
 	failDelete = false;
 	pageSize = 2;
+	calls = { put: 0, get: 0 };
 
-	async put(key: string, value: Blob, options?: { customMetadata?: Record<string, string> }) {
+	async put(
+		key: string,
+		value: Blob | Uint8Array | ArrayBuffer,
+		options?: { customMetadata?: Record<string, string>; httpMetadata?: { contentType?: string } },
+	) {
+		this.calls.put++;
 		if (this.failPut) throw new Error('put failed');
-		this.objects.set(key, { body: new Uint8Array(await value.arrayBuffer()), customMetadata: options?.customMetadata ?? {} });
+		const body = value instanceof Blob ? new Uint8Array(await value.arrayBuffer()) : new Uint8Array(value instanceof ArrayBuffer ? value : value.slice());
+		this.objects.set(key, { body, customMetadata: options?.customMetadata ?? {}, contentType: options?.httpMetadata?.contentType });
 		return { key };
+	}
+
+	async get(key: string) {
+		this.calls.get++;
+		const object = this.objects.get(key);
+		if (!object) return null;
+		return {
+			key,
+			size: object.body.byteLength,
+			httpEtag: `"etag-${key.length}-${object.body.byteLength}"`,
+			body: new Response(object.body).body!,
+		};
 	}
 
 	async list(options: { prefix?: string; cursor?: string; limit?: number } = {}) {

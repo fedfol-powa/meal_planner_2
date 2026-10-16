@@ -24,7 +24,7 @@
 		"binding": "ASSETS",
 		"not_found_handling": "single-page-application",
 		// Only these paths run the Worker; everything else is served as a static file.
-		"run_worker_first": ["/api/*", "/mcp", "/.well-known/*", "/shopping-lists/*"]
+		"run_worker_first": ["/api/*", "/mcp", "/.well-known/*", "/shopping-lists/*", "/photos/*"]
 	},
 	"hyperdrive": [
 		{
@@ -36,8 +36,17 @@
 	// Public invitation operations (spec W9): per-IP limits; namespace ids unique in the Cloudflare account.
 	"ratelimits": [
 		{ "name": "INVITE_READ_LIMIT", "namespace_id": "9101", "simple": { "limit": 30, "period": 60 } },
-		{ "name": "INVITE_ACCEPT_LIMIT", "namespace_id": "9102", "simple": { "limit": 5, "period": 60 } }
+		{ "name": "INVITE_ACCEPT_LIMIT", "namespace_id": "9102", "simple": { "limit": 5, "period": 60 } },
+		// Public photo route (W12): per-IP brake; a recipe-book page with 60 cards stays far below.
+		{ "name": "PHOTO_READ_LIMIT", "namespace_id": "9103", "simple": { "limit": 300, "period": 60 } }
 	],
 	// Nightly exports: private bucket in the EU jurisdiction, created on 12 October 2026.
-	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }]
+	// Recipe photos (W12): private bucket in the EU jurisdiction, served by the Worker, objects never deleted
+	// automatically. Created at release time.
+	"r2_buckets": [
+		{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" },
+		{ "binding": "PHOTOS", "bucket_name": "cosasimangia-photos", "jurisdiction": "eu" }
+	],
+	// Images binding (W12): one transformation per uploaded photo, Images Free plan.
+	"images": { "binding": "IMAGES" }
 }
