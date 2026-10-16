@@ -40,8 +40,13 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   validateSearch: validateLoginSearch,
-  beforeLoad: ({ context, search }) => {
-    if (context.auth.status === 'signedIn') throw redirect({ href: search.redirect ?? '/menu', replace: true });
+  beforeLoad: ({ context, search, location }) => {
+    if (context.auth.status !== 'signedIn') return;
+    // A fragment of the sign-in page goes on to a redirect without one: an invitation token
+    // travels this way, never in the query (spec W11).
+    const target = search.redirect ?? '/menu';
+    const hash = location.hash && !target.includes('#') ? `#${location.hash}` : '';
+    throw redirect({ href: `${target}${hash}`, replace: true });
   },
   component: LoginPage
 });

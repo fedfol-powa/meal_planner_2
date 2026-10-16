@@ -3,3 +3,6 @@
 
 /invite/*
   Referrer-Policy: no-referrer
+
+/login
+  Referrer-Policy: no-referrer

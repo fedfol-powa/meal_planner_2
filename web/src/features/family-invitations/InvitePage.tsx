@@ -259,7 +259,7 @@ export function InvitePage() {
               {formError?.kind === 'message' && <p className="form-error" role="alert">{t(formError.key)}</p>}
               {formError?.kind === 'accountExists' && (
                 <p className="form-error" role="alert">
-                  {t('invite.accountExists')} <Link to="/login" search={{ email: formError.email, redirect: `${PATH}#${token}` }}>{t('invite.toLogin')}</Link>
+                  {t('invite.accountExists')} <Link to="/login" search={{ email: formError.email, redirect: PATH }} hash={token}>{t('invite.toLogin')}</Link>
                 </p>
               )}
               {field('email', 'invite.email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none' })}
@@ -271,9 +271,10 @@ export function InvitePage() {
           ) : (
             <p>{t('familyInvite.noAccounts')}</p>
           )}
-          {/* The fragment stays inside `redirect`: after signing in the person comes back to this link. */}
+          {/* The token stays in the fragment of the sign-in page, never in its query (sent to the server
+              on a reload): after signing in the person comes back to this link. */}
           <p>
-            {t('familyInvite.haveAccount')} <Link to="/login" search={{ redirect: `${PATH}#${token}` }}>{t('familyInvite.signIn')}</Link>
+            {t('familyInvite.haveAccount')} <Link to="/login" search={{ redirect: PATH }} hash={token}>{t('familyInvite.signIn')}</Link>
           </p>
         </>
       )}

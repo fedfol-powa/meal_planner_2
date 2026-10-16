@@ -169,14 +169,17 @@ describe('/invite (family)', () => {
     await waitFor(() => expect(history.location.pathname).toBe('/menu'));
   });
 
-  it('the sign-in link keeps the token through redirect and comes back to the invitation', async () => {
+  it('the sign-in link keeps the token in the fragment, never in the query, and comes back to the invitation', async () => {
     setFamilyInvitationClient(publicClient());
     const status = valid();
     const backend = createStubBackend(null);
     const { history } = renderApp(`/invite#${TOKEN}`, { backend, createApi: withLink({ status }) });
     fireEvent.click(await screen.findByRole('link', { name: 'Accedi per entrare' }));
     await waitFor(() => expect(history.location.pathname).toBe('/login'));
-    expect(new URLSearchParams(history.location.search).get('redirect')).toBe(`/invite#${TOKEN}`);
+    // A reload of the sign-in page sends the query to the server, not the fragment (review of the branch).
+    expect(new URLSearchParams(history.location.search).get('redirect')).toBe('/invite');
+    expect(history.location.search).not.toContain(TOKEN);
+    expect(history.location.hash).toBe(`#${TOKEN}`);
     backend.setUser(GIULIA); // the sign-in of the login page
     await waitFor(() => expect(history.location.pathname).toBe('/invite'));
     expect(history.location.hash).toBe(`#${TOKEN}`);
@@ -235,6 +238,9 @@ describe('/invite (family)', () => {
     await screen.findByLabelText('Email');
     fill();
     expect(await screen.findByText(/Esiste già un account con questa email/)).toBeTruthy();
+    const href = screen.getByRole('link', { name: 'Vai all’accesso' }).getAttribute('href')!;
+    expect(href.split('#')[0]).not.toContain(TOKEN);
+    expect(href.endsWith(`#${TOKEN}`)).toBe(true);
   });
 
   it('the account form is off offline', async () => {
