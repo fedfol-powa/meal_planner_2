@@ -12,15 +12,7 @@ import { useChooseLocale, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import { invitationClient } from './client';
 import styles from './InvitePage.module.css';
-
-const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-/** The fragment of the router's history, without `#` (the router state has it without). */
-const fragment = (hash: string) => hash.replace(/^#/, '');
-const PASSWORD_MIN = 8;
-/** bcrypt's limit, in UTF-8 bytes (spec W9). */
-const PASSWORD_MAX_BYTES = 72;
-/** Codes of the password field from the server; any other one is the 72-byte limit. */
-const PASSWORD_ISSUES: Record<string, MessageKey> = { weak_password: 'invite.passwordWeak', password_too_long: 'invite.passwordLong', too_small: 'invite.passwordShort' };
+import { accountFormErrors, fragment, isClosingAccount, PASSWORD_ISSUES, signOutAndContinue, TOKEN, type AccountField as Field } from './token';
 
 type Phase =
   | { kind: 'loading' }
@@ -30,14 +22,6 @@ type Phase =
   | { kind: 'failed'; error: unknown }
   | { kind: 'signInFailed'; email: string; reason: SignInFailure };
 
-/**
- * The account being closed from this page with «Esci e continua», until its sign-out ends: Supabase
- * may report it once more meanwhile, which is not someone signing in; afterwards it is. Module
- * state: the page remounts when the identity changes.
- */
-let closingAccount: string | null = null;
-
-type Field = 'email' | 'name' | 'password' | 'again';
 type FormError = { kind: 'message'; key: MessageKey } | { kind: 'accountExists'; email: string };
 
 /**
@@ -105,19 +89,10 @@ export function InvitePage() {
 
   const set = (field: Field) => (value: string) => setValues((v) => ({ ...v, [field]: value }));
 
-  function localErrors(): Partial<Record<Field, MessageKey>> {
-    const errors: Partial<Record<Field, MessageKey>> = {};
-    if (!values.name.trim()) errors.name = 'invite.nameMissing';
-    if (values.password.length < PASSWORD_MIN) errors.password = 'invite.passwordShort';
-    else if (new TextEncoder().encode(values.password).length > PASSWORD_MAX_BYTES) errors.password = 'invite.passwordLong';
-    else if (values.password !== values.again) errors.again = 'invite.passwordMismatch';
-    return errors;
-  }
-
   async function submit(event: FormEvent, roles: GlobalRole[]) {
     event.preventDefault();
     if (sending.current || !signedOut.current) return;
-    const errors = localErrors();
+    const errors = accountFormErrors(values);
     setFieldErrors(errors);
     setFormError(null);
     if (Object.keys(errors).length) return;
@@ -137,7 +112,7 @@ export function InvitePage() {
         if (entered) valid = false;
         return;
       }
-      if (event.user.id === closingAccount) return;
+      if (isClosingAccount(event.user.id)) return;
       if (ours !== null && event.user.email.toLowerCase() === ours) entered = true;
       else valid = false;
     });
@@ -250,13 +225,7 @@ export function InvitePage() {
           {state.status === 'signedIn' ? (
             <OtherAccount
               email={state.user.email}
-              onSignOut={() => {
-                const closing = state.user.id;
-                closingAccount = closing;
-                void signOut().finally(() => {
-                  if (closingAccount === closing) closingAccount = null;
-                });
-              }}
+              onSignOut={() => signOutAndContinue(state.user.id, signOut)}
             />
           ) : (
             <form onSubmit={(event) => void submit(event, phase.roles)} noValidate>
