@@ -33,7 +33,8 @@ const REJECTED: RenewResult = { kind: 'rejected' };
  */
 export interface SessionEnd { ended: 'unauthorized' | 'rejected' }
 
-export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
+/** `operation`: `area.operation` of the failed read or mutation, when known. */
+export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string; operation?: string }) => void;
 
 export interface SessionDeps {
   /** One renewal of the sign-in session. */

@@ -112,7 +112,7 @@ describe('persister', () => {
     expect(retry(2, new ApiError('network'))).toBe(false);
     expect(retry(0, new ApiError('not_found'))).toBe(false);
     await client.fetchQuery({ queryKey: week, queryFn: () => Promise.reject(new ApiError('forbidden')) }).catch(() => undefined);
-    expect(onError).toHaveBeenCalledWith(new ApiError('forbidden'), { queryKey: week, familyId: 'f' });
+    expect(onError).toHaveBeenCalledWith(new ApiError('forbidden'), { queryKey: week, familyId: 'f', operation: 'menu.getWeek' });
   });
   it('keeps the copy across builds: the buster is the shape of the data (spec W8)', async () => {
     const { store } = await saved(createMemoryStore(), CACHE_SCHEMA);

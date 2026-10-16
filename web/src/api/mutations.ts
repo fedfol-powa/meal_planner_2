@@ -286,7 +286,7 @@ export function useAreaMutation<I, T>(name: MutationName, familyId: string | und
   const session = useSession();
   const currentLocale = useCurrentLocale();
   return useMutation({
-    meta: familyId ? { familyId } : undefined,
+    meta: familyId ? { familyId, operation: name } : { operation: name },
     mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input), options)
   });
 }

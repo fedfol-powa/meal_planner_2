@@ -6,7 +6,8 @@ import { toApiError } from '../api/errors';
 import { runAreaMutation } from '../api/mutations';
 import { CACHE_SCHEMA, persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
 import { profileQuery } from '../api/profile';
-import { useQueryDeps } from '../api/queries';
+import { familyOfKey, useQueryDeps } from '../api/queries';
+import { FAMILY_ADMIN_OPERATIONS } from '../api/familyRoles';
 import type { Api, ProfileView } from '../api/types';
 import { useAuth, type ExitNotice } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
@@ -119,13 +120,17 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     });
   }, [session, backend]);
 
-  // Forbidden: the family leaves memory and disk, and the profile is read again.
+  // Forbidden: the family leaves memory and disk, and the profile is read again. On an operation
+  // reserved to the administrators it may be only a lost role (a demotion, spec W11): nothing is
+  // revoked, profile and family are read again; a lost membership then shows on a member's read.
   useEffect(() => {
     session?.setErrorHandler((error, scope) => {
-      if (toApiError(error).code === 'forbidden' && scope.familyId) {
-        session.revoke(scope.familyId);
-        void session.queryClient.invalidateQueries({ queryKey: ['profile', 'get'] });
-      }
+      if (toApiError(error).code !== 'forbidden' || !scope.familyId) return;
+      const familyId = scope.familyId;
+      if (scope.operation && FAMILY_ADMIN_OPERATIONS.has(scope.operation)) {
+        void session.queryClient.invalidateQueries({ queryKey: ['family', 'get'], predicate: (query) => familyOfKey(query.queryKey) === familyId });
+      } else session.revoke(familyId);
+      void session.queryClient.invalidateQueries({ queryKey: ['profile', 'get'] });
     });
   }, [session]);
 

@@ -301,17 +301,26 @@ export async function purgeOtherCopies(store: KeyValueStore, keepUserId: string 
   await Promise.all(others.map((k) => store.delete(k).catch(() => undefined)));
 }
 
-type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
+type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string; operation?: string }) => void;
 
 export function createQueryClient(handlers: { onError?: ErrorHandler } = {}): QueryClient {
   const report: ErrorHandler = (error, scope) => handlers.onError?.(error, scope);
   return new QueryClient({
     // One place sees every failure: the session turns unauthorized and forbidden into actions.
-    queryCache: new QueryCache({ onError: (error, query) => report(error, { queryKey: query.queryKey, familyId: familyOfKey(query.queryKey) ?? undefined }) }),
+    queryCache: new QueryCache({
+      onError: (error, query) => {
+        const [area, operation] = query.queryKey;
+        report(error, {
+          queryKey: query.queryKey,
+          familyId: familyOfKey(query.queryKey) ?? undefined,
+          operation: typeof area === 'string' && typeof operation === 'string' ? `${area}.${operation}` : undefined
+        });
+      }
+    }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _result, mutation) => {
-        const familyId = mutation.options.meta?.familyId;
-        report(error, { familyId: typeof familyId === 'string' ? familyId : undefined });
+        const { familyId, operation } = mutation.options.meta ?? {};
+        report(error, { familyId: typeof familyId === 'string' ? familyId : undefined, operation: typeof operation === 'string' ? operation : undefined });
       }
     }),
     defaultOptions: {
