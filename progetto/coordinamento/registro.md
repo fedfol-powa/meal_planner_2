@@ -5,6 +5,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Worker attivi
 
+**16/10 mattina, #47 rilasciata** (commit cecefef, versione `75d29930-6125-41bd-acf4-786814218171`; rollback `d53e1bce-1a3f-48a9-9a7e-9220787cf7e1`, nata dal ricaricamento del segreto `SUPABASE_SECRET_KEY` il 15/10): migrazione `20261015100000_user_admin.sql` applicata. Lanciato dall'utente con `!` (il classificatore di Claude Code blocca il rilascio dal coordinatore). Da fare: prova dell'utente sull'iPhone, poi chiudere #38. **R23 chiuso:** esportazione della notte 15→16/10 `exports/2026-10-16T02-30Z.json.gz.enc` di 134456 byte (130983 la notte prima), nessun duplicato alle 04:30.
+
 **15/10 sera, PR #47 unita** (attività B, #38; due revisioni di spec e piano, due della PR, ultimo giro controllato dal coordinatore; CI verde su `a9967f7`). W10 chiuso, worktree rimosso. Nuova migrazione `20261015100000_user_admin.sql` (solo funzioni). Da fare: rilascio in produzione (migrazione con la CLI, poi `npm run release`) dopo il «vai» dell'utente; chiudere #38 dopo la prova; riportare le «Decisioni da riportare nella specifica» di `specs/2026-10-15-amministrazione-utenti.md` nella specifica principale (PR del coordinatore, serve il «mergia»); poi attività C.
 
 **15/10 sera, W10 avviato su B (#38)** con il «procedi» dell'utente: brief `brief/w10-amministrazione-utenti.md` (commit 455f070), branch `ondata3/amministrazione-utenti` da `main` locale, worktree `.worktrees/amministrazione`. Decisione dell'utente del 15/10: **la cancellazione degli utenti va in C**, non in B. Fase: brainstorming.

@@ -106,7 +106,7 @@ Compilata durante il runbook del piano
 | Progetto Supabase | `lronuqvtjdhfyychnscr`, eu-west-2, Postgres 17 (`scripts/production-target.json`); iscrizioni spente, OAuth server attivo con registrazione dinamica |
 | Accesso al database | Session pooler `aws-0-eu-west-2.pooler.supabase.com:5432`, TLS `verify-full` con il certificato del progetto |
 | Hyperdrive | `cosasimangia`, id `4c2038adf73d4ed094584a3244f7fbf2`, utente `app_server`, cache spenta; limite di connessioni **10** = pool di Supabase (15) − 5, per lasciare connessioni a migrazioni, strumenti e dashboard |
-| Bucket delle esportazioni | `cosasimangia-backups`, giurisdizione `eu`; prima esportazione il 13 ottobre 2026 alle 02:30 UTC, ripristinata in locale con la chiave del gestore di password |
+| Bucket delle esportazioni | `cosasimangia-backups`, giurisdizione `eu`; prima esportazione il 13 ottobre 2026 alle 02:30 UTC, ripristinata in locale con la chiave del gestore di password; dopo una settimana d'uso (R23) l'esportazione della notte 15→16 ottobre è di 134456 byte, senza duplicati alle 04:30 |
 | Indirizzo | `https://cosasimangia.qunidi.workers.dev` (anche in `scripts/release.config.json`) |
 | Primo rilascio | 12 ottobre 2026, commit `b7322cf`, versione `e0cab6a9-49f9-4689-ab6a-13d6dea7139c` (poi `6382d9b5-9187-47d6-bb6c-2e188e46cc4d` con il segreto `BACKUP_ENCRYPTION_KEY`) |
 | Avvio della famiglia | 13 ottobre 2026: famiglia, caricamento (50 ricette pubblicate, 6 bozze, 6 settimane) e primo collaudo in sola lettura riuscito |
