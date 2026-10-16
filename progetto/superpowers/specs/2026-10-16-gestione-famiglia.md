@@ -1278,6 +1278,45 @@ collegamento) rifiutato dopo. Eseguito da `scripts/invitations/invite-stack.sh`
   eliminazione della famiglia; cancellazione dell'account; cancellazione di un utente
   dall'amministrazione; nessuno scorrimento orizzontale.
 
+### Provato con agent-browser (16 ottobre 2026)
+
+- **Stack locale** (`wrangler dev` sulla 8797 con Auth, Worker e database dello stack
+  `w11-famiglia`; SPA costruita con le variabili dello stack, nessun riferimento
+  all'Auth di produzione nel pacchetto, richieste di accesso verso `127.0.0.1:58621`),
+  a 1280 e 390 px, in italiano e in inglese, con il nome lungo «Maria Alessandra
+  Benedetta Castiglioni di Valdobbiadene»; nessuno scorrimento orizzontale
+  (`scrollWidth` 390):
+  - Anna crea un link; da un browser senza accesso la pagina dell'invito (famiglia e
+    chi invita), creazione dell'account in italiano ed ingresso nel Menu;
+  - Carla, già amministratrice di un'altra famiglia, «Accedi per entrare» → ritorno
+    alla pagina dell'invito dopo l'accesso → «Entra nella famiglia»: due famiglie nel
+    Profilo;
+  - Anna: «Ingressi con i link» con le due persone; rimozione di Bruno con la conferma
+    sui voti e «ex membro»; promozione di Carla, retrocessione con «Il link d'invito
+    creato da Carla smetterà di valere» e link revocato;
+  - uscita di Anna, unica amministratrice, con la scelta del successore (Maria) →
+    Menu con «Non fai ancora parte di una famiglia» e la riga del link d'invito;
+  - Carla elimina la propria famiglia dalla pagina di eliminazione → Profilo con la
+    famiglia rimasta;
+  - Maria cancella l'account nominando Carla → accesso con l'avviso, `localStorage`
+    vuoto; nel database Maria è sparita da Auth e Carla amministra la famiglia;
+  - Anna `app_admin` cancella Bruno da `/admin/users/<id>/delete` → `/admin` con
+    «Utente cancellato: Bruno.»;
+  - Anna rientra con un link nuovo di Carla nella stessa sessione (la famiglia torna);
+    rimossa di nuovo, lo stesso link risponde «Questo invito non vale più».
+- **Modalità finta** (`vite`), a 1280 e 390 px: scheda di benvenuto con «Invite your
+  family» e «Adjust the settings»; famiglia creata con la procedura: Menu senza
+  settimane, Membri, uscita da unico membro con «Delete the family» e eliminazione
+  (prima della correzione le sue letture rispondevano `forbidden`).
+- **Correzioni nate dalla prova:** pulsanti «Entra nella famiglia» ed «Esci e continua»
+  distanziati; titolo del foglio del link al singolare in inglese («Invitation link»);
+  ritorno dalla cancellazione di un utente con il nome della persona, come nel
+  prototipo.
+- **Da guardare in revisione:** il ritorno dall'accesso porta il token nella query di
+  `/login` (`redirect=/invite#…`, decisione di questa spec): se la pagina di accesso si
+  ricarica, il token va al server degli asset. Alternativa possibile: conservarlo nel
+  frammento anche su `/login`.
+
 ### Da provare a mano sull'iPhone
 
 - Pagina dell'invito aperta da WhatsApp in Safari e, dopo l'accesso, nella PWA installata
