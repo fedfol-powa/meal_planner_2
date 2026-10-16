@@ -37,7 +37,7 @@ Unite su `main` (ondata 3): #44 (specifica W7/W8 e ondata 3 senza email), #45 (i
 **Aggiornato il 16 ottobre 2026. Si riparte da qui.**
 
 - **Attività C (gestione della famiglia)**: la lancia l'utente da una sessione nuova. Perimetro nel piano generale («Ordine dell'ondata 3», riga C) più la **cancellazione degli utenti dall'amministrazione** (decisione dell'utente del 15/10). Usa le interfacce di A e B in «Interfacce decise» (in particolare il lucchetto `app_admin_roles` per ogni percorso che toglie `app_admin`, anche la cancellazione dell'account). Brief da scrivere sul modello di `brief/w10-amministrazione-utenti.md` e da far approvare all'utente; un solo worker Claude, revisori Codex; prove locali senza la produzione (`protocollo-worker.md`, «Prove sullo stack locale»).
-- **PR delle decisioni di B** (branch `traguardo/specifica-w10`, scritta da un sottoagente del coordinatore il 16/10): revisione Codex, correzioni, poi **«mergia» esplicito dell'utente**; poi rimuovere il worktree del sottoagente (checkout pulito per `npm run release`).
+- **PR #50 unita** (16/10, «mergia» dell'utente; revisione Codex `revisioni/pr50-specifica.md`, correzioni in `827ecc2`): decisioni di B nella specifica principale, piano generale e `design/percorsi.md`; worktree del sottoagente rimosso.
 - **Rilasci:** il classificatore di Claude Code blocca `npm run release -- --apply` dal coordinatore: anteprima dal coordinatore, poi l'utente lo lancia con `!`.
 
 **Aggiornato il 13 ottobre 2026 sera, prima di un /clear chiesto dall'utente. Si riparte da qui.**
