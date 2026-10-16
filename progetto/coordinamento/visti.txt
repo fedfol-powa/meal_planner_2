@@ -248,3 +248,4 @@ w1:p4A	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/54 #3
 w1:p4E	REVISORE_FINITO
 w1:p4A	STATO: PR_CORRETTA #87f2e8fc
 w1:p4G	REVISORE_FINITO
+w1:p4A	STATO: PR_CORRETTA #a584bb35
