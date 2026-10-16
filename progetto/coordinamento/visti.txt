@@ -244,3 +244,5 @@ w1:p4A	STATO: SPEC_E_PIANO_CORRETTI #04fcf727
 w1:p4D	REVISORE_FINITO
 w1:p4A	STATO: SPEC_E_PIANO_CORRETTI #9cf2cbe8
 w1:p4A	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/54 #be7008b9
+w1:p4A	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/54 #34bab3cd
+w1:p4E	REVISORE_FINITO
