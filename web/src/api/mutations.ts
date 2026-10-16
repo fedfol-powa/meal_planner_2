@@ -58,7 +58,8 @@ export const INVALIDATIONS = {
   'family.removeMember': { target: 'family', stale: familyReads({ area: 'familyInvitations' }) },
   // The session closes after the answer: nothing to write.
   'account.delete': { target: 'account', stale: [] },
-  'users.delete': { target: 'users', stale: [] },
+  // The administrator may be the successor named in a family of the deleted user: the profile too.
+  'users.delete': { target: 'users', stale: ['profile'] },
   'family.rename': { target: 'family', stale: ['profile'] },
   'family.setMeasurementSystem': {
     target: 'family',

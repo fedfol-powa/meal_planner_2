@@ -398,7 +398,7 @@ describe('family management mutations (W11)', () => {
     }
   });
 
-  it('account.delete writes nothing; users.delete reads the users again', async () => {
+  it('account.delete writes nothing; users.delete reads the users and the profile again', async () => {
     const { client, run } = harness();
     client.setQueryData(profileKey, profile(FAMILY));
     await run('account.delete', undefined, async () => ({ completed: true }));
@@ -407,5 +407,7 @@ describe('family management mutations (W11)', () => {
     client.setQueryData(listKey, { users: [], more: false });
     await run('users.delete', undefined, async () => ({ completed: true }), { track: 'users:x' });
     expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    // The administrator may be the successor named in a family of the deleted user.
+    expect(client.getQueryState(profileKey)?.isInvalidated).toBe(true);
   });
 });

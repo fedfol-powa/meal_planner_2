@@ -1,5 +1,5 @@
 import { queryOptions, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useNavigate, useRouter } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useEffect, useId, useRef, useState } from 'react';
 import { FAMILY_INVITATION_ACCOUNT_LIMIT, type FamilyInvitationView } from '@app/contract';
 import { errorKey, isBlocking, toApiError } from '../../api/errors';
@@ -265,7 +265,6 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
   const queryClient = useQueryClient();
   const online = useOnline();
   const navigate = useNavigate();
-  const router = useRouter();
   const session = useSession();
   const [successor, setSuccessor] = useState<string | null>(null);
   // What the server said meanwhile: the family changed since this page was read.
@@ -276,7 +275,6 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
   const others = view.members.filter((m) => !m.isMe);
   const lastAdmin = view.myRole === 'family_admin' && !others.some((m) => m.role === 'family_admin');
   const mode = others.length === 0 || now === 'alone' ? 'alone' : now === 'successor' || lastAdmin ? 'successor' : 'plain';
-  const deletePath = `/profile/family/delete?family=${encodeURIComponent(view.id)}`;
 
   function leftTo(families: ProfileView['families']) {
     // The family's data leaves the device before the next page (spec W11, «Dati sul dispositivo»).
@@ -319,16 +317,9 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
       {mode === 'alone' && (
         <>
           <p>{t('members.soleMember')}</p>
-          <a
-            className={`text-button wide ${danger.dangerOutline}`}
-            href={deletePath}
-            onClick={(event) => {
-              event.preventDefault();
-              router.history.push(deletePath);
-            }}
-          >
+          <Link to="/profile/family/delete" search={{ family: view.id }} className={`text-button wide ${danger.dangerOutline}`}>
             {t('members.deleteFamily')}
-          </a>
+          </Link>
         </>
       )}
       {mode === 'successor' && (
