@@ -5,6 +5,8 @@ import type { Env } from '../src/env.ts';
 
 const runWeeklyJob = vi.hoisted(() => vi.fn(async () => ({ generated: 0, failed: 0, abandoned: 0 })));
 const runNightlyExport = vi.hoisted(() => vi.fn(async () => 'done' as const));
+const resumeAccountDeletions = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../src/account/resume.ts', () => ({ resumeAccountDeletions }));
 vi.mock('../src/menu/job.ts', () => ({ runWeeklyJob }));
 vi.mock('../src/backup/export.ts', () => ({ runNightlyExport }));
 
@@ -23,16 +25,30 @@ describe('scheduled dispatch', () => {
 		expect(config.vars.BACKUP_KEY_ID).toBe('k1');
 	});
 
-	it('runs only the weekly job on the hourly cron', async () => {
+	it('the hourly cron runs the weekly job and the resume of account deletions, not the export', async () => {
 		await dispatchScheduled(HOURLY_CRON, env, time);
 		expect(runWeeklyJob).toHaveBeenCalledWith('postgres://unused', time);
+		expect(resumeAccountDeletions).toHaveBeenCalledWith(env, time);
 		expect(runNightlyExport).not.toHaveBeenCalled();
+	});
+
+	it('a failure in one does not stop the other, and the failure still reaches the Worker', async () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		runWeeklyJob.mockRejectedValueOnce(Object.assign(new Error('down'), { code: '57P01' }));
+		await expect(dispatchScheduled(HOURLY_CRON, env, time)).rejects.toThrow('down');
+		expect(resumeAccountDeletions).toHaveBeenCalled();
+		resumeAccountDeletions.mockRejectedValueOnce(new Error('auth down'));
+		await expect(dispatchScheduled(HOURLY_CRON, env, time)).rejects.toThrow('auth down');
+		expect(runWeeklyJob).toHaveBeenCalledTimes(2);
+		expect(spy.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['weekly_job_crashed', 'account_deletion_resume_crashed']);
+		spy.mockRestore();
 	});
 
 	it('runs only the export on the nightly cron', async () => {
 		await dispatchScheduled(NIGHTLY_EXPORT_CRON, env, time);
 		expect(runNightlyExport).toHaveBeenCalledWith(env, time);
 		expect(runWeeklyJob).not.toHaveBeenCalled();
+		expect(resumeAccountDeletions).not.toHaveBeenCalled();
 	});
 
 	it('logs an unknown cron without throwing', async () => {

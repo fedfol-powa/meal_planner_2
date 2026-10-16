@@ -18,6 +18,11 @@ function failureCode(error: unknown): string {
  * retries it. True when completed.
  */
 export async function finishAccountDeletion(env: Env, userId: string): Promise<boolean> {
+	return (await attemptAccountDeletion(env, userId)) === null;
+}
+
+/** The same step for the resume: null when completed, otherwise the failed attempts so far. */
+export async function attemptAccountDeletion(env: Env, userId: string): Promise<number | null> {
 	const record = (code: string | null) =>
 		withDb(env.HYPERDRIVE.connectionString, { kind: 'job' }, async (tx) =>
 			(await tx<{ attempts: number }[]>`select app.record_account_deletion_attempt(${userId}::uuid, ${code}) as attempts`)[0]!.attempts);
@@ -27,10 +32,10 @@ export async function finishAccountDeletion(env: Env, userId: string): Promise<b
 		const code = failureCode(error);
 		const attempts = await record(code);
 		logEvent('account_deletion_failed', { userId, code, attempts });
-		return false;
+		return attempts;
 	}
 	await record(null);
-	return true;
+	return null;
 }
 
 /** The plan of app.account_deletion_plan(); null for an unknown user (in a savepoint: the transaction goes on). */

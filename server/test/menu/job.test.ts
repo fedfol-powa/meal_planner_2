@@ -154,6 +154,34 @@ describe.skipIf(!hasDatabase)('weekly job', () => {
 		await holder.end();
 	});
 
+	it('the weekly job skips a family deleted during the run with weekly_job_family_gone', async () => {
+		const fx = menuFixtures(db);
+		const { familyId } = await fx.member();
+		const holder = postgres(db.appServerUrl, { max: 1, fetch_types: false });
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => (release = resolve));
+		let locked!: () => void;
+		const isLocked = new Promise<void>((resolve) => (locked = resolve));
+		const lock = withDbOn(holder, { kind: 'job' }, async (tx) => {
+			await lockFamilyWeeks(tx, familyId);
+			locked();
+			await held;
+		});
+		await isLocked;
+		const logs = vi.spyOn(console, 'log').mockImplementation(() => {});
+		// Selected as an open job, then waiting on the family lock while the family is deleted.
+		const job = runWeeklyJobOn(sql, new Date('2026-12-16T20:00:00Z'), { families: [familyId] });
+		await new Promise((r) => setTimeout(r, 100));
+		await db.admin`delete from app.families where id = ${familyId}`;
+		release();
+		const [, result] = await Promise.all([lock, job]);
+		expect(result.failed).toBe(0);
+		expect(events(logs)).toContainEqual({ event: 'weekly_job_family_gone', familyId, weekStart: '2026-12-21' });
+		expect(events(logs).map((e) => e.event)).not.toContain('weekly_job_failed');
+		logs.mockRestore();
+		await holder.end();
+	});
+
 	it('keeps serving the other families when saving abandoned or failed fails, and leaves those jobs recoverable', async () => {
 		const abandoning = await db.createFamily([]);
 		const failingSave = await db.createFamily([]);
