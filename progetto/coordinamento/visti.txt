@@ -231,3 +231,4 @@ w1:p42	STATO: SPEC_E_PIANO_CORRETTI #7b55f46b
 w1:p42	STATO: SPEC_E_PIANO_CORRETTI #4510c30f
 w1:p42	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/52 #9de3a65e
 w1:p42	STATO: PR_CORRETTA #2aa32a12
+w1:p42	STATO: PR_CORRETTA #af31d7bc
