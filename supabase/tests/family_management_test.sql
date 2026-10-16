@@ -541,6 +541,18 @@ insert into app.user_roles (user_id, role) values (tests.uid('da'), 'app_admin')
 select tests.login('da');
 select app.create_app_invitation('00000000-0000-4000-8000-00000000e101', tests.h('ai1'), 'invited-by-da@x.it', '[]');
 reset role;
+-- App invitations addressed to da: the one da accepted, one still pending for the email (sent
+-- before the account existed), one revoked; and one for someone else.
+insert into app.app_invitations (id, token_hash, email, created_by, expires_at, status, reserved_user_id, reserved_at, accepted_by, accepted_at, revoked_at)
+values
+	('00000000-0000-4000-8000-00000000e112', tests.h('ai-accepted'), 'da@test.local', tests.uid('elena'), now() + interval '7 days',
+		'accepted', tests.uid('da'), now(), tests.uid('da'), now(), null),
+	('00000000-0000-4000-8000-00000000e113', tests.h('ai-pending'), 'da@test.local', tests.uid('elena'), now() + interval '7 days',
+		'pending', null, null, null, null, null),
+	('00000000-0000-4000-8000-00000000e114', tests.h('ai-revoked'), 'da@test.local', tests.uid('elena'), now() + interval '7 days',
+		'revoked', null, null, null, null, now()),
+	('00000000-0000-4000-8000-00000000e115', tests.h('ai-other'), 'someone-else@x.it', tests.uid('elena'), now() + interval '7 days',
+		'pending', null, null, null, null, null);
 
 -- Plan
 select tests.login('dc');
@@ -599,6 +611,17 @@ select is((select count(*) from app.families where id = tests.family('S1')), 1::
 select is(tests.reason('00000000-0000-4000-8000-00000000e002'), 'creator_deleted', 'link revoked');
 select is(tests.reason('00000000-0000-4000-8000-00000000e003'), 'creator_deleted', 'expired open link revoked');
 select is((select status from app.app_invitations where id = '00000000-0000-4000-8000-00000000e101'), 'revoked', 'app invitation revoked');
+select is((select count(*) from app.app_invitations where email = 'da@test.local'), 0::bigint, 'no app invitation keeps the email');
+select is((select status || '/' || coalesce(email, '-') from app.app_invitations where id = '00000000-0000-4000-8000-00000000e112'),
+	'accepted/-', 'accepted app invitation: kept, without the email');
+select is((select status || '/' || coalesce(email, '-') from app.app_invitations where id = '00000000-0000-4000-8000-00000000e113'),
+	'revoked/-', 'pending app invitation for the email: revoked, without the email');
+select is((select status || '/' || coalesce(email, '-') from app.app_invitations where id = '00000000-0000-4000-8000-00000000e114'),
+	'revoked/-', 'revoked app invitation for the email: without the email');
+select is((select status || '/' || coalesce(email, '-') from app.app_invitations where id = '00000000-0000-4000-8000-00000000e115'),
+	'pending/someone-else@x.it', 'app invitation of someone else unchanged');
+select throws_ok($$update app.app_invitations set email = null where id = '00000000-0000-4000-8000-00000000e115'$$,
+	'23514', null, 'a pending app invitation needs its email');
 select is(
 	(select count(*) from app.ratings where user_id = tests.uid('da'))
 	+ (select count(*) from app.user_roles where user_id = tests.uid('da'))
@@ -616,6 +639,9 @@ select tests.login('elena');
 select throws_ok(format('select app.set_user_role(%L, %L, true)', tests.uid('da'), 'app_admin'), 'P0A07', null, 'no role for a pending account');
 select throws_ok($$select app.create_app_invitation(gen_random_uuid(), tests.h('ai2'), 'da@test.local', '[]')$$, 'P0A03', null, 'email still taken');
 select is((select count(*) from app.admin_account_deletions() where user_id = tests.uid('da')), 1::bigint, 'admins see the pending row');
+select is((select count(*) from app.app_invitations_view() where email = 'da@test.local'), 0::bigint, 'the admin view has no email of da');
+select is((select coalesce(email, '-') || '/' || status from app.app_invitations_view() where id = '00000000-0000-4000-8000-00000000e112'),
+	'-/accepted', 'the admin view lists the accepted invitation without the email');
 select is((app.account_deletion_plan(tests.uid('da')) ->> 'pending')::boolean, true, 'plan says pending');
 reset role;
 select tests.login('dc');
@@ -642,6 +668,8 @@ select tests.become('app_job');
 select is(app.record_account_deletion_attempt(current_setting('tests.da')::uuid, null), 1, 'closed');
 reset role;
 select ok((select completed_at is not null from app.account_deletions where user_id = current_setting('tests.da')::uuid), 'completed');
+select is((select accepted_by is null and email is null from app.app_invitations where id = '00000000-0000-4000-8000-00000000e112'),
+	true, 'after Auth: the accepted invitation has neither the account nor the email');
 select throws_ok(format($$insert into auth.users (id, email, aud, role) values (%L, 'da2@x.it', 'authenticated', 'authenticated')$$, current_setting('tests.da')),
 	'P0A01', null, 'a deleted id cannot get a profile again');
 select is((select count(*) from auth.users where email = 'da2@x.it'), 0::bigint, 'no account left');

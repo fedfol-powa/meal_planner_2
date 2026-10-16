@@ -1,3 +1,5 @@
+import type { Contract } from '@app/contract';
+import type { ContractRouterClient } from '@orpc/contract';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { finishAccountDeletion } from '../src/account/delete.ts';
 import { errorOf, setupActors, type Actor, type Actors } from './support/actors.ts';
@@ -5,7 +7,7 @@ import { onlyAppAdmins } from './support/app-admins.ts';
 import { hasDatabase } from './support/db.ts';
 import { installFakeAuth } from './support/fake-auth.ts';
 import { holdTransaction } from './support/hold.ts';
-import { mcp, rest, toolBody } from './support/requests.ts';
+import { mcp, rest, rpcClient, toolBody } from './support/requests.ts';
 
 const adminUrl = process.env.TEST_DATABASE_URL!;
 
@@ -183,6 +185,20 @@ describe.skipIf(!hasDatabase)('account and user deletion', () => {
 			expect(await deletionRow(target.userId)).toMatchObject({ completed: true, requested_by: admin.userId });
 			expect(await admin.client.users.delete({ id: target.userId, successors: {}, deletedFamilies: [] })).toEqual({ completed: true });
 			expect((await errorOf(admin.client.users.delete({ id: crypto.randomUUID(), successors: {}, deletedFamilies: [] }))).code).toBe('not_found');
+		});
+
+		it('an account born from an app invitation leaves its email in no invitation, also in the admin list', async () => {
+			const admin = await appAdmin();
+			const email = `p${crypto.randomUUID().slice(0, 8)}@x.it`;
+			const { invitation, url } = await admin.client.appInvitations.create({ id: crypto.randomUUID(), email, roles: [] });
+			const anonymous = rpcClient<ContractRouterClient<Contract>>(actors.app, actors.env);
+			await anonymous.appInvitations.accept({ token: url.split('#')[1]!, email, displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' });
+			const [user] = await actors.db.admin<{ id: string }[]>`select id from auth.users where email = ${email}`;
+			expect(await admin.client.users.delete({ id: user!.id, successors: {}, deletedFamilies: [] })).toEqual({ completed: true });
+			expect(await actors.db.admin`select id from app.app_invitations where email = ${email}`).toHaveLength(0);
+			const { invitations } = await admin.client.appInvitations.list({});
+			expect(invitations.find((i) => i.id === invitation.id)).toMatchObject({ email: null, status: 'accepted', acceptedByName: null });
+			expect(JSON.stringify(invitations)).not.toContain(email);
 		});
 
 		it('users.delete on a pending row repeats only the Auth step; list and get carry the deletion', async () => {

@@ -610,6 +610,11 @@ grant execute on function app.delete_family(uuid) to authenticated;
 -- Account deletion (spec, sections 1 and 4): the first transaction deletes the app data and
 -- writes a pending row; the server then deletes the Auth account and closes the row.
 
+-- Decision 24: an app invitation of activity A loses its email when the account it belongs to is
+-- deleted. Additive: only a pending invitation still needs one.
+alter table app.app_invitations alter column email drop not null,
+	add constraint app_invitations_pending_email check (status <> 'pending' or email is not null);
+
 -- Decision 18: a role needs the recipient's profile. FOR KEY SHARE queues an assignment in
 -- progress with begin_account_deletion, which deletes the profile before the roles (step 10).
 create function app.user_roles_require_profile() returns trigger
@@ -728,6 +733,12 @@ begin
 		order by id for update;
 	perform 1 from app.family_invitation_reservations where user_id = p_user_id or email = v_email
 		order by user_id for update;
+	-- Then, among the rest, the app invitations of activity A that step 8 touches, in id order. Row
+	-- locks only: this path never waits on A's advisory locks, so A's paths (advisory locks, then
+	-- the row) cannot wait on it in a cycle.
+	perform 1 from app.app_invitations
+		where (created_by = p_user_id and status = 'pending') or accepted_by = p_user_id or email = v_email
+		order by id for update;
 	-- 6. The plan again, under the locks.
 	select coalesce(array_agg(d.family_id order by d.family_id), '{}') into v_deleted
 		from app.account_deletion_families(p_user_id) d where d.outcome = 'deleted';
@@ -754,7 +765,10 @@ begin
 	-- 8. Links, app invitations, reservations (by id or email), join records.
 	perform app.revoke_invitations_of(null, p_user_id, 'creator_deleted');
 	update app.app_invitations set status = 'revoked', revoked_at = now(), revoked_by = auth.uid()
-		where created_by = p_user_id and status = 'pending';
+		where status = 'pending' and (created_by = p_user_id or email = v_email);
+	-- The email of the account leaves the app invitations it accepted or that were addressed to it
+	-- (decision 24): the administration then shows «account cancellato».
+	update app.app_invitations set email = null where accepted_by = p_user_id or email = v_email;
 	update app.family_invitation_reservations
 		set email = null,
 			status = case when status = 'reserved' then 'closed' else status end,

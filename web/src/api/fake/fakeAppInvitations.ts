@@ -79,7 +79,7 @@ export function createFakeAppInvitations(latencyMs = 0, accountExists: (email: s
       if (!usable(row)) throw new ApiError('invitation_unavailable');
       if (row.email !== email.trim().toLowerCase()) throw new ApiError('invalid', { issues: [{ path: ['email'], code: 'email_mismatch' }] });
       Object.assign(row, { status: 'accepted', acceptedAt: new Date().toISOString(), acceptedByName: displayName });
-      return delayed({ email: row.email });
+      return delayed({ email: email.trim().toLowerCase() });
     }
   };
   stores.set(area, rows);
@@ -97,6 +97,11 @@ const rowOf = (owner: object, id: string) => [...(stores.get(owner)?.values() ??
 export function expireFakeInvitation(owner: FakeArea | Area | Api, id: string): void {
   const row = rowOf(owner, id);
   if (row) row.expiresAt = new Date(Date.now() - 1000).toISOString();
+}
+/** Tests: the invitation as after the deletion of its account, without the email. */
+export function eraseFakeInvitationEmail(owner: FakeArea | Area | Api, id: string): void {
+  const row = rowOf(owner, id);
+  if (row) row.email = null;
 }
 /** Tests: the valid link token of an invitation. */
 export function fakeTokenOf(owner: FakeArea | Area | Api, id: string): string {

@@ -2,7 +2,7 @@ import type { AppInvitationView, GlobalRole } from '@app/contract';
 
 /** A row of app.app_invitations_view(); roles arrive as jsonb, already an array. */
 export interface InvitationRow {
-	id: string; email: string; roles: GlobalRole[]; status: 'pending' | 'accepted' | 'revoked';
+	id: string; email: string | null; roles: GlobalRole[]; status: 'pending' | 'accepted' | 'revoked';
 	created_by: string | null; created_by_name: string | null; created_at: Date; expires_at: Date;
 	accepted_by_name: string | null; accepted_at: Date | null; revoked_at: Date | null;
 }

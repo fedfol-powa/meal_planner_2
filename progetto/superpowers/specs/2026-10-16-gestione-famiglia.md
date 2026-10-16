@@ -73,11 +73,15 @@ Fuori: email (D), Google, ripristino del ricettario, foto, PDF (E).
 | 21 | **Registro degli ingressi** (rilievo 7, decisione del coordinatore): ogni ingresso da link, con account nuovo o esistente, scrive link, persona e momento in `app.family_joins`; l'amministratore della famiglia li vede nella pagina dei membri. Una ripetizione senza effetti non scrive; un rientro dopo un'uscita scrive una riga nuova. Alla cancellazione dell'account le righe della persona si cancellano | Chi è entrato, con quale link e quando |
 | 22 | **Dati personali delle prenotazioni** (rilievo 8): alla cancellazione dell'account le prenotazioni della persona perdono l'email e passano a `closed`; restano solo invito, id prenotato e date, che servono al tetto e all'idempotenza. Una nuova registrazione con la stessa email crea un account nuovo con un id nuovo, se il tetto lo permette | Nessuna email resta dopo la cancellazione; liberare la quota permetterebbe nuove creazioni |
 | 23 | **Revoca locale annullabile** (rilievo 9): la revoca di una famiglia sul dispositivo si annulla solo con una conferma del server partita **dopo** la revoca (risposta di `family.join` o un profilo letto che contiene di nuovo la famiglia). Non torna nessun dato vecchio: le viste e la coda della spesa sono già state tolte | Un rientro autorizzato deve funzionare nella stessa sessione, senza che una risposta tardiva annulli una revoca più recente |
+| 24 | **Email negli inviti all'app** (revisione della PR, rilievo 1): la prima transazione della cancellazione revoca anche gli inviti all'app ancora aperti per l'email dell'account e toglie l'email (`email = null`) da quelli che l'account ha accettato e da tutti quelli indirizzati alla sua email; le righe restano, con ruoli, autore e date. L'amministrazione mostra «account cancellato» al posto dell'email. Unica modifica a una tabella esistente, solo additiva: `app.app_invitations.email` ammette `null`, con il vincolo che un invito `pending` ha sempre l'email | La conferma promette «nome, email, voti e accessi»; dopo la cascata di Auth `accepted_by` diventa nullo e la riga non sarebbe più riconducibile all'account |
 
 ## 1. Database
 
 Migrazione `supabase/migrations/20261016100000_family_management.sql`, **solo additiva**:
-tabelle e funzioni nuove, nessuna modifica a tabelle o funzioni esistenti. Tutte le
+tabelle e funzioni nuove, nessuna modifica a tabelle o funzioni esistenti salvo una,
+additiva: `app.app_invitations.email` ammette `null` per gli inviti di un account
+cancellato, con il vincolo `app_invitations_pending_email` (un invito `pending` ha sempre
+l'email; decisione 24). Tutte le
 funzioni nello schema `app`, `security definer`, `set search_path = ''`, `EXECUTE`
 revocato a `public` e concesso solo ai ruoli indicati. Le funzioni per gli utenti
 ricontrollano l'autorizzazione al loro interno.
@@ -427,7 +431,12 @@ Il piano di cancellazione è lo stesso per sé e per un altro utente.
      dell'utente **e** di quelle delle prenotazioni con il suo id o la sua email, tutte in
      ordine di id, lette dopo i due lucchetti;
      poi i link aperti creati dall'utente e i link di quelle famiglie; poi quelle
-     prenotazioni;
+     prenotazioni; infine, fra il «resto», le righe di `app.app_invitations` che il
+     passo 8 tocca (aperte create dall'utente, accettate dall'account, indirizzate alla
+     sua email), in ordine di id e con il solo lucchetto di riga: questo percorso non
+     aspetta mai i lucchetti consultivi di A, quindi i percorsi di A (lucchetti
+     consultivi, poi la riga) non possono formare un ciclo con lui (revisione della PR,
+     rilievo 1);
   6. ricalcola il piano sotto i lucchetti: l'insieme delle famiglie `deleted` deve
      coincidere con `p_deleted_families` e per ogni famiglia `needs_successor`
      `p_successors[familyId]` deve esserci; insieme diverso: `P0A11`; successore
@@ -437,8 +446,10 @@ Il piano di cancellazione è lo stesso per sé e per un altro utente.
      `deleted` non è vuoto: `P0A15`, prima di qualsiasi scrittura;
   7. nomina i successori (`family_admin`);
   8. revoca i link alla famiglia aperti creati dall'utente (`creator_deleted`) e gli
-     inviti all'app `pending` creati dall'utente (`status = 'revoked'`, `revoked_by =
-     auth.uid()`); anonimizza le prenotazioni con il suo id **o con la sua email**, anche
+     inviti all'app `pending` creati dall'utente **o indirizzati alla sua email**
+     (`status = 'revoked'`, `revoked_by = auth.uid()`); toglie l'email (`email = null`)
+     dagli inviti all'app accettati dall'account e da tutti quelli indirizzati alla sua
+     email (decisione 24); anonimizza le prenotazioni con il suo id **o con la sua email**, anche
      su altri link e con id diversi (`email = null`, `status = 'closed'` se erano
      `reserved`, `finished_at`; decisione 22, seconda revisione, rilievo 4), e cancella
      le sue righe di `family_joins`;
@@ -1088,11 +1099,19 @@ porta a cancellare un account.
   eliminate, voti, ruoli, appartenenze e profilo cancellati, riga in attesa); seconda
   chiamata senza effetti; `record_account_deletion_attempt` che non chiude finché
   l'utente è in `auth.users`.
+- Inviti all'app e cancellazione (decisione 24): l'invito accettato dall'account, quello
+  ancora aperto per la sua email e quello revocato restano senza email (l'aperto
+  revocato); l'invito di un'altra persona non cambia; un invito `pending` senza email
+  viola il vincolo; la vista dell'amministrazione li elenca senza email, prima e dopo la
+  cancellazione in Auth.
 - Nomi «ex membro»: dopo la rimozione, autore del registro dei pasti, delle esclusioni e
   della spesa senza nome; media dei voti senza il rimosso, voto ancora presente.
 
 ### Server
 
+- `server/test/account-deletion.test.ts`, inviti all'app (decisione 24): invito all'app →
+  accettazione → `users.delete`; nessuna riga di `app.app_invitations` con l'email,
+  `appInvitations.list` con l'invito accettato senza email né nome.
 - `server/test/family-invitations.test.ts`: permessi (membro semplice `forbidden` su
   `list`, `create`, `revoke`); `create` restituisce `url` con il token nel frammento;
   `get` pubblico senza dati oltre a nome e chi invita; `accept` con account nuovo (con
@@ -1488,8 +1507,15 @@ profilo). **Funzioni nuove:** `app.family_joins_view`, `app.user_roles_require_p
 - Dopo l'uscita o l'eliminazione senza altre famiglie si va al Menu con «Non fai ancora
   parte di una famiglia» (il prototipo andava a `/welcome`, che l'app non ha).
 
+- Inviti all'app di un account cancellato: restano senza email, con «account cancellato»
+  nell'amministrazione; gli aperti per la sua email si revocano (revisione della PR,
+  rilievo 1; sezione 7, «Cancellazione dell'account»; inviti all'app).
+
 **Tecniche:**
 
+- `app.app_invitations.email` nullo per gli inviti di un account cancellato, vincolo
+  `app_invitations_pending_email`; righe bloccate dalla cancellazione dopo le
+  prenotazioni, senza i lucchetti consultivi di A (sezione 2; sezione 7).
 - Tabelle `family_invitations` (con `token_hash`, `revoke_reason`, senza `token` in
   chiaro: cambia la riga della sezione 2), `family_invitation_reservations` (con stato
   terminale, rintracciabili senza la famiglia), `family_joins`,

@@ -57,17 +57,19 @@ export function InvitationsSection() {
           {list.data.invitations.map((invitation) => {
             // An expired invitation is still pending in the database and, if reserved, can still be closed: it must be stoppable.
             const open_ = invitation.status === 'pending' || invitation.status === 'expired';
+            // Only an invitation whose account was deleted has no email, and it is never pending.
+            const email = invitation.email;
             return (
               <li key={invitation.id} className={styles.item}>
-                <span className={styles.email}>{invitation.email}</span>
+                <span className={styles.email}>{invitation.email ?? t('admin.deletedAccount')}</span>
                 <span className={styles.roles}>
                   {invitation.roles.length === 0 ? <span className={styles.role}>{t('admin.noRoles')}</span> : invitation.roles.map((role) => <span key={role} className={styles.role}>{t(`role.${role}`)}</span>)}
                 </span>
                 <span className="meta-line">{status(invitation)}</span>
                 {invitation.createdByName && <span className="meta-line">{t('admin.by', { name: invitation.createdByName })}</span>}
-                {open_ && (
+                {open_ && email !== null && (
                   <span className={styles.actions}>
-                    <button type="button" className="text-button" disabled={!online} onClick={() => open({ email: invitation.email, roles: invitation.roles })}>{t('admin.newLink')}</button>
+                    <button type="button" className="text-button" disabled={!online} onClick={() => open({ email, roles: invitation.roles })}>{t('admin.newLink')}</button>
                     <button type="button" className="text-button" disabled={!online} onClick={() => confirmRevoke(invitation)}>{t('admin.revoke')}</button>
                   </span>
                 )}

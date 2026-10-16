@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
-import { expireFakeInvitation, fakeTokenOf } from '../../api/fake/fakeAppInvitations';
+import { eraseFakeInvitationEmail, expireFakeInvitation, fakeTokenOf } from '../../api/fake/fakeAppInvitations';
 import { createFakeApi } from '../../api/fake/fakeApi';
 import { FAKE_GUEST_ID } from '../../api/fake/fakeUsers';
 import { DEMO_USER_ID } from '../../api/fake/seed';
@@ -55,6 +55,18 @@ it('revokes after confirmation', async () => {
   fireEvent.click(within(confirm).getByRole('button', { name: 'Revoca' }));
   await waitFor(() => expect(revoke).toHaveBeenCalledWith({ id: invitation.id }, expect.anything()));
   expect(await within((await screen.findByText('via@x.it')).closest('li')!).findByText(/^Revocato il /)).toBeTruthy();
+});
+
+it('an invitation whose account was deleted shows «account cancellato» instead of the email', async () => {
+  const api = adminApi();
+  const { invitation } = await api.appInvitations.create({ id: crypto.randomUUID(), email: 'andata@x.it', roles: [] });
+  await api.appInvitations.revoke({ id: invitation.id });
+  eraseFakeInvitationEmail(api, invitation.id);
+  renderApp('/admin', { api });
+  const row = (await screen.findByText('account cancellato')).closest('li')!;
+  expect(within(row).getByText(/^Revocato il /)).toBeTruthy();
+  expect(within(row).queryByRole('button')).toBeNull();
+  expect(screen.queryByText('andata@x.it')).toBeNull();
 });
 
 it('one creation per tap burst, and a late answer of a closed sheet never shows its link', async () => {
