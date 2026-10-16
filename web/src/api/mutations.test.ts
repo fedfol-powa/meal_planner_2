@@ -357,3 +357,55 @@ describe('user role mutations', () => {
     expect(outcome.applied).toBe(false);
   });
 });
+
+describe('family management mutations (W11)', () => {
+  const profileKey = ['profile', 'get', { locale: 'it-IT' }];
+  const familyKey = ['family', 'get', { familyId: FAMILY, locale: 'it-IT' }];
+  const linksKey = ['familyInvitations', 'list', { familyId: FAMILY }];
+  const joinsKey = ['familyInvitations', 'listJoins', { familyId: FAMILY }];
+  const profile = (current: string | null) => ({ user: { id: 'u' }, families: current ? [{ id: current }] : [], currentFamilyId: current });
+
+  it('links: created and revoked links read the list again', async () => {
+    const { client, run } = harness();
+    client.setQueryData(linksKey, { invitations: [] });
+    for (const name of ['familyInvitations.create', 'familyInvitations.revoke'] as const) {
+      client.setQueryData(linksKey, { invitations: [] });
+      expect((await run(name, FAMILY, async () => ({ invitations: [] }))).applied).toBe(true);
+      expect(client.getQueryState(linksKey)?.isInvalidated).toBe(true);
+    }
+  });
+
+  it('join, leave and delete write the profile from the answer', async () => {
+    const { client, run } = harness();
+    for (const name of ['family.join', 'family.leave', 'family.delete'] as const) {
+      const view = profile(name === 'family.join' ? FAMILY : null);
+      await run(name, name === 'family.join' ? undefined : FAMILY, async () => view);
+      expect(client.getQueryData(profileKey)).toEqual(view);
+    }
+  });
+
+  it('role changes and removals write the family and read the links and joins again', async () => {
+    const { client, run } = harness();
+    for (const name of ['family.setMemberRole', 'family.removeMember'] as const) {
+      client.setQueryData(familyKey, { version: 'v1', data: { members: [] } });
+      client.setQueryData(linksKey, { invitations: [] });
+      client.setQueryData(joinsKey, { joins: [] });
+      const view = { id: FAMILY, members: [{ userId: 'x' }] };
+      await run(name, FAMILY, async () => view);
+      expect(client.getQueryData(familyKey)).toEqual({ version: 'v1', data: view });
+      expect(client.getQueryState(linksKey)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(joinsKey)?.isInvalidated).toBe(true);
+    }
+  });
+
+  it('account.delete writes nothing; users.delete reads the users again', async () => {
+    const { client, run } = harness();
+    client.setQueryData(profileKey, profile(FAMILY));
+    await run('account.delete', undefined, async () => ({ completed: true }));
+    expect(client.getQueryData(profileKey)).toEqual(profile(FAMILY));
+    const listKey = ['users', 'list', { query: '' }];
+    client.setQueryData(listKey, { users: [], more: false });
+    await run('users.delete', undefined, async () => ({ completed: true }), { track: 'users:x' });
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+  });
+});

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Read } from '../types';
-import { createFakeApi, DEMO_FAMILY_ID } from './fakeApi';
+import { createFakeApi, createFakeData, DEMO_FAMILY_ID } from './fakeApi';
 
 const familyId = DEMO_FAMILY_ID;
 const as = (id: string, email = `${id}@example.com`) => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, user: { id, email } });
@@ -71,4 +71,34 @@ describe('fake family creation', () => {
     expect(again.families.filter((f) => f.id === id)).toHaveLength(1);
     expect((await api.profile.get({})).currentFamilyId).toBe(id);
   });
+
+  it('changes roles, protects the last administrator, removes and lets members leave', async () => {
+    const shared = createFakeData({ id: 'user-federico', email: 'federico@example.com' });
+    const on = (id: string) => createFakeApi({ getLocale: () => 'it-IT', data: { ...shared, user: { id, email: `${id}@example.com` } } as typeof shared });
+    const federico = on('user-federico');
+    await expect(federico.family.setMemberRole({ familyId, userId: 'user-federico', role: 'member' })).rejects.toMatchObject({ code: 'last_admin' });
+    const promoted = await federico.family.setMemberRole({ familyId, userId: 'user-anna', role: 'family_admin' });
+    expect(promoted.members.find((m) => m.userId === 'user-anna')?.role).toBe('family_admin');
+    await expect(federico.family.setMemberRole({ familyId, userId: 'user-marco', role: 'member' })).rejects.toMatchObject({ code: 'not_found' });
+    await expect(federico.family.removeMember({ familyId, userId: 'user-federico' })).rejects.toMatchObject({ code: 'invalid' });
+    const removed = await federico.family.removeMember({ familyId, userId: 'user-tom' });
+    expect(removed.members.map((m) => m.userId)).not.toContain('user-tom');
+    await expect(on('user-tom').family.get({ familyId })).rejects.toMatchObject({ code: 'forbidden' });
+    const left = await on('user-anna').family.leave({ familyId });
+    expect(left.families.map((f) => f.id)).not.toContain(familyId);
+    await expect(federico.family.leave({ familyId })).rejects.toMatchObject({ code: 'sole_member' });
+  });
+
+  it('summarises and deletes the family for administrators only', async () => {
+    const shared = createFakeData({ id: 'user-federico', email: 'federico@example.com' });
+    const on = (id: string) => createFakeApi({ getLocale: () => 'it-IT', data: { ...shared, user: { id, email: `${id}@example.com` } } as typeof shared });
+    const summary = data(await on('user-anna').family.getDeletion({ familyId }));
+    expect(summary).toMatchObject({ name: 'Famiglia Folloni', memberNames: ['Anna', 'Federico', 'Tom'], canDelete: false });
+    expect(summary.weekCount).toBeGreaterThan(0);
+    await expect(on('user-anna').family.delete({ familyId })).rejects.toMatchObject({ code: 'forbidden' });
+    const profile = await on('user-federico').family.delete({ familyId });
+    expect(profile.families.map((f) => f.id)).not.toContain(familyId);
+    await expect(on('user-anna').family.get({ familyId })).rejects.toMatchObject({ code: 'forbidden' });
+  });
 });
+

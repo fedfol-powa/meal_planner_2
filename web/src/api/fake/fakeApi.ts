@@ -1,6 +1,8 @@
 import { createFakeAgents, createFakeAgentsData, type FakeAgent } from './fakeAgents';
 import type { GlobalRole } from '@app/contract';
+import { createFakeAccount } from './fakeAccount';
 import { createFakeAppInvitations, registerFakeInvitations } from './fakeAppInvitations';
+import { createFakeFamilyInvitations } from './fakeFamilyInvitations';
 import { createFakeUsers } from './fakeUsers';
 import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Department } from '@app/domain/shopping';
@@ -134,7 +136,14 @@ export function createFakeApi(options: FakeApiOptions): Api {
   const { weeks, recipes, ratings } = state;
   const user = state.user;
   const userId = user?.id ?? DEMO_USER_ID;
-  const memberIds = new Set([...DEMO_PEOPLE.map((p) => p.id), userId]);
+  // A person seen for the first time is a member of the demo family (the fake mode's starting point);
+  // one who left, was removed or saw the family deleted is not added back (W11).
+  if (!state.family.known.has(userId)) {
+    state.family.known.add(userId);
+    if (!state.family.deleted) state.family.members.push({ id: userId, role: 'member', joinedAt: '2026-10-01T09:00:00+02:00' });
+  }
+  const isMember = () => !state.family.deleted && state.family.members.some((m) => m.id === userId);
+  const memberIds = { has: (id: string) => state.family.members.some((m) => m.id === id) };
   const seedPerson = DEMO_PEOPLE.find((p) => p.id === userId);
   state.users ??= createFakeUsers({
     self: {
@@ -173,14 +182,21 @@ export function createFakeApi(options: FakeApiOptions): Api {
         globalRoles: state.users!.rolesOf(userId)
       },
       families: [
-        { id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' },
+        ...(isMember()
+          ? [{ id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: state.family.members.find((m) => m.id === userId)!.role }]
+          : []),
         ...state.createdFamilies.map((f) => ({ ...f, role: 'family_admin' as const }))
       ],
-      currentFamilyId: state.currentFamilyId ?? DEMO_FAMILY.id
+      currentFamilyId: shownFamily()
     } satisfies Awaited<ReturnType<Api['profile']['get']>>;
   }
+  /** The saved choice while still a family of the person, otherwise the first one (as the server). */
+  function shownFamily(): string | null {
+    const ids = [...(isMember() ? [DEMO_FAMILY.id] : []), ...state.createdFamilies.map((f) => f.id)];
+    return state.currentFamilyId && ids.includes(state.currentFamilyId) ? state.currentFamilyId : ids[0] ?? null;
+  }
   function checkFamily(familyId: string) {
-    if (familyId !== DEMO_FAMILY.id) throw new ApiError('forbidden');
+    if (familyId !== DEMO_FAMILY.id || !isMember()) throw new ApiError('forbidden');
   }
   const visibleWeeks = () => weeks.filter((w) => w.generatedAt <= now()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   const published = (id: string) => recipes.find((r) => r.id === id && r.status === 'published') ?? null;
@@ -233,7 +249,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
   function mealView(slot: DemoSlot, locale: Locale): MealView {
     const recipe = slot.recipeId ? recipes.find((r) => r.id === slot.recipeId) ?? null : null;
     const isPublished = recipe?.status === 'published';
-    const author = slot.updatedBy ? DEMO_PEOPLE.find((p) => p.id === slot.updatedBy)?.displayName ?? null : null;
+    // The name only while a member («ex membro» otherwise, as the server).
+    const author = slot.updatedBy && memberIds.has(slot.updatedBy) ? DEMO_PEOPLE.find((p) => p.id === slot.updatedBy)?.displayName ?? null : null;
     return {
       slotId: slot.id, date: slot.date, mealType: slot.mealType,
       kind: recipe ? 'recipe' : slot.freeText ? 'free' : 'empty',
@@ -303,6 +320,18 @@ export function createFakeApi(options: FakeApiOptions): Api {
     return [localized(recipe.name, locale), localized(recipe.description, locale), ...names].some((t) => normalize(t).includes(needle));
   }
 
+  const familyInvitations = createFakeFamilyInvitations({
+    data: state.family,
+    familyId: DEMO_FAMILY.id,
+    userId,
+    displayName: () => profileView().user.displayName,
+    profile: profileView,
+    show: (familyId) => void (state.currentFamilyId = familyId),
+    accountExists: (email) => state.users!.hasEmail(email),
+    delayed,
+    bump: () => void (state.revision += 1)
+  });
+
   const api: Api = {
     session: {
       // Same shape as the contract's answer; the real one comes from the Worker.
@@ -334,7 +363,6 @@ export function createFakeApi(options: FakeApiOptions): Api {
       ...createFakeFamily({
         data: state.family,
         userId,
-        role: DEMO_PEOPLE.find((p) => p.id === userId)?.role ?? 'member',
         displayName: () => profileView().user.displayName,
         locale: options.getLocale,
         books: data.books,
@@ -346,8 +374,11 @@ export function createFakeApi(options: FakeApiOptions): Api {
         checkFamily,
         respond,
         delayed,
-        bump: () => void (state.revision += 1)
+        bump: () => void (state.revision += 1),
+        profile: profileView,
+        weekCount: () => visibleWeeks().length
       }),
+      join: familyInvitations.join,
       // W9: the creator administers it and sees it; the fake has no menu for it.
       async create({ id, name, measurementSystem, timeZone }) {
         if (!state.createdFamilies.some((f) => f.id === id)) {
@@ -436,6 +467,22 @@ export function createFakeApi(options: FakeApiOptions): Api {
     },
     agents: createFakeAgents(state.agents, options.latencyMs),
     appInvitations: (state.appInvitations ??= createFakeAppInvitations(options.latencyMs, (email) => state.users!.hasEmail(email))),
+    familyInvitations: familyInvitations.area,
+    account: createFakeAccount({
+      data: state.family,
+      familyId: DEMO_FAMILY.id,
+      userId,
+      displayName: () => profileView().user.displayName,
+      createdFamilies: () => state.createdFamilies,
+      removeCreatedFamily: (id) => {
+        const index = state.createdFamilies.findIndex((f) => f.id === id);
+        if (index !== -1) state.createdFamilies.splice(index, 1);
+      },
+      isLastAppAdmin: () => state.users!.rolesOf(userId).includes('app_admin') && state.users!.appAdminCount() === 1,
+      connectedAgents: () => state.agents.length,
+      delayed,
+      bump: () => void (state.revision += 1)
+    }),
     users: state.users!.area,
     shopping: createFakeShopping({
       familyId: DEMO_FAMILY.id, userId, getLocale: options.getLocale, latencyMs: options.latencyMs,
@@ -480,5 +527,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), appInvitations: wrap(api.appInvitations), users: wrap(api.users), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals), agents: wrap(api.agents) };
+  return { session: wrap(api.session), appInvitations: wrap(api.appInvitations), familyInvitations: wrap(api.familyInvitations), account: wrap(api.account), users: wrap(api.users), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals), agents: wrap(api.agents) };
 }

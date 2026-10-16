@@ -1,7 +1,7 @@
-import { USERS_LIST_LIMIT, type GlobalRole, type UserDetail, type UserRow } from '@app/contract';
+import { USERS_LIST_LIMIT, type DeletionInput, type DeletionPlan, type GlobalRole, type UserDetail, type UserRow } from '@app/contract';
 import { ApiError } from '../errors';
 import type { Api } from '../types';
-import { DEMO_PEOPLE } from './seed';
+import { DEMO_FAMILY_ID, DEMO_PEOPLE } from './seed';
 
 type Area = Api['users'];
 type FamilyRole = 'family_admin' | 'member';
@@ -19,7 +19,7 @@ export function createFakeUsers(options: {
   familyName: () => string;
   latencyMs?: number;
 }) {
-  const people: Person[] = [
+  let people: Person[] = [
     { ...options.self, roles: sorted(options.self.roles) },
     ...DEMO_PEOPLE.filter((p) => p.id !== options.self.id).map((p) => ({ id: p.id, displayName: () => p.displayName, email: p.email, roles: [] as GlobalRole[], family: p.role })),
     { id: FAKE_GUEST_ID, displayName: () => 'Ospite', email: 'ospite@example.com', roles: [], family: null }
@@ -40,6 +40,26 @@ export function createFakeUsers(options: {
     return person;
   };
   const admins = () => people.filter((p) => p.roles.includes('app_admin'));
+  /** Another person: one's own account is deleted from the preferences. */
+  const other = (id: string) => {
+    if (id === options.self.id) throw new ApiError('not_allowed', { reason: 'own_account' });
+    return find(id);
+  };
+  const planOf = (p: Person): DeletionPlan => {
+    const others = people.filter((o) => o.id !== p.id && o.family);
+    const outcome = !p.family ? null : others.length === 0 ? 'deleted' : p.family === 'family_admin' && !others.some((o) => o.family === 'family_admin') ? 'needs_successor' : 'stays';
+    return {
+      families: outcome
+        ? [{
+            familyId: DEMO_FAMILY_ID, name: options.familyName(), outcome,
+            candidates: outcome === 'needs_successor' ? others.map((o) => ({ userId: o.id, displayName: o.displayName() })) : []
+          }]
+        : [],
+      lastAppAdmin: p.roles.includes('app_admin') && admins().length === 1,
+      openInvitations: 0,
+      pending: false
+    };
+  };
   const detail = (p: Person): UserDetail => ({
     user: { ...row(p), lastAppAdmin: p.roles.includes('app_admin') && admins().length === 1 },
     families: p.family ? [{ name: options.familyName(), role: p.family }] : []
@@ -57,6 +77,27 @@ export function createFakeUsers(options: {
       guard();
       return delayed(detail(find(id)));
     },
+    async getDeletionPlan({ id }: { id: string }) {
+      guard();
+      const person = other(id);
+      return delayed({ ...planOf(person), user: { id: person.id, displayName: person.displayName(), email: person.email } });
+    },
+    /** The rules of begin_account_deletion on these people (spec W11). */
+    async delete({ id, successors, deletedFamilies }: DeletionInput & { id: string }) {
+      guard();
+      const person = other(id);
+      const plan = planOf(person);
+      if (plan.lastAppAdmin) throw new ApiError('last_app_admin');
+      const deleted = plan.families.filter((f) => f.outcome === 'deleted').map((f) => f.familyId);
+      if (JSON.stringify(deleted) !== JSON.stringify([...new Set(deletedFamilies)].sort())) throw new ApiError('conflict');
+      for (const family of plan.families.filter((f) => f.outcome === 'needs_successor')) {
+        const successor = people.find((p) => p.id === successors[family.familyId] && family.candidates.some((c) => c.userId === p.id));
+        if (!successor) throw new ApiError('invalid', { issues: [{ path: ['successors'], code: 'successor' }] });
+        successor.family = 'family_admin';
+      }
+      people = people.filter((p) => p.id !== id);
+      return delayed({ completed: true });
+    },
     async setRole({ id, role, granted }: { id: string; role: GlobalRole; granted: boolean }) {
       guard();
       const person = find(id);
@@ -68,6 +109,7 @@ export function createFakeUsers(options: {
   return {
     area,
     rolesOf: (id: string) => [...(people.find((p) => p.id === id)?.roles ?? [])],
+    appAdminCount: () => admins().length,
     hasEmail: (email: string) => people.some((p) => p.email.toLowerCase() === email.trim().toLowerCase())
   };
 }

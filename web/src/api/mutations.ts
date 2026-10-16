@@ -5,9 +5,9 @@ import { familyOfKey } from './queries';
 import type { MealActionResult } from './types';
 
 /** The view a mutation answers with: the profile, one of the versioned views of a family, a week of the menu, the app invitations or the users. */
-export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations' | 'users';
+export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations' | 'users' | 'familyInvitations' | 'account';
 /** Lists read again instead of written by the registry: their answer is never put in the cache here. */
-const LIST_TARGETS = ['appInvitations', 'users'] as const;
+const LIST_TARGETS = ['appInvitations', 'users', 'familyInvitations', 'account'] as const;
 type ListTarget = (typeof LIST_TARGETS)[number];
 const isListTarget = (target: MutationTarget): target is ListTarget => (LIST_TARGETS as readonly string[]).includes(target);
 /** The targets whose answer is written in the cache. */
@@ -47,6 +47,18 @@ export const INVALIDATIONS = {
   // Read again; the profile too, as one's own roles may have changed. `applied` only for the
   // latest answer for that user: the page may then write it as the confirmed detail (spec W10).
   'users.setRole': { target: 'users', stale: ['profile'] },
+  // W11: links and joins are lists read again (not versioned); join, leave and delete answer the profile.
+  'familyInvitations.create': { target: 'familyInvitations', stale: [] },
+  'familyInvitations.revoke': { target: 'familyInvitations', stale: [] },
+  'family.join': { target: 'profile', stale: [] },
+  'family.leave': { target: 'profile', stale: [] },
+  'family.delete': { target: 'profile', stale: [] },
+  // The links of a demoted or removed person stop working; the joins show «ex membro».
+  'family.setMemberRole': { target: 'family', stale: familyReads({ area: 'familyInvitations' }) },
+  'family.removeMember': { target: 'family', stale: familyReads({ area: 'familyInvitations' }) },
+  // The session closes after the answer: nothing to write.
+  'account.delete': { target: 'account', stale: [] },
+  'users.delete': { target: 'users', stale: [] },
   'family.rename': { target: 'family', stale: ['profile'] },
   'family.setMeasurementSystem': {
     target: 'family',
