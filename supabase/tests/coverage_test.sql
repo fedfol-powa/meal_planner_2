@@ -34,7 +34,7 @@ select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('anon', p.oid, 'EXECUTE') order by 1),
 	array['account_id_deleted', 'app_invitation_by_token', 'claim_app_invitation', 'claim_family_invitation', 'complete_app_invitation',
-		'complete_family_invitation', 'family_invitation_by_token', 'temporary_list_by_token'], 'anon executes only the token functions');
+		'complete_family_invitation', 'family_invitation_by_token', 'served_photo', 'temporary_list_by_token'], 'anon executes only the token functions and the photo lookup');
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE') order by 1),
