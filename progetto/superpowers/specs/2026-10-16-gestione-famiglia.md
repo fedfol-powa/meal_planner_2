@@ -946,6 +946,13 @@ dalla versione precedente vale `{ revokedAt: n, restoredAt: 0 }`):
   scarta (errore interno `stale_after_revocation`, che il gestore della sessione non
   mostra e che fa solo ripetere la lettura): non entra né nella cache né nella copia
   salvata, anche se arriva dopo il ripristino;
+- **conferme della spesa** (revisione della PR, rilievo 2): la coda fissa `startedAt`
+  con l'orologio della sessione prima di spedire ogni operazione e lo porta con la
+  risposta (`ConfirmedResult`), anche nel messaggio `confirmed` fra le schede;
+  `applyConfirmedList` scrive la vista con `producedAt = startedAt`. Una conferma con
+  `revokedAt >= startedAt` per la famiglia non si scrive, anche se la famiglia è già
+  stata ripristinata; un messaggio di una scheda della versione precedente, senza
+  `startedAt`, vale come iniziato prima di qualsiasi revoca;
 - **pulizia, separata dall'accesso**: ogni revoca, propria o ricevuta (messaggio
   `{ type: 'revoked', userId, familyId, revokedAt }` con l'istante originale), **toglie
   sempre** dalla scheda le viste della famiglia con `producedAt <= revokedAt` e le
@@ -964,7 +971,15 @@ dalla versione precedente vale `{ revokedAt: n, restoredAt: 0 }`):
   e applica le stesse due regole (accesso e `producedAt <= revokedAt`);
 - `restore` lo chiamano la risposta di `family.join` (e di `family.create`) con la
   famiglia nel profilo restituito, e ogni profilo letto che contiene la famiglia, con
-  l'istante di inizio di quella richiesta.
+  l'istante di inizio di quella richiesta;
+- **conferma prima della revoca** (revisione della PR, rilievo 3): la scheda ricorda,
+  solo in memoria, l'inizio dell'ultima conferma del server per ogni famiglia (profilo
+  letto o risposta di `family.join`/`family.create`), anche quando non conosce nessuna
+  revoca. Se poi le arriva una revoca più vecchia di quella conferma (messaggio di
+  un'altra scheda in ritardo, o record letti dal dispositivo dopo il profilo), la
+  pulizia avviene come sempre e subito dopo `restore(familyId, conferma)`, che salva il
+  record e lo annuncia alle altre schede. Il limite dei ripristini da profilo letto vale
+  anche qui: una conferma scartata dal limite non si ricorda.
 
 Alternativa scartata: far solo pulire e rileggere il profilo a ogni messaggio. Lascerebbe
 il problema della copia persistita riscritta da una scheda in ritardo e non direbbe a una
@@ -1285,7 +1300,14 @@ collegamento) rifiutato dopo. Eseguito da `scripts/invitations/invite-stack.sh`
   dopo il ripristino → il record resta `{ t1, t2 }`, famiglia visibile; una terza sessione
   avviata dopo, con una copia persistita che contiene viste della famiglia anteriori a
   t1, non le ripristina e mostra la famiglia; record numerico della versione precedente
-  letto come `revokedAt`.
+  letto come `revokedAt`. Revisione della PR, rilievi 2 e 3 (`familyAccess.test.ts`, con
+  la vera `applyConfirmedList` e la coda): revoca a 100, ripristino a 200, lettura a 250,
+  modifica della spesa confermata a 260 → la vista ha `producedAt = 260` e la copia
+  salvata la tiene; conferma di un'altra scheda partita a 50 e consegnata dopo il
+  ripristino → la lista fresca resta; la scheda B legge il profilo a 200 prima di
+  ricevere `revoked(100)` di A → resta accessibile in entrambe le schede e il record è
+  `{ 100, 200 }`, mentre una revoca a 400 vince; una sessione che legge il profilo prima
+  dei record del dispositivo tiene la famiglia confermata.
 - Pagina dell'invito con `joined: false`: testo dell'account pronto e accesso con
   l'email; uscita con `invalid` su `successorId`: il foglio passa alla scelta del
   successore; card «Ingressi con i link» con «ex membro» e «Account nuovo».
@@ -1550,5 +1572,6 @@ profilo). **Funzioni nuove:** `app.family_joins_view`, `app.user_roles_require_p
 - Divieto MCP della cancellazione che elimina famiglie verificato nel database sotto i
   lucchetti, dal `client_id` del token (sezione 13).
 - Ripetizione una volta su `40P01` per le tre operazioni di cancellazione (sezione 1).
-- Revoca locale di una famiglia annullabile solo da una conferma del server successiva
-  (sezione 1, dati sul dispositivo).
+- Revoca locale di una famiglia annullabile solo da una conferma del server successiva,
+  anche se la conferma arriva nella scheda prima della revoca; conferme della spesa con
+  l'istante d'inizio della richiesta (sezione 1, dati sul dispositivo).

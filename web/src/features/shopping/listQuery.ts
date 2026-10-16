@@ -2,7 +2,7 @@ import type { ShoppingListView } from '@app/contract';
 import { queryOptions, type Query, type QueryClient } from '@tanstack/react-query';
 import { readThrough, type QueryDeps, type Versioned } from '../../api/queries';
 import type { Locale } from '../../i18n/translate';
-import type { SendResult } from './queue/queue';
+import type { ConfirmedResult } from './queue/queue';
 
 export const shoppingListKey = (familyId: string, weekStartsOn: string, locale: Locale) =>
   ['shopping', 'getWeekList', { familyId, weekStartsOn, locale }] as const;
@@ -31,7 +31,7 @@ export async function applyConfirmedList(
   queryClient: QueryClient,
   familyId: string,
   weekStartsOn: string,
-  result: SendResult,
+  result: ConfirmedResult,
   isCurrent: () => boolean = () => true
 ): Promise<void> {
   const matches = isList(familyId, weekStartsOn);
@@ -39,6 +39,11 @@ export async function applyConfirmedList(
   // Checked again after the wait: the session may have closed or the family been revoked meanwhile.
   if (!isCurrent()) return;
   const key = shoppingListKey(familyId, weekStartsOn, result.data.locale);
-  queryClient.setQueryData<Versioned<ShoppingListView>>(key, { version: result.version, data: result.data });
+  // Produced when its request started (spec W11): the device keeps it after a later return to the family.
+  queryClient.setQueryData<Versioned<ShoppingListView>>(key, {
+    version: result.version,
+    data: result.data,
+    ...(result.startedAt !== undefined ? { producedAt: result.startedAt } : {})
+  });
   void queryClient.invalidateQueries({ predicate: (query) => matches(query) && query.queryKey[2] !== undefined && (query.queryKey[2] as { locale?: unknown }).locale !== result.data.locale });
 }

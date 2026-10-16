@@ -8,8 +8,10 @@ import { CACHE_SCHEMA, cacheKey, createMemoryStore, revokedKey } from '../api/pe
 import { profileQuery } from '../api/profile';
 import { queryKeys, readThrough, weekQuery, type QueryDeps, type Versioned } from '../api/queries';
 import type { Api, FamilyDetailView, ProfileView, WeekView } from '../api/types';
-import { createShoppingQueue } from '../features/shopping/queue/queue';
-import { FAMILY, grams, MONDAY, ops, OTHER_FAMILY, RICE, TOMATO, USER } from '../features/shopping/fixtures';
+import type { ShoppingListView } from '@app/contract';
+import { applyConfirmedList, shoppingListKey, shoppingListQuery } from '../features/shopping/listQuery';
+import { createShoppingQueue, type SendResult } from '../features/shopping/queue/queue';
+import { FAMILY, grams, listView, MONDAY, ops, OTHER_FAMILY, RICE, TOMATO, USER } from '../features/shopping/fixtures';
 import { setOnline } from '../test/connectivity';
 import type { SessionChannel, SessionMessage } from './channel';
 import { createSession, persisterOf, type Session } from './session';
@@ -73,7 +75,7 @@ const saveCopy = (session: Session, state = dehydrate(session.queryClient)) =>
   persisterOf(session)!.persistClient({ timestamp: Date.now(), buster: CACHE_SCHEMA, clientState: state });
 const savedFamilies = (store: Store) =>
   ((store.entries.get(cacheKey(USER)) as { clientState: ReturnType<typeof dehydrate> }).clientState.queries).map((query) => ({
-    familyId: (query.queryKey[2] as { familyId?: string }).familyId,
+    familyId: (query.queryKey[2] as { familyId?: string } | undefined)?.familyId,
     producedAt: (query.state.data as { producedAt?: number } | undefined)?.producedAt
   }));
 
@@ -455,5 +457,81 @@ describe('views produced before a revocation (fourth review, finding 1)', () => 
     time.at(300);
     expect((await runAreaMutation(deps, 'family.rename', FAMILY, async () => view)).applied).toBe(true);
     expect(session.queryClient.getQueryData(familyKeys.family(FAMILY, 'it-IT'))).toEqual({ data: view, producedAt: 300 });
+  });
+});
+
+describe('confirmed shopping changes and revocations (PR #52 review, finding 2)', () => {
+  const OK = { kind: 'ok', userId: USER } as const;
+  const cachedList = (session: Session) => session.queryClient.getQueryData<Versioned<ShoppingListView>>(shoppingListKey(FAMILY, MONDAY, 'it-IT'));
+  /** The list read fresh from the server, as the screen does. */
+  const readList = (session: Session, version: string) => {
+    const api = { shopping: { getWeekList: async () => ({ unchanged: false as const, version, data: listView() }) } } as unknown as Api;
+    return session.queryClient.fetchQuery(shoppingListQuery(depsOf(session, api), FAMILY, MONDAY));
+  };
+  /** A tab with its shopping queue, confirming through the real applyConfirmedList. */
+  function tab(store: Store, time: ReturnType<typeof clock>, send: (op: unknown) => Promise<SendResult>, channel?: SessionChannel) {
+    const session = createSession(USER, store, { now: time.now, refresh: async () => OK, channel });
+    const queue = createShoppingQueue({
+      session,
+      send,
+      applyConfirmed: (familyId, weekStartsOn, result, isCurrent) => applyConfirmedList(session.queryClient, familyId, weekStartsOn, result, isCurrent),
+      locks: null,
+      now: time.now
+    });
+    return { session, queue };
+  }
+
+  it('a change confirmed after the return keeps the instant its request started, and the saved copy keeps the list', async () => {
+    const store = createMemoryStore();
+    const time = clock();
+    const { session, queue } = tab(store, time, async () => ({ version: 'v-after', data: listView() }));
+    await queue.ready();
+    const { api } = server();
+    time.at(100);
+    session.revoke(FAMILY);
+    time.at(200);
+    await readProfile(session, api);
+    expect(session.isRevoked(FAMILY)).toBe(false);
+    time.at(250);
+    await readList(session, 'fresh');
+    time.at(260);
+    await queue.add(ops.tick(TOMATO), 'Pomodori');
+    await queue.flush();
+    expect(cachedList(session)).toMatchObject({ version: 'v-after', producedAt: 260 });
+    await saveCopy(session);
+    expect(savedFamilies(store).filter((q) => q.familyId === FAMILY)).toEqual([{ familyId: FAMILY, producedAt: 260 }]);
+    queue.dispose();
+  });
+
+  it('a confirmation of another tab started before the revocation, delivered after the return, does not replace the fresh list', async () => {
+    const store = createMemoryStore();
+    const time = clock();
+    // Tab A posts into its outbox; tab B hears only what the test delivers, late.
+    const a = outbox();
+    const heard = new Set<(message: SessionMessage) => void>();
+    const toB: SessionChannel = { post: () => undefined, subscribe: (listener) => (heard.add(listener), () => void heard.delete(listener)) };
+    const tabA = tab(store, time, async () => ({ version: 'old', data: listView() }), a.channel);
+    const tabB = tab(store, time, async () => ({ version: 'unused', data: listView() }), toB);
+    await Promise.all([tabA.queue.ready(), tabB.queue.ready()]);
+    const { api } = server();
+    // Tab A sends a change at 50 and posts its confirmation; the message is slow to reach B.
+    time.at(50);
+    await tabA.queue.add(ops.tick(TOMATO), 'Pomodori');
+    await tabA.queue.flush();
+    const confirmed = a.sent.filter((m) => m.type === 'extension' && (m.payload as { type?: string }).type === 'confirmed');
+    expect(confirmed).toHaveLength(1);
+    time.at(100);
+    tabB.session.revoke(FAMILY);
+    time.at(200);
+    await readProfile(tabB.session, api);
+    expect(tabB.session.isRevoked(FAMILY)).toBe(false);
+    time.at(250);
+    await readList(tabB.session, 'fresh');
+    time.at(300);
+    confirmed.forEach((message) => heard.forEach((listener) => listener(message)));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(cachedList(tabB.session)).toMatchObject({ version: 'fresh', producedAt: 250 });
+    tabA.queue.dispose();
+    tabB.queue.dispose();
   });
 });
