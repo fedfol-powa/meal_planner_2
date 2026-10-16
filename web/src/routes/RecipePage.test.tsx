@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
-import { createFakeApi, createFakeData, DEMO_FAMILY_ID } from '../api/fake/fakeApi';
+import { createFakeApi, createFakeData, DEMO_FAMILY_ID, fakeClients } from '../api/fake/fakeApi';
 import type { RecipeDetailView } from '../api/types';
 import { setOnline } from '../test/connectivity';
 import type { CreateApi } from '../session/SessionScope';
@@ -213,5 +213,132 @@ describe('previous data only within the same view (second review, C7)', () => {
     await waitFor(() => expect(screen.getByLabelText('Ingredienti').getAttribute('aria-busy')).toBe('true'));
     expect(wokTitle()).toBeTruthy();
     expect(screen.getByRole('group', { name: 'Porzioni' }).textContent).toContain('7 porzioni');
+  });
+});
+
+describe('recipe photo (W12)', () => {
+  const PHOTO_RECIPE = 'pasta-crema-peperoni';
+  /** The browser resize: a decoded bitmap and a canvas that encodes a small JPEG. */
+  function stubCanvas() {
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 4032, height: 3024, close: () => undefined })));
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ drawImage: () => undefined } as never);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (done) {
+      done(new Blob(['jpeg'], { type: 'image/jpeg' }));
+    });
+  }
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+  const choose = (input: HTMLInputElement) => fireEvent.change(input, { target: { files: [new File(['raw'], 'IMG_0001.JPG', { type: 'image/jpeg' })] } });
+  const fileInput = () => document.querySelector('input[type="file"]') as HTMLInputElement;
+
+  it('a member who is not a curator sees the photo and no command', async () => {
+    renderApp(`/recipes/${PHOTO_RECIPE}`, { createApi: fakeClients({ latencyMs: 0, globalRoles: [] }) });
+    await screen.findByRole('heading', { name: /Pasta alla crema di peperoni/ });
+    const media = document.querySelector('.meal-media') as HTMLElement;
+    expect(media.style.aspectRatio).toBe('16 / 9');
+    expect(media.querySelector('img')!.getAttribute('src')).toBe(`/assets/recipe-images/${PHOTO_RECIPE}.jpg`);
+    expect(screen.queryByRole('button', { name: 'Foto' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aggiungi foto' })).toBeNull();
+    expect(fileInput()).toBeNull();
+  });
+
+  it('without a photo a member sees nothing, a curator «Aggiungi foto»', async () => {
+    const { unmount } = renderApp(`/recipes/${WOK}`, { createApi: fakeClients({ latencyMs: 0, globalRoles: [] }) });
+    await screen.findByRole('link', { name: /Wok di pollo/ });
+    expect(document.querySelector('.meal-media')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aggiungi foto' })).toBeNull();
+    unmount();
+    renderApp(`/recipes/${WOK}`);
+    expect(await screen.findByRole('button', { name: 'Aggiungi foto' })).toBeTruthy();
+    expect(fileInput().getAttribute('accept')).toBe('image/*');
+    expect(screen.queryByRole('button', { name: 'Foto' })).toBeNull();
+  });
+
+  it('a curator adds a photo: resized, uploaded, shown after the read again', async () => {
+    stubCanvas();
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const held: { release?: () => void } = {};
+    const original = api.catalogue.uploadPhoto;
+    const upload = vi.spyOn(api.catalogue, 'uploadPhoto').mockImplementation(async (input, options) => {
+      await new Promise<void>((resolve) => (held.release = resolve));
+      return original(input, options);
+    });
+    renderApp(`/recipes/${WOK}`, { api });
+    await screen.findByRole('button', { name: 'Aggiungi foto' });
+    choose(fileInput());
+    const busy = (await screen.findByRole('button', { name: 'Caricamento…' })) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    await waitFor(() => expect(upload).toHaveBeenCalled());
+    const sent = upload.mock.calls[0]![0];
+    expect(sent.recipeId).toBe(WOK);
+    expect(sent.file.type).toBe('image/jpeg');
+    expect(await sent.file.text()).toBe('jpeg');
+    expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.85);
+    act(() => held.release!());
+    await waitFor(() => expect(document.querySelector('.meal-media img')).not.toBeNull());
+    expect(screen.queryByRole('button', { name: 'Aggiungi foto' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Foto' })).toBeTruthy();
+  });
+
+  it('the sheet replaces or, after a confirmation, removes the photo', async () => {
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const remove = vi.spyOn(api.catalogue, 'removePhoto');
+    renderApp(`/recipes/${PHOTO_RECIPE}`, { api });
+    fireEvent.click(await screen.findByRole('button', { name: 'Foto' }));
+    const sheet = await screen.findByRole('dialog');
+    expect(screen.getByRole('button', { name: 'Sostituisci la foto' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Togli la foto' }));
+    expect(sheet.textContent).toContain('Togliere la foto?');
+    fireEvent.click(screen.getByRole('button', { name: 'Indietro' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Togli la foto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Togli' }));
+    await waitFor(() => expect(remove).toHaveBeenCalledWith({ recipeId: PHOTO_RECIPE }, expect.anything()));
+    await waitFor(() => expect(document.querySelector('.meal-media')).toBeNull());
+    expect(await screen.findByRole('button', { name: 'Aggiungi foto' })).toBeTruthy();
+  });
+
+  it('shows the translated error of a refused photo', async () => {
+    stubCanvas();
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    vi.spyOn(api.catalogue, 'uploadPhoto').mockRejectedValue(new ApiError('invalid', { issues: [{ path: ['file'], code: 'photo_too_small' }] }));
+    renderApp(`/recipes/${WOK}`, { api });
+    await screen.findByRole('button', { name: 'Aggiungi foto' });
+    choose(fileInput());
+    expect((await screen.findByRole('alert')).textContent).toBe('La foto è troppo piccola.');
+  });
+
+  it('an image the browser cannot read is not uploaded', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => { throw new DOMException('decode'); }));
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    const upload = vi.spyOn(api.catalogue, 'uploadPhoto');
+    renderApp(`/recipes/${WOK}`, { api });
+    await screen.findByRole('button', { name: 'Aggiungi foto' });
+    choose(fileInput());
+    expect((await screen.findByRole('alert')).textContent).toBe('Non riesco a leggere questa immagine.');
+    expect(upload).not.toHaveBeenCalled();
+  });
+
+  it('offline the commands are disabled', async () => {
+    renderApp(`/recipes/${PHOTO_RECIPE}`);
+    const button = (await screen.findByRole('button', { name: 'Foto' })) as HTMLButtonElement;
+    act(() => setOnline(false));
+    expect(button.disabled).toBe(true);
+    act(() => setOnline(true));
+  });
+
+  it('in English', async () => {
+    renderApp(`/recipes/${WOK}`, { extra: <LanguageSwitch /> });
+    await screen.findByRole('button', { name: 'Aggiungi foto' });
+    fireEvent.click(screen.getByText('test: english'));
+    expect(await screen.findByRole('button', { name: 'Add photo' })).toBeTruthy();
+  });
+
+  it('the cards of the recipe book have no photo command, also for a curator', async () => {
+    renderApp('/recipes');
+    await waitFor(() => expect(document.querySelectorAll('.meal-media img').length).toBeGreaterThan(0));
+    expect(screen.queryByRole('button', { name: 'Foto' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aggiungi foto' })).toBeNull();
   });
 });

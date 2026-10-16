@@ -14,6 +14,7 @@ import { RatingStars } from '../components/RatingStars';
 import { ServingsStepper } from '../components/ServingsStepper';
 import { StateNotice } from '../components/StateNotice';
 import { safeSourceUrl, sourceLine } from '../components/source';
+import { PhotoControls } from '../features/catalogue/photo/PhotoControls';
 import { formatDayLong } from '../i18n/dates';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { pastMeals } from '../lib/mealTime';
@@ -98,6 +99,8 @@ function RecipeView({ family }: { family: FamilyView }) {
             )
           }
         />
+        {/* The photo (16:9) and, for curators, its commands (W12). */}
+        <PhotoControls recipe={recipe} />
         {source && <p className="meal-source">{source}</p>}
         <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={family.id} />
         {recipe.description && <p className="description">{recipe.description}</p>}

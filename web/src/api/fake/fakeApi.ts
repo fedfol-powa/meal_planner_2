@@ -546,7 +546,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
       week: (weekStartsOn) => visibleWeeks().find((w) => w.startsOn === weekStartsOn)
     }),
     catalogue: createFakeCatalogue({
-      getLocale: options.getLocale, latencyMs: options.latencyMs, recipes, data: state.catalogue,
+      getLocale: options.getLocale, latencyMs: options.latencyMs, recipes, data: state.catalogue, photos,
+      onPhotoChange: () => void state.revision++,
       ingredientName: (ingredientId, locale) => {
         const ingredient = data.ingredients.find((i) => i.id === ingredientId);
         return ingredient ? localized(ingredient.name, locale) : null;

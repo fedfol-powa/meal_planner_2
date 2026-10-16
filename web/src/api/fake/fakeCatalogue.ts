@@ -33,6 +33,19 @@ export interface FakeCatalogueDeps {
   recipes: DemoRecipe[];
   data: FakeCatalogueData;
   ingredientName: (ingredientId: string, locale: Locale) => string | null;
+  /** Current photos by recipe id (W12), shared with the recipe views of the fake. */
+  photos: Map<string, string>;
+  /** A photo changed: the recipe views get a new version. */
+  onPhotoChange: () => void;
+}
+
+/** A blob URL of the chosen file in the browser; the tests (jsdom files) get a made-up path instead. */
+function blobUrl(file: Blob): string | null {
+  try {
+    return URL.createObjectURL(file);
+  } catch {
+    return null;
+  }
 }
 
 const person = (id: string) => ({ userId: id, name: DEMO_PEOPLE.find((p) => p.id === id)?.displayName ?? null });
@@ -84,7 +97,6 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
     checkDraft: notServed, publish: notServed, discardDraft: notServed, searchRecipes: notServed, listVersions: notServed, getVersion: notServed,
     restoreVersion: notServed, searchIngredients: notServed, getIngredient: notServed, listVarieties: notServed, checkVariety: notServed,
     createIngredient: notServed, updateIngredient: notServed, setEquivalence: notServed, removeEquivalence: notServed, listBooks: notServed, createBook: notServed,
-    uploadPhoto: notServed, setPhotoFromUrl: notServed, removePhoto: notServed,
     async overview() {
       const locale = deps.getLocale();
       return delayed({
@@ -102,6 +114,24 @@ export function createFakeCatalogue(deps: FakeCatalogueDeps): Api['catalogue'] {
       const draft = drafts.find((d) => d.draftId === draftId);
       if (!draft) throw new ApiError('not_found');
       return delayed(draftView(draft, deps.getLocale()));
+    },
+    async uploadPhoto({ id, recipeId, file }) {
+      if (!deps.recipes.some((r) => r.id === recipeId)) throw new ApiError('not_found');
+      deps.photos.set(recipeId, blobUrl(file) ?? `/photos/fake-${id}.webp`);
+      const url = deps.photos.get(recipeId)!;
+      deps.onPhotoChange();
+      return delayed({ recipeId, photo: { id, url, width: 1600, height: 1067 } });
+    },
+    async setPhotoFromUrl({ id, recipeId, imageUrl }) {
+      if (!deps.recipes.some((r) => r.id === recipeId)) throw new ApiError('not_found');
+      deps.photos.set(recipeId, imageUrl);
+      deps.onPhotoChange();
+      return delayed({ recipeId, photo: { id, url: imageUrl, width: 1600, height: 1067 } });
+    },
+    async removePhoto({ recipeId }) {
+      if (!deps.recipes.some((r) => r.id === recipeId)) throw new ApiError('not_found');
+      if (deps.photos.delete(recipeId)) deps.onPhotoChange();
+      return delayed({ recipeId, photo: null });
     },
     async setArchived({ recipeId, archived: wanted }) {
       const recipe = deps.recipes.find((r) => r.id === recipeId && r.status === 'archived');
