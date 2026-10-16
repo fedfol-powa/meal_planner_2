@@ -1,2 +1,5 @@
+/invite
+  Referrer-Policy: no-referrer
+
 /invite/*
   Referrer-Policy: no-referrer

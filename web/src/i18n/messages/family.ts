@@ -82,7 +82,20 @@ export const it = {
   'exclusions.emptyBody': 'Si esclude una ricetta da un pasto del menu, con «Cambia ricetta» e «Non proporre più».',
   'exclusions.by': 'Esclusa da {name}, {time}',
   'exclusions.include': 'Proponi di nuovo',
-  'exclusions.includeLabel': 'Proponi di nuovo {name}'
+  'exclusions.includeLabel': 'Proponi di nuovo {name}',
+  // Family invitation page (spec W11, «Pagina dell'invito»).
+  'familyInvite.title': 'Entra in {family}',
+  'familyInvite.from': '{name} ti invita a condividere menu e spesa della famiglia',
+  'familyInvite.submit': 'Crea l’account ed entra',
+  'familyInvite.haveAccount': 'Hai già un account?',
+  'familyInvite.signIn': 'Accedi per entrare',
+  'familyInvite.noAccounts': 'Questo invito non vale più per creare un account: chiedi un link nuovo',
+  'familyInvite.as': 'Entri come {name}',
+  'familyInvite.join': 'Entra nella famiglia',
+  'familyInvite.already': 'Fai già parte di {family}',
+  'familyInvite.openMenu': 'Apri il menu',
+  'familyInvite.askNew': 'Chiedi un link nuovo a un amministratore della famiglia',
+  'familyInvite.notJoined': 'Questo invito non vale più, ma il tuo account è pronto: entra con email e password'
 };
 
 export const en = {
@@ -168,5 +181,17 @@ export const en = {
   'exclusions.emptyBody': 'You exclude a recipe from a meal in the menu, with “Change recipe” and “Don’t suggest again”.',
   'exclusions.by': 'Excluded by {name}, {time}',
   'exclusions.include': 'Suggest again',
-  'exclusions.includeLabel': 'Suggest {name} again'
+  'exclusions.includeLabel': 'Suggest {name} again',
+  'familyInvite.title': 'Join {family}',
+  'familyInvite.from': '{name} invites you to share the family’s menu and shopping',
+  'familyInvite.submit': 'Create the account and join',
+  'familyInvite.haveAccount': 'Already have an account?',
+  'familyInvite.signIn': 'Sign in to join',
+  'familyInvite.noAccounts': 'This invitation can no longer be used to create an account: ask for a new link',
+  'familyInvite.as': 'You are joining as {name}',
+  'familyInvite.join': 'Join the family',
+  'familyInvite.already': 'You are already in {family}',
+  'familyInvite.openMenu': 'Open the menu',
+  'familyInvite.askNew': 'Ask a family administrator for a new link',
+  'familyInvite.notJoined': 'This invitation is no longer valid, but your account is ready: sign in with your email and password'
 } satisfies Record<keyof typeof it, string>;

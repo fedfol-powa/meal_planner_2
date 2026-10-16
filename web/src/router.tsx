@@ -19,6 +19,7 @@ import { validateAuthorizeSearch } from './features/agents/search';
 import { AdminPage } from './features/admin/AdminPage';
 import { UserPage } from './features/admin/UserPage';
 import { InvitePage } from './features/app-invitations/InvitePage';
+import { InvitePage as FamilyInvitePage } from './features/family-invitations/InvitePage';
 import { DraftPage } from './features/catalogue/DraftPage';
 import { NewFamilyPage } from './features/family-new/NewFamilyPage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
@@ -55,6 +56,8 @@ const authorizeRoute = createRoute({
 
 // App invitation (spec W9): public, the token in the fragment; signs out another account on request.
 const appInviteRoute = createRoute({ getParentRoute: () => rootRoute, path: '/invite/app', component: InvitePage });
+// Family invitation (spec W11): public, the token in the fragment; joins with the account open or creates one.
+const familyInviteRoute = createRoute({ getParentRoute: () => rootRoute, path: '/invite', component: FamilyInvitePage });
 
 // Pathless layout: every view behind sign-in, with the navbar.
 const appRoute = createRoute({
@@ -98,6 +101,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   authorizeRoute,
   appInviteRoute,
+  familyInviteRoute,
   appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
 ]);
 
