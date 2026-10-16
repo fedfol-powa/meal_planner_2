@@ -34,8 +34,10 @@ compito; i numeri di sezione sotto sono i suoi). Corretto dopo la revisione
   `output({ format: 'image/webp', quality: 80 })`.
 - Ingresso: solo `image/jpeg`, `image/png`, `image/webp` (piano Images Free, **niente
   AVIF**); lato corto ≥ 400 px; al più 10 MiB; risultato al più 1 MiB.
-- Corpo del caricamento: `UPLOAD_BODY_LIMIT = 10 * 1024 * 1024 + 64 * 1024`, applicato
-  durante la lettura, prima del parser e del token.
+- Corpo del caricamento: `UPLOAD_BODY_LIMIT = 10 * 1024 * 1024 + 64 * 1024`, letto da
+  `route` con il limite prima del parser e del token, per ogni multipart sotto `/api/` e
+  per i percorsi di `uploadPhoto` con o senza slash finale; `413` con `photo_too_large`
+  risposto da `route`, fuori dagli interceptor di oRPC.
 - Indirizzi: solo `https:`, porta assente o 443, niente credenziali, lunghezza ≤ 2048,
   niente IP letterali, `localhost`, nomi senza punto, suffissi `.local` `.internal`
   `.localhost` `.home.arpa`, né l'host dell'app, `*.workers.dev`, `*.supabase.co`;
@@ -83,8 +85,9 @@ Ogni passo «FAIL» deve mostrare il test indicato fallire per il motivo atteso,
    compito 3 (`concurrent replacements leave one current photo`).
 2. **Redirect verso un host interno dopo uno esterno valido:** rifiutato con `photo_url`.
    Test nel compito 2 (`refuses a redirect to a blocked host`).
-3. **Caricamento enorme costruito a mano, senza `Content-Length`:** lettura interrotta
-   oltre il limite, `413`, nessuna chiamata a Images né a R2, anche senza token. Test nel
+3. **Caricamento enorme costruito a mano, senza `Content-Length`, anche con lo slash
+   finale o su OpenAPI:** lettura interrotta oltre il limite, `413` con `photo_too_large`,
+   nessuna chiamata a Images né a R2, anche senza token. Test nel
    compito 6 (`stops an oversized upload while reading`).
 4. **Scheda con foto offline mai vista:** nessun riquadro vuoto né icona rotta; la scheda
    torna senza foto. Test nel compito 7 (`falls back to the plain card when the image fails`).
@@ -331,24 +334,41 @@ Ogni passo «FAIL» deve mostrare il test indicato fallire per il motivo atteso,
 - Test: `server/test/photos-upload-limit.test.ts`
 
 **Interfacce:**
-- Consuma: `readLimited` non serve qui (il corpo resta un flusso); `PhotoError` del compito 2.
-- Produce: `UPLOAD_BODY_LIMIT`; `isPhotoUploadPath(pathname: string): boolean` (RPC
-  `/api/rpc/catalogue/uploadPhoto`, OpenAPI `^/api/catalogue/recipes/[^/]+/photo/upload$`);
-  `limitUploadBody(request: Request, maxBytes: number): Request | Response` (risposta
-  `413` subito se `Content-Length` dichiarato supera il limite; altrimenti una nuova
-  `Request` con il corpo passato da un `TransformStream` che conta i byte e va in errore
-  oltre il limite). L'errore del flusso, quando arriva dentro oRPC, diventa la stessa
-  risposta `413` (`{ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }`):
-  `route` riconosce l'errore del limitatore e risponde così.
+- Consuma: `readLimited` e `PhotoError` del compito 2.
+- Produce: `UPLOAD_BODY_LIMIT`;
+  `needsUploadLimit(request: Request, pathname: string): boolean`: vero per ogni
+  richiesta sotto `/api/` con `Content-Type` che inizia (senza distinguere maiuscole) con
+  `multipart/form-data`, qualunque percorso, e per ogni percorso che, tolti gli slash
+  finali, è `/api/rpc/catalogue/uploadPhoto` o corrisponde a
+  `^/api/catalogue/recipes/[^/]+/photo/upload$`;
+  `bufferUploadBody(request: Request, maxBytes: number): Promise<Request | Response>`:
+  con `Content-Length` dichiarato oltre il limite risponde `413` senza leggere;
+  altrimenti legge `request.body` con `readLimited` (annulla il lettore oltre il limite)
+  e restituisce `new Request(request, { body: bytes })` con le stesse intestazioni,
+  oppure la risposta `413`. In `route`, per `/api/` e prima di `contextFor`:
+  `if (needsUploadLimit(...)) { const limited = await bufferUploadBody(...); if (limited instanceof Response) return limited; request = limited; }`.
+  La risposta `413` è `Response.json({ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }, { status: 413 })`
+  costruita in `route`, fuori da oRPC: nessun interceptor la tocca (`mapUnreadableRequest`
+  la renderebbe `400`).
 
-- [ ] **Passo 1: test** (con `fakeImages` e `MemoryBucket` che contano le chiamate):
-  - `refuses a declared oversized upload at once` (`Content-Length` 20 MiB, nessun corpo
-    letto, 413, nessuna verifica del token: anche senza `Authorization`);
-  - `stops an oversized upload while reading` (corpo multipart a pezzi senza
-    `Content-Length`, 12 MiB: 413, il generatore del corpo si ferma poco oltre il limite,
-    zero chiamate a `info`, `input` e `put`);
-  - un caricamento di 9 MiB passa (con un curatore, 200);
-  - gli altri percorsi (`/api/rpc/catalogue/saveDraft`) non sono limitati da qui.
+- [ ] **Passo 1: test** in `photos-upload-limit.test.ts`, **solo attraverso `createApp`**
+  (`setupActors().app.fetch` con `env` di test, `fakeImages` e `MemoryBucket` che contano
+  le chiamate; nessuna simulazione di `handler.handle`), con `it.each` su quattro
+  percorsi: `/api/rpc/catalogue/uploadPhoto`, `/api/rpc/catalogue/uploadPhoto/`,
+  `/api/catalogue/recipes/<id>/photo/upload`, `/api/catalogue/recipes/<id>/photo/upload/`:
+  - `refuses a declared oversized upload at once` (`Content-Length` 20 MiB, corpo che
+    registra se è stato letto, senza `Authorization`): status 413, corpo JSON con
+    `code: 'invalid'` e issue `{ path: ['file'], code: 'photo_too_large' }`, corpo mai letto;
+  - `stops an oversized upload while reading` (corpo multipart da un `ReadableStream` a
+    pezzi da 64 KiB senza `Content-Length`, 12 MiB, senza `Authorization`): stesso 413 e
+    stesso corpo, il flusso annullato dopo al più `UPLOAD_BODY_LIMIT + 64 KiB` byte
+    prodotti, zero chiamate a `info`, `input` e `put`;
+  - `a multipart body to another api path is limited too` (`/api/rpc/catalogue/saveDraft`
+    con un multipart di 12 MiB → 413);
+  - un caricamento vero di 9 MiB da un curatore attraverso il client RPC passa (200) e uno
+    attraverso OpenAPI multipart passa;
+  - una richiesta JSON ordinaria (`saveDraft`) non è letta da `bufferUploadBody` (spia sul
+    modulo) e risponde come prima.
 - [ ] **Passo 2:** `npm test -w server -- test/photos-upload-limit.test.ts` → FAIL.
 - [ ] **Passo 3:** implementare.
 - [ ] **Passo 4:** `npm test -w server` → PASS.
@@ -389,7 +409,7 @@ Ogni passo «FAIL» deve mostrare il test indicato fallire per il motivo atteso,
   `usePhotoMutations.ts`
 - Modifica: `web/src/routes/RecipePage.tsx`, `web/src/i18n/messages/catalogue.ts`,
   `web/src/api/fake/` (le tre operazioni), `web/src/api/mutations.ts`
-- Test: `resize.test.ts`, `PhotoControls.test.tsx`, `web/src/routes/RecipePage.test.tsx`,
+- Test: `resize.test.ts`, `PhotoControls.test.tsx`, `usePhotoMutations.test.tsx`, `web/src/routes/RecipePage.test.tsx`,
   `web/src/api/mutations.test.ts`
 
 **Interfacce:**
@@ -424,12 +444,28 @@ Ogni passo «FAIL» deve mostrare il test indicato fallire per il motivo atteso,
     «Sostituisci la foto» e «Togli la foto», conferma «Togliere la foto?» → `removePhoto`;
     errore `invalid` con `photo_too_small` → testo tradotto; offline → comandi disabilitati;
   - `RecipeCard` nel menu e nel ricettario non ha comandi della foto anche per un curatore;
-  - in `mutations.test.ts`: `a meal answer prepared before a photo change is not written`
+  - in `mutations.test.ts` (prova unitaria del consumatore): `a meal answer prepared before a catalogue change is not written`
     (avviare `runMealMutation` con una `call` trattenuta che risponde con la settimana con
     la foto vecchia; nel frattempo `countCatalogueChangeConfirmed`; liberare la risposta:
     `applied` falso, la settimana in cache non è sovrascritta ed è marcata scaduta);
-    lo stesso scenario senza modifiche del ricettario resta `applied` vero.
-- [ ] **Passo 2:** `npm test -w web -- resize PhotoControls RecipePage mutations` → FAIL.
+    lo stesso scenario senza modifiche del ricettario resta `applied` vero;
+  - in `usePhotoMutations.test.tsx` (prova del collegamento, seconda revisione, rilievo
+    3), `it.each(['upload', 'remove'])` `a meal answer from before the photo ${kind} does not overwrite the week`:
+    1. provider di test con `QueryClient` e sessione reali e l'API finta; settimana in cache
+       con la ricetta e `photoUrl` vecchio;
+    2. avviare `runMealMutation` (`meals.setServings`) con la `call` trattenuta che
+       risponderà con la settimana con `photoUrl` vecchio;
+    3. eseguire il vero `useUploadPhoto(recipeId).mutateAsync(file)` o
+       `useRemovePhoto(recipeId).mutateAsync()` con `renderHook`, **senza** chiamare
+       `countCatalogueChangeConfirmed` nel test; l'API finta risponde con la foto nuova (o
+       nessuna) e la rilettura della settimana restituisce il `photoUrl` nuovo;
+    4. attendere la rilettura; poi liberare la risposta vecchia del pasto: `applied` falso,
+       la settimana in cache mantiene il `photoUrl` nuovo ed è partita (o è scaduta per)
+       una nuova lettura.
+    Il test deve fallire togliendo `countCatalogueChangeConfirmed` da `onSuccess` di
+    ciascun hook e togliendo il controllo da `runMealMutation`: verificarlo una volta a
+    mano durante l'implementazione (togliere, vedere FAIL, rimettere).
+- [ ] **Passo 2:** `npm test -w web -- resize PhotoControls usePhotoMutations RecipePage mutations` → FAIL.
 - [ ] **Passo 3:** implementare; foto 16:9 con `RecipePhoto` sotto `PageHeader`; foglio con
   `BottomSheet`; input di file nascosto `accept="image/*"` attivato dai pulsanti.
 - [ ] **Passo 4:** `npm test -w web`, `npm run typecheck` → PASS.

@@ -5,7 +5,8 @@ Stato: spec di dettaglio dopo il brainstorming con il coordinatore (domande 1 e 
 conferma dell'agente, risposte dell'utente del 16 ottobre 2026) e una verifica interna di
 un costruttore indipendente (foto delle bozze servite, ricette da libro); corretta dopo la
 revisione di spec e piano (`revisioni/w12-spec-piano.md`, rilievi 1–6, e decisioni del
-coordinatore in `messaggi/w12-01-revisione-spec.md`).
+coordinatore in `messaggi/w12-01-revisione-spec.md`) e dopo la seconda revisione
+(`revisioni/w12-spec-piano-2.md`, rilievi 1–4).
 Branch: `ondata3/foto-ricette` · Worktree: `.worktrees/foto`
 
 Subordinata alla specifica principale
@@ -76,9 +77,13 @@ mostra da dove viene; supera il punto 4 dell'orientamento del brief.
 ## 2. Modello dei dati
 
 **Tabella dedicata, non una colonna su `recipes`** (scelta tecnica): la foto ha una vita
-propria (chi, quando, sostituzioni, rimozioni) che serve alla conservazione e
-all'eliminazione differita degli oggetti in R2; una colonna perderebbe la storia, e la
-storia serve a sapere quali oggetti si possono cancellare.
+propria: lo **storico** delle sostituzioni e rimozioni, l'**attribuzione** (chi e
+quando, da quale canale), l'**idempotenza** per `id` scelto dal client e
+l'individuazione della **foto corrente** con un indice univoco parziale. Una colonna su
+`recipes` perderebbe storia e attribuzione e non darebbe un'identità alla richiesta da
+ripetere. Gli oggetti in R2 non si cancellano mai in automatico (sezione 7); un'eventuale
+pulizia futura userà anche questo storico, ma solo dopo aver verificato i riferimenti di
+tutte le esportazioni conservate.
 
 Migrazione `supabase/migrations/20261016110000_recipe_photos.sql` (la più recente su
 `main` è `20261016100000_family_management.sql`; il coordinatore controlla le collisioni).
@@ -312,14 +317,27 @@ della richiesta, così l'agente può scaricarla o dare il link al curatore, che 
 - **Limite del corpo prima del parser** (rilievo 4 della revisione): oRPC tiene in memoria
   `File` e `Blob`, e `z.file().max()` valida un file già letto. Per questo `route` in
   `server/src/app.ts`, **prima** di `handler.handle` e prima di qualsiasi verifica del
-  token, avvolge il corpo delle richieste ai due percorsi di `uploadPhoto` (RPC
-  `/api/rpc/catalogue/uploadPhoto` e OpenAPI `/api/catalogue/recipes/{recipeId}/photo/upload`)
-  in un flusso che conta i byte e si interrompe oltre **10 MiB di file più 64 KiB per
-  l'involucro multipart** (`UPLOAD_BODY_LIMIT`). Un `Content-Length` dichiarato oltre il
-  limite si rifiuta subito, ma il controllo non si affida a quell'intestazione: un corpo a
-  pezzi senza `Content-Length` si interrompe durante la lettura. Esito: `413` con il corpo
-  JSON `{ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }`,
-  senza chiamate a Images né a R2. Gli altri percorsi non cambiano.
+  token, legge da sé, con un limite, il corpo delle richieste soggette al controllo, e solo
+  dopo passa a oRPC una nuova `Request` con il corpo già letto.
+  - **Quali richieste** (seconda revisione, rilievo 1): ogni richiesta sotto `/api/` con
+    `Content-Type` `multipart/form-data`, qualunque sia il percorso, e ogni richiesta il
+    cui percorso, tolti gli slash finali, è uno dei due percorsi di `uploadPhoto` (RPC
+    `/api/rpc/catalogue/uploadPhoto`, OpenAPI `/api/catalogue/recipes/{recipeId}/photo/upload`).
+    Il criterio del tipo multipart non dipende da come oRPC normalizza i percorsi (slash
+    finale o altre varianti): un file arriva solo in multipart, e nessun'altra operazione
+    lo usa. Il criterio del percorso copre un corpo non multipart diretto a quei percorsi.
+  - **Come** (seconda revisione, rilievo 2): un `Content-Length` dichiarato oltre
+    **10 MiB di file più 64 KiB per l'involucro multipart** (`UPLOAD_BODY_LIMIT`) si
+    rifiuta senza leggere; altrimenti `route` legge il flusso contando i byte e lo annulla
+    appena supera il limite, senza affidarsi a `Content-Length`. Il superamento si decide
+    **fuori da oRPC**, prima di chiamare l'handler, quindi non passa dagli interceptor
+    (`mapUnreadableRequest` lo renderebbe un `400 invalid` senza issue): è `route` a
+    rispondere `413` con il corpo JSON
+    `{ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }`,
+    nella stessa forma degli altri errori del server, senza chiamate a Images né a R2. Un
+    corpo entro il limite si passa all'handler come `ArrayBuffer` in una nuova `Request`
+    con le stesse intestazioni: il Worker lo tiene in memoria una volta, come farebbe
+    comunque oRPC. Gli altri percorsi e i corpi non multipart non cambiano.
 - **Idempotenza:** `id` scelto dal client. Se esiste già una riga con quell'`id` per la
   stessa ricetta, l'operazione non scarica, non trasforma e non scrive: risponde con lo
   stato attuale della foto di quella ricetta. Un `id` già usato per un'altra ricetta →
@@ -554,8 +572,11 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
   - errore `9422` del binding: `internal`, foto precedente intatta, nessun oggetto né
     riga nuovi;
   - corpo del caricamento oltre `UPLOAD_BODY_LIMIT` senza `Content-Length` e con
-    `Content-Length` dichiarato oltre: `413` prima del parser e del token, lettura
-    interrotta, nessuna chiamata a Images né a R2;
+    `Content-Length` dichiarato oltre, attraverso `createApp` (nessuna simulazione di
+    `handler.handle`), su RPC e su OpenAPI, ciascuno con e senza slash finale, senza
+    autenticazione: `413` con `photo_too_large` nel corpo, lettura interrotta, nessuna
+    chiamata a Images né a R2; un multipart oltre il limite verso un altro percorso
+    `/api/` è rifiutato allo stesso modo;
   - indirizzi non validi (http, IP letterali, `localhost`, credenziali, porta), redirect
     verso un indirizzo non ammesso, più di 3 redirect, tempo scaduto, 404, corpo oltre il
     limite senza `Content-Length`;
@@ -577,7 +598,10 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
   ridimensionamento (funzione pura del calcolo delle misure; canvas finto), service worker
   (strategia `photo`, cache dedicata esclusa dalla rotazione, tetto, cancellazione alla
   chiusura della sessione, risposta arrivata durante l'uscita non salvata); risposta di un
-  pasto ritardata dopo un caricamento confermato: scartata e settimana riletta.
+  pasto ritardata dopo un caricamento o una rimozione confermati attraverso i veri
+  `useUploadPhoto` e `useRemovePhoto` (senza toccare il contatore a mano): scartata e
+  settimana riletta. Il test fallisce se si toglie l'incremento dagli `onSuccess` o il
+  controllo da `runMealMutation`.
 - **Stack locale con agent-browser**, anche a larghezza da telefono (390 px): caricamento
   di una foto da file (l'input di file con un file di prova), schede del menu e del
   ricettario con e senza foto confrontate con `design/references/hellofresh/` e il
