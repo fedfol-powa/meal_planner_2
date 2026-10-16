@@ -34,6 +34,8 @@ function outbox() {
   return { sent, channel };
 }
 const deliver = (messages: SessionMessage[], tab: Session) => messages.forEach((message) => tab.receive(message));
+/** The messages about FAMILY: every profile read also confirms OTHER_FAMILY. */
+const aboutFamily = (messages: SessionMessage[]) => messages.filter((message) => 'familyId' in message && message.familyId === FAMILY);
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -102,7 +104,8 @@ describe('families gone from the profile (spec W11, «Dati sul dispositivo»)', 
     expect(session.isRevoked(OTHER_FAMILY)).toBe(false);
     expect(cachedWeek(session)).toBeUndefined();
     expect(cachedWeek(session, OTHER_FAMILY)).toBeDefined();
-    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 50, restoredAt: 0 }));
+    // The first profile, read at 10, confirmed the family.
+    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 50, restoredAt: 10 }));
     await vi.waitFor(() => expect(queue.record().ops.map((o) => o.label)).toEqual(['Riso']));
     queue.dispose();
   });
@@ -124,7 +127,7 @@ describe('restoring a family after an authorised return (decision 23)', () => {
     time.at(200);
     await readProfile(tabA, api);
     expect(tabA.isRevoked(FAMILY)).toBe(false);
-    expect(a.sent).toEqual([{ type: 'restored', userId: USER, familyId: FAMILY, startedAt: 200 }]);
+    expect(aboutFamily(a.sent)).toEqual([{ type: 'restored', userId: USER, familyId: FAMILY, startedAt: 200 }]);
     deliver(a.sent.splice(0), tabB);
     expect(tabB.isRevoked(FAMILY)).toBe(false);
     await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 200 }));
@@ -164,7 +167,7 @@ describe('restoring a family after an authorised return (decision 23)', () => {
     tabA.revoke(FAMILY);
     time.at(200);
     await readProfile(tabA, api);
-    const messages = a.sent.splice(0);
+    const messages = aboutFamily(a.sent.splice(0));
     expect(messages.map((m) => m.type)).toEqual(['revoked', 'restored']);
     time.at(300);
     deliver(messages, inOrder);
@@ -190,10 +193,11 @@ describe('restoring a family after an authorised return (decision 23)', () => {
     time.at(200);
     await readProfile(tabB, api);
     expect(tabB.isRevoked(FAMILY)).toBe(false);
+    // The confirmation is announced at once, not when the revocation arrives.
+    expect(aboutFamily(b.sent)).toEqual([{ type: 'restored', userId: USER, familyId: FAMILY, startedAt: 200 }]);
     time.at(300);
     deliver(a.sent.splice(0), tabB);
     expect(tabB.isRevoked(FAMILY)).toBe(false);
-    expect(b.sent).toEqual([{ type: 'restored', userId: USER, familyId: FAMILY, startedAt: 200 }]);
     deliver(b.sent.splice(0), tabA);
     expect(tabA.isRevoked(FAMILY)).toBe(false);
     await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 200 }));
@@ -202,6 +206,39 @@ describe('restoring a family after an authorised return (decision 23)', () => {
     tabA.revoke(FAMILY);
     deliver(a.sent.splice(0), tabB);
     expect(tabB.isRevoked(FAMILY)).toBe(true);
+  });
+
+  it('a confirmation is saved before the late revocation arrives: a reload keeps the family and its fresh views (second PR review)', async () => {
+    const store = createMemoryStore();
+    const time = clock();
+    const a = outbox();
+    const b = outbox();
+    const tabA = createSession(USER, store, { now: time.now, channel: a.channel });
+    const tabB = createSession(USER, store, { now: time.now, channel: b.channel });
+    const { api } = server();
+    time.at(100);
+    tabA.revoke(FAMILY);
+    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 0 }));
+    // B confirms the family at 200 and reads it fresh at 250; the message of A never reaches B.
+    time.at(200);
+    await readProfile(tabB, api);
+    time.at(250);
+    await readWeek(tabB, api);
+    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 200 }));
+    expect(aboutFamily(b.sent)).toEqual([{ type: 'restored', userId: USER, familyId: FAMILY, startedAt: 200 }]);
+    await saveCopy(tabB);
+    expect(savedFamilies(store).filter((q) => q.familyId === FAMILY)).toEqual([{ familyId: FAMILY, producedAt: 250 }]);
+    // Reload before the delivery: a new session on the same device.
+    time.at(300);
+    const later = createSession(USER, store, { now: time.now });
+    await persistQueryClientRestore({ queryClient: later.queryClient, persister: persisterOf(later)!, buster: CACHE_SCHEMA });
+    expect(cachedWeek(later)?.producedAt).toBe(250);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(later.isRevoked(FAMILY)).toBe(false);
+    expect(cachedWeek(later)?.producedAt).toBe(250);
+    // The late revocation changes nothing in A either once B's announcement arrives.
+    deliver(b.sent.splice(0), tabA);
+    expect(tabA.isRevoked(FAMILY)).toBe(false);
   });
 
   it('a session whose profile is read before the marks of the device keeps the confirmed family', async () => {
@@ -246,7 +283,7 @@ describe('restoring a family after an authorised return (decision 23)', () => {
     await readProfile(tabA, api);
     time.at(300);
     tabA.revoke(FAMILY);
-    const [revoked1, restored2, revoked3] = a.sent.splice(0);
+    const [revoked1, restored2, revoked3] = aboutFamily(a.sent.splice(0));
     deliver([restored2!, revoked3!, revoked1!], tabB);
     expect(tabA.isRevoked(FAMILY)).toBe(true);
     expect(tabB.isRevoked(FAMILY)).toBe(true);

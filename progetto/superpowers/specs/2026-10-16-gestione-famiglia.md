@@ -972,14 +972,17 @@ dalla versione precedente vale `{ revokedAt: n, restoredAt: 0 }`):
 - `restore` lo chiamano la risposta di `family.join` (e di `family.create`) con la
   famiglia nel profilo restituito, e ogni profilo letto che contiene la famiglia, con
   l'istante di inizio di quella richiesta;
-- **conferma prima della revoca** (revisione della PR, rilievo 3): la scheda ricorda,
-  solo in memoria, l'inizio dell'ultima conferma del server per ogni famiglia (profilo
-  letto o risposta di `family.join`/`family.create`), anche quando non conosce nessuna
-  revoca. Se poi le arriva una revoca più vecchia di quella conferma (messaggio di
-  un'altra scheda in ritardo, o record letti dal dispositivo dopo il profilo), la
-  pulizia avviene come sempre e subito dopo `restore(familyId, conferma)`, che salva il
-  record e lo annuncia alle altre schede. Il limite dei ripristini da profilo letto vale
-  anche qui: una conferma scartata dal limite non si ricorda.
+- **ogni conferma si salva subito** (revisione della PR, rilievo 3, e seconda
+  revisione): ogni conferma valida del server (profilo letto che contiene la famiglia,
+  risposta di `family.join`/`family.create`) chiama `restore(familyId, startedAt)`, che
+  scrive `restoredAt = max(restoredAt, startedAt)` nel record con `store.transact` e
+  annuncia `restored`, **anche se la scheda non conosce nessuna revoca**: una revoca
+  scritta da un'altra scheda, il cui messaggio è in ritardo o non arriva prima di un
+  ricaricamento, è più vecchia e la fusione col massimo la supera. Nessuna conferma resta
+  solo in memoria. Restano i controlli sulle risposte superate (un profilo partito prima
+  dell'ultimo applicato, o non più recente di `revokedAt`/`restoredAt` del record, non
+  scrive) e il limite dei ripristini da profilo letto, che vale solo per una famiglia
+  revocata sulla scheda.
 
 Alternativa scartata: far solo pulire e rileggere il profilo a ogni messaggio. Lascerebbe
 il problema della copia persistita riscritta da una scheda in ritardo e non direbbe a una
@@ -1307,7 +1310,11 @@ collegamento) rifiutato dopo. Eseguito da `scripts/invitations/invite-stack.sh`
   ripristino → la lista fresca resta; la scheda B legge il profilo a 200 prima di
   ricevere `revoked(100)` di A → resta accessibile in entrambe le schede e il record è
   `{ 100, 200 }`, mentre una revoca a 400 vince; una sessione che legge il profilo prima
-  dei record del dispositivo tiene la famiglia confermata.
+  dei record del dispositivo tiene la famiglia confermata. Seconda revisione: A revoca a
+  100 e il messaggio non arriva; B conferma a 200 e legge la settimana a 250 → record
+  `{ 100, 200 }` salvato e `restored` annunciato subito, copia salvata con la vista a
+  250; una sessione nuova sullo stesso archivio, prima della consegna, mostra la
+  famiglia con la vista fresca.
 - Pagina dell'invito con `joined: false`: testo dell'account pronto e accesso con
   l'email; uscita con `invalid` su `successorId`: il foglio passa alla scelta del
   successore; card «Ingressi con i link» con «ex membro» e «Account nuovo».

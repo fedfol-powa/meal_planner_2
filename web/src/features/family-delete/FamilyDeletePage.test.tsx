@@ -4,7 +4,7 @@ import { ApiError } from '../../api/errors';
 import { createFakeApi, createFakeData, DEMO_FAMILY_ID, type FakeData } from '../../api/fake/fakeApi';
 import { createNewFamilyData } from '../../api/fake/family';
 import { FAKE_FAMILY_INVITE_TOKEN } from '../../api/fake/fakeFamilyInvitations';
-import { createMemoryStore, revokedKey } from '../../api/persister';
+import { createMemoryStore, isRevokedMark, readMark, revokedKey } from '../../api/persister';
 import { familyOfKey } from '../../api/queries';
 import { useSession } from '../../session/SessionScope';
 import type { Session } from '../../session/session';
@@ -128,7 +128,8 @@ describe('family data on the device after leaving, deleting and joining (spec W1
       }
       await waitFor(() => expect(history.location.pathname).toBe('/menu'));
       expect(atNavigation[0]).toBe(true);
-      await waitFor(() => expect(store.entries.get(revokedKey('user-anna', DEMO_FAMILY_ID))).toMatchObject({ restoredAt: 0 }));
+      // Revoked in the record of the device: the revocation is newer than the last confirmation (the profile read before).
+      await waitFor(() => expect(isRevokedMark(readMark(store.entries.get(revokedKey('user-anna', DEMO_FAMILY_ID))))).toBe(true));
       unmount();
     }
   });
