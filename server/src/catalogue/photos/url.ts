@@ -17,8 +17,9 @@ export function allowedImageUrl(raw: string, appHost: string): URL | null {
 	}
 	if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
 	// The parser turns hexadecimal, octal and integer IPv4 forms into dotted decimals.
+	// One trailing dot is the absolute form of a name; empty labels (`localhost..`, `a..b`) are refused.
 	const host = url.hostname.toLowerCase().replace(/\.$/, '');
-	if (host.startsWith('[') || /^[\d.]+$/.test(host)) return null;
+	if (host.startsWith('[') || /^[\d.]+$/.test(host) || host.split('.').includes('')) return null;
 	if (!host.includes('.') || BLOCKED_HOSTS.has(host) || BLOCKED_SUFFIXES.some((suffix) => host.endsWith(suffix))) return null;
 	if (host === appHost.toLowerCase()) return null;
 	return url;

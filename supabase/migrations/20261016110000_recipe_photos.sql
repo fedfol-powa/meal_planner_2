@@ -34,8 +34,10 @@ create policy recipe_photos_read on app.recipe_photos for select to authenticate
 create policy recipe_photos_curate on app.recipe_photos for all to authenticated
 	using ((select app.has_role('recipe_curator'))) with check ((select app.has_role('recipe_curator')));
 
+-- Per row: an update of no row (a removal without a current photo) writes nothing, not even the
+-- counter. The counter moves once per transaction anyway.
 create trigger recipe_photos_touch_catalogue after insert or update on app.recipe_photos
-	for each statement execute function app.touch_catalogue_version();
+	for each row execute function app.touch_catalogue_version();
 
 -- The public photo route: content type and size of a current photo, drafts included
 -- (their URL reaches curators only). The only access of anon to the table.

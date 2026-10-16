@@ -36,6 +36,10 @@ describe('allowedImageUrl', () => {
 		'https://2130706433/a',
 		'https://localhost/a',
 		'https://localhost./a',
+		'https://localhost../a',
+		'https://nas.local../a',
+		`https://${APP_HOST}../a`,
+		'https://a..b.it/a',
 		'https://intranet/a',
 		'https://nas.local/a',
 		'https://x.internal/a',
@@ -87,6 +91,11 @@ describe('downloadImage', () => {
 		const { fetch, calls } = fakeFetch([redirect('https://127.0.0.1/'), image]);
 		expect(await codeOf(downloadImage(start, { fetch, appHost: APP_HOST }))).toBe('photo_url');
 		expect(calls).toHaveLength(1);
+	});
+
+	it('a malformed redirect address is refused as an address, not an internal error', async () => {
+		const { fetch } = fakeFetch([redirect('https://[bad'), image]);
+		expect(await codeOf(downloadImage(start, { fetch, appHost: APP_HOST }))).toBe('photo_url');
 	});
 
 	it('gives up after three redirects', async () => {

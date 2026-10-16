@@ -117,6 +117,15 @@ update app.recipe_photos set removed_at = clock_timestamp(), removed_by = tests.
 reset role;
 select ok(tests.catalogue_version() > :before_update, 'removing a photo bumps the catalogue version');
 
+-- An update that changes no row (a removal without a current photo) does not bump it.
+update app.catalogue_state set version_xid = null;
+select tests.catalogue_version() as before_noop \gset
+select tests.login('dario');
+update app.recipe_photos set removed_at = clock_timestamp(), removed_by = tests.uid('dario')
+	where recipe_id = tests.recipe('old-minestrone') and removed_at is null;
+reset role;
+select is(tests.catalogue_version(), :before_noop::bigint, 'an update of no row leaves the catalogue version');
+
 -- Authors become null when the account is deleted.
 delete from auth.users where id = tests.uid('dario');
 select is(

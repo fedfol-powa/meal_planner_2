@@ -64,7 +64,14 @@ export async function downloadImage(url: URL, deps: DownloadDeps): Promise<Uint8
 				log(current, 'too_many_redirects');
 				throw new PhotoError('photo_unreachable');
 			}
-			const next = allowedImageUrl(new URL(location, current).href, deps.appHost);
+			let target: string;
+			try {
+				target = new URL(location, current).href;
+			} catch {
+				log(current, 'redirect_malformed');
+				throw new PhotoError('photo_url');
+			}
+			const next = allowedImageUrl(target, deps.appHost);
 			if (!next) {
 				log(current, 'redirect_refused');
 				throw new PhotoError('photo_url');

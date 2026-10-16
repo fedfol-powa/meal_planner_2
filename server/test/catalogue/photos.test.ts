@@ -88,8 +88,11 @@ describe.skipIf(!hasDatabase)('recipe photos', () => {
 		expect([...bucket.objects.keys()].sort()).toEqual([first.photo!.url.slice(1), second.photo!.url.slice(1)].sort());
 
 		const before = await db()`select xmin from app.recipe_photos where recipe_id = ${recipeId} order by created_at`;
+		const [{ version }] = await db()`select version from app.catalogue_state`;
 		expect(await curator.client.catalogue.removePhoto({ recipeId })).toEqual({ recipeId, photo: null });
 		expect(await db()`select xmin from app.recipe_photos where recipe_id = ${recipeId} order by created_at`).toEqual(before);
+		// Nothing written: the copies of the recipe book on the devices stay valid.
+		expect((await db()`select version from app.catalogue_state`)[0]!.version).toBe(version);
 	});
 
 	it('repeating the same id does no new work', async () => {
