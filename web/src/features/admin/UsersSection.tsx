@@ -14,7 +14,7 @@ import styles from './AdminPage.module.css';
 /** The search starts this long after the last keystroke. */
 export const SEARCH_DELAY_MS = 250;
 
-/** «Utenti» (spec W10): search by name or email, roles as labels, a row per user. */
+/** «Utenti» (spec W10): search by name or email, roles and a deletion in progress (W11) as labels, a row per user. */
 export function UsersSection() {
   const t = useT();
   const deps = useQueryDeps();
@@ -53,8 +53,11 @@ export function UsersSection() {
                 <span className="row-main">
                   <span>{user.displayName}{user.id === me && <span className={styles.you}>{` · ${t('admin.you')}`}</span>}</span>
                   <small>{user.email}</small>
-                  {user.roles.length > 0 && (
-                    <span className={styles.roles}>{user.roles.map((role) => <span key={role} className={styles.role}>{t(`role.${role}`)}</span>)}</span>
+                  {(user.roles.length > 0 || user.deletion) && (
+                    <span className={styles.roles}>
+                      {user.roles.map((role) => <span key={role} className={styles.role}>{t(`role.${role}`)}</span>)}
+                      {user.deletion && <span className={styles.role}>{t('admin.deletionPending')}</span>}
+                    </span>
                   )}
                 </span>
                 <Icon name="chevron-right" />

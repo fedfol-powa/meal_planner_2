@@ -10,12 +10,14 @@ const route = getRouteApi('/login');
 /** Entry page (round 4 pattern): no navbar, 420 px column, green brand. Email and password only. */
 export function LoginPage() {
   const t = useT();
-  const { backend } = useAuth();
+  const { backend, notice } = useAuth();
   const search = route.useSearch();
   const [email, setEmail] = useState(search.email ?? '');
   const [password, setPassword] = useState('');
   const [failure, setFailure] = useState<SignInFailure | null>(null);
   const [busy, setBusy] = useState(false);
+  // Why the previous session ended (spec W11, decision 13), until the next attempt.
+  const [noticeShown, setNoticeShown] = useState(true);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -24,6 +26,7 @@ export function LoginPage() {
       (async () => {
         setBusy(true);
         setFailure(null);
+        setNoticeShown(false);
         const result = await backend.signIn(email.trim(), password);
         setBusy(false);
         // On success the session changes and the route guard redirects to the requested page.
@@ -36,6 +39,7 @@ export function LoginPage() {
     <main className="entry-page" id="app-content">
       <p className="entry-brand">{t('auth.brand')}</p>
       <h1 className="entry-title">{t('auth.title')}</h1>
+      {notice && noticeShown && <p className="state-notice" role="status">{t(`account.notice.${notice}`)}</p>}
       {failure && <p className="form-error" role="alert">{t(`auth.error.${failure}`)}</p>}
       <form onSubmit={submit}>
         <label className="field">

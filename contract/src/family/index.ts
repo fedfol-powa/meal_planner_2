@@ -5,6 +5,7 @@ import { errorDefinitions } from '../errors.ts';
 import { op } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
 import { measurementSystemSchema, profileViewSchema } from '../profile/index.ts';
+import { familyMembersContract } from './members.ts';
 import { exclusionsViewSchema, familyViewSchema, ingredientMatchSchema, settingsViewSchema } from './views.ts';
 
 export * from './views.ts';
@@ -166,4 +167,5 @@ export const familyContract = {
 		.route({ method: 'DELETE', path: '/families/{familyId}/exclusions/{recipeId}', summary: 'Let a recipe be proposed again to this family' })
 		.input(family.extend({ recipeId: z.uuid() }))
 		.output(exclusionsViewSchema),
+	...familyMembersContract,
 };

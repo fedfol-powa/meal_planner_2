@@ -1,6 +1,6 @@
 import { MutationCache, QueryCache, QueryClient, type QueryKey } from '@tanstack/react-query';
 import type { PersistedClient, Persister, PersistQueryClientOptions } from '@tanstack/react-query-persist-client';
-import { toApiError } from './errors';
+import { StaleAfterRevocationError, toApiError } from './errors';
 import { familyOfKey } from './queries';
 
 /** Writes of one transaction: undefined deletes the key. */
@@ -44,45 +44,93 @@ function marksPrefix(userId: string): string {
   return `${REVOKED_PREFIX}${userId}:`;
 }
 
-/** One record per user and family, holding the time of the latest revocation (PR review, C11). */
+/** One record per user and family: the latest revocation and the latest restoration (PR review, C11; spec W11). */
 export function revokedKey(userId: string, familyId: string): string {
   return `${marksPrefix(userId)}${familyId}`;
 }
 
-function revokedFamilies(entries: Map<string, unknown>, userId: string): Set<string> {
+/**
+ * Device clock instants of one family (spec W11, «Dati sul dispositivo»): the family is revoked on
+ * the device while `revokedAt > restoredAt`. Every write takes the maximum of each field.
+ */
+export interface RevocationMark { revokedAt: number; restoredAt: number }
+
+export const isRevokedMark = (mark: RevocationMark | null | undefined): boolean => !!mark && mark.revokedAt > mark.restoredAt;
+
+/** The saved record; a number saved by the previous version is its revocation instant. */
+export function readMark(value: unknown): RevocationMark | null {
+  if (typeof value === 'number') return { revokedAt: value, restoredAt: 0 };
+  if (typeof value !== 'object' || value === null) return null;
+  const { revokedAt, restoredAt } = value as Partial<RevocationMark>;
+  return { revokedAt: typeof revokedAt === 'number' ? revokedAt : 0, restoredAt: typeof restoredAt === 'number' ? restoredAt : 0 };
+}
+
+export function mergeMarks(a: RevocationMark | null | undefined, b: RevocationMark): RevocationMark {
+  return a ? { revokedAt: Math.max(a.revokedAt, b.revokedAt), restoredAt: Math.max(a.restoredAt, b.restoredAt) } : { ...b };
+}
+
+function marksOf(entries: Map<string, unknown>, userId: string): Map<string, RevocationMark> {
   const prefix = marksPrefix(userId);
-  const families = new Set<string>();
-  for (const [key, at] of entries) if (key.startsWith(prefix) && typeof at === 'number') families.add(key.slice(prefix.length));
-  return families;
+  const marks = new Map<string, RevocationMark>();
+  for (const [key, value] of entries) {
+    const mark = key.startsWith(prefix) ? readMark(value) : null;
+    if (mark) marks.set(key.slice(prefix.length), mark);
+  }
+  return marks;
 }
 
-/** Shared by every tab of the user: no persister writes or restores this family any more. */
-export async function markRevoked(store: KeyValueStore, userId: string, familyId: string, at: number): Promise<void> {
+/** The instant the read that produced a cached view started; absent (older copies, unversioned views) = 0. */
+export function producedAtOf(data: unknown): number {
+  const producedAt = typeof data === 'object' && data !== null ? (data as { producedAt?: unknown }).producedAt : undefined;
+  return typeof producedAt === 'number' ? producedAt : 0;
+}
+
+/** A view of a family the device must not keep: the family is revoked, or the view predates its latest revocation. */
+export function isWithdrawn(mark: RevocationMark | null | undefined, data: unknown): boolean {
+  return !!mark && (isRevokedMark(mark) || (mark.revokedAt > 0 && producedAtOf(data) <= mark.revokedAt));
+}
+
+/** Merges one write into the record, atomically for every tab; resolves with the record saved, null if the store failed. */
+async function mergeMark(store: KeyValueStore, userId: string, familyId: string, write: RevocationMark): Promise<RevocationMark | null> {
   const key = revokedKey(userId, familyId);
-  await store
-    .transact([key], (entries) => {
-      const saved = entries.get(key);
-      return [[key, typeof saved === 'number' ? Math.max(saved, at) : at]];
-    })
-    .catch(() => undefined);
+  let saved: RevocationMark | null = null;
+  try {
+    await store.transact([key], (entries) => {
+      const merged = mergeMarks(readMark(entries.get(key)), write);
+      saved = merged;
+      return [[key, merged]];
+    });
+  } catch {
+    return null;
+  }
+  return saved;
 }
 
-/** The server gave the family back: only a read that started after the latest revocation proves it. */
-export async function clearRevoked(store: KeyValueStore, userId: string, familyId: string, startedAt: number): Promise<void> {
-  const key = revokedKey(userId, familyId);
-  await store
-    .transact([key], (entries) => {
-      const revokedAt = entries.get(key);
-      return typeof revokedAt === 'number' && revokedAt < startedAt ? [[key, undefined]] : [];
-    })
-    .catch(() => undefined);
+/** Shared by every tab of the user: no persister writes or restores this family any more until a later restoration. */
+export function markRevoked(store: KeyValueStore, userId: string, familyId: string, at: number): Promise<RevocationMark | null> {
+  return mergeMark(store, userId, familyId, { revokedAt: at, restoredAt: 0 });
 }
 
-function withoutRevoked(client: PersistedClient, revoked: Set<string>): PersistedClient {
-  if (revoked.size === 0) return client;
+/**
+ * The server gave the family back to a request started at `startedAt`: it counts only when it
+ * started after the latest revocation. The record is never deleted here, only at sign-out.
+ */
+export function markRestored(store: KeyValueStore, userId: string, familyId: string, startedAt: number): Promise<RevocationMark | null> {
+  return mergeMark(store, userId, familyId, { revokedAt: 0, restoredAt: startedAt });
+}
+
+/** The records of a user on this device, read when a session starts. */
+export async function readMarks(store: KeyValueStore, userId: string): Promise<Map<string, RevocationMark>> {
+  let marks = new Map<string, RevocationMark>();
+  await store.transact([marksPrefix(userId)], (entries) => void (marks = marksOf(entries, userId))).catch(() => undefined);
+  return marks;
+}
+
+function withoutRevoked(client: PersistedClient, marks: Map<string, RevocationMark>): PersistedClient {
+  if (marks.size === 0) return client;
   const queries = client.clientState.queries.filter((query) => {
     const familyId = familyOfKey(query.queryKey);
-    return familyId === null || !revoked.has(familyId);
+    return familyId === null || !isWithdrawn(marks.get(familyId), query.state.data);
   });
   return { ...client, clientState: { ...client.clientState, queries } };
 }
@@ -192,23 +240,23 @@ export function createPersister(store: KeyValueStore, userId: string): SessionPe
     persistClient(client) {
       return closed ? Promise.resolve() : enqueue(async () => {
         // Marks are read in the same transaction that writes the copy.
-        if (!closed) await store.transact([marksPrefix(userId)], (entries) => [[key, withoutRevoked(client, revokedFamilies(entries, userId))]]);
+        if (!closed) await store.transact([marksPrefix(userId)], (entries) => [[key, withoutRevoked(client, marksOf(entries, userId))]]);
       });
     },
     async restoreClient() {
       if (closed) return undefined;
       let value: unknown;
-      let revoked = new Set<string>();
+      let marks = new Map<string, RevocationMark>();
       await store
         .transact([key, marksPrefix(userId)], (entries) => {
           value = entries.get(key);
-          revoked = revokedFamilies(entries, userId);
+          marks = marksOf(entries, userId);
         })
         .catch(() => undefined);
       if (value === undefined) return undefined;
       if (isPersistedClient(value)) {
         const client = PRE_SCHEMA_BUSTER.test(value.buster) ? { ...value, buster: '1' } : value;
-        return withoutRevoked(client, revoked);
+        return withoutRevoked(client, marks);
       }
       await enqueue(() => store.delete(key));
       return undefined;
@@ -253,17 +301,26 @@ export async function purgeOtherCopies(store: KeyValueStore, keepUserId: string 
   await Promise.all(others.map((k) => store.delete(k).catch(() => undefined)));
 }
 
-type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
+type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string; operation?: string }) => void;
 
 export function createQueryClient(handlers: { onError?: ErrorHandler } = {}): QueryClient {
   const report: ErrorHandler = (error, scope) => handlers.onError?.(error, scope);
   return new QueryClient({
     // One place sees every failure: the session turns unauthorized and forbidden into actions.
-    queryCache: new QueryCache({ onError: (error, query) => report(error, { queryKey: query.queryKey, familyId: familyOfKey(query.queryKey) ?? undefined }) }),
+    queryCache: new QueryCache({
+      onError: (error, query) => {
+        const [area, operation] = query.queryKey;
+        report(error, {
+          queryKey: query.queryKey,
+          familyId: familyOfKey(query.queryKey) ?? undefined,
+          operation: typeof area === 'string' && typeof operation === 'string' ? `${area}.${operation}` : undefined
+        });
+      }
+    }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _result, mutation) => {
-        const familyId = mutation.options.meta?.familyId;
-        report(error, { familyId: typeof familyId === 'string' ? familyId : undefined });
+        const { familyId, operation } = mutation.options.meta ?? {};
+        report(error, { familyId: typeof familyId === 'string' ? familyId : undefined, operation: typeof operation === 'string' ? operation : undefined });
       }
     }),
     defaultOptions: {
@@ -273,7 +330,9 @@ export function createQueryClient(handlers: { onError?: ErrorHandler } = {}): Qu
         staleTime: 0,
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
-        retry: (count, error) => toApiError(error).code === 'network' && count < 2
+        retry: (count, error) => (error instanceof StaleAfterRevocationError ? count < 3 : toApiError(error).code === 'network' && count < 2),
+        // An answer started before a revocation is never shown: the read is repeated at once (spec W11).
+        retryDelay: (count, error) => (error instanceof StaleAfterRevocationError ? 0 : Math.min(1000 * 2 ** count, 30_000))
       },
       // No queue: offline a mutation fails at once (spec, voto).
       mutations: { networkMode: 'always' }

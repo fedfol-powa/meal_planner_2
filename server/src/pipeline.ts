@@ -64,6 +64,25 @@ export function webOnlyUrl(origin: string, path: string, input: unknown): string
 	return new URL(filled, origin).toString();
 }
 
+class Continuation<T> {
+	readonly next: () => Promise<T>;
+	constructor(next: () => Promise<T>) {
+		this.next = next;
+	}
+}
+
+/** What a handler returns in place of its output: typed as the output, replaced by the pipeline. */
+export type AfterCommit<T> = T;
+
+/**
+ * Work after the commit (spec W11, section 2): the pipeline commits the transaction, then runs
+ * `next` with no connection open and uses its result as the output. An error of `next` follows
+ * the usual error handling, with the transaction already committed.
+ */
+export function afterCommit<T>(next: () => Promise<T>): AfterCommit<T> {
+	return new Continuation(next) as unknown as AfterCommit<T>;
+}
+
 export function fresh<T>(context: OperationContext, data: T): { unchanged: false; version: string; data: T } {
 	if (!context.version) throw new Error('fresh() used outside a versioned read');
 	return { unchanged: false, version: context.version, data };
@@ -88,10 +107,23 @@ export interface PrepareResult {
 /** Runs inside the user's transaction before the version is read: validation against the server's state, lazy work. */
 export type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>;
 
+/**
+ * Operations whose transaction is repeated once when Postgres breaks a lock cycle with 40P01
+ * (spec W11, decision 19): deletions that lock a family and then cascade over rows an ordinary
+ * change may hold. The first attempt is rolled back whole; the second redoes session, role and
+ * handler; only the committed attempt's result and continuation are used. A server rule, not
+ * contract metadata.
+ */
+export const RETRY_ON_DEADLOCK: readonly string[] = ['family.delete', 'account.delete', 'users.delete'];
+
 export interface ImplementerOptions {
 	/** By operation path joined with dots, for example `menu.getOpening`. */
 	prepare?: Record<string, Prepare>;
+	/** Replaces RETRY_ON_DEADLOCK (tests). */
+	retryOnDeadlock?: readonly string[];
 }
+
+const isDeadlock = (error: unknown) => (error as { code?: unknown } | null)?.code === '40P01';
 
 /**
  * Implementer shared by every operation. Input is validated first and output last
@@ -127,7 +159,7 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 		}
 		const claims = await authenticate(context);
 		const channel = channelOf(claims);
-		return withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
+		const attempt = () => withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
 			const locale = await loadSession(tx);
 			context.state.locale = locale;
 			if (meta.webOnly && channel === 'mcp') {
@@ -154,6 +186,14 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 			}
 			return next({ context: operation });
 		});
+		const retry = (options.retryOnDeadlock ?? RETRY_ON_DEADLOCK).includes(path.join('.'));
+		const result = await attempt().catch((error: unknown) => {
+			if (retry && isDeadlock(error)) return attempt();
+			throw error;
+		});
+		// After the commit, outside the repetition: a 40P01 of the continuation repeats nothing.
+		if (result.output instanceof Continuation) return { ...result, output: await result.output.next() };
+		return result;
 	});
 }
 

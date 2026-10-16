@@ -1,5 +1,6 @@
 import type { ShoppingListView } from '@app/contract';
 import { SessionClosedError, toApiError } from '../../../api/errors';
+import { familyAccessOf } from '../../../api/queries';
 import { isOnline } from '../../../lib/connectivity';
 import { trackBusy } from '../../../pwa/busy';
 import { subscribeExtension } from '../../../session/channel';
@@ -12,11 +13,16 @@ export { QUEUE_PREFIX, queueKey } from '../storage';
 
 export const QUEUE_TOPIC = 'shopping-queue';
 export type SendResult = { version: string; data: ShoppingListView };
+/**
+ * A confirmed answer with `startedAt`, the instant its request started on the session clock
+ * (spec W11, «Dati sul dispositivo»); absent in the messages of a tab of the previous version.
+ */
+export type ConfirmedResult = SendResult & { startedAt?: number };
 
 /** What a tab tells the other tabs of the same person after every change of the record. */
 export type QueueMessage =
   | { type: 'reread' }
-  | { type: 'confirmed'; familyId: string; weekStartsOn: string; seq: number; result: SendResult };
+  | { type: 'confirmed'; familyId: string; weekStartsOn: string; seq: number; result: ConfirmedResult };
 
 export interface ShoppingQueue {
   record(): QueueRecord;
@@ -35,9 +41,10 @@ export interface ShoppingQueueDeps {
   send: (op: ShoppingOperation) => Promise<SendResult>;
   /**
    * Applies a confirmed view to this tab's cache: cancels the list's running reads first, then
-   * writes only if `isCurrent()` still holds (session open, family not revoked).
+   * writes only if `isCurrent()` still holds (session open, family not revoked, request started
+   * after the latest revocation).
    */
-  applyConfirmed: (familyId: string, weekStartsOn: string, result: SendResult, isCurrent: () => boolean) => Promise<void>;
+  applyConfirmed: (familyId: string, weekStartsOn: string, result: ConfirmedResult, isCurrent: () => boolean) => Promise<void>;
   /** navigator.locks by default; null = declared limitation, no exclusion. */
   locks?: LockManagerLike | null;
   now?: () => number;
@@ -122,10 +129,15 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     return value;
   }
 
-  async function applyView(familyId: string, weekStartsOn: string, seq: number, result: SendResult): Promise<void> {
+  async function applyView(familyId: string, weekStartsOn: string, seq: number, result: ConfirmedResult): Promise<void> {
     const list = `${familyId}/${weekStartsOn}`;
-    // A family revoked meanwhile (here or in another tab) never comes back into the cache (PR #22 review, finding 1).
-    const isCurrent = () => !gone() && !session.isRevoked(familyId);
+    // A family revoked meanwhile (here or in another tab) never comes back into the cache (PR #22 review, finding 1),
+    // nor an answer whose request started before its latest revocation, also once the family is back (PR #52 review, finding 2).
+    const startedBeforeRevocation = () => {
+      const revokedAt = familyAccessOf(session.queryClient).revokedAt(familyId);
+      return revokedAt > 0 && revokedAt >= (result.startedAt ?? 0);
+    };
+    const isCurrent = () => !gone() && !session.isRevoked(familyId) && !startedBeforeRevocation();
     if (seq <= Math.max(baseline, applied.get(list) ?? 0) || !isCurrent()) return;
     applied.set(list, seq);
     await deps.applyConfirmed(familyId, weekStartsOn, result, isCurrent);
@@ -149,7 +161,7 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
       return { next: head.state === 'sent' ? undefined : { ...record, ops: [sent, ...record.ops.slice(1)] }, value: structuredClone(sent) };
     });
 
-  async function confirm(head: QueuedOp, result: SendResult): Promise<void> {
+  async function confirm(head: QueuedOp, result: ConfirmedResult): Promise<void> {
     const seq = await mutate(
       (record) => {
         // Already confirmed by another tab, or dropped meanwhile: nothing to take away.
@@ -209,9 +221,10 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
       if (gone()) return 'stopped';
       const head = await takeHead();
       if (!head) return 'done';
-      let result: SendResult;
+      let result: ConfirmedResult;
       try {
-        result = await session.call(() => deps.send(head.op), head.op.input.familyId);
+        const startedAt = familyAccessOf(session.queryClient).now();
+        result = { ...(await session.call(() => deps.send(head.op), head.op.input.familyId)), startedAt };
       } catch (error) {
         if ((await refuse(head, error)) === 'stop') return 'stopped';
         continue;
@@ -250,9 +263,14 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     // Kept after dispose: the screen may go before the session closes, the queue must go with it.
     session.onClose(() => session.store.delete(key).catch(() => undefined));
     cleanups.push(
-      session.onRevoke(async (familyId) => {
+      // The operations queued up to the revocation leave with the family; later ones (after a return) stay (spec W11).
+      session.onRevoke(async (familyId, revokedAt) => {
         await mutate((record) => ({
-          next: { ...record, ops: record.ops.filter((o) => o.op.input.familyId !== familyId), notices: record.notices.filter((n) => n.familyId !== familyId) },
+          next: {
+            ...record,
+            ops: record.ops.filter((o) => o.op.input.familyId !== familyId || o.queuedAt > revokedAt),
+            notices: record.notices.filter((n) => n.familyId !== familyId)
+          },
           value: null
         })).catch(() => undefined);
       })

@@ -66,6 +66,11 @@ export async function runWeeklyJobOn(sql: postgres.Sql, now: Date, options: Week
 					where family_id = ${familyId} and target_week = ${targetWeek}`;
 			});
 		} catch (error) {
+			// The family was deleted after the selection: its job row went with it (spec W11, section 2).
+			if (errorCode(error) === '23503') {
+				logEvent('weekly_job_family_gone', { familyId, weekStart: targetWeek });
+				continue;
+			}
 			result.failed++;
 			const code = errorCode(error).slice(0, 500);
 			try {

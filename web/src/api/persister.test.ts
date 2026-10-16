@@ -2,7 +2,7 @@ import { persistQueryClientRestore, persistQueryClientSave } from '@tanstack/rea
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
 import 'fake-indexeddb/auto';
-import { CACHE_SCHEMA, cacheKey, clearRevoked, createIndexedDbStore, registerUserKeyPrefix, resetUserKeyPrefixes, createMemoryStore, createPersister, createQueryClient, markRevoked, persistOptions, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
+import { CACHE_SCHEMA, cacheKey, createIndexedDbStore, registerUserKeyPrefix, resetUserKeyPrefixes, createMemoryStore, createPersister, createQueryClient, markRestored, markRevoked, persistOptions, readMarks, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
 
 const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
 const options = (buster: string) => persistOptions(createPersister(createMemoryStore(), 'x'), buster).dehydrateOptions;
@@ -112,7 +112,7 @@ describe('persister', () => {
     expect(retry(2, new ApiError('network'))).toBe(false);
     expect(retry(0, new ApiError('not_found'))).toBe(false);
     await client.fetchQuery({ queryKey: week, queryFn: () => Promise.reject(new ApiError('forbidden')) }).catch(() => undefined);
-    expect(onError).toHaveBeenCalledWith(new ApiError('forbidden'), { queryKey: week, familyId: 'f' });
+    expect(onError).toHaveBeenCalledWith(new ApiError('forbidden'), { queryKey: week, familyId: 'f', operation: 'menu.getWeek' });
   });
   it('keeps the copy across builds: the buster is the shape of the data (spec W8)', async () => {
     const { store } = await saved(createMemoryStore(), CACHE_SCHEMA);
@@ -144,10 +144,10 @@ describe('revoked families on the device (second review, C4)', () => {
   const otherWeek = ['menu', 'getWeek', { familyId: 'g', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
   const families = (entry: unknown) =>
     (entry as { clientState: { queries: { queryKey: unknown[] }[] } }).clientState.queries.map((q) => (q.queryKey[2] as { familyId: string }).familyId);
-  async function saveBoth(store: KeyValueStore & { entries: Map<string, unknown> }, persister = createPersister(store, 'user-a')) {
+  async function saveBoth(store: KeyValueStore & { entries: Map<string, unknown> }, persister = createPersister(store, 'user-a'), producedAt?: number) {
     const client = createQueryClient();
-    client.setQueryData(week, { version: 'v1', data: 'f' });
-    client.setQueryData(otherWeek, { version: 'v1', data: 'g' });
+    client.setQueryData(week, { version: 'v1', data: 'f', producedAt });
+    client.setQueryData(otherWeek, { version: 'v1', data: 'g', producedAt });
     await persistQueryClientSave({ queryClient: client, persister, buster: 'b', dehydrateOptions: options('b') });
   }
 
@@ -175,17 +175,60 @@ describe('revoked families on the device (second review, C4)', () => {
     expect(restored.getQueryData(week)).toBeUndefined();
     expect(restored.getQueryData(otherWeek)).toBeDefined();
   });
-  it('lifts the mark only for a read that started after the revocation', async () => {
+  it('restores the family only for a read that started after the revocation, keeping the record', async () => {
     const store = createMemoryStore();
     await markRevoked(store, 'user-a', 'f', 100);
     await markRevoked(store, 'user-a', 'h', 100);
-    await clearRevoked(store, 'user-a', 'f', 90);
-    expect(store.entries.get(revokedKey('user-a', 'f'))).toBe(100);
-    await clearRevoked(store, 'user-a', 'f', 120);
-    expect(store.entries.has(revokedKey('user-a', 'f'))).toBe(false);
-    expect(store.entries.get(revokedKey('user-a', 'h'))).toBe(100);
-    await saveBoth(store);
+    await markRestored(store, 'user-a', 'f', 90);
+    expect(store.entries.get(revokedKey('user-a', 'f'))).toEqual({ revokedAt: 100, restoredAt: 90 });
+    await markRestored(store, 'user-a', 'f', 120);
+    expect(store.entries.get(revokedKey('user-a', 'f'))).toEqual({ revokedAt: 100, restoredAt: 120 });
+    expect(store.entries.get(revokedKey('user-a', 'h'))).toEqual({ revokedAt: 100, restoredAt: 0 });
+    await saveBoth(store, undefined, 200);
     expect(families(store.entries.get(cacheKey('user-a')))).toEqual(['f', 'g']);
+  });
+  it('never writes nor restores views of a family produced up to its revocation, even once restored', async () => {
+    const store = createMemoryStore();
+    await markRevoked(store, 'user-a', 'f', 100);
+    await markRestored(store, 'user-a', 'f', 150);
+    // Views without producedAt (saved by the previous version) count as produced at 0.
+    for (const producedAt of [undefined, 50, 100]) {
+      await saveBoth(store, undefined, producedAt);
+      expect(families(store.entries.get(cacheKey('user-a')))).toEqual(['g']);
+    }
+    await saveBoth(store, undefined, 101);
+    expect(families(store.entries.get(cacheKey('user-a')))).toEqual(['f', 'g']);
+    // A copy written before the marks loses the old views on restoring.
+    const clean = createMemoryStore();
+    const old = createQueryClient();
+    old.setQueryData(week, { version: 'v1', data: 'f', producedAt: 60 });
+    old.setQueryData(otherWeek, { version: 'v1', data: 'g', producedAt: 60 });
+    await persistQueryClientSave({ queryClient: old, persister: createPersister(clean, 'user-a'), buster: 'b', dehydrateOptions: options('b') });
+    store.entries.set(cacheKey('user-a'), clean.entries.get(cacheKey('user-a')));
+    const restored = createQueryClient();
+    await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'user-a'), buster: 'b' });
+    expect(restored.getQueryData(week)).toBeUndefined();
+    expect(restored.getQueryData(otherWeek)).toBeDefined();
+  });
+  it('a numeric mark from the previous version reads as revokedAt', async () => {
+    const store = createMemoryStore();
+    store.entries.set(revokedKey('user-a', 'f'), 100);
+    expect(await readMarks(store, 'user-a')).toEqual(new Map([['f', { revokedAt: 100, restoredAt: 0 }]]));
+    await saveBoth(store, undefined, 200);
+    expect(families(store.entries.get(cacheKey('user-a')))).toEqual(['g']);
+    await markRestored(store, 'user-a', 'f', 150);
+    expect(store.entries.get(revokedKey('user-a', 'f'))).toEqual({ revokedAt: 100, restoredAt: 150 });
+    await saveBoth(store, undefined, 200);
+    expect(families(store.entries.get(cacheKey('user-a')))).toEqual(['f', 'g']);
+  });
+  it('merges every write of the record with the maximum of each field', async () => {
+    const store = createMemoryStore();
+    await markRevoked(store, 'user-a', 'f', 100);
+    await markRestored(store, 'user-a', 'f', 200);
+    // A late tab writes the old revocation again: the restoration stays.
+    expect(await markRevoked(store, 'user-a', 'f', 100)).toEqual({ revokedAt: 100, restoredAt: 200 });
+    expect(await markRestored(store, 'user-a', 'f', 150)).toEqual({ revokedAt: 100, restoredAt: 200 });
+    expect(store.entries.get(revokedKey('user-a', 'f'))).toEqual({ revokedAt: 100, restoredAt: 200 });
   });
   it('deletes the marks with the copy when the session closes', async () => {
     const store = createMemoryStore();
@@ -198,10 +241,11 @@ describe('revoked families on the device (second review, C4)', () => {
 describe('concurrent revocation marks (PR review, C11)', () => {
   const otherWeek = ['menu', 'getWeek', { familyId: 'g', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
   async function lateWriteAndRestore(store: KeyValueStore) {
-    // A tab that knows nothing of the revocations writes both families, then the app reopens.
+    // A tab that knows nothing of the revocations writes both families (views read after every
+    // instant of these tests), then the app reopens.
     const client = createQueryClient();
-    client.setQueryData(week, { version: 'v1', data: 'f' });
-    client.setQueryData(otherWeek, { version: 'v1', data: 'g' });
+    client.setQueryData(week, { version: 'v1', data: 'f', producedAt: 1000 });
+    client.setQueryData(otherWeek, { version: 'v1', data: 'g', producedAt: 1000 });
     await persistQueryClientSave({ queryClient: client, persister: createPersister(store, 'user-a'), buster: 'b', dehydrateOptions: options('b') });
     const restored = createQueryClient();
     await persistQueryClientRestore({ queryClient: restored, persister: createPersister(store, 'user-a'), buster: 'b' });
@@ -219,20 +263,20 @@ describe('concurrent revocation marks (PR review, C11)', () => {
       expect(restored.getQueryData(week)).toBeUndefined();
       expect(restored.getQueryData(otherWeek)).toBeUndefined();
     });
-    it(`keeps a new revocation that races the lifting of the old one (${name})`, async () => {
+    it(`keeps a new revocation that races the restoration after the old one (${name})`, async () => {
       const store: KeyValueStore = make();
       await markRevoked(store, 'user-a', 'f', 100);
       // Both orders: the lifting may read before or after the new mark is written.
-      await Promise.all([markRevoked(store, 'user-a', 'f', 200), clearRevoked(store, 'user-a', 'f', 150)]);
-      await Promise.all([clearRevoked(store, 'user-a', 'f', 250), markRevoked(store, 'user-a', 'f', 300)]);
+      await Promise.all([markRevoked(store, 'user-a', 'f', 200), markRestored(store, 'user-a', 'f', 150)]);
+      await Promise.all([markRestored(store, 'user-a', 'f', 250), markRevoked(store, 'user-a', 'f', 300)]);
       const restored = await lateWriteAndRestore(store);
       expect(restored.getQueryData(week)).toBeUndefined();
       expect(restored.getQueryData(otherWeek)).toBeDefined();
       // The later mark stays; an older one never replaces it.
       await markRevoked(store, 'user-a', 'f', 120);
-      await clearRevoked(store, 'user-a', 'f', 180);
+      await markRestored(store, 'user-a', 'f', 180);
       expect((await lateWriteAndRestore(store)).getQueryData(week)).toBeUndefined();
-      await clearRevoked(store, 'user-a', 'f', 350);
+      await markRestored(store, 'user-a', 'f', 350);
       expect((await lateWriteAndRestore(store)).getQueryData(week)).toBeDefined();
     });
   }

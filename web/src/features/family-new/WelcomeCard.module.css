@@ -2,5 +2,6 @@
 .card { position: relative; margin: 0 16px 10px; padding: 10px 44px 10px 14px; border: 1px solid var(--free-border); border-radius: 8px; background: var(--free-surface); font-size: 0.875rem; }
 .card :global(.link-inline) { display: inline-flex; align-items: center; min-height: 32px; }
 .title { margin: 0 0 2px; font-weight: 700; }
+.links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .note { margin: 6px 0 0; color: var(--muted); }
 .close { position: absolute; top: 2px; right: 0; width: 44px; height: 44px; border: 0; background: none; color: var(--ink); font: 400 1.5rem/1 var(--text-font); cursor: pointer; }

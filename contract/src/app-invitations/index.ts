@@ -19,7 +19,8 @@ const rolesSchema = z.array(globalRoleSchema).max(2).refine((roles) => new Set(r
 
 export const appInvitationViewSchema = z.object({
 	id: z.uuid(),
-	email: z.string(),
+	/** Null once the account it belongs to was deleted (the invitation stays, without the email). */
+	email: z.string().nullable(),
 	roles: z.array(globalRoleSchema),
 	/** `expired`: still pending in the database, so it can be revoked (a reserved one can still be closed). */
 	status: z.enum(['pending', 'expired', 'accepted', 'revoked']),

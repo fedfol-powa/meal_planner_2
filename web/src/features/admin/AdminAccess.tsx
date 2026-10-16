@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router';
 import type { ProfileView } from '@app/contract';
 import { toApiError } from '../../api/errors';
 import { profileQuery } from '../../api/profile';
-import { useQueryDeps, type QueryDeps } from '../../api/queries';
+import { familyAccessOf, useQueryDeps, type QueryDeps } from '../../api/queries';
 import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
@@ -72,8 +72,12 @@ function createStore(queryClient: QueryClient, deps: QueryDeps): Store {
         const deps = store.deps;
         // A request of its own, started now: fetchQuery would join a read already in flight,
         // begun before the forbidden. The cache gets it too, for the rest of the app.
+        const access = familyAccessOf(deps.queryClient);
+        const startedAt = access.now();
         profile = await deps.api.profile.get({});
-        deps.queryClient.setQueryData(profileQuery(deps).queryKey, profile);
+        const profileKey = profileQuery(deps).queryKey;
+        access.profileRead(deps.queryClient.getQueryData(profileKey), profile, startedAt);
+        deps.queryClient.setQueryData(profileKey, profile);
       } while (reportedAgain); // a forbidden during the read: the answer may predate it
       // Anything written meanwhile goes too.
       dropViews();

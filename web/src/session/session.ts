@@ -1,26 +1,46 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { ApiError, SessionClosedError, toApiError } from '../api/errors';
-import { clearRevoked, createPersister, createQueryClient, markRevoked, type KeyValueStore, type SessionPersister } from '../api/persister';
-import { familyOfKey, localeOfKey } from '../api/queries';
+import {
+  createPersister,
+  createQueryClient,
+  isRevokedMark,
+  markRestored,
+  markRevoked,
+  mergeMarks,
+  producedAtOf,
+  readMarks,
+  type KeyValueStore,
+  type RevocationMark,
+  type SessionPersister
+} from '../api/persister';
+import { attachFamilyAccess, familyOfKey, localeOfKey } from '../api/queries';
 import { trackBusy } from '../pwa/busy';
-import type { Api } from '../api/types';
+import type { Api, ProfileView } from '../api/types';
 import type { RenewResult } from '../auth/backend';
 
 export type { RenewResult } from '../auth/backend';
-import type { SessionChannel } from './channel';
+import type { SessionChannel, SessionMessage } from './channel';
 import { clearPreference, userScope } from './localePreference';
 
 export { SessionClosedError } from '../api/errors';
 
 const REJECTED: RenewResult = { kind: 'rejected' };
 
-export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
+/**
+ * Why the session ended by itself (spec W11, decision 13): `unauthorized` when a call is refused
+ * again after a successful renewal (no profile: an account being deleted), `rejected` when the
+ * renewal itself is refused.
+ */
+export interface SessionEnd { ended: 'unauthorized' | 'rejected' }
+
+/** `operation`: `area.operation` of the failed read or mutation, when known. */
+export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string; operation?: string }) => void;
 
 export interface SessionDeps {
   /** One renewal of the sign-in session. */
   refresh?: () => Promise<RenewResult>;
   /** Ends this session (sign-in page); called at most once, never once the session is closed. Its promise is awaited by `renew`. */
-  end?: (session: Session) => void | Promise<void>;
+  end?: (session: Session, outcome: SessionEnd) => void | Promise<void>;
   /** Tells the other tabs about revocations. */
   channel?: SessionChannel;
   now?: () => number;
@@ -32,9 +52,26 @@ export interface Session {
   isClosed(): boolean;
   /** Always the same promise: repeated calls wait for the same closing. */
   close(): Promise<void>;
-  /** announce: false when the revocation comes from another tab. */
-  revoke(familyId: string, options?: { announce?: boolean }): void;
+  /**
+   * The family leaves the device (spec W11, «Dati sul dispositivo»): its views produced up to `at`
+   * (default now) and its queued shopping operations up to `at` go, the record is merged with
+   * `revokedAt = at`. announce: false when the revocation comes from another tab.
+   */
+  revoke(familyId: string, options?: { announce?: boolean; at?: number }): void;
+  /**
+   * The server confirmed the family to a request started at `startedAt` (decision 23): merged as
+   * `restoredAt`; resolves whether the family is accessible now. announce: false from another tab.
+   */
+  restore(familyId: string, startedAt: number, options?: { announce?: boolean }): boolean;
+  /** Revoked on this device: the latest revocation is newer than the latest restoration. */
   isRevoked(familyId: string): boolean;
+  /** A message of another tab about this person's families (`revoked`, `restored`); the others are ignored. */
+  receive(message: SessionMessage): void;
+  /**
+   * A profile read by a request started at `startedAt` (`answer`: returned by a mutation, such as
+   * family.join or family.create): families gone are revoked, families back restored.
+   */
+  observeProfile(previous: ProfileView | undefined, next: ProfileView, startedAt: number, answer?: boolean): void;
   subscribe(listener: () => void): () => void;
   revision(): number;
   track(key: string): number;
@@ -57,8 +94,11 @@ export interface Session {
    * a failing hook does not stop the others. Returns the unsubscribe function.
    */
   onClose(hook: () => Promise<void>): () => void;
-  /** Hook called by `revoke(familyId)`, local or announced by another tab; it may return a promise, not awaited by `revoke`. */
-  onRevoke(hook: (familyId: string) => void | Promise<void>): () => void;
+  /**
+   * Hook called by `revoke(familyId)`, local or announced by another tab, with the revocation
+   * instant; it may return a promise, not awaited by `revoke`.
+   */
+  onRevoke(hook: (familyId: string, revokedAt: number) => void | Promise<void>): () => void;
   /** The device store and the cross-tab channel of this session, for the queue. */
   readonly store: KeyValueStore;
   readonly channel: SessionChannel | null;
@@ -78,17 +118,22 @@ export function persisterOf(session: Session): SessionPersister | null {
  * and sign-outs have no effect on the next one.
  */
 export function createSession(userId: string | null, store: KeyValueStore, deps: SessionDeps = {}): Session {
-  const now = deps.now ?? Date.now;
+  const now = deps.now ?? tabClock;
   let closed = false;
   let closing: Promise<void> | null = null;
   let handler: ErrorHandler = () => {};
   let rev = 0;
-  const revoked = new Set<string>();
+  // The copy in memory of the records of this person's families (spec W11): updated by every write and message.
+  const marks = new Map<string, RevocationMark>();
+  // The start of the latest profile read applied: an older one says nothing new about the families.
+  let profileStartedAt = -Infinity;
+  // When profile reads restored each family lately: see observeProfile.
+  const profileRestores = new Map<string, number[]>();
   const listeners = new Set<() => void>();
   const requests = new Map<string, number>();
   const closeHooks = new Set<() => Promise<void>>();
   const lifetime = new AbortController();
-  const revokeHooks = new Set<(familyId: string) => void | Promise<void>>();
+  const revokeHooks = new Set<(familyId: string, revokedAt: number) => void | Promise<void>>();
   const queryClient = createQueryClient({ onError: (error, scope) => !closed && handler(error, scope) });
   const persister = userId ? createPersister(store, userId) : null;
   const changed = () => {
@@ -96,14 +141,47 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
     listeners.forEach((listener) => listener());
   };
 
+  const ofFamily = (familyId: string) => (query: { queryKey: QueryKey }) => familyOfKey(query.queryKey) === familyId;
+  const isRevoked = (familyId: string) => isRevokedMark(marks.get(familyId));
+  /** Reads the family again: every query invalidated, the ones in use read from the server. */
+  const reread = (familyId: string) => void queryClient.invalidateQueries({ predicate: ofFamily(familyId) });
+  /**
+   * The views of the family produced up to `at` leave the tab: removed while the family is revoked;
+   * once it is accessible again, emptied and the ones in use read again (third review, finding 3).
+   */
+  const withdraw = (familyId: string, at: number) => {
+    const old = (query: { queryKey: QueryKey; state: { data: unknown } }) => ofFamily(familyId)(query) && producedAtOf(query.state.data) <= at;
+    if (isRevoked(familyId)) queryClient.removeQueries({ predicate: old });
+    else {
+      void queryClient.resetQueries({ predicate: old }).catch(() => undefined);
+      reread(familyId);
+    }
+  };
+  /** Merges a record into memory and applies what changed: a newer revocation withdraws, a restoration reads again. */
+  const apply = (familyId: string, write: RevocationMark): boolean => {
+    const before = marks.get(familyId);
+    const after = mergeMarks(before, write);
+    marks.set(familyId, after);
+    const wasRevoked = isRevokedMark(before);
+    const newer = after.revokedAt > (before?.revokedAt ?? 0);
+    if (newer) withdraw(familyId, after.revokedAt);
+    else if (wasRevoked && !isRevokedMark(after)) reread(familyId);
+    if (wasRevoked !== isRevokedMark(after)) changed();
+    return newer;
+  };
+  const settle = (familyId: string, saved: RevocationMark | null) => {
+    if (saved && !closed) apply(familyId, saved);
+  };
+
   // Token epochs: a renewal that succeeded after a call started answers that call at once.
   let epoch = 0;
   let renewing: Promise<RenewResult> | null = null;
   let ending: Promise<void> | null = null;
-  const end = (): Promise<void> => {
+  // The first reason wins: the closing happens once.
+  const end = (outcome: SessionEnd): Promise<void> => {
     if (closed) return Promise.resolve();
     ending ??= Promise.resolve()
-      .then(() => deps.end?.(session))
+      .then(() => deps.end?.(session, outcome))
       .catch(() => undefined);
     return ending;
   };
@@ -127,7 +205,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
         return result;
       }
       if (result.kind === 'ok') epoch += 1;
-      else if (result.kind === 'rejected') await end();
+      else if (result.kind === 'rejected') await end({ ended: 'rejected' });
       return result;
     })();
     return renewing;
@@ -155,22 +233,63 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       })();
       return closing;
     },
-    revoke(familyId, { announce = true } = {}) {
+    revoke(familyId, { announce = true, at } = {}) {
       if (closed) return;
-      revoked.add(familyId);
-      queryClient.removeQueries({ predicate: (query) => familyOfKey(query.queryKey) === familyId });
+      const revokedAt = at ?? now();
+      // The same cleanup also when the instant is not newer than the one known: this tab may still hold old views.
+      if (!apply(familyId, { revokedAt, restoredAt: 0 })) withdraw(familyId, revokedAt);
       if (userId) {
-        // The mark keeps the family's copy off the device: busy until it is written (spec W8).
-        void trackBusy(markRevoked(store, userId, familyId, now()));
-        if (announce) deps.channel?.post({ type: 'revoked', userId, familyId });
+        // The record keeps the family's copy off the device: busy until it is written (spec W8).
+        void trackBusy(markRevoked(store, userId, familyId, revokedAt).then((saved) => settle(familyId, saved)));
+        if (announce) deps.channel?.post({ type: 'revoked', userId, familyId, revokedAt });
       }
       changed();
       for (const hook of revokeHooks) {
         try {
-          void Promise.resolve(hook(familyId)).catch(() => undefined);
+          void Promise.resolve(hook(familyId, revokedAt)).catch(() => undefined);
         } catch {
           // A broken hook does not stop the others.
         }
+      }
+    },
+    restore(familyId, startedAt, { announce = true } = {}) {
+      if (closed) return false;
+      apply(familyId, { revokedAt: 0, restoredAt: startedAt });
+      if (userId) {
+        void trackBusy(markRestored(store, userId, familyId, startedAt).then((saved) => settle(familyId, saved)));
+        if (announce) deps.channel?.post({ type: 'restored', userId, familyId, startedAt });
+      }
+      return !isRevoked(familyId);
+    },
+    receive(message) {
+      if (closed || !userId || message.userId !== userId) return;
+      // A tab of the previous version sends no instant: the revocation is now.
+      if (message.type === 'revoked') session.revoke(message.familyId, { announce: false, at: typeof message.revokedAt === 'number' ? message.revokedAt : undefined });
+      else if (message.type === 'restored') session.restore(message.familyId, message.startedAt, { announce: false });
+    },
+    observeProfile(previous, next, startedAt, answer = false) {
+      if (closed || startedAt < profileStartedAt || !Array.isArray(next?.families)) return;
+      profileStartedAt = startedAt;
+      const present = new Set(next.families.map((family) => family.id));
+      for (const family of previous?.families ?? []) {
+        // Gone from the profile: removed, left or deleted, also by someone else.
+        if (!present.has(family.id) && startedAt > (marks.get(family.id)?.restoredAt ?? 0)) session.revoke(family.id);
+      }
+      for (const familyId of present) {
+        const mark = marks.get(familyId);
+        // Older than what the record already says: nothing new.
+        if (startedAt <= (mark?.revokedAt ?? 0) || startedAt <= (mark?.restoredAt ?? 0)) continue;
+        if (isRevokedMark(mark)) {
+          // A server refusing a family its profile still lists (a role check, a stale fake) would make
+          // forbidden → revoke → profile → restore turn forever: reads restore a few times a minute at most.
+          // The answer of a join or a creation always counts.
+          const recent = (profileRestores.get(familyId) ?? []).filter((at) => startedAt - at < RESTORE_WINDOW_MS);
+          if (!answer && recent.length >= RESTORES_PER_WINDOW) continue;
+          profileRestores.set(familyId, [...recent, startedAt]);
+        }
+        // Saved and announced also when this tab knows no revocation: one written by another tab,
+        // whose message is late or never arrives before a reload, is older (PR #52 review, finding 3).
+        session.restore(familyId, startedAt);
       }
     },
     renew: renewOnce,
@@ -182,7 +301,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       revokeHooks.add(hook);
       return () => void revokeHooks.delete(hook);
     },
-    isRevoked: (familyId) => revoked.has(familyId),
+    isRevoked,
     subscribe(listener) {
       listeners.add(listener);
       return () => void listeners.delete(listener);
@@ -197,17 +316,11 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
     setErrorHandler(next) {
       handler = next;
     },
-    async call(run, familyId) {
+    async call(run) {
       if (closed) throw new SessionClosedError();
       const startedEpoch = epoch;
-      const startedAt = now();
-      const succeeded = <T,>(value: T): T => {
-        // A read that started after a revocation and succeeded: the server gave the family back.
-        if (familyId && userId && !closed && !revoked.has(familyId)) void clearRevoked(store, userId, familyId, startedAt);
-        return value;
-      };
       try {
-        return succeeded(await run());
+        return await run();
       } catch (error) {
         if (toApiError(error).code !== 'unauthorized') throw error;
         if (closed) throw new SessionClosedError();
@@ -217,17 +330,38 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
         if (result.kind === 'network') throw new ApiError('network');
         if (result.kind === 'rejected') throw error;
         try {
-          return succeeded(await run());
+          return await run();
         } catch (again) {
           // Refused again after a renewal: the session is over.
-          if (toApiError(again).code === 'unauthorized') void end();
+          if (toApiError(again).code === 'unauthorized') void end({ ended: 'unauthorized' });
           throw again;
         }
       }
     }
   };
   if (persister) persisters.set(session, persister);
+  attachFamilyAccess(queryClient, {
+    now,
+    revokedAt: (familyId) => marks.get(familyId)?.revokedAt ?? 0,
+    profileRead: (previous, next, startedAt, answer) => session.observeProfile(previous, next, startedAt, answer)
+  });
+  // A new session reads the records of the device first (spec W11): the persister reads them again with the copy.
+  if (userId) {
+    void readMarks(store, userId).then((saved) => {
+      for (const [familyId, mark] of saved) settle(familyId, mark);
+    });
+  }
   return session;
+}
+
+const RESTORE_WINDOW_MS = 60_000;
+const RESTORES_PER_WINDOW = 3;
+
+let lastInstant = 0;
+/** The device clock, strictly increasing in this tab: a revocation and a later confirmation never share an instant. */
+function tabClock(): number {
+  lastInstant = Math.max(Date.now(), lastInstant + 1);
+  return lastInstant;
 }
 
 /** The language an Api client was made for, and whether it is still the one shown. */

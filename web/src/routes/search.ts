@@ -13,6 +13,8 @@ export interface RecipesSearch {
 export interface RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate; slot?: string }
 /** `email`: written in advance, e.g. after an invitation whose automatic sign-in failed (spec W9). */
 export interface LoginSearch { redirect?: string; email?: string }
+/** `family`: the family to delete (spec W11); the link of the settings and of the agents. */
+export interface FamilyDeleteSearch { family?: string }
 
 const SORTS = ['rating', 'added', 'lastEaten'] as const;
 const MEALS = ['lunch', 'dinner'] as const;
@@ -82,4 +84,8 @@ export function toRecipesSearch(query: RecipeQuery): RecipesSearch {
     rating: query.minStars, sort: query.sort === 'name' ? undefined : query.sort,
     dir: query.reversed ? ('reverse' as const) : undefined
   });
+}
+
+export function validateFamilyDeleteSearch(raw: Record<string, unknown>): FamilyDeleteSearch {
+  return { family: typeof raw.family === 'string' && raw.family !== '' ? raw.family : undefined };
 }

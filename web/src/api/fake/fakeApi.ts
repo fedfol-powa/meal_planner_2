@@ -1,6 +1,8 @@
 import { createFakeAgents, createFakeAgentsData, type FakeAgent } from './fakeAgents';
 import type { GlobalRole } from '@app/contract';
+import { createFakeAccount } from './fakeAccount';
 import { createFakeAppInvitations, registerFakeInvitations } from './fakeAppInvitations';
+import { createFakeFamilyInvitations } from './fakeFamilyInvitations';
 import { createFakeUsers } from './fakeUsers';
 import { addDays, daysBetween, isMealPast, localNow, MEAL_PAST_AT, mondayOf, weekDates, type IsoDate, type LocalDateTime, type MealType } from '../../lib/calendar';
 import type { Department } from '@app/domain/shopping';
@@ -9,7 +11,7 @@ import { isOnline } from '../../lib/connectivity';
 import { ApiError } from '../errors';
 import type { Api, IngredientLine, MealView, OpeningView, RatingSummary, Read, RecipeListItem, RecipeMealType, RecipeQuery, RecipeSummary, SourceType, ProteinGroup } from '../types';
 import raw from './demo-data.json';
-import { createFakeFamily, createFakeFamilyData, type FakeFamilyData } from './family';
+import { createFakeFamily, createFakeFamilyData, createNewFamilyData, type FakeFamilyData } from './family';
 import { createFakeCatalogue, createFakeCatalogueData, type FakeCatalogueData } from './fakeCatalogue';
 import { createFakeMeals } from './fakeMeals';
 import { createFakeShopping } from './fakeShopping';
@@ -68,8 +70,8 @@ export interface FakeData {
   readonly catalogue: FakeCatalogueData;
   /** Agents connected to the account (Profile › Connect an agent). */
   readonly agents: FakeAgent[];
-  /** Families created in this session (W9): shown in the profile, without menus. */
-  readonly createdFamilies: { id: string; name: string; timeZone: string; measurementSystem: 'metric' | 'uk_imperial' }[];
+  /** Families created in this session (W9): their own members, settings and links, without menus. */
+  readonly createdFamilies: { id: string; data: FakeFamilyData }[];
   currentFamilyId?: string;
   /** App invitations (W9), made by the first client of the session. */
   appInvitations?: ReturnType<typeof createFakeAppInvitations>;
@@ -134,7 +136,18 @@ export function createFakeApi(options: FakeApiOptions): Api {
   const { weeks, recipes, ratings } = state;
   const user = state.user;
   const userId = user?.id ?? DEMO_USER_ID;
-  const memberIds = new Set([...DEMO_PEOPLE.map((p) => p.id), userId]);
+  // A person seen for the first time is a member of the demo family (the fake mode's starting point);
+  // one who left, was removed or saw the family deleted is not added back (W11).
+  if (!state.family.known.has(userId)) {
+    state.family.known.add(userId);
+    if (!state.family.deleted) state.family.members.push({ id: userId, role: 'member', joinedAt: '2026-10-01T09:00:00+02:00' });
+  }
+  const isMember = () => !state.family.deleted && state.family.members.some((m) => m.id === userId);
+  const memberIds = { has: (id: string) => state.family.members.some((m) => m.id === id) };
+  const createdFamily = (id: string) => state.createdFamilies.find((f) => f.id === id);
+  const memberOf = (family: FakeFamilyData) => !family.deleted && family.members.some((m) => m.id === userId);
+  /** The created families the person is still in. */
+  const myCreatedFamilies = () => state.createdFamilies.filter((f) => memberOf(f.data));
   const seedPerson = DEMO_PEOPLE.find((p) => p.id === userId);
   state.users ??= createFakeUsers({
     self: {
@@ -173,20 +186,39 @@ export function createFakeApi(options: FakeApiOptions): Api {
         globalRoles: state.users!.rolesOf(userId)
       },
       families: [
-        { id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: person?.role ?? 'member' },
-        ...state.createdFamilies.map((f) => ({ ...f, role: 'family_admin' as const }))
+        ...(isMember()
+          ? [{ id: DEMO_FAMILY.id, name: state.family.name, timeZone: state.family.timeZone, measurementSystem: state.family.measurementSystem, role: state.family.members.find((m) => m.id === userId)!.role }]
+          : []),
+        ...myCreatedFamilies().map(({ id, data: f }) => ({
+          id, name: f.name, timeZone: f.timeZone, measurementSystem: f.measurementSystem, role: f.members.find((m) => m.id === userId)!.role
+        }))
       ],
-      currentFamilyId: state.currentFamilyId ?? DEMO_FAMILY.id
+      currentFamilyId: shownFamily()
     } satisfies Awaited<ReturnType<Api['profile']['get']>>;
   }
+  /** The saved choice while still a family of the person, otherwise the first one (as the server). */
+  function shownFamily(): string | null {
+    const ids = [...(isMember() ? [DEMO_FAMILY.id] : []), ...myCreatedFamilies().map((f) => f.id)];
+    return state.currentFamilyId && ids.includes(state.currentFamilyId) ? state.currentFamilyId : ids[0] ?? null;
+  }
   function checkFamily(familyId: string) {
-    if (familyId !== DEMO_FAMILY.id) throw new ApiError('forbidden');
+    if (familyId !== DEMO_FAMILY.id || !isMember()) throw new ApiError('forbidden');
+  }
+  /** The demo family or a created one the person is in; the members whose ratings count. */
+  function checkAnyFamily(familyId: string): { demo: boolean; members: { has: (id: string) => boolean } } {
+    const created = createdFamily(familyId);
+    if (!created) {
+      checkFamily(familyId);
+      return { demo: true, members: memberIds };
+    }
+    if (!memberOf(created.data)) throw new ApiError('forbidden');
+    return { demo: false, members: { has: (id) => created.data.members.some((m) => m.id === id) } };
   }
   const visibleWeeks = () => weeks.filter((w) => w.generatedAt <= now()).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   const published = (id: string) => recipes.find((r) => r.id === id && r.status === 'published') ?? null;
 
-  function ratingSummary(recipeId: string): RatingSummary {
-    const family = ratings.filter((r) => r.recipeId === recipeId && memberIds.has(r.userId));
+  function ratingSummary(recipeId: string, members = memberIds): RatingSummary {
+    const family = ratings.filter((r) => r.recipeId === recipeId && members.has(r.userId));
     const total = family.reduce((sum, r) => sum + r.stars, 0);
     return {
       familyAverage: family.length ? total / family.length : null,
@@ -233,7 +265,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
   function mealView(slot: DemoSlot, locale: Locale): MealView {
     const recipe = slot.recipeId ? recipes.find((r) => r.id === slot.recipeId) ?? null : null;
     const isPublished = recipe?.status === 'published';
-    const author = slot.updatedBy ? DEMO_PEOPLE.find((p) => p.id === slot.updatedBy)?.displayName ?? null : null;
+    // The name only while a member («ex membro» otherwise, as the server).
+    const author = slot.updatedBy && memberIds.has(slot.updatedBy) ? DEMO_PEOPLE.find((p) => p.id === slot.updatedBy)?.displayName ?? null : null;
     return {
       slotId: slot.id, date: slot.date, mealType: slot.mealType,
       kind: recipe ? 'recipe' : slot.freeText ? 'free' : 'empty',
@@ -303,6 +336,64 @@ export function createFakeApi(options: FakeApiOptions): Api {
     return [localized(recipe.name, locale), localized(recipe.description, locale), ...names].some((t) => normalize(t).includes(needle));
   }
 
+  const invitationsOf = (family: FakeFamilyData, familyId: string) => createFakeFamilyInvitations({
+    data: family,
+    familyId,
+    userId,
+    displayName: () => profileView().user.displayName,
+    profile: profileView,
+    show: (familyId) => void (state.currentFamilyId = familyId),
+    accountExists: (email) => state.users!.hasEmail(email),
+    delayed,
+    bump: () => void (state.revision += 1)
+  });
+  const familyOf = (family: FakeFamilyData, familyId: string, weekCount: () => number) => createFakeFamily({
+    data: family,
+    familyId,
+    userId,
+    displayName: () => profileView().user.displayName,
+    locale: options.getLocale,
+    books: data.books,
+    ingredients: data.ingredients,
+    recipeName: (recipeId, locale) => {
+      const recipe = recipes.find((r) => r.id === recipeId);
+      return recipe ? localized(recipe.name, locale) : null;
+    },
+    checkFamily: (id) => (id === familyId ? checkAnyFamily(id) : checkFamily(id)),
+    respond,
+    delayed,
+    bump: () => void (state.revision += 1),
+    profile: profileView,
+    weekCount
+  });
+  // One module per family: the demo one, and one for each family created in this session (W9).
+  type Modules = { family: ReturnType<typeof createFakeFamily>; invitations: ReturnType<typeof invitationsOf> };
+  const demoModules: Modules = { family: familyOf(state.family, DEMO_FAMILY.id, () => visibleWeeks().length), invitations: invitationsOf(state.family, DEMO_FAMILY.id) };
+  const createdModules = new Map<string, Modules>();
+  function modulesOf(familyId: string): Modules {
+    const created = createdFamily(familyId);
+    if (!created) return demoModules;
+    let modules = createdModules.get(familyId);
+    if (!modules) {
+      modules = { family: familyOf(created.data, familyId, () => 0), invitations: invitationsOf(created.data, familyId) };
+      createdModules.set(familyId, modules);
+    }
+    return modules;
+  }
+  /** The family whose link has this token: the demo one when none has it (its refusals). */
+  const modulesOfToken = (token: string) =>
+    modulesOf(state.createdFamilies.find((f) => f.data.links.some((l) => l.token === token))?.id ?? DEMO_FAMILY.id);
+  const byFamily = <T extends object>(area: (m: Modules) => T): T =>
+    Object.fromEntries(
+      Object.keys(area(demoModules)).map((name) => [
+        name,
+        (input: { familyId?: string; token?: string }) => {
+          const modules = input.familyId !== undefined ? modulesOf(input.familyId) : input.token !== undefined ? modulesOfToken(input.token) : demoModules;
+          return (area(modules) as Record<string, (input: unknown) => unknown>)[name]!(input);
+        }
+      ])
+    ) as T;
+
   const api: Api = {
     session: {
       // Same shape as the contract's answer; the real one comes from the Worker.
@@ -325,33 +416,18 @@ export function createFakeApi(options: FakeApiOptions): Api {
       },
       // The demo family or one created in this session: any other is a family the person is not in.
       async setCurrentFamily({ familyId }) {
-        if (!state.createdFamilies.some((f) => f.id === familyId)) checkFamily(familyId);
+        checkAnyFamily(familyId);
         state.currentFamilyId = familyId;
         return delayed(profileView());
       }
     },
     family: {
-      ...createFakeFamily({
-        data: state.family,
-        userId,
-        role: DEMO_PEOPLE.find((p) => p.id === userId)?.role ?? 'member',
-        displayName: () => profileView().user.displayName,
-        locale: options.getLocale,
-        books: data.books,
-        ingredients: data.ingredients,
-        recipeName: (recipeId, locale) => {
-          const recipe = recipes.find((r) => r.id === recipeId);
-          return recipe ? localized(recipe.name, locale) : null;
-        },
-        checkFamily,
-        respond,
-        delayed,
-        bump: () => void (state.revision += 1)
-      }),
+      ...byFamily((m) => m.family),
+      join: (input) => modulesOfToken(input.token).invitations.join(input),
       // W9: the creator administers it and sees it; the fake has no menu for it.
       async create({ id, name, measurementSystem, timeZone }) {
-        if (!state.createdFamilies.some((f) => f.id === id)) {
-          state.createdFamilies.push({ id, name: name.trim(), measurementSystem, timeZone: timeZone ?? 'Europe/Rome' });
+        if (!createdFamily(id)) {
+          state.createdFamilies.push({ id, data: createNewFamilyData({ name: name.trim(), measurementSystem, timeZone: timeZone ?? 'Europe/Rome' }, userId) });
         }
         state.currentFamilyId = id;
         return delayed(profileView());
@@ -359,7 +435,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
     },
     menu: {
       async getOpening({ familyId, today: requested }) {
-        checkFamily(familyId);
+        if (!checkAnyFamily(familyId).demo) return respond<OpeningView>({ kind: 'no_weeks' });
         const visible = visibleWeeks();
         if (visible.length === 0) return respond<OpeningView>({ kind: 'no_weeks' });
         const today = requested ?? now().slice(0, 10);
@@ -371,21 +447,22 @@ export function createFakeApi(options: FakeApiOptions): Api {
         return respond<OpeningView>({ kind: 'day', date, weekStartsOn: mondayOf(date) });
       },
       async getWeek({ familyId, weekStartsOn }) {
-        checkFamily(familyId);
+        if (!checkAnyFamily(familyId).demo) throw new ApiError('not_found');
         return respond(weekView(weekStartsOn));
       },
       async getDates({ familyId, month }) {
-        checkFamily(familyId);
+        if (!checkAnyFamily(familyId).demo) return respond<IsoDate[]>([]);
         const dates = new Set(visibleWeeks().flatMap((w) => w.slots.map((s) => s.date)).filter((d) => d.startsWith(month)));
         return respond([...dates].sort());
       }
     },
     recipes: {
       async search({ familyId, query }: { familyId: string; query: RecipeQuery }) {
-        checkFamily(familyId);
+        // A created family has no meals and its own members' ratings.
+        const { demo, members } = checkAnyFamily(familyId);
         const locale = options.getLocale();
         const needle = normalize(query.text ?? '');
-        const lastEaten = (id: string) => pastMeals(id).map((s) => s.date).sort().at(-1) ?? null;
+        const lastEaten = (id: string) => (demo ? pastMeals(id).map((s) => s.date).sort().at(-1) ?? null : null);
         const items = recipes
           .filter((r) => r.status === 'published')
           .filter((r) => !query.mealType || r.mealType === query.mealType || r.mealType === 'both')
@@ -395,8 +472,8 @@ export function createFakeApi(options: FakeApiOptions): Api {
           .map((r) => ({
             r,
             item: {
-              recipe: summary(r, locale), rating: ratingSummary(r.id), baseServings: r.baseServings ?? 1,
-              ingredients: lines(r, r.baseServings ?? 1, locale) ?? [], addedOn: r.addedOn, lastEatenOn: lastEaten(r.id), upcoming: upcomingMeals(r.id)
+              recipe: summary(r, locale), rating: ratingSummary(r.id, members), baseServings: r.baseServings ?? 1,
+              ingredients: lines(r, r.baseServings ?? 1, locale) ?? [], addedOn: r.addedOn, lastEatenOn: lastEaten(r.id), upcoming: demo ? upcomingMeals(r.id) : []
             } satisfies RecipeListItem
           }))
           .filter(({ item }) => !query.minStars || (item.rating.familyAverage ?? 0) >= query.minStars)
@@ -415,27 +492,43 @@ export function createFakeApi(options: FakeApiOptions): Api {
       // Like the Worker, a meal citing the recipe gives the default servings (zero servings: the base);
       // versions of past meals are not simulated.
       async get({ familyId, recipeId, servings, slotId }) {
-        checkFamily(familyId);
+        const { demo, members } = checkAnyFamily(familyId);
         const recipe = published(recipeId);
         if (!recipe) throw new ApiError('not_found');
         const locale = options.getLocale();
         const base = recipe.baseServings;
-        const meal = slotId ? visibleWeeks().flatMap((w) => w.slots).find((s) => s.id === slotId && s.recipeId === recipeId) : undefined;
+        const meal = slotId && demo ? visibleWeeks().flatMap((w) => w.slots).find((s) => s.id === slotId && s.recipeId === recipeId) : undefined;
         const fallback = meal && meal.servings > 0 ? meal.servings : (base ?? 1);
         const chosen = servings && Number.isInteger(servings) && servings > 0 && servings <= 50 ? servings : fallback;
         return respond({
           recipe: summary(recipe, locale), status: 'published' as const, baseServings: base ?? chosen, servings: chosen,
-          ingredients: lines(recipe, chosen, locale) ?? [], rating: ratingSummary(recipe.id),
-          history: pastMeals(recipe.id)
+          ingredients: lines(recipe, chosen, locale) ?? [], rating: ratingSummary(recipe.id, members),
+          history: (demo ? pastMeals(recipe.id) : [])
             .sort((a, b) => b.date.localeCompare(a.date) || MEAL_ORDER[b.mealType] - MEAL_ORDER[a.mealType])
             .slice(0, 5)
             .map((s) => ({ date: s.date, mealType: s.mealType })),
-          upcoming: upcomingMeals(recipe.id)
+          upcoming: demo ? upcomingMeals(recipe.id) : []
         });
       }
     },
     agents: createFakeAgents(state.agents, options.latencyMs),
     appInvitations: (state.appInvitations ??= createFakeAppInvitations(options.latencyMs, (email) => state.users!.hasEmail(email))),
+    familyInvitations: byFamily((m) => m.invitations.area),
+    account: createFakeAccount({
+      data: state.family,
+      familyId: DEMO_FAMILY.id,
+      userId,
+      displayName: () => profileView().user.displayName,
+      createdFamilies: () => myCreatedFamilies().map((f) => ({ id: f.id, name: f.data.name })),
+      removeCreatedFamily: (id) => {
+        const created = createdFamily(id);
+        if (created) Object.assign(created.data, { deleted: true, members: [] });
+      },
+      isLastAppAdmin: () => state.users!.rolesOf(userId).includes('app_admin') && state.users!.appAdminCount() === 1,
+      connectedAgents: () => state.agents.length,
+      delayed,
+      bump: () => void (state.revision += 1)
+    }),
     users: state.users!.area,
     shopping: createFakeShopping({
       familyId: DEMO_FAMILY.id, userId, getLocale: options.getLocale, latencyMs: options.latencyMs,
@@ -451,7 +544,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
     }),
     ratings: {
       async set({ familyId, recipeId, stars }) {
-        checkFamily(familyId);
+        const { members } = checkAnyFamily(familyId);
         if (stars !== null && !(Number.isInteger(stars) && stars >= 1 && stars <= 5)) throw new ApiError('invalid');
         if (!published(recipeId)) throw new ApiError('not_found');
         if (options.latencyMs) await new Promise((resolve) => setTimeout(resolve, options.latencyMs));
@@ -461,7 +554,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         } else if (index === -1) ratings.push({ userId, recipeId, stars });
         else ratings[index]!.stars = stars;
         state.revision += 1;
-        return ratingSummary(recipeId);
+        return ratingSummary(recipeId, members);
       }
     },
     meals: meals.api
@@ -480,5 +573,5 @@ function withTransport(api: Api): Api {
         (...args: unknown[]) => (isOnline() ? (method as (...a: unknown[]) => Promise<unknown>)(...args) : Promise.reject(new ApiError('network')))
       ])
     ) as T;
-  return { session: wrap(api.session), appInvitations: wrap(api.appInvitations), users: wrap(api.users), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals), agents: wrap(api.agents) };
+  return { session: wrap(api.session), appInvitations: wrap(api.appInvitations), familyInvitations: wrap(api.familyInvitations), account: wrap(api.account), users: wrap(api.users), profile: wrap(api.profile), family: wrap(api.family), menu: wrap(api.menu), recipes: wrap(api.recipes), ratings: wrap(api.ratings), shopping: wrap(api.shopping), catalogue: wrap(api.catalogue), meals: wrap(api.meals), agents: wrap(api.agents) };
 }

@@ -6,9 +6,10 @@ import { toApiError } from '../api/errors';
 import { runAreaMutation } from '../api/mutations';
 import { CACHE_SCHEMA, persistOptions, purgeOtherCopies, type KeyValueStore } from '../api/persister';
 import { profileQuery } from '../api/profile';
-import { useQueryDeps } from '../api/queries';
+import { familyOfKey, useQueryDeps } from '../api/queries';
+import { FAMILY_ADMIN_OPERATIONS } from '../api/familyRoles';
 import type { Api, ProfileView } from '../api/types';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth, type ExitNotice } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
 import { useLocale } from '../i18n/LocaleProvider';
 import { isOnline } from '../lib/connectivity';
@@ -26,7 +27,8 @@ export type CreateApi = (user: AuthUser | null) => (locale: Locale) => Api;
 
 interface SessionContextValue {
   session: Session;
-  signOut: () => Promise<void>;
+  /** `notice`: what the sign-in page tells afterwards (after deleting one's own account). */
+  signOut: (notice?: ExitNotice) => Promise<void>;
   /** Saved in the profile when online; rejects with the error of the server when it refuses. */
   chooseLocale: (locale: Locale) => Promise<void>;
   /** The language shown now, also after this render: mutations check it when their answer arrives. */
@@ -53,14 +55,18 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
 
   // One way out for «Esci», a refused renewal and a refusal after renewal: tell the other tabs,
   // close the session, then Supabase. Stale sessions are ignored by the auth state.
-  const endRef = useRef<(session: Session) => Promise<void>>(async () => undefined);
-  endRef.current = async (session) => {
+  const endRef = useRef<(session: Session, notice?: ExitNotice) => Promise<void>>(async () => undefined);
+  endRef.current = async (session, notice) => {
     const userId = session.userId;
     if (!userId || session.isClosed()) return;
-    await endIdentity(userId, async () => {
-      channel.post({ type: 'signedOut', userId });
-      await session.close();
-    });
+    await endIdentity(
+      userId,
+      async () => {
+        channel.post({ type: 'signedOut', userId });
+        await session.close();
+      },
+      notice
+    );
   };
 
   // The session is the generation of the identity shown (second review, C3).
@@ -68,7 +74,12 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     () =>
       identity === undefined
         ? null
-        : createSession(identity, store, { refresh: () => backend.refresh(), end: (s) => endRef.current(s), channel }),
+        : createSession(identity, store, {
+            refresh: () => backend.refresh(),
+            // Refused again after a renewal: no profile, the account is being deleted (spec W11, decision 13).
+            end: (s, outcome) => endRef.current(s, outcome.ended === 'unauthorized' ? 'accountGone' : undefined),
+            channel
+          }),
     [identity, store, backend, channel]
   );
   // The data client depends on the user and the language; answers in a language no longer shown are dropped (PR review, C12).
@@ -109,13 +120,17 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     });
   }, [session, backend]);
 
-  // Forbidden: the family leaves memory and disk, and the profile is read again.
+  // Forbidden: the family leaves memory and disk, and the profile is read again. On an operation
+  // reserved to the administrators it may be only a lost role (a demotion, spec W11): nothing is
+  // revoked, profile and family are read again; a lost membership then shows on a member's read.
   useEffect(() => {
     session?.setErrorHandler((error, scope) => {
-      if (toApiError(error).code === 'forbidden' && scope.familyId) {
-        session.revoke(scope.familyId);
-        void session.queryClient.invalidateQueries({ queryKey: ['profile', 'get'] });
-      }
+      if (toApiError(error).code !== 'forbidden' || !scope.familyId) return;
+      const familyId = scope.familyId;
+      if (scope.operation && FAMILY_ADMIN_OPERATIONS.has(scope.operation)) {
+        void session.queryClient.invalidateQueries({ queryKey: ['family', 'get'], predicate: (query) => familyOfKey(query.queryKey) === familyId });
+      } else session.revoke(familyId);
+      void session.queryClient.invalidateQueries({ queryKey: ['profile', 'get'] });
     });
   }, [session]);
 
@@ -124,8 +139,8 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     if (!session?.userId) return;
     return channel.subscribe((message) => {
       if (message.userId !== session.userId || session.isClosed()) return;
-      // Only these two are the session's; extension messages belong to their listeners.
-      if (message.type === 'revoked') session.revoke(message.familyId, { announce: false });
+      // Revocations and restorations are the session's; extension messages belong to their listeners.
+      if (message.type === 'revoked' || message.type === 'restored') session.receive(message);
       else if (message.type === 'signedOut') {
         // Closed at once, like the Supabase events above: an answer arriving before the re-render is stale (PR #31 review, finding 1).
         void session.close();
@@ -187,7 +202,7 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     [backend.mode, identity, session, clients, currentLocale, setLocale]
   );
 
-  const signOut = useCallback(() => (session ? endRef.current(session) : Promise.resolve()), [session]);
+  const signOut = useCallback((notice?: ExitNotice) => (session ? endRef.current(session, notice) : Promise.resolve()), [session]);
   const value = useMemo(
     () => (session ? { session, signOut, chooseLocale, currentLocale } : null),
     [session, signOut, chooseLocale, currentLocale]

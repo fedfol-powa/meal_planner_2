@@ -1,5 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/errors';
+import { createFakeApi } from '../api/fake/fakeApi';
 import { setBrowserLanguages } from '../test/browserLanguages';
 import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
@@ -38,5 +40,26 @@ describe('sign-in page', () => {
     renderApp('/login', { backend: createStubBackend(null) });
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeTruthy();
     expect(screen.getByLabelText('Password')).toBeTruthy();
+  });
+  it('LoginPage shows «Questo account è stato cancellato.» when the first profile read is unauthorized after sign-in', async () => {
+    const backend = createStubBackend(null);
+    const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+    // An account waiting for deletion: Auth signs in, the app has no profile any more.
+    api.profile.get = vi.fn().mockRejectedValue(new ApiError('unauthorized')) as unknown as typeof api.profile.get;
+    const { history } = renderApp('/login', { backend, api });
+    await screen.findByRole('heading', { name: 'Accedi' });
+    fill('anna@example.com', 'secret');
+    expect(await screen.findByText('Questo account è stato cancellato.')).toBeTruthy();
+    expect(history.location.pathname).toBe('/login');
+    expect(screen.getByRole('heading', { name: 'Accedi' })).toBeTruthy();
+    expect(api.profile.get).toHaveBeenCalledTimes(2);
+    expect(backend.signOutCalls).toBe(1);
+  });
+  it('shows no notice after a plain sign-out', async () => {
+    const backend = createStubBackend(null);
+    renderApp('/login', { backend });
+    await screen.findByRole('heading', { name: 'Accedi' });
+    expect(screen.queryByText('Questo account è stato cancellato.')).toBeNull();
+    expect(screen.queryByText('Account cancellato.')).toBeNull();
   });
 });

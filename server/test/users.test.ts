@@ -51,7 +51,7 @@ describe.skipIf(!hasDatabase)('users administration', () => {
 		const federico = await admin();
 		const orphan = await actors.user();
 		const byEmail = await federico.client.users.list({ query: emailOf(orphan.userId).toUpperCase() });
-		expect(byEmail.users).toEqual([{ id: orphan.userId, displayName: expect.any(String), email: emailOf(orphan.userId), roles: [] }]);
+		expect(byEmail.users).toEqual([{ id: orphan.userId, displayName: expect.any(String), email: emailOf(orphan.userId), roles: [], deletion: null }]);
 		expect(byEmail.more).toBe(false);
 		const [{ display_name }] = await actors.db.admin<{ display_name: string }[]>`select display_name from app.profiles where user_id = ${orphan.userId}`;
 		expect((await federico.client.users.list({ query: display_name })).users.map((u) => u.id)).toContain(orphan.userId);
@@ -78,7 +78,7 @@ describe.skipIf(!hasDatabase)('users administration', () => {
 		await actors.db.createFamily([{ userId: anna.userId, role: 'family_admin' }]);
 		const detail = await federico.client.users.get({ id: anna.userId });
 		expect(detail).toEqual({
-			user: { id: anna.userId, displayName: expect.any(String), email: emailOf(anna.userId), roles: [], lastAppAdmin: false },
+			user: { id: anna.userId, displayName: expect.any(String), email: emailOf(anna.userId), roles: [], deletion: null, lastAppAdmin: false },
 			families: [{ name: 'Test', role: 'family_admin' }],
 		});
 		expect(Object.keys(detail.families[0]!)).toEqual(['name', 'role']);

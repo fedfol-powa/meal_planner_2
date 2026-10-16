@@ -33,19 +33,22 @@ select is(
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('anon', p.oid, 'EXECUTE') order by 1),
-	array['app_invitation_by_token', 'claim_app_invitation', 'complete_app_invitation', 'temporary_list_by_token'], 'anon executes only the token functions');
+	array['account_id_deleted', 'app_invitation_by_token', 'claim_app_invitation', 'claim_family_invitation', 'complete_app_invitation',
+		'complete_family_invitation', 'family_invitation_by_token', 'temporary_list_by_token'], 'anon executes only the token functions');
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('authenticated', p.oid, 'EXECUTE') order by 1),
-	array['admin_user', 'admin_user_families', 'admin_users', 'app_invitations_view', 'can_access_list', 'can_access_slot', 'can_access_week', 'catalogue_author_names', 'connected_agents', 'create_app_invitation', 'create_family', 'has_role', 'is_family_admin',
-		'is_localized_list', 'is_localized_text', 'is_member', 'meal_action_restores_closed_draft', 'meal_passed_at', 'recipe_is_cited', 'recipe_version_at',
-		'revoke_app_invitation', 'session_is_active', 'set_user_role', 'shares_family', 'unit_dimension'],
+	array['account_deletion_plan', 'admin_account_deletions', 'admin_user', 'admin_user_families', 'admin_users', 'app_invitations_view', 'begin_account_deletion', 'can_access_list', 'can_access_slot', 'can_access_week', 'catalogue_author_names', 'connected_agents', 'create_app_invitation', 'create_family', 'create_family_invitation',
+		'delete_family', 'family_deletion_view', 'family_invitation_status', 'family_invitations_view', 'family_joins_view', 'has_role', 'is_family_admin',
+		'is_localized_list', 'is_localized_text', 'is_member', 'join_family', 'leave_family', 'meal_action_restores_closed_draft', 'meal_passed_at', 'recipe_is_cited', 'recipe_version_at',
+		'remove_family_member', 'revoke_app_invitation', 'revoke_family_invitation', 'session_is_active', 'set_family_member_role', 'set_user_role', 'shares_family', 'unit_dimension'],
 	'authenticated executes only authorisation and pure functions');
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_job', p.oid, 'EXECUTE') order by 1),
-	array['is_localized_list', 'is_localized_text', 'meal_passed_at', 'recipe_version_at', 'unit_dimension'],
-	'app_job executes only pure functions');
+	array['is_localized_list', 'is_localized_text', 'meal_passed_at', 'pending_account_deletions', 'recipe_version_at',
+		'record_account_deletion_attempt', 'unit_dimension'],
+	'app_job executes only pure functions and the deletion resume');
 select is(
 	array(select p.proname::text collate "C" from pg_proc p
 		where p.pronamespace = 'app'::regnamespace and has_function_privilege('app_backup', p.oid, 'EXECUTE') order by 1),

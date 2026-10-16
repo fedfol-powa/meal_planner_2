@@ -10,6 +10,8 @@ export * from './profile/index.ts';
 export * from './app-invitations/index.ts';
 export * from './users/index.ts';
 export * from './family/index.ts';
+export * from './family-invitations/index.ts';
+export * from './account/index.ts';
 export { menuContract } from './menu/operations.ts';
 export { localDateTimeSchema, type MealView, type OpeningView, type WeekView } from './menu/views.ts';
 export * from './meals/index.ts';

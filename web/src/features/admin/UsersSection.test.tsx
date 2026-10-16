@@ -105,7 +105,7 @@ describe('/admin users', () => {
     search('os'); // forbidden
     expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
     // The answer of the earlier search arrives: it was for a view no longer allowed.
-    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'] }], more: false });
+    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'], deletion: null }], more: false });
     await new Promise((r) => setTimeout(r, 20));
     nothingShown();
     // Out and back in, the profile still failing and the list never answering: the earlier
@@ -192,5 +192,18 @@ describe('/admin users', () => {
     const { history } = renderApp('/admin', { api: adminApi() });
     fireEvent.click((await screen.findByText('ospite@example.com')).closest('a')!);
     await waitFor(() => expect(history.location.pathname).toBe('/admin/users/00000000-0000-4000-8000-00000000a5e1'));
+  });
+
+  it('labels a deletion in progress', async () => {
+    const api = adminApi();
+    const realList = api.users.list.bind(api.users);
+    vi.spyOn(api.users, 'list').mockImplementation(async (input) => {
+      const answer = await realList(input);
+      return { ...answer, users: answer.users.map((user) => (user.id === FAKE_GUEST_ID ? { ...user, deletion: { requestedAt: '2026-10-14T09:00:00Z', attempts: 1 } } : user)) };
+    });
+    renderApp('/admin', { api });
+    const guest = (await screen.findByText('ospite@example.com')).closest('a')!;
+    expect(within(guest).getByText('Cancellazione in corso')).toBeTruthy();
+    expect(screen.getAllByText('Cancellazione in corso')).toHaveLength(1);
   });
 });

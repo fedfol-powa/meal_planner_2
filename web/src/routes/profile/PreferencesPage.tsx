@@ -1,8 +1,10 @@
+import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { errorKey, isBlocking } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
 import { useQueryDeps } from '../../api/queries';
 import { useAuth } from '../../auth/AuthProvider';
+import danger from '../../components/Danger.module.css';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { QueryError } from '../../components/QueryError';
@@ -89,6 +91,10 @@ export function PreferencesPage() {
         {backend.mode === 'supabase' && (
           <button type="button" className="text-button" onClick={() => void signOut()}>{t('profile.signOut')}</button>
         )}
+        {/* Only navigation: the page reads the plan, the red button deletes (spec W11). */}
+        <div className={danger.dangerZone}>
+          <Link to="/profile/account/delete" className={`text-button wide ${danger.dangerOutline}`}>{t('account.delete')}</Link>
+        </div>
       </div>
     </section>
   );

@@ -19,7 +19,7 @@ function deferred<T>() {
 describe('/admin/users/$userId', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('shows email, roles, and no families for the invited account, with no deletion', async () => {
+  it('shows email, roles, and no families for the invited account', async () => {
     renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api: adminApi() });
     expect(await screen.findByRole('heading', { name: 'Ospite', level: 1 })).toBeTruthy();
     expect(screen.getByText('ospite@example.com')).toBeTruthy();
@@ -215,5 +215,63 @@ describe('/admin/users/$userId', () => {
   it('refuses people without app_admin', async () => {
     renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api: createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: [] }) });
     expect(await screen.findByText('Non hai accesso a questa pagina')).toBeTruthy();
+  });
+});
+
+describe('/admin/users/$userId deletion', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** The guest with a deletion started on 14 October and the failed attempts given. */
+  function pending(attempts: number) {
+    const api = adminApi();
+    const realGet = api.users.get.bind(api.users);
+    vi.spyOn(api.users, 'get').mockImplementation(async (input) => {
+      const detail = await realGet(input);
+      return { ...detail, user: { ...detail.user, deletion: { requestedAt: '2026-10-14T09:00:00Z', attempts } } };
+    });
+    return api;
+  }
+
+  it('offers the deletion of another user below the families', async () => {
+    const { history } = renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api: adminApi() });
+    const link = await screen.findByRole('link', { name: 'Cancella l’utente' });
+    const families = screen.getByRole('heading', { name: 'Famiglie' });
+    expect(families.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText('Per cancellare il tuo account usa le tue preferenze.')).toBeNull();
+    fireEvent.click(link);
+    await waitFor(() => expect(history.location.pathname).toBe(`/admin/users/${FAKE_GUEST_ID}/delete`));
+  });
+
+  it('sends one’s own account to the preferences', async () => {
+    renderApp(`/admin/users/${DEMO_USER_ID}`, { api: adminApi() });
+    expect(await screen.findByText('Per cancellare il tuo account usa le tue preferenze.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Account e preferenze' }).getAttribute('href')).toBe('/profile/preferences');
+    expect(screen.queryByRole('link', { name: 'Cancella l’utente' })).toBeNull();
+  });
+
+  it('a deletion in progress replaces the switches with the notice and «Completa la cancellazione»', async () => {
+    const api = pending(2);
+    const remove = vi.spyOn(api.users, 'delete');
+    const { history } = renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    expect(await screen.findByText('Cancellazione in corso dal 14 ottobre')).toBeTruthy();
+    expect(screen.getByText('2 tentativi non riusciti')).toBeTruthy();
+    expect(screen.queryByRole('switch')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Cancella l’utente' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Completa la cancellazione' }));
+    await waitFor(() => expect(history.location.pathname).toBe('/admin'));
+    expect(remove).toHaveBeenCalledWith({ id: FAKE_GUEST_ID, successors: {}, deletedFamilies: [] }, expect.anything());
+    expect(await screen.findByText('Utente cancellato: Ospite.')).toBeTruthy();
+  });
+
+  it('says nothing of attempts before the first failure; an unfinished completion stays on the page', async () => {
+    const api = pending(0);
+    const remove = vi.spyOn(api.users, 'delete').mockResolvedValue({ completed: false });
+    const { history } = renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    expect(await screen.findByText('Cancellazione in corso dal 14 ottobre')).toBeTruthy();
+    expect(screen.queryByText(/non riuscit/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Completa la cancellazione' }));
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+    expect(history.location.pathname).toBe(`/admin/users/${FAKE_GUEST_ID}`);
+    expect(await screen.findByRole('button', { name: 'Completa la cancellazione' })).toBeTruthy();
   });
 });

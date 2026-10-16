@@ -1,0 +1,4 @@
+/* Irreversible actions (design.md «Azioni irreversibili»): red button for the final confirmation, red outline for the way in, at the bottom of the view. */
+.danger { border-color: var(--danger); color: #fff; background: var(--danger); }
+.dangerOutline { border-color: var(--danger); color: var(--danger); }
+.dangerZone { margin: 28px 0 8px; }

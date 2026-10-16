@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AccountServiceError, createInvitedAccount } from './index.ts';
+import { AccountServiceError, createInvitedAccount, deleteAccount } from './index.ts';
 
 const env = { SUPABASE_URL: 'https://auth.test', SUPABASE_SECRET_KEY: 'sb_secret_x' };
 const account = { id: '11111111-1111-4111-8111-111111111111', email: 'new@x.it', password: 'segreta123', displayName: 'Nuova', locale: 'it-IT' as const };
@@ -63,5 +63,69 @@ describe('createInvitedAccount and the password policy of Auth', () => {
 	it('a password refused as weak creates nothing and says so', async () => {
 		const fetch = vi.fn().mockResolvedValueOnce(json(422, { error_code: 'weak_password' })).mockResolvedValueOnce(json(404, { error_code: 'user_not_found' }));
 		expect(await createInvitedAccount(env, account, { fetch })).toEqual({ status: 'weak_password' });
+	});
+});
+
+describe('createInvitedAccount with beforeCreate', () => {
+	it('skips the POST when beforeCreate answers true', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => json(200, { id: account.id }));
+		expect(await createInvitedAccount(env, account, { fetch, beforeCreate: async () => true })).toEqual({ status: 'skipped' });
+		expect(fetch).not.toHaveBeenCalled();
+	});
+
+	it('creates when beforeCreate answers false', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => json(200, { id: account.id }));
+		expect(await createInvitedAccount(env, account, { fetch, beforeCreate: async () => false })).toEqual({ status: 'created' });
+		expect(methods(fetch)).toEqual(['POST']);
+	});
+});
+
+describe('deleteAccount', () => {
+	const id = account.id;
+
+	it('deletes with the apikey header and no Authorization', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => json(200, {}));
+		expect(await deleteAccount(env, id, { fetch })).toBe('deleted');
+		const [url, init] = fetch.mock.calls[0]! as unknown as [string, RequestInit];
+		expect(url).toBe(`https://auth.test/auth/v1/admin/users/${id}`);
+		expect(init.method).toBe('DELETE');
+		expect(new Headers(init.headers).get('apikey')).toBe('sb_secret_x');
+		expect(new Headers(init.headers).get('authorization')).toBeNull();
+		// A hard delete: no should_soft_delete in the body.
+		expect(init.body).toBeUndefined();
+	});
+
+	it('treats 204 as deleted', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response(null, { status: 204 }));
+		expect(await deleteAccount(env, id, { fetch })).toBe('deleted');
+	});
+
+	it('treats 404 user_not_found as absent', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => json(404, { error_code: 'user_not_found' }));
+		expect(await deleteAccount(env, id, { fetch })).toBe('absent');
+	});
+
+	it('throws auth_admin_failed with the status on 500', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => json(500, {}));
+		const error = await deleteAccount(env, id, { fetch }).catch((e) => e);
+		expect(error).toBeInstanceOf(AccountServiceError);
+		expect(error.reason).toBe('auth_admin_failed');
+		expect(error.status).toBe(500);
+	});
+
+	it('throws auth_admin_failed on a 404 that is not user_not_found', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response('not found', { status: 404 }));
+		await expect(deleteAccount(env, id, { fetch })).rejects.toThrow('auth_admin_failed');
+	});
+
+	it('throws auth_admin_failed on network failure', async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () => { throw new TypeError('down'); });
+		const error = await deleteAccount(env, id, { fetch }).catch((e) => e);
+		expect(error.reason).toBe('auth_admin_failed');
+		expect(error.status).toBeNull();
+	});
+
+	it('throws auth_admin_key_missing without a key', async () => {
+		await expect(deleteAccount({ SUPABASE_URL: env.SUPABASE_URL }, id)).rejects.toThrow('auth_admin_key_missing');
 	});
 });

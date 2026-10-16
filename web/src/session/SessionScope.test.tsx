@@ -168,6 +168,37 @@ describe('access refused by the server', () => {
     await screen.findByText('allowed');
     expect(screen.getByText('week: none')).toBeTruthy();
   });
+  it('keeps the family when only an administrator operation is refused (a demotion, spec W11)', async () => {
+    const week = { startsOn: '2026-10-05', days: [] } as WeekView;
+    let profileReads = 0;
+    const familyApi = (id: string | null) => {
+      const base = api(async () => {
+        profileReads += 1;
+        return meOf(id);
+      })(id);
+      return { ...base, menu: { ...base.menu, getWeek: async () => ({ unchanged: false as const, version: 'w1', data: week }) } };
+    };
+    function AdminProbe() {
+      const session = useSession();
+      useSessionRevision();
+      const deps = useQueryDeps();
+      const weekRead = useQuery({ ...weekQuery(deps, 'f', '2026-10-05'), enabled: !session.isRevoked('f') });
+      const links = useQuery({ queryKey: ['familyInvitations', 'list', { familyId: 'f' }], queryFn: () => Promise.reject(new ApiError('forbidden')), enabled: weekRead.isSuccess, retry: false });
+      return (
+        <>
+          <p>week: {weekRead.data ? 'shown' : 'none'}</p>
+          <p>links: {links.isError ? 'refused' : 'waiting'}</p>
+          <p>{session.isRevoked('f') ? 'revoked' : 'allowed'}</p>
+        </>
+      );
+    }
+    renderSession(<AdminProbe />, { backend: createStubBackend(A), api: familyApi });
+    await screen.findByText('links: refused');
+    // The role may have changed: the profile is read again, the family stays.
+    await waitFor(() => expect(profileReads).toBeGreaterThan(1));
+    expect(screen.getByText('allowed')).toBeTruthy();
+    expect(screen.getByText('week: shown')).toBeTruthy();
+  });
 });
 
 describe('language', () => {

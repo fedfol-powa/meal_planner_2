@@ -1,11 +1,11 @@
 import { normalizeRules, resolveFamilySettings, sameRule } from '@app/domain/family';
 import type { Locale } from '../../i18n/translate';
 import { ApiError } from '../errors';
-import type { Api, ExclusionsView, FamilyDetailView, FamilyRole, Read, SettingsView } from '../types';
+import type { Api, ExclusionsView, FamilyDetailView, FamilyRole, ProfileView, Read, SettingsView } from '../types';
 import { DEMO_FAMILY, DEMO_PEOPLE } from './seed';
 import type { Translated } from './quantity';
 
-type FamilyApi = Omit<Api['family'], 'create'>;
+type FamilyApi = Omit<Api['family'], 'create' | 'join'>;
 type Restriction = { restriction: 'avoid' | 'limit'; weeklyMax: number | null };
 
 /** What the fake backend remembers of the demo family (W2): settings, books, restrictions, exclusions. */
@@ -17,14 +17,84 @@ export interface FakeFamilyData {
   ownedBooks: Set<string>;
   restrictions: Map<string, Restriction>;
   exclusions: { recipeId: string; reason: string | null; createdBy: string; createdAt: string }[];
+  /** Members and roles (W11): changed by roles, removals, leaving, links and deletions. */
+  members: FakeMember[];
+  /** People already seen by this backend: a person who left is not added back. */
+  known: Set<string>;
+  removals: { userId: string; at: string }[];
+  /** The family was deleted: nobody reads it any more. */
+  deleted: boolean;
+  links: FakeLink[];
+  joins: FakeJoin[];
 }
 
+export interface FakeMember { id: string; displayName?: string; role: FamilyRole; joinedAt: string }
+export interface FakeLink {
+  id: string; token: string; createdBy: string; createdAt: string; expiresAt: string; revokedAt: string | null;
+  /** Emails that started to register from the link, in any state: the cap counter. */
+  registrations: { email: string; status: 'reserved' | 'joined' | 'closed' }[];
+}
+export interface FakeJoin { joinedAt: string; mode: 'new_account' | 'existing_account'; userId: string; invitationId: string }
+
+const DAY = 24 * 60 * 60 * 1000;
+/** Valid link of the fake mode: /invite#famiglia…x shows the family invitation without the stack. */
+export const FAKE_FAMILY_INVITE_TOKEN = 'famiglia'.padEnd(43, 'x');
+export const FAKE_FAMILY_EXPIRED_TOKEN = 'scaduto'.padEnd(43, 'x');
+export const FAKE_FAMILY_REVOKED_TOKEN = 'revocato'.padEnd(43, 'x');
+
+/** Revokes the open links (expired or not) of a person, as the server does when the author leaves the role. */
+export function revokeLinksOf(data: FakeFamilyData, userId: string): void {
+  const at = new Date().toISOString();
+  for (const link of data.links) if (link.createdBy === userId && !link.revokedAt) link.revokedAt = at;
+}
+/** Open links of a person: what the confirmations count. */
+export const openLinksOf = (data: FakeFamilyData, userId: string) => data.links.filter((l) => l.createdBy === userId && !l.revokedAt).length;
+
 const JOINED: Record<string, string> = { 'user-federico': '2026-09-01T10:00:00+02:00', 'user-anna': '2026-09-01T10:05:00+02:00', 'user-tom': '2026-09-20T18:30:00+02:00' };
+
+/** A family made with the wizard (W9) in this session: only its creator, the planner defaults, no menus. */
+export function createNewFamilyData(
+  family: { name: string; timeZone: string; measurementSystem: 'metric' | 'uk_imperial' },
+  creatorId: string
+): FakeFamilyData {
+  const { weights: _weights, ...settings } = resolveFamilySettings({}) as SettingsView['settings'] & { weights: unknown };
+  return {
+    name: family.name,
+    timeZone: family.timeZone,
+    measurementSystem: family.measurementSystem,
+    members: [{ id: creatorId, role: 'family_admin', joinedAt: new Date().toISOString() }],
+    known: new Set([creatorId]),
+    removals: [],
+    deleted: false,
+    links: [],
+    joins: [],
+    settings,
+    ownedBooks: new Set(),
+    restrictions: new Map(),
+    exclusions: []
+  };
+}
 
 export function createFakeFamilyData(): FakeFamilyData {
   // The planner defaults; their time limits are among TIME_LIMITS.
   const { weights: _weights, ...settings } = resolveFamilySettings({}) as SettingsView['settings'] & { weights: unknown };
+  const now = Date.now();
+  const at = (days: number) => new Date(now + days * DAY).toISOString();
   return {
+    members: DEMO_PEOPLE.map((p) => ({ id: p.id, role: p.role, joinedAt: JOINED[p.id] ?? at(-30) })),
+    known: new Set([...DEMO_PEOPLE.map((p) => p.id), 'user-marco']),
+    // Marco joined with the valid link, then was removed: that link no longer lets him in.
+    removals: [{ userId: 'user-marco', at: at(-1) }],
+    deleted: false,
+    links: [
+      { id: '00000000-0000-4000-8000-00000000f101', token: FAKE_FAMILY_INVITE_TOKEN, createdBy: 'user-federico', createdAt: at(-5), expiresAt: at(2), revokedAt: null, registrations: [] },
+      {
+        id: '00000000-0000-4000-8000-00000000f102', token: FAKE_FAMILY_EXPIRED_TOKEN, createdBy: 'user-federico', createdAt: at(-10), expiresAt: at(-3), revokedAt: null,
+        registrations: [{ email: 'in-sospeso@example.com', status: 'reserved' }]
+      },
+      { id: '00000000-0000-4000-8000-00000000f103', token: FAKE_FAMILY_REVOKED_TOKEN, createdBy: 'user-federico', createdAt: at(-20), expiresAt: at(-13), revokedAt: at(-15), registrations: [] }
+    ],
+    joins: [{ joinedAt: at(-4), mode: 'new_account', userId: 'user-marco', invitationId: '00000000-0000-4000-8000-00000000f101' }],
     name: DEMO_FAMILY.name,
     timeZone: DEMO_FAMILY.timeZone,
     measurementSystem: DEMO_FAMILY.measurementSystem,
@@ -41,8 +111,8 @@ export function createFakeFamilyData(): FakeFamilyData {
 
 interface FamilyDeps {
   data: FakeFamilyData;
+  familyId: string;
   userId: string;
-  role: FamilyRole;
   /** The person's name as the profile shows it. */
   displayName: () => string;
   locale: () => Locale;
@@ -54,6 +124,15 @@ interface FamilyDeps {
   delayed: <T>(value: T) => Promise<T>;
   /** A write happened: the versions of the family change. */
   bump: () => void;
+  /** The profile of the person, for the answers that return it. */
+  profile: () => ProfileView;
+  weekCount: () => number;
+}
+
+/** The name of a member: the person's own as the profile shows it, a seed person's, or the one given when joining. */
+export function memberName(member: FakeMember, self: { id: string; displayName: () => string }): string {
+  if (member.id === self.id) return self.displayName();
+  return member.displayName ?? DEMO_PEOPLE.find((p) => p.id === member.id)?.displayName ?? member.id;
 }
 
 const localized = (text: Translated, locale: Locale) => text[locale] ?? text['it-IT'];
@@ -62,23 +141,21 @@ const normalize = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}
 /** The `family` area of the contract on the demo data, with the same shapes and refusals. */
 export function createFakeFamily(deps: FamilyDeps): FamilyApi {
   const { data } = deps;
-  const isAdmin = () => deps.role === 'family_admin';
+  const self = { id: deps.userId, displayName: deps.displayName };
+  const roleOf = (userId: string) => data.members.find((m) => m.id === userId)?.role ?? null;
+  const isAdmin = () => roleOf(deps.userId) === 'family_admin';
   const admin = (familyId: string) => {
     deps.checkFamily(familyId);
     if (!isAdmin()) throw new ApiError('forbidden');
   };
-  const people = () => {
-    const known = DEMO_PEOPLE.map((p) => ({ ...p, displayName: p.id === deps.userId ? deps.displayName() : p.displayName }));
-    if (known.some((p) => p.id === deps.userId)) return known;
-    return [...known, { id: deps.userId, displayName: deps.displayName(), role: deps.role }];
-  };
+  const people = () => data.members.map((m) => ({ id: m.id, displayName: memberName(m, self), role: m.role, joinedAt: m.joinedAt }));
   const nameOf = (userId: string) => people().find((p) => p.id === userId)?.displayName ?? null;
 
   function familyView(): FamilyDetailView {
     const members = people()
-      .map((p) => ({ userId: p.id, displayName: p.displayName, role: p.role, isMe: p.id === deps.userId, joinedAt: JOINED[p.id] ?? '2026-10-01T09:00:00+02:00' }))
+      .map((p) => ({ userId: p.id, displayName: p.displayName, role: p.role, isMe: p.id === deps.userId, joinedAt: p.joinedAt }))
       .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName) : a.role === 'family_admin' ? -1 : 1));
-    return { id: DEMO_FAMILY.id, name: data.name, measurementSystem: data.measurementSystem, timeZone: data.timeZone, myRole: deps.role, members };
+    return { id: deps.familyId, name: data.name, measurementSystem: data.measurementSystem, timeZone: data.timeZone, myRole: roleOf(deps.userId) ?? 'member', members };
   }
   function settingsView(): SettingsView {
     const locale = deps.locale();
@@ -204,6 +281,57 @@ export function createFakeFamily(deps: FamilyDeps): FamilyApi {
       deps.checkFamily(familyId);
       data.exclusions = data.exclusions.filter((e) => e.recipeId !== recipeId);
       return changed(exclusionsView);
+    },
+    // Members and roles (W11): the rules of the database functions.
+    async setMemberRole({ familyId, userId, role }) {
+      admin(familyId);
+      const member = data.members.find((m) => m.id === userId);
+      if (!member) throw new ApiError('not_found');
+      if (member.role !== role) {
+        if (role === 'member') {
+          if (!data.members.some((m) => m.id !== userId && m.role === 'family_admin')) throw new ApiError('last_admin');
+          revokeLinksOf(data, userId);
+        }
+        member.role = role;
+      }
+      return changed(familyView);
+    },
+    async removeMember({ familyId, userId }) {
+      admin(familyId);
+      if (userId === deps.userId) throw new ApiError('invalid', { issues: [{ path: ['userId'], code: 'self' }] });
+      if (data.members.some((m) => m.id === userId)) {
+        data.removals.push({ userId, at: new Date().toISOString() });
+        revokeLinksOf(data, userId);
+        data.members = data.members.filter((m) => m.id !== userId);
+      }
+      return changed(familyView);
+    },
+    async leave({ familyId, successorId }) {
+      deps.checkFamily(familyId);
+      const others = data.members.filter((m) => m.id !== deps.userId);
+      if (others.length === 0) throw new ApiError('sole_member');
+      const successorRefused = new ApiError('invalid', { issues: [{ path: ['successorId'], code: 'successor' }] });
+      if (isAdmin() && !others.some((m) => m.role === 'family_admin')) {
+        const successor = others.find((m) => m.id === successorId);
+        if (!successor) throw successorRefused;
+        successor.role = 'family_admin';
+      } else if (successorId) throw successorRefused;
+      revokeLinksOf(data, deps.userId);
+      data.members = others;
+      deps.bump();
+      return deps.delayed(deps.profile());
+    },
+    async getDeletion({ familyId }) {
+      deps.checkFamily(familyId);
+      const memberNames = people().map((p) => p.displayName).sort((a, b) => a.localeCompare(b));
+      return deps.respond({ name: data.name, memberNames, weekCount: deps.weekCount(), canDelete: isAdmin() });
+    },
+    async delete({ familyId }) {
+      admin(familyId);
+      data.deleted = true;
+      data.members = [];
+      deps.bump();
+      return deps.delayed(deps.profile());
     }
   };
   return family;

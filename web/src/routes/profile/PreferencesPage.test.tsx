@@ -119,4 +119,9 @@ describe('preferences', () => {
     expect(await screen.findByRole('navigation', { name: 'Navigazione principale' })).toBeTruthy();
     expect(screen.queryByRole('navigation', { name: 'Main navigation' })).toBeNull();
   });
+  it('links to the account deletion in the danger zone', async () => {
+    renderApp('/profile/preferences', { api: fakeApi() });
+    const link = await screen.findByRole('link', { name: 'Cancella l’account' });
+    expect(link.getAttribute('href')).toBe('/profile/account/delete');
+  });
 });

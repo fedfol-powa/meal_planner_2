@@ -4,7 +4,10 @@
  */
 export type SessionMessage =
   | { type: 'signedOut'; userId: string }
-  | { type: 'revoked'; userId: string; familyId: string }
+  /** `revokedAt`: the device instant of the revocation (spec W11); absent from tabs of the previous version. */
+  | { type: 'revoked'; userId: string; familyId: string; revokedAt?: number }
+  /** The server confirmed the family to a request started at `startedAt` (decision 23). */
+  | { type: 'restored'; userId: string; familyId: string; startedAt: number }
   | { type: 'extension'; userId: string; topic: string; payload: unknown };
 
 export interface SessionChannel {

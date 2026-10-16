@@ -10,7 +10,7 @@ const V1 = 'family:f|counter:12|catalogue:40|lang:it-IT|deploy:2026-10-11T10:00Z
 describe('readThrough', () => {
   it('reads without a version when nothing is cached', async () => {
     const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: false, version: V1, data: 'week' }));
-    expect(await readThrough(new QueryClient(), key, read)).toEqual({ version: V1, data: 'week' });
+    expect(await readThrough(new QueryClient(), key, read)).toEqual({ version: V1, data: 'week', producedAt: expect.any(Number) });
     expect(read).toHaveBeenCalledWith(undefined);
   });
   it('sends the cached version back as is and keeps the cached view when unchanged', async () => {
@@ -25,13 +25,13 @@ describe('readThrough', () => {
     const client = new QueryClient();
     client.setQueryData(key, { version: V1, data: 'old' });
     const read = vi.fn(async (): Promise<Read<string>> => ({ unchanged: false, version: `${V1}+1`, data: 'new' }));
-    expect(await readThrough(client, key, read)).toEqual({ version: `${V1}+1`, data: 'new' });
+    expect(await readThrough(client, key, read)).toEqual({ version: `${V1}+1`, data: 'new', producedAt: expect.any(Number) });
   });
   it('reads again without a version if the server answers unchanged but the cache is gone', async () => {
     const read = vi.fn()
       .mockResolvedValueOnce({ unchanged: true, version: V1 })
       .mockResolvedValueOnce({ unchanged: false, version: V1, data: 'week' });
-    expect(await readThrough(new QueryClient(), key, read)).toEqual({ version: V1, data: 'week' });
+    expect(await readThrough(new QueryClient(), key, read)).toEqual({ version: V1, data: 'week', producedAt: expect.any(Number) });
     expect(read).toHaveBeenNthCalledWith(2, undefined);
   });
 });
@@ -56,7 +56,7 @@ describe('readThrough with changes while the read is pending (second review, C5)
         return { unchanged: true, version: V1 };
       })
       .mockResolvedValueOnce({ unchanged: false, version: 'V3', data: 'full' });
-    expect(await readThrough(client, key, read)).toEqual({ version: 'V3', data: 'full' });
+    expect(await readThrough(client, key, read)).toEqual({ version: 'V3', data: 'full', producedAt: expect.any(Number) });
     expect(read).toHaveBeenNthCalledWith(2, undefined);
   });
 });
@@ -92,7 +92,7 @@ describe('query options', () => {
     await queryClient.fetchQuery({ ...options, staleTime: 0 });
     expect(getWeek).toHaveBeenNthCalledWith(1, { familyId: 'f', weekStartsOn: '2026-10-05', knownVersion: undefined });
     expect(getWeek).toHaveBeenNthCalledWith(2, { familyId: 'f', weekStartsOn: '2026-10-05', knownVersion: V1 });
-    expect(queryClient.getQueryData<Versioned<WeekView>>(options.queryKey)).toEqual({ version: V1, data: view });
+    expect(queryClient.getQueryData<Versioned<WeekView>>(options.queryKey)).toEqual({ version: V1, data: view, producedAt: expect.any(Number) });
   });
   it('keeps languages and families apart in the keys', () => {
     expect(queryKeys.week('f', '2026-10-05', 'it-IT')).not.toEqual(queryKeys.week('f', '2026-10-05', 'en-GB'));

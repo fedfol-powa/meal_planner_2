@@ -24,6 +24,7 @@ export function FamilyGate({ children, before, after }: { children: (family: Fam
       {state.status === 'none' && (
         <StateNotice title={t('family.none.title')} body={t('family.none.body')}>
           <Link to="/family/new" className="text-button primary">{t('family.none.create')}</Link>
+          <p className="state-notice-hint">{t('family.none.invitation')}</p>
         </StateNotice>
       )}
       {state.status === 'revoked' && <StateNotice title={t('errors.forbidden')} />}

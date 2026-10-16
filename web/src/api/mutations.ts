@@ -1,13 +1,13 @@
 import { useMutation, type Query, type QueryClient } from '@tanstack/react-query';
 import { useCurrentLocale, useSession } from '../session/SessionScope';
 import type { Session } from '../session/session';
-import { familyOfKey } from './queries';
-import type { MealActionResult } from './types';
+import { familyAccessOf, familyOfKey } from './queries';
+import type { MealActionResult, ProfileView } from './types';
 
 /** The view a mutation answers with: the profile, one of the versioned views of a family, a week of the menu, the app invitations or the users. */
-export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations' | 'users';
+export type MutationTarget = 'profile' | 'family' | 'settings' | 'exclusions' | 'week' | 'appInvitations' | 'users' | 'familyInvitations' | 'account';
 /** Lists read again instead of written by the registry: their answer is never put in the cache here. */
-const LIST_TARGETS = ['appInvitations', 'users'] as const;
+const LIST_TARGETS = ['appInvitations', 'users', 'familyInvitations', 'account'] as const;
 type ListTarget = (typeof LIST_TARGETS)[number];
 const isListTarget = (target: MutationTarget): target is ListTarget => (LIST_TARGETS as readonly string[]).includes(target);
 /** The targets whose answer is written in the cache. */
@@ -47,6 +47,19 @@ export const INVALIDATIONS = {
   // Read again; the profile too, as one's own roles may have changed. `applied` only for the
   // latest answer for that user: the page may then write it as the confirmed detail (spec W10).
   'users.setRole': { target: 'users', stale: ['profile'] },
+  // W11: links and joins are lists read again (not versioned); join, leave and delete answer the profile.
+  'familyInvitations.create': { target: 'familyInvitations', stale: [] },
+  'familyInvitations.revoke': { target: 'familyInvitations', stale: [] },
+  'family.join': { target: 'profile', stale: [] },
+  'family.leave': { target: 'profile', stale: [] },
+  'family.delete': { target: 'profile', stale: [] },
+  // The links of a demoted or removed person stop working; the joins show «ex membro».
+  'family.setMemberRole': { target: 'family', stale: familyReads({ area: 'familyInvitations' }) },
+  'family.removeMember': { target: 'family', stale: familyReads({ area: 'familyInvitations' }) },
+  // The session closes after the answer: nothing to write.
+  'account.delete': { target: 'account', stale: [] },
+  // The administrator may be the successor named in a family of the deleted user: the profile too.
+  'users.delete': { target: 'users', stale: ['profile'] },
   'family.rename': { target: 'family', stale: ['profile'] },
   'family.setMeasurementSystem': {
     target: 'family',
@@ -109,6 +122,11 @@ export interface ApplyOptions {
   sessionOpen: () => boolean;
   /** Same language and latest mutation of this view: the answer may be written. */
   isLatest: () => boolean;
+  /**
+   * When the mutation started (device clock of the session): the view written is produced then, and
+   * a family revoked since then gets nothing written (spec W11, «Dati sul dispositivo»). Default: now.
+   */
+  startedAt?: number;
 }
 
 /**
@@ -149,15 +167,22 @@ export async function applyMutation(queryClient: QueryClient, options: ApplyOpti
   await queryClient.cancelQueries({ predicate: affected });
   // Closing clears the cache anyway.
   if (!options.sessionOpen()) return false;
-  if (!options.isLatest()) {
+  const access = familyAccessOf(queryClient);
+  const startedAt = options.startedAt ?? access.now();
+  // A view of a family revoked after the mutation started is never written, even once restored (stale_after_revocation).
+  const startedBeforeRevocation = target !== 'profile' && !!options.familyId && access.revokedAt(options.familyId) >= startedAt;
+  if (!options.isLatest() || startedBeforeRevocation) {
     // Superseded answer of a successful write: not written, but everything it changed goes stale.
     void queryClient.invalidateQueries({ predicate: affected });
     return false;
   }
+  const written = JSON.parse(key) as unknown[];
+  // Families gone from the profile are revoked, families back are restored (spec W11).
+  if (target === 'profile') access.profileRead(queryClient.getQueryData<ProfileView>(written), options.view as ProfileView, startedAt, true);
   // The old version stays: the next read gets fresh data (the counter grew), never a wrong «unchanged».
   // Without a cached version none is kept, and the next read sends no knownVersion (PR #21 review, finding 1).
-  queryClient.setQueryData(JSON.parse(key) as unknown[], (old: { version?: string } | undefined) =>
-    target === 'profile' ? options.view : old?.version ? { version: old.version, data: options.view } : { data: options.view }
+  queryClient.setQueryData(written, (old: { version?: string } | undefined) =>
+    target === 'profile' ? options.view : old?.version ? { version: old.version, data: options.view, producedAt: startedAt } : { data: options.view, producedAt: startedAt }
   );
   void queryClient.invalidateQueries({ predicate: isStale });
   // Cancelled reads that had nothing to show start again, now after the write.
@@ -206,12 +231,14 @@ export async function runAreaMutation<T>(
   const trackKey = options.track ?? (target === 'profile' || isListTarget(target) ? target : `${target}:${familyId}`);
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
+  const startedAt = familyAccessOf(deps.queryClient).now();
   const view = await call();
   const applied = await applyMutation(deps.queryClient, {
     name,
     familyId,
     locale,
     view,
+    startedAt,
     sessionOpen: () => !deps.session.isClosed(),
     isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token)
   });
@@ -236,6 +263,7 @@ export async function runMealMutation(
   const locale = deps.currentLocale();
   const token = deps.session.track(trackKey);
   const ratings = ratingsConfirmed(deps.session, familyId);
+  const startedAt = familyAccessOf(deps.queryClient).now();
   const result = await call();
   const applied = await applyMutation(deps.queryClient, {
     name,
@@ -243,6 +271,7 @@ export async function runMealMutation(
     weekStartsOn,
     locale,
     view: result.week,
+    startedAt,
     sessionOpen: () => !deps.session.isClosed(),
     isLatest: () => deps.currentLocale() === locale && deps.session.isLatest(trackKey, token) && ratingsConfirmed(deps.session, familyId) === ratings
   });
@@ -257,7 +286,7 @@ export function useAreaMutation<I, T>(name: MutationName, familyId: string | und
   const session = useSession();
   const currentLocale = useCurrentLocale();
   return useMutation({
-    meta: familyId ? { familyId } : undefined,
+    meta: familyId ? { familyId, operation: name } : { operation: name },
     mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input), options)
   });
 }

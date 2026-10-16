@@ -98,7 +98,7 @@ describe('applying the answer of a mutation', () => {
     const { client, run } = harness();
     const key = ['family', 'listExclusions', { familyId: FAMILY, locale: 'it-IT' }];
     await run('family.addExclusion', FAMILY, async () => []);
-    expect(client.getQueryData(key)).toEqual({ data: [] });
+    expect(client.getQueryData(key)).toEqual({ data: [], producedAt: expect.any(Number) });
     const inputs: unknown[] = [];
     const fresh = await readThrough(client, key, async (knownVersion) => {
       // The real input schema of the operation: an empty version would be refused here.
@@ -106,7 +106,7 @@ describe('applying the answer of a mutation', () => {
       return { unchanged: false, version: 'v2', data: [] };
     });
     expect(inputs).toEqual([{ value: { familyId: FAMILY } }]);
-    expect(fresh).toEqual({ version: 'v2', data: [] });
+    expect(fresh).toEqual({ version: 'v2', data: [], producedAt: expect.any(Number) });
   });
 
   it('makes the same view in the other languages stale, written or superseded (PR #21 review, finding 2)', async () => {
@@ -142,7 +142,7 @@ describe('applying the answer of a mutation', () => {
     const client = new QueryClient();
     client.setQueryData(settingsKey(FAMILY), { version: 'v1', data: view(2) });
     await applyMutation(client, { name: 'family.setMeal', familyId: FAMILY, locale: 'it-IT', view: view(3), sessionOpen: () => true, isLatest: () => true });
-    expect(client.getQueryData(settingsKey(FAMILY))).toEqual({ version: 'v1', data: view(3) });
+    expect(client.getQueryData(settingsKey(FAMILY))).toEqual({ version: 'v1', data: view(3), producedAt: expect.any(Number) });
   });
 
   it('marks exactly the reads of the table, of the same family only', async () => {
@@ -195,7 +195,7 @@ describe('meal mutations', () => {
     for (const key of stale) client.setQueryData(key, { version: 'x', data: {} });
     client.setQueryData(suggestionsKey(OTHER), { recipes: [] });
     await applyMutation(client, { name: 'meals.setServings', familyId: FAMILY, weekStartsOn: '2026-10-05', locale: 'it-IT', view: weekView(4), sessionOpen: () => true, isLatest: () => true });
-    expect(client.getQueryData(weekKey('2026-10-05'))).toEqual({ version: 'w1', data: weekView(4) });
+    expect(client.getQueryData(weekKey('2026-10-05'))).toEqual({ version: 'w1', data: weekView(4), producedAt: expect.any(Number) });
     expect(client.getQueryState(weekKey('2026-10-12'))?.isInvalidated).toBe(false);
     expect(client.getQueryState(weekKey('2026-10-05', 'en-GB'))?.isInvalidated).toBe(true);
     for (const key of stale) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
@@ -355,5 +355,59 @@ describe('user role mutations', () => {
       return detail([]);
     }, { track: 'users:u' });
     expect(outcome.applied).toBe(false);
+  });
+});
+
+describe('family management mutations (W11)', () => {
+  const profileKey = ['profile', 'get', { locale: 'it-IT' }];
+  const familyKey = ['family', 'get', { familyId: FAMILY, locale: 'it-IT' }];
+  const linksKey = ['familyInvitations', 'list', { familyId: FAMILY }];
+  const joinsKey = ['familyInvitations', 'listJoins', { familyId: FAMILY }];
+  const profile = (current: string | null) => ({ user: { id: 'u' }, families: current ? [{ id: current }] : [], currentFamilyId: current });
+
+  it('links: created and revoked links read the list again', async () => {
+    const { client, run } = harness();
+    client.setQueryData(linksKey, { invitations: [] });
+    for (const name of ['familyInvitations.create', 'familyInvitations.revoke'] as const) {
+      client.setQueryData(linksKey, { invitations: [] });
+      expect((await run(name, FAMILY, async () => ({ invitations: [] }))).applied).toBe(true);
+      expect(client.getQueryState(linksKey)?.isInvalidated).toBe(true);
+    }
+  });
+
+  it('join, leave and delete write the profile from the answer', async () => {
+    const { client, run } = harness();
+    for (const name of ['family.join', 'family.leave', 'family.delete'] as const) {
+      const view = profile(name === 'family.join' ? FAMILY : null);
+      await run(name, name === 'family.join' ? undefined : FAMILY, async () => view);
+      expect(client.getQueryData(profileKey)).toEqual(view);
+    }
+  });
+
+  it('role changes and removals write the family and read the links and joins again', async () => {
+    const { client, run } = harness();
+    for (const name of ['family.setMemberRole', 'family.removeMember'] as const) {
+      client.setQueryData(familyKey, { version: 'v1', data: { members: [] } });
+      client.setQueryData(linksKey, { invitations: [] });
+      client.setQueryData(joinsKey, { joins: [] });
+      const view = { id: FAMILY, members: [{ userId: 'x' }] };
+      await run(name, FAMILY, async () => view);
+      expect(client.getQueryData(familyKey)).toEqual({ version: 'v1', data: view, producedAt: expect.any(Number) });
+      expect(client.getQueryState(linksKey)?.isInvalidated).toBe(true);
+      expect(client.getQueryState(joinsKey)?.isInvalidated).toBe(true);
+    }
+  });
+
+  it('account.delete writes nothing; users.delete reads the users and the profile again', async () => {
+    const { client, run } = harness();
+    client.setQueryData(profileKey, profile(FAMILY));
+    await run('account.delete', undefined, async () => ({ completed: true }));
+    expect(client.getQueryData(profileKey)).toEqual(profile(FAMILY));
+    const listKey = ['users', 'list', { query: '' }];
+    client.setQueryData(listKey, { users: [], more: false });
+    await run('users.delete', undefined, async () => ({ completed: true }), { track: 'users:x' });
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    // The administrator may be the successor named in a family of the deleted user.
+    expect(client.getQueryState(profileKey)?.isInvalidated).toBe(true);
   });
 });

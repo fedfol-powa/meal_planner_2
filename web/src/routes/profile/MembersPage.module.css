@@ -1,0 +1,10 @@
+/* Members and invitation links (round 4 prototype): same tokens, no new language; the red buttons are in components/Danger.module.css. */
+.more { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
+.more:disabled { opacity: 0.4; cursor: not-allowed; }
+.link { flex-wrap: wrap; }
+.small { min-height: 40px; padding: 6px 12px; }
+.create { margin-top: 12px; }
+.sheetButton { margin-top: 8px; }
+.dangerText { color: var(--danger); font-weight: 700; }
+.successors { margin: 0 0 8px; padding: 0; border: 0; }
+.join { flex-wrap: wrap; }

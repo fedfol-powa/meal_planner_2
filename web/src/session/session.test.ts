@@ -97,6 +97,35 @@ describe('unauthorized: one renewal per session (second review, C3)', () => {
     expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected']);
     expect(end).toHaveBeenCalledTimes(1);
   });
+  it('tells why it ended: unauthorized after a renewal, rejected when the renewal fails (spec W11, decision 13)', async () => {
+    const afterRenewal = vi.fn();
+    const deleted = createSession('a', createMemoryStore(), { refresh: async () => OK, end: afterRenewal });
+    await deleted.call(vi.fn().mockRejectedValue(refused())).catch(() => undefined);
+    expect(afterRenewal).toHaveBeenCalledWith(deleted, { ended: 'unauthorized' });
+    const renewalRefused = vi.fn();
+    const expired = createSession('a', createMemoryStore(), { refresh: async () => REJECTED, end: renewalRefused });
+    await expired.call(refusedOnce('x')).catch(() => undefined);
+    expect(renewalRefused).toHaveBeenCalledWith(expired, { ended: 'rejected' });
+  });
+  it('a second tab receiving unauthorized closes the session once, without a refresh loop (W11, attention 4)', async () => {
+    const refresh = vi.fn(async () => OK);
+    // As SessionScope: the end closes the session.
+    const end = vi.fn(async (ended: ReturnType<typeof createSession>) => void (await ended.close()));
+    const session = createSession('a', createMemoryStore(), { refresh, end });
+    // The account is gone: every call is refused, also after the renewal.
+    const always = () => vi.fn().mockRejectedValue(refused());
+    const first = await Promise.allSettled([session.call(always()), session.call(always()), session.call(always())]);
+    expect(first.every((r) => r.status === 'rejected')).toBe(true);
+    await vi.waitFor(() => expect(session.isClosed()).toBe(true));
+    // Reads arriving after the closing never leave and never renew.
+    const late = always();
+    await expect(session.call(late)).rejects.toBeInstanceOf(SessionClosedError);
+    expect(await session.renew()).toEqual(REJECTED);
+    expect(late).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(end).toHaveBeenCalledTimes(1);
+    expect(end).toHaveBeenCalledWith(session, { ended: 'unauthorized' });
+  });
   it.each([true, false])('drops the outcome of a renewal that ends after the session closed (renewed: %s)', async (ok) => {
     const { refresh, end, renew } = withRenewal();
     const session = createSession('a', createMemoryStore(), { refresh, end });
@@ -118,25 +147,34 @@ describe('revoked families across tabs (second review, C4)', () => {
     const hub = createMemoryHub();
     const session = createSession('a', store, { channel: hub.channel(), now: () => 100 });
     session.revoke('f1');
-    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100));
-    expect(hub.sent).toEqual([{ type: 'revoked', userId: 'a', familyId: 'f1' }]);
+    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toEqual({ revokedAt: 100, restoredAt: 0 }));
+    expect(hub.sent).toEqual([{ type: 'revoked', userId: 'a', familyId: 'f1', revokedAt: 100 }]);
     session.revoke('f2', { announce: false });
     expect(hub.sent).toHaveLength(1);
   });
-  it('lifts the mark when a read of the family started after the revocation succeeds', async () => {
+  it('a read of the family alone never restores it: only a profile or a join does (decision 23)', async () => {
     const store = createMemoryStore();
     await markRevoked(store, 'a', 'f1', 100);
     const session = createSession('a', store, { now: () => 200 });
+    await vi.waitFor(() => expect(session.isRevoked('f1')).toBe(true));
     expect(await session.call(async () => 'week', 'f1')).toBe('week');
-    await vi.waitFor(() => expect(store.entries.has(revokedKey('a', 'f1'))).toBe(false));
-  });
-  it('keeps the mark for a read that started before the revocation', async () => {
-    const store = createMemoryStore();
-    await markRevoked(store, 'a', 'f1', 100);
-    const session = createSession('a', store, { now: () => 50 });
-    await session.call(async () => 'week', 'f1');
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100);
+    expect(store.entries.get(revokedKey('a', 'f1'))).toEqual({ revokedAt: 100, restoredAt: 0 });
+    expect(session.isRevoked('f1')).toBe(true);
+  });
+  it('restores with the start of the confirmation and tells the other tabs', async () => {
+    const store = createMemoryStore();
+    const hub = createMemoryHub();
+    const session = createSession('a', store, { channel: hub.channel(), now: () => 100 });
+    session.revoke('f1', { announce: false });
+    expect(session.restore('f1', 90)).toBe(false);
+    expect(session.restore('f1', 120)).toBe(true);
+    expect(session.isRevoked('f1')).toBe(false);
+    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toEqual({ revokedAt: 100, restoredAt: 120 }));
+    expect(hub.sent).toEqual([
+      { type: 'restored', userId: 'a', familyId: 'f1', startedAt: 90 },
+      { type: 'restored', userId: 'a', familyId: 'f1', startedAt: 120 }
+    ]);
   });
 });
 

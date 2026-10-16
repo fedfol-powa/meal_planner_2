@@ -1,4 +1,5 @@
 import { contract } from '@app/contract';
+import { accountRouter } from './account/router.ts';
 import { agentsRouter } from './agents/router.ts';
 import { appInvitationsRouter } from './app-invitations/router.ts';
 import { catalogueRouter } from './catalogue/router.ts';
@@ -6,6 +7,7 @@ import { mealsRouter } from './meals/router.ts';
 import { menuPrepare, menuRouter } from './menu/router.ts';
 import { createImplementer } from './pipeline.ts';
 import { familyRouter } from './family/router.ts';
+import { familyInvitationsRouter } from './family-invitations/router.ts';
 import { profileRouter } from './profile/router.ts';
 import { ratingsRouter, recipesRouter } from './recipes/router.ts';
 import { mealRecipeVersionsAt } from './menu/versions.ts';
@@ -33,6 +35,8 @@ export const router = os.router({
 	catalogue: catalogueRouter(os),
 	agents: agentsRouter(os),
 	appInvitations: appInvitationsRouter(os),
+	familyInvitations: familyInvitationsRouter(os),
+	account: accountRouter(os),
 	users: usersRouter(os),
 	shopping: createShoppingRouter(os, { mealRecipeVersions: mealRecipeVersionsAt }),
 });
