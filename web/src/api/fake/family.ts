@@ -205,9 +205,24 @@ export function createFakeFamily(deps: FamilyDeps): FamilyApi {
       data.exclusions = data.exclusions.filter((e) => e.recipeId !== recipeId);
       return changed(exclusionsView);
     },
-    // Family links of the fake mode arrive with the invitations area (W11, task 11).
+    // Members, links and deletion of the fake mode arrive with the invitations area (W11, task 11).
     async join() {
       throw new ApiError('invitation_unavailable');
+    },
+    async setMemberRole() {
+      throw new ApiError('forbidden');
+    },
+    async removeMember() {
+      throw new ApiError('forbidden');
+    },
+    async leave() {
+      throw new ApiError('forbidden');
+    },
+    async getDeletion() {
+      throw new ApiError('forbidden');
+    },
+    async delete() {
+      throw new ApiError('forbidden');
     }
   };
   return family;

@@ -12,6 +12,11 @@ describe('profile and family operations', () => {
 		'profile.setCurrentFamily': ['user', false],
 		'family.create': ['user', false],
 		'family.join': ['user', false],
+		'family.setMemberRole': ['familyAdmin', false],
+		'family.removeMember': ['familyAdmin', false],
+		'family.leave': ['familyMember', false],
+		'family.getDeletion': ['familyMember', true],
+		'family.delete': ['familyAdmin', false],
 		'family.get': ['familyMember', true],
 		'family.getSettings': ['familyMember', true],
 		'family.searchIngredients': ['familyMember', true],
@@ -30,7 +35,7 @@ describe('profile and family operations', () => {
 		'family.setIngredientRestriction': ['familyAdmin', false],
 	};
 
-	it('are all listed here, each an MCP tool with the expected role, none web only or offline', () => {
+	it('are all listed here, each an MCP tool with the expected role, none offline, only delete web only', () => {
 		const actual = [...Object.keys(contract.profile).map((n) => `profile.${n}`), ...Object.keys(contract.family).map((n) => `family.${n}`)];
 		expect(actual.sort()).toEqual(Object.keys(expected).sort());
 		for (const [name, [role, readOnly]] of Object.entries(expected)) {
@@ -38,7 +43,7 @@ describe('profile and family operations', () => {
 			const meta = procedure(area, operation).meta;
 			expect(meta.role, name).toBe(role);
 			expect(meta.mcp, name).toEqual({ readOnly });
-			expect(meta.webOnly, name).toBeUndefined();
+			expect(meta.webOnly, name).toEqual(name === 'family.delete' ? { path: '/profile/family/delete?family=:familyId' } : undefined);
 			expect(meta.offline, name).toBe(false);
 		}
 	});
@@ -48,6 +53,6 @@ describe('profile and family operations', () => {
 			const [area, operation] = name.split('.') as ['profile' | 'family', string];
 			return 'not_found' in procedure(area, operation).errorMap;
 		});
-		expect(withNotFound.sort()).toEqual(['family.addExclusion', 'family.setBookOwned', 'family.setIngredientRestriction']);
+		expect(withNotFound.sort()).toEqual(['family.addExclusion', 'family.setBookOwned', 'family.setIngredientRestriction', 'family.setMemberRole']);
 	});
 });

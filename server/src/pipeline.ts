@@ -107,10 +107,23 @@ export interface PrepareResult {
 /** Runs inside the user's transaction before the version is read: validation against the server's state, lazy work. */
 export type Prepare = (context: OperationContext, input: unknown) => Promise<PrepareResult | void>;
 
+/**
+ * Operations whose transaction is repeated once when Postgres breaks a lock cycle with 40P01
+ * (spec W11, decision 19): deletions that lock a family and then cascade over rows an ordinary
+ * change may hold. The first attempt is rolled back whole; the second redoes session, role and
+ * handler; only the committed attempt's result and continuation are used. A server rule, not
+ * contract metadata.
+ */
+export const RETRY_ON_DEADLOCK: readonly string[] = ['family.delete', 'account.delete', 'users.delete'];
+
 export interface ImplementerOptions {
 	/** By operation path joined with dots, for example `menu.getOpening`. */
 	prepare?: Record<string, Prepare>;
+	/** Replaces RETRY_ON_DEADLOCK (tests). */
+	retryOnDeadlock?: readonly string[];
 }
+
+const isDeadlock = (error: unknown) => (error as { code?: unknown } | null)?.code === '40P01';
 
 /**
  * Implementer shared by every operation. Input is validated first and output last
@@ -146,7 +159,7 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 		}
 		const claims = await authenticate(context);
 		const channel = channelOf(claims);
-		const result = await withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
+		const attempt = () => withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
 			const locale = await loadSession(tx);
 			context.state.locale = locale;
 			if (meta.webOnly && channel === 'mcp') {
@@ -173,6 +186,12 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 			}
 			return next({ context: operation });
 		});
+		const retry = (options.retryOnDeadlock ?? RETRY_ON_DEADLOCK).includes(path.join('.'));
+		const result = await attempt().catch((error: unknown) => {
+			if (retry && isDeadlock(error)) return attempt();
+			throw error;
+		});
+		// After the commit, outside the repetition: a 40P01 of the continuation repeats nothing.
 		if (result.output instanceof Continuation) return { ...result, output: await result.output.next() };
 		return result;
 	});

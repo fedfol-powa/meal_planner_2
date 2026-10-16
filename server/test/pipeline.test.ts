@@ -1,6 +1,6 @@
 import { checkContract } from '@app/contract';
 import { call, ORPCError } from '@orpc/server';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { KeySourceError } from '../src/auth.ts';
 import type { Tx } from '../src/db.ts';
 import { mapErrors } from '../src/errors.ts';
@@ -11,7 +11,7 @@ import { contextFor } from './support/context.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
 import { refuseAll } from './support/requests.ts';
-import { preparedCalls, setCommitProbe, setPublicProbe, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
+import { deadlockProbe, preparedCalls, setCommitProbe, setPublicProbe, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
 
 let keys: TestKeys;
 beforeAll(async () => {
@@ -150,6 +150,66 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 			log.mockRestore();
 			const [{ after }] = await db.admin<{ after: number }[]>`select count(*)::int as after from app.weeks where family_id = ${family}`;
 			expect(after).toBe(before + 1);
+		});
+	});
+
+	describe('repetition on 40P01', () => {
+		let admin: { userId: string; sessionId: string };
+		let family: string;
+		const weeks = async () => (await db.admin<{ n: number }[]>`select count(*)::int as n from app.weeks where family_id = ${family}`)[0]!.n;
+		beforeAll(async () => {
+			admin = await db.createUser();
+			family = await db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+		});
+		afterEach(() => deadlockProbe.reset());
+		const path = ['test', 'deadlock'];
+
+		it('repeats the whole transaction once: the first attempt is rolled back, the continuation runs once', async () => {
+			const before = await weeks();
+			deadlockProbe.failures = 1;
+			expect(await call(testRouter.test.deadlock, { familyId: family }, { ...options(await asUser(admin)), path })).toEqual({ attempt: 2 });
+			expect(await weeks()).toBe(before + 1);
+			expect(deadlockProbe.continuations).toBe(1);
+		});
+
+		it('the second attempt reads the session again: a session closed in between answers unauthorized', async () => {
+			const person = await db.createUser();
+			const familyId = await db.createFamily([{ userId: person.userId, role: 'family_admin' }]);
+			deadlockProbe.failures = 1;
+			deadlockProbe.betweenAttempts = () => db.endSession(person.sessionId);
+			const error = await errorOf(call(testRouter.test.deadlock, { familyId }, { ...options(await asUser(person)), path }));
+			expect(error.code).toBe('unauthorized');
+			expect(deadlockProbe.continuations).toBe(0);
+		});
+
+		it('a 40P01 of the continuation repeats nothing: the transaction is already committed', async () => {
+			const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const before = await weeks();
+			deadlockProbe.failContinuation = true;
+			expect((await errorOf(call(testRouter.test.deadlock, { familyId: family }, { ...options(await asUser(admin)), path }))).code).toBe('internal');
+			log.mockRestore();
+			expect(deadlockProbe.attempts).toBe(1);
+			expect(deadlockProbe.continuations).toBe(1);
+			expect(await weeks()).toBe(before + 1);
+		});
+
+		it('two 40P01 in a row answer internal', async () => {
+			const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const before = await weeks();
+			deadlockProbe.failures = 2;
+			expect((await errorOf(call(testRouter.test.deadlock, { familyId: family }, { ...options(await asUser(admin)), path }))).code).toBe('internal');
+			log.mockRestore();
+			expect(deadlockProbe.attempts).toBe(2);
+			expect(deadlockProbe.continuations).toBe(0);
+			expect(await weeks()).toBe(before);
+		});
+
+		it('an operation outside the list is never repeated', async () => {
+			const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+			deadlockProbe.failures = 1;
+			expect((await errorOf(call(testRouter.test.deadlockUnlisted, { familyId: family }, { ...options(await asUser(admin)), path: ['test', 'deadlockUnlisted'] }))).code).toBe('internal');
+			log.mockRestore();
+			expect(deadlockProbe.attempts).toBe(1);
 		});
 	});
 
