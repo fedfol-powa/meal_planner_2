@@ -11,7 +11,7 @@ import { contextFor } from './support/context.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
 import { createTestKeys, type TestKeys } from './support/keys.ts';
 import { refuseAll } from './support/requests.ts';
-import { preparedCalls, setPublicProbe, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
+import { preparedCalls, setCommitProbe, setPublicProbe, testContract, testHandlerCalls, testRouter } from './support/test-contract.ts';
 
 let keys: TestKeys;
 beforeAll(async () => {
@@ -117,6 +117,41 @@ describe.skipIf(!hasDatabase)('request path with database', () => {
 		db = await setupDatabase();
 	});
 	afterAll(() => db?.close());
+
+	describe('afterCommit', () => {
+		let admin: { userId: string; sessionId: string };
+		let family: string;
+		beforeAll(async () => {
+			admin = await db.createUser();
+			family = await db.createFamily([{ userId: admin.userId, role: 'family_admin' }]);
+			setCommitProbe(async (familyId, monday) => {
+				const [{ n }] = await db.admin<{ n: number }[]>`select count(*)::int as n from app.weeks where family_id = ${familyId} and starts_on = ${monday}`;
+				return n;
+			});
+		});
+
+		it('runs the continuation after the commit', async () => {
+			const result = await call(testRouter.test.afterCommit, { familyId: family }, options(await asUser(admin)));
+			// A second connection sees the row written by the handler: the transaction is committed.
+			expect(result).toEqual({ seen: 1 });
+		});
+
+		it('uses the continuation result as output, validated by the schema', async () => {
+			const error = await errorOf(call(testRouter.test.afterCommit, { familyId: family, malformed: true }, options(await asUser(admin))));
+			expect(error.code).toBe('internal');
+		});
+
+		it('maps a continuation error to the usual error code with the transaction committed', async () => {
+			const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+			const [{ before }] = await db.admin<{ before: number }[]>`select count(*)::int as before from app.weeks where family_id = ${family}`;
+			const error = await errorOf(call(testRouter.test.afterCommit, { familyId: family, fail: true }, options(await asUser(admin))));
+			expect(error.code).toBe('internal');
+			expect(JSON.stringify(log.mock.calls)).toContain('auth_admin_failed');
+			log.mockRestore();
+			const [{ after }] = await db.admin<{ after: number }[]>`select count(*)::int as after from app.weeks where family_id = ${family}`;
+			expect(after).toBe(before + 1);
+		});
+	});
 
 	it('answers whoami with the profile language', async () => {
 		const user = await db.createUser({ locale: 'en-GB' });

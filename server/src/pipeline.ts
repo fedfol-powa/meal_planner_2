@@ -64,6 +64,25 @@ export function webOnlyUrl(origin: string, path: string, input: unknown): string
 	return new URL(filled, origin).toString();
 }
 
+class Continuation<T> {
+	readonly next: () => Promise<T>;
+	constructor(next: () => Promise<T>) {
+		this.next = next;
+	}
+}
+
+/** What a handler returns in place of its output: typed as the output, replaced by the pipeline. */
+export type AfterCommit<T> = T;
+
+/**
+ * Work after the commit (spec W11, section 2): the pipeline commits the transaction, then runs
+ * `next` with no connection open and uses its result as the output. An error of `next` follows
+ * the usual error handling, with the transaction already committed.
+ */
+export function afterCommit<T>(next: () => Promise<T>): AfterCommit<T> {
+	return new Continuation(next) as unknown as AfterCommit<T>;
+}
+
 export function fresh<T>(context: OperationContext, data: T): { unchanged: false; version: string; data: T } {
 	if (!context.version) throw new Error('fresh() used outside a versioned read');
 	return { unchanged: false, version: context.version, data };
@@ -127,7 +146,7 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 		}
 		const claims = await authenticate(context);
 		const channel = channelOf(claims);
-		return withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
+		const result = await withDb(context.env.HYPERDRIVE.connectionString, { kind: 'user', claims }, async (tx) => {
 			const locale = await loadSession(tx);
 			context.state.locale = locale;
 			if (meta.webOnly && channel === 'mcp') {
@@ -154,6 +173,8 @@ export function createImplementer<C extends AnyContractRouter>(contract: C, opti
 			}
 			return next({ context: operation });
 		});
+		if (result.output instanceof Continuation) return { ...result, output: await result.output.next() };
+		return result;
 	});
 }
 
