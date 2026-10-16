@@ -208,6 +208,12 @@ describe('processPhoto', () => {
 		expect(await codeOf(processPhoto(fakeImages({ fail: 'service' }), jpegOf(1200, 800)))).toBe('service');
 	});
 
+	it('a service error while reading the input is a service error, not an unreadable image', async () => {
+		expect(await codeOf(processPhoto(fakeImages({ fail: 'info-service' }), jpegOf(1200, 800)))).toBe('service');
+		const internal = { info: async () => Promise.reject(new Error('ERROR 9516: internal error')) } as never;
+		expect(await codeOf(processPhoto(internal, jpegOf(1200, 800)))).toBe('service');
+	});
+
 	it('refuses a result over 1 MiB', async () => {
 		expect(await codeOf(processPhoto(fakeImages({ outputBytes: MiB + 1 }), jpegOf(1200, 800)))).toBe('photo_too_large');
 	});

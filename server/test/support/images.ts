@@ -5,7 +5,8 @@ import type { PhotoImages } from '../../src/catalogue/photos/process.ts';
  * from the file header, `output` returns a minimal WebP scaled like `fit: 'scale-down'`.
  */
 export interface FakeImagesOptions {
-	fail?: 'unreadable' | 'limit' | 'service';
+	/** `unreadable` and `info-service` fail in `info`, the others in `output`. */
+	fail?: 'unreadable' | 'limit' | 'service' | 'info-service';
 	/** Pads the output to this many bytes. */
 	outputBytes?: number;
 }
@@ -66,6 +67,7 @@ export function fakeImages(options: FakeImagesOptions = {}): FakeImages {
 			calls.info++;
 			const bytes = await bytesOf(stream);
 			if (options.fail === 'unreadable') throw new FakeImagesError(9412, 'ERROR 9412: Input is not an image');
+			if (options.fail === 'info-service') throw new FakeImagesError(9516, 'ERROR 9516: internal error');
 			return readHeader(bytes);
 		},
 		input(stream) {

@@ -160,6 +160,14 @@ describe.skipIf(!hasDatabase)('recipe photos', () => {
 		expect((await errorOf(curator.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }))).code).toBe('internal');
 		expect(logged.mock.calls.map((call) => JSON.parse(String(call[0])).event)).toContain('photo_images_failed');
 		expect(await rows(recipeId)).toHaveLength(1);
+
+		// The same in the first reading of the input: the service's fault, not the curator's image.
+		logged.mockClear();
+		useImages({ fail: 'info-service' });
+		expect((await errorOf(curator.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }))).code).toBe('internal');
+		expect(logged.mock.calls.map((call) => JSON.parse(String(call[0])).event)).toContain('photo_images_failed');
+		expect((await rows(recipeId)).map((r) => [r.id, r.removed_at])).toEqual([[first.photo!.id, null]]);
+		expect(bucket.objects.size).toBe(1);
 	});
 
 	it('without the bindings the photo operations are internal', async () => {

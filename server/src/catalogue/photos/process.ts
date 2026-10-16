@@ -1,6 +1,6 @@
 import { PHOTO_INPUT_TYPES, PHOTO_MAX_INPUT_BYTES } from '@app/contract';
 import { readLimited } from './download.ts';
-import { PhotoError, PhotoServiceError } from './errors.ts';
+import { isUndecodable, PhotoError, PhotoServiceError } from './errors.ts';
 
 /** The calls of the Images binding the photos use; a fake in the tests. */
 export type PhotoImages = Pick<ImagesBinding, 'info' | 'input'>;
@@ -15,15 +15,9 @@ export interface ProcessedPhoto {
 const MAX_SIDE = 1600;
 const MIN_SHORT_SIDE = 400;
 const MAX_OUTPUT_BYTES = 1024 * 1024;
-/** Images error: the input is not an image. */
-const NOT_AN_IMAGE = 9412;
 
 function streamOf(bytes: Uint8Array): ReadableStream<Uint8Array> {
 	return new Response(bytes).body!;
-}
-
-function isLimit(error: unknown): boolean {
-	return new PhotoServiceError(error).limit;
 }
 
 /**
@@ -36,8 +30,8 @@ export async function processPhoto(images: PhotoImages, bytes: Uint8Array): Prom
 	try {
 		info = await images.info(streamOf(bytes));
 	} catch (error) {
-		if (isLimit(error)) throw new PhotoServiceError(error);
-		throw new PhotoError('photo_unreadable');
+		if (isUndecodable(error)) throw new PhotoError('photo_unreadable');
+		throw new PhotoServiceError(error);
 	}
 	if (!(PHOTO_INPUT_TYPES as readonly string[]).includes(info.format) || !('width' in info)) throw new PhotoError('photo_type');
 	if (Math.min(info.width, info.height) < MIN_SHORT_SIDE) throw new PhotoError('photo_too_small');
@@ -51,7 +45,7 @@ export async function processPhoto(images: PhotoImages, bytes: Uint8Array): Prom
 		body = await readLimited(result.image(), MAX_OUTPUT_BYTES);
 	} catch (error) {
 		if (error instanceof PhotoError) throw error;
-		if ((error as { code?: unknown } | null)?.code === NOT_AN_IMAGE) throw new PhotoError('photo_unreadable');
+		if (isUndecodable(error)) throw new PhotoError('photo_unreadable');
 		throw new PhotoServiceError(error);
 	}
 

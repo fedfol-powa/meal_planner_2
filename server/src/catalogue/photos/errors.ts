@@ -10,13 +10,33 @@ export class PhotoError extends Error {
 	}
 }
 
+/** The Images error code of a failure of the binding, from `code` or from the «ERROR 9xxx» of the message. */
+function imagesCode(error: unknown): number | null {
+	const code = (error as { code?: unknown } | null)?.code;
+	if (typeof code === 'number') return code;
+	const found = /\b(9\d{3})\b/.exec(error instanceof Error ? error.message : String(error));
+	return found ? Number(found[1]) : null;
+}
+
+/**
+ * Images errors that mean the input cannot be decoded (Cloudflare's troubleshooting page): not an
+ * image (9412), format not supported (9520), invalid format (9523). Every other code, internal
+ * ones such as 9516 included, is the service's fault.
+ */
+const UNDECODABLE = new Set([9412, 9520, 9523]);
+
+/** The input the binding could not decode: the curator's image, not the service. */
+export function isUndecodable(error: unknown): boolean {
+	const code = imagesCode(error);
+	return code !== null && UNDECODABLE.has(code);
+}
+
 /** The Images service failed; `limit` when the monthly transformations are used up (9422). */
 export class PhotoServiceError extends Error {
 	readonly limit: boolean;
 	constructor(cause: unknown) {
-		const message = cause instanceof Error ? cause.message : String(cause);
 		super('images service failed', { cause });
 		this.name = 'PhotoServiceError';
-		this.limit = message.includes('9422') || (cause as { code?: unknown } | null)?.code === 9422;
+		this.limit = imagesCode(cause) === 9422;
 	}
 }

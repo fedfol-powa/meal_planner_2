@@ -251,8 +251,8 @@ per pochi utenti.
   risultato, invece di trasformare a ogni richiesta (`cf.image` su `fetch` o URL
   `/cdn-cgi/image/`), che conterebbe una trasformazione per variante e richiederebbe una
   zona con il dominio.
-- **Esito del binding:** un'immagine che `info` o `input` non decodificano → `invalid` sul
-  campo dell'immagine con il codice `photo_unreadable`. Il limite mensile raggiunto (errore
+- **Esito del binding:** un'immagine che `info` o `input` non decodificano (errori `9412`,
+  `9520`, `9523`) → `invalid` sul campo dell'immagine con il codice `photo_unreadable`. Il limite mensile raggiunto (errore
   `9422` nel messaggio dell'eccezione del binding) → `internal` con il log
   `photo_images_limit` (gli altri errori del servizio → `internal` con
   `photo_images_failed`). In ogni caso nessun oggetto scritto in R2, nessuna riga, e la
