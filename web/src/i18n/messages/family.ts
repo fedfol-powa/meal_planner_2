@@ -137,7 +137,16 @@ export const it = {
   'familyJoins.title': 'Ingressi con i link',
   'familyJoins.empty': 'Nessuno è ancora entrato con un link.',
   'familyJoins.via': 'con il link di {name} del {date}',
-  'familyJoins.newAccount': 'Account nuovo'
+  'familyJoins.newAccount': 'Account nuovo',
+  'settings.deleteFamily': 'Elimina la famiglia',
+  'deleteFamily.title': 'Elimina la famiglia',
+  'deleteFamily.removed': 'Vengono cancellati per tutti i membri ({members}):',
+  'deleteFamily.weeks.one': 'menu e storico (1 settimana)',
+  'deleteFamily.weeks.other': 'menu e storico ({count} settimane)',
+  'deleteFamily.data': 'note, liste della spesa, impostazioni, «non proporre più» e link d’invito',
+  'deleteFamily.kept': 'Restano gli account, i voti personali, le altre famiglie e il ricettario.',
+  'deleteFamily.confirm': 'Elimina {family}',
+  'deleteFamily.adminOnly': 'Solo un amministratore della famiglia può eliminarla.'
 };
 
 export const en = {
@@ -276,5 +285,14 @@ export const en = {
   'familyJoins.title': 'Joined with a link',
   'familyJoins.empty': 'Nobody has joined with a link yet.',
   'familyJoins.via': 'with the link by {name} of {date}',
-  'familyJoins.newAccount': 'New account'
+  'familyJoins.newAccount': 'New account',
+  'settings.deleteFamily': 'Delete the family',
+  'deleteFamily.title': 'Delete the family',
+  'deleteFamily.removed': 'Deleted for every member ({members}):',
+  'deleteFamily.weeks.one': 'menus and history (1 week)',
+  'deleteFamily.weeks.other': 'menus and history ({count} weeks)',
+  'deleteFamily.data': 'notes, shopping lists, settings, “don’t suggest again” and invitation links',
+  'deleteFamily.kept': 'Accounts, personal ratings, other families and the recipe collection remain.',
+  'deleteFamily.confirm': 'Delete {family}',
+  'deleteFamily.adminOnly': 'Only a family administrator can delete it.'
 } satisfies Record<keyof typeof it, string>;

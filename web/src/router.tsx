@@ -22,8 +22,9 @@ import { InvitePage } from './features/app-invitations/InvitePage';
 import { InvitePage as FamilyInvitePage } from './features/family-invitations/InvitePage';
 import { DraftPage } from './features/catalogue/DraftPage';
 import { NewFamilyPage } from './features/family-new/NewFamilyPage';
+import { FamilyDeletePage } from './features/family-delete/FamilyDeletePage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
-import { validateLoginSearch, validateMenuSearch, validateNewFamilySearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
+import { validateFamilyDeleteSearch, validateLoginSearch, validateMenuSearch, validateNewFamilySearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
 /** `exit.pending`: a session just closed here; its redirect to sign-in drops the page, and the next person starts from the menu. */
 export interface RouterContext { auth: AuthState; exit: { pending: boolean } }
@@ -88,6 +89,8 @@ const preferencesRoute = createRoute({ getParentRoute: () => appRoute, path: '/p
 const membersRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family', component: MembersPage });
 const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/settings', component: SettingsPage });
 const exclusionsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/exclusions', component: ExclusionsPage });
+// Deletion of a family (spec W11): only navigation, nothing is deleted on opening; also the link agents get.
+const familyDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/delete', validateSearch: validateFamilyDeleteSearch, component: FamilyDeletePage });
 // New family (spec W9): the minimal wizard, also «Crea un'altra famiglia» from the profile.
 const newFamilyRoute = createRoute({ getParentRoute: () => appRoute, path: '/family/new', validateSearch: validateNewFamilySearch, component: NewFamilyPage });
 // App administration (spec W9): app_admin only, also checked by the server.
@@ -102,7 +105,7 @@ const routeTree = rootRoute.addChildren([
   authorizeRoute,
   appInviteRoute,
   familyInviteRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, familyDeleteRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

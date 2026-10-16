@@ -17,7 +17,9 @@ import { QueryError } from '../../components/QueryError';
 import { formatDayMonth } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { CopyField } from '../../features/agents/CopyField';
+import { useSession } from '../../session/SessionScope';
 import { BackToProfile } from './BackToProfile';
+import danger from '../../components/Danger.module.css';
 import styles from './MembersPage.module.css';
 
 type Member = FamilyDetailView['members'][number];
@@ -103,8 +105,8 @@ function MembersContent({ view, refetch }: { view: FamilyDetailView; refetch: ()
         </>
       )}
 
-      <div className={styles.dangerZone}>
-        <button type="button" className={`text-button wide ${styles.dangerOutline}`} disabled={!online || counts === null} onClick={() => setLeaving(true)}>
+      <div className={danger.dangerZone}>
+        <button type="button" className={`text-button wide ${danger.dangerOutline}`} disabled={!online || counts === null} onClick={() => setLeaving(true)}>
           {t('members.leave')}
         </button>
       </div>
@@ -246,7 +248,7 @@ function MemberSheet({ familyId, member, links, onClose }: { familyId: string; m
         <>
           <p>{t('members.removeBody', { name })}</p>
           {linksLine}
-          <button type="button" className={`text-button wide ${styles.danger} ${styles.sheetButton}`} disabled={!online || busy} onClick={() => remove.mutate(undefined, { onSuccess: onClose })}>
+          <button type="button" className={`text-button wide ${danger.danger} ${styles.sheetButton}`} disabled={!online || busy} onClick={() => remove.mutate(undefined, { onSuccess: onClose })}>
             {t('members.removeConfirm', { name })}
           </button>
         </>
@@ -264,6 +266,7 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
   const online = useOnline();
   const navigate = useNavigate();
   const router = useRouter();
+  const session = useSession();
   const [successor, setSuccessor] = useState<string | null>(null);
   // What the server said meanwhile: the family changed since this page was read.
   const [now, setNow] = useState<'alone' | 'successor' | null>(null);
@@ -276,7 +279,8 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
   const deletePath = `/profile/family/delete?family=${encodeURIComponent(view.id)}`;
 
   function leftTo(families: ProfileView['families']) {
-    // Task 14 revokes this family's data on the device here (session.revoke), before navigating.
+    // The family's data leaves the device before the next page (spec W11, «Dati sul dispositivo»).
+    session.revoke(view.id);
     void navigate({ to: families.some((f) => f.id !== view.id) ? '/profile' : '/menu' });
   }
 
@@ -316,9 +320,8 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
         <>
           <p>{t('members.soleMember')}</p>
           <a
-            className={`text-button wide ${styles.dangerOutline}`}
+            className={`text-button wide ${danger.dangerOutline}`}
             href={deletePath}
-            // The deletion page arrives with task 14; until then its route is not typed.
             onClick={(event) => {
               event.preventDefault();
               router.history.push(deletePath);
@@ -341,7 +344,7 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
               </label>
             ))}
           </fieldset>
-          <button type="button" className={`text-button wide ${styles.danger}`} disabled={!online || !successor || leave.isPending} onClick={() => void send()}>
+          <button type="button" className={`text-button wide ${danger.danger}`} disabled={!online || !successor || leave.isPending} onClick={() => void send()}>
             {t('members.leaveWithSuccessor')}
           </button>
         </>
@@ -350,7 +353,7 @@ function LeaveSheet({ view, myLinks, refetch, onClose }: { view: FamilyDetailVie
         <>
           <p>{t('members.leaveBody')}</p>
           {linksLine}
-          <button type="button" className={`text-button wide ${styles.danger}`} disabled={!online || leave.isPending} onClick={() => void send()}>
+          <button type="button" className={`text-button wide ${danger.danger}`} disabled={!online || leave.isPending} onClick={() => void send()}>
             {t('members.leaveConfirm')}
           </button>
         </>
@@ -428,7 +431,7 @@ function RevokeSheet({ familyId, invitation, onClose }: { familyId: string; invi
     <BottomSheet open title={t('familyLinks.revokeTitle')} onClose={onClose}>
       <p>{t('familyLinks.revokeBody')}</p>
       {revoke.isError && <p className="form-error" role="alert">{t(errorKey(revoke.error))}</p>}
-      <button type="button" className={`text-button wide ${styles.danger}`} disabled={!online || revoke.isPending} onClick={() => revoke.mutate(undefined, { onSuccess: onClose })}>
+      <button type="button" className={`text-button wide ${danger.danger}`} disabled={!online || revoke.isPending} onClick={() => revoke.mutate(undefined, { onSuccess: onClose })}>
         {t('familyLinks.revoke')}
       </button>
     </BottomSheet>

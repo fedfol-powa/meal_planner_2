@@ -1,13 +1,10 @@
-/* Members and invitation links (round 4 prototype, design.md «Azioni irreversibili»): same tokens, no new language. */
+/* Members and invitation links (round 4 prototype): same tokens, no new language; the red buttons are in components/Danger.module.css. */
 .more { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); cursor: pointer; }
 .more:disabled { opacity: 0.4; cursor: not-allowed; }
 .link { flex-wrap: wrap; }
 .small { min-height: 40px; padding: 6px 12px; }
 .create { margin-top: 12px; }
 .sheetButton { margin-top: 8px; }
-.danger { border-color: var(--danger); color: #fff; background: var(--danger); }
-.dangerOutline { border-color: var(--danger); color: var(--danger); }
 .dangerText { color: var(--danger); font-weight: 700; }
-.dangerZone { margin: 28px 0 8px; }
 .successors { margin: 0 0 8px; padding: 0; border: 0; }
 .join { flex-wrap: wrap; }

@@ -22,6 +22,18 @@ function held<T>(answer: () => Promise<T>) {
 }
 
 describe('family settings', () => {
+  it('ends with «Elimina la famiglia» for administrators only, a link to the deletion page', async () => {
+    renderApp('/profile/family/settings', { api: adminApi() });
+    const link = await screen.findByRole('link', { name: 'Elimina la famiglia' });
+    expect(link.getAttribute('href')).toBe(`/profile/family/delete?family=${DEMO_FAMILY_ID}`);
+  });
+
+  it('has no deletion link for members', async () => {
+    renderApp('/profile/family/settings', { backend: createStubBackend(ANNA, 'supabase') });
+    expect(await screen.findByText('Solo gli amministratori della famiglia possono cambiare le impostazioni.')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Elimina la famiglia' })).toBeNull();
+  });
+
   it('is read-only for members, with the reason', async () => {
     renderApp('/profile/family/settings', { backend: createStubBackend(ANNA, 'supabase') });
     expect(await screen.findByText('Solo gli amministratori della famiglia possono cambiare le impostazioni.')).toBeTruthy();
@@ -212,11 +224,5 @@ describe('family settings', () => {
     fireEvent.click(ingredients.getByRole('button', { name: 'Riprova' }));
     expect(await ingredients.findByRole('button', { name: 'Zucchine' })).toBeTruthy();
     expect(ingredients.queryByRole('alert')).toBeNull();
-  });
-
-  it('has no «Elimina la famiglia» (wave 3)', async () => {
-    renderApp('/profile/family/settings');
-    await screen.findByText('Chi mangia quando');
-    expect(screen.queryByText('Elimina la famiglia')).toBeNull();
   });
 });

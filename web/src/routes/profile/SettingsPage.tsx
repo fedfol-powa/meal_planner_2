@@ -1,12 +1,14 @@
 import { GROUP_MAX, KNOWN_NEW_MAX } from '@app/domain/family';
 import { CREA_RANGES, FOOD_GROUPS } from '@app/domain/planner';
 import { useQuery, type UseMutationResult } from '@tanstack/react-query';
+import { Link } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { errorKey, isBlocking } from '../../api/errors';
 import { familyQuery, settingsQuery } from '../../api/family';
 import { useAreaMutation } from '../../api/mutations';
 import { useQueryDeps } from '../../api/queries';
 import type { FamilyDetailView, FamilyView, SettingsView } from '../../api/types';
+import danger from '../../components/Danger.module.css';
 import { DinersGrid, type SlotChange } from '../../components/DinersGrid';
 import { FamilyGate } from '../../components/FamilyGate';
 import { IngredientRestrictions, type RestrictionChange } from '../../components/IngredientRestrictions';
@@ -64,6 +66,13 @@ function Settings({ family }: { family: FamilyView }) {
             <SettingsSections familyId={family.id} view={settings.data} editable={editable} />
             <Units family={detail.data} editable={editable} />
             <Advanced familyId={family.id} view={settings.data} editable={editable} />
+            {family.role === 'family_admin' && (
+              <div className={danger.dangerZone}>
+                <Link to="/profile/family/delete" search={{ family: family.id }} className={`text-button wide ${danger.dangerOutline}`}>
+                  {t('settings.deleteFamily')}
+                </Link>
+              </div>
+            )}
           </>
         )}
       </div>
