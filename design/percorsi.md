@@ -1117,7 +1117,7 @@ dell'account (decisione dell'utente del 15 ottobre 2026; sotto).
 I percorsi del quarto giro su inviti, membri, uscita, eliminazione della famiglia e
 cancellazione dell'account, e quello del sesto giro sulla cancellazione di un utente,
 sono realizzati nell'app con la PR #52, unita e rilasciata in produzione il 16 ottobre
-2026; restano il collaudo dell'utente e le prove a mano sull'iPhone (specifica,
+2026; collaudo e prove sull'iPhone riusciti il 16 ottobre 2026 (specifica,
 sezioni 7, 10 e 14; particolari in
 `progetto/superpowers/specs/2026-10-16-gestione-famiglia.md`, sezione 3): pagina
 dell'invito, membri e link d'invito in `/profile/family`, cambio di ruolo, rimozione e
