@@ -28,6 +28,8 @@ export interface RequestContext {
 	clientIp: string;
 	/** Current time; tests replace it. The pipeline reads it once per request into `now`. */
 	clock?: () => Date;
+	/** The upload body was over the limit: `rejectOversizedUpload` refuses the request (W12). */
+	uploadTooLarge?: true;
 }
 
 export interface OperationContext extends RequestContext {

@@ -19,6 +19,7 @@ import type { Env } from './env.ts';
 import { mapErrors, mapUnreadableRequest, normalizeError } from './errors.ts';
 import { buildMcpServer, collectTools } from './mcp.ts';
 import { servePhoto } from './photos/serve.ts';
+import { bufferUploadBody, needsUploadLimit, rejectOversizedUpload, UPLOAD_BODY_LIMIT } from './photos/upload-limit.ts';
 import type { RequestContext } from './pipeline.ts';
 import { serveBringPage } from './shopping/bring-page.ts';
 import { loadSession } from './session.ts';
@@ -38,7 +39,7 @@ const notFound = () => Response.json({ code: 'not_found', status: 404, message: 
 const OAUTH_METADATA_PATHS = new Set(['/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server']);
 
 export function createApp(options: AppOptions) {
-	const handlerOptions = { interceptors: [mapUnreadableRequest], clientInterceptors: [mapErrors] };
+	const handlerOptions = { interceptors: [rejectOversizedUpload, mapUnreadableRequest], clientInterceptors: [mapErrors] };
 	const rpcHandler = new RPCHandler(options.router, handlerOptions);
 	const openApiHandler = new OpenAPIHandler(options.router, handlerOptions);
 	const openApiGenerator = new OpenAPIGenerator({ schemaConverters: [new ZodToJsonSchemaConverter()] });
@@ -130,7 +131,12 @@ export function createApp(options: AppOptions) {
 			return Response.json(spec);
 		}
 		if (url.pathname.startsWith('/api/')) {
+			// Before oRPC and before the token: an upload body is read here, with the limit (W12).
+			const limited = needsUploadLimit(request, url.pathname) ? await bufferUploadBody(request, UPLOAD_BODY_LIMIT) : null;
+			request = limited?.request ?? request;
 			const context = contextFor(request, env, requestId, bearerToken(request.headers.get('authorization')));
+			// The answer is oRPC's, in the format of the transport: never written here (spec W12, section 5).
+			if (limited?.tooLarge) context.uploadTooLarge = true;
 			const [prefix, handler] = url.pathname.startsWith('/api/rpc/')
 				? (['/api/rpc', rpcHandler] as const)
 				: (['/api', openApiHandler] as const);
