@@ -204,6 +204,10 @@ export function createFakeFamily(deps: FamilyDeps): FamilyApi {
       deps.checkFamily(familyId);
       data.exclusions = data.exclusions.filter((e) => e.recipeId !== recipeId);
       return changed(exclusionsView);
+    },
+    // Family links of the fake mode arrive with the invitations area (W11, task 11).
+    async join() {
+      throw new ApiError('invitation_unavailable');
     }
   };
   return family;

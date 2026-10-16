@@ -6,6 +6,7 @@ import { fresh } from '../pipeline.ts';
 import { groupRangeSchema, normalizeRules, resolveFamilySettings, sameRule } from '@app/domain/family';
 import type { MealRule } from '@app/domain/planner';
 import { profileView } from '../profile/views.ts';
+import { familyMembersRouter } from './members.ts';
 import { writeSettingsKey } from './settings-writes.ts';
 import { resolveTimeZone } from './time-zone.ts';
 import { exclusionsView, familyView, searchIngredients, settingsView } from './views.ts';
@@ -148,6 +149,7 @@ export function familyRouter(os: Implementer) {
 		...settingsHandlers(os),
 		...catalogueHandlers(os),
 		...exclusionHandlers(os),
+		...familyMembersRouter(os),
 		get: os.family.get.handler(async ({ context, input }) => fresh(context, await familyView(context.tx, input.familyId, context.locale))),
 		getSettings: os.family.getSettings.handler(async ({ context, input }) =>
 			fresh(context, await settingsView(context.tx, input.familyId, context.locale)),
