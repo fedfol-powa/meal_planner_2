@@ -87,12 +87,16 @@ export async function downloadImage(url: URL, deps: DownloadDeps): Promise<Uint8
 		const declared = Number(response.headers.get('content-length'));
 		if (declared > maxBytes) {
 			await response.body.cancel().catch(() => undefined);
+			log(current, 'too_large_declared');
 			throw new PhotoError('photo_too_large');
 		}
 		try {
 			return await readLimited(response.body, maxBytes);
 		} catch (error) {
-			if (error instanceof PhotoError) throw error;
+			if (error instanceof PhotoError) {
+				log(current, 'too_large');
+				throw error;
+			}
 			log(current, 'read_failed');
 			throw new PhotoError('photo_unreachable');
 		}

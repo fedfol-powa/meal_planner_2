@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { downloadImage, readLimited } from '../../src/catalogue/photos/download.ts';
 import { PhotoError, PhotoServiceError } from '../../src/catalogue/photos/errors.ts';
 import { newPhotoKey, PHOTO_KEY, photoPath, photoUrl } from '../../src/catalogue/photos/key.ts';
@@ -70,14 +70,25 @@ function fakeFetch(answers: Array<(url: string) => Response | Promise<Response>>
 
 const redirect = (location: string) => () => new Response(null, { status: 302, headers: { location } });
 const image = () => new Response(jpegOf(1200, 800), { headers: { 'content-type': 'image/jpeg' } });
-const start = new URL('https://ricette.example.it/a.jpg');
+const start = new URL('https://ricette.example.it/a.jpg?token=segreto');
+
+/** The download outcomes logged meanwhile, as `host outcome`; the full URL never appears. */
+function downloadLog() {
+	const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+	return () => {
+		for (const [line] of warn.mock.calls) expect(String(line)).not.toContain('token');
+		return warn.mock.calls.map(([line]) => JSON.parse(String(line))).map((e: { host: string; outcome: string }) => `${e.host} ${e.outcome}`);
+	};
+}
 
 describe('downloadImage', () => {
+	afterEach(() => vi.restoreAllMocks());
+
 	it('downloads with minimal headers and manual redirects', async () => {
 		const { fetch, calls } = fakeFetch([redirect('/b.jpg'), image]);
 		const bytes = await downloadImage(start, { fetch, appHost: APP_HOST });
 		expect(bytes).toEqual(jpegOf(1200, 800));
-		expect(calls.map((c) => c.url)).toEqual(['https://ricette.example.it/a.jpg', 'https://ricette.example.it/b.jpg']);
+		expect(calls.map((c) => c.url)).toEqual([start.href, 'https://ricette.example.it/b.jpg']);
 		for (const call of calls) {
 			expect(call.init.redirect).toBe('manual');
 			const headers = new Headers(call.init.headers);
@@ -127,8 +138,10 @@ describe('downloadImage', () => {
 			{ highWaterMark: 0 },
 		);
 		const { fetch } = fakeFetch([() => new Response(body, { headers: { 'content-length': '11000000' } })]);
+		const logged = downloadLog();
 		expect(await codeOf(downloadImage(start, { fetch, appHost: APP_HOST }))).toBe('photo_too_large');
 		expect(pulled).toBe(false);
+		expect(logged()).toEqual(['ricette.example.it too_large_declared']);
 	});
 
 	it('stops reading past the limit', async () => {
@@ -145,8 +158,10 @@ describe('downloadImage', () => {
 			},
 		});
 		const { fetch } = fakeFetch([() => new Response(body)]);
+		const logged = downloadLog();
 		expect(await codeOf(downloadImage(start, { fetch, appHost: APP_HOST }))).toBe('photo_too_large');
 		expect(cancelled).toBe(true);
+		expect(logged()).toEqual(['ricette.example.it too_large']);
 		expect(produced).toBeLessThanOrEqual(10 * MiB + 2 * chunk.length);
 	});
 
