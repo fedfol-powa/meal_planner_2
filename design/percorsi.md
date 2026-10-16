@@ -1,7 +1,7 @@
 # Percorsi del prototipo di Cosa si mangia
 
 Creato: 6 ottobre 2026
-Ultimo aggiornamento: 15 ottobre 2026
+Ultimo aggiornamento: 16 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
 (Gestione del ricettario) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre;
@@ -1094,3 +1094,20 @@ inviti in attesa e scaduti c'è «Nuovo link», che crea un invito nuovo con la 
 email e gli stessi ruoli e sostituisce quello in attesa. Il motivo è che il database
 conserva solo l'impronta del token. Il link è `/invite/app#<token>` al posto di
 `/invite/app/[token]`.
+
+### Sezione Utenti nell'app (16 ottobre 2026)
+
+La sezione Utenti dell'amministrazione è realizzata nell'app, rilasciata il 16 ottobre
+2026 con la PR #47 (specifica, sezioni 7 e 14): ricerca per nome o email, dettaglio con
+gli interruttori dei due ruoli, conferma della nomina e della rinuncia, interruttore
+dell'ultimo amministratore bloccato con il motivo e famiglie per solo nome e ruolo,
+nella forma del sesto giro. Scostamenti dal prototipo:
+
+- il dettaglio dell'utente non mostra il numero di agenti collegati;
+- dopo la rinuncia al proprio ruolo di amministratore si torna al Profilo senza avviso
+  a comparsa;
+- il dettaglio del proprio account ha la riga «Questo è il tuo account».
+
+La cancellazione di un utente (`/admin/users/[id]/delete`) non c'è ancora, nemmeno come
+segnaposto nel dettaglio: arriva con l'attività C, insieme alla cancellazione
+dell'account (decisione dell'utente del 15 ottobre 2026).

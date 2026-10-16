@@ -1,8 +1,8 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 15 ottobre 2026 (decisioni degli inviti all'app e delle famiglie
-nuove, attività A dell'ondata 3, PR #45)
+Ultimo aggiornamento: 16 ottobre 2026 (decisioni dell'amministrazione di utenti e ruoli,
+attività B dell'ondata 3, PR #47)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -11,7 +11,8 @@ riferimento dei percorsi approvati.
 Stato attuale: traguardo A in produzione dal 12–13 ottobre 2026 su
 `https://cosasimangia.qunidi.workers.dev`, con il collaudo completo ancora in corso
 (sezione 10); dal 15 ottobre 2026 in produzione anche gli inviti all'app e la creazione
-delle famiglie (attività A dell'ondata 3).
+delle famiglie (attività A dell'ondata 3), dal 16 ottobre l'amministrazione di utenti e
+ruoli (attività B).
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -293,6 +294,30 @@ dall'ondata 3 e richiederà una decisione distinta.
   su iOS in Safari, la nota per la schermata Home (sezioni 2, 4 e 7);
 - iscrizioni libere spente anche nello stack locale (sezioni 1, 7 e 9).
 
+**Decisioni del 15–16 ottobre 2026, amministrazione di utenti e ruoli rilasciata**
+(attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16;
+particolari in `progetto/superpowers/specs/2026-10-15-amministrazione-utenti.md`):
+
+- sezione Utenti di `/admin` sopra «Inviti all'app», con ricerca per nome o email che
+  ignora le maiuscole ma non gli accenti e al più 50 risultati, poi l'invito a
+  restringere la ricerca; dettaglio con i due ruoli, le famiglie per solo nome e ruolo e
+  «Questo è il tuo account» per il proprio, senza il numero di agenti collegati del
+  prototipo (Parte 1 e sezioni 7 e 14);
+- dal rilascio i ruoli di chi ha già un account si cambiano dall'app e via MCP, e
+  valgono dalla richiesta successiva, anche per gli agenti già collegati (sezioni 1, 7 e
+  13);
+- dopo la rinuncia al proprio ruolo di amministratore si torna al Profilo senza avviso a
+  comparsa, scostamento dal prototipo (sezioni 7 e 14);
+- via MCP la conferma per nominare un amministratore o rinunciare al proprio ruolo sta
+  nelle istruzioni dell'agente, come per la pubblicazione delle ricette (sezione 13);
+- l'ultimo amministratore dell'app è protetto da un lucchetto consultivo che ogni
+  percorso che toglie `app_admin` deve prendere nella stessa transazione, compresa la
+  cancellazione di un account, ricontrollando sotto il lucchetto l'autorizzazione di chi
+  chiama per l'operazione richiesta (sezioni 1, 2 e 7);
+- **decisione dell'utente del 15 ottobre 2026**: la cancellazione degli utenti
+  dall'amministrazione passa dall'attività B all'attività C, insieme alla cancellazione
+  dell'account (Parte 1 e sezione 7).
+
 ---
 
 ## Parte 1: cosa fa l'app (per tutti)
@@ -564,11 +589,23 @@ dopo quel momento vengono archiviate, e prima di confermare si vede un'anteprima
 Gli inviti all'app e quelli a una famiglia hanno scopi distinti. Un invito all'app
 chiama una persona precisa e può darle il ruolo di curatore o di amministratore quando
 accetta, ma non la fa entrare in una famiglia. Regole decise nel sesto giro del
-prototipo, sezione 7. Dal 15 ottobre 2026 la pagina c'è con la sola sezione degli
-inviti all'app: il link si vede solo quando si crea l'invito, e se lo si perde se ne
-crea uno nuovo. Utenti e ruoli e il ripristino del ricettario arrivano dopo, nell'ondata
-3; fino ad allora i ruoli di chi ha già un account non si cambiano dall'app
-(sezione 7).
+prototipo, sezione 7. Dal 15 ottobre 2026 la pagina c'è con la sezione degli inviti
+all'app: il link si vede solo quando si crea l'invito, e se lo si perde se ne crea uno
+nuovo.
+
+Dal 16 ottobre 2026 sopra gli inviti c'è la sezione **Utenti**: si cerca una persona
+per nome o per email (maiuscole e minuscole non contano, gli accenti sì) e, se i
+risultati sono più di 50, l'app chiede di restringere la ricerca. Toccando una persona
+se ne apre la scheda, con l'email, i due ruoli da accendere o spegnere (curatore del
+ricettario e amministratore dell'app) e le famiglie di cui fa parte, solo per nome e
+ruolo, senza i loro contenuti. Nominare un amministratore e rinunciare al proprio ruolo
+chiedono una conferma; chi rinuncia torna al Profilo e non vede più la pagina. L'ultimo
+amministratore non può perdere il ruolo: prima se ne nomina un altro. Un ruolo
+cambiato vale subito, anche per gli agenti già collegati. Se si prova a invitare
+un'email che ha già un account, l'app offre di aprire quella persona. Le stesse
+operazioni si fanno dal proprio agente. La cancellazione degli utenti arriverà con la
+gestione della famiglia e la cancellazione dell'account (decisione dell'utente del 15
+ottobre 2026); il ripristino del ricettario arriva dopo, nell'ondata 3 (sezione 7).
 
 ### Cosa l'app non fa (per ora)
 
@@ -806,7 +843,10 @@ e scrivere (la generazione pigra del menu, sezione 4).
   tramite Hyperdrive con due utenti e 120 richieste concorrenti, senza dati scambiati.
 - **Transazioni.** Le operazioni che toccano molte righe (pubblicazione, ripristini,
   eliminazione di una famiglia o di un account) sono atomiche, in una transazione o in
-  una funzione Postgres.
+  una funzione Postgres. Le transazioni degli utenti girano in `read committed`: il
+  ricontrollo sotto il lucchetto dell'ultimo amministratore dell'app (sezioni 2 e 7) ha
+  bisogno di vedere ciò che chi aveva il lucchetto prima ha confermato, e un test lo
+  verifica (PR #47); passare a `repeatable read` lo romperebbe.
 - **Canale ricavato dal token.** Le sessioni dell'app web non hanno il claim
   `client_id`, i token rilasciati agli agenti dal server OAuth di Supabase sì: è il
   modo verificabile, richiesto dalla sezione 13, per distinguere web e MCP senza fidarsi
@@ -817,7 +857,11 @@ e scrivere (la generazione pigra del menu, sezione 4).
   `app.session_is_active()` sulla sessione del token, anche all'ingresso di `/mcp` per
   `initialize` e `tools/list`, prima della risposta `web_only`; appartenenze e ruoli si
   leggono a ogni query, quindi una rimozione dalla famiglia o la revoca del ruolo di
-  curatore valgono subito con lo stesso token. Scollegare un agente cancella in Supabase
+  curatore valgono subito con lo stesso token. Così anche i ruoli globali cambiati
+  dall'amministrazione (area `users`, dal 16 ottobre 2026): `checkRole` chiama
+  `app.has_role` a ogni richiesta, i ruoli non stanno nel token e valgono dalla
+  richiesta successiva, nel web e per gli agenti già collegati, senza rinnovo della
+  sessione. Scollegare un agente cancella in Supabase
   le sessioni di quel client per quell'utente, quindi questo controllo basta a rifiutare
   subito i suoi token non scaduti, senza un controllo del grant a ogni richiesta
   (verificato l'11 ottobre 2026 e provato in CI, sezione 13).
@@ -845,6 +889,14 @@ di validazione condivisi con `domain/`. Regole:
   funzioni `security definer` per impronta del token, eseguibili da `anon`; `checkRole`
   rifiuta con `internal` un'operazione pubblica arrivata per errore al controllo dei
   ruoli.
+- **Amministrazione degli utenti** (PR #47, 16 ottobre 2026; particolari nella spec di
+  dettaglio `2026-10-15-amministrazione-utenti.md`, sezione 2): area `users` con
+  `users.list` (`{ query? }`, al più 50 righe e `more`, senza cursore), `users.get`
+  (utente con `lastAppAdmin` e famiglie con solo `name` e `role`) e `users.setRole`
+  (idempotente, risponde con il dettaglio aggiornato), tutte con ruolo `appAdmin` e
+  `offline: false`. Dopo la rinuncia al proprio `app_admin` i ruoli della risposta sono
+  quelli letti dalla funzione del database sotto il lucchetto, perché chi chiama non
+  può più rileggerli.
 - **Viste già pronte.** Le letture restituiscono testi nella lingua dell'utente,
   quantità scalate e convertite nel sistema della famiglia, voti (media e proprio) e
   ultima modifica: web e MCP mostrano gli stessi contenuti e il client resta sottile.
@@ -863,7 +915,9 @@ di validazione condivisi con `domain/`. Regole:
   `last_app_admin`, `sole_member`, `web_only` con l'URL della pagina; dagli inviti
   all'app (15 ottobre 2026) `invitation_unavailable` (410, invito non più valido per
   qualunque motivo), `rate_limited` (429) e i motivi `account_exists` e
-  `already_accepted` di `not_allowed`. Il web li
+  `already_accepted` di `not_allowed`; dall'amministrazione degli utenti (16 ottobre
+  2026) `last_app_admin` e `not_found` di un utente arrivano dai codici SQLSTATE `P0A08`
+  e `P0A07` delle funzioni del database (sezione 2), tradotti dal server. Il web li
   traduce; per MCP il server li rende nella lingua dell'utente. I codici sono in
   minuscolo con il loro stato HTTP; la validazione restituisce `invalid` su tutti i
   canali, MCP compreso (la fa oRPC, non l'SDK di MCP); il codice di una `refine` del
@@ -916,6 +970,10 @@ di validazione condivisi con `domain/`. Regole:
   anche fra mutazioni diverse: un voto confermato mentre un'azione sul pasto è in corso
   rende superata la risposta dell'azione, che porterebbe il voto vecchio, e la
   settimana si rilegge (revisione dei pasti nel web, 12 ottobre 2026).
+  `users.setRole` ha nel registro delle mutazioni del web un bersaglio `users` che, come
+  quello degli inviti all'app, non scrive la risposta nella cache in modo generico: fa
+  rileggere le query `['users']` e il profilo; la pagina del dettaglio scrive la
+  risposta solo se è la più recente per quell'utente (tracciamento `users:<id>`, PR #47).
   Ciò che dipende solo dall'ora, come i pasti già passati, si calcola sul dispositivo:
   le viste portano date e istanti dei pasti (`passesAt`) e tutti i pasti futuri di una
   ricetta, e la pagina aperta si ricalcola al prossimo istante. Dove l'ora cambia i dati
@@ -1098,7 +1156,7 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 |---|---|
 | `profiles` | `user_id`, `display_name`, `locale` (`it-IT`/`en-GB`) |
 | `profile_preferences` | `user_id`, `current_family_id`: famiglia mostrata, ricordata sul server; privata (RLS del solo proprietario), perché `profiles` è leggibile dai co-membri; chiave esterna composta verso `family_members` |
-| `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`) |
+| `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`), con `granted_by` e `granted_at`. Nessuna scrittura diretta da `authenticated` (solo `SELECT` delle proprie righe): i ruoli si assegnano all'accettazione di un invito all'app e, dal 16 ottobre 2026, dall'amministrazione con `app.set_user_role` (sotto) |
 | `app_invitations` | Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia (sesto giro; migrazione `20261013100000_app_invitations.sql`, PR #45): `id` scelto dal client, `token_hash` (impronta SHA-256 del token, mai il token in chiaro), `email` normalizzata, `roles` (sottoinsieme di `recipe_curator` e `app_admin`, anche vuoto), `created_by`, `created_at`, `expires_at` (7 giorni), `status` (`pending`/`accepted`/`revoked`, scaduto calcolato), `revoked_at` e `revoked_by`, prenotazione dell'account all'accettazione (`reserved_user_id`, `reserved_at`), `accepted_by` e `accepted_at`. Un solo invito `pending` per email. RLS: lettura solo agli `app_admin`, nessuna scrittura diretta; tutto passa dalle funzioni descritte sotto |
 | `app.connected_agents()` | Funzione, non tabella (collegamento degli agenti, migrazione `20261011200000_connected_agents.sql`): agenti autorizzati da chi chiama, cioè client, nome registrato, data del collegamento e ultimo rinnovo dell'accesso (massimo di `updated_at` delle sessioni vive del client). `security definer`, legge `auth.oauth_consents`, `auth.oauth_clients` e `auth.sessions`, solo righe dell'utente corrente e grant non revocati; eseguibile solo da `authenticated`. Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13): la tabella `agent_authorizations` prevista per l'ondata 3 non serve |
 | `catalogue_state` | Contatore di versione del ricettario, comune a tutte le famiglie (sezione 1) |
@@ -1172,6 +1230,32 @@ Nessuna scrittura nello schema `auth`, solo letture di `auth.users` dentro quest
 funzioni. `app.create_family` (per `authenticated`, idempotente sull'id) crea la famiglia,
 fa di chi la crea il `family_admin` e la rende la sua famiglia corrente; **non genera
 settimane**: il menu nasce alla prima lettura (sezione 4).
+
+**Amministrazione degli utenti** (PR #47, 15–16 ottobre 2026; migrazione
+`20261015100000_user_admin.sql`, solo funzioni, nessuna tabella né colonna nuove;
+particolari nella spec di dettaglio `2026-10-15-amministrazione-utenti.md`, sezione 1).
+Funzioni nello schema `app`, `security definer`, eseguibili solo da `authenticated`, che
+rifiutano per prima cosa chi non è `app_admin`; leggono `auth.users` senza scriverci,
+quindi l'email arriva senza chiave segreta. `app.admin_users` elenca e cerca gli utenti
+per nome o email (`ilike` con i caratteri speciali resi letterali, senza `unaccent`),
+partendo da `auth.users`, così compare anche un account senza profilo, ruoli né
+famiglia; `app.admin_user` dà il dettaglio con `last_app_admin`, indicazione per
+l'interfaccia; `app.admin_user_families` dà le famiglie di un utente con **solo nome e
+ruolo**; `app.set_user_role` assegna (idempotente, con `granted_by`) o toglie un ruolo
+globale e restituisce i ruoli dopo la modifica. **Lucchetto dell'ultimo amministratore
+dell'app:** ogni percorso che toglie `app_admin` (oggi `app.set_user_role`, poi la
+cancellazione di un account nell'attività C, qualunque script futuro) prende
+`pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))` nella stessa
+transazione e, sotto il lucchetto, ricontrolla l'autorizzazione di chi chiama per
+l'operazione richiesta e che il bersaglio non sia l'unico amministratore (altrimenti
+`P0A08`). Per `app.set_user_role` ricontrollare l'autorizzazione significa verificare di
+nuovo che chi chiama sia ancora `app_admin` (altrimenti `42501`); la cancellazione del
+proprio account resta invece consentita anche a chi non ha ruoli globali. Un utente
+inesistente dà `P0A07`. Le assegnazioni, compresa `app.complete_app_invitation`, e la rimozione di
+`recipe_curator` non lo prendono, perché non possono lasciare l'app senza
+amministratori. Due amministratori che si tolgono il ruolo a vicenda si mettono in fila:
+il secondo, già retrocesso, riceve `forbidden`; due che rinunciano ciascuno al proprio:
+il secondo riceve `last_app_admin`.
 
 **Ruolo dell'esportazione** (11 ottobre 2026, migrazione `20261012110000_backup.sql`):
 `app_backup`, NOLOGIN e BYPASSRLS, ha solo `SELECT` su tutte le tabelle di `app`
@@ -1854,7 +1938,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   lingua del primo tentativo riuscito. **Chiusura**: una seconda transazione breve segna
   l'invito accettato e assegna i ruoli globali. Un account creato e poi rimasto senza
   chiusura per una revoca nel frattempo resta senza ruoli né famiglia e si gestisce
-  dall'elenco degli utenti (attività B). Nei log mai password, token, email né corpi di
+  dall'elenco degli utenti (attività B, dal 16 ottobre 2026), dove compare. Nei log mai password, token, email né corpi di
   richiesta e risposta.
 - **Dopo l'attività D** (dominio di invio verificato): il link nell'email che la persona
   riceve serve **solo a scegliere la password**: apre Safari una volta, poi la persona
@@ -1901,7 +1985,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   (curatore, amministratore dell'app); non fa entrare in nessuna famiglia. Il link vale
   7 giorni, si usa una sola volta e solo con quell'email, si può revocare; un nuovo
   invito alla stessa email sostituisce quello in attesa. A un'email che ha già un
-  account non si crea un invito: i ruoli si cambiano dall'elenco degli utenti. Il link
+  account non si crea un invito: i ruoli si cambiano dall'elenco degli utenti, e dal
+  16 ottobre 2026 il foglio del nuovo invito collega a quella persona (sotto). Il link
   è `/invite/app#<token>` (PR #45): il token sta nel **frammento**, che il browser non
   manda mai al server, quindi non finisce nei log, nei proxy né nell'intestazione
   `Referer`; il token è di 32 byte casuali e nel database ne resta solo l'impronta
@@ -1924,7 +2009,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   2026 e restano spente (decisione dell'utente del 13 ottobre 2026).
 - **Amministrazione globale**: pagina riservata agli `app_admin` per consultare e gestire
   utenti e inviti, cambiare i ruoli degli utenti, assegnare il ruolo di curatore,
-  nominare altri amministratori e cancellare utenti. Le operazioni devono essere
+  nominare altri amministratori e cancellare utenti (la cancellazione è dell'attività
+  C, sotto). Le operazioni devono essere
   disponibili anche via MCP. Forma decisa nel sesto giro del prototipo: dal Profilo,
   pagina `/admin` con le sezioni Utenti (ricerca per nome o email, ruoli come
   etichette), Inviti all'app e Ripristino del ricettario (dall'8 ottobre 2026 si
@@ -1937,8 +2023,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   cancellazione dell'account, in terza persona; il proprio account si cancella solo
   dalle proprie preferenze. La nomina iniziale di Federico è avvenuta con lo script di
   avvio della messa in produzione (13 ottobre 2026: `app_admin` e `recipe_curator`
-  sul suo account, creato a mano). **Dal 15 ottobre 2026** (attività A, PR #45) `/admin`
-  c'è con la sola sezione «Inviti all'app»; la voce «Amministrazione dell'app» compare
+  sul suo account, creato a mano). **Al rilascio del 15 ottobre 2026** (attività A, PR
+  #45) `/admin` aveva soltanto la sezione «Inviti all'app», che resta com'era; la voce «Amministrazione dell'app» compare
   nel Profilo, in Account, solo con `app_admin`, e chi non lo è vede «Non hai accesso a
   questa pagina» (il server rifiuta comunque). «Nuovo invito» apre un foglio con l'email
   e le caselle «Curatore del ricettario» e «Amministratore dell'app»; dopo «Crea il
@@ -1947,10 +2033,41 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   «Questa email ha già un account». L'elenco mostra email, ruoli, stato con la data
   (scade, scaduto, accettato da chi, revocato) e autore; «Nuovo link» e «Revoca», con
   conferma, valgono per gli inviti in attesa **e per quelli scaduti**, che possono
-  ancora essere chiusi se prenotati. Così un invito può già dare i ruoli globali a un
-  account nuovo; quelli di chi ha già un account non si cambiano ancora dall'app: le
-  sezioni Utenti (attività B, issue #38) e Ripristino del ricettario arrivano dopo, nella
-  stessa pagina.
+  ancora essere chiusi se prenotati. Così un invito può dare i ruoli globali a un
+  account nuovo.
+  **Dal 16 ottobre 2026** (attività B, issue #38, PR #47; particolari nella spec di
+  dettaglio `2026-10-15-amministrazione-utenti.md`, sezione 3) i ruoli di chi ha già un
+  account si cambiano dall'app e via MCP. Sopra «Inviti all'app» c'è la sezione
+  **Utenti**: ricerca per nome o email che ignora maiuscole e minuscole ma non gli
+  accenti, 250 ms dopo l'ultima battuta; righe con nome (« · Tu » per il proprio
+  account), email e ruoli come etichette; al più 50 risultati, poi «Ci sono altri
+  utenti: restringi la ricerca»; «Nessun utente» se non ce ne sono. Compare ogni
+  account, anche quello senza ruoli né famiglia. Il dettaglio
+  `/admin/users/<id>` ha il nome nell'intestazione, l'email, per il proprio account la
+  riga «Questo è il tuo account», la card «Ruoli» con gli interruttori «Curatore del
+  ricettario» e «Amministratore dell'app», ciascuno con una spiegazione, e la card
+  «Famiglie» con nome e ruolo, «Nessuna famiglia» e la nota «Si vedono solo nome e
+  ruolo». **Senza il numero di agenti collegati del prototipo**: contarli per un altro
+  utente richiederebbe una lettura nuova di `auth` per un dato che l'amministratore non
+  può usare, perché dal dettaglio non si scollegano agenti; se servirà, arriverà con la
+  cancellazione dell'attività C, che deve già revocare gli accessi. Nominare un
+  amministratore («Nominare {nome} amministratore dell'app?», pulsante «Nomina») e
+  rinunciare al proprio ruolo («Rinunciare al ruolo di amministratore?», «Non vedrai più
+  questa pagina. Potrà ridartelo solo un altro amministratore.», pulsante «Rinuncia» in
+  rosso) chiedono conferma; le altre modifiche sono dirette. Per l'ultimo amministratore
+  l'interruttore è disattivato con il motivo «È l'unico amministratore dell'app:
+  nominane un altro prima». Gli interruttori mostrano solo stati confermati dal server,
+  restano bloccati dal tocco alla risposta e sono disattivati senza connessione. **Dopo
+  la propria rinuncia** il profilo si rilegge e l'app porta a `/profile` senza avviso a
+  comparsa (scostamento dal prototipo, sezione 14). Per un amministratore retrocesso
+  altrove, alla prima risposta `forbidden` dati e comandi spariscono subito e l'accesso
+  si verifica rileggendo il profilo, senza fidarsi della copia in memoria: solo dopo la
+  verifica compare «Non hai accesso a questa pagina»; se la verifica fallisce compare
+  l'errore con «Riprova», senza recuperare i dati precedenti. Nel foglio del nuovo invito, accanto a «Questa email
+  ha già un account» compare «Apri l'utente», che porta al dettaglio di quella persona
+  (il web la cerca con `users.list`; il contratto degli inviti non cambia). La
+  sezione Ripristino del ricettario arriva dopo, nella stessa pagina; il comando di
+  cancellazione nel dettaglio lo aggiunge l'attività C.
 - **Recupero del ricettario**: il ripristino completo a una data è riservato agli
   amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
   i curatori hanno invece il ripristino della singola ricetta.
@@ -1998,7 +2115,12 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   impostazioni e tramite MCP, indipendentemente dalle impostazioni della famiglia.
   Da qui si esce dall'account e si apre la cancellazione.
 - **Cancellazione dell'account, regole confermate**: possibile da parte dell'utente
-  stesso e degli amministratori dell'app. Rimuove dati personali e voti e revoca gli
+  stesso e degli amministratori dell'app. Entrambe arrivano con l'attività C
+  dell'ondata 3: la cancellazione di un utente dall'amministrazione è passata
+  dall'attività B alla C, insieme alla cancellazione dell'account (decisione dell'utente
+  del 15 ottobre 2026); C aggiunge nel dettaglio dell'utente, sotto la card «Famiglie»,
+  «Elimina l'utente» verso `/admin/users/<id>/delete` e, per il proprio account, il
+  rimando alle Preferenze. Rimuove dati personali e voti e revoca gli
   accessi dell'utente, compresi quelli MCP. Le ricette pubblicate restano nel catalogo.
   Per ciascuna famiglia in cui l'utente è l'ultimo amministratore e ci sono altri
   membri, occorre nominare un successore prima di cancellare l'account. Se è l'unico
@@ -2013,7 +2135,19 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   che cancella il proprio account sia per l'amministratore che cancella un altro utente.
 - **Ultimo amministratore dell'app, regola confermata**: non può essere cancellato o
   perdere il ruolo `app_admin` finché non viene nominato un successore. Il vincolo vale
-  anche per la cancellazione del proprio account e per le operazioni via MCP.
+  anche per la cancellazione del proprio account e per le operazioni via MCP. Dal 16
+  ottobre 2026 (PR #47) la protegge sul server un lucchetto consultivo,
+  `app_admin_roles`, **obbligatorio per ogni percorso che toglie `app_admin`**: la
+  rimozione del ruolo dall'amministrazione, la cancellazione di un account (proprio o di
+  un altro utente, attività C, che toglie il ruolo per cascata) e qualunque script
+  futuro. Sotto il lucchetto, nella stessa transazione, si ricontrollano l'autorizzazione
+  di chi chiama per l'operazione richiesta (per la rimozione del ruolo, che sia ancora
+  `app_admin`; la cancellazione del proprio account resta consentita anche senza ruoli
+  globali) e il numero di amministratori; se il bersaglio è l'ultimo la risposta è
+  `last_app_admin`.
+  Le assegnazioni non lo prendono, perché possono solo aumentare gli amministratori
+  (sezione 2). L'indicazione «ultimo amministratore» del dettaglio serve solo
+  all'interfaccia: la protezione vera è nel database.
 - **Eliminazione della famiglia, permesso confermato**: un `family_admin` può eliminare
   la famiglia che amministra, anche se ha altri membri, **solo dall'app web**. Rimuove
   la famiglia e i suoi dati, compresi menu, note, impostazioni, appartenenze e inviti familiari; interrompe
@@ -2550,7 +2684,7 @@ sono raccolte nell'attività D, che può restare bloccata senza fermare le altre
 trasferimento dell'app su `cosasimangia.qunidi.it` non fa parte dell'ondata 3 e
 richiederà una decisione distinta (sezione 7).
 
-**Stato al 15 ottobre 2026:**
+**Stato al 16 ottobre 2026:**
 
 | Attività | Stato |
 |---|---|
@@ -2567,6 +2701,7 @@ richiederà una decisione distinta (sezione 7).
 | Cambio della password dal Profilo | Unito (PR #41, issue #37 chiusa) e rilasciato il 13 ottobre 2026, provato dall'utente sull'iPhone; in produzione «Secure password change» spento e «Require current password when updating» acceso dall'utente il 13 ottobre; minimo di produzione non verificato (la SPA impone 8) |
 | Aggiornamento della PWA | Unito (PR #43, issue #42) e rilasciato il 13 ottobre 2026 (versione `759ce4d6`). Sull'iPhone dell'utente il primo passaggio dalla versione precedente non è avvenuto con due aperture a freddo: è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo. Il passaggio automatico è stato verificato al rilascio del 15 ottobre 2026: la PWA si è aggiornata da sola |
 | Inviti all'app e famiglie nuove (ondata 3, attività A) | Unita (PR #45) e rilasciata il 15 ottobre 2026, con la migrazione `20261013100000_app_invitations.sql` e il segreto `SUPABASE_SECRET_KEY` (chiave dedicata `worker-invitations`); provata dall'utente sull'iPhone: invito, account, nome, famiglia, schermata Home e accesso nella PWA installata |
+| Amministrazione di utenti e ruoli (ondata 3, attività B, issue #38) | Unita (PR #47) il 15 ottobre 2026 e rilasciata il 16 ottobre con la migrazione `20261015100000_user_admin.sql` (versione del Worker `75d29930-6125-41bd-acf4-786814218171`), senza segreti né risorse nuove; provata dall'utente sull'iPhone. La cancellazione degli utenti è passata all'attività C |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -2803,6 +2938,15 @@ non accesso generico alle tabelle.
   MCP `appInvitations_create`, `appInvitations_list` e `appInvitations_revoke`, solo per
   `app_admin` (il link si restituisce alla creazione anche all'agente), e
   `family_create`, con il fuso dichiarato dall'agente e validato (sezione 2).
+- **Amministrazione degli utenti** (PR #47, 16 ottobre 2026): strumenti `users_list` e
+  `users_get` in sola lettura e `users_setRole`, solo per `app_admin`, con gli stessi
+  permessi e lo stesso ultimo amministratore protetto del web. Come per la
+  pubblicazione delle ricette (decisione dell'utente dell'11 ottobre 2026), **la
+  conferma per nominare un amministratore dell'app e per togliere a sé stessi
+  `app_admin` è affidata alle istruzioni dell'agente** nella descrizione dello
+  strumento; il server non chiede campi in più. Un ruolo assegnato o tolto vale dalla
+  richiesta successiva anche per l'agente già collegato: chi rinuncia al proprio ruolo
+  perde gli strumenti di amministrazione dalla chiamata successiva (sezione 1).
 - **Istruzioni per l'agente**, a partire da quelle sugli ingredienti (sezione 8),
   servite dal server MCP stesso, non solo descritte nella pagina dell'app: per la
   gestione del ricettario sono `catalogue.getGuide`, testo in inglese con flusso,
@@ -2828,7 +2972,7 @@ implicite alla copertura delle operazioni.
 | Spesa | Leggere la lista di una settimana, spuntare voci (con la quantità letta dalla vista), rimettere ingredienti esclusi, aggiungere voci libere, ottenere testo e collegamento Bring!, poi il PDF |
 | Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`; dal 15 ottobre 2026 creare una famiglia (`family_create`). Poi: gestire la famiglia e gli inviti secondo il ruolo; per eliminarla restituire solo l'URL della pagina web; preferenze personali e cancellazione del proprio account, rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
 | Gestione del ricettario | Area `catalogue`, ruolo di curatore, senza famiglia: conoscere i requisiti e le istruzioni sugli ingredienti, cercare le ricette pubblicate e archiviate, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web) e leggerne i salvataggi, controllare una bozza senza pubblicarla, pubblicare ricette complete, scartare bozze, modificare ricette di qualunque autore, cercare, leggere, creare e modificare ingredienti con le equivalenze di ricetta, elencare varietà già usate e controllare una varietà, elencare e creare libri, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
-| Amministrazione globale | Dal 15 ottobre 2026 inviti all'app (`appInvitations_create`, `_list`, `_revoke`). Poi gestire utenti, ruoli, nomina di amministratori e ripristino dell'intero catalogo a una data; cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
+| Amministrazione globale | Dal 15 ottobre 2026 inviti all'app (`appInvitations_create`, `_list`, `_revoke`); dal 16 ottobre cercare e leggere gli utenti, assegnare e togliere i ruoli e nominare amministratori (`users_list`, `users_get`, `users_setRole`). Poi ripristino dell'intero catalogo a una data; con l'attività C cancellare utenti con i vincoli previsti, restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
 sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
@@ -3037,6 +3181,15 @@ una schermata di primo accesso; le pagine `/invite/*` non passano il referrer, a
 quando la shell arriva dalla cache del service worker. La forma della pagina
 dell'invito (marchio, colonna stretta, cambio di lingua) resta quella del prototipo.
 
+**Differenze dell'app dal sesto giro negli utenti e ruoli** (PR #47, rilasciata il 16
+ottobre 2026; sezione 7): il dettaglio dell'utente non mostra il numero di agenti
+collegati; dopo la rinuncia al proprio ruolo di amministratore si torna al Profilo
+senza l'avviso a comparsa del prototipo, perché la conferma ha già spiegato la
+conseguenza; nel dettaglio del proprio account c'è la riga «Questo è il tuo account».
+L'area di cancellazione del dettaglio non c'è ancora, nemmeno come segnaposto: arriva
+con l'attività C. Sezione Utenti, interruttori, conferme e ultimo amministratore
+bloccato restano nella forma del prototipo.
+
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
 su iPhone. Il materiale approvato è raccolto in `design/`:
@@ -3134,8 +3287,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account, dopo l'attività D, dettagli tecnici da verificare nel progetto per inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). Pagina dei ruoli globali da anticipare solo se serve (issue #38). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio; regola equivalente per gli inviti alla famiglia da decidere. **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7) | Sezione 7 |
-| Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account | Sezioni 2, 7 e 13 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account, dopo l'attività D, dettagli tecnici da verificare nel progetto per inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio; regola equivalente per gli inviti alla famiglia da decidere. **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7) | Sezione 7 |
+| Cancellazione | Passaggio da MCP al web (la forma delle pagine di conferma è decisa nel quarto giro), dettagli tecnici della cancellazione e della revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise. Già confermate protezione dell'ultimo amministratore, successione familiare ed eliminazione della famiglia solo nell'app, anche quando conseguente alla cancellazione di un account. Il 15 ottobre 2026 la cancellazione degli utenti dall'amministrazione è passata all'attività C, con quella dell'account (decisione dell'utente); deciso con la PR #47 che la cancellazione prende il lucchetto `app_admin_roles` e ricontrolla l'ultimo amministratore dell'app nella stessa transazione | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
@@ -3188,6 +3341,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 13 ottobre 2026, cambio della password e aggiornamento della PWA rilasciati | Riportate le decisioni delle spec `2026-10-13-cambio-password.md` (W7, PR #41, issue #37) e `2026-10-13-aggiornamento-pwa.md` (W8, PR #43, issue #42), entrambe rilasciate il 13 ottobre. Cambio della password dal Profilo senza email, con verifica della password attuale nella SPA e chiusura delle altre sessioni, agenti compresi; in produzione «Secure password change» spento (precondizione) e «Require current password when updating» acceso dall'utente, che chiude in parte il rischio dei poteri dei token d'agente; minimo di produzione non verificato (la SPA impone 8). Navigazioni dalla shell installata al posto di quelle dalla rete con ripiego sulla shell, perché rendono impossibili versioni mescolate e pagine bianche; precache dentro `sw.js` verificato con la versione di `index.html`, `skipWaiting`, ricaricamento quando la versione del worker attivo è diversa, solo con la pagina libera, visibile e non toccata; pagina occupata registrata con `trackBusy`; `CACHE_SCHEMA` al posto della versione della build come `buster`, con la regola accanto a quella delle modifiche solo additive. Esito: cambio della password provato dall'utente sull'iPhone; versione `759ce4d6` in produzione, ma sull'iPhone dell'utente il primo passaggio non è avvenuto con due aperture a freddo ed è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo; passaggio automatico da verificare al prossimo rilascio, #42 aperta. Sezioni Parte 1, 1, 6, 7, 9, 10, 13 e 15 aggiornate |
 | 13 ottobre 2026, ondata 3 senza email | Decisione dell'utente: il DNS di `qunidi.it` per ora non si può modificare e `workers.dev` non permette di verificare un dominio in Resend, quindi finché manca il dominio di invio l'invito all'app si accetta scegliendo la password sulla pagina dell'invito (email dell'invito da ridigitare, account creato già confermato, link mandato a mano), il recupero della password via email aspetta il dominio e l'app resta su `workers.dev`. Ordine dell'ondata 3 nel piano generale. Con la revisione della PR #44: distinti ovunque il flusso prima della verifica del dominio di invio (attività A, password sulla pagina dell'invito) e quello dopo l'attività D (link nell'email, recupero della password, email operative di job ed esportazione); dominio di invio separato dall'origine dell'app, con *Site URL* e *Redirect URLs* su `workers.dev` e il trasferimento dell'app fuori dall'ondata 3, da decidere a parte; decisioni del coordinatore: dopo la creazione dell'account la pagina dell'invito fa entrare con email e password e, se l'accesso fallisce, porta all'accesso normale; fino agli inviti alla famiglia (C) la scheda dopo la prima generazione mostra solo «Sistema le impostazioni». Riportati anche il secondo tentativo di revoca dell'accesso di prova e il pulsante «Accedi di nuovo» (W7), il recupero della registrazione e il ritorno ad A₀ chiudendo tutte le finestre (W8). Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
 | 15 ottobre 2026, inviti all'app e famiglie nuove | Riportate le decisioni della spec `2026-10-13-inviti-app.md` (W9, attività A dell'ondata 3, PR #45, rilasciata il 15 ottobre). Pagina dell'invito con email, nome e password in un solo modulo, che vale come primo accesso; link `/invite/app#<token>` con il token nel frammento, solo l'impronta SHA-256 nel database, link visibile solo alla creazione e «Nuovo link» nell'elenco (differenza dal sesto giro); un solo messaggio per invito scaduto, revocato, usato o inesistente; «Crea la tua famiglia» senza famiglie, wizard `/family/new` e scheda di benvenuto con il solo «Sistema le impostazioni» e la nota della schermata Home su iOS in Safari. Tecniche: ruolo `public` del contratto con `mcp: false` e `rateLimit`, pipeline in `anon` senza token e senza transazione propria; codici `invitation_unavailable` e `rate_limited`, motivi `account_exists` e `already_accepted`, codice delle `refine` dal messaggio; tabella `app_invitations` con prenotazione e funzioni per token; account creato dal Worker con l'API di amministrazione di Supabase Auth e la chiave segreta dedicata, senza mai riscrivere un account esistente; limiti di frequenza con il binding `ratelimit`; `family.create` con `app.create_family`, senza generazione; iscrizioni spente anche nello stack locale; `Referrer-Policy: no-referrer` anche nella shell; fusi a scostamento trattati come non validi. Chiusa in sezione 15 l'API di Supabase per creare l'utente. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 4, 5, 7, 9, 10, 13, 14 e 15 aggiornate |
+| 15–16 ottobre 2026, amministrazione di utenti e ruoli | Riportate le decisioni della spec `2026-10-15-amministrazione-utenti.md` (W10, attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16 con la versione `75d29930-6125-41bd-acf4-786814218171`). Decisione dell'utente del 15 ottobre: la cancellazione degli utenti dall'amministrazione passa all'attività C, con la cancellazione dell'account. Prodotto: sezione Utenti di `/admin` sopra «Inviti all'app», ricerca per nome o email che ignora le maiuscole ma non gli accenti, al più 50 risultati con l'invito a restringere; dettaglio con «Questo è il tuo account», interruttori dei due ruoli e famiglie per solo nome e ruolo, senza il numero di agenti collegati del prototipo; conferma per nominare un amministratore e per rinunciare al proprio ruolo, ritorno al Profilo senza avviso a comparsa dopo la rinuncia (scostamenti dal sesto giro); «Apri l'utente» da `account_exists`; per un amministratore retrocesso altrove dati e comandi che spariscono alla prima risposta `forbidden`, poi «Non hai accesso a questa pagina» dopo la verifica del profilo o, se fallisce, l'errore con «Riprova» senza i dati precedenti; ruoli di chi ha già un account cambiati dall'app e via MCP, con la conferma affidata alle istruzioni dell'agente. Tecniche: funzioni `app.admin_users`, `app.admin_user`, `app.admin_user_families`, `app.set_user_role` (`security definer`, solo `app_admin`, letture di `auth.users` senza scritture); lucchetto consultivo `app_admin_roles` obbligatorio nella stessa transazione per ogni percorso che toglie `app_admin`, compresa la cancellazione di un account, con il ricontrollo sotto il lucchetto dell'autorizzazione di chi chiama per l'operazione richiesta (per `app.set_user_role` di nuovo `app_admin`; la cancellazione del proprio account resta consentita senza ruoli globali) e dell'ultimo amministratore, e assegnazioni senza lucchetto; transazioni degli utenti in `read committed`, verificato da un test; codici SQLSTATE `P0A07` e `P0A08`; area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`; ruoli letti a ogni richiesta, validi subito anche per gli agenti collegati; bersaglio `users` nel registro delle mutazioni del web senza scrittura generica della risposta. Chiusa in sezione 15 la pagina dei ruoli globali. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 7, 10, 13, 14 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
