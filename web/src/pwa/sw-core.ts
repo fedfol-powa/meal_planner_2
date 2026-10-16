@@ -127,9 +127,10 @@ const isImage = (response: Response) => response.status === 200 && (response.hea
  * only 200 images are kept, at most PHOTO_CACHE_LIMIT, the oldest going first.
  */
 async function respondPhoto(url: string, target: RequestInfo, deps: WorkerDeps): Promise<Response> {
+  // Read before the first wait: a sign-out during the cache lookup must stop the store too.
+  const epoch = deps.photoEpoch?.value;
   const cached = await (await deps.caches.open(PHOTO_CACHE)).match(url);
   if (cached) return cached;
-  const epoch = deps.photoEpoch?.value;
   const response = await deps.fetch(target);
   if (!isImage(response)) return response;
   const cache = await deps.caches.open(PHOTO_CACHE);

@@ -351,6 +351,23 @@ describe('photos seen stay offline (W12)', () => {
   }
   const photoDeps = (caches: ReturnType<typeof memoryCaches>, fetch: WorkerDeps['fetch'], photoEpoch = { value: 0 }): WorkerDeps =>
     ({ caches, fetch, version: 'A', origin, precache: [], photoEpoch });
+  /** Keeps the first `open` or the first `match` of the cache waiting until released. */
+  function holding(caches: ReturnType<typeof memoryCaches>, method: 'open' | 'match') {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held = false;
+    const hold = async () => {
+      if (held) return;
+      held = true;
+      await gate;
+    };
+    const open = async (name: string): Promise<CacheLike> => {
+      if (method === 'open') await hold();
+      const cache = await caches.open(name);
+      return method === 'match' ? { ...cache, match: async (request) => (await hold(), cache.match(request)) } : cache;
+    };
+    return { caches: { ...caches, open }, release };
+  }
 
   it('first the cache, then the network: a photo seen opens offline', async () => {
     const caches = memoryCaches();
@@ -422,5 +439,16 @@ describe('photos seen stay offline (W12)', () => {
     expect(await text(await pending)).toBe(`image ${key(1)}`);
     expect(await caches.dump(PHOTO_CACHE)).toEqual({});
   });
-});
 
+  it.each(['open', 'match'] as const)('a sign-out completed while the cache %s is pending stops the store', async (method) => {
+    const base = memoryCaches();
+    const { caches, release } = holding(base, method);
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    const pending = respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await handleMessage({ type: 'clear-photos' }, [], deps);
+    release();
+    expect(await text(await pending)).toBe(`image ${key(1)}`);
+    expect(await base.dump(PHOTO_CACHE)).toEqual({});
+  });
+});
