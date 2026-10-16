@@ -23,6 +23,11 @@ export const recipeSummaryView = z.object({
 	bookPages: z.string().nullable(),
 	mealType: recipeMealTypeSchema.nullable(),
 	proteinGroup: proteinGroupSchema.nullable(),
+	/**
+	 * URL of the current photo (W12), null without one or for a never-published recipe. Optional:
+	 * copies on the device and answers from before do not have it; the web reads absence as null.
+	 */
+	photoUrl: z.string().nullable().optional(),
 });
 
 /** Average of the family's current members and the caller's own stars. */

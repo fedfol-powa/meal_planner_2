@@ -1,6 +1,7 @@
 import type { IngredientLineView, Locale, RatingSummaryView, RecipeSummaryView } from '@app/contract';
 import { publishedRecipeSchema } from '@app/domain/recipe';
 import type { Localized, MeasurementSystem } from '@app/domain/units';
+import { photoUrl } from '../catalogue/photos/key.ts';
 import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
 import { ingredientLinesView, type LineInput } from './lines.ts';
@@ -57,6 +58,8 @@ export interface Content {
 	baseServings: number | null;
 	/** null for a never-published recipe. */
 	lines: LineInput[] | null;
+	/** Relative URL of the current photo; null without one and for a never-published recipe (W12). */
+	photoUrl: string | null;
 }
 
 export async function loadFamily(tx: Tx, familyId: string): Promise<{ system: MeasurementSystem; timeZone: string }> {
@@ -89,6 +92,7 @@ const NEVER_PUBLISHED = {
 	proteinGroup: null,
 	baseServings: null,
 	lines: null,
+	photoUrl: null,
 } as const;
 
 /**
@@ -118,13 +122,24 @@ export async function loadContents(
 	// Lists travel as JSON text: the connection does not fetch array types (fetch_types: false),
 	// and a parameter typed jsonb would be encoded twice.
 	const rows = await tx<
-		{ recipeId: string; requested: number; status: RecipeView['status']; name: PartialText; description: PartialText; version: number | null; content: unknown }[]
+		{
+			recipeId: string;
+			requested: number;
+			status: RecipeView['status'];
+			name: PartialText;
+			description: PartialText;
+			version: number | null;
+			content: unknown;
+			photoKey: string | null;
+		}[]
 	>`
-		select r.id as "recipeId", coalesce(w.version, 0) as requested, r.status, r.name, r.description, v.version, v.content
+		select r.id as "recipeId", coalesce(w.version, 0) as requested, r.status, r.name, r.description, v.version, v.content,
+			p.storage_key as "photoKey"
 		from jsonb_to_recordset(${JSON.stringify(wanted.map((ref) => ({ recipe_id: ref.recipeId, version: ref.version })))}::text::jsonb) as w(recipe_id uuid, version int)
 		join app.recipes r on r.id = w.recipe_id
 		left join app.recipe_versions v
 			on v.recipe_id = r.id and v.version = coalesce(w.version, nullif(r.version, 0))
+		left join app.recipe_photos p on p.recipe_id = r.id and p.removed_at is null
 		where ${access?.familyId ?? null}::uuid is null
 			or (r.status <> 'draft' and (
 				v.content ->> 'bookId' is null
@@ -162,6 +177,8 @@ export async function loadContents(
 			proteinGroup: d.proteinGroup,
 			baseServings: d.baseServings,
 			lines: d.ingredients.map((l) => ({ ingredientId: l.ingredientId, variety: l.variety, preparation: l.preparation, quantity: l.quantity, isOptional: l.isOptional })),
+			// The photo is of the recipe, not of the version: past meals show the current one.
+			photoUrl: row.photoKey ? photoUrl(row.photoKey) : null,
 		});
 	}
 	return contents;
@@ -198,6 +215,7 @@ export const summaryOf = (c: Content, titles: Map<string, string>, locale: Local
 	bookPages: c.bookPages,
 	mealType: c.mealType,
 	proteinGroup: c.proteinGroup,
+	photoUrl: c.photoUrl,
 });
 
 /** scaleQuantity never sees zero servings: the lines come at the base. */

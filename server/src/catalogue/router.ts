@@ -14,6 +14,7 @@ import {
 	varietyCheck,
 } from './ingredients.ts';
 import { loadDraftRow } from './load.ts';
+import { bytesFromUrl, originFor, removeRecipePhoto, setRecipePhoto } from './photos/write.ts';
 import { draftSave, draftSaves, draftViewOf, overview, searchCatalogueRecipes, versionDetail, versionList } from './views.ts';
 import {
 	actorOf,
@@ -31,7 +32,7 @@ import {
 async function draftView(context: OperationContext, draftId: string) {
 	const row = await loadDraftRow(context.tx, draftId);
 	if (!row) throw appError('not_found');
-	return draftViewOf(context.tx, row, context.locale);
+	return draftViewOf(context.tx, row, context.locale, originFor(context));
 }
 
 export function catalogueRouter(os: Implementer) {
@@ -66,7 +67,7 @@ export function catalogueRouter(os: Implementer) {
 			return { recipeId, version, conversions };
 		}),
 		searchRecipes: os.catalogue.searchRecipes.handler(async ({ context, input }) =>
-			fresh(context, await searchCatalogueRecipes(context.tx, { text: input.text, status: input.status }, context.locale)),
+			fresh(context, await searchCatalogueRecipes(context.tx, { text: input.text, status: input.status }, context.locale, originFor(context))),
 		),
 		setArchived: os.catalogue.setArchived.handler(({ context, input }) => setArchived(context.tx, actorOf(context), input)),
 		listVersions: os.catalogue.listVersions.handler(async ({ context, input }) => fresh(context, await versionList(context.tx, input.recipeId, context.locale))),
@@ -77,6 +78,19 @@ export function catalogueRouter(os: Implementer) {
 		searchIngredients: os.catalogue.searchIngredients.handler(async ({ context, input }) =>
 			fresh(context, await searchCatalogueIngredients(context.tx, input.text, context.locale)),
 		),
+		uploadPhoto: os.catalogue.uploadPhoto.handler(({ context, input }) =>
+			setRecipePhoto(context, {
+				id: input.id,
+				recipeId: input.recipeId,
+				field: 'file',
+				// Zod types the file without the Blob methods of the Workers types.
+				bytes: async () => new Uint8Array(await (input.file as unknown as Blob).arrayBuffer()),
+			}),
+		),
+		setPhotoFromUrl: os.catalogue.setPhotoFromUrl.handler(({ context, input }) =>
+			setRecipePhoto(context, { id: input.id, recipeId: input.recipeId, field: 'imageUrl', bytes: bytesFromUrl(context, input.imageUrl) }),
+		),
+		removePhoto: os.catalogue.removePhoto.handler(({ context, input }) => removeRecipePhoto(context, input.recipeId)),
 		getIngredient: os.catalogue.getIngredient.handler(async ({ context, input }) => fresh(context, await ingredientViewOf(context.tx, input.ingredientId))),
 		listVarieties: os.catalogue.listVarieties.handler(async ({ context, input }) => fresh(context, await knownVarieties(context.tx, input.ingredientId))),
 		checkVariety: os.catalogue.checkVariety.handler(({ context, input }) => varietyCheck(context.tx, input.ingredientId, input.text, input.locale)),

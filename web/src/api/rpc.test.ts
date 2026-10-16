@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ApiError, SessionClosedError } from './errors';
 import { createRpcClient } from './rpc';
 import { createRpcTestServer as testServer, WHOAMI as whoami } from '../test/rpcServer';
+import uploadTooLarge from './fixtures/upload-too-large.rpc.json';
 
 describe('oRPC client (second PR)', () => {
   it('sends the token read at each request, and no header without a token', async () => {
@@ -70,5 +71,21 @@ describe('oRPC client (second PR)', () => {
     expect(server.fetch).not.toHaveBeenCalled();
     // The same credentials for B's own session go through.
     expect(await client.session.whoami({}, { context: { sessionUserId: 'b' } })).toEqual(whoami);
+  });
+
+  it('an upload over the limit is invalid, not unknown', async () => {
+    // Recorded from the real Worker by server/test/photos-upload-limit.test.ts (UPDATE_FIXTURES=1), never written by hand.
+    const answer = (body: unknown) => async () => new Response(JSON.stringify(body), { status: uploadTooLarge.status, headers: { 'content-type': 'application/json' } });
+    const upload = (body: unknown) =>
+      createRpcClient({ getCredentials: async () => ({ accessToken: 't', userId: 'a' }), fetch: answer(body) })
+        // Without the file: jsdom's FormData cannot carry a File through the Request of the link; the answer is what counts.
+        .catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId: crypto.randomUUID() } as never)
+        .catch((error: unknown) => error);
+    const refused = await upload(uploadTooLarge.body);
+    expect(refused).toBeInstanceOf(ApiError);
+    expect(refused).toMatchObject({ code: 'invalid', data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } });
+    // A JSON written by hand, as an earlier draft of the plan answered: the client cannot read it.
+    const handWritten = await upload({ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } });
+    expect(handWritten).toMatchObject({ code: 'unknown' });
   });
 });

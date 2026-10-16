@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { readThrough } from './queries';
 import { createMemoryStore } from './persister';
 import { createSession } from '../session/session';
-import { applyMutation, runAreaMutation, runMealMutation, type MutationName } from './mutations';
+import { applyMutation, countCatalogueChangeConfirmed, runAreaMutation, runMealMutation, type MutationName } from './mutations';
 import { confirmRating } from './ratings';
 import type { MealActionResult } from './types';
 
@@ -251,6 +251,35 @@ describe('meal mutations', () => {
     const cached = h.client.getQueryData(weekKey('2026-10-05')) as { data: ReturnType<typeof rated> };
     expect(cached.data.days[0]!.meals[0]!.rating.myStars).toBe(5);
     expect(h.client.getQueryState(weekKey('2026-10-05'))?.isInvalidated).toBe(true);
+  });
+
+  it('a meal answer prepared before a catalogue change is not written (W12)', async () => {
+    const h = harness();
+    const withPhoto = (photoUrl: string | null) => ({
+      startsOn: '2026-10-05',
+      days: [{ date: '2026-10-05', meals: [{ slotId: 's', servings: 4, recipe: { id: 'r', photoUrl } }] }]
+    });
+    h.client.setQueryData(weekKey('2026-10-05'), { version: 'w1', data: withPhoto('/photos/new.webp') });
+    const deps = { queryClient: h.client, session: h.session, currentLocale: () => 'it-IT' };
+    const slow = deferred<MealActionResult>();
+    const servings = runMealMutation(deps, 'meals.setServings', FAMILY, '2026-10-05', () => slow.promise);
+    countCatalogueChangeConfirmed(h.session);
+    slow.resolve({ week: withPhoto('/photos/old.webp'), actionId: 'a', changed: true } as unknown as MealActionResult);
+    expect((await servings).applied).toBe(false);
+    const cached = h.client.getQueryData(weekKey('2026-10-05')) as { data: ReturnType<typeof withPhoto> };
+    expect(cached.data.days[0]!.meals[0]!.recipe.photoUrl).toBe('/photos/new.webp');
+    expect(h.client.getQueryState(weekKey('2026-10-05'))?.isInvalidated).toBe(true);
+  });
+
+  it('without a catalogue change meanwhile the meal answer is written', async () => {
+    const h = harness();
+    countCatalogueChangeConfirmed(h.session);
+    h.client.setQueryData(weekKey('2026-10-05'), { version: 'w1', data: weekView(2) });
+    const deps = { queryClient: h.client, session: h.session, currentLocale: () => 'it-IT' };
+    const slow = deferred<MealActionResult>();
+    const servings = runMealMutation(deps, 'meals.setServings', FAMILY, '2026-10-05', () => slow.promise);
+    slow.resolve({ week: weekView(3), actionId: 'a', changed: true } as unknown as MealActionResult);
+    expect((await servings).applied).toBe(true);
   });
 
   it('a meal answer started after the rating is written', async () => {

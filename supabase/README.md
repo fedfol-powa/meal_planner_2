@@ -329,6 +329,20 @@ alterati; carica tutto in una transazione e fa il commit solo se chiavi esterne 
 contenuti coincidono con l'esportazione. Non stampa mai valori: in caso d'errore indica
 motivo, tabella e codice.
 
+### Foto delle ricette
+
+L'esportazione contiene la tabella `app.recipe_photos` (chiavi, misure, autori, date), non
+le immagini: quelle stanno nel bucket R2 `cosasimangia-photos` (giurisdizione UE), che
+non si esporta e non si ripristina. Gli oggetti di quel bucket **non si cancellano mai in
+automatico** (né le foto tolte o sostituite né gli orfani, nessuna regola del ciclo di
+vita): un ripristino da qualunque esportazione conservata ritrova tutte le immagini che
+cita, e la rotta `/photos/<chiave>` torna a servirle se il database ripristinato le indica
+come correnti. Possono restare oggetti orfani (caricamenti la cui transazione è fallita,
+foto caricate dopo l'esportazione ripristinata): non fanno danni, la rotta serve solo le
+foto correnti. Una pulizia futura dovrà tenere conto dei riferimenti in tutte le
+esportazioni conservate, oltre che del database corrente. Spec:
+`progetto/superpowers/specs/2026-10-16-foto-ricette.md`, sezione 7.
+
 ### 5. Ricollega l'app (solo su un progetto nuovo)
 
 Segue il runbook «Cambio di progetto dopo un ripristino» (sopra, passo 3): Auth del

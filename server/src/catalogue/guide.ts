@@ -39,6 +39,19 @@ export const CURATOR_GUIDE = `# Managing the recipe book as a curator
   the figure); a cup without an equivalence cannot be published. The equivalence of the line's preparation
   (its Italian text in the preparation field) wins over the generic one; the source text is never read.
 
+## Photos
+- A recipe has at most one photo. It is not part of the recipe document: setting, replacing or removing it
+  creates no version and opens no draft. A draft may get a photo; the app shows it once the recipe is published.
+- Look for the image first on the recipe's source page (its og:image, or the image of the schema.org recipe),
+  otherwise elsewhere; for a home or book recipe you may propose an image found elsewhere, or leave it to the
+  curator, who can take the photo from the app.
+- Show the image to the curator and set it only after an explicit yes. Never infer ingredients from an image.
+- catalogue_setPhotoFromUrl sets or replaces the photo from an https address of a JPEG, PNG or WebP image
+  (at most 10 MB, at least 400 px on the short side; AVIF, SVG and GIF are refused). The answer gives the
+  address of the stored photo, to show to the curator.
+- catalogue_removePhoto removes it, after the curator confirmed. catalogue_searchRecipes and
+  catalogue_getDraft tell whether a recipe already has a photo (photoUrl).
+
 # Recipe ingredients
 
 Each ingredient line has: a catalogue ingredient, an optional variety, a quantity, the text as written

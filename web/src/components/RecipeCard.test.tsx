@@ -2,6 +2,7 @@ import { act, fireEvent, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { RecipeSummary } from '../api/types';
+import { setOnline } from '../test/connectivity';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { RecipeCard, type CardActions, type RecipeCardProps } from './RecipeCard';
 
@@ -69,9 +70,66 @@ describe('RecipeCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /ingredienti: mostra o nascondi/ }));
     expect(screen.getByText('Ingredienti non ancora disponibili per questa ricetta.')).toBeTruthy();
   });
-  it('never shows an image: recipes have no photos', async () => {
+  it('without a photo the card is unchanged', async () => {
     const { container } = renderWithProviders(<RecipeCard {...base} />);
     await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('.meal-media')).toBeNull();
+    // The markup of the cards without a photo, as before the photos (W12).
+    expect(container.querySelector('article')!.firstElementChild!.outerHTML).toBe('<div class="meal-heading"><span class="meal-label">Pranzo</span></div>');
+  });
+  it('without a photo the card is unchanged also with a null or a missing photoUrl', async () => {
+    const withNull = renderWithProviders(<RecipeCard {...base} recipe={{ ...recipe, photoUrl: null }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    const markup = withNull.container.innerHTML;
+    withNull.unmount();
+    const withUndefined = renderWithProviders(<RecipeCard {...base} recipe={{ ...recipe, photoUrl: undefined }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    expect(withUndefined.container.innerHTML).toBe(markup);
+  });
+  it('shows the photo banner with the label on it', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} recipe={{ ...recipe, photoUrl: '/photos/abc.webp' }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    const media = container.querySelector('.meal-media') as HTMLElement;
+    expect(media.style.aspectRatio).toBe('3 / 1');
+    const img = media.querySelector('img.meal-photo')!;
+    expect(img.getAttribute('src')).toBe('/photos/abc.webp');
+    expect(img.getAttribute('alt')).toBe('');
+    expect(img.getAttribute('loading')).toBe('lazy');
+    expect(img.getAttribute('decoding')).toBe('async');
+    expect(media.querySelector('.meal-label')!.textContent).toBe('Pranzo');
+    expect(container.querySelector('.meal-heading')).toBeNull();
+  });
+  it('falls back to the plain card when the image fails', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} recipe={{ ...recipe, photoUrl: '/photos/gone.webp' }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    act(() => {
+      fireEvent.error(container.querySelector('img')!);
+    });
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('.meal-media')).toBeNull();
+    expect(container.querySelector('.meal-heading .meal-label')!.textContent).toBe('Pranzo');
+  });
+  it('back online, a photo that failed offline is tried again', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} recipe={{ ...recipe, photoUrl: '/photos/abc.webp' }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    act(() => setOnline(false));
+    act(() => {
+      fireEvent.error(container.querySelector('img')!);
+    });
+    expect(container.querySelector('img')).toBeNull();
+    act(() => setOnline(true));
+    expect(container.querySelector('img.meal-photo')).not.toBeNull();
+  });
+  it('a past meal shows the photo desaturated', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} isPast recipe={{ ...recipe, photoUrl: '/photos/abc.webp' }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    expect(container.querySelector('article')!.className).toMatch(/past/);
+    expect(container.querySelector('article img.meal-photo')).not.toBeNull();
+  });
+  it('a free meal or an empty slot has no photo', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} kind="free" recipe={{ ...recipe, photoUrl: '/photos/abc.webp' }} freeText="Pizza" />);
+    await screen.findByText('Pasto libero');
     expect(container.querySelector('img')).toBeNull();
   });
 });

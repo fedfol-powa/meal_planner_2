@@ -18,6 +18,7 @@ import type { SessionChannel } from './channel';
 import { clearPreference, readPreference, userScope, writePreference } from './localePreference';
 import { createSession, persisterOf, wrapApi, type Session } from './session';
 import { trackBusy, useBusyCheck } from '../pwa/busy';
+import { clearPhotos, registerPhotoCleanup } from '../pwa/photos';
 
 /**
  * Called once per session, then once per language: the clients share what the session knows
@@ -74,12 +75,14 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     () =>
       identity === undefined
         ? null
-        : createSession(identity, store, {
-            refresh: () => backend.refresh(),
-            // Refused again after a renewal: no profile, the account is being deleted (spec W11, decision 13).
-            end: (s, outcome) => endRef.current(s, outcome.ended === 'unauthorized' ? 'accountGone' : undefined),
-            channel
-          }),
+        : withPhotoCleanup(
+            createSession(identity, store, {
+              refresh: () => backend.refresh(),
+              // Refused again after a renewal: no profile, the account is being deleted (spec W11, decision 13).
+              end: (s, outcome) => endRef.current(s, outcome.ended === 'unauthorized' ? 'accountGone' : undefined),
+              channel
+            })
+          ),
     [identity, store, backend, channel]
   );
   // The data client depends on the user and the language; answers in a language no longer shown are dropped (PR review, C12).
@@ -254,4 +257,10 @@ export const useCurrentLocale = () => useSessionContext().currentLocale;
 export function useSessionRevision(): number {
   const session = useSession();
   return useSyncExternalStore(session.subscribe, session.revision, session.revision);
+}
+
+/** The cache of the photos seen closes with the session (W12). */
+function withPhotoCleanup(session: Session): Session {
+  registerPhotoCleanup(session, () => clearPhotos());
+  return session;
 }

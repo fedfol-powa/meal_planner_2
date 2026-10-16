@@ -8,6 +8,7 @@ import { foldText } from '../family/views.ts';
 import { ingredientLinesView, loadBookTitlesById, loadIngredientNamesById, summaryOf } from '../recipes/views.ts';
 import { publicationCheck } from './check.ts';
 import { isCited, loadAuthors, loadLookup, parseContent, type DraftRow } from './load.ts';
+import { photoUrl } from './photos/key.ts';
 
 export const authorOf = (authors: Map<string, string>, userId: string | null): AuthorView => ({
 	userId,
@@ -27,7 +28,17 @@ const isId = (value: unknown): value is string => z.uuid().safeParse(value).succ
 const citedIngredients = (content: RecipeDraftDocument) =>
 	[...new Set((Array.isArray(content.ingredients) ? content.ingredients : []).map((l) => l?.ingredientId).filter(isId))];
 
-export async function draftViewOf(tx: Tx, row: DraftRow, locale: Locale): Promise<DraftView> {
+/** Storage keys of the current photos of the recipes (W12). */
+async function currentPhotoKeys(tx: Tx, recipeIds: string[]): Promise<Map<string, string>> {
+	if (!recipeIds.length) return new Map();
+	const rows = await tx<{ recipe_id: string; storage_key: string }[]>`
+		select recipe_id, storage_key from app.recipe_photos
+		where removed_at is null and recipe_id in (select jsonb_array_elements_text(${JSON.stringify(recipeIds)}::text::jsonb)::uuid)`;
+	return new Map(rows.map((row) => [row.recipe_id, row.storage_key]));
+}
+
+/** `origin`: absolute URLs for agents. */
+export async function draftViewOf(tx: Tx, row: DraftRow, locale: Locale, origin?: string): Promise<DraftView> {
 	const { issues, conversions } = await publicationCheck(tx, row.content);
 	const authors = await loadAuthors(tx);
 	const ingredientIds = citedIngredients(row.content);
@@ -55,7 +66,13 @@ export async function draftViewOf(tx: Tx, row: DraftRow, locale: Locale): Promis
 		canDiscard,
 		ingredientNames: Object.fromEntries(ingredientIds.filter((id) => names.has(id)).map((id) => [id, localText(names.get(id), locale)])),
 		bookTitle: bookId ? (titles.get(bookId) ?? null) : null,
+		photoUrl: photoOf(await currentPhotoKeys(tx, [row.recipeId]), row.recipeId, origin),
 	};
+}
+
+function photoOf(keys: Map<string, string>, recipeId: string, origin: string | undefined): string | null {
+	const key = keys.get(recipeId);
+	return key ? photoUrl(key, origin) : null;
 }
 
 interface SaveRecord {
@@ -134,6 +151,7 @@ export async function searchCatalogueRecipes(
 	tx: Tx,
 	query: { text: string; status: 'published' | 'archived' | 'any' },
 	locale: Locale,
+	origin?: string,
 ): Promise<{ items: RecipeMatchView[] }> {
 	const rows = await tx<{ id: string; name: Record<Locale, string>; description: Record<Locale, string> | null; status: 'published' | 'archived'; version: number; updated_at: Date }[]>`
 		select id, name, description, status, version, updated_at from app.recipes
@@ -143,9 +161,18 @@ export async function searchCatalogueRecipes(
 		.map((r) => ({ row: r, name: localText(r.name, locale), description: localText(r.description, locale) }))
 		.filter(({ name, description }) => !needle || foldText(name).includes(needle) || foldText(description).includes(needle))
 		.sort((a, b) => a.name.localeCompare(b.name, locale))
-		.slice(0, 50)
-		.map(({ row, name }) => ({ recipeId: row.id, name, status: row.status, version: row.version, updatedAt: row.updated_at.toISOString() }));
-	return { items };
+		.slice(0, 50);
+	const keys = await currentPhotoKeys(tx, items.map(({ row }) => row.id));
+	return {
+		items: items.map(({ row, name }) => ({
+			recipeId: row.id,
+			name,
+			status: row.status,
+			version: row.version,
+			updatedAt: row.updated_at.toISOString(),
+			photoUrl: photoOf(keys, row.id, origin),
+		})),
+	};
 }
 
 export async function versionList(tx: Tx, recipeId: string, locale: Locale): Promise<VersionListView> {
@@ -196,6 +223,8 @@ export async function versionDetail(tx: Tx, recipeId: string, version: number, l
 			proteinGroup: content.proteinGroup,
 			baseServings: content.baseServings,
 			lines: content.ingredients,
+			// A past version: the curator compares documents, the photo is not part of them.
+			photoUrl: null,
 		},
 		titles,
 		locale,

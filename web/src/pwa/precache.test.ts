@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { injectPrecache, precacheList } from './precache';
+import { assertSelfContained, injectPrecache, precacheList } from './precache';
 
 it('lists the shell: index, hashed scripts and styles, fonts; never the worker or the list itself', () => {
   expect(precacheList(['index.html', 'assets/index-a1.js', 'assets/index-b2.css', 'sw.js', 'precache.json', 'assets/logo-c3.svg', '.vite/manifest.json'], ['roboto-regular.woff2']))
@@ -15,4 +15,10 @@ it('puts the precache list into the built worker in place of its one placeholder
 it('fails the build without the placeholder or with more than one', () => {
   expect(() => injectPrecache('const p=[];', ['/index.html'])).toThrow(/placeholder/);
   expect(() => injectPrecache('a=["__PRECACHE_LIST__"];b=["__PRECACHE_LIST__"]', ['/index.html'])).toThrow(/placeholder/);
+});
+
+it('refuses a sw.js that imports another chunk: a classic worker cannot evaluate it (W12)', () => {
+  expect(() => assertSelfContained({ imports: ['assets/sw-rules-abc.js'], dynamicImports: [] })).toThrow(/sw\.js imports assets\/sw-rules-abc\.js/);
+  expect(() => assertSelfContained({ imports: [], dynamicImports: ['assets/x.js'] })).toThrow();
+  expect(() => assertSelfContained({ imports: [], dynamicImports: [] })).not.toThrow();
 });

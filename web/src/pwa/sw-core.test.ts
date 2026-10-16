@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { activate, handleMessage, install, respond, type CacheLike, type CachesLike, type WorkerDeps } from './sw-core';
-import { COMPLETE_URL } from './sw-rules';
+import { COMPLETE_URL, PHOTO_CACHE } from './sw-rules';
 
 const origin = 'https://app.example';
 const url = (path: string) => `${origin}${path}`;
@@ -28,8 +28,12 @@ function memoryCaches(options: { failPut?: string } = {}): CachesLike & { names(
       },
       put: async (request, response) => {
         if (options.failPut && new URL(keyOf(request)).pathname === options.failPut) throw new Error('QuotaExceededError');
+        // Like Cache Storage, a new entry goes last in the order of keys().
+        store.delete(keyOf(request));
         store.set(keyOf(request), response);
-      }
+      },
+      keys: async () => [...store.keys()].map((key) => new Request(key)),
+      delete: async (request) => store.delete(keyOf(request))
     };
   };
   return {
@@ -324,5 +328,158 @@ describe('referrer of the invitation page', () => {
     const response = await respond(navigate('/invite/app'), url('/invite/app'), deps);
     const policy = response.headers.get('Referrer-Policy') ?? /<meta name="referrer" content="([^"]+)"/.exec(await response.text())?.[1];
     expect(policy).toBe('no-referrer');
+  });
+});
+
+describe('photos seen stay offline (W12)', () => {
+  const photo = (key: string) => ({ url: url(`/photos/${key}.webp`), method: 'GET', mode: 'no-cors' });
+  const key = (n: number) => String(n).padStart(22, 'A');
+  /** The photo route: an image for known keys, 404 otherwise; `held` keeps the answers until released. */
+  function photoNetwork(known = new Set<string>()) {
+    const state = { offline: false, calls: 0, held: null as null | Promise<void> };
+    const fetch = async (input: RequestInfo) => {
+      state.calls++;
+      if (state.held) await state.held;
+      if (state.offline) throw new TypeError('Failed to fetch');
+      const path = new URL(typeof input === 'string' ? input : input.url, origin).pathname;
+      const name = path.slice('/photos/'.length, -'.webp'.length);
+      return known.has(name) || known.size === 0
+        ? new Response(`image ${name}`, { headers: { 'content-type': 'image/webp', 'cache-control': 'private, no-store' } })
+        : new Response('{"code":"not_found"}', { status: 404, headers: { 'content-type': 'application/json' } });
+    };
+    return { fetch, state };
+  }
+  const photoDeps = (caches: ReturnType<typeof memoryCaches>, fetch: WorkerDeps['fetch'], photoEpoch = { value: 0 }): WorkerDeps =>
+    ({ caches, fetch, version: 'A', origin, precache: [], photoEpoch });
+  /** Keeps the first `open` or the first `match` of the cache waiting until released. */
+  function holding(caches: ReturnType<typeof memoryCaches>, method: 'open' | 'match') {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held = false;
+    const hold = async () => {
+      if (held) return;
+      held = true;
+      await gate;
+    };
+    const open = async (name: string): Promise<CacheLike> => {
+      if (method === 'open') await hold();
+      const cache = await caches.open(name);
+      return method === 'match' ? { ...cache, match: async (request) => (await hold(), cache.match(request)) } : cache;
+    };
+    return { caches: { ...caches, open }, release };
+  }
+
+  it('first the cache, then the network: a photo seen opens offline', async () => {
+    const caches = memoryCaches();
+    const net = photoNetwork();
+    const deps = photoDeps(caches, net.fetch);
+    expect(await text(await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps))).toBe(`image ${key(1)}`);
+    expect(caches.names()).toContain(PHOTO_CACHE);
+    net.state.offline = true;
+    expect(await text(await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps))).toBe(`image ${key(1)}`);
+    expect(net.state.calls).toBe(1);
+    // Never seen: the network error reaches the page, which shows the card without the photo.
+    await expect(respond(photo(key(2)), url(`/photos/${key(2)}.webp`), deps)).rejects.toThrow();
+  });
+
+  it('stores only images that answered 200', async () => {
+    const caches = memoryCaches();
+    const net = photoNetwork(new Set([key(1)]));
+    const deps = photoDeps(caches, net.fetch);
+    expect((await respond(photo(key(9)), url(`/photos/${key(9)}.webp`), deps)).status).toBe(404);
+    expect(await caches.dump(PHOTO_CACHE)).toEqual({});
+    const html = async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } });
+    await respond(photo(key(3)), url(`/photos/${key(3)}.webp`), photoDeps(caches, html));
+    expect(await caches.dump(PHOTO_CACHE)).toEqual({});
+  });
+
+  it('keeps at most 300 photos, dropping the oldest', async () => {
+    const caches = memoryCaches();
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    for (let n = 0; n < 302; n++) await respond(photo(key(n)), url(`/photos/${key(n)}.webp`), deps);
+    const kept = Object.keys(await caches.dump(PHOTO_CACHE));
+    expect(kept).toHaveLength(300);
+    expect(kept).not.toContain(`/photos/${key(0)}.webp`);
+    expect(kept).not.toContain(`/photos/${key(1)}.webp`);
+    expect(kept).toContain(`/photos/${key(301)}.webp`);
+  });
+
+  it('keeps at most 300 photos when answers arrive together', async () => {
+    const caches = memoryCaches();
+    const net = photoNetwork();
+    const deps = photoDeps(caches, net.fetch);
+    for (let n = 0; n < 299; n++) await respond(photo(key(n)), url(`/photos/${key(n)}.webp`), deps);
+    let release = () => {};
+    net.state.held = new Promise<void>((resolve) => (release = resolve));
+    const pending = [299, 300, 301].map((n) => respond(photo(key(n)), url(`/photos/${key(n)}.webp`), deps));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await Promise.all(pending);
+    const kept = Object.keys(await caches.dump(PHOTO_CACHE));
+    expect(kept).toHaveLength(300);
+    expect(kept).toContain(`/photos/${key(301)}.webp`);
+  });
+
+  it('install and activate of a new version leave the photo cache alone', async () => {
+    const { caches, deps } = await installed(buildA, 'A');
+    await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), { ...deps, fetch: photoNetwork().fetch });
+    for (const [b, version] of [[buildB, 'B'], [buildC, 'C']] as const) {
+      const next = depsFor(b, version, caches);
+      await install(next);
+      await activate(next);
+    }
+    expect(Object.keys(await caches.dump(PHOTO_CACHE))).toEqual([`/photos/${key(1)}.webp`]);
+  });
+
+  it('clear-photos empties the cache and answers on the port', async () => {
+    const caches = memoryCaches();
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps);
+    const port = { postMessage: vi.fn() };
+    await handleMessage({ type: 'clear-photos' }, [port], deps);
+    expect(caches.names()).not.toContain(PHOTO_CACHE);
+    expect(port.postMessage).toHaveBeenCalledWith({ type: 'photos-cleared' });
+  });
+
+  it('a response arriving during sign-out is not stored', async () => {
+    const caches = memoryCaches();
+    const net = photoNetwork();
+    let release = () => {};
+    net.state.held = new Promise<void>((resolve) => (release = resolve));
+    const deps = photoDeps(caches, net.fetch);
+    const pending = respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await handleMessage({ type: 'clear-photos' }, [], deps);
+    release();
+    // The page still gets its photo, the closed session's cache stays empty.
+    expect(await text(await pending)).toBe(`image ${key(1)}`);
+    expect(await caches.dump(PHOTO_CACHE)).toEqual({});
+  });
+
+  it.each(['open', 'match'] as const)('a sign-out completed while the cache %s is pending stops the store', async (method) => {
+    const base = memoryCaches();
+    const { caches, release } = holding(base, method);
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    const pending = respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await handleMessage({ type: 'clear-photos' }, [], deps);
+    release();
+    expect(await text(await pending)).toBe(`image ${key(1)}`);
+    expect(await base.dump(PHOTO_CACHE)).toEqual({});
+  });
+
+  it('a cache that does not open still shows the photo from the network', async () => {
+    const base = memoryCaches();
+    const caches = { ...base, open: async (): Promise<CacheLike> => { throw new Error('SecurityError'); } };
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    expect(await text(await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps))).toBe(`image ${key(1)}`);
+  });
+
+  it('a write that fails still shows the photo and keeps the cache usable', async () => {
+    const caches = memoryCaches({ failPut: `/photos/${key(2)}.webp` });
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    expect(await text(await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps))).toBe(`image ${key(1)}`);
+    expect(await text(await respond(photo(key(2)), url(`/photos/${key(2)}.webp`), deps))).toBe(`image ${key(2)}`);
+    expect(Object.keys(await caches.dump(PHOTO_CACHE))).toEqual([`/photos/${key(1)}.webp`]);
   });
 });

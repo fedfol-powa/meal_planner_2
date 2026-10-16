@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "sync-assets": "node scripts/sync-assets.mjs",
-    "predev": "npm run sync-assets",
+    "predev": "npm run sync-assets -- --demo-photos",
     "dev": "vite",
     "prebuild": "npm run sync-assets",
     "build": "tsc -p tsconfig.json && vite build",

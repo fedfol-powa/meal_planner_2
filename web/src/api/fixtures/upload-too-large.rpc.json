@@ -1,0 +1,21 @@
+{
+	"status": 413,
+	"body": {
+		"json": {
+			"defined": false,
+			"code": "invalid",
+			"status": 413,
+			"message": "invalid",
+			"data": {
+				"issues": [
+					{
+						"path": [
+							"file"
+						],
+						"code": "photo_too_large"
+					}
+				]
+			}
+		}
+	}
+}

@@ -84,7 +84,21 @@ export const it = {
   'catalogue.issue.invalid_url': 'Indirizzo non valido',
   'catalogue.issue.not_positive_integer': 'Numero non valido',
   'catalogue.issue.invalid_amount': 'Quantità non valida',
-  'catalogue.issue.multiple_primary': 'Più di un ingrediente principale'
+  'catalogue.issue.multiple_primary': 'Più di un ingrediente principale',
+  'catalogue.photo.add': 'Aggiungi foto',
+  'catalogue.photo.menu': 'Foto',
+  'catalogue.photo.replace': 'Sostituisci la foto',
+  'catalogue.photo.remove': 'Togli la foto',
+  'catalogue.photo.removeConfirm': 'Togliere la foto?',
+  'catalogue.photo.removeAction': 'Togli',
+  'catalogue.photo.back': 'Indietro',
+  'catalogue.photo.uploading': 'Caricamento…',
+  'catalogue.photo.error.photo_type': 'Formato non supportato: usa una foto JPEG, PNG o WebP.',
+  'catalogue.photo.error.photo_too_small': 'La foto è troppo piccola.',
+  'catalogue.photo.error.photo_too_large': 'La foto è troppo grande.',
+  'catalogue.photo.error.photo_unreadable': 'Non riesco a leggere questa immagine.',
+  'catalogue.photo.error.photo_url': 'Indirizzo dell’immagine non ammesso.',
+  'catalogue.photo.error.photo_unreachable': 'Non riesco a scaricare l’immagine.'
 };
 
 export const en = {
@@ -173,5 +187,19 @@ export const en = {
   'catalogue.issue.invalid_url': 'Invalid address',
   'catalogue.issue.not_positive_integer': 'Invalid number',
   'catalogue.issue.invalid_amount': 'Invalid amount',
-  'catalogue.issue.multiple_primary': 'More than one main ingredient'
+  'catalogue.issue.multiple_primary': 'More than one main ingredient',
+  'catalogue.photo.add': 'Add photo',
+  'catalogue.photo.menu': 'Photo',
+  'catalogue.photo.replace': 'Replace photo',
+  'catalogue.photo.remove': 'Remove photo',
+  'catalogue.photo.removeConfirm': 'Remove the photo?',
+  'catalogue.photo.removeAction': 'Remove',
+  'catalogue.photo.back': 'Back',
+  'catalogue.photo.uploading': 'Uploading…',
+  'catalogue.photo.error.photo_type': 'Unsupported format: use a JPEG, PNG or WebP photo.',
+  'catalogue.photo.error.photo_too_small': 'The photo is too small.',
+  'catalogue.photo.error.photo_too_large': 'The photo is too large.',
+  'catalogue.photo.error.photo_unreadable': "This image can't be read.",
+  'catalogue.photo.error.photo_url': 'This image address is not allowed.',
+  'catalogue.photo.error.photo_unreachable': "The image can't be downloaded."
 } satisfies Record<keyof typeof it, string>;

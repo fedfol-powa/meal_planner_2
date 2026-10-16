@@ -17,6 +17,7 @@ export function contextFor(keys: TestKeys, token: string | undefined, connection
 		SUPABASE_SECRET_KEY: 'sb_secret_test',
 		INVITE_READ_LIMIT: allowAll,
 		INVITE_ACCEPT_LIMIT: allowAll,
+		PHOTO_READ_LIMIT: allowAll,
 	} satisfies Env as Env;
 	return {
 		env,

@@ -1,8 +1,11 @@
-import { cacheName, COMPLETE_URL, SHELL_URL, staleCaches, strategyFor } from './sw-rules';
+import { cacheName, COMPLETE_URL, PHOTO_CACHE, PHOTO_CACHE_LIMIT, SHELL_URL, staleCaches, strategyFor } from './sw-rules';
 
 export interface CacheLike {
   match(request: RequestInfo): Promise<Response | undefined>;
   put(request: RequestInfo, response: Response): Promise<void>;
+  /** In insertion order, as Cache Storage gives them. */
+  keys(): Promise<readonly Request[]>;
+  delete(request: RequestInfo): Promise<boolean>;
 }
 export interface CachesLike {
   open(name: string): Promise<CacheLike>;
@@ -19,6 +22,11 @@ export interface WorkerDeps {
   precache: string[];
   /** The worker's own skipWaiting: a complete install takes over at once. */
   skipWaiting?: () => Promise<void>;
+  /**
+   * Grows at every clearing of the photos (sign-out): a photo answer stores itself only if the
+   * epoch it started in is still the current one (W12).
+   */
+  photoEpoch?: { value: number };
 }
 
 /**
@@ -97,16 +105,64 @@ export async function activate({ caches, version }: WorkerDeps): Promise<void> {
 
 export interface MessagePortLike { postMessage(message: unknown): void }
 
-/** The page asks the version of the worker in control, on the port of a MessageChannel (spec W8). */
-export function handleMessage(data: unknown, ports: readonly MessagePortLike[], deps: WorkerDeps): void {
-  if (typeof data !== 'object' || data === null || (data as { type?: unknown }).type !== 'version') return;
-  ports[0]?.postMessage({ type: 'version', version: deps.version });
+/**
+ * Messages of the page, answered on the port of a MessageChannel: the version of the worker in
+ * control (spec W8), and the clearing of the photos when the session closes (W12).
+ */
+export async function handleMessage(data: unknown, ports: readonly MessagePortLike[], deps: WorkerDeps): Promise<void> {
+  const type = typeof data === 'object' && data !== null ? (data as { type?: unknown }).type : undefined;
+  if (type === 'version') ports[0]?.postMessage({ type: 'version', version: deps.version });
+  if (type === 'clear-photos') {
+    // First the epoch: an answer already on its way no longer stores itself.
+    if (deps.photoEpoch) deps.photoEpoch.value++;
+    await deps.caches.delete(PHOTO_CACHE);
+    ports[0]?.postMessage({ type: 'photos-cleared' });
+  }
+}
+
+const isImage = (response: Response) => response.status === 200 && (response.headers.get('content-type') ?? '').toLowerCase().startsWith('image/');
+
+/** Drops the oldest photos until at most `limit` stay. */
+async function trimPhotos(cache: CacheLike, limit: number): Promise<void> {
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - limit)).map((key) => cache.delete(key)));
+}
+
+/**
+ * Keeps one photo, the oldest going first so that at most PHOTO_CACHE_LIMIT stay. A sign-out
+ * happened since `epoch`: the photo goes to the page, not into the cache of the closed session.
+ */
+async function storePhoto(url: string, response: Response, epoch: number | undefined, deps: WorkerDeps): Promise<void> {
+  const current = () => deps.photoEpoch?.value === epoch;
+  const cache = await deps.caches.open(PHOTO_CACHE);
+  if (!current()) return;
+  // Room first: a full storage refuses the write.
+  await trimPhotos(cache, PHOTO_CACHE_LIMIT - 1);
+  if (!current()) return;
+  await cache.put(url, response);
+  // Again after the write: stores running at once all found the same room and wrote anyway.
+  await trimPhotos(cache, PHOTO_CACHE_LIMIT);
+}
+
+/**
+ * Photos (W12): first the cache, then the network. The URL is immutable, so a copy never expires;
+ * only 200 images are kept. The cache only helps: when it fails, the network answer still reaches the page.
+ */
+async function respondPhoto(url: string, target: RequestInfo, deps: WorkerDeps): Promise<Response> {
+  // Read before the first wait: a sign-out during the cache lookup must stop the store too.
+  const epoch = deps.photoEpoch?.value;
+  const cached = await deps.caches.open(PHOTO_CACHE).then((cache) => cache.match(url)).catch(() => undefined);
+  if (cached) return cached;
+  const response = await deps.fetch(target);
+  if (isImage(response)) await storePhoto(url, response.clone(), epoch, deps).catch(() => {});
+  return response;
 }
 
 export async function respond(info: { url: string; method: string; mode: string }, target: RequestInfo, deps: WorkerDeps): Promise<Response> {
   const { caches, fetch, version, origin } = deps;
-  const cache = await caches.open(cacheName(version));
   const strategy = strategyFor({ ...info, origin });
+  if (strategy === 'photo') return respondPhoto(info.url, target, deps);
+  const cache = await caches.open(cacheName(version));
   if (strategy === 'shell') {
     // The installed, complete shell of this version, never rewritten while in use: a new shell
     // serves only as a whole, after its own install (second review, C6).

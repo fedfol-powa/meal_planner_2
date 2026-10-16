@@ -13,3 +13,5 @@
 .panel { padding: 16px 18px 18px; border-top: 1px solid var(--rule); }
 .panel :global(.ingredient-list) { margin-top: 0; }
 .action:disabled { color: var(--muted); cursor: not-allowed; }
+/* A past meal: the photo a little faded, as in the prototype (W12). */
+.past :global(.meal-photo) { filter: grayscale(0.4); opacity: 0.85; }

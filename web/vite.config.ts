@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
-import { injectPrecache, precacheList } from './src/pwa/precache.ts';
+import { assertSelfContained, injectPrecache, precacheList } from './src/pwa/precache.ts';
 
 // One value per build: cache names, the version checked at install and the build of sw.js.
 const buildVersion = new Date().toISOString();
@@ -21,6 +21,7 @@ function pwaBuild(): Plugin {
     generateBundle(_options, bundle) {
       const worker = bundle['sw.js'];
       if (!worker || worker.type !== 'chunk') return this.error('sw.js is missing from the bundle');
+      assertSelfContained(worker);
       worker.code = injectPrecache(worker.code, precacheList(Object.keys(bundle), readdirSync(fontsDir)));
     }
   };
@@ -29,7 +30,8 @@ function pwaBuild(): Plugin {
 export default defineConfig(({ mode }) => {
   // The Worker of W1 (`wrangler dev`, port 8787) answers /api in development and preview (second PR).
   const apiTarget = loadEnv(mode, process.cwd(), 'VITE_').VITE_API_TARGET ?? 'http://localhost:8787';
-  const proxy = { '/api': { target: apiTarget, changeOrigin: true } };
+  // The recipe photos are served by the Worker too (W12).
+  const proxy = { '/api': { target: apiTarget, changeOrigin: true }, '/photos': { target: apiTarget, changeOrigin: true } };
   return {
     plugins: [react(), pwaBuild()],
     define: {
