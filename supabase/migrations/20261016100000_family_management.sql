@@ -733,7 +733,7 @@ begin
 		from app.account_deletion_families(p_user_id) d where d.outcome = 'deleted';
 	-- Decision 20: an agent (client_id in the token, as channelOf) never deletes a family. Checked
 	-- first: whatever the agent passed, the answer is the page of the app.
-	if auth.jwt() ->> 'client_id' is not null and cardinality(v_deleted) > 0 then
+	if (auth.jwt() ? 'client_id') and cardinality(v_deleted) > 0 then
 		raise exception 'web only' using errcode = 'P0A15';
 	end if;
 	if v_deleted <> coalesce((select array_agg(distinct x order by x) from unnest(p_deleted_families) x), '{}') then

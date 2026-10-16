@@ -1,3 +1,4 @@
+import { appError } from '../errors.ts';
 import type { Implementer } from '../pipeline.ts';
 import { deleteUserAccount, readDeletionPlan } from './delete.ts';
 
@@ -5,7 +6,8 @@ import { deleteUserAccount, readDeletionPlan } from './delete.ts';
 export function accountRouter(os: Implementer) {
 	return {
 		getDeletionPlan: os.account.getDeletionPlan.handler(async ({ context }) => {
-			const plan = (await readDeletionPlan(context.tx, context.userId))!;
+			const plan = await readDeletionPlan(context.tx, context.userId);
+			if (!plan) throw appError('not_found');
 			const [{ n }] = await context.tx<{ n: number }[]>`select count(*)::int as n from app.connected_agents()`;
 			return { ...plan, connectedAgents: n };
 		}),

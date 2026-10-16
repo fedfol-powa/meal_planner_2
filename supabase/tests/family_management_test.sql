@@ -580,6 +580,11 @@ select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.u
 select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), '{}', '{}'),
 	'P0A15', null, 'agent request with a stale plan: the page, not a conflict');
 reset role;
+-- client_id present but null: an agent for the server (channelOf), so an agent here too
+select tests.login_with_claims(jsonb_build_object('sub', tests.uid('da'), 'role', 'authenticated', 'client_id', null));
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), json_build_object(tests.family('S2'), tests.uid('dc')), array[tests.family('S3')]),
+	'P0A15', null, 'client_id null counts as an agent, as on the server');
+reset role;
 select ok(tests.alive(tests.uid('da')), 'nothing written');
 
 -- Begin
