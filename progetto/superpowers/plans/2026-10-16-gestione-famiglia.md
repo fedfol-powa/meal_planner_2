@@ -314,9 +314,10 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   versionata, aggiornata dopo una prenotazione con `weak_password` e dopo una scadenza. In `family-invitations-locks.test.ts` i due casi del tetto concorrente della
   spec (sezione 5) con nove prenotazioni di partenza, la stessa email alla decima quota
   (seconda richiesta in attesa accertata sul lucchetto dell'email, stesso id, nessun
-  errore) e la prenotazione in corso su L1 contro la cancellazione di U2 in entrambi gli
-  ordini (nessuna email rimasta, conteggi invariati; nell'ordine opposto
-  `account_exists`); `public operations
+  errore) e la prenotazione in corso su L1 contro la cancellazione di U2 nell'ordine
+  eseguibile della spec (L2 confermata senza account; L1 tenuto dopo l'inserimento; U2
+  creato in Auth; cancellazione in attesa accertata sul lucchetto dell'email; rilascio
+  di L1; nessuna email rimasta, conteggi invariati); `public operations
   answer rate_limited with refuseAll`; `MCP lists familyInvitations_list/create/revoke/
   status and family_join, not get or accept`. Più `contract/src/check.test.ts` verde
   con le operazioni nuove (regole delle pubbliche).
@@ -549,14 +550,21 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `store.transact` e fusione col massimo, mai cancellato al ripristino;
   `markRevoked(store, userId, familyId, at)` e `markRestored(store, userId, familyId,
   startedAt)` in `web/src/api/persister.ts` (il secondo sostituisce `clearRevoked`);
-  accesso revocato se `revokedAt > restoredAt`; pulizia separata: ogni revoca, propria o
-  ricevuta, toglie sempre le viste e le operazioni della spesa della famiglia fino a
-  `revokedAt`, e il persister non scrive né ripristina viste con `dataUpdatedAt <=
-  revokedAt`; `session.restore(familyId: string, startedAt: number): boolean`;
+  accesso revocato se `revokedAt > restoredAt`; `Versioned<T>` in
+  `web/src/api/queries.ts` riceve `producedAt: number` (inizio della richiesta che ha
+  prodotto i dati; «invariato» non lo rinnova; assente = 0); `readThrough` e la
+  scrittura delle viste dalle mutazioni scartano la risposta se la famiglia ha
+  `revokedAt >= startedAt` (errore `stale_after_revocation`, non mostrato, che fa
+  ripetere la lettura); pulizia separata: ogni revoca, propria o ricevuta, toglie sempre
+  le viste con `producedAt <= revokedAt` e le operazioni della spesa fino a `revokedAt`,
+  poi, se l'accesso risulta ripristinato, invalida e rilegge le query della famiglia; il
+  persister non scrive né ripristina viste con `producedAt <= revokedAt`; `session.restore(familyId: string, startedAt: number): boolean`;
   messaggi `{ type: 'revoked', userId, familyId, revokedAt }` (campo nuovo) e
   `{ type: 'restored', userId, familyId, startedAt }`; `restore` chiamata dalla
   risposta di `family.join`/`family.create` e da ogni profilo letto che contiene la
-  famiglia. Modifica anche `web/src/session/channel.ts`, `web/src/api/persister.ts` e
+  famiglia. Modifica anche `web/src/session/channel.ts`, `web/src/api/persister.ts`,
+  `web/src/api/queries.ts` (`producedAt`, controllo in `readThrough`),
+  `web/src/api/mutations.ts` (controllo prima di scrivere una vista) e
   `web/src/features/shopping/queue/queue.ts` (pulizia fino a un istante).
 
 - [ ] **Passo 1: test**: riepilogo per l'amministratore e per il membro; conferma che
@@ -572,7 +580,12 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   from tab B and re-reads the family`; `a late tab rewriting the old revocation keeps the
   family visible`; `a third session started later does not restore queries older than
   the revocation and shows the family`; `a numeric mark from the previous version reads
-  as revokedAt`.
+  as revokedAt`; quarta revisione, rilievo 1: `an unchanged answer keeps producedAt`;
+  `a late answer started before the revocation is discarded`; `the reviewer's sequence
+  (read started before t1, unchanged answer after t1, restored(t2) then revoked(t1))
+  removes the old view from cache and saved copy, re-reads the family, and a later
+  session does not restore the old view`; `a mutation started before the revocation does
+  not write its view`.
 - [ ] **Passo 2:** test → falliscono.
 - [ ] **Passo 3:** implementare.
 - [ ] **Passo 4:** `npm test -w web` → verdi.

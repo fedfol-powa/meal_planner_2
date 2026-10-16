@@ -920,21 +920,35 @@ dalla versione precedente vale `{ revokedAt: n, restoredAt: 0 }`):
 - **accesso**: la famiglia è revocata sul dispositivo se `revokedAt > restoredAt`,
   calcolato sempre dal record (in memoria se ne tiene una copia aggiornata dalle
   scritture e dai messaggi);
+- **freschezza di una vista** (quarta revisione, rilievo 1): `dataUpdatedAt` di TanStack
+  Query non basta, perché si rinnova anche con una risposta «invariato». La vista in
+  cache (`Versioned<T>` di `web/src/api/queries.ts`) riceve il campo `producedAt`:
+  l'istante di **inizio** della richiesta che ha prodotto i dati. `readThrough` lo fissa
+  prima di chiamare il server; una risposta «invariato» restituisce la vista in cache
+  **con il suo `producedAt`**, senza rinnovarlo; una vista scritta da una mutazione prende
+  l'istante di inizio della mutazione. Una copia salvata da una versione precedente,
+  senza il campo, vale `producedAt = 0`;
+- **risposte iniziate prima di una revoca**: alla fine di `readThrough`, e prima che una
+  mutazione scriva una vista, se la famiglia ha `revokedAt >= startedAt` la risposta si
+  scarta (errore interno `stale_after_revocation`, che il gestore della sessione non
+  mostra e che fa solo ripetere la lettura): non entra né nella cache né nella copia
+  salvata, anche se arriva dopo il ripristino;
 - **pulizia, separata dall'accesso**: ogni revoca, propria o ricevuta (messaggio
   `{ type: 'revoked', userId, familyId, revokedAt }` con l'istante originale), **toglie
-  sempre** dalla scheda le viste della famiglia e le operazioni della sua coda della
-  spesa nate fino a `revokedAt`, anche se un ripristino successivo è già arrivato. Il
-  persister non scrive e non ripristina mai viste di una famiglia con `dataUpdatedAt <=
-  revokedAt` del record, né alcuna vista di una famiglia revocata. Così la consegna
-  inversa (`restored` prima di `revoked`) lascia la famiglia visibile ma senza dati
-  vecchi;
+  sempre** dalla scheda le viste della famiglia con `producedAt <= revokedAt` e le
+  operazioni della sua coda della spesa nate fino a `revokedAt`, anche se un ripristino
+  successivo è già arrivato. Il persister non scrive e non ripristina mai viste di una
+  famiglia con `producedAt <= revokedAt` del record, né alcuna vista di una famiglia
+  revocata. Se, dopo la pulizia, l'accesso risulta ripristinato (`restoredAt >=
+  revokedAt`), le query della famiglia si invalidano e quelle in uso si rileggono dal
+  server: la rilettura non dipende da una transizione locale da revocata ad
+  accessibile, che nella consegna inversa non c'è;
 - **ripristino**: `session.restore(familyId, startedAt)` scrive `restoredAt =
   max(restoredAt, startedAt)` e annuncia `{ type: 'restored', userId, familyId,
   startedAt }`; chi riceve fa la stessa fusione; se la famiglia smette di essere revocata,
-  le sue viste si rileggono dal server (nessuna copia vecchia sopravvive, per la regola
-  di pulizia);
+  le sue query si invalidano e si rileggono;
 - **avvio**: una sessione nuova legge i record prima di ripristinare la copia persistita
-  e applica le stesse due regole (accesso e `dataUpdatedAt <= revokedAt`);
+  e applica le stesse due regole (accesso e `producedAt <= revokedAt`);
 - `restore` lo chiamano la risposta di `family.join` (e di `family.create`) con la
   famiglia nel profilo restituito, e ogni profilo letto che contiene la famiglia, con
   l'istante di inizio di quella richiesta.
@@ -1137,14 +1151,15 @@ porta a cancellare un account.
   sua lettura iniziale e aspetta il lucchetto dell'email (attesa accertata); rilasciata
   la prima, la seconda rilegge la prenotazione e restituisce lo stesso id (terza
   revisione, rilievo 2), anche con nove prenotazioni di partenza, cioè alla decima
-  quota. **Prenotazione in corso contro cancellazione** (terza revisione, rilievo 1): con
-  due famiglie diverse, `claim` su L1 per l'email E tenuto dopo l'inserimento e prima
-  del commit; prenotazione di E su L2 confermata e account U2 creato; poi
-  `begin_account_deletion(U2)` aspetta il lucchetto dell'email (accertato); rilasciato
-  L1, alla fine della cancellazione nessuna prenotazione ha E in chiaro (anche quella di
-  L1) e i conteggi di L1 e L2 sono invariati. Nell'ordine opposto (cancellazione tenuta
-  dopo i lucchetti, poi `claim` su L1) il `claim` aspetta e risponde `account_exists`,
-  perché l'account in Auth c'è ancora. **Prova negativa**
+  quota. **Prenotazione in corso contro cancellazione** (terza revisione, rilievo 1; ordine
+  eseguibile della quarta revisione, rilievo 2), con due famiglie diverse: 1) `claim` di
+  E su L2 confermato (prenotazione U2), senza creare ancora l'account; 2) `claim` di E su
+  L1 tenuto dopo il suo inserimento e prima del commit (tiene il lucchetto dell'email);
+  3) U2 creato in Auth dalla prenotazione già confermata su L2 (la creazione non prende il
+  lucchetto dell'email); 4) `begin_account_deletion(U2)` avviata, con l'attesa sul
+  lucchetto dell'email accertata in `pg_stat_activity`; 5) rilasciato L1, la
+  cancellazione prosegue: alla fine nessuna prenotazione ha E in chiaro (né quella di L1
+  né quella di L2) e i conteggi di L1 e L2 sono invariati (una prenotazione ciascuno). **Prova negativa**
   (seconda revisione, rilievo 5), solo in locale e senza commit: una variante della
   funzione senza **nessuna** serializzazione del conteggio (né famiglia, né invito, né
   utente), con i vincoli dello schema intatti, e una barriera di prova dopo il conteggio
@@ -1238,8 +1253,14 @@ collegamento) rifiutato dopo. Eseguito da `scripts/invitations/invite-stack.sh`
   inverso → la famiglia è visibile; revoca reale dopo il rientro (`revoked` con istante
   successivo) → la famiglia resta revocata in entrambe le schede. Terza revisione,
   rilievo 3: la scheda B ha già viste della famiglia e operazioni della spesa in coda;
-  consegna inversa → nessuna vista con `dataUpdatedAt <= t1` né operazione anteriore a
-  t1 resta in B, e la famiglia si rilegge; una scheda in ritardo riscrive `revokedAt = t1`
+  consegna inversa → nessuna vista con `producedAt <= t1` né operazione anteriore a t1
+  resta in B, e la famiglia si rilegge; **quarta revisione, rilievo 1**: B ha una vista
+  prodotta prima di t1 e avvia una rilettura prima di t1; A revoca a t1; la risposta
+  «invariato» arriva a B dopo t1 (la vista resta con il `producedAt` vecchio e la
+  risposta iniziata prima di t1 si scarta); A rientra a t2; B riceve `restored(t2)` e poi
+  `revoked(t1)` → la vista vecchia sparisce dalla cache e dalla copia salvata, la
+  famiglia si rilegge dal server, e una sessione avviata dopo non ripristina la vista
+  vecchia; una vista scritta da una mutazione iniziata prima della revoca non entra; una scheda in ritardo riscrive `revokedAt = t1`
   dopo il ripristino → il record resta `{ t1, t2 }`, famiglia visibile; una terza sessione
   avviata dopo, con una copia persistita che contiene viste della famiglia anteriori a
   t1, non le ripristina e mostra la famiglia; record numerico della versione precedente
