@@ -235,3 +235,4 @@ w1:p42	STATO: PR_CORRETTA #af31d7bc
 w1:p4A	STATO: DOMANDA brainstorming 1/3: dove si aggiunge la foto nell'app e dove si mostra la provenienza #9e3411e8
 w1:p4A	STATO: DOMANDA brainstorming 2/3: foto via agente (solo dalla fonte, con conferma) e provenienza fissa dall'app #73227844
 w1:p4A	STATO: DOMANDA brainstorming 2/3: provenienza tolta (da confermare); regola dell'agente, solo dalla pagina della fonte e con conferma #1479da9a
+w1:p4A	STATO: DOMANDA conferma esplicita del curatore prima che l'agente imposti una foto (consigliato: sì) #319b2155
