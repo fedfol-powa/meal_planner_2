@@ -1,4 +1,4 @@
-// Copies the approved fonts from design/ so they are not duplicated in Git (recipes have no photos).
+// Copies the approved fonts and the recipe photos of the fake mode from design/, so they are not duplicated in Git.
 import { cpSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,4 +9,6 @@ const target = resolve(root, 'public/assets');
 
 mkdirSync(target, { recursive: true });
 cpSync(resolve(design, 'hellofresh/fonts'), resolve(target, 'fonts'), { recursive: true });
+// Photos of the demo recipes, named by recipe id (fake mode only: real photos come from /photos/).
+cpSync(resolve(design, 'recipe-images'), resolve(target, 'recipe-images'), { recursive: true });
 console.log('Assets synced to public/assets');

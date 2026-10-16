@@ -20,6 +20,28 @@ async function openPicker(card: RegExp, labels = { edit: 'Modifica il pasto', ch
 }
 
 describe('change recipe', () => {
+  it('suggestions show the 3:1 photo banner when the recipe has a photo, and stay as before without', async () => {
+    const { server } = realMealsApp();
+    const other = { ...SERVER_RECIPE.recipe, id: '0b6f7c38-9f6e-4c51-9a3e-111111111111', name: 'Senza foto' };
+    server.answerMeals({
+      getSuggestions: () => ({
+        recipes: [
+          { recipe: { ...SERVER_RECIPE.recipe, photoUrl: '/photos/pasta.webp' }, rating: SERVER_RECIPE.rating },
+          { recipe: other, rating: SERVER_RECIPE.rating }
+        ],
+        nextOffset: 0,
+        freeTexts: []
+      })
+    });
+    const { sheet } = await openPicker(/Pizza/);
+    const withPhoto = (await within(sheet).findByRole('button', { name: `Scegli ${NAME}` })).closest('li')!;
+    const img = withPhoto.querySelector('img.meal-photo')!;
+    expect(img.getAttribute('src')).toBe('/photos/pasta.webp');
+    expect((img.parentElement as HTMLElement).style.aspectRatio).toBe('3 / 1');
+    const without = within(sheet).getByRole('button', { name: 'Scegli Senza foto' }).closest('li')!;
+    expect(without.querySelector('img')).toBeNull();
+  });
+
   it('suggestions with read-only stars; «Proponimene altri» changes page, not the meal', async () => {
     const { server } = realMealsApp();
     const { article, sheet } = await openPicker(new RegExp(NAME));

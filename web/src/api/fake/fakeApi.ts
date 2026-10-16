@@ -68,6 +68,8 @@ export interface FakeData {
   readonly family: FakeFamilyData;
   /** The archived recipes the curator can bring back. */
   readonly catalogue: FakeCatalogueData;
+  /** Current photo of the recipes that have one (W12), by recipe id. */
+  readonly photos: Map<string, string>;
   /** Agents connected to the account (Profile › Connect an agent). */
   readonly agents: FakeAgent[];
   /** Families created in this session (W9): their own members, settings and links, without menus. */
@@ -78,6 +80,12 @@ export interface FakeData {
   /** Users and global roles (W10), made by the first client of the session. */
   users?: ReturnType<typeof createFakeUsers>;
 }
+
+/** Demo recipes with a photo in design/assets/recipe-images (copied by sync-assets): the others stay without. */
+const DEMO_PHOTOS = [
+  'pasta-crema-peperoni', 'pasta-ricotta-zafferano', 'pasta-robiola-speck', 'pasta-zucca-salsiccia-robiola',
+  'pollo-corn-flakes', 'riso-ceci-spinaci-mandorle', 'spaghetti-riso-tofu-verdure-wok', 'wrap-fagioli-neri-cheddar'
+];
 
 const shiftTime = (time: LocalDateTime, days: number) => `${addDays(time.slice(0, 10), days)}${time.slice(10)}`;
 const localized = (text: Translated, locale: Locale) => text[locale] ?? text['it-IT'];
@@ -114,6 +122,7 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
   return {
     user, weeks, recipes, ratings: seedRatings(data.federicoRatings), revision: 1, profile: {}, family: createFakeFamilyData(),
     catalogue: createFakeCatalogueData(recipes),
+    photos: new Map(DEMO_PHOTOS.filter((id) => recipes.some((r) => r.id === id)).map((id) => [id, `/assets/recipe-images/${id}.jpg`])),
     agents: createFakeAgentsData(),
     createdFamilies: []
   };
@@ -133,7 +142,7 @@ export function fakeClients(options: { latencyMs?: number; globalRoles?: GlobalR
 export function createFakeApi(options: FakeApiOptions): Api {
   const now = () => localNow(DEMO_FAMILY.timeZone);
   const state = options.data ?? createFakeData(options.user);
-  const { weeks, recipes, ratings } = state;
+  const { weeks, recipes, ratings, photos } = state;
   const user = state.user;
   const userId = user?.id ?? DEMO_USER_ID;
   // A person seen for the first time is a member of the demo family (the fake mode's starting point);
@@ -227,18 +236,19 @@ export function createFakeApi(options: FakeApiOptions): Api {
     };
   }
   function summary(recipe: DemoRecipe, locale: Locale): RecipeSummary {
+    const photoUrl = photos.get(recipe.id) ?? null;
     // Like the server (W6): a never-published recipe shows its name and description only.
     if (recipe.status === 'draft') {
       return {
         id: recipe.id, name: localized(recipe.name, locale), description: localized(recipe.description, locale) || null,
-        durationMinutes: null, sourceType: null, sourceUrl: null, bookTitle: null, bookPages: null, mealType: null, proteinGroup: null
+        durationMinutes: null, sourceType: null, sourceUrl: null, bookTitle: null, bookPages: null, mealType: null, proteinGroup: null, photoUrl: null
       };
     }
     return {
       id: recipe.id, name: localized(recipe.name, locale), description: localized(recipe.description, locale),
       durationMinutes: recipe.durationMinutes, sourceType: recipe.sourceType, sourceUrl: recipe.sourceUrl,
       bookTitle: data.books.find((b) => b.id === recipe.bookId)?.title ?? null, bookPages: recipe.bookPages,
-      mealType: recipe.mealType, proteinGroup: recipe.proteinGroup
+      mealType: recipe.mealType, proteinGroup: recipe.proteinGroup, photoUrl
     };
   }
   function lines(recipe: DemoRecipe, servings: number, locale: Locale): IngredientLine[] | null {

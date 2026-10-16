@@ -56,3 +56,5 @@
 .toast button { min-height: 44px; padding: 0 12px; border: 0; background: none; color: #fff; font: 700 0.875rem/1 var(--text-font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .toast button:focus-visible { outline-color: #fff; }
 .picker > .notice { margin: 8px 0; }
+/* Suggestion photo: edge to edge over the padding of the card button (W12). */
+.photo { margin: -12px -14px 8px; }
