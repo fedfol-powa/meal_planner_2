@@ -122,6 +122,12 @@ export async function handleMessage(data: unknown, ports: readonly MessagePortLi
 
 const isImage = (response: Response) => response.status === 200 && (response.headers.get('content-type') ?? '').toLowerCase().startsWith('image/');
 
+/** Drops the oldest photos until at most `limit` stay. */
+async function trimPhotos(cache: CacheLike, limit: number): Promise<void> {
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - limit)).map((key) => cache.delete(key)));
+}
+
 /**
  * Keeps one photo, the oldest going first so that at most PHOTO_CACHE_LIMIT stay. A sign-out
  * happened since `epoch`: the photo goes to the page, not into the cache of the closed session.
@@ -131,10 +137,11 @@ async function storePhoto(url: string, response: Response, epoch: number | undef
   const cache = await deps.caches.open(PHOTO_CACHE);
   if (!current()) return;
   // Room first: a full storage refuses the write.
-  const keys = await cache.keys();
-  await Promise.all(keys.slice(0, Math.max(0, keys.length - PHOTO_CACHE_LIMIT + 1)).map((key) => cache.delete(key)));
+  await trimPhotos(cache, PHOTO_CACHE_LIMIT - 1);
   if (!current()) return;
   await cache.put(url, response);
+  // Again after the write: stores running at once all found the same room and wrote anyway.
+  await trimPhotos(cache, PHOTO_CACHE_LIMIT);
 }
 
 /**

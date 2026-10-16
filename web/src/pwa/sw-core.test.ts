@@ -404,6 +404,22 @@ describe('photos seen stay offline (W12)', () => {
     expect(kept).toContain(`/photos/${key(301)}.webp`);
   });
 
+  it('keeps at most 300 photos when answers arrive together', async () => {
+    const caches = memoryCaches();
+    const net = photoNetwork();
+    const deps = photoDeps(caches, net.fetch);
+    for (let n = 0; n < 299; n++) await respond(photo(key(n)), url(`/photos/${key(n)}.webp`), deps);
+    let release = () => {};
+    net.state.held = new Promise<void>((resolve) => (release = resolve));
+    const pending = [299, 300, 301].map((n) => respond(photo(key(n)), url(`/photos/${key(n)}.webp`), deps));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    release();
+    await Promise.all(pending);
+    const kept = Object.keys(await caches.dump(PHOTO_CACHE));
+    expect(kept).toHaveLength(300);
+    expect(kept).toContain(`/photos/${key(301)}.webp`);
+  });
+
   it('install and activate of a new version leave the photo cache alone', async () => {
     const { caches, deps } = await installed(buildA, 'A');
     await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), { ...deps, fetch: photoNetwork().fetch });
