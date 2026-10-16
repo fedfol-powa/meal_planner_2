@@ -29,7 +29,8 @@ function pwaBuild(): Plugin {
 export default defineConfig(({ mode }) => {
   // The Worker of W1 (`wrangler dev`, port 8787) answers /api in development and preview (second PR).
   const apiTarget = loadEnv(mode, process.cwd(), 'VITE_').VITE_API_TARGET ?? 'http://localhost:8787';
-  const proxy = { '/api': { target: apiTarget, changeOrigin: true } };
+  // The recipe photos are served by the Worker too (W12).
+  const proxy = { '/api': { target: apiTarget, changeOrigin: true }, '/photos': { target: apiTarget, changeOrigin: true } };
   return {
     plugins: [react(), pwaBuild()],
     define: {

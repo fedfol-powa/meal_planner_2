@@ -4,7 +4,7 @@ import { strategyFor } from './sw-rules';
 // Built by Vite as a second entry (/sw.js). Minimal local types: the project compiles with the DOM library only.
 interface ExtendableEventLike extends Event { waitUntil(promise: Promise<unknown>): void }
 interface FetchEventLike extends ExtendableEventLike { readonly request: Request; respondWith(response: Promise<Response>): void }
-interface MessageEventLike extends Event { readonly data: unknown; readonly ports: readonly MessagePortLike[] }
+interface MessageEventLike extends ExtendableEventLike { readonly data: unknown; readonly ports: readonly MessagePortLike[] }
 interface WorkerScope {
   readonly location: Location;
   skipWaiting(): Promise<void>;
@@ -23,13 +23,15 @@ const deps: WorkerDeps = {
   version: __BUILD_VERSION__,
   origin: worker.location.origin,
   precache,
-  skipWaiting: () => worker.skipWaiting()
+  skipWaiting: () => worker.skipWaiting(),
+  // Lost when the worker stops: so are the photo requests in flight, nothing to protect then.
+  photoEpoch: { value: 0 }
 };
 
 // A complete, checked install takes over at once; the pages reload themselves when free (update.ts).
 worker.addEventListener('install', (event) => event.waitUntil(install(deps)));
 worker.addEventListener('activate', (event) => event.waitUntil(activate(deps)));
-worker.addEventListener('message', (event) => handleMessage(event.data, event.ports, deps));
+worker.addEventListener('message', (event) => event.waitUntil(handleMessage(event.data, event.ports, deps)));
 worker.addEventListener('fetch', (event) => {
   const info = { url: event.request.url, method: event.request.method, mode: event.request.mode };
   if (strategyFor({ ...info, origin: deps.origin }) === 'passthrough') return;
