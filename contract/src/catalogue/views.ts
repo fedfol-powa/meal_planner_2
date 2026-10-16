@@ -60,6 +60,8 @@ export const draftView = z.object({
 	/** Names of the cited ingredients, in the caller's language. */
 	ingredientNames: z.record(z.string(), z.string()),
 	bookTitle: z.string().nullable(),
+	/** URL of the recipe's current photo (W12), absolute through MCP. */
+	photoUrl: z.string().nullable().optional(),
 });
 /** One save of a draft, overwritten ones included (spec section 8: an overwritten save stays recoverable). */
 export const draftSaveSummaryView = z.object({
@@ -93,6 +95,8 @@ export const recipeMatchView = z.object({
 	status: z.enum(['published', 'archived']),
 	version: z.number().int().min(1),
 	updatedAt: instant,
+	/** URL of the current photo (W12), absolute through MCP. */
+	photoUrl: z.string().nullable().optional(),
 });
 export const statusView = z.object({ recipeId: z.uuid(), status: z.enum(['published', 'archived']), changedBy: authorView, changedAt: instant });
 export const versionListView = z.object({

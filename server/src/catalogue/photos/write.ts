@@ -20,7 +20,7 @@ export interface SetPhotoInput {
 }
 
 /** Absolute URLs for agents, who download them or pass them to the curator (spec section 5). */
-function originFor(context: OperationContext): string | undefined {
+export function originFor(context: OperationContext): string | undefined {
 	return context.channel === 'mcp' ? context.origin : undefined;
 }
 

@@ -56,11 +56,11 @@ describe.skipIf(!hasDatabase)('recipe photos', () => {
 		const recipeId = await publishedRecipe(curator, 'Riso e piselli');
 		const member = await c.member();
 		const calls = [
-			member.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }),
-			member.client.catalogue.setPhotoFromUrl({ id: crypto.randomUUID(), recipeId, imageUrl: 'https://ricette.example.it/a.jpg' }),
-			member.client.catalogue.removePhoto({ recipeId }),
+			() => member.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }),
+			() => member.client.catalogue.setPhotoFromUrl({ id: crypto.randomUUID(), recipeId, imageUrl: 'https://ricette.example.it/a.jpg' }),
+			() => member.client.catalogue.removePhoto({ recipeId }),
 		];
-		for (const call of calls) expect((await errorOf(call)).code).toBe('forbidden');
+		for (const call of calls) expect((await errorOf(call())).code).toBe('forbidden');
 		expect(bucket.objects.size).toBe(0);
 	});
 
@@ -266,6 +266,60 @@ describe.skipIf(!hasDatabase)('recipe photos', () => {
 			arguments: { id: crypto.randomUUID(), recipeId, imageUrl: 'https://ricette.example.it/pizza.jpg' },
 		});
 		expect(toolBody(result).photo.url).toMatch(/^https:\/\/app\.test\/photos\//);
+	});
+
+	describe('views', () => {
+		async function familyMember() {
+			const member = await c.member();
+			const familyId = await c.actors.db.createFamily([{ userId: member.userId, role: 'family_admin' }]);
+			return { member, familyId };
+		}
+
+		it('the recipe book and the recipe card carry the photo URL', async () => {
+			const curator = await c.curator();
+			const tag = crypto.randomUUID().slice(0, 8);
+			const recipeId = await publishedRecipe(curator, `Gnocchi al pomodoro ${tag}`);
+			const without = await publishedRecipe(curator, `Gnocchi al burro ${tag}`);
+			const { member, familyId } = await familyMember();
+			const before = await member.client.recipes.get({ familyId, recipeId });
+			expect(before.unchanged).toBe(false);
+			if (before.unchanged) return;
+			expect(before.data.recipe.photoUrl).toBeNull();
+
+			const uploaded = await curator.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() });
+			// A new photo moves the catalogue counter: the copy on the device is renewed.
+			const after = await member.client.recipes.get({ familyId, recipeId, knownVersion: before.version });
+			expect(after.unchanged).toBe(false);
+			if (after.unchanged) return;
+			expect(after.data.recipe.photoUrl).toBe(uploaded.photo!.url);
+
+			const found = await member.client.recipes.search({ familyId, query: { text: tag } });
+			if (found.unchanged) throw new Error('unexpected unchanged');
+			const urls = Object.fromEntries(found.data.items.map((item) => [item.recipe.id, item.recipe.photoUrl]));
+			expect(urls[recipeId]).toBe(uploaded.photo!.url);
+			expect(urls[without]).toBeNull();
+		});
+
+		it('curators and agents see the photo of recipes and drafts, absolute through MCP', async () => {
+			const agent = await c.curator({ agent: true });
+			const name = `Calzone ${crypto.randomUUID().slice(0, 8)}`;
+			const recipeId = await publishedRecipe(agent, name);
+			const set = await agent.client.catalogue.setPhotoFromUrl({ id: crypto.randomUUID(), recipeId, imageUrl: 'https://ricette.example.it/c.jpg' });
+			const found = await agent.client.catalogue.searchRecipes({ text: name });
+			if (found.unchanged) throw new Error('unexpected unchanged');
+			expect(found.data.items.map((item) => item.photoUrl)).toEqual([set.photo!.url]);
+			expect(set.photo!.url.startsWith('https://app.test/photos/')).toBe(true);
+
+			const d = await agent.client.catalogue.createDraft({ id: crypto.randomUUID(), content: draftContent('Bozza foto agente') });
+			expect((await agent.client.catalogue.getDraft({ draftId: d.draftId })).photoUrl).toBeNull();
+			const draftPhoto = await agent.client.catalogue.setPhotoFromUrl({ id: crypto.randomUUID(), recipeId: d.recipeId, imageUrl: 'https://ricette.example.it/d.jpg' });
+			expect((await agent.client.catalogue.getDraft({ draftId: d.draftId })).photoUrl).toBe(draftPhoto.photo!.url);
+
+			const webCurator = await c.curator();
+			const fromWeb = await webCurator.client.catalogue.searchRecipes({ text: name });
+			if (fromWeb.unchanged) throw new Error('unexpected unchanged');
+			expect(fromWeb.data.items[0]!.photoUrl).toBe(new URL(set.photo!.url).pathname);
+		});
 	});
 
 	it('the guide explains photos', async () => {

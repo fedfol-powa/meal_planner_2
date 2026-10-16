@@ -135,10 +135,45 @@ describe.skipIf(!hasDatabase)('recipe views', () => {
 				bookPages: null,
 				mealType: null,
 				proteinGroup: null,
+				photoUrl: null,
 			},
 		});
 		const lines = await asUser(user, (tx) => ingredientLines(tx, [ref], { familyId, locale: 'en-GB' }));
 		expect(lines.get(recipeViewKey(ref))).toBeNull();
+	});
+
+	/** A current photo row, as the photo operations write it (W12). */
+	async function photo(recipeId: string): Promise<string> {
+		const key = `photos/${crypto.randomUUID().replace(/-/g, '').slice(0, 22)}.webp`;
+		await db.admin`
+			insert into app.recipe_photos (id, recipe_id, storage_key, content_type, width, height, bytes, channel)
+			values (${crypto.randomUUID()}, ${recipeId}, ${key}, 'image/webp', 1600, 1067, 1000, 'web')`;
+		return key;
+	}
+
+	it('gives the URL of the current photo, null without one and for a never-published recipe', async () => {
+		const { user, familyId } = await family();
+		const withPhoto = await cat.recipe({ name: { 'it-IT': 'Con foto', 'en-GB': 'With photo' } });
+		const without = await cat.recipe({ name: { 'it-IT': 'Senza foto', 'en-GB': 'Without photo' } });
+		const draftId = await cat.draft({ 'it-IT': 'Bozza con foto' });
+		await cat.meal(familyId, draftId, '2026-09-28', 'dinner');
+		const key = await photo(withPhoto);
+		await photo(draftId);
+		const refs = [withPhoto, without, draftId].map((recipeId) => ({ recipeId, version: null, servings: 2 }));
+		const views = await asUser(user, (tx) => recipeViews(tx, { familyId, userId: user.userId, locale: 'it-IT' }, refs));
+		expect(refs.map((ref) => views.get(recipeViewKey(ref))!.summary.photoUrl)).toEqual([`/${key}`, null, null]);
+		const summaries = await asUser(user, (tx) => recipeSummaries(tx, refs, 'it-IT'));
+		expect(refs.map((ref) => summaries.get(recipeViewKey(ref))!.photoUrl)).toEqual([`/${key}`, null, null]);
+	});
+
+	it('a removed photo is not shown', async () => {
+		const { user, familyId } = await family();
+		const recipeId = await cat.recipe({ name: { 'it-IT': 'Foto tolta', 'en-GB': 'Removed photo' } });
+		const key = await photo(recipeId);
+		await db.admin`update app.recipe_photos set removed_at = clock_timestamp() where storage_key = ${key}`;
+		const ref = { recipeId, version: null, servings: 2 };
+		const views = await asUser(user, (tx) => recipeViews(tx, { familyId, userId: user.userId, locale: 'it-IT' }, [ref]));
+		expect(views.get(recipeViewKey(ref))!.summary.photoUrl).toBeNull();
 	});
 
 	it('prefers the caller language when the draft has it, and treats null texts as missing', async () => {
