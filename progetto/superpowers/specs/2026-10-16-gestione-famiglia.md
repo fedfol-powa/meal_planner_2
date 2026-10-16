@@ -57,7 +57,7 @@ Fuori: email (D), Google, ripristino del ricettario, foto, PDF (E).
 | 5 | **Ricettario**: bozze aperte, salvataggi e versioni di un curatore cancellato restano; gli autori diventano nulli per cascata (`on delete set null`) e le bozze restano agli altri curatori, che possono riprenderle, pubblicarle o scartarle. Le ricette pubblicate restano nel catalogo | Sezione 8: le bozze sono condivise fra curatori e non si cancellano mai; sezione 7: niente cancellazioni implicite dei contributi pubblicati |
 | 6 | **Link creati da una persona** (scelta di prodotto del coordinatore, 16/10): si revocano quando quella persona esce dalla famiglia, viene rimossa, perde il ruolo di amministratore o cancella l'account. Il dialogo di conferma di ognuno di questi passaggi lo dice quando ci sono link attivi creati da quella persona («I 2 link d'invito creati da Anna smetteranno di valere») | «Te l'ha mandato X» resta vero, e un link resta sotto il controllo di un amministratore attuale |
 | 7 | **Ultimo amministratore della famiglia**: ogni percorso che può togliere amministratori a una famiglia (uscita, cambio di ruolo, rimozione, cancellazione di un account, ingresso che cambia i membri di una famiglia in cancellazione) prende `select … for update` sulla riga di `app.families` e solo dopo riconta | Lucchetto sulla riga esistente, nessuna tabella nuova; serializza anche con l'eliminazione della famiglia e con gli ingressi (la chiave esterna di `family_members` prende `for key share`, che confligge con `for update`) |
-| 8 | **Ordine dei lucchetti** (coordinatore; completato dopo la revisione, rilievo 6): `app_admin_roles` → righe delle famiglie in ordine di id → link di quelle famiglie → prenotazioni → resto. I percorsi della famiglia non prendono `app_admin_roles`. Anche i lucchetti impliciti dei trigger di versione (che aggiornano la riga della famiglia) rispettano l'ordine, perché la riga è già presa (sezione 1, «Ordine dei lucchetti») | Nessun ciclo fra i percorsi nuovi; il ciclo residuo con le modifiche ordinarie di una famiglia che si sta eliminando è trattato con una ripetizione (decisione 19) |
+| 8 | **Ordine dei lucchetti** (coordinatore; completato dopo la revisione, rilievo 6): `app_admin_roles` → lucchetto dell'utente (`user_memberships:<id>`, seconda revisione) → righe delle famiglie in ordine di id → link di quelle famiglie → prenotazioni → resto. I percorsi della famiglia non prendono `app_admin_roles`. Anche i lucchetti impliciti dei trigger di versione (che aggiornano la riga della famiglia) rispettano l'ordine, perché la riga è già presa (sezione 1, «Ordine dei lucchetti») | Nessun ciclo fra i percorsi nuovi; il ciclo residuo con le modifiche ordinarie di una famiglia che si sta eliminando è trattato con una ripetizione (decisione 19) |
 | 9 | **Cancellazione dell'account in tre passi**: prima transazione nel database (tutti i dati dell'app, riga `account_deletions` in attesa), cancellazione definitiva in Auth dopo il commit, chiusura. Ripresa dal Cron Trigger orario esistente | Le due scritture non sono atomiche fra loro: la prima transazione è il punto di non ritorno e tutto ciò che segue è idempotente (sezione 4 sotto) |
 | 10 | **Revoca degli accessi**: la cancellazione definitiva in Auth (`DELETE /auth/v1/admin/users/{id}` senza `should_soft_delete`) elimina a cascata `auth.sessions`, `auth.identities`, `auth.oauth_consents` e `auth.oauth_authorizations` (verificato con Context7 su `/supabase/auth` e sulle chiavi esterne dello stack locale); i token già emessi li rifiuta subito `loadSession`, perché il profilo non c'è più dalla prima transazione | Nessuna scrittura nello schema `auth`; un token non scaduto non serve a nulla |
 | 11 | **Numero di agenti collegati**: sulla pagina del proprio account sì («Si scollegano anche i tuoi 2 agenti»), da `app.connected_agents()`; sulla pagina in terza persona no, solo «anche quelli degli agenti collegati» | Per sé il dato c'è già e aiuta a capire; per un altro utente servirebbe una lettura nuova di `auth` per un dato che non cambia la decisione (motivo di B) |
@@ -134,6 +134,11 @@ stato conta, anche `closed`. RLS attiva, nessun privilegio diretto.
 Indice su `(family_id, joined_at desc)`. RLS attiva, nessun privilegio diretto; nessun
 nome né email nella tabella (i nomi si leggono dal profilo, solo per i membri attuali).
 
+**Trigger su `app.profiles`** (seconda revisione, rilievo 1):
+`profiles_reject_deleted_ids`, `before insert`, rifiuta (`P0A01`) un `user_id` presente
+in `app.account_deletions`: un id cancellato non torna mai, nemmeno da una richiesta di
+creazione già in volo (sezione 2, «Ricreazione di un id cancellato»).
+
 **Trigger su `app.user_roles`** (decisione 18): `user_roles_require_profile`, `before
 insert`, funzione `app.user_roles_require_profile()` (`security definer`, non eseguibile
 dagli utenti): `perform 1 from app.profiles where user_id = new.user_id for key share`;
@@ -172,40 +177,64 @@ stato. RLS attiva; lettura solo dalle funzioni. Le righe completate restano
 ### Contatori di versione
 
 Trigger esistenti: `family_members_version` fa crescere la versione della famiglia a ogni
-cambio dei membri. Si aggiunge il trigger di versione della famiglia su
-`app.family_invitations` (insert e update, con la funzione esistente
-`app.touch_family_version()`), perché l'elenco dei link è una lettura della famiglia.
-L'eliminazione di una famiglia non incrementa nulla (la riga non c'è più): i client lo
-scoprono con `forbidden` o dal profilo (sezione 3, «Dati sul dispositivo»). Anche
-`app.family_joins` riceve il trigger di versione (insert), perché il registro è una
-lettura della famiglia.
+cambio dei membri, quindi la vista dei membri resta corretta. **Nessun trigger di
+versione nuovo** (seconda revisione, rilievo 8): l'elenco dei link e il registro degli
+ingressi sono letture **non versionate** (piccole, solo per gli amministratori), perché
+dipendono anche da prenotazioni e scadenze che non toccano la famiglia. L'eliminazione di
+una famiglia non incrementa nulla (la riga non c'è più): i client lo scoprono con
+`forbidden` o dal profilo (sezione 3, «Dati sul dispositivo»).
 
 ### Ordine dei lucchetti
 
-Regola per ogni funzione nuova (rilievo 6), nell'ordine:
+Regola per ogni funzione nuova (prima revisione, rilievo 6; seconda revisione, rilievi 1
+e 2), nell'ordine:
 
 1. `pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))`, solo per chi può
    togliere `app_admin` (la cancellazione di un account);
-2. `select … from app.families where id = … for update`, una o più righe **in ordine di
-   id**, prima di qualunque scrittura su righe della famiglia: così l'aggiornamento della
-   riga fatto dal trigger di versione trova il lucchetto già preso;
-3. righe di `app.family_invitations` di quelle famiglie (`for update`, in ordine di id);
-4. righe di `app.family_invitation_reservations` (`for update`);
-5. il resto (membri, profili, ruoli, voti), che si scrive solo dopo.
+2. **lucchetto dell'utente**:
+   `pg_advisory_xact_lock(hashtextextended('user_memberships:' || user_id, 0))`, preso da
+   ogni percorso che crea un'appartenenza o una prenotazione per quell'utente
+   (`app.create_family` di A, `join_family`, `complete_family_invitation`, `claim` di una
+   prenotazione esistente) e dalla cancellazione dell'account, che così stabilizza
+   l'insieme delle famiglie prima di enumerarlo. Chi tocca più utenti li prende in
+   ordine di id. **Subito dopo questo lucchetto** ogni percorso che crea un'appartenenza
+   ricontrolla che l'utente abbia ancora il profilo e non abbia una riga in
+   `account_deletions` (`create_family` e `join_family`: `42501`; `complete`: `P0A01`),
+   perché la cancellazione che lo teneva può aver appena cancellato il profilo;
+3. `select … from app.families where id = … for update`, una o più righe **in ordine di
+   id**, prima di qualunque scrittura su righe della famiglia;
+4. righe di `app.family_invitations` di quelle famiglie (`for update`, in ordine di id);
+5. righe di `app.family_invitation_reservations` (`for update`, in ordine di `user_id`);
+6. il resto (membri, profili, ruoli, voti), che si scrive solo dopo.
 
-Chi parte da un'impronta o da una prenotazione (`claim`, `complete`) legge prima senza
-lucchetto per sapere la famiglia, prende i lucchetti nell'ordine e **rilegge e
-ricontrolla** sotto i lucchetti (stato del link, della prenotazione, dei membri,
-autorizzazione di chi chiama). Le transazioni sono `read committed`, quindi ogni
-istruzione dopo un lucchetto vede ciò che chi lo teneva ha confermato.
+Chi parte da un'impronta o da una prenotazione (`claim`, `complete`, `join_family`) legge
+prima senza lucchetto per sapere utente e famiglia, prende i lucchetti nell'ordine e
+**rilegge e ricontrolla** sotto i lucchetti (stato del link, della prenotazione, dei
+membri, rimozioni, autorizzazione di chi chiama). Le transazioni sono `read committed`,
+quindi ogni istruzione dopo un lucchetto vede ciò che chi lo teneva ha confermato.
 
-**Percorsi esistenti** (rilievo 6, ultima parte): le modifiche ordinarie di una famiglia
-(pasti, spesa, impostazioni, esclusioni) bloccano le proprie righe e poi la famiglia nel
-trigger di versione. Contro `delete_family` e `begin_account_deletion`, che bloccano la
-famiglia e poi cancellano quelle righe, può nascere un ciclo che Postgres interrompe con
-`40P01`: decisione 19 (le cancellazioni ripetono una volta; la modifica ordinaria che
-perde riceve il suo errore). Fra i percorsi nuovi non c'è ciclo: lo prova il test
-«revoca contro retrocessione e rimozione» (sezione 5), che esclude `40P01`.
+`app.create_family` di A si ridefinisce nella migrazione (`create or replace`, stessa
+firma e stesso comportamento) per prendere il lucchetto dell'utente prima del suo
+lucchetto sull'id: è l'unica funzione esistente toccata, richiesta dal coordinatore.
+
+**Percorsi esistenti**: le modifiche ordinarie di una famiglia (pasti, spesa,
+impostazioni, esclusioni) bloccano le proprie righe e poi la famiglia nel trigger di
+versione. Contro `delete_family` e `begin_account_deletion`, che bloccano la famiglia e
+poi cancellano quelle righe, può nascere un ciclo che Postgres interrompe con `40P01`,
+scegliendo lui la vittima: decisione 19 (le cancellazioni ripetono una volta; se la
+vittima è la modifica, riceve il suo errore). Fra i percorsi nuovi non c'è ciclo: lo
+prova il test «revoca contro retrocessione e rimozione» (sezione 5), che esclude
+`40P01`.
+
+### Link utilizzabili e link da fermare
+
+Un link è **usabile** (nuovi ingressi e nuove prenotazioni) se `revoked_at is null and
+expires_at > now()`. Un link è **aperto** se `revoked_at is null`: anche scaduto, può
+ancora chiudere una prenotazione `reserved` (regola di A). La perdita del ruolo, la
+rimozione, l'uscita e la cancellazione dell'autore revocano i suoi link **aperti**, non
+solo gli usabili (seconda revisione, rilievo 3); la revoca manuale vale per i link
+aperti; l'elenco degli amministratori mostra i link usabili e quelli scaduti con
+prenotazioni `reserved`.
 
 ### Funzioni per gli inviti alla famiglia
 
@@ -235,56 +264,69 @@ e `42501` (`forbidden`).
 - `app.revoke_family_invitation(p_family_id uuid, p_id uuid) returns void` —
   `authenticated`. `for update` sulla famiglia, poi `family_admin` (`42501`), poi `for
   update` sull'invito; id di un'altra famiglia o inesistente: `P0A06` (riuso di A,
-  «invito inesistente» → `not_found`). Già revocato: nessun effetto. Imposta
-  `revoked_at`, `revoked_by`, `revoke_reason = 'manual'`.
+  «invito inesistente» → `not_found`). Già revocato: nessun effetto. Vale anche per un
+  link scaduto ma aperto. Imposta `revoked_at`, `revoked_by`, `revoke_reason =
+  'manual'`.
 - `app.family_invitations_view(p_family_id uuid)` — `authenticated`, `family_admin`
-  (`42501`). Restituisce i link **usabili**, dal più recente: `id, created_by,
-  created_by_name` (nome solo se l'autore è ancora membro, come gli altri autori),
-  `created_at, expires_at, registrations` (righe di prenotazione del link, ogni stato).
+  (`42501`). Restituisce, dal più recente, i link usabili e quelli scaduti ma aperti con
+  almeno una prenotazione `reserved`: `id, created_by, created_by_name` (nome solo se
+  l'autore è ancora membro), `created_at, expires_at, registrations` (prenotazioni del
+  link, ogni stato), `pending_registrations` (prenotazioni `reserved`).
 - `app.family_joins_view(p_family_id uuid)` — `authenticated`, `family_admin` (`42501`).
   Gli ultimi 50 ingressi, dal più recente: `joined_at, mode, user_name` (nullo se la
   persona non è più membro: «ex membro»), `invitation_id`, `invitation_created_by_name`
   (stessa regola), `invitation_created_at`.
 - `app.family_invitation_by_token(p_token_hash bytea) returns table (family_name text,
   invited_by_name text, accounts_available boolean)` — `anon`. Nessuna riga se il link
-  non è usabile. `invited_by_name` è nullo se l'autore non è più membro (non succede: i
-  suoi link si revocano, decisione 6). `accounts_available` è falso a tetto raggiunto.
-  Nessun altro dato della famiglia.
+  non è usabile. `accounts_available` è falso a tetto raggiunto. Nessun altro dato della
+  famiglia.
 - `app.claim_family_invitation(p_token_hash bytea, p_email text) returns table (user_id
   uuid, email text, state text, member boolean)` — `anon`. Email normalizzata. `state`
-  è `create` (l'account va creato), `joined` o `closed` (prenotazione terminale:
-  il server non chiama Auth e non scrive nulla). Passi:
-  1. **prenotazione esistente** per `(p_token_hash, email)`: senza lucchetto se ne legge
-     la famiglia; se c'è, `for update` sulla famiglia, poi sull'invito, poi sulla
-     prenotazione, e si rilegge. Poi:
+  è `create` (l'account va creato), `joined` o `closed` (prenotazione terminale: il
+  server non chiama Auth e non scrive nulla) oppure `unavailable` (il server risponde
+  `invitation_unavailable`). La funzione **non solleva** per gli esiti che scrivono uno
+  stato, così la transazione conferma (seconda revisione, rilievo 9). Passi:
+  1. **prenotazione esistente** per `(p_token_hash, email)`: se ne leggono senza
+     lucchetto utente e famiglia; poi lucchetto dell'utente, `for update` sulla famiglia
+     (se c'è), sull'invito (se c'è), sulla prenotazione, e si rilegge. Poi:
      - `joined` o `closed`: la restituisce com'è (`member` dice se l'utente prenotato è
-       ancora membro della famiglia); `closed` senza account in `auth.users` → `P0A01`;
-     - `reserved` con il link revocato (anche per retrocessione o uscita dell'autore) o
-       senza famiglia (eliminata): passa a `closed` (`finished_at`); con l'account già in
-       `auth.users` restituisce `closed`, altrimenti `P0A01`;
-     - `reserved` altrimenti, anche a link scaduto (regola di A): restituisce `create`;
+       membro adesso); `closed` senza account in `auth.users` → `unavailable`;
+     - `reserved` con il link revocato o senza famiglia (eliminata): passa a `closed`
+       (`finished_at`); con l'account già in `auth.users` restituisce `closed`,
+       altrimenti `unavailable` (lo stato `closed` resta scritto);
+     - `reserved` con l'utente già membro della famiglia (entrato con `join_family`): passa
+       a `joined` e lo restituisce, senza scrivere altro;
+     - `reserved` altrimenti, anche a link scaduto (regola di A): `create`;
   2. **nessuna prenotazione**: invito per impronta senza lucchetto (nessuno o non
-     usabile: `P0A01`); `for update` sulla famiglia, poi sull'invito, e si ricontrolla
-     che sia usabile (`P0A01`); un account con quell'email in `auth.users` → `P0A03`;
-     righe dell'invito ≥ 10 → `P0A01`; inserisce `(gen_random_uuid(), invitation_id,
-     family_id, p_token_hash, email, 'reserved')` e restituisce `create`. Due richieste
-     con la stessa email si mettono in fila sull'invito: la seconda trova la
-     prenotazione della prima (indice univoco) e la restituisce. Un id prenotato altrove
-     per la stessa email (in `app_invitations` o in un altro link) non blocca: vince chi
-     crea l'account per primo, l'altro riceve `account_exists` alla creazione.
+     usabile: `unavailable`, senza scritture); `for update` sulla famiglia, poi
+     sull'invito, e ricontrollo che sia usabile (`unavailable`); un account con
+     quell'email in `auth.users` → `P0A03`; prenotazioni dell'invito ≥ 10 →
+     `unavailable`; poi `insert … on conflict (token_hash, email) where email is not
+     null do nothing` e rilettura della riga: due richieste con la stessa email ottengono
+     lo stesso id senza errori, anche se arrivassero agli inserimenti insieme
+     (seconda revisione, rilievo 5). Un id prenotato altrove per la stessa email (in
+     `app_invitations` o in un altro link) non blocca: vince chi crea l'account per
+     primo, l'altro riceve `account_exists` alla creazione.
+- `app.account_id_deleted(p_user_id uuid) returns boolean` — `anon`. Vero se
+  `account_deletions` ha una riga per quell'id. La usa il server subito prima del `POST`
+  di creazione (sezione 2, «Ricreazione di un id cancellato»).
 - `app.complete_family_invitation(p_user_id uuid) returns table (family_id uuid, joined
   boolean)` — `anon`. Per prenotazione, non per impronta, così funziona anche dopo
   l'eliminazione della famiglia. Prenotazione inesistente: `P0A01`; utente non in
-  `auth.users` con l'email prenotata: `P0A01`. Lucchetti nell'ordine (famiglia se c'è,
-  invito se c'è, prenotazione) e riletture. Poi:
+  `auth.users` con l'email prenotata, o con una riga in `account_deletions`: `P0A01`.
+  Lucchetto dell'utente, poi famiglia se c'è, invito se c'è, prenotazione; riletture.
+  Poi:
   - `joined` o `closed`: restituisce l'esito senza scrivere (`joined` = membro adesso);
-  - `reserved` con link revocato o famiglia sparita: `closed`, `joined` falso (l'account
-    resta, decisione 17);
-  - `reserved` altrimenti: inserisce `family_members (role 'member')` (`on conflict do
-    nothing`), la riga di `family_joins` (`new_account`), imposta
-    `profile_preferences.current_family_id` (upsert), passa a `joined`; `joined` vero.
-  Non controlla le rimozioni: un account nuovo non può essere stato rimosso, e una
-  prenotazione `joined` non si ripete (decisione 16).
+  - `reserved` con link revocato, famiglia sparita o **rimozione della persona da quella
+    famiglia posteriore alla creazione del link** (`family_removals`; seconda revisione,
+    rilievo 1): `closed`, `joined` falso (l'account resta, decisione 17);
+  - `reserved` con la persona già membro (entrata con `join_family` nel frattempo):
+    `joined`, nessuna riga nuova in `family_members` né in `family_joins`, famiglia
+    mostrata invariata;
+  - `reserved` altrimenti: inserisce `family_members (role 'member')`, la riga di
+    `family_joins` (`new_account`), imposta `profile_preferences.current_family_id`
+    (upsert), passa a `joined`; `joined` vero. Il registro si scrive solo quando nasce
+    davvero un'appartenenza.
 - `app.family_invitation_status(p_token_hash bytea) returns table (family_id uuid,
   family_name text, invited_by_name text, already_member boolean)` — `authenticated`.
   Per chi ha già un account: `already_member` vero se chi chiama è membro (anche con il
@@ -292,11 +334,13 @@ e `42501` (`forbidden`).
   chiama è stato rimosso da quella famiglia dopo la creazione del link (stesso esito,
   specifica sezione 7).
 - `app.join_family(p_token_hash bytea) returns uuid` — `authenticated`. Invito per
-  impronta senza lucchetto, poi `for update` sulla famiglia e sull'invito e ricontrollo;
-  già membro: restituisce l'id senza cambiare nulla (né ruolo né famiglia mostrata né
-  registro); link non usabile o rimozione posteriore al link: `P0A01`. Inserisce il
-  membro come `member`, la riga di `family_joins` (`existing_account`) e imposta la
-  famiglia mostrata.
+  impronta senza lucchetto, poi lucchetto di chi chiama, `for update` sulla famiglia e
+  sull'invito, ricontrollo; già membro: restituisce l'id senza cambiare nulla (né ruolo
+  né famiglia mostrata né registro); link non usabile o rimozione posteriore al link:
+  `P0A01`. Inserisce il membro come `member`, la riga di `family_joins`
+  (`existing_account`) e imposta la famiglia mostrata. Le prenotazioni `reserved` di chi
+  chiama per la stessa famiglia passano a `joined` (seconda revisione, rilievo 1): una
+  ripetizione di `accept` non trova più nulla da completare.
 
 ### Funzioni per membri e ruoli
 
@@ -307,20 +351,20 @@ altrui), poi ricontrolla chi chiama sotto il lucchetto.
 - `app.set_family_member_role(p_family_id uuid, p_user_id uuid, p_role text) returns
   void` — chi chiama `family_admin` (`42501`); bersaglio non membro: `P0A14`; ruolo non
   valido: `22023`; stesso ruolo: nessun effetto. Retrocessione: se il bersaglio è
-  l'ultimo `family_admin`, `P0A09`; altrimenti aggiorna e revoca i link usabili creati
+  l'ultimo `family_admin`, `P0A09`; altrimenti aggiorna e revoca i link aperti creati
   dal bersaglio in quella famiglia (`creator_demoted`). Si può retrocedere sé stessi se
   c'è un altro amministratore.
 - `app.remove_family_member(p_family_id uuid, p_user_id uuid) returns void` — chi chiama
   `family_admin` (`42501`); bersaglio = chi chiama: `22023` (si usa l'uscita); bersaglio
   già fuori: nessun effetto (idempotente). Altrimenti: inserisce `family_removals`,
-  revoca i link del bersaglio (`creator_removed`), cancella l'appartenenza. Chi chiama
+  revoca i link aperti del bersaglio (`creator_removed`), cancella l'appartenenza. Chi chiama
   resta amministratore, quindi l'ultimo amministratore non è mai in gioco.
 - `app.leave_family(p_family_id uuid, p_successor_id uuid) returns void` — chi chiama
   membro (`42501`; già uscito per una ripetizione: `42501`, che il web tratta come
   uscita avvenuta, sezione 3). Unico membro: `P0A10`. Ultimo amministratore con altri
   membri: `p_successor_id` deve essere un altro membro (`P0A13` se manca o non lo è),
   che diventa `family_admin`; per gli altri `p_successor_id` deve essere nullo
-  (`P0A13`). Poi revoca i link di chi esce (`creator_left`) e cancella l'appartenenza.
+  (`P0A13`). Poi revoca i link aperti di chi esce (`creator_left`) e cancella l'appartenenza.
   Nessuna riga in `family_removals`.
 
 ### Funzioni per l'eliminazione della famiglia
@@ -331,11 +375,12 @@ altrui), poi ricontrolla chi chiama sotto il lucchetto.
 - `app.delete_family(p_family_id uuid) returns void` — `authenticated`. `for update`
   sulla famiglia, poi `family_admin` (`42501`); poi `delete from app.families`: la
   cascata toglie appartenenze, settimane, pasti, registri, liste, esclusioni,
-  impostazioni, link, prenotazioni e rimozioni, job (`weekly_jobs`) e liste temporanee;
-  `profile_preferences.current_family_id` diventa nullo. Restano account, voti, altre
-  famiglie, ricettario e ruoli globali. Il job settimanale che trovasse la famiglia
-  sparita (riga cancellata fra la selezione e la sua transazione) non trova la riga e
-  passa oltre (sezione 2, «Job settimanale»).
+  impostazioni, link, ingressi (`family_joins`), rimozioni, job (`weekly_jobs`) e liste
+  temporanee; `profile_preferences.current_family_id` diventa nullo. Le **prenotazioni
+  restano** con `family_id` e `invitation_id` nulli (decisione 17: servono a ritrovare
+  l'account creato e al tetto). Restano account, voti, altre famiglie, ricettario e ruoli
+  globali. Il job settimanale che trovasse la famiglia sparita (riga cancellata fra la
+  selezione e la sua transazione) passa oltre (sezione 2, «Job settimanale»).
 
 ### Funzioni per la cancellazione dell'account
 
@@ -350,7 +395,7 @@ Il piano di cancellazione è lo stesso per sé e per un altro utente.
     `candidates` sono gli altri membri, `{ userId, displayName }`) o `deleted` (unico
     membro);
   - `lastAppAdmin`: ha `app_admin` e nessun altro lo ha;
-  - `openInvitations`: link alla famiglia usabili creati dall'utente più inviti all'app
+  - `openInvitations`: link alla famiglia aperti creati dall'utente più inviti all'app
     `pending` creati dall'utente;
   - `pending`: c'è già una riga `account_deletions` non completata.
 - `app.begin_account_deletion(p_user_id uuid, p_successors jsonb, p_deleted_families
@@ -363,9 +408,12 @@ Il piano di cancellazione è lo stesso per sé e per un altro utente.
   3. riga `account_deletions` già presente: nessun effetto (la riprende il passo in
      Auth, sezione 4); utente inesistente in `auth.users`: `P0A07`;
   4. ultimo amministratore dell'app: `P0A08`;
-  5. lucchetti nell'ordine della regola: `for update` sulle righe di **tutte** le
-     famiglie dell'utente in ordine di id, poi sui link usabili creati dall'utente e sui
-     link di quelle famiglie, poi sulle prenotazioni dell'utente (`user_id`);
+  5. lucchetti nell'ordine della regola: **lucchetto dell'utente** (da qui nessuna
+     appartenenza o prenotazione nuova per lui; seconda revisione, rilievo 2), poi `for
+     update` sulle righe delle famiglie dell'utente **e** di quelle delle prenotazioni con
+     il suo id o la sua email normalizzata (letta da `auth.users`), tutte in ordine di id;
+     poi i link aperti creati dall'utente e i link di quelle famiglie; poi quelle
+     prenotazioni;
   6. ricalcola il piano sotto i lucchetti: l'insieme delle famiglie `deleted` deve
      coincidere con `p_deleted_families` e per ogni famiglia `needs_successor`
      `p_successors[familyId]` deve esserci; insieme diverso: `P0A11`; successore
@@ -374,10 +422,12 @@ Il piano di cancellazione è lo stesso per sé e per un altro utente.
      non è nullo (richiesta di un agente) e l'insieme definitivo delle famiglie
      `deleted` non è vuoto: `P0A15`, prima di qualsiasi scrittura;
   7. nomina i successori (`family_admin`);
-  8. revoca i link alla famiglia usabili creati dall'utente (`creator_deleted`) e gli
+  8. revoca i link alla famiglia aperti creati dall'utente (`creator_deleted`) e gli
      inviti all'app `pending` creati dall'utente (`status = 'revoked'`, `revoked_by =
-     auth.uid()`); anonimizza le prenotazioni dell'utente (`email = null`, `status =
-     'closed'`, `finished_at`; decisione 22) e cancella le sue righe di `family_joins`;
+     auth.uid()`); anonimizza le prenotazioni con il suo id **o con la sua email**, anche
+     su altri link e con id diversi (`email = null`, `status = 'closed'` se erano
+     `reserved`, `finished_at`; decisione 22, seconda revisione, rilievo 4), e cancella
+     le sue righe di `family_joins`;
   9. elimina le famiglie `deleted` (come `delete_family`);
   10. cancella i dati dell'app dell'utente in quest'ordine: `app.profiles` (con
       `profile_preferences` per cascata) **prima** di `user_roles`, così un'assegnazione
@@ -440,6 +490,8 @@ familyInvitationSchema = z.object({
   createdAt: z.iso.datetime(),
   expiresAt: z.iso.datetime(),
   registrations: z.number().int().min(0).max(FAMILY_INVITATION_ACCOUNT_LIMIT),
+  pendingRegistrations: z.number().int().min(0),
+  expired: z.boolean(),                       // scaduto ma aperto, con prenotazioni in sospeso
 });
 familyJoinSchema = z.object({
   joinedAt: z.iso.datetime(),
@@ -453,10 +505,10 @@ familyJoinSchema = z.object({
 
 | Operazione | Metodo e percorso | Ruolo | MCP | Input | Output | Errori |
 |---|---|---|---|---|---|---|
-| `list` | `GET /families/{familyId}/invitations` | `familyAdmin`, `reads: ['family']` | lettura | `{ familyId }` | `{ invitations }` | — |
+| `list` | `GET /families/{familyId}/invitations` | `familyAdmin`, non versionata | lettura | `{ familyId }` | `{ invitations }` | — |
 | `create` | `POST /families/{familyId}/invitations` | `familyAdmin`, `creates` | scrittura | `{ familyId, id }` | `{ invitation, url }` | `invalid` (`in_use`) |
 | `revoke` | `DELETE /families/{familyId}/invitations/{id}` | `familyAdmin` | scrittura | `{ familyId, id }` | `{ invitations }` | `not_found` |
-| `listJoins` | `GET /families/{familyId}/joins` | `familyAdmin`, `reads: ['family']` | lettura | `{ familyId }` | `{ joins }` (al più 50) | — |
+| `listJoins` | `GET /families/{familyId}/joins` | `familyAdmin`, non versionata | lettura | `{ familyId }` | `{ joins }` (al più 50) | — |
 | `get` | `POST /family-invitations/read` | `public`, `rateLimit: 'read'` | no | `{ token }` | `{ familyName, invitedBy, accountsAvailable }` | `invitation_unavailable`, `rate_limited` |
 | `status` | `POST /family-invitations/status` | `user` | lettura | `{ token }` | `{ familyId, familyName, invitedBy, alreadyMember }` | `invitation_unavailable` |
 | `accept` | `POST /family-invitations/accept` | `public`, `rateLimit: 'accept'` | no | `{ token, email, displayName, password, locale }` (come A) | `{ email, joined: boolean }` | `invitation_unavailable`, `invalid` (email, password), `not_allowed` (`account_exists`), `rate_limited` |
@@ -475,74 +527,39 @@ familyJoinSchema = z.object({
   con la prenotazione che resta e nessuna quota in più, esiti ambigui riletti per id).
   Il server non riscrive mai un account esistente. `joined: false` vuol dire «account
   pronto, ingresso non più possibile» (decisione 17): la pagina lo dice e porta
-  all'accesso con l'email.
-- Limitatori: si riusano `INVITE_READ_LIMIT` e `INVITE_ACCEPT_LIMIT` (stessa natura delle
-  operazioni di A, nessun binding nuovo).
-- Strumenti MCP: `familyInvitations_list`, `familyInvitations_create`,
-  `familyInvitations_revoke`, `familyInvitations_listJoins`, `familyInvitations_status`. La descrizione di `create`
-  dice che il link si vede solo ora e che chi lo riceve entra come membro.
-- `family.join` (sotto) usa lo stesso token.
-
-### Area `family`: membri ed eliminazione
-
-| Operazione | Metodo e percorso | Ruolo | MCP | Input | Output | Errori |
-|---|---|---|---|---|---|---|
-| `join` | `POST /family-invitations/join` | `user` | scrittura | `{ token }` | `profileViewSchema` (nuova famiglia mostrata) | `invitation_unavailable` |
-| `setMemberRole` | `PUT /families/{familyId}/members/{userId}/role` | `familyAdmin` | scrittura | `{ familyId, userId, role }` | `familyViewSchema` | `not_found`, `last_admin` |
-| `removeMember` | `DELETE /families/{familyId}/members/{userId}` | `familyAdmin` | scrittura | `{ familyId, userId }` | `familyViewSchema` | `invalid` |
-| `leave` | `POST /families/{familyId}/leave` | `familyMember` | scrittura | `{ familyId, successorId? }` | `profileViewSchema` | `sole_member`, `invalid` (`successorId`, anche quando il successore è diventato necessario nel frattempo) |
-| `getDeletion` | `GET /families/{familyId}/deletion` | `familyMember`, `reads: ['family']` | lettura | `{ familyId }` | `{ name, memberNames, weekCount, canDelete }` | — |
-| `delete` | `DELETE /families/{familyId}` | `familyAdmin`, `webOnly: { path: '/profile/family/delete?family=:familyId' }` | rimando | `{ familyId }` | `profileViewSchema` | — |
-
-- `join` restituisce il profilo, così il web cambia famiglia senza un'altra lettura
-  (come `family.create`). Strumento `family_join`: descrizione «chiedi conferma prima di
-  far entrare la persona nella famiglia».
-- `leave` ripetuta dopo un'uscita riuscita risponde `forbidden` (non è più membro): il
-  web, che ha già la risposta o la rilegge, la tratta come uscita avvenuta.
-- `delete` via MCP: il pipeline risponde `web_only` con l'URL della pagina prima del
-  controllo del ruolo (comportamento esistente), senza eliminare.
-- Strumenti: `family_join`, `family_setMemberRole`, `family_removeMember`, `family_leave`,
-  `family_getDeletion`, `family_delete` (rimando). Le descrizioni di `removeMember` e di
-  `leave` riportano gli effetti (voti fuori dalla media, «ex membro», link revocati).
-
-### Area `account`
-
-```ts
-deletionFamilySchema = z.object({
-  familyId: z.uuid(),
-  name: z.string(),
-  outcome: z.enum(['stays', 'needs_successor', 'deleted']),
-  candidates: z.array(z.object({ userId: z.uuid(), displayName: z.string() })),
-});
-deletionPlanSchema = z.object({
-  families: z.array(deletionFamilySchema),
-  lastAppAdmin: z.boolean(),
-  openInvitations: z.number().int().min(0),
-  pending: z.boolean(),
-});
-deletionInputSchema = z.object({
-  successors: z.record(z.uuid(), z.uuid()),     // familyId → userId
-  deletedFamilies: z.array(z.uuid()),           // ciò che la pagina ha mostrato
-});
-```
-
-| Operazione | Metodo e percorso | Ruolo | MCP | Input | Output | Errori |
-|---|---|---|---|---|---|---|
-| `getDeletionPlan` | `GET /account/deletion` | `user` | lettura | `{}` | `deletionPlanSchema.extend({ connectedAgents: z.number().int() })` | — |
-| `delete` | `POST /account/deletion` | `user` | scrittura (con rimando condizionato) | `deletionInputSchema` | `{ completed: boolean }` | `last_app_admin`, `conflict`, `invalid` (`successors`), `web_only` |
-
-- **Rimando MCP condizionato** (sezione 7; decisione 20): la regola vera è in
-  `begin_account_deletion`, che sotto i lucchetti rifiuta con `P0A15` una richiesta di
-  agente il cui piano definitivo elimina almeno una famiglia; il gestore traduce `P0A15`
-  in `web_only` con `${origin}/profile/account/delete`. Prima, come scorciatoia, il
-  gestore legge il piano e, con `context.channel === 'mcp'` e una famiglia `deleted`,
-  risponde subito `web_only`. Nessuna scrittura in entrambi i casi. Lo strumento non
-  dichiara `webOnly` nei metadati (non sempre rimanda); la descrizione lo spiega.
+  all'accesso con l'email. `state = 'unavailable'` → `invitation_unavailable`, dopo il
+  commit dello stato scritto.
+- **Ricreazione di un id cancellato** (seconda revisione, rilievo 1). Due accettazioni
+  in volo possono aver ricevuto entrambe `create`; se la prima completa e l'account viene
+  poi cancellato, il `POST` della seconda ricreerebbe l'id vecchio. Tre difese:
+  1. `createInvitedAccount` riceve l'opzione `beforeCreate: () => Promise<boolean>` e la
+     chiama subito prima del `POST`; il gestore le passa la lettura di
+     `app.account_id_deleted(id)` in una `anonDb` breve: vero → nessun `POST`, risposta
+     `invitation_unavailable`;
+  2. `complete_family_invitation` rifiuta (`P0A01`) un id con una riga in
+     `account_deletions`, quindi l'account ricreato non entra in nessuna famiglia;
+  3. **la finestra è chiusa nel database**: un trigger nuovo `before insert` su
+     `app.profiles`, `profiles_reject_deleted_ids` (funzione
+     `app.profiles_reject_deleted_ids()`), rifiuta un `user_id` presente in
+     `account_deletions`. Il profilo nasce dal trigger esistente `after insert on
+     auth.users` (`create_profile_for_new_user`), nella stessa transazione
+     dell'inserimento di Auth: se la cancellazione è confermata fra la lettura del passo
+     1 e il `POST`, Auth riceve l'errore e **non crea** l'account. `createInvitedAccount`
+     vede un esito ambiguo, rilegge l'utente (`404`) e lancia `auth_admin_failed`
+     (`internal`); una ripetizione trova la prenotazione `closed` senza email e non
+     ricrea nulla. Nessuna scrittura nello schema `auth`: il trigger è su una tabella
+     dell'app. Il passo 1 resta perché evita la chiamata ad Auth nel caso normale.
 - **`40P01`** (decisione 19): `account.delete`, `users.delete` e `family.delete`
   ripetono la transazione una volta se Postgres la interrompe per un ciclo di attesa; al
   secondo `40P01` la risposta è `internal`. La transazione è del pipeline, quindi la
   ripetizione sta lì, per le operazioni elencate in `RETRY_ON_DEADLOCK`
-  (`server/src/pipeline.ts`, metadato del server, non del contratto).
+  (`server/src/pipeline.ts`, metadato del server, non del contratto). **Confini**
+  (seconda revisione, rilievo 7): il primo tentativo si annulla per intero; il secondo
+  rifà da capo sessione (`loadSession`), ruolo, piano e gestore; si usano solo risultato
+  e seguito (`afterCommit`) del tentativo confermato, quindi Auth si chiama una sola
+  volta, dopo il commit riuscito; un errore del seguito, anche con codice `40P01`, non
+  ripete nulla (la transazione è già confermata); le operazioni fuori dall'elenco non si
+  ripetono mai.
 - Flusso del gestore: `begin_account_deletion` nella transazione dell'utente; con
   `afterCommit` la cancellazione in Auth (`deleteAccount`, sotto) e la chiusura con
   l'identità `job`; risposta `{ completed: true }`, oppure `{ completed: false }` se la
@@ -701,7 +718,9 @@ Estende la pagina oggi in sola lettura, nella forma del quarto giro:
 - **Link d'invito** (solo amministratori): «Chi apre il link entra come membro. Ogni link
   vale 7 giorni e si può usare più volte; con lo stesso link si possono registrare al
   massimo 10 persone nuove.»; righe dei link usabili «Link di {nome}» (o «ex membro»),
-  «Scade {data}», «{n} persone registrate con questo link» quando n > 0, pulsante «Revoca» con conferma breve («Revocare il link? Chi lo ha
+  «Scade {data}», «{n} persone registrate con questo link» quando n > 0; i link scaduti
+  con registrazioni in sospeso compaiono con «Scaduto: {n} registrazioni da completare»
+  e lo stesso «Revoca» (seconda revisione, rilievo 3), pulsante «Revoca» con conferma breve («Revocare il link? Chi lo ha
   ricevuto non potrà più usarlo.»); «Crea un link d'invito» crea il link (`id` nato
   all'apertura del comando) e apre il foglio di condivisione con «Copia» e «Condividi»
   (Web Share con titolo «Entra in {famiglia}») e la nota di A «Il link si vede solo ora:
@@ -810,18 +829,30 @@ il web lo fa al primo `forbidden` (`session.revoke`). Si aggiunge:
   della sessione (`SessionScope.tsx` o `session.ts`), con una modifica minima;
 - cancellazione dell'account: `session.close()` (copia persistita e segni cancellati).
 
-**Ripristino dopo un rientro autorizzato** (decisione 23, rilievo 9). La sessione tiene,
-per ogni famiglia revocata, l'istante della revoca (oggi un `Set`, diventa una mappa
-`familyId → revokedAt`). `session.restore(familyId, startedAt)` toglie la revoca, il
-segno persistito (`clearRevoked`) e lo annuncia alle altre schede (`{ type: 'restored'
-}`) **solo se** `startedAt` (inizio della richiesta che conferma) è successivo a
-`revokedAt`; altrimenti non fa nulla. Lo chiamano: la risposta di `family.join` (e di
-`family.create`, per simmetria) con la famiglia nel profilo restituito; ogni profilo letto
-che contiene una famiglia revocata, se la lettura è partita dopo la revoca. Una risposta
-tardiva, partita prima di una revoca più recente, non annulla nulla. Le altre schede
-applicano la stessa regola con il proprio `revokedAt`. Non si recupera nulla: le viste e
-le operazioni della spesa della famiglia sono state tolte alla revoca e si rileggono
-dal server.
+**Ripristino dopo un rientro autorizzato** (decisione 23; prima revisione, rilievo 9;
+seconda revisione, rilievo 6). Per ogni famiglia la sessione tiene due istanti presi
+dall'orologio del dispositivo (lo stesso per tutte le schede): `revokedAt` (ultima
+revoca) e `restoredAt` (inizio dell'ultima richiesta che ha confermato l'accesso). La
+famiglia è revocata se `revokedAt > restoredAt`. Regole:
+
+- `session.revoke(familyId)` fissa `revokedAt = now` **nella scheda che revoca**; il segno
+  persistito (`markRevoked`) e il messaggio `{ type: 'revoked', userId, familyId,
+  revokedAt }` portano **quell'istante**, e chi riceve lo registra com'è, senza
+  rigenerarlo (oggi il messaggio non ha l'istante: si aggiunge);
+- `session.restore(familyId, startedAt)` fissa `restoredAt = max(restoredAt, startedAt)`;
+  se la famiglia smette di essere revocata, cancella il segno persistito solo se il suo
+  `revokedAt` è precedente a `startedAt`, e annuncia `{ type: 'restored', userId,
+  familyId, startedAt }`;
+- ogni scheda applica i due messaggi con la stessa regola del massimo, **in qualunque
+  ordine arrivino**: un `revoked` ritardato con un istante anteriore al ripristino non
+  revoca più nulla, una revoca davvero successiva al rientro vince;
+- all'avvio la sessione legge il segno persistito con il suo `revokedAt`;
+- `restore` lo chiamano la risposta di `family.join` (e di `family.create`) con la
+  famiglia nel profilo restituito, e ogni profilo letto che contiene la famiglia, con
+  l'istante di inizio di quella richiesta.
+
+Non si recupera nulla: le viste e le operazioni della spesa della famiglia sono state
+tolte alla revoca e si rileggono dal server.
 
 ### Accesso con un account in cancellazione
 
@@ -866,7 +897,10 @@ cancellato; dopo, un nuovo invito per quell'email crea un account nuovo con id n
 | Dopo `claim`, prima di Auth | prenotazione `reserved`, nessun account | `create` di nuovo (stesso id), nessuna quota in più |
 | Auth ha rifiutato la password | come sopra | come sopra, con un'altra password |
 | Auth ha creato, `complete` non arrivato | account senza famiglia, prenotazione `reserved` | `create` → Auth riconcilia (`existing`) → `complete` → `joined` |
-| Link revocato (o autore retrocesso o uscito) prima di `complete` | come sopra | `claim` chiude (`closed`) e, con l'account, risponde `joined: false`; senza account `invitation_unavailable` |
+| Link revocato (o autore retrocesso, rimosso, uscito o cancellato; anche se il link era già scaduto) prima di `complete` | come sopra | `claim` chiude (`closed`, confermato) e, con l'account, risponde `joined: false`; senza account `invitation_unavailable` |
+| La persona entra con `family.join` prima di `complete` | membro, prenotazione `joined` (chiusa da `join`) | nessuna scrittura; dopo una rimozione resta fuori |
+| Persona rimossa dopo la creazione del link, `complete` ancora da fare | account senza famiglia | `complete` → `closed`, `joined: false` |
+| Due richieste in volo, account cancellato fra le due | id in `account_deletions` | la seconda non ricrea l'account (`beforeCreate`, trigger su `app.profiles`) |
 | Famiglia eliminata durante la chiamata ad Auth o dopo | prenotazione con `family_id` e `invitation_id` nulli, ritrovata per impronta ed email | come la riga sopra |
 | `complete` riuscito | `joined` | nessuna scrittura, `{ email, joined: membro adesso }` (un rimosso resta fuori) |
 | Account cancellato | prenotazione `closed` senza email | nessuna prenotazione per quell'email: se il link vale e c'è quota, una nuova, con un id nuovo |
@@ -904,6 +938,28 @@ porta a cancellare un account.
 - Ruoli (rilievo 2): `set_user_role` che assegna un ruolo a un utente in attesa di
   cancellazione → `P0A07`; `complete_app_invitation` per un account nuovo continua a
   funzionare (profilo creato dal trigger).
+- Seconda revisione:
+  - **ingresso con `join` e prenotazione ancora `reserved`** (rilievo 1): Auth crea,
+    `complete` non arriva, la persona entra con `join_family` → la prenotazione è
+    `joined`; poi rimozione; poi `claim` → `joined` con `member` falso, nessuna scrittura;
+    variante senza `join`: rimozione posteriore al link e `complete` → `closed`, nessuna
+    appartenenza; `complete` con la persona già membro → nessuna seconda riga in
+    `family_joins`, famiglia mostrata invariata;
+  - **id cancellato** (rilievo 1): inserire in `auth.users` un id presente in
+    `account_deletions` fallisce (trigger su `app.profiles`) e la riga non resta;
+    `complete_family_invitation` per quell'id → `P0A01`; `account_id_deleted` vero;
+  - **link scaduto e autore** (rilievo 3): prenotazione, scadenza (spostata indietro),
+    poi retrocessione, rimozione, uscita o cancellazione dell'autore → link revocato,
+    `claim` della prenotazione → `closed`/`unavailable`; revoca manuale di un link
+    scaduto ma aperto; vista con il link scaduto finché ha prenotazioni `reserved`;
+  - **email su due link** (rilievo 4): la stessa email prenotata su L1 (id U1) e su L2
+    (id U2), account creato solo per U2, cancellazione di U2 → nessuna prenotazione con
+    quell'email, conteggi di L1 e L2 invariati;
+  - **stato persistito** (rilievo 9): `claim` di una prenotazione `reserved` a link
+    revocato senza account restituisce `unavailable` e, letta in una transazione
+    successiva, la prenotazione è `closed`;
+  - `create_family` ridefinita: stessa firma, stesso comportamento dei test esistenti
+    (`create_family_test.sql` verde senza modifiche).
 - Rimozione posteriore al link: `status` senza riga e `join` `P0A01` per la persona
   rimossa, mentre il link vale per gli altri; link creato dopo la rimozione: entra.
   Uscita volontaria: il link vale ancora.
@@ -912,8 +968,13 @@ porta a cancellare un account.
   e alla cancellazione con il motivo giusto.
 - Uscita: unico membro `P0A10`; ultimo amministratore senza successore `P0A13`, con
   successore promosso; membro semplice con successore indicato `P0A13`.
-- Eliminazione: solo `family_admin`; cascata completa (nessuna riga residua in tutte le
-  tabelle della famiglia); restano voti, altre famiglie, account.
+- Eliminazione: solo `family_admin`; nessuna riga della famiglia in `family_members`,
+  `weeks`, `meal_slots`, `meal_changes`, `meal_actions`, `shopping_lists` (e righe
+  figlie), `recipe_exclusions`, `family_ingredients`, `family_books`,
+  `family_tried_recipes`, `weekly_jobs`, `temporary_lists`, `family_invitations`,
+  `family_joins`, `family_removals`; le prenotazioni di quella famiglia **restano** con
+  `family_id` e `invitation_id` nulli (decisione 17); restano voti, altre famiglie,
+  account.
 - Cancellazione: piano (`stays`, `needs_successor` con i candidati, `deleted`,
   `lastAppAdmin`, `openInvitations`); `begin` con insieme diverso `P0A11`, successore
   mancante `P0A13`, ultimo `app_admin` `P0A08`, amministratore retrocesso `42501`;
@@ -962,10 +1023,18 @@ porta a cancellare un account.
      creato da B mentre un altro amministratore retrocede B (e, in una seconda prova,
      lo rimuove), in entrambi gli ordini di partenza: nessun `40P01`, link revocato una
      volta sola (motivo di chi arriva primo), B retrocesso o rimosso;
-  6. **eliminazione contro modifica ordinaria** (decisione 19): `delete_family` contro
-     una modifica di un pasto della stessa famiglia tenuta a metà; la famiglia risulta
-     eliminata, l'operazione `family.delete` non risponde mai `40P01` (ripetizione nel
-     server), la modifica riceve un errore;
+  6. **eliminazione contro modifica ordinaria** (decisione 19): `family.delete` contro
+     una modifica di un pasto della stessa famiglia tenuta a metà. Sono validi **entrambi
+     gli esiti** dello stallo (Postgres sceglie la vittima): la modifica fallisce,
+     oppure la modifica conferma e la cancellazione ripetuta elimina la famiglia. In ogni
+     caso alla fine la famiglia non esiste e `family.delete` non risponde mai `40P01`
+     (seconda revisione, rilievo 7);
+  6b. **creazione di una famiglia contro cancellazione dell'account** (seconda
+     revisione, rilievo 2): `begin_account_deletion` tenuta dopo il ricalcolo del piano,
+     poi lo stesso utente chiama `app.create_family` (e, in una seconda prova, un altro
+     membro entra con un link in quella famiglia appena creata): la creazione attende il
+     lucchetto dell'utente e, rilasciata la cancellazione, fallisce perché il profilo non
+     c'è più (`42501`); nessuna famiglia senza membri o senza amministratore resta;
   7. isolamento `read committed` verificato come in B.
   La prova senza lucchetto (funzione sostituita a mano, solo in locale) deve far vedere
   l'invariante violata (zero amministratori), come in B.
@@ -973,9 +1042,13 @@ porta a cancellare un account.
   link, poi due `claim` con email diverse, il primo tenuto con `holdTransaction` dopo il
   suo lucchetto, il secondo in attesa accertata: una sola prenotazione nuova, l'altro
   `P0A01`, totale finale 10; stesso schema con la **stessa email**: un solo id
-  prenotato, restituito a entrambi. La prova senza lucchetto (funzione sostituita a mano,
-  solo in locale) deve fallire sul **risultato** (11 prenotazioni o due id), non solo
-  sull'attesa.
+  prenotato, restituito a entrambi **senza errori** (`on conflict`). **Prova negativa**
+  (seconda revisione, rilievo 5), solo in locale e senza commit: una variante della
+  funzione senza **nessuna** serializzazione del conteggio (né famiglia, né invito, né
+  utente), con i vincoli dello schema intatti, e una barriera di prova dopo il conteggio
+  (lucchetto consultivo tenuto dal test finché entrambe le richieste lo aspettano,
+  accertato in `pg_stat_activity`), così entrambe leggono nove prenotazioni prima di
+  inserire. Il test termina e fallisce sulle asserzioni finali: 11 prenotazioni.
 - `server/test/account-deletion.test.ts` (con `installFakeAuth`, esteso con `DELETE` e
   con i fallimenti a comando): piano; cancellazione completa (riga chiusa, account
   sparito, token già emesso rifiutato su RPC, REST e MCP); `conflict` dopo un ingresso
@@ -1001,7 +1074,28 @@ porta a cancellare un account.
   utente (rilievo 2): `set_user_role` che assegna `app_admin` tenuto a metà, poi
   `begin_account_deletion`: alla fine l'utente non ha ruoli, in entrambi gli ordini.
 - `server/src/accounts/index.test.ts`: `deleteAccount` (`200`, `204`, `404`, `500`,
-  rete, chiave assente, intestazione `apikey` e nessun `Authorization`).
+  rete, chiave assente, intestazione `apikey` e nessun `Authorization`);
+  `createInvitedAccount` con `beforeCreate` che risponde vero → nessun `POST`.
+- Accettazione con richieste in volo (seconda revisione, rilievo 1), con Auth e
+  completamento sospendibili separatamente (`holdNextCreate`, `holdAfterNextCreate` di
+  `fake-auth.ts` e una `holdTransaction` su `complete`): (a) creazione riuscita e
+  `complete` sospeso, la persona entra con `family.join`, poi viene rimossa, poi
+  `complete` riparte → nessun rientro, una sola riga in `family_joins`; (b) due `accept`
+  con la stessa email ottengono `create`; la prima completa, l'account viene cancellato,
+  poi la seconda arriva al `POST` → nessun account ricreato (con `beforeCreate` e, in una
+  variante in cui la cancellazione è confermata dopo `beforeCreate`, con il trigger su
+  `app.profiles`).
+- Ripetizione su `40P01` (seconda revisione, rilievo 7), in `pipeline.test.ts` con
+  un'operazione di prova in `RETRY_ON_DEADLOCK`: il primo tentativo è annullato per
+  intero (le sue scritture non ci sono); il secondo rilegge sessione, ruolo e dati (una
+  sessione chiusa fra i due tentativi dà `unauthorized`); il seguito di `afterCommit`
+  gira una volta sola, con il risultato del tentativo confermato; un `40P01` lanciato
+  dal seguito non ripete la transazione; due `40P01` di fila → `internal`;
+  un'operazione fuori elenco con `40P01` non si ripete.
+- Letture non versionate (seconda revisione, rilievo 8): `familyInvitations.list` dopo
+  una prenotazione con `weak_password` mostra `registrations` aggiornato; dopo la
+  scadenza di un link (spostata indietro) il link non c'è più, senza altre scritture
+  sulla famiglia.
 - `server/test/scheduled.test.ts` (o il test esistente del job): il ramo orario chiama
   anche la ripresa, e un errore di una parte non ferma l'altra; famiglia eliminata
   durante il job settimanale (`weekly_job_family_gone`).
@@ -1037,7 +1131,11 @@ collegamento) rifiutato dopo. Eseguito da `scripts/invitations/invite-stack.sh`
   famiglia torna (`useFamily` non dice più `revoked`, segno cancellato), senza dati
   vecchi; rimozione → link nuovo → `join` → rientro; con due schede, la seconda riceve
   `restored` e mostra la famiglia; una lettura del profilo partita prima di una revoca
-  più recente e arrivata dopo non annulla la revoca.
+  più recente e arrivata dopo non annulla la revoca. Seconda revisione, rilievo 6:
+  consegna ritardata alla seconda scheda di `revoked` e poi `restored`, e anche in ordine
+  inverso → la famiglia è visibile; revoca reale dopo il rientro (`revoked` con istante
+  successivo) → la famiglia resta revocata in entrambe le schede; riavvio con il segno
+  persistito anteriore al ripristino → nessuna revoca.
 - Pagina dell'invito con `joined: false`: testo dell'account pronto e accesso con
   l'email; uscita con `invalid` su `successorId`: il foglio passa alla scelta del
   successore; card «Ingressi con i link» con «ex membro» e «Account nuovo».
@@ -1087,7 +1185,8 @@ nuovi (`SUPABASE_SECRET_KEY` c'è già).
 
 - **Ordine dei lucchetti** (regola per ogni percorso presente e futuro, sezione 1):
   `pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))` per chi può togliere
-  `app_admin` → `select … for update` sulle righe di `app.families` in ordine di id,
+  `app_admin` → lucchetto dell'utente `user_memberships:<id>` (sotto) → `select … for
+  update` sulle righe di `app.families` in ordine di id,
   prima di ogni scrittura su righe della famiglia (anche quelle che fanno scattare il
   trigger di versione) → link (`family_invitations`) → prenotazioni → il resto. I
   percorsi della famiglia non prendono mai `app_admin_roles`. Chi parte da un'impronta o
@@ -1099,15 +1198,30 @@ nuovi (`SUPABASE_SECRET_KEY` c'è già).
   `account-deletion-locks.test.ts`.
 - **Ruoli e cancellazione**: ogni inserimento in `app.user_roles` richiede il profilo del
   destinatario (trigger `user_roles_require_profile`); chi cancella un account cancella
-  il profilo prima dei ruoli.
+  il profilo prima dei ruoli. Un id in `account_deletions` non riottiene mai un profilo
+  (trigger `profiles_reject_deleted_ids`), quindi Auth non può ricrearlo.
+- **Lucchetto dell'utente** `user_memberships:<user_id>`
+  (`pg_advisory_xact_lock(hashtextextended('user_memberships:' || user_id, 0))`): ogni
+  percorso presente e futuro che crea un'appartenenza o una prenotazione per un utente lo
+  prende prima delle righe delle famiglie e poi ricontrolla profilo e
+  `account_deletions`; la cancellazione dell'account lo prende dopo `app_admin_roles`.
+  `app.create_family` di A è ridefinita per prenderlo. Ordine completo:
+  `app_admin_roles` → utente → famiglie per id → link → prenotazioni → resto.
+- **`afterCommit`** (`server/src/pipeline.ts`): un gestore restituisce un seguito che il
+  pipeline esegue dopo il commit, senza connessioni aperte, e il cui risultato è
+  l'output; un errore del seguito non annulla né ripete la transazione.
+- **`RETRY_ON_DEADLOCK`** (`server/src/pipeline.ts`): elenco, nel server, delle
+  operazioni la cui transazione si ripete una volta su `40P01` (oggi `family.delete`,
+  `account.delete`, `users.delete`), con i confini della sezione 2: tentativo annullato
+  per intero, secondo tentativo che rilegge tutto, seguito solo del tentativo confermato,
+  nessuna ripetizione per errori del seguito. Da riportare nel piano generale, «Interfacce
+  decise», insieme al lucchetto dell'utente e ad `afterCommit`.
 - **Ultimo amministratore della famiglia**: protetto in ogni funzione che toglie un
   `family_admin` o un membro (`set_family_member_role`, `leave_family`,
   `begin_account_deletion`); le scritture dirette su `family_members` restano possibili
   solo dalle politiche esistenti, che il server non usa per questi percorsi (nessuna
   migrazione le restringe: modifiche solo additive). Un'attività futura che tocchi i
   membri usa queste funzioni.
-- **`afterCommit` del pipeline**: disponibile per altre operazioni che devono chiamare
-  servizi esterni dopo il commit.
 - **`deleteAccount`** in `server/src/accounts/`, accanto a `createInvitedAccount`.
 - **D (email)**: `familyInvitations.create` potrà spedire il link; l'accettazione resta
   questa, come per A.
@@ -1141,9 +1255,11 @@ esito di chiusura), `web/src/api/mutations.ts`, `web/src/api/types.ts` (`SERVER_
 
 **Tabelle nuove:** `app.family_invitations`, `app.family_invitation_reservations`, `app.family_joins`,
 `app.family_removals`, `app.account_deletions`. **Colonne cambiate:** nessuna. **Trigger
-nuovi:** versione della famiglia su `app.family_invitations` e `app.family_joins`;
-`user_roles_require_profile` su `app.user_roles` (tabella esistente, solo un trigger in
-più). **Funzioni nuove:** `app.family_joins_view`, `app.user_roles_require_profile`,
+nuovi:** `user_roles_require_profile` su `app.user_roles` e `profiles_reject_deleted_ids` su
+`app.profiles` (tabelle esistenti, solo trigger in più). **Funzione esistente
+ridefinita:** `app.create_family` (stessa firma, lucchetto dell'utente e ricontrollo del
+profilo). **Funzioni nuove:** `app.family_joins_view`, `app.user_roles_require_profile`,
+`app.profiles_reject_deleted_ids`, `app.account_id_deleted`,
 `app.revoke_invitations_of` (interna),
 `app.create_family_invitation`, `app.revoke_family_invitation`,
 `app.family_invitations_view`, `app.family_invitation_by_token`,
@@ -1163,8 +1279,9 @@ più). **Funzioni nuove:** `app.family_joins_view`, `app.user_roles_require_prof
   passaggio; email non verificata fino a D, rimedio con la cancellazione
   dall'amministrazione (decisione dell'utente del 16/10; sezione 7, «Prima della
   verifica del dominio di invio» e «Inviti alla famiglia»; Parte 1, «Chi la usa»).
-- Link alla famiglia visibile solo alla creazione; elenco con autore, scadenza e account
-  creati; scostamento dal prototipo (sezione 7; sezione 14).
+- Link alla famiglia visibile solo alla creazione; elenco con autore, scadenza e persone
+  registrate, più i link scaduti con registrazioni in sospeso, revocabili; scostamento
+  dal prototipo (sezione 7; sezione 14).
 - Link creati da una persona revocati quando esce, viene rimossa, perde il ruolo di
   amministratore o cancella l'account, e i dialoghi di conferma lo dicono (scelta di
   prodotto del coordinatore del 16/10; sezione 7, «Inviti alla famiglia»,
@@ -1209,14 +1326,22 @@ più). **Funzioni nuove:** `app.family_joins_view`, `app.user_roles_require_prof
 - Revoca degli accessi: cascata della cancellazione definitiva di Auth su sessioni,
   identità, consensi e autorizzazioni OAuth; token rifiutati da `loadSession` (sezioni 1
   e 13).
-- Codici SQLSTATE `P0A09`–`P0A14`; `not_allowed` `own_account` (sezione 1).
+- Codici SQLSTATE `P0A09`–`P0A15`; `not_allowed` `own_account` (sezione 1).
 - Rimando MCP condizionato per `account.delete` e `users.delete`; `family.delete`
   `webOnly` (sezione 13).
 - Revoca locale delle famiglie sparite dal profilo, oltre al `forbidden` (sezione 1,
   dati sul dispositivo).
 - Job settimanale tollerante a una famiglia eliminata durante l'esecuzione (sezione 4).
-- Prenotazioni con stato terminale (`reserved` → `joined`/`closed`), anonimizzate alla
-  cancellazione dell'account (sezione 2; sezione 7).
+- Prenotazioni con stato terminale (`reserved` → `joined`/`closed`), conservate senza
+  la famiglia eliminata, anonimizzate (anche per email) alla cancellazione dell'account;
+  `join` che chiude la prenotazione della stessa persona; `complete` che ricontrolla
+  rimozioni e appartenenza (sezione 2; sezione 7).
+- Lucchetto dell'utente `user_memberships:<id>` nell'ordine `app_admin_roles` → utente →
+  famiglie → link → prenotazioni, anche in `app.create_family` (sezione 7; sezione 1).
+- Trigger `profiles_reject_deleted_ids`: un id cancellato non si ricrea (sezione 7).
+- Revoca dei link aperti (anche scaduti con prenotazioni) alla perdita del ruolo
+  dell'autore (sezione 7).
+- Elenco dei link e registro degli ingressi non versionati (sezione 1).
 - Trigger `user_roles_require_profile`: nessun ruolo nuovo per un account in
   cancellazione (sezione 7, «Ultimo amministratore dell'app»; sezione 2).
 - Divieto MCP della cancellazione che elimina famiglie verificato nel database sotto i

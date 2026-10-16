@@ -29,7 +29,8 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 - Funzioni: schema `app`, `security definer`, `set search_path = ''`, `EXECUTE` revocato
   a `public` e concesso solo ai ruoli della spec (sezione 1); `coverage_test.sql`
   aggiornato a ogni funzione nuova.
-- Lucchetti (spec, sezione 1, «Ordine dei lucchetti»): `app_admin_roles` → righe di
+- Lucchetti (spec, sezione 1, «Ordine dei lucchetti»): `app_admin_roles` → utente
+  (`user_memberships:<id>`, poi ricontrollo di profilo e `account_deletions`) → righe di
   `app.families` in ordine di id, prima di ogni scrittura su righe della famiglia →
   link → prenotazioni → resto; chi parte da impronta o prenotazione legge senza
   lucchetto, prende i lucchetti nell'ordine e ricontrolla. I percorsi della famiglia non
@@ -82,11 +83,13 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 **Interfacce:**
 - Produce: tabelle `app.family_invitations`, `app.family_invitation_reservations`,
   `app.family_joins`, `app.family_removals`, `app.account_deletions` (spec, sezione 1,
-  colonne esatte); trigger di versione su `family_invitations` e `family_joins` con
-  `app.touch_family_version()`; funzioni `create_family_invitation`,
+  colonne esatte), nessun trigger di versione nuovo; `app.create_family` ridefinita
+  (`create or replace`, stessa firma) con il lucchetto dell'utente e il ricontrollo del
+  profilo; funzioni `create_family_invitation`,
   `revoke_family_invitation`, `family_invitations_view`, `family_joins_view`,
   `family_invitation_by_token`, `claim_family_invitation` (`returns table (user_id uuid,
-  email text, state text, member boolean)`), `complete_family_invitation(p_user_id
+  email text, state text, member boolean)`, `state` in `create`/`joined`/`closed`/
+  `unavailable`), `account_id_deleted(uuid) returns boolean`, `complete_family_invitation(p_user_id
   uuid)` (`returns table (family_id uuid, joined boolean)`), `family_invitation_status`,
   `join_family`, con firme, passi e codici della spec (sezione 1).
 
@@ -108,11 +111,19 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   «Registro»), in particolare: `reserved` a link revocato → `closed`; famiglia eliminata
   → prenotazione con riferimenti nulli ritrovata per impronta ed email; accettazione →
   rimozione → `claim` → `joined` con `member` falso e nessuna scrittura; ripetizione con
-  la stessa email dopo `weak_password` senza riga in più.
+  la stessa email dopo `weak_password` senza riga in più. E i casi della seconda
+  revisione (spec, sezione 5, pgTAP, «Seconda revisione»): `join` che chiude la
+  prenotazione `reserved`; `complete` dopo una rimozione → `closed`; `complete` con la
+  persona già membro senza seconda riga di ingresso; link scaduto e aperto revocato
+  dalla retrocessione, rimozione e uscita dell'autore (la cancellazione nel compito 3);
+  stato `closed` confermato con `unavailable`; vista con i link scaduti con prenotazioni
+  `reserved`; `create_family_test.sql` invariato e verde.
 - [ ] **Passo 2:** `supabase test db` → i nuovi test falliscono.
 - [ ] **Passo 3:** scrivere tabelle, indici, trigger, funzioni e `grant` nella
-  migrazione, con l'ordine dei lucchetti della spec in ogni funzione (famiglia prima
-  dell'invito, invito prima della prenotazione, rilettura dopo i lucchetti).
+  migrazione, con l'ordine dei lucchetti della spec in ogni funzione (utente, poi
+  famiglia, invito, prenotazione; rilettura dopo i lucchetti); `claim` non solleva per
+  gli esiti che scrivono uno stato; inserimento della prenotazione con `on conflict
+  (token_hash, email) where email is not null do nothing` e rilettura.
 - [ ] **Passo 4:** `supabase db reset && supabase test db` → tutti verdi, compreso
   `coverage_test`.
 - [ ] **Passo 5: commit** «Database: inviti alla famiglia, prenotazioni, ingressi e
@@ -170,7 +181,8 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   int)`, `app.record_account_deletion_attempt(uuid, text) returns int`,
   `app.admin_account_deletions() returns table (user_id uuid, requested_at timestamptz,
   attempts int, last_error text)`; trigger `user_roles_require_profile` su
-  `app.user_roles` con la funzione `app.user_roles_require_profile()`; codici `P0A11`,
+  `app.user_roles` con la funzione `app.user_roles_require_profile()`; trigger
+  `profiles_reject_deleted_ids` su `app.profiles` con `app.profiles_reject_deleted_ids()`; codici `P0A11`,
   `P0A12` (sollevato dal server, nessuna funzione), `P0A13`, `P0A15`.
 
 - [ ] **Passo 1: test pgTAP**: piano con i tre esiti, candidati, `lastAppAdmin`,
@@ -191,7 +203,12 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   continua, nessuna prenotazione con l'email della persona e nessuna sua riga in
   `family_joins`, conteggio del link invariato; richiesta con `client_id` nei claim
   (`request.jwt.claims`) e una famiglia `deleted` → `P0A15` e nessuna scrittura; la
-  stessa senza famiglie `deleted` → procede.
+  stessa senza famiglie `deleted` → procede; email prenotata su due link con id
+  diversi, account solo per uno, cancellazione → nessuna prenotazione con quell'email,
+  conteggi invariati; link scaduto e aperto dell'utente revocato (`creator_deleted`);
+  inserimento in `auth.users` di un id in `account_deletions` → errore, nessuna riga
+  rimasta; `create_family` dello stesso utente dopo `begin_account_deletion` confermata →
+  `42501`.
 - [ ] **Passo 2:** `supabase test db` → falliscono.
 - [ ] **Passo 3:** implementare `begin_account_deletion` nell'ordine esatto della spec
   (sezione 1, passi 1–11: profilo prima dei ruoli, controllo del canale prima delle
@@ -213,7 +230,9 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `auth.users`, 200; 404 `user_not_found` se assente) con l'aggancio
   `failNextDelete(status: number | 'network')`.
 
-- [ ] **Passo 1: test** in `index.test.ts`: `deletes with the apikey header and no
+- [ ] **Passo 1: test** in `index.test.ts`: `skips the POST when beforeCreate answers
+  true` (opzione nuova di `createInvitedAccount`: `beforeCreate?: () =>
+  Promise<boolean>`, chiamata subito prima del `POST`), `deletes with the apikey header and no
   Authorization`, `treats 204 as deleted`, `treats 404 user_not_found as absent`,
   `throws auth_admin_failed with the status on 500`, `throws auth_admin_failed on network
   failure`, `throws auth_admin_key_missing without a key`; i test esistenti di
@@ -285,7 +304,9 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   deleted during the Auth call: the retry answers joined false` (con `holdNextCreate` di
   `fake-auth.ts`); `interruption after creation, then family deleted: the retry answers
   joined false`; `listJoins shows new and existing accounts with former members
-  unnamed`. In `family-invitations-locks.test.ts` i due casi del tetto concorrente della
+  unnamed`; le due sequenze con richieste in volo della spec (sezione 5, «Accettazione con
+  richieste in volo»), con Auth e `complete` sospendibili separatamente; `list` non
+  versionata, aggiornata dopo una prenotazione con `weak_password` e dopo una scadenza. In `family-invitations-locks.test.ts` i due casi del tetto concorrente della
   spec (sezione 5) con nove prenotazioni di partenza; `public operations
   answer rate_limited with refuseAll`; `MCP lists familyInvitations_list/create/revoke/
   status and family_join, not get or accept`. Più `contract/src/check.test.ts` verde
@@ -294,9 +315,11 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 - [ ] **Passo 3:** contratto, gestori e registrazioni; `accept` con i tre passi di A
   (due `anonDb`, creazione dell'account in mezzo senza connessioni), saltando Auth e
   `complete` con `state` `joined` o `closed`.
-- [ ] **Passo 3b:** in locale, una volta, togliere a mano il `for update` sull'invito in
-  `claim_family_invitation` e vedere fallire il test del tetto concorrente sul
-  risultato (11 prenotazioni); non si fa commit della prova.
+- [ ] **Passo 3b:** prova negativa del tetto della spec (sezione 5): in locale, una
+  variante di `claim_family_invitation` senza nessuna serializzazione del conteggio
+  (utente, famiglia, invito) e con la barriera di prova dopo il conteggio; il test
+  termina e fallisce sulle asserzioni finali (11 prenotazioni). Nessun commit della
+  variante.
 - [ ] **Passo 4:** `npm run typecheck && npm test` → verdi.
 - [ ] **Passo 5: commit** «Inviti alla famiglia: contratto, server e MCP».
 
@@ -320,8 +343,9 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   web_only with the page URL and keeps the family`; `delete from the web removes the
   family and returns the profile without it`; `leave answers invalid on successorId when
   the other administrator left meanwhile`. In `family-locks.test.ts` i casi 1–7 della
-  spec (il caso 1 si aspetta `P0A13`, il caso 5 esclude `40P01`, il caso 6 la ripetizione
-  di `family.delete`) (sezione 5, modello di `users-locks.test.ts`: `holdTransaction`, PID della
+  spec e il 6b (il caso 1 si aspetta `P0A13`, il caso 5 esclude `40P01`, il caso 6
+  accetta entrambi gli esiti dello stallo ma mai `40P01` da `family.delete`, il 6b la
+  creazione di una famiglia dopo il ricalcolo, anche con un secondo membro) (sezione 5, modello di `users-locks.test.ts`: `holdTransaction`, PID della
   seconda connessione, attesa accertata in `pg_stat_activity` con
   `wait_event_type = 'Lock'`), con l'invariante «almeno un amministratore se ci sono
   membri» controllata per prima. Il caso 3 e il caso 4 usano `begin_account_deletion`
@@ -332,7 +356,10 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   sta nel pipeline, attivata da un elenco di operazioni nel server
   (`RETRY_ON_DEADLOCK` in `server/src/pipeline.ts`, non nel contratto): una ripetizione
   dell'intera transazione, poi l'errore ordinario (`internal`); test in
-  `pipeline.test.ts` con un `40P01` simulato.
+  `pipeline.test.ts` per tutti i confini della spec (sezione 5, «Ripetizione su
+  `40P01`»: annullamento, rilettura di sessione e ruolo, seguito una volta sola, nessuna
+  ripetizione per errori del seguito, `internal` al secondo stallo, nessuna ripetizione
+  fuori elenco).
 - [ ] **Passo 4:** `npm run typecheck && npm test` → verdi; in locale, una volta,
   sostituire a mano `leave_family` senza `for update` e vedere fallire il caso 1 per
   l'invariante (non si fa commit della prova).
@@ -508,11 +535,15 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 **Interfacce:**
 - Produce: nel gestore della sessione, a ogni profilo scritto nella cache,
   `session.revoke(familyId)` per ogni famiglia del profilo precedente assente nel nuovo;
-  revoche come mappa `familyId → revokedAt`; `session.restore(familyId: string,
-  startedAt: number): boolean` (vero se ha tolto la revoca) con il messaggio
-  `{ type: 'restored', userId, familyId, startedAt }` alle altre schede; chiamata dalla
-  risposta di `family.join`/`family.create` e da ogni profilo letto, partito dopo la
-  revoca, che contiene la famiglia.
+  per famiglia `revokedAt` e `restoredAt` (orologio del dispositivo), revocata se
+  `revokedAt > restoredAt`; `session.restore(familyId: string, startedAt: number):
+  boolean` (vero se ha tolto la revoca); messaggi `{ type: 'revoked', userId, familyId,
+  revokedAt }` (campo nuovo, istante originale) e `{ type: 'restored', userId, familyId,
+  startedAt }`, applicati con la regola del massimo in qualunque ordine; segno persistito
+  con `revokedAt`, cancellato da `restore` solo se anteriore a `startedAt`; `restore`
+  chiamata dalla risposta di `family.join`/`family.create` e da ogni profilo letto che
+  contiene la famiglia. Modifica anche `web/src/session/channel.ts` e
+  `web/src/api/persister.ts` (`markRevoked` con l'istante).
 
 - [ ] **Passo 1: test**: riepilogo per l'amministratore e per il membro; conferma che
   elimina e porta a `/profile` o `/menu`; nessuna chiamata all'apertura della pagina;
@@ -520,7 +551,10 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   shopping queue cleared` (Attenzione 3); `leave and delete revoke before navigating`;
   `leave then join restores the family without old data`; `removal, new link, join
   restores the family`; `a second tab applies restored`; `a profile read started before
-  a newer revocation does not restore`.
+  a newer revocation does not restore`; `delayed revoked then restored, and the reverse
+  order, leave the family visible in the second tab`; `a real revocation after the
+  rejoin wins in both tabs`; `a persisted mark older than the restore does not revoke at
+  start`.
 - [ ] **Passo 2:** test → falliscono.
 - [ ] **Passo 3:** implementare.
 - [ ] **Passo 4:** `npm test -w web` → verdi.
