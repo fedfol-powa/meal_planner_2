@@ -26,13 +26,20 @@ export { SessionClosedError } from '../api/errors';
 
 const REJECTED: RenewResult = { kind: 'rejected' };
 
+/**
+ * Why the session ended by itself (spec W11, decision 13): `unauthorized` when a call is refused
+ * again after a successful renewal (no profile: an account being deleted), `rejected` when the
+ * renewal itself is refused.
+ */
+export interface SessionEnd { ended: 'unauthorized' | 'rejected' }
+
 export type ErrorHandler = (error: unknown, scope: { queryKey?: QueryKey; familyId?: string }) => void;
 
 export interface SessionDeps {
   /** One renewal of the sign-in session. */
   refresh?: () => Promise<RenewResult>;
   /** Ends this session (sign-in page); called at most once, never once the session is closed. Its promise is awaited by `renew`. */
-  end?: (session: Session) => void | Promise<void>;
+  end?: (session: Session, outcome: SessionEnd) => void | Promise<void>;
   /** Tells the other tabs about revocations. */
   channel?: SessionChannel;
   now?: () => number;
@@ -169,10 +176,11 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
   let epoch = 0;
   let renewing: Promise<RenewResult> | null = null;
   let ending: Promise<void> | null = null;
-  const end = (): Promise<void> => {
+  // The first reason wins: the closing happens once.
+  const end = (outcome: SessionEnd): Promise<void> => {
     if (closed) return Promise.resolve();
     ending ??= Promise.resolve()
-      .then(() => deps.end?.(session))
+      .then(() => deps.end?.(session, outcome))
       .catch(() => undefined);
     return ending;
   };
@@ -196,7 +204,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
         return result;
       }
       if (result.kind === 'ok') epoch += 1;
-      else if (result.kind === 'rejected') await end();
+      else if (result.kind === 'rejected') await end({ ended: 'rejected' });
       return result;
     })();
     return renewing;
@@ -319,7 +327,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
           return await run();
         } catch (again) {
           // Refused again after a renewal: the session is over.
-          if (toApiError(again).code === 'unauthorized') void end();
+          if (toApiError(again).code === 'unauthorized') void end({ ended: 'unauthorized' });
           throw again;
         }
       }

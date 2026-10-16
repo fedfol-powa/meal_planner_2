@@ -8,7 +8,7 @@ import { CACHE_SCHEMA, persistOptions, purgeOtherCopies, type KeyValueStore } fr
 import { profileQuery } from '../api/profile';
 import { useQueryDeps } from '../api/queries';
 import type { Api, ProfileView } from '../api/types';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth, type ExitNotice } from '../auth/AuthProvider';
 import type { AuthUser } from '../auth/backend';
 import { useLocale } from '../i18n/LocaleProvider';
 import { isOnline } from '../lib/connectivity';
@@ -26,7 +26,8 @@ export type CreateApi = (user: AuthUser | null) => (locale: Locale) => Api;
 
 interface SessionContextValue {
   session: Session;
-  signOut: () => Promise<void>;
+  /** `notice`: what the sign-in page tells afterwards (after deleting one's own account). */
+  signOut: (notice?: ExitNotice) => Promise<void>;
   /** Saved in the profile when online; rejects with the error of the server when it refuses. */
   chooseLocale: (locale: Locale) => Promise<void>;
   /** The language shown now, also after this render: mutations check it when their answer arrives. */
@@ -53,14 +54,18 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
 
   // One way out for «Esci», a refused renewal and a refusal after renewal: tell the other tabs,
   // close the session, then Supabase. Stale sessions are ignored by the auth state.
-  const endRef = useRef<(session: Session) => Promise<void>>(async () => undefined);
-  endRef.current = async (session) => {
+  const endRef = useRef<(session: Session, notice?: ExitNotice) => Promise<void>>(async () => undefined);
+  endRef.current = async (session, notice) => {
     const userId = session.userId;
     if (!userId || session.isClosed()) return;
-    await endIdentity(userId, async () => {
-      channel.post({ type: 'signedOut', userId });
-      await session.close();
-    });
+    await endIdentity(
+      userId,
+      async () => {
+        channel.post({ type: 'signedOut', userId });
+        await session.close();
+      },
+      notice
+    );
   };
 
   // The session is the generation of the identity shown (second review, C3).
@@ -68,7 +73,12 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     () =>
       identity === undefined
         ? null
-        : createSession(identity, store, { refresh: () => backend.refresh(), end: (s) => endRef.current(s), channel }),
+        : createSession(identity, store, {
+            refresh: () => backend.refresh(),
+            // Refused again after a renewal: no profile, the account is being deleted (spec W11, decision 13).
+            end: (s, outcome) => endRef.current(s, outcome.ended === 'unauthorized' ? 'accountGone' : undefined),
+            channel
+          }),
     [identity, store, backend, channel]
   );
   // The data client depends on the user and the language; answers in a language no longer shown are dropped (PR review, C12).
@@ -187,7 +197,7 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     [backend.mode, identity, session, clients, currentLocale, setLocale]
   );
 
-  const signOut = useCallback(() => (session ? endRef.current(session) : Promise.resolve()), [session]);
+  const signOut = useCallback((notice?: ExitNotice) => (session ? endRef.current(session, notice) : Promise.resolve()), [session]);
   const value = useMemo(
     () => (session ? { session, signOut, chooseLocale, currentLocale } : null),
     [session, signOut, chooseLocale, currentLocale]

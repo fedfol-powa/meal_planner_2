@@ -97,6 +97,35 @@ describe('unauthorized: one renewal per session (second review, C3)', () => {
     expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected']);
     expect(end).toHaveBeenCalledTimes(1);
   });
+  it('tells why it ended: unauthorized after a renewal, rejected when the renewal fails (spec W11, decision 13)', async () => {
+    const afterRenewal = vi.fn();
+    const deleted = createSession('a', createMemoryStore(), { refresh: async () => OK, end: afterRenewal });
+    await deleted.call(vi.fn().mockRejectedValue(refused())).catch(() => undefined);
+    expect(afterRenewal).toHaveBeenCalledWith(deleted, { ended: 'unauthorized' });
+    const renewalRefused = vi.fn();
+    const expired = createSession('a', createMemoryStore(), { refresh: async () => REJECTED, end: renewalRefused });
+    await expired.call(refusedOnce('x')).catch(() => undefined);
+    expect(renewalRefused).toHaveBeenCalledWith(expired, { ended: 'rejected' });
+  });
+  it('a second tab receiving unauthorized closes the session once, without a refresh loop (W11, attention 4)', async () => {
+    const refresh = vi.fn(async () => OK);
+    // As SessionScope: the end closes the session.
+    const end = vi.fn(async (ended: ReturnType<typeof createSession>) => void (await ended.close()));
+    const session = createSession('a', createMemoryStore(), { refresh, end });
+    // The account is gone: every call is refused, also after the renewal.
+    const always = () => vi.fn().mockRejectedValue(refused());
+    const first = await Promise.allSettled([session.call(always()), session.call(always()), session.call(always())]);
+    expect(first.every((r) => r.status === 'rejected')).toBe(true);
+    await vi.waitFor(() => expect(session.isClosed()).toBe(true));
+    // Reads arriving after the closing never leave and never renew.
+    const late = always();
+    await expect(session.call(late)).rejects.toBeInstanceOf(SessionClosedError);
+    expect(await session.renew()).toEqual(REJECTED);
+    expect(late).not.toHaveBeenCalled();
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(end).toHaveBeenCalledTimes(1);
+    expect(end).toHaveBeenCalledWith(session, { ended: 'unauthorized' });
+  });
   it.each([true, false])('drops the outcome of a renewal that ends after the session closed (renewed: %s)', async (ok) => {
     const { refresh, end, renew } = withRenewal();
     const session = createSession('a', createMemoryStore(), { refresh, end });

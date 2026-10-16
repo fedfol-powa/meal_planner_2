@@ -23,6 +23,7 @@ import { InvitePage as FamilyInvitePage } from './features/family-invitations/In
 import { DraftPage } from './features/catalogue/DraftPage';
 import { NewFamilyPage } from './features/family-new/NewFamilyPage';
 import { FamilyDeletePage } from './features/family-delete/FamilyDeletePage';
+import { AccountDeletePage } from './features/account/AccountDeletePage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { validateFamilyDeleteSearch, validateLoginSearch, validateMenuSearch, validateNewFamilySearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
@@ -91,6 +92,8 @@ const settingsRoute = createRoute({ getParentRoute: () => appRoute, path: '/prof
 const exclusionsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/exclusions', component: ExclusionsPage });
 // Deletion of a family (spec W11): only navigation, nothing is deleted on opening; also the link agents get.
 const familyDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/family/delete', validateSearch: validateFamilyDeleteSearch, component: FamilyDeletePage });
+// Deletion of one's own account (spec W11): only navigation, nothing is deleted on opening; also the link agents get.
+const accountDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/account/delete', component: AccountDeletePage });
 // New family (spec W9): the minimal wizard, also «Crea un'altra famiglia» from the profile.
 const newFamilyRoute = createRoute({ getParentRoute: () => appRoute, path: '/family/new', validateSearch: validateNewFamilySearch, component: NewFamilyPage });
 // App administration (spec W9): app_admin only, also checked by the server.
@@ -105,7 +108,7 @@ const routeTree = rootRoute.addChildren([
   authorizeRoute,
   appInviteRoute,
   familyInviteRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, familyDeleteRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, familyDeleteRoute, accountDeleteRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {

@@ -6,14 +6,22 @@ import type { AuthBackend, AuthEvent, AuthUser, SessionCheck } from './backend';
 /** loading: identity not known yet, nothing may be closed or deleted (second review, C1). */
 export type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; user: AuthUser; verified: boolean };
 
+/**
+ * Told by the sign-in page after a session ended for this reason (spec W11): `accountDeleted` after
+ * one's own deletion, `accountGone` when the account has no profile any more after a renewal.
+ */
+export type ExitNotice = 'accountDeleted' | 'accountGone';
+
 interface AuthContextValue {
   state: AuthState;
+  /** Why the last session ended, until the next sign-in; null after a plain sign-out. */
+  notice: ExitNotice | null;
   backend: AuthBackend;
   /**
    * Ends the session of `userId` only if it is still the current identity: signed out at once,
    * `cleanup` (local data), then Supabase, unless another identity arrived meanwhile.
    */
-  signOut: (userId: string, cleanup: () => Promise<void>) => Promise<void>;
+  signOut: (userId: string, cleanup: () => Promise<void>, notice?: ExitNotice) => Promise<void>;
   /** Local only: another tab announced the sign-out of `userId`. */
   markSignedOut: (userId: string) => void;
 }
@@ -29,6 +37,7 @@ const currentUser = (state: AuthState) => (state.status === 'signedIn' ? state.u
 
 export function AuthProvider({ backend, children }: { backend: AuthBackend; children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const [notice, setNotice] = useState<ExitNotice | null>(null);
   const stateRef = useRef(state);
   // Identity events are numbered: a check that started before a newer event is dropped (second review, C2).
   const events = useRef(0);
@@ -41,6 +50,7 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
     if (sameState(stateRef.current, next)) return;
     stateRef.current = next;
     setState(next);
+    if (next.status === 'signedIn') setNotice(null);
   }, []);
 
   const runCheck = useCallback(
@@ -79,12 +89,13 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
   }, [unverified, runCheck]);
 
   const signOut = useCallback(
-    (userId: string, cleanup: () => Promise<void>) =>
+    (userId: string, cleanup: () => Promise<void>, reason?: ExitNotice) =>
       // From signedOut to the end of the cleanup and of backend.signOut(): busy (spec W8).
       trackBusy(
         (async () => {
           if (currentUser(stateRef.current) !== userId) return;
           closing.current = userId;
+          setNotice(reason ?? null);
           commit({ status: 'signedOut' });
           try {
             await cleanup().catch(() => undefined);
@@ -108,7 +119,7 @@ export function AuthProvider({ backend, children }: { backend: AuthBackend; chil
     [commit]
   );
 
-  const value = useMemo(() => ({ state, backend, signOut, markSignedOut }), [state, backend, signOut, markSignedOut]);
+  const value = useMemo(() => ({ state, notice, backend, signOut, markSignedOut }), [state, notice, backend, signOut, markSignedOut]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
