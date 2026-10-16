@@ -24,7 +24,9 @@ compito; i numeri di sezione sotto sono i suoi). Corretto dopo la revisione
 
 - Codice, nomi, commenti e test in inglese; testi per l'utente in italiano e inglese
   britannico; commit piccoli in italiano, come nella storia del repository.
-- Nessuna dipendenza npm nuova.
+- Nessuna dipendenza npm nuova a runtime; solo `@orpc/openapi-client` `1.15.5` come
+  devDependency del server per i test (già nel lockfile come dipendenza di `@orpc/openapi`;
+  da approvare dal coordinatore).
 - Migrazione solo additiva: `supabase/migrations/20261016110000_recipe_photos.sql`.
 - Modifiche solo additive al contratto: `photoUrl` facoltativo; `CACHE_SCHEMA` invariato.
 - Nessun aggiornamento ottimistico nel web.
@@ -37,7 +39,8 @@ compito; i numeri di sezione sotto sono i suoi). Corretto dopo la revisione
 - Corpo del caricamento: `UPLOAD_BODY_LIMIT = 10 * 1024 * 1024 + 64 * 1024`, letto da
   `route` con il limite prima del parser e del token, per ogni multipart sotto `/api/` e
   per i percorsi di `uploadPhoto` con o senza slash finale; `413` con `photo_too_large`
-  risposto da `route`, fuori dagli interceptor di oRPC.
+  lanciato come `ORPCError` dall'interceptor `rejectOversizedUpload` e serializzato da
+  oRPC per ciascun trasporto, mai scritto a mano.
 - Indirizzi: solo `https:`, porta assente o 443, niente credenziali, lunghezza ≤ 2048,
   niente IP letterali, `localhost`, nomi senza punto, suffissi `.local` `.internal`
   `.localhost` `.home.arpa`, né l'host dell'app, `*.workers.dev`, `*.supabase.co`;
@@ -330,8 +333,11 @@ Ogni passo «FAIL» deve mostrare il test indicato fallire per il motivo atteso,
 
 **File:**
 - Crea: `server/src/photos/upload-limit.ts`
-- Modifica: `server/src/app.ts` (in `route`, prima di `contextFor` e `handler.handle`)
-- Test: `server/test/photos-upload-limit.test.ts`
+- Modifica: `server/src/app.ts` (in `route`, prima di `contextFor` e `handler.handle`;
+  interceptor `rejectOversizedUpload` primo negli `interceptors` di `RPCHandler` e
+  `OpenAPIHandler`), `server/src/pipeline.ts` (`RequestContext.uploadTooLarge?: true`),
+  `server/package.json` (devDependency `@orpc/openapi-client` `1.15.5`, sezione 10 della spec)
+- Test: `server/test/photos-upload-limit.test.ts`, `web/src/api/rpc.test.ts`
 
 **Interfacce:**
 - Consuma: `readLimited` e `PhotoError` del compito 2.
@@ -341,38 +347,68 @@ Ogni passo «FAIL» deve mostrare il test indicato fallire per il motivo atteso,
   `multipart/form-data`, qualunque percorso, e per ogni percorso che, tolti gli slash
   finali, è `/api/rpc/catalogue/uploadPhoto` o corrisponde a
   `^/api/catalogue/recipes/[^/]+/photo/upload$`;
-  `bufferUploadBody(request: Request, maxBytes: number): Promise<Request | Response>`:
-  con `Content-Length` dichiarato oltre il limite risponde `413` senza leggere;
-  altrimenti legge `request.body` con `readLimited` (annulla il lettore oltre il limite)
-  e restituisce `new Request(request, { body: bytes })` con le stesse intestazioni,
-  oppure la risposta `413`. In `route`, per `/api/` e prima di `contextFor`:
-  `if (needsUploadLimit(...)) { const limited = await bufferUploadBody(...); if (limited instanceof Response) return limited; request = limited; }`.
-  La risposta `413` è `Response.json({ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }, { status: 413 })`
-  costruita in `route`, fuori da oRPC: nessun interceptor la tocca (`mapUnreadableRequest`
-  la renderebbe `400`).
+  `bufferUploadBody(request: Request, maxBytes: number): Promise<{ request: Request; tooLarge: boolean }>`:
+  con `Content-Length` dichiarato oltre il limite non legge nulla e restituisce
+  `tooLarge: true`; altrimenti legge `request.body` con `readLimited` (annulla il lettore
+  oltre il limite → `tooLarge: true`). Con `tooLarge` la `request` restituita è
+  `new Request(request.url, { method: request.method, headers })` **senza corpo**, con
+  le intestazioni originali tranne `content-length` e `content-type`; altrimenti
+  `new Request(request, { body: bytes })`.
+  `rejectOversizedUpload(options: { context: RequestContext; next: () => Promise<T> })`:
+  se `context.uploadTooLarge`, lancia
+  `new ORPCError('invalid', { status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } })`
+  senza chiamare `next`; altrimenti `next()`.
+  In `route`: `const limited = needsUploadLimit(request, url.pathname) ? await bufferUploadBody(request, UPLOAD_BODY_LIMIT) : null;`
+  poi `contextFor(limited?.request ?? request, …)` con `uploadTooLarge` se serve, e
+  `handler.handle(limited?.request ?? request, { prefix, context })`. **Nessun JSON
+  scritto a mano:** la risposta la serializza oRPC per il trasporto (spec, sezione 5,
+  «Formato della risposta»).
 
 - [ ] **Passo 1: test** in `photos-upload-limit.test.ts`, **solo attraverso `createApp`**
   (`setupActors().app.fetch` con `env` di test, `fakeImages` e `MemoryBucket` che contano
-  le chiamate; nessuna simulazione di `handler.handle`), con `it.each` su quattro
-  percorsi: `/api/rpc/catalogue/uploadPhoto`, `/api/rpc/catalogue/uploadPhoto/`,
-  `/api/catalogue/recipes/<id>/photo/upload`, `/api/catalogue/recipes/<id>/photo/upload/`:
-  - `refuses a declared oversized upload at once` (`Content-Length` 20 MiB, corpo che
-    registra se è stato letto, senza `Authorization`): status 413, corpo JSON con
-    `code: 'invalid'` e issue `{ path: ['file'], code: 'photo_too_large' }`, corpo mai letto;
-  - `stops an oversized upload while reading` (corpo multipart da un `ReadableStream` a
-    pezzi da 64 KiB senza `Content-Length`, 12 MiB, senza `Authorization`): stesso 413 e
-    stesso corpo, il flusso annullato dopo al più `UPLOAD_BODY_LIMIT + 64 KiB` byte
-    prodotti, zero chiamate a `info`, `input` e `put`;
+  le chiamate; nessuna simulazione di `handler.handle`):
+  - con `it.each` sui quattro percorsi `/api/rpc/catalogue/uploadPhoto`,
+    `/api/rpc/catalogue/uploadPhoto/`, `/api/catalogue/recipes/<id>/photo/upload`,
+    `/api/catalogue/recipes/<id>/photo/upload/`, con `fetch` grezza e senza `Authorization`:
+    - `refuses a declared oversized upload at once` (`Content-Length` 20 MiB, corpo che
+      registra se è stato letto): HTTP 413, corpo mai letto;
+    - `stops an oversized upload while reading` (multipart da un `ReadableStream` a pezzi
+      da 64 KiB senza `Content-Length`, 12 MiB): HTTP 413, flusso annullato dopo al più
+      `UPLOAD_BODY_LIMIT + 64 KiB` byte prodotti, zero chiamate a `info`, `input` e `put`;
+  - `the RPC client reads invalid with photo_too_large` e
+    `the OpenAPI client reads invalid with photo_too_large`, ciascuno in due varianti,
+    **limite dichiarato** (il `File` di 11 MiB, il link manda `Content-Length`) e
+    **limite rilevato durante la lettura** (la `fetch` del link ricrea la richiesta con il
+    corpo come `ReadableStream`, `duplex: 'half'`, senza `Content-Length`): client
+    `createORPCClient(new RPCLink({ url: 'https://app.test/api/rpc', fetch }))` e
+    `createORPCClient(new OpenAPILink(contract, { url: 'https://app.test/api', fetch }))`
+    con `fetch` verso `app.fetch`; l'errore è un `ORPCError` con `status === 413`,
+    `code === 'invalid'`, `data.issues` uguale a `[{ path: ['file'], code: 'photo_too_large' }]`.
+    Prima di implementare l'interceptor, verificare una volta che queste prove **falliscono**
+    con il JSON scritto a mano della versione precedente del piano (risposta
+    `Response.json({ code: 'invalid', status: 413, data: … })` da `route`): i client
+    leggono `PAYLOAD_TOO_LARGE`;
   - `a multipart body to another api path is limited too` (`/api/rpc/catalogue/saveDraft`
-    con un multipart di 12 MiB → 413);
+    con un multipart di 12 MiB → 413, `code: 'invalid'` dal client RPC);
   - un caricamento vero di 9 MiB da un curatore attraverso il client RPC passa (200) e uno
-    attraverso OpenAPI multipart passa;
-  - una richiesta JSON ordinaria (`saveDraft`) non è letta da `bufferUploadBody` (spia sul
+    attraverso il client OpenAPI passa;
+  - una richiesta JSON ordinaria (`saveDraft`) non passa da `bufferUploadBody` (spia sul
     modulo) e risponde come prima.
-- [ ] **Passo 2:** `npm test -w server -- test/photos-upload-limit.test.ts` → FAIL.
-- [ ] **Passo 3:** implementare.
-- [ ] **Passo 4:** `npm test -w server` → PASS.
-- [ ] **Passo 5: commit** «Foto: limite del corpo del caricamento prima del parser».
+- [ ] **Passo 2: test del web** in `web/src/api/rpc.test.ts`:
+  `an upload over the limit is invalid, not unknown`: `createRpcClient` con la `fetch` di
+  test che risponde con il corpo e lo stato registrati da una risposta reale del compito 6
+  (fixture versionata `web/src/api/fixtures/upload-too-large.rpc.json` con `status` e
+  `body`; il test del server `the RPC answer matches the web fixture` confronta la
+  risposta reale di `createApp` con la fixture e fallisce se differiscono, e con
+  `UPDATE_FIXTURES=1` la riscrive: la fixture non si scrive mai a mano):
+  `toApiError(error)` ha `code: 'invalid'` e `data.issues[0].code === 'photo_too_large'`;
+  con il JSON della versione precedente come risposta lo stesso test dà `unknown`
+  (seconda asserzione, documenta la differenza).
+- [ ] **Passo 3:** `npm test -w server -- test/photos-upload-limit.test.ts` e
+  `npm test -w web -- rpc` → FAIL.
+- [ ] **Passo 4:** implementare.
+- [ ] **Passo 5:** `npm test -w server`, `npm test -w web` → PASS.
+- [ ] **Passo 6: commit** «Foto: limite del corpo del caricamento prima del parser».
 
 ### Compito 7: foto nelle schede
 

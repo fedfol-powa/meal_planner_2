@@ -6,7 +6,8 @@ conferma dell'agente, risposte dell'utente del 16 ottobre 2026) e una verifica i
 un costruttore indipendente (foto delle bozze servite, ricette da libro); corretta dopo la
 revisione di spec e piano (`revisioni/w12-spec-piano.md`, rilievi 1–6, e decisioni del
 coordinatore in `messaggi/w12-01-revisione-spec.md`) e dopo la seconda revisione
-(`revisioni/w12-spec-piano-2.md`, rilievi 1–4).
+(`revisioni/w12-spec-piano-2.md`, rilievi 1–4) e dopo la terza (`revisioni/w12-spec-piano-3.md`,
+formato della risposta `413`).
 Branch: `ondata3/foto-ricette` · Worktree: `.worktrees/foto`
 
 Subordinata alla specifica principale
@@ -330,14 +331,27 @@ della richiesta, così l'agente può scaricarla o dare il link al curatore, che 
     **10 MiB di file più 64 KiB per l'involucro multipart** (`UPLOAD_BODY_LIMIT`) si
     rifiuta senza leggere; altrimenti `route` legge il flusso contando i byte e lo annulla
     appena supera il limite, senza affidarsi a `Content-Length`. Il superamento si decide
-    **fuori da oRPC**, prima di chiamare l'handler, quindi non passa dagli interceptor
-    (`mapUnreadableRequest` lo renderebbe un `400 invalid` senza issue): è `route` a
-    rispondere `413` con il corpo JSON
-    `{ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }`,
-    nella stessa forma degli altri errori del server, senza chiamate a Images né a R2. Un
-    corpo entro il limite si passa all'handler come `ArrayBuffer` in una nuova `Request`
-    con le stesse intestazioni: il Worker lo tiene in memoria una volta, come farebbe
-    comunque oRPC. Gli altri percorsi e i corpi non multipart non cambiano.
+    **prima di chiamare l'handler**, così il parser multipart non legge mai il corpo
+    grande; un corpo entro il limite si passa all'handler come `ArrayBuffer` in una nuova
+    `Request` con le stesse intestazioni (il Worker lo tiene in memoria una volta, come
+    farebbe comunque oRPC). Gli altri percorsi e i corpi non multipart non cambiano.
+  - **Formato della risposta** (terza revisione): la risposta `413` la serializza
+    **oRPC**, non `route` a mano. Un JSON scritto a mano non è un errore oRPC del
+    trasporto: RPC vuole l'involucro `json` e il riconoscimento chiede `defined` e
+    `message`, quindi RPCLink e OpenAPILink lo leggerebbero come `PAYLOAD_TOO_LARGE` e il
+    client web come `unknown` (riprodotto dal revisore con la versione 1.15.5). Per questo,
+    quando il limite è superato, `route` chiama comunque `handler.handle` con una
+    `Request` **senza corpo** (stesso metodo e URL, senza `Content-Length` né
+    `Content-Type`) e con `uploadTooLarge: true` nel contesto. Un interceptor nuovo,
+    `rejectOversizedUpload`, primo nell'elenco degli interceptor dei due handler, prima di
+    `mapUnreadableRequest`, lancia allora
+    `new ORPCError('invalid', { status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } })`
+    prima di qualsiasi decodifica. oRPC lo codifica nel formato di ciascun trasporto, come
+    già fa per gli errori di `mapUnreadableRequest` (documentazione oRPC via Context7: gli
+    errori lanciati dagli interceptor dell'handler diventano la risposta, con lo stato
+    dell'`ORPCError`); `mapUnreadableRequest` lascia passare un `ORPCError` con un codice
+    del contratto. I client leggono `status: 413`, `code: 'invalid'` e l'issue
+    `photo_too_large`, e il web mostra «La foto è troppo grande».
 - **Idempotenza:** `id` scelto dal client. Se esiste già una riga con quell'`id` per la
   stessa ricetta, l'operazione non scarica, non trasforma e non scrive: risponde con lo
   stato attuale della foto di quella ricetta. Un `id` già usato per un'altra ricetta →
@@ -576,7 +590,10 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
     `handler.handle`), su RPC e su OpenAPI, ciascuno con e senza slash finale, senza
     autenticazione: `413` con `photo_too_large` nel corpo, lettura interrotta, nessuna
     chiamata a Images né a R2; un multipart oltre il limite verso un altro percorso
-    `/api/` è rifiutato allo stesso modo;
+    `/api/` è rifiutato allo stesso modo; inoltre, attraverso i client RPC (RPCLink) e
+    OpenAPI (OpenAPILink) collegati a `createApp`, per il limite dichiarato e per quello
+    rilevato durante la lettura, l'errore ricevuto ha `status: 413`, `code: 'invalid'` e
+    l'issue `photo_too_large` (queste prove falliscono con un JSON scritto a mano);
   - indirizzi non validi (http, IP letterali, `localhost`, credenziali, porta), redirect
     verso un indirizzo non ammesso, più di 3 redirect, tempo scaduto, 404, corpo oltre il
     limite senza `Content-Length`;
@@ -617,9 +634,17 @@ una visita.
 
 ## 10. Dipendenze
 
-Nessuna dipendenza npm nuova. Il binding Images è un servizio di Cloudflare
+Nessuna dipendenza npm nuova a runtime. Il binding Images è un servizio di Cloudflare
 sull'account già usato, senza costo nel piano Free alle quantità previste; sostituisce una
 libreria di decodifica e codifica nel Worker (sezione 4).
+
+Una sola devDependency del server, **`@orpc/openapi-client` `1.15.5`**, solo per i test
+(da approvare dal coordinatore): fornisce `OpenAPILink`, con cui le prove del limite del
+caricamento leggono il rifiuto come lo leggerebbe un client OpenAPI vero (terza
+revisione). È già installata e nel lockfile, alla stessa versione, come dipendenza di
+`@orpc/openapi`, che il server usa: dichiararla non aggiunge pacchetti. Farne a meno
+vorrebbe dire decodificare a mano la risposta OpenAPI nei test, cioè ripetere proprio il
+formato che la prova deve verificare.
 
 ## Decisioni da riportare nella specifica
 
