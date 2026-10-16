@@ -174,6 +174,63 @@ describe('restoring a family after an authorised return (decision 23)', () => {
     expect(reversed.isRevoked(FAMILY)).toBe(false);
   });
 
+  it('a confirmation read before the older revocation reaches the tab keeps the family, in both tabs (PR review, finding 3)', async () => {
+    const store = createMemoryStore();
+    const time = clock();
+    const a = outbox();
+    const b = outbox();
+    const tabA = createSession(USER, store, { now: time.now, channel: a.channel });
+    const tabB = createSession(USER, store, { now: time.now, channel: b.channel });
+    const { api } = server();
+    time.at(100);
+    tabA.revoke(FAMILY);
+    // Tab B reads the profile at 200, before the message of tab A arrives: the family is there.
+    time.at(200);
+    await readProfile(tabB, api);
+    expect(tabB.isRevoked(FAMILY)).toBe(false);
+    time.at(300);
+    deliver(a.sent.splice(0), tabB);
+    expect(tabB.isRevoked(FAMILY)).toBe(false);
+    expect(b.sent).toEqual([{ type: 'restored', userId: USER, familyId: FAMILY, startedAt: 200 }]);
+    deliver(b.sent.splice(0), tabA);
+    expect(tabA.isRevoked(FAMILY)).toBe(false);
+    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 200 }));
+    // A revocation newer than the confirmation still wins.
+    time.at(400);
+    tabA.revoke(FAMILY);
+    deliver(a.sent.splice(0), tabB);
+    expect(tabB.isRevoked(FAMILY)).toBe(true);
+  });
+
+  it('a session whose profile is read before the marks of the device keeps the confirmed family', async () => {
+    const store = createMemoryStore();
+    const time = clock();
+    const first = createSession(USER, store, { now: time.now });
+    time.at(100);
+    first.revoke(FAMILY);
+    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 0 }));
+    const { api } = server();
+    const marks = deferred<void>();
+    // The first read of the device (the marks, at the start of the session) waits for the test.
+    let first_ = true;
+    const slowStore: Store = {
+      ...store,
+      transact: async (prefixes, change) => {
+        if (first_) {
+          first_ = false;
+          await marks.promise;
+        }
+        return store.transact(prefixes, change);
+      }
+    };
+    time.at(200);
+    const later = createSession(USER, slowStore, { now: time.now });
+    await readProfile(later, api);
+    marks.resolve();
+    await vi.waitFor(() => expect(markOf(store)).toEqual({ revokedAt: 100, restoredAt: 200 }));
+    expect(later.isRevoked(FAMILY)).toBe(false);
+  });
+
   it('a real revocation after the rejoin wins in both tabs', async () => {
     const store = createMemoryStore();
     const time = clock();

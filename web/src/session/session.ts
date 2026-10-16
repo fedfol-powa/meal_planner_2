@@ -129,6 +129,9 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
   let profileStartedAt = -Infinity;
   // When profile reads restored each family lately: see observeProfile.
   const profileRestores = new Map<string, number[]>();
+  // The start of the latest server confirmation of each family (profile read or join answer), also
+  // when this tab knew no revocation: one announced later, or read from the device, may be older.
+  const confirmed = new Map<string, number>();
   const listeners = new Set<() => void>();
   const requests = new Map<string, number>();
   const closeHooks = new Set<() => Promise<void>>();
@@ -169,8 +172,16 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
     if (wasRevoked !== isRevokedMark(after)) changed();
     return newer;
   };
+  /** A revocation older than a confirmation this tab already had is undone by it (PR review, finding 3). */
+  const reconcile = (familyId: string) => {
+    const at = confirmed.get(familyId);
+    const mark = marks.get(familyId);
+    if (at !== undefined && isRevokedMark(mark) && at > mark!.revokedAt) session.restore(familyId, at);
+  };
   const settle = (familyId: string, saved: RevocationMark | null) => {
-    if (saved && !closed) apply(familyId, saved);
+    if (!saved || closed) return;
+    apply(familyId, saved);
+    reconcile(familyId);
   };
 
   // Token epochs: a renewal that succeeded after a call started answers that call at once.
@@ -244,6 +255,7 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
         if (announce) deps.channel?.post({ type: 'revoked', userId, familyId, revokedAt });
       }
       changed();
+      reconcile(familyId);
       for (const hook of revokeHooks) {
         try {
           void Promise.resolve(hook(familyId, revokedAt)).catch(() => undefined);
@@ -277,14 +289,18 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
       }
       for (const familyId of present) {
         const mark = marks.get(familyId);
-        if (!isRevokedMark(mark) || startedAt <= mark!.revokedAt) continue;
-        // A server refusing a family its profile still lists (a role check, a stale fake) would make
-        // forbidden → revoke → profile → restore turn forever: reads restore a few times a minute at most.
-        // The answer of a join or a creation always counts.
-        const recent = (profileRestores.get(familyId) ?? []).filter((at) => startedAt - at < RESTORE_WINDOW_MS);
-        if (!answer && recent.length >= RESTORES_PER_WINDOW) continue;
-        profileRestores.set(familyId, [...recent, startedAt]);
-        session.restore(familyId, startedAt);
+        if (isRevokedMark(mark)) {
+          if (startedAt <= mark!.revokedAt) continue;
+          // A server refusing a family its profile still lists (a role check, a stale fake) would make
+          // forbidden → revoke → profile → restore turn forever: reads restore a few times a minute at most.
+          // The answer of a join or a creation always counts.
+          const recent = (profileRestores.get(familyId) ?? []).filter((at) => startedAt - at < RESTORE_WINDOW_MS);
+          if (!answer && recent.length >= RESTORES_PER_WINDOW) continue;
+          profileRestores.set(familyId, [...recent, startedAt]);
+          session.restore(familyId, startedAt);
+        }
+        // Remembered also when this tab knows no revocation: see reconcile.
+        confirmed.set(familyId, Math.max(confirmed.get(familyId) ?? 0, startedAt));
       }
     },
     renew: renewOnce,
