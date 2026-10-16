@@ -188,6 +188,45 @@ describe('fake api', () => {
   });
 });
 
+describe('a family created in the session (W9, W11)', () => {
+  const created = '00000000-0000-4000-8000-0000000000c1';
+  async function create() {
+    const client = api();
+    await client.family.create({ id: created, name: 'Casa al mare', measurementSystem: 'metric', timeZone: 'Europe/Rome' });
+    return client;
+  }
+
+  it('answers its reads as a new family instead of refusing them', async () => {
+    const client = await create();
+    expect(data(await client.menu.getOpening({ familyId: created }))).toEqual({ kind: 'no_weeks' });
+    expect(data(await client.menu.getDates({ familyId: created, month: '2026-10' }))).toEqual([]);
+    const family = data(await client.family.get({ familyId: created }));
+    expect(family).toMatchObject({ id: created, name: 'Casa al mare', myRole: 'family_admin' });
+    expect(family.members.map((m) => m.userId)).toEqual(['user-federico']);
+    expect(data(await client.family.getSettings({ familyId: created })).canEdit).toBe(true);
+    expect(data(await client.family.listExclusions({ familyId: created }))).toEqual([]);
+    expect((await client.familyInvitations.list({ familyId: created })).invitations).toEqual([]);
+    const recipes = data(await client.recipes.search({ familyId: created, query: {} }));
+    expect(recipes.items.length).toBeGreaterThan(0);
+    expect(recipes.items.every((i) => i.lastEatenOn === null && i.upcoming.length === 0)).toBe(true);
+    // The demo family is unchanged.
+    expect(data(await client.family.get({ familyId })).members.length).toBeGreaterThan(1);
+  });
+
+  it('keeps its own links, settings and deletion', async () => {
+    const client = await create();
+    const { url } = await client.familyInvitations.create({ familyId: created, id: '00000000-0000-4000-8000-0000000000c2' });
+    expect((await client.familyInvitations.get({ token: url.split('#')[1]! })).familyName).toBe('Casa al mare');
+    await client.family.rename({ familyId: created, name: 'Casa in montagna' });
+    expect((await client.profile.get({})).families.find((f) => f.id === created)?.name).toBe('Casa in montagna');
+    expect(data(await client.family.getDeletion({ familyId: created }))).toMatchObject({ weekCount: 0, canDelete: true });
+    await expect(client.family.leave({ familyId: created })).rejects.toMatchObject({ code: 'sole_member' });
+    const profile = await client.family.delete({ familyId: created });
+    expect(profile.families.map((f) => f.id)).toEqual([familyId]);
+    await expect(client.family.get({ familyId: created })).rejects.toMatchObject({ code: 'forbidden' });
+  });
+});
+
 describe('fake clients of one session (PR review, C13)', () => {
   it('share ratings and versions while each answers in its own language', async () => {
     const forLocale = fakeClients({ latencyMs: 0 })({ id: 'user-federico', email: 'federico@example.com' });

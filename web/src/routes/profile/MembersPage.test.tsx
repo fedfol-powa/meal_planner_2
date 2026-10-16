@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { createFakeApi, createFakeData, DEMO_FAMILY_ID, type FakeData } from '../../api/fake/fakeApi';
+import { createNewFamilyData } from '../../api/fake/family';
 import type { Api } from '../../api/types';
 import { setOnline } from '../../test/connectivity';
 import { createStubBackend } from '../../test/stubBackend';
@@ -283,7 +284,7 @@ describe('leaving the family', () => {
 
   it('a member leaves with the plain confirmation and lands on /profile when another family remains', async () => {
     const { api, backend } = setup(ANNA, (data) => {
-      data.createdFamilies.push({ id: '00000000-0000-4000-8000-0000000000f2', name: 'Casa al mare', timeZone: 'Europe/Rome', measurementSystem: 'metric' });
+      data.createdFamilies.push({ id: '00000000-0000-4000-8000-0000000000f2', data: createNewFamilyData({ name: 'Casa al mare', timeZone: 'Europe/Rome', measurementSystem: 'metric' }, ANNA.id) });
     });
     const leaveCall = vi.spyOn(api.family, 'leave');
     const { history } = renderApp('/profile/family', { api, backend });

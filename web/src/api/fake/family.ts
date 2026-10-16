@@ -52,6 +52,29 @@ export const openLinksOf = (data: FakeFamilyData, userId: string) => data.links.
 
 const JOINED: Record<string, string> = { 'user-federico': '2026-09-01T10:00:00+02:00', 'user-anna': '2026-09-01T10:05:00+02:00', 'user-tom': '2026-09-20T18:30:00+02:00' };
 
+/** A family made with the wizard (W9) in this session: only its creator, the planner defaults, no menus. */
+export function createNewFamilyData(
+  family: { name: string; timeZone: string; measurementSystem: 'metric' | 'uk_imperial' },
+  creatorId: string
+): FakeFamilyData {
+  const { weights: _weights, ...settings } = resolveFamilySettings({}) as SettingsView['settings'] & { weights: unknown };
+  return {
+    name: family.name,
+    timeZone: family.timeZone,
+    measurementSystem: family.measurementSystem,
+    members: [{ id: creatorId, role: 'family_admin', joinedAt: new Date().toISOString() }],
+    known: new Set([creatorId]),
+    removals: [],
+    deleted: false,
+    links: [],
+    joins: [],
+    settings,
+    ownedBooks: new Set(),
+    restrictions: new Map(),
+    exclusions: []
+  };
+}
+
 export function createFakeFamilyData(): FakeFamilyData {
   // The planner defaults; their time limits are among TIME_LIMITS.
   const { weights: _weights, ...settings } = resolveFamilySettings({}) as SettingsView['settings'] & { weights: unknown };
@@ -88,6 +111,7 @@ export function createFakeFamilyData(): FakeFamilyData {
 
 interface FamilyDeps {
   data: FakeFamilyData;
+  familyId: string;
   userId: string;
   /** The person's name as the profile shows it. */
   displayName: () => string;
@@ -131,7 +155,7 @@ export function createFakeFamily(deps: FamilyDeps): FamilyApi {
     const members = people()
       .map((p) => ({ userId: p.id, displayName: p.displayName, role: p.role, isMe: p.id === deps.userId, joinedAt: p.joinedAt }))
       .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName) : a.role === 'family_admin' ? -1 : 1));
-    return { id: DEMO_FAMILY.id, name: data.name, measurementSystem: data.measurementSystem, timeZone: data.timeZone, myRole: roleOf(deps.userId) ?? 'member', members };
+    return { id: deps.familyId, name: data.name, measurementSystem: data.measurementSystem, timeZone: data.timeZone, myRole: roleOf(deps.userId) ?? 'member', members };
   }
   function settingsView(): SettingsView {
     const locale = deps.locale();

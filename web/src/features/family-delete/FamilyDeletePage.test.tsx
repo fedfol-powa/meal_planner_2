@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { createFakeApi, createFakeData, DEMO_FAMILY_ID, type FakeData } from '../../api/fake/fakeApi';
+import { createNewFamilyData } from '../../api/fake/family';
 import { FAKE_FAMILY_INVITE_TOKEN } from '../../api/fake/fakeFamilyInvitations';
 import { createMemoryStore, revokedKey } from '../../api/persister';
 import { familyOfKey } from '../../api/queries';
@@ -14,6 +15,7 @@ import { createStubBackend } from '../../test/stubBackend';
 const FEDERICO = { id: 'user-federico', email: 'federico@example.com' };
 const ANNA = { id: 'user-anna', email: 'anna@example.com' };
 const OTHER = { id: '00000000-0000-4000-8000-0000000000f2', name: 'Casa al mare', timeZone: 'Europe/Rome', measurementSystem: 'metric' as const };
+const created = (userId: string) => ({ id: OTHER.id, data: createNewFamilyData(OTHER, userId) });
 const DELETE_PATH = `/profile/family/delete?family=${DEMO_FAMILY_ID}`;
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -83,7 +85,7 @@ describe('family deletion page', () => {
   });
 
   it('deletes and opens the profile when another family remains', async () => {
-    const { api, backend } = setup(FEDERICO, (data) => data.createdFamilies.push(OTHER));
+    const { api, backend } = setup(FEDERICO, (data) => data.createdFamilies.push(created(FEDERICO.id)));
     const { history } = renderApp(DELETE_PATH, { api, backend });
     fireEvent.click(await screen.findByRole('button', { name: 'Elimina Famiglia Folloni' }));
     await waitFor(() => expect(history.location.pathname).toBe('/profile'));
