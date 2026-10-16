@@ -5,7 +5,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Worker attivi
 
-**16/10 mattina, #47 rilasciata** (commit cecefef, versione `75d29930-6125-41bd-acf4-786814218171`; rollback `d53e1bce-1a3f-48a9-9a7e-9220787cf7e1`, nata dal ricaricamento del segreto `SUPABASE_SECRET_KEY` il 15/10): migrazione `20261015100000_user_admin.sql` applicata. Lanciato dall'utente con `!` (il classificatore di Claude Code blocca il rilascio dal coordinatore). Da fare: prova dell'utente sull'iPhone, poi chiudere #38. **R23 chiuso:** esportazione della notte 15→16/10 `exports/2026-10-16T02-30Z.json.gz.enc` di 134456 byte (130983 la notte prima), nessun duplicato alle 04:30.
+**16/10 mattina, #47 rilasciata** (commit cecefef, versione `75d29930-6125-41bd-acf4-786814218171`; rollback `d53e1bce-1a3f-48a9-9a7e-9220787cf7e1`, nata dal ricaricamento del segreto `SUPABASE_SECRET_KEY` il 15/10): migrazione `20261015100000_user_admin.sql` applicata. Lanciato dall'utente con `!` (il classificatore di Claude Code blocca il rilascio dal coordinatore). Provata dall'utente sull'iPhone il 16/10: funziona; **#38 chiusa**. **R23 chiuso:** esportazione della notte 15→16/10 `exports/2026-10-16T02-30Z.json.gz.enc` di 134456 byte (130983 la notte prima), nessun duplicato alle 04:30.
 
 **15/10 sera, PR #47 unita** (attività B, #38; due revisioni di spec e piano, due della PR, ultimo giro controllato dal coordinatore; CI verde su `a9967f7`). W10 chiuso, worktree rimosso. Nuova migrazione `20261015100000_user_admin.sql` (solo funzioni). Da fare: rilascio in produzione (migrazione con la CLI, poi `npm run release`) dopo il «vai» dell'utente; chiudere #38 dopo la prova; riportare le «Decisioni da riportare nella specifica» di `specs/2026-10-15-amministrazione-utenti.md` nella specifica principale (PR del coordinatore, serve il «mergia»); poi attività C.
 
@@ -33,6 +33,12 @@ Unite su `main` (ondata 3): #44 (specifica W7/W8 e ondata 3 senza email), #45 (i
 - **Altre:** 7 copie in R2 cifrate con chiave dell'utente; Annulla 6 s nell'app, nessun limite lato server; porzioni 1–20; scheda aperta da un pasto con le porzioni del pasto; unità contate scalate all'intero superiore tranne i pezzi (a mezzi in scheda e menu, interi nella spesa); voci della spesa «Nome (varietà)»; note e pasti liberi come scritti; ingrediente creabile senza nome inglese; nessun «Genera la prima settimana».
 
 ## Prossima azione del coordinatore
+
+**Aggiornato il 16 ottobre 2026. Si riparte da qui.**
+
+- **Attività C (gestione della famiglia)**: la lancia l'utente da una sessione nuova. Perimetro nel piano generale («Ordine dell'ondata 3», riga C) più la **cancellazione degli utenti dall'amministrazione** (decisione dell'utente del 15/10). Usa le interfacce di A e B in «Interfacce decise» (in particolare il lucchetto `app_admin_roles` per ogni percorso che toglie `app_admin`, anche la cancellazione dell'account). Brief da scrivere sul modello di `brief/w10-amministrazione-utenti.md` e da far approvare all'utente; un solo worker Claude, revisori Codex; prove locali senza la produzione (`protocollo-worker.md`, «Prove sullo stack locale»).
+- **PR delle decisioni di B** (branch `traguardo/specifica-w10`, scritta da un sottoagente del coordinatore il 16/10): revisione Codex, correzioni, poi **«mergia» esplicito dell'utente**; poi rimuovere il worktree del sottoagente (checkout pulito per `npm run release`).
+- **Rilasci:** il classificatore di Claude Code blocca `npm run release -- --apply` dal coordinatore: anteprima dal coordinatore, poi l'utente lo lancia con `!`.
 
 **Aggiornato il 13 ottobre 2026 sera, prima di un /clear chiesto dall'utente. Si riparte da qui.**
 
