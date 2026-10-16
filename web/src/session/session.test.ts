@@ -118,25 +118,34 @@ describe('revoked families across tabs (second review, C4)', () => {
     const hub = createMemoryHub();
     const session = createSession('a', store, { channel: hub.channel(), now: () => 100 });
     session.revoke('f1');
-    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100));
-    expect(hub.sent).toEqual([{ type: 'revoked', userId: 'a', familyId: 'f1' }]);
+    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toEqual({ revokedAt: 100, restoredAt: 0 }));
+    expect(hub.sent).toEqual([{ type: 'revoked', userId: 'a', familyId: 'f1', revokedAt: 100 }]);
     session.revoke('f2', { announce: false });
     expect(hub.sent).toHaveLength(1);
   });
-  it('lifts the mark when a read of the family started after the revocation succeeds', async () => {
+  it('a read of the family alone never restores it: only a profile or a join does (decision 23)', async () => {
     const store = createMemoryStore();
     await markRevoked(store, 'a', 'f1', 100);
     const session = createSession('a', store, { now: () => 200 });
+    await vi.waitFor(() => expect(session.isRevoked('f1')).toBe(true));
     expect(await session.call(async () => 'week', 'f1')).toBe('week');
-    await vi.waitFor(() => expect(store.entries.has(revokedKey('a', 'f1'))).toBe(false));
-  });
-  it('keeps the mark for a read that started before the revocation', async () => {
-    const store = createMemoryStore();
-    await markRevoked(store, 'a', 'f1', 100);
-    const session = createSession('a', store, { now: () => 50 });
-    await session.call(async () => 'week', 'f1');
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(store.entries.get(revokedKey('a', 'f1'))).toBe(100);
+    expect(store.entries.get(revokedKey('a', 'f1'))).toEqual({ revokedAt: 100, restoredAt: 0 });
+    expect(session.isRevoked('f1')).toBe(true);
+  });
+  it('restores with the start of the confirmation and tells the other tabs', async () => {
+    const store = createMemoryStore();
+    const hub = createMemoryHub();
+    const session = createSession('a', store, { channel: hub.channel(), now: () => 100 });
+    session.revoke('f1', { announce: false });
+    expect(session.restore('f1', 90)).toBe(false);
+    expect(session.restore('f1', 120)).toBe(true);
+    expect(session.isRevoked('f1')).toBe(false);
+    await vi.waitFor(() => expect(store.entries.get(revokedKey('a', 'f1'))).toEqual({ revokedAt: 100, restoredAt: 120 }));
+    expect(hub.sent).toEqual([
+      { type: 'restored', userId: 'a', familyId: 'f1', startedAt: 90 },
+      { type: 'restored', userId: 'a', familyId: 'f1', startedAt: 120 }
+    ]);
   });
 });
 

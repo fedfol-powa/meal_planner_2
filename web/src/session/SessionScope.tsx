@@ -124,8 +124,8 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
     if (!session?.userId) return;
     return channel.subscribe((message) => {
       if (message.userId !== session.userId || session.isClosed()) return;
-      // Only these two are the session's; extension messages belong to their listeners.
-      if (message.type === 'revoked') session.revoke(message.familyId, { announce: false });
+      // Revocations and restorations are the session's; extension messages belong to their listeners.
+      if (message.type === 'revoked' || message.type === 'restored') session.receive(message);
       else if (message.type === 'signedOut') {
         // Closed at once, like the Supabase events above: an answer arriving before the re-render is stale (PR #31 review, finding 1).
         void session.close();

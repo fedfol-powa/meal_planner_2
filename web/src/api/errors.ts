@@ -63,3 +63,15 @@ export function errorKey(error: unknown): MessageKey {
 export function isBlocking(error: unknown, hasData: boolean): boolean {
   return toApiError(error).code !== 'network' || !hasData;
 }
+
+/**
+ * A view whose read (or mutation) started before a revocation of its family (spec W11, «Dati sul
+ * dispositivo»): never written, never shown; the read is simply repeated.
+ */
+export class StaleAfterRevocationError extends Error {
+  readonly code = 'stale_after_revocation';
+  constructor() {
+    super('stale_after_revocation');
+    this.name = 'StaleAfterRevocationError';
+  }
+}

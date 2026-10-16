@@ -98,7 +98,7 @@ describe('applying the answer of a mutation', () => {
     const { client, run } = harness();
     const key = ['family', 'listExclusions', { familyId: FAMILY, locale: 'it-IT' }];
     await run('family.addExclusion', FAMILY, async () => []);
-    expect(client.getQueryData(key)).toEqual({ data: [] });
+    expect(client.getQueryData(key)).toEqual({ data: [], producedAt: expect.any(Number) });
     const inputs: unknown[] = [];
     const fresh = await readThrough(client, key, async (knownVersion) => {
       // The real input schema of the operation: an empty version would be refused here.
@@ -106,7 +106,7 @@ describe('applying the answer of a mutation', () => {
       return { unchanged: false, version: 'v2', data: [] };
     });
     expect(inputs).toEqual([{ value: { familyId: FAMILY } }]);
-    expect(fresh).toEqual({ version: 'v2', data: [] });
+    expect(fresh).toEqual({ version: 'v2', data: [], producedAt: expect.any(Number) });
   });
 
   it('makes the same view in the other languages stale, written or superseded (PR #21 review, finding 2)', async () => {
@@ -142,7 +142,7 @@ describe('applying the answer of a mutation', () => {
     const client = new QueryClient();
     client.setQueryData(settingsKey(FAMILY), { version: 'v1', data: view(2) });
     await applyMutation(client, { name: 'family.setMeal', familyId: FAMILY, locale: 'it-IT', view: view(3), sessionOpen: () => true, isLatest: () => true });
-    expect(client.getQueryData(settingsKey(FAMILY))).toEqual({ version: 'v1', data: view(3) });
+    expect(client.getQueryData(settingsKey(FAMILY))).toEqual({ version: 'v1', data: view(3), producedAt: expect.any(Number) });
   });
 
   it('marks exactly the reads of the table, of the same family only', async () => {
@@ -195,7 +195,7 @@ describe('meal mutations', () => {
     for (const key of stale) client.setQueryData(key, { version: 'x', data: {} });
     client.setQueryData(suggestionsKey(OTHER), { recipes: [] });
     await applyMutation(client, { name: 'meals.setServings', familyId: FAMILY, weekStartsOn: '2026-10-05', locale: 'it-IT', view: weekView(4), sessionOpen: () => true, isLatest: () => true });
-    expect(client.getQueryData(weekKey('2026-10-05'))).toEqual({ version: 'w1', data: weekView(4) });
+    expect(client.getQueryData(weekKey('2026-10-05'))).toEqual({ version: 'w1', data: weekView(4), producedAt: expect.any(Number) });
     expect(client.getQueryState(weekKey('2026-10-12'))?.isInvalidated).toBe(false);
     expect(client.getQueryState(weekKey('2026-10-05', 'en-GB'))?.isInvalidated).toBe(true);
     for (const key of stale) expect(client.getQueryState(key)?.isInvalidated).toBe(true);
@@ -392,7 +392,7 @@ describe('family management mutations (W11)', () => {
       client.setQueryData(joinsKey, { joins: [] });
       const view = { id: FAMILY, members: [{ userId: 'x' }] };
       await run(name, FAMILY, async () => view);
-      expect(client.getQueryData(familyKey)).toEqual({ version: 'v1', data: view });
+      expect(client.getQueryData(familyKey)).toEqual({ version: 'v1', data: view, producedAt: expect.any(Number) });
       expect(client.getQueryState(linksKey)?.isInvalidated).toBe(true);
       expect(client.getQueryState(joinsKey)?.isInvalidated).toBe(true);
     }

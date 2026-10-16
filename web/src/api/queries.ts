@@ -3,10 +3,42 @@ import { useLocale } from '../i18n/LocaleProvider';
 import type { Locale } from '../i18n/translate';
 import type { IsoDate } from '../lib/calendar';
 import { useApi } from './ApiProvider';
-import type { Api, Read, RecipeQuery } from './types';
+import { StaleAfterRevocationError } from './errors';
+import type { Api, ProfileView, Read, RecipeQuery } from './types';
 
-/** What the cache keeps: the view and its opaque version, sent back as knownVersion. */
-export interface Versioned<T> { version: string; data: T }
+/**
+ * What the cache keeps: the view, its opaque version, sent back as knownVersion, and `producedAt`,
+ * the instant the request that produced the data started (spec W11, «Dati sul dispositivo»): an
+ * «unchanged» answer keeps it, absent counts as 0.
+ */
+export interface Versioned<T> { version: string; data: T; producedAt?: number }
+
+/**
+ * What the reads and the mutations ask the session about the families (spec W11): its clock, the
+ * latest revocation known for a family and what a profile read says. Without a session (tests of
+ * single reads) nothing is revoked.
+ */
+export interface FamilyAccess {
+  now(): number;
+  /** The latest revocation known for the family on this device, 0 if none. */
+  revokedAt(familyId: string): number;
+  /** A profile read, or answered by a mutation (`answer`), by a request started at `startedAt`. */
+  profileRead(previous: ProfileView | undefined, next: ProfileView, startedAt: number, answer?: boolean): void;
+}
+
+const NO_ACCESS: FamilyAccess = { now: () => Date.now(), revokedAt: () => 0, profileRead: () => undefined };
+const accesses = new WeakMap<QueryClient, FamilyAccess>();
+
+export function attachFamilyAccess(queryClient: QueryClient, access: FamilyAccess): void {
+  accesses.set(queryClient, access);
+}
+
+export const familyAccessOf = (queryClient: QueryClient): FamilyAccess => accesses.get(queryClient) ?? NO_ACCESS;
+
+/** Throws when the family was revoked after the request started: the answer is dropped and the read repeated. */
+function checkStarted(access: FamilyAccess, familyId: string | null, startedAt: number): void {
+  if (familyId && access.revokedAt(familyId) >= startedAt) throw new StaleAfterRevocationError();
+}
 
 /** Wraps a read so screens never see «unchanged» (contract decided by W1). */
 export async function readThrough<T>(
@@ -14,15 +46,22 @@ export async function readThrough<T>(
   queryKey: QueryKey,
   read: (knownVersion?: string) => Promise<Read<T>>
 ): Promise<Versioned<T>> {
+  const access = familyAccessOf(queryClient);
+  const familyId = familyOfKey(queryKey);
+  const startedAt = access.now();
   const result = await read(queryClient.getQueryData<Versioned<T>>(queryKey)?.version);
-  if (!result.unchanged) return { version: result.version, data: result.data };
+  checkStarted(access, familyId, startedAt);
+  if (!result.unchanged) return { version: result.version, data: result.data, producedAt: startedAt };
   // The cache as it is now, not before the wait: a confirmed mutation may have patched it (second review, C5).
+  // Its producedAt stays: «unchanged» says nothing newer about when it was produced.
   const cached = queryClient.getQueryData<Versioned<T>>(queryKey);
   if (cached && cached.version === result.version) return cached;
   // Unchanged but nothing to show (cache cleared or replaced meanwhile): ask for the full view.
+  const again = access.now();
   const fresh = await read(undefined);
   if (fresh.unchanged) throw new Error('unchanged answer to a read without version');
-  return { version: fresh.version, data: fresh.data };
+  checkStarted(access, familyId, again);
+  return { version: fresh.version, data: fresh.data, producedAt: again };
 }
 
 export interface QueryDeps { api: Api; queryClient: QueryClient; locale: Locale }

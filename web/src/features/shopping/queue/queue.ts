@@ -250,9 +250,14 @@ export function createShoppingQueue(deps: ShoppingQueueDeps): ShoppingQueue {
     // Kept after dispose: the screen may go before the session closes, the queue must go with it.
     session.onClose(() => session.store.delete(key).catch(() => undefined));
     cleanups.push(
-      session.onRevoke(async (familyId) => {
+      // The operations queued up to the revocation leave with the family; later ones (after a return) stay (spec W11).
+      session.onRevoke(async (familyId, revokedAt) => {
         await mutate((record) => ({
-          next: { ...record, ops: record.ops.filter((o) => o.op.input.familyId !== familyId), notices: record.notices.filter((n) => n.familyId !== familyId) },
+          next: {
+            ...record,
+            ops: record.ops.filter((o) => o.op.input.familyId !== familyId || o.queuedAt > revokedAt),
+            notices: record.notices.filter((n) => n.familyId !== familyId)
+          },
           value: null
         })).catch(() => undefined);
       })
