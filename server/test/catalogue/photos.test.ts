@@ -217,18 +217,56 @@ describe.skipIf(!hasDatabase)('recipe photos', () => {
 		});
 	});
 
-	it('concurrent replacements leave one current photo', async () => {
+	it('a second replacement waits on the recipe before any effect, then wins', async () => {
 		const curator = await c.curator();
 		const recipeId = await publishedRecipe(curator, 'Pasta alla norma');
-		const results = await Promise.allSettled([
-			curator.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }),
-			curator.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }),
-			curator.client.catalogue.uploadPhoto({ id: crypto.randomUUID(), recipeId, file: jpegFile() }),
-		]);
-		expect(results.map((r) => r.status)).toEqual(['fulfilled', 'fulfilled', 'fulfilled']);
+		// The first upload holds its lock while the image is being read.
+		let entered!: () => void;
+		let release!: () => void;
+		const inFirst = new Promise<void>((resolve) => (entered = resolve));
+		const gate = new Promise<void>((resolve) => (release = resolve));
+		const base = fakeImages();
+		let first = true;
+		c.actors.env.IMAGES = {
+			...base,
+			info: async (stream) => {
+				if (first) {
+					first = false;
+					entered();
+					await gate;
+				}
+				return base.info(stream);
+			},
+		};
+		const [idA, idB] = [crypto.randomUUID(), crypto.randomUUID()];
+		const a = curator.client.catalogue.uploadPhoto({ id: idA, recipeId, file: jpegFile() });
+		let b: Promise<unknown> | undefined;
+		try {
+			await inFirst;
+			let settled = false;
+			b = curator.client.catalogue.uploadPhoto({ id: idB, recipeId, file: jpegFile() }).finally(() => (settled = true));
+			const deadline = Date.now() + 3000;
+			let waited = false;
+			while (!waited && !settled && Date.now() < deadline) {
+				const found = await db()`select 1 from pg_stat_activity where usename = 'app_server' and wait_event_type = 'Lock'`;
+				waited = found.length > 0;
+				if (!waited) await new Promise((r) => setTimeout(r, 20));
+			}
+			expect(waited, 'the second upload waits on the recipe').toBe(true);
+			// Before any effect: its image not read, nothing written.
+			expect(base.calls.info).toBe(0);
+			expect(bucket.objects.size).toBe(0);
+			expect(await rows(recipeId)).toEqual([]);
+		} finally {
+			release();
+			await Promise.allSettled([a, b]);
+		}
+		await Promise.all([a, b]);
 		const all = await rows(recipeId);
-		expect(all).toHaveLength(3);
-		expect(all.filter((r) => r.removed_at === null)).toHaveLength(1);
+		expect(all.map((r) => [r.id, r.removed_at === null])).toEqual([
+			[idA, false],
+			[idB, true],
+		]);
 	});
 
 	it('a failed transaction leaves an orphan object, never a row', async () => {
