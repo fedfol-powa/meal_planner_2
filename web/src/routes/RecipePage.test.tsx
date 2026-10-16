@@ -320,6 +320,40 @@ describe('recipe photo (W12)', () => {
     expect(upload).not.toHaveBeenCalled();
   });
 
+  it('a photo that does not load leaves the curator the «Foto» menu, never «Aggiungi foto»', async () => {
+    renderApp(`/recipes/${PHOTO_RECIPE}`);
+    await screen.findByRole('button', { name: 'Foto' });
+    act(() => {
+      fireEvent.error(document.querySelector('.meal-media img')!);
+    });
+    expect(document.querySelector('.meal-media img')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Aggiungi foto' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Foto' }));
+    expect(await screen.findByRole('button', { name: 'Togli la foto' })).toBeTruthy();
+  });
+
+  it('a member sees nothing of a photo that does not load', async () => {
+    renderApp(`/recipes/${PHOTO_RECIPE}`, { createApi: fakeClients({ latencyMs: 0, globalRoles: [] }) });
+    await screen.findByRole('heading', { name: /Pasta alla crema di peperoni/ });
+    act(() => {
+      fireEvent.error(document.querySelector('.meal-media img')!);
+    });
+    expect(document.querySelector('.meal-media')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Foto' })).toBeNull();
+  });
+
+  it('back online, a photo that failed is tried again', async () => {
+    renderApp(`/recipes/${PHOTO_RECIPE}`, { createApi: fakeClients({ latencyMs: 0, globalRoles: [] }) });
+    await screen.findByRole('heading', { name: /Pasta alla crema di peperoni/ });
+    act(() => setOnline(false));
+    act(() => {
+      fireEvent.error(document.querySelector('.meal-media img')!);
+    });
+    expect(document.querySelector('.meal-media img')).toBeNull();
+    act(() => setOnline(true));
+    expect(document.querySelector('.meal-media img')).not.toBeNull();
+  });
+
   it('offline the commands are disabled', async () => {
     renderApp(`/recipes/${PHOTO_RECIPE}`);
     const button = (await screen.findByRole('button', { name: 'Foto' })) as HTMLButtonElement;

@@ -8,7 +8,7 @@ import { Icon } from '../../components/Icon';
 import { useOnline } from '../../components/OfflineBanner';
 import { RatingStars } from '../../components/RatingStars';
 import { RecipeFilters } from '../../components/RecipeFilters';
-import { RecipePhoto } from '../../components/RecipePhoto';
+import { RecipePhoto, usePhotoLoad } from '../../components/RecipePhoto';
 import { useT } from '../../i18n/LocaleProvider';
 import type { EditorStage } from './MealEditor';
 import { suggestionsQuery } from './queries';
@@ -157,6 +157,6 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
 
 /** The 3:1 banner of a suggestion (design, «Revisione dei pasti»); gone when the image does not load. */
 function SuggestionPhoto({ url }: { url: string }) {
-  const [failed, setFailed] = useState(false);
-  return failed ? null : <RecipePhoto url={url} ratio="3 / 1" className={styles.photo} onFail={() => setFailed(true)} />;
+  const photo = usePhotoLoad(url);
+  return photo.url ? <RecipePhoto url={photo.url} ratio="3 / 1" className={styles.photo} onFail={photo.fail} /> : null;
 }

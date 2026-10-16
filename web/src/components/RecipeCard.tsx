@@ -8,7 +8,7 @@ import type { RecipeSearch } from '../routes/search';
 import { Icon } from './Icon';
 import { IngredientList } from './IngredientList';
 import { RatingStars } from './RatingStars';
-import { RecipePhoto } from './RecipePhoto';
+import { RecipePhoto, usePhotoLoad } from './RecipePhoto';
 import styles from './RecipeCard.module.css';
 import { safeSourceUrl, SOURCE_MAX_CHARS, sourceLine } from './source';
 
@@ -71,13 +71,12 @@ export function RecipeCard(props: RecipeCardProps) {
   const averageText = rating?.familyAverage != null ? formatAverage(locale, rating.familyAverage) : '–';
   const chip = label ? <span className="meal-label">{label}</span> : null;
   // An image that does not load (offline and never seen, removed) leaves the card as without a photo.
-  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
-  const photoUrl = hasRecipe && recipe!.photoUrl && recipe!.photoUrl !== failedPhoto ? recipe!.photoUrl : null;
+  const photo = usePhotoLoad(hasRecipe ? recipe!.photoUrl : null);
 
   return (
     <article className={`meal${kind !== 'recipe' ? ' meal-free' : ''}${isPast ? ` ${styles.past}` : ''}`} aria-labelledby={headingId}>
-      {photoUrl ? (
-        <RecipePhoto url={photoUrl} ratio="3 / 1" onFail={() => setFailedPhoto(photoUrl)}>{chip}</RecipePhoto>
+      {photo.url ? (
+        <RecipePhoto url={photo.url} ratio="3 / 1" onFail={photo.fail}>{chip}</RecipePhoto>
       ) : (
         <div className="meal-heading">{chip}</div>
       )}

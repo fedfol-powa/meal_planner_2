@@ -5,7 +5,7 @@ import type { RecipeSummary } from '../../../api/types';
 import { BottomSheet } from '../../../components/BottomSheet';
 import { Icon } from '../../../components/Icon';
 import { useOnline } from '../../../components/OfflineBanner';
-import { RecipePhoto } from '../../../components/RecipePhoto';
+import { RecipePhoto, usePhotoLoad } from '../../../components/RecipePhoto';
 import { useT } from '../../../i18n/LocaleProvider';
 import type { MessageKey } from '../../../i18n/translate';
 import { useIsCurator } from '../queries';
@@ -46,13 +46,12 @@ export function PhotoControls({ recipe }: { recipe: RecipeSummary }) {
   const remove = useRemovePhoto(recipe.id);
   const input = useRef<HTMLInputElement>(null);
   const [sheet, setSheet] = useState<Sheet>('closed');
-  const [failedPhoto, setFailedPhoto] = useState<string | null>(null);
-  const photoUrl = recipe.photoUrl && recipe.photoUrl !== failedPhoto ? recipe.photoUrl : null;
+  const photo = usePhotoLoad(recipe.photoUrl);
   const busy = upload.isPending || remove.isPending;
   const disabled = !online || busy;
   const error = upload.error ?? remove.error;
 
-  if (!photoUrl && !isCurator) return null;
+  if (!photo.url && !isCurator) return null;
 
   const pick = () => input.current?.click();
   const chosen = (event: ChangeEvent<HTMLInputElement>) => {
@@ -67,18 +66,22 @@ export function PhotoControls({ recipe }: { recipe: RecipeSummary }) {
     upload.reset();
     remove.mutate(undefined, { onSuccess: () => setSheet('closed') });
   };
+  const menuButton = (className?: string) => (
+    <button type="button" className={className} disabled={disabled} onClick={() => setSheet('menu')}>
+      <Icon name="camera" />{t('catalogue.photo.menu')}
+    </button>
+  );
   const alert = error ? <p className={`meta-line ${styles.error}`} role="alert">{t(photoErrorKey(error))}</p> : null;
 
   return (
     <>
-      {photoUrl ? (
-        <RecipePhoto url={photoUrl} ratio="16 / 9" className={styles.media} onFail={() => setFailedPhoto(photoUrl)}>
-          {isCurator && (
-            <button type="button" className={styles.photoButton} disabled={disabled} onClick={() => setSheet('menu')}>
-              <Icon name="camera" />{t('catalogue.photo.menu')}
-            </button>
-          )}
+      {photo.url ? (
+        <RecipePhoto url={photo.url} ratio="16 / 9" className={styles.media} onFail={photo.fail}>
+          {isCurator && menuButton(styles.photoButton)}
         </RecipePhoto>
+      ) : photo.failed ? (
+        // The photo exists but does not load (offline, or its file is gone): still replaceable or removable.
+        menuButton(`text-button ${styles.add}`)
       ) : (
         <button type="button" className={`text-button ${styles.add}`} disabled={disabled} onClick={pick}>
           <Icon name="camera" />{upload.isPending ? t('catalogue.photo.uploading') : t('catalogue.photo.add')}

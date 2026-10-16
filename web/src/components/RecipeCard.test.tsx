@@ -2,6 +2,7 @@ import { act, fireEvent, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { RecipeSummary } from '../api/types';
+import { setOnline } from '../test/connectivity';
 import { renderWithProviders } from '../test/renderWithProviders';
 import { RecipeCard, type CardActions, type RecipeCardProps } from './RecipeCard';
 
@@ -108,6 +109,17 @@ describe('RecipeCard', () => {
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('.meal-media')).toBeNull();
     expect(container.querySelector('.meal-heading .meal-label')!.textContent).toBe('Pranzo');
+  });
+  it('back online, a photo that failed offline is tried again', async () => {
+    const { container } = renderWithProviders(<RecipeCard {...base} recipe={{ ...recipe, photoUrl: '/photos/abc.webp' }} />);
+    await screen.findByRole('link', { name: /Spaghetti al pomodoro/ });
+    act(() => setOnline(false));
+    act(() => {
+      fireEvent.error(container.querySelector('img')!);
+    });
+    expect(container.querySelector('img')).toBeNull();
+    act(() => setOnline(true));
+    expect(container.querySelector('img.meal-photo')).not.toBeNull();
   });
   it('a past meal shows the photo desaturated', async () => {
     const { container } = renderWithProviders(<RecipeCard {...base} isPast recipe={{ ...recipe, photoUrl: '/photos/abc.webp' }} />);

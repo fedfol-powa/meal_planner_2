@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useOnline } from './OfflineBanner';
 
 export interface RecipePhotoProps {
   url: string;
@@ -19,4 +20,18 @@ export function RecipePhoto({ url, ratio, children, className, onFail }: RecipeP
       {children}
     </div>
   );
+}
+
+/**
+ * A photo that did not load (offline and not cached, or gone) is left out until the device is
+ * back online, then tried again. `failed`: there is a photo, but it is not shown.
+ */
+export function usePhotoLoad(url: string | null | undefined) {
+  const online = useOnline();
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (online) setFailedUrl(null);
+  }, [online]);
+  const failed = !!url && url === failedUrl;
+  return { url: url && !failed ? url : null, failed, fail: () => setFailedUrl(url ?? null) };
 }
