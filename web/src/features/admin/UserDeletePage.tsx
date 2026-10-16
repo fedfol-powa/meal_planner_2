@@ -37,21 +37,22 @@ const PLAN_CHANGED = ['conflict', 'invalid', 'last_app_admin'];
 export function UserDeletePage() {
   const t = useT();
   const { userId } = route.useParams();
-  const back = (
-    <Link to="/admin/users/$userId" params={{ userId }} className="page-back"><Icon name="chevron-left" />{t('admin.users')}</Link>
+  // Back to the person's detail, named as in the prototype once the plan says who it is.
+  const backTo = (label: string) => (
+    <Link to="/admin/users/$userId" params={{ userId }} className="page-back"><Icon name="chevron-left" />{label}</Link>
   );
   return (
     <section className="secondary-view app-view" aria-labelledby="user-delete-title">
       <div className="page-column">
-        <AdminAccessGate fallbackHeader={<PageHeader back={back} title={t('admin.deleteUser')} titleId="user-delete-title" />}>
-          <UserDeleteView userId={userId} back={back} />
+        <AdminAccessGate fallbackHeader={<PageHeader back={backTo(t('admin.users'))} title={t('admin.deleteUser')} titleId="user-delete-title" />}>
+          <UserDeleteView userId={userId} backTo={backTo} />
         </AdminAccessGate>
       </div>
     </section>
   );
 }
 
-function UserDeleteView({ userId, back }: { userId: string; back: ReactNode }) {
+function UserDeleteView({ userId, backTo }: { userId: string; backTo: (label: string) => ReactNode }) {
   const t = useT();
   const plan = useQuery(userDeletionPlanQuery(useQueryDeps(), userId));
   // From the answer on, the page only waits to give way: a reread of the plan (now not_found) is not shown.
@@ -74,7 +75,7 @@ function UserDeleteView({ userId, back }: { userId: string; back: ReactNode }) {
   const name = plan.data?.user.displayName;
   return (
     <>
-      <PageHeader back={back} title={name ? t('admin.deleteTitle', { name }) : t('admin.deleteUser')} titleId="user-delete-title" />
+      <PageHeader back={backTo(name ?? t('admin.users'))} title={name ? t('admin.deleteTitle', { name }) : t('admin.deleteUser')} titleId="user-delete-title" />
       {body}
     </>
   );

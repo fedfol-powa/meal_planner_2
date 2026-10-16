@@ -51,6 +51,8 @@ describe('/admin/users/$userId/delete', () => {
     );
     renderApp(PATH, { api });
     expect(await screen.findByRole('heading', { name: 'Cancella Ospite', level: 1 })).toBeTruthy();
+    // Back to the person's detail, named as in the prototype.
+    expect(screen.getByRole('link', { name: 'Ospite' }).getAttribute('href')).toMatch(/^\/admin\/users\/[^/]+$/);
     expect(screen.getByText('ospite@example.com')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Le sue famiglie', level: 2 })).toBeTruthy();
     expect(within(card('Famiglia Folloni')).getByText('La famiglia continua senza Ospite.')).toBeTruthy();
