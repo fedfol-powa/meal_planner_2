@@ -38,6 +38,9 @@ describe('change recipe', () => {
     const img = withPhoto.querySelector('img.meal-photo')!;
     expect(img.getAttribute('src')).toBe('/photos/pasta.webp');
     expect((img.parentElement as HTMLElement).style.aspectRatio).toBe('3 / 1');
+    // Inside the button only phrasing content: the banner is a span, never a div.
+    expect(img.parentElement!.tagName).toBe('SPAN');
+    expect(withPhoto.querySelector('button div')).toBeNull();
     const without = within(sheet).getByRole('button', { name: 'Scegli Senza foto' }).closest('li')!;
     expect(without.querySelector('img')).toBeNull();
   });

@@ -10,15 +10,17 @@ export interface RecipePhotoProps {
   className?: string;
   /** The image did not load (offline and not cached, removed): the caller goes back to the form without a photo. */
   onFail?: () => void;
+  /** `span` inside a button, where only phrasing content is allowed. */
+  as?: 'div' | 'span';
 }
 
 /** The photo of a recipe (W12): decorative, the title follows. */
-export function RecipePhoto({ url, ratio, children, className, onFail }: RecipePhotoProps) {
+export function RecipePhoto({ url, ratio, children, className, onFail, as: Box = 'div' }: RecipePhotoProps) {
   return (
-    <div className={`meal-media${className ? ` ${className}` : ''}`} style={{ aspectRatio: ratio }}>
+    <Box className={`meal-media${className ? ` ${className}` : ''}`} style={{ aspectRatio: ratio }}>
       <img className="meal-photo" src={url} alt="" loading="lazy" decoding="async" onError={onFail} />
       {children}
-    </div>
+    </Box>
   );
 }
 

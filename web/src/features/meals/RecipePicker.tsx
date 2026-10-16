@@ -158,5 +158,5 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
 /** The 3:1 banner of a suggestion (design, «Revisione dei pasti»); gone when the image does not load. */
 function SuggestionPhoto({ url }: { url: string }) {
   const photo = usePhotoLoad(url);
-  return photo.url ? <RecipePhoto url={photo.url} ratio="3 / 1" className={styles.photo} onFail={photo.fail} /> : null;
+  return photo.url ? <RecipePhoto as="span" url={photo.url} ratio="3 / 1" className={styles.photo} onFail={photo.fail} /> : null;
 }
