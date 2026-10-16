@@ -1108,6 +1108,37 @@ nella forma del sesto giro. Scostamenti dal prototipo:
   a comparsa;
 - il dettaglio del proprio account ha la riga «Questo è il tuo account».
 
-La cancellazione di un utente (`/admin/users/[id]/delete`) non c'è ancora, nemmeno come
-segnaposto nel dettaglio: arriva con l'attività C, insieme alla cancellazione
-dell'account (decisione dell'utente del 15 ottobre 2026).
+La PR #47 non aveva la cancellazione di un utente (`/admin/users/[id]/delete`), nemmeno
+come segnaposto nel dettaglio: è arrivata con l'attività C, insieme alla cancellazione
+dell'account (decisione dell'utente del 15 ottobre 2026; sotto).
+
+### Gestione della famiglia nell'app (16 ottobre 2026)
+
+I percorsi del quarto giro su inviti, membri, uscita, eliminazione della famiglia e
+cancellazione dell'account, e quello del sesto giro sulla cancellazione di un utente,
+sono realizzati nell'app con la PR #52, unita il 16 ottobre 2026 e **non ancora
+rilasciata** in produzione (specifica, sezioni 7 e 14; particolari in
+`progetto/superpowers/specs/2026-10-16-gestione-famiglia.md`, sezione 3): pagina
+dell'invito, membri e link d'invito in `/profile/family`, cambio di ruolo, rimozione e
+uscita con il successore nei fogli, `/profile/family/delete?family=<id>`,
+`/profile/account/delete` dalle Preferenze, `/admin/users/[id]/delete` dal dettaglio
+dell'utente, «Invita la famiglia» nella scheda di benvenuto. Pagine dedicate con il
+pulsante rosso dopo il riepilogo, esiti famiglia per famiglia e scelta del successore
+restano nella forma del prototipo. Scostamenti:
+
+- il link è `/invite#<token>` al posto di `/invite/[token]` e si vede solo alla
+  creazione; l'elenco mostra autore, scadenza, persone registrate (al più 10 per link)
+  e i link scaduti con registrazioni da completare, con «Revoca», e non ricondivide il
+  link: se ne crea uno nuovo;
+- chi non ha un account lo crea sulla pagina dell'invito con email, nome e password
+  («Crea l'account ed entra»), al posto del primo accesso simulato in `/welcome`;
+- nella pagina dei membri c'è la card «Ingressi con i link»;
+- «Rendi membro» chiede conferma quando la persona ha link attivi, e rimozione,
+  uscita e cancellazione dicono quanti link smetteranno di valere;
+- dopo l'uscita o l'eliminazione senza altre famiglie si va al Menu con «Non fai
+  ancora parte di una famiglia», che ha la riga sui link d'invito, perché l'app non ha
+  `/welcome`; «Sei uscito» diventa «Non fai più parte di {famiglia}»;
+- il numero di agenti collegati compare solo sulla cancellazione del proprio account;
+- un account in attesa di cancellazione ha nell'amministrazione «Cancellazione in
+  corso» e «Completa la cancellazione»; chi vi accede vede «Questo account è stato
+  cancellato.».
