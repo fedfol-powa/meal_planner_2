@@ -757,7 +757,7 @@ solo `/invite/*`); il meta `no-referrer` di `index.html` c'è già.
 | Caricamento | `Loading` |
 | Non valido (link scaduto, revocato, inesistente, rimozione posteriore) | «Questo invito non vale più» e «Chiedi un link nuovo a un amministratore della famiglia» (stesso testo per tutti i casi, come A) |
 | Troppi tentativi | «Troppi tentativi. Riprova tra un minuto» |
-| Valido, nessun accesso | «Entra in {famiglia}», «{nome} ti invita a condividere menu e spesa della famiglia» (senza nome: «Hai ricevuto un link d'invito»). Con `accountsAvailable`: modulo di A (Email, Nome, Password, Ripeti la password) con il pulsante «Crea l'account ed entra». Sotto: «Hai già un account? Accedi per entrare» verso `/login?redirect=/invite#…`. Senza `accountsAvailable`: niente modulo, il messaggio dei link non validi per la creazione («Questo invito non vale più per creare un account: chiedi un link nuovo») e il collegamento per accedere |
+| Valido, nessun accesso | «Entra in {famiglia}», «{nome} ti invita a condividere menu e spesa della famiglia» (senza nome: «Hai ricevuto un link d'invito»). Con `accountsAvailable`: modulo di A (Email, Nome, Password, Ripeti la password) con il pulsante «Crea l'account ed entra». Sotto: «Hai già un account? Accedi per entrare» verso `/login?redirect=/invite#<token>` (il token nel frammento della pagina di accesso, mai nella query). Senza `accountsAvailable`: niente modulo, il messaggio dei link non validi per la creazione («Questo invito non vale più per creare un account: chiedi un link nuovo») e il collegamento per accedere |
 | Valido, con accesso | da `familyInvitations.status`: «Entra in {famiglia}», «Entri come {nome}», pulsante «Entra nella famiglia» (`family.join`); dopo: la famiglia diventa quella mostrata e la pagina porta a `/menu`. Con un altro account aperto vale «Esci e continua» di A |
 | Già membro | «Fai già parte di {famiglia}» con «Apri il menu» |
 
@@ -770,8 +770,10 @@ mostrata (l'ha impostata `complete_family_invitation`); se fallisce, `/login` co
 i testi di A («Il tuo account è pronto: entra con la password che hai scelto la prima
 volta»). Errori del modulo come A (`account_exists` con il collegamento all'accesso).
 
-Il ritorno dall'accesso: `LoginPage` accetta già `redirect`; il frammento si conserva
-nel valore di `redirect` (`/invite#<token>`), da verificare nel piano con un test.
+Il ritorno dall'accesso: `LoginPage` accetta già `redirect`; il token resta nel frammento
+della pagina di accesso (`/login?redirect=/invite#<token>`) e la rotta lo riporta su un
+`redirect` che non ne ha uno. Nella query andrebbe al server a ogni ricarica (revisione
+del branch); `/login` ha anche `Referrer-Policy: no-referrer`.
 
 ### Membri e inviti (`/profile/family`, `web/src/routes/profile/MembersPage.tsx`)
 
@@ -1312,10 +1314,10 @@ collegamento) rifiutato dopo. Eseguito da `scripts/invitations/invite-stack.sh`
   distanziati; titolo del foglio del link al singolare in inglese («Invitation link»);
   ritorno dalla cancellazione di un utente con il nome della persona, come nel
   prototipo.
-- **Da guardare in revisione:** il ritorno dall'accesso porta il token nella query di
-  `/login` (`redirect=/invite#…`, decisione di questa spec): se la pagina di accesso si
-  ricarica, il token va al server degli asset. Alternativa possibile: conservarlo nel
-  frammento anche su `/login`.
+- **Revisione del branch:** il token del ritorno dall'accesso stava nella query di
+  `/login`; ora resta nel frammento (vedi «Pagina dell'invito»). Un `forbidden` su
+  un'operazione riservata agli amministratori della famiglia (dopo una retrocessione) non
+  revoca più la famiglia né la coda della spesa: rilegge profilo e famiglia.
 
 ### Da provare a mano sull'iPhone
 
