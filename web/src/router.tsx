@@ -18,6 +18,7 @@ import { AuthorizePage } from './features/agents/AuthorizePage';
 import { validateAuthorizeSearch } from './features/agents/search';
 import { AdminPage } from './features/admin/AdminPage';
 import { UserPage } from './features/admin/UserPage';
+import { UserDeletePage } from './features/admin/UserDeletePage';
 import { InvitePage } from './features/app-invitations/InvitePage';
 import { InvitePage as FamilyInvitePage } from './features/family-invitations/InvitePage';
 import { DraftPage } from './features/catalogue/DraftPage';
@@ -99,6 +100,8 @@ const newFamilyRoute = createRoute({ getParentRoute: () => appRoute, path: '/fam
 // App administration (spec W9): app_admin only, also checked by the server.
 const adminRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin', component: AdminPage });
 const userRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin/users/$userId', component: UserPage });
+// Deletion of another user (spec W11): only navigation, nothing is deleted on opening.
+const userDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin/users/$userId/delete', component: UserDeletePage });
 const agentsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/agents', component: AgentsPage });
 // `day`: the menu day the list was opened from, where «Menu» goes back to.
 const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shopping/$weekStartsOn', validateSearch: validateMenuSearch, component: ShoppingPage });
@@ -108,7 +111,7 @@ const routeTree = rootRoute.addChildren([
   authorizeRoute,
   appInviteRoute,
   familyInviteRoute,
-  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, familyDeleteRoute, accountDeleteRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, shoppingRoute])
+  appRoute.addChildren([indexRoute, menuRoute, recipesRoute, draftRoute, recipeRoute, profileRoute, preferencesRoute, passwordRoute, membersRoute, settingsRoute, exclusionsRoute, familyDeleteRoute, accountDeleteRoute, agentsRoute, newFamilyRoute, adminRoute, userRoute, userDeleteRoute, shoppingRoute])
 ]);
 
 export function createAppRouter(history?: RouterHistory) {
@@ -118,5 +121,9 @@ export function createAppRouter(history?: RouterHistory) {
 declare module '@tanstack/react-router' {
   interface Register {
     router: ReturnType<typeof createAppRouter>;
+  }
+  interface HistoryState {
+    /** The name of the user just deleted from the administration, told once by /admin (spec W11). */
+    userDeleted?: string;
   }
 }
