@@ -5,7 +5,7 @@ Ultimo aggiornamento: 16 ottobre 2026
 Stato: approvato dall'utente l'11 ottobre 2026; ondate 1 e 2 completate, traguardo A in
 produzione dal 12–13 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; ondata 3
 avviata il 13 ottobre 2026, attività A rilasciata il 15 ottobre 2026, attività B il 16
-ottobre 2026; attività C unita il 16 ottobre 2026, da rilasciare.
+ottobre 2026; attività C il 16 ottobre 2026.
 
 Coordina il lavoro dalla fine del prototipo all'app funzionante. Sostituisce la tabella
 delle fasi della specifica, sezione 10, e il piano M1a del 29 settembre. Ogni attività

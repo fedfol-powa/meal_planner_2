@@ -12,9 +12,9 @@ Stato attuale: traguardo A in produzione dal 12–13 ottobre 2026 su
 `https://cosasimangia.qunidi.workers.dev`, con il collaudo completo ancora in corso
 (sezione 10); dal 15 ottobre 2026 in produzione anche gli inviti all'app e la creazione
 delle famiglie (attività A dell'ondata 3), dal 16 ottobre l'amministrazione di utenti e
-ruoli (attività B). La gestione della famiglia (attività C: inviti alla famiglia, membri
-e ruoli, uscita, eliminazione della famiglia, cancellazione dell'account e degli utenti)
-è unita su `main` il 16 ottobre 2026 ma **non è ancora rilasciata** in produzione
+ruoli (attività B) e la gestione della famiglia (attività C: inviti alla famiglia,
+membri e ruoli, uscita, eliminazione della famiglia, cancellazione dell'account e degli
+utenti), con il collaudo dell'utente e le prove a mano sull'iPhone ancora da fare
 (sezione 10).
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
@@ -323,7 +323,7 @@ particolari in `progetto/superpowers/specs/2026-10-15-amministrazione-utenti.md`
   dell'account (Parte 1 e sezione 7).
 
 **Decisioni del 16 ottobre 2026, gestione della famiglia unita** (attività C dell'ondata
-3, PR #52 unita il 16 ottobre, non ancora rilasciata; particolari in
+3, PR #52 unita e rilasciata il 16 ottobre; particolari in
 `progetto/superpowers/specs/2026-10-16-gestione-famiglia.md`):
 
 - **decisione dell'utente del 16 ottobre 2026**: un link d'invito alla famiglia fa
@@ -404,8 +404,8 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   quella dell'invito): è il suo primo accesso, e la pagina la fa entrare subito. Chi ha
   già un account accede e conferma l'ingresso. Quando il dominio di invio sarà
   verificato arriveranno l'invito per email e la «password dimenticata». Dal 15 ottobre
-  2026 ci sono gli inviti all'app; quelli alla famiglia sono pronti dal 16 ottobre e
-  arrivano con il prossimo rilascio. Chi ha un account crea la
+  2026 ci sono gli inviti all'app; dal 16 ottobre anche quelli alla
+  famiglia. Chi ha un account crea la
   propria Famiglia, o un'altra dal Profilo, scegliendo nome e unità di misura, e trova
   il primo menu già pronto. Ognuno cambia la
   propria password dal Profilo, senza email, dando anche quella attuale; gli altri
@@ -605,7 +605,7 @@ una famiglia di cui la persona è l'unico membro.
 
 Con un link d'invito alla famiglia, chi ha già un account può entrare anche
 dall'agente, che chiede prima conferma; un account nuovo invece si crea solo sulla
-pagina dell'invito (gestione della famiglia, unita il 16 ottobre 2026).
+pagina dell'invito (gestione della famiglia, dal 16 ottobre 2026).
 
 Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
 deve poter avvenire tramite l'agente. Una pagina dell'app, «Collega un agente» nel
@@ -656,8 +656,8 @@ operazioni si fanno dal proprio agente. Il ripristino del ricettario arriva dopo
 nell'ondata 3 (sezione 7).
 
 La cancellazione degli utenti è arrivata con la gestione della famiglia e la
-cancellazione dell'account (decisione dell'utente del 15 ottobre 2026; unita il 16
-ottobre, non ancora rilasciata). Dalla scheda di una persona, «Cancella l'utente» apre
+cancellazione dell'account (decisione dell'utente del 15 ottobre 2026; unita e rilasciata il 16 ottobre). Dalla scheda di una persona,
+«Cancella l'utente» apre
 la stessa pagina della cancellazione dell'account, detta in terza persona: le sue
 famiglie una per una, con la scelta del successore dove serve, cosa si cancella e cosa
 resta. Il proprio account si cancella solo dalle proprie Preferenze. Se la
@@ -980,7 +980,7 @@ di validazione condivisi con `domain/`. Regole:
   `offline: false`. Dopo la rinuncia al proprio `app_admin` i ruoli della risposta sono
   quelli letti dalla funzione del database sotto il lucchetto, perché chi chiama non
   può più rileggerli.
-- **Gestione della famiglia** (PR #52, unita il 16 ottobre 2026; particolari nella spec
+- **Gestione della famiglia** (PR #52, unita e rilasciata il 16 ottobre 2026; particolari nella spec
   di dettaglio `2026-10-16-gestione-famiglia.md`, sezione 2): area nuova
   `familyInvitations` (`list`, `create`, `revoke`, `listJoins`, `status`, più `get` e
   `accept` pubbliche); nell'area `family` `join`, `setMemberRole`, `removeMember`,
@@ -1374,7 +1374,7 @@ amministratori. Due amministratori che si tolgono il ruolo a vicenda si mettono 
 il secondo, già retrocesso, riceve `forbidden`; due che rinunciano ciascuno al proprio:
 il secondo riceve `last_app_admin`.
 
-**Gestione della famiglia** (PR #52, unita il 16 ottobre 2026, non ancora rilasciata;
+**Gestione della famiglia** (PR #52, unita e rilasciata il 16 ottobre 2026;
 migrazione `20261016100000_family_management.sql`, solo additiva; particolari, elenco
 delle funzioni e codici nella spec di dettaglio `2026-10-16-gestione-famiglia.md`,
 sezioni 1 e 8). Tabelle nuove `family_invitations`, `family_invitation_reservations`,
@@ -2056,8 +2056,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   quando una persona senza account accetta un invito valido, alla famiglia o all'app, il
   **server crea il suo account**; le iscrizioni libere restano spente. Inviti all'app e
   creazione delle famiglie da parte degli utenti sono in produzione dal 15 ottobre 2026
-  (attività A, PR #45); inviti alla famiglia ed eliminazione delle famiglie sono uniti
-  il 16 ottobre 2026 con l'attività C (PR #52), non ancora rilasciata. Come si sceglie
+  (attività A, PR #45); inviti alla famiglia ed eliminazione delle famiglie sono in
+  produzione dal 16 ottobre 2026 con l'attività C (PR #52). Come si sceglie
   la password dipende dal dominio di invio (sotto): prima della verifica sulla pagina
   dell'invito, senza email (il flusso in produzione per gli inviti all'app); dopo
   l'attività D con un link nell'email, i cui dettagli tecnici restano da verificare
@@ -2134,8 +2134,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   invio è `cosasimangia.qunidi.it`, già aggiunto in Resend ma non ancora verificato;
   è distinto dall'origine dell'app, che resta `https://cosasimangia.qunidi.workers.dev`
   (sezione 1).
-- **Inviti alla famiglia** (uniti il 16 ottobre 2026 con l'attività C, PR #52, non ancora
-  rilasciata; testi, stati delle pagine e sequenze nella spec di dettaglio
+- **Inviti alla famiglia** (uniti e rilasciati il 16 ottobre 2026 con l'attività C, PR
+  #52; testi, stati delle pagine e sequenze nella spec di dettaglio
   `2026-10-16-gestione-famiglia.md`, sezioni 2 e 3):
   - link `/invite#<token>`, con il token nel **frammento** come per gli inviti all'app
     (32 byte casuali, nel database solo l'impronta SHA-256), valido 7 giorni,
@@ -2270,7 +2270,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   ha già un account» compare «Apri l'utente», che porta al dettaglio di quella persona
   (il web la cerca con `users.list`; il contratto degli inviti non cambia). La
   sezione Ripristino del ricettario arriva dopo, nella stessa pagina. **Con l'attività
-  C** (PR #52, unita il 16 ottobre 2026, non ancora rilasciata) il dettaglio ha, sotto
+  C** (PR #52, unita e rilasciata il 16 ottobre 2026) il dettaglio ha, sotto
   la card «Famiglie», il comando di cancellazione verso `/admin/users/<id>/delete` e,
   per il proprio account, il rimando alle Preferenze; un account in attesa di
   cancellazione è segnato nell'elenco e, nel dettaglio, ha lo stato dei tentativi e il
@@ -2304,7 +2304,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   standalone, cioè in Safari, la scheda aggiunge una riga: «Per usarla dalla schermata
   Home: Condividi › Aggiungi alla schermata Home, poi entra con email e password», perché
   la PWA installata non condivide la sessione con Safari. Con gli inviti alla famiglia
-  (attività C, unita il 16 ottobre 2026; decisione del coordinatore del 13 ottobre
+  (attività C, dal 16 ottobre 2026; decisione del coordinatore del 13 ottobre
   2026) la scheda ha anche «Invita la famiglia», verso la pagina dei membri.
 - **Vista Profilo**: quarta voce della navbar, con famiglia corrente (membri e inviti,
   impostazioni, "non proporre più"), elenco delle proprie famiglie (un tocco cambia la
@@ -2312,7 +2312,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   mostrata è ricordata sul server, uguale su tutti i dispositivi; gli agenti indicano
   sempre la famiglia su cui operano. Dal 15 ottobre 2026 il Profilo ha «Crea un'altra
   famiglia» (verso il wizard) e, per gli `app_admin`, «Amministrazione dell'app».
-  **Con l'attività C** (PR #52, unita il 16 ottobre 2026, non ancora rilasciata) arrivano
+  **Con l'attività C** (PR #52, unita e rilasciata il 16 ottobre 2026) arrivano
   gli altri comandi, nella forma del quarto giro: nella pagina dei membri
   (`/profile/family`) link d'invito, ingressi con i link, azioni sui membri e uscita;
   in fondo alle impostazioni della famiglia, per gli amministratori, l'eliminazione;
@@ -2346,7 +2346,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   Da qui si esce dall'account e si apre la cancellazione.
 - **Cancellazione dell'account, regole confermate**: possibile da parte dell'utente
   stesso e degli amministratori dell'app. Entrambe arrivano con l'attività C
-  dell'ondata 3 (PR #52, unita il 16 ottobre 2026, non ancora rilasciata): la
+  dell'ondata 3 (PR #52, unita e rilasciata il 16 ottobre 2026): la
   cancellazione di un utente dall'amministrazione è passata dall'attività B alla C,
   insieme alla cancellazione dell'account (decisione dell'utente del 15 ottobre 2026);
   C aggiunge nel dettaglio dell'utente, sotto la card «Famiglie», «Cancella l'utente»
@@ -2427,8 +2427,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   pagina `/profile/family/delete?family=<id>`, raggiungibile dalle impostazioni, con
   nome della famiglia, membri coinvolti, dati cancellati e dati che restano, e un
   pulsante di conferma dopo il riepilogo; un membro vede che solo un amministratore
-  può eliminarla. Realizzata con l'attività C (PR #52, unita il 16 ottobre 2026, non
-  ancora rilasciata), dalle impostazioni della famiglia, nella forma del quarto giro. Si
+  può eliminarla. Realizzata con l'attività C (PR #52, unita e rilasciata il 16 ottobre
+  2026), dalle impostazioni della famiglia, nella forma del quarto giro. Si
   cancellano anche link, registro degli ingressi, rimozioni e job; le registrazioni da
   link restano senza famiglia, per ritrovare gli account già creati. Dopo
   l'eliminazione l'app va al Profilo se resta un'altra famiglia, altrimenti al Menu con
@@ -2977,7 +2977,7 @@ richiederà una decisione distinta (sezione 7).
 | Aggiornamento della PWA | Unito (PR #43, issue #42) e rilasciato il 13 ottobre 2026 (versione `759ce4d6`). Sull'iPhone dell'utente il primo passaggio dalla versione precedente non è avvenuto con due aperture a freddo: è servito togliere l'app, cancellare i dati del sito nelle impostazioni di Safari e aggiungerla di nuovo. Il passaggio automatico è stato verificato al rilascio del 15 ottobre 2026: la PWA si è aggiornata da sola |
 | Inviti all'app e famiglie nuove (ondata 3, attività A) | Unita (PR #45) e rilasciata il 15 ottobre 2026, con la migrazione `20261013100000_app_invitations.sql` e il segreto `SUPABASE_SECRET_KEY` (chiave dedicata `worker-invitations`); provata dall'utente sull'iPhone: invito, account, nome, famiglia, schermata Home e accesso nella PWA installata |
 | Amministrazione di utenti e ruoli (ondata 3, attività B, issue #38) | Unita (PR #47) il 15 ottobre 2026 e rilasciata il 16 ottobre con la migrazione `20261015100000_user_admin.sql` (versione del Worker `75d29930-6125-41bd-acf4-786814218171`), senza segreti né risorse nuove; provata dall'utente sull'iPhone. La cancellazione degli utenti è passata all'attività C |
-| Gestione della famiglia (ondata 3, attività C) | Unita (PR #52) il 16 ottobre 2026, con la migrazione `20261016100000_family_management.sql`, senza segreti, binding, Cron Trigger né risorse nuove; provata con agent-browser sullo stack locale e nella modalità finta. **Non ancora rilasciata** in produzione: rilascio e collaudo li fa il coordinatore con l'account e la famiglia di prova di A, che si eliminano con i comandi di C (spec di dettaglio, sezione 6); da provare a mano sull'iPhone la pagina dell'invito aperta da WhatsApp, la condivisione del link, i fogli di conferma e la cancellazione dell'account nella PWA installata |
+| Gestione della famiglia (ondata 3, attività C) | Unita (PR #52) e rilasciata il 16 ottobre 2026 con la migrazione `20261016100000_family_management.sql` (versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`, commit `9228598`), senza segreti, binding, Cron Trigger né risorse nuove; provata con agent-browser sullo stack locale e nella modalità finta. Restano da fare il collaudo dell'utente con l'account e la famiglia di prova di A, che si eliminano con i comandi di C (spec di dettaglio, sezione 6), e le prove a mano sull'iPhone: pagina dell'invito aperta da WhatsApp, condivisione del link, fogli di conferma e cancellazione dell'account nella PWA installata |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -3223,7 +3223,7 @@ non accesso generico alle tabelle.
   strumento; il server non chiede campi in più. Un ruolo assegnato o tolto vale dalla
   richiesta successiva anche per l'agente già collegato: chi rinuncia al proprio ruolo
   perde gli strumenti di amministrazione dalla chiamata successiva (sezione 1).
-- **Gestione della famiglia** (PR #52, unita il 16 ottobre 2026, non ancora rilasciata):
+- **Gestione della famiglia** (PR #52, unita e rilasciata il 16 ottobre 2026):
   strumenti `familyInvitations_list`, `_create`, `_revoke`, `_listJoins` e `_status`,
   `family_join`, `family_setMemberRole`, `family_removeMember`, `family_leave`,
   `family_getDeletion`, `family_delete` (solo rimando), `account_getDeletionPlan`,
@@ -3263,9 +3263,9 @@ implicite alla copertura delle operazioni.
 | Revisione | Area `meals` (PR #29): cambiare ricetta e porzioni, chiedere suggerimenti (`meals_getSuggestions`, sola lettura), scambiare pasti, segnare pasti liberi, note ed esclusioni; annullare la propria ultima modifica di un pasto anche in una conversazione nuova, con `menu_getWeek` → `lastChange.actionId` se `lastChange.undoable` → `meals_undo` (sezione 5). Ogni scrittura porta un `id` nuovo scelto dall'agente; ripeterla non cambia nulla |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto (`ratings.set`, a stato assoluto, `null` per toglierlo); richiedere la generazione nei limiti previsti (ondata 3) |
 | Spesa | Leggere la lista di una settimana, spuntare voci (con la quantità letta dalla vista), rimettere ingredienti esclusi, aggiungere voci libere, ottenere testo e collegamento Bring!, poi il PDF |
-| Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`; dal 15 ottobre 2026 creare una famiglia (`family_create`). Con l'attività C (unita il 16 ottobre 2026, non ancora rilasciata): creare, elencare e revocare i link d'invito e leggere gli ingressi (`familyInvitations_*`), entrare con un link avendo già un account (`family_join`), cambiare ruolo, rimuovere un membro e uscire (`family_setMemberRole`, `family_removeMember`, `family_leave`); leggere il riepilogo dell'eliminazione (`family_getDeletion`) e richiederla (`family_delete`), ottenendo solo il collegamento alla pagina web; leggere il piano e cancellare il proprio account (`account_getDeletionPlan`, `account_delete`), rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
+| Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`; dal 15 ottobre 2026 creare una famiglia (`family_create`). Con l'attività C (unita e rilasciata il 16 ottobre 2026): creare, elencare e revocare i link d'invito e leggere gli ingressi (`familyInvitations_*`), entrare con un link avendo già un account (`family_join`), cambiare ruolo, rimuovere un membro e uscire (`family_setMemberRole`, `family_removeMember`, `family_leave`); leggere il riepilogo dell'eliminazione (`family_getDeletion`) e richiederla (`family_delete`), ottenendo solo il collegamento alla pagina web; leggere il piano e cancellare il proprio account (`account_getDeletionPlan`, `account_delete`), rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
 | Gestione del ricettario | Area `catalogue`, ruolo di curatore, senza famiglia: conoscere i requisiti e le istruzioni sugli ingredienti, cercare le ricette pubblicate e archiviate, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web) e leggerne i salvataggi, controllare una bozza senza pubblicarla, pubblicare ricette complete, scartare bozze, modificare ricette di qualunque autore, cercare, leggere, creare e modificare ingredienti con le equivalenze di ricetta, elencare varietà già usate e controllare una varietà, elencare e creare libri, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
-| Amministrazione globale | Dal 15 ottobre 2026 inviti all'app (`appInvitations_create`, `_list`, `_revoke`); dal 16 ottobre cercare e leggere gli utenti, assegnare e togliere i ruoli e nominare amministratori (`users_list`, `users_get`, `users_setRole`). Con l'attività C (unita il 16 ottobre 2026, non ancora rilasciata) cancellare utenti con i vincoli previsti (`users_getDeletionPlan`, `users_delete`), restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia. Poi ripristino dell'intero catalogo a una data |
+| Amministrazione globale | Dal 15 ottobre 2026 inviti all'app (`appInvitations_create`, `_list`, `_revoke`); dal 16 ottobre cercare e leggere gli utenti, assegnare e togliere i ruoli e nominare amministratori (`users_list`, `users_get`, `users_setRole`). Con l'attività C (unita e rilasciata il 16 ottobre 2026) cancellare utenti con i vincoli previsti (`users_getDeletionPlan`, `users_delete`), restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia. Poi ripristino dell'intero catalogo a una data |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
 sulla famiglia o sulla funzione globale richiesta. Il nome di un ruolo fornito
@@ -3487,7 +3487,7 @@ aggiunta l'attività C (sotto). Sezione Utenti, interruttori, conferme e ultimo
 amministratore bloccato restano nella forma del prototipo.
 
 **Differenze dell'app dal quarto e dal sesto giro nella gestione della famiglia** (PR
-#52, unita il 16 ottobre 2026, non ancora rilasciata; sezione 7): il link d'invito è
+#52, unita e rilasciata il 16 ottobre 2026; sezione 7): il link d'invito è
 `/invite#<token>`, con il token nel frammento, al posto di `/invite/<token>`; il link si
 vede solo alla creazione e l'elenco non lo ricondivide: mostra autore, scadenza e
 persone registrate, i link scaduti con registrazioni da completare e «Revoca», e per
@@ -3603,7 +3603,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account, dopo l'attività D, dettagli tecnici da verificare nel progetto per inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio. **Chiusa il 16 ottobre 2026 la regola equivalente per gli inviti alla famiglia** (decisione dell'utente, attività C, PR #52): il link crea l'account a chi non ce l'ha, al più 10 persone registrate per link, con account e ingresso in un solo passaggio e l'email non verificata fino all'attività D (sezione 7). **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7) | Sezione 7 |
-| Cancellazione | **Chiusa il 16 ottobre 2026** con l'attività C (PR #52, unita, non ancora rilasciata): passaggio da MCP al web, procedura tecnica e revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise decisi nella spec `2026-10-16-gestione-famiglia.md` e riportati nelle sezioni 1, 2, 4, 7, 8 e 13 | Sezioni 2, 7 e 13 |
+| Cancellazione | **Chiusa il 16 ottobre 2026** con l'attività C (PR #52, unita e rilasciata il 16 ottobre 2026): passaggio da MCP al web, procedura tecnica e revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise decisi nella spec `2026-10-16-gestione-famiglia.md` e riportati nelle sezioni 1, 2, 4, 7, 8 e 13 | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
@@ -3657,7 +3657,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 13 ottobre 2026, ondata 3 senza email | Decisione dell'utente: il DNS di `qunidi.it` per ora non si può modificare e `workers.dev` non permette di verificare un dominio in Resend, quindi finché manca il dominio di invio l'invito all'app si accetta scegliendo la password sulla pagina dell'invito (email dell'invito da ridigitare, account creato già confermato, link mandato a mano), il recupero della password via email aspetta il dominio e l'app resta su `workers.dev`. Ordine dell'ondata 3 nel piano generale. Con la revisione della PR #44: distinti ovunque il flusso prima della verifica del dominio di invio (attività A, password sulla pagina dell'invito) e quello dopo l'attività D (link nell'email, recupero della password, email operative di job ed esportazione); dominio di invio separato dall'origine dell'app, con *Site URL* e *Redirect URLs* su `workers.dev` e il trasferimento dell'app fuori dall'ondata 3, da decidere a parte; decisioni del coordinatore: dopo la creazione dell'account la pagina dell'invito fa entrare con email e password e, se l'accesso fallisce, porta all'accesso normale; fino agli inviti alla famiglia (C) la scheda dopo la prima generazione mostra solo «Sistema le impostazioni». Riportati anche il secondo tentativo di revoca dell'accesso di prova e il pulsante «Accedi di nuovo» (W7), il recupero della registrazione e il ritorno ad A₀ chiudendo tutte le finestre (W8). Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
 | 15 ottobre 2026, inviti all'app e famiglie nuove | Riportate le decisioni della spec `2026-10-13-inviti-app.md` (W9, attività A dell'ondata 3, PR #45, rilasciata il 15 ottobre). Pagina dell'invito con email, nome e password in un solo modulo, che vale come primo accesso; link `/invite/app#<token>` con il token nel frammento, solo l'impronta SHA-256 nel database, link visibile solo alla creazione e «Nuovo link» nell'elenco (differenza dal sesto giro); un solo messaggio per invito scaduto, revocato, usato o inesistente; «Crea la tua famiglia» senza famiglie, wizard `/family/new` e scheda di benvenuto con il solo «Sistema le impostazioni» e la nota della schermata Home su iOS in Safari. Tecniche: ruolo `public` del contratto con `mcp: false` e `rateLimit`, pipeline in `anon` senza token e senza transazione propria; codici `invitation_unavailable` e `rate_limited`, motivi `account_exists` e `already_accepted`, codice delle `refine` dal messaggio; tabella `app_invitations` con prenotazione e funzioni per token; account creato dal Worker con l'API di amministrazione di Supabase Auth e la chiave segreta dedicata, senza mai riscrivere un account esistente; limiti di frequenza con il binding `ratelimit`; `family.create` con `app.create_family`, senza generazione; iscrizioni spente anche nello stack locale; `Referrer-Policy: no-referrer` anche nella shell; fusi a scostamento trattati come non validi. Chiusa in sezione 15 l'API di Supabase per creare l'utente. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 4, 5, 7, 9, 10, 13, 14 e 15 aggiornate |
 | 15–16 ottobre 2026, amministrazione di utenti e ruoli | Riportate le decisioni della spec `2026-10-15-amministrazione-utenti.md` (W10, attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16 con la versione `75d29930-6125-41bd-acf4-786814218171`). Decisione dell'utente del 15 ottobre: la cancellazione degli utenti dall'amministrazione passa all'attività C, con la cancellazione dell'account. Prodotto: sezione Utenti di `/admin` sopra «Inviti all'app», ricerca per nome o email che ignora le maiuscole ma non gli accenti, al più 50 risultati con l'invito a restringere; dettaglio con «Questo è il tuo account», interruttori dei due ruoli e famiglie per solo nome e ruolo, senza il numero di agenti collegati del prototipo; conferma per nominare un amministratore e per rinunciare al proprio ruolo, ritorno al Profilo senza avviso a comparsa dopo la rinuncia (scostamenti dal sesto giro); «Apri l'utente» da `account_exists`; per un amministratore retrocesso altrove dati e comandi che spariscono alla prima risposta `forbidden`, poi «Non hai accesso a questa pagina» dopo la verifica del profilo o, se fallisce, l'errore con «Riprova» senza i dati precedenti; ruoli di chi ha già un account cambiati dall'app e via MCP, con la conferma affidata alle istruzioni dell'agente. Tecniche: funzioni `app.admin_users`, `app.admin_user`, `app.admin_user_families`, `app.set_user_role` (`security definer`, solo `app_admin`, letture di `auth.users` senza scritture); lucchetto consultivo `app_admin_roles` obbligatorio nella stessa transazione per ogni percorso che toglie `app_admin`, compresa la cancellazione di un account, con il ricontrollo sotto il lucchetto dell'autorizzazione di chi chiama per l'operazione richiesta (per `app.set_user_role` di nuovo `app_admin`; la cancellazione del proprio account resta consentita senza ruoli globali) e dell'ultimo amministratore, e assegnazioni senza lucchetto; transazioni degli utenti in `read committed`, verificato da un test; codici SQLSTATE `P0A07` e `P0A08`; area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`; ruoli letti a ogni richiesta, validi subito anche per gli agenti collegati; bersaglio `users` nel registro delle mutazioni del web senza scrittura generica della risposta. Chiusa in sezione 15 la pagina dei ruoli globali. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 7, 10, 13, 14 e 15 aggiornate |
-| 16 ottobre 2026, gestione della famiglia | Riportate le decisioni della spec `2026-10-16-gestione-famiglia.md` (W11, attività C dell'ondata 3, PR #52 unita il 16 ottobre, **non ancora rilasciata**). Decisione dell'utente: un link d'invito alla famiglia crea l'account a chi non ce l'ha, al più 10 persone per link, con account e ingresso in un solo passaggio ed email non verificata fino all'attività D. Decisioni del coordinatore: tetto contato sulle persone registrate; link di chi esce, viene rimosso, retrocesso o cancellato revocati per tutti; registro degli ingressi; account rimasto senza famiglia se l'ingresso diventa impossibile; ripresa delle cancellazioni dal Cron Trigger orario. Inoltre: link visibile solo alla creazione; cancellazione dell'account e degli utenti in tre passi, con rimando MCP deciso nel database; ultimo amministratore della famiglia protetto dalla riga della famiglia e ordine unico dei lucchetti; famiglie sparite revocate sul dispositivo; scostamenti dal quarto e dal sesto giro in sezione 14. Chiuse in sezione 15 la regola degli inviti alla famiglia senza email e la voce Cancellazione. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 10, 13, 14, 15 e 17 aggiornate |
+| 16 ottobre 2026, gestione della famiglia | Riportate le decisioni della spec `2026-10-16-gestione-famiglia.md` (W11, attività C dell'ondata 3, PR #52 unita e rilasciata il 16 ottobre con la versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`; restano il collaudo dell'utente e le prove a mano sull'iPhone). Decisione dell'utente: un link d'invito alla famiglia crea l'account a chi non ce l'ha, al più 10 persone per link, con account e ingresso in un solo passaggio ed email non verificata fino all'attività D. Decisioni del coordinatore: tetto contato sulle persone registrate; link di chi esce, viene rimosso, retrocesso o cancellato revocati per tutti; registro degli ingressi; account rimasto senza famiglia se l'ingresso diventa impossibile; ripresa delle cancellazioni dal Cron Trigger orario. Inoltre: link visibile solo alla creazione; cancellazione dell'account e degli utenti in tre passi, con rimando MCP deciso nel database; ultimo amministratore della famiglia protetto dalla riga della famiglia e ordine unico dei lucchetti; famiglie sparite revocate sul dispositivo; scostamenti dal quarto e dal sesto giro in sezione 14. Chiuse in sezione 15 la regola degli inviti alla famiglia senza email e la voce Cancellazione. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 10, 13, 14, 15 e 17 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
@@ -3755,7 +3755,7 @@ anche la posizione degli slot; nel secondo caso occorre adeguare il payload.
   client e i suoi token non scaduti sono rifiutati subito su MCP, RPC e REST, provato in
   CI (sezione 13). Restava la revoca alla cancellazione di un account (ondata 3), per
   cui vale che i token degli agenti seguono le sessioni: realizzata con l'attività C
-  (PR #52, unita il 16 ottobre 2026, non ancora rilasciata), con la cascata della
+  (PR #52, unita e rilasciata il 16 ottobre 2026), con la cascata della
   cancellazione definitiva in Supabase Auth e il profilo cancellato nella prima
   transazione (sezione 1).
 - Un token d'agente ha su Supabase Auth gli stessi poteri di quello dell'utente
