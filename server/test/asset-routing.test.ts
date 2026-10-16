@@ -111,6 +111,14 @@ describe.skipIf(!hasDatabase)('asset routing of wrangler.jsonc', () => {
 		}
 	});
 
+	it('sends the photo route to the Worker, never the SPA (W12)', async () => {
+		const response = await mf.dispatchFetch(`https://app.test/photos/${'a'.repeat(22)}.webp`, {
+			headers: { 'sec-fetch-mode': 'navigate', accept: 'text/html' },
+		});
+		expect(response.status).toBe(404);
+		expect(await response.text()).toContain('not_found');
+	});
+
 	it('answers 405 to a method other than GET', async () => {
 		const token = await temporaryList(['1 Limone']);
 		for (const response of await fetchBoth(`/shopping-lists/${token}`, 'POST')) {

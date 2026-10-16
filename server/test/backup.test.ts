@@ -4,6 +4,7 @@ import { exportKey, runNightlyExport, runNightlyExportOn, type ExportDeps } from
 import { decodeExport, EXPORT_FORMAT, importKey, type BackupKey } from '../src/backup/format.ts';
 import { estimateExportBytes, exportParts, readSnapshot } from '../src/backup/read.ts';
 import { RestoreError, restoreExport, verifyRestored } from '../src/backup/restore.ts';
+import { newPhotoKey } from '../src/catalogue/photos/key.ts';
 import { withDbOn } from '../src/db.ts';
 import type { Env } from '../src/env.ts';
 import { type BackupFixtures, seedBackupFixtures } from './support/backup.ts';
@@ -227,6 +228,50 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 					+ (select count(*) from app.catalogue_state where version_xid is not null) as n`;
 			expect(Number(markers.n)).toBe(0);
 		});
+	});
+
+	/** A recipe whose photo becomes A (exported), then B (W12): objects only ever added to the photo bucket. */
+	async function photoReplacedAfterExport() {
+		const photos = new MemoryBucket();
+		const [{ id: recipeId }] = await db.admin<{ id: string }[]>`
+			insert into app.recipes (slug, name) values (${`backup-photo-${crypto.randomUUID()}`}, '{"it-IT": "Con foto"}') returning id`;
+		const insert = async (key: string) => {
+			await db.admin`update app.recipe_photos set removed_at = clock_timestamp() where recipe_id = ${recipeId} and removed_at is null`;
+			await db.admin`
+				insert into app.recipe_photos (id, recipe_id, storage_key, content_type, width, height, bytes, channel)
+				values (${crypto.randomUUID()}, ${recipeId}, ${key}, 'image/webp', 1600, 1067, 4, 'web')`;
+			await photos.put(key, new Uint8Array([82, 73, 70, 70]));
+		};
+		const a = newPhotoKey();
+		await insert(a);
+		const document = await freshExport();
+		const b = newPhotoKey();
+		await insert(b);
+		return { photos, document, a, b };
+	}
+
+	it('exports photo references without image bytes', async () => {
+		const { document, a } = await photoReplacedAfterExport();
+		const doc = JSON.parse(document);
+		const rows = JSON.stringify(doc.tables['app.recipe_photos']);
+		expect(rows).toContain(a);
+		// Keys and sizes only: the bytes stay in the photo bucket, which the export never reads.
+		expect(rows).not.toContain('RIFF');
+		expect(document).not.toContain('UklGR');
+	});
+
+	it('a restored export finds its photo again', async () => {
+		const { photos, document, a, b } = await photoReplacedAfterExport();
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			await restoreExport(tx, document);
+			await tx`set local role anon`;
+			expect(await tx`select content_type from app.served_photo(${a})`).toEqual([{ content_type: 'image/webp' }]);
+			expect(await tx`select content_type from app.served_photo(${b})`).toEqual([]);
+		});
+		// Nothing deletes objects of the photo bucket: the restored reference has its image.
+		expect(photos.objects.has(a)).toBe(true);
+		expect(photos.objects.has(b)).toBe(true);
 	});
 
 	it('keeps bumping counters when an imported marker equals the restoring transaction', async () => {
