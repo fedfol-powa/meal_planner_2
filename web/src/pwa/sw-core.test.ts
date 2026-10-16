@@ -451,4 +451,19 @@ describe('photos seen stay offline (W12)', () => {
     expect(await text(await pending)).toBe(`image ${key(1)}`);
     expect(await base.dump(PHOTO_CACHE)).toEqual({});
   });
+
+  it('a cache that does not open still shows the photo from the network', async () => {
+    const base = memoryCaches();
+    const caches = { ...base, open: async (): Promise<CacheLike> => { throw new Error('SecurityError'); } };
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    expect(await text(await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps))).toBe(`image ${key(1)}`);
+  });
+
+  it('a write that fails still shows the photo and keeps the cache usable', async () => {
+    const caches = memoryCaches({ failPut: `/photos/${key(2)}.webp` });
+    const deps = photoDeps(caches, photoNetwork().fetch);
+    expect(await text(await respond(photo(key(1)), url(`/photos/${key(1)}.webp`), deps))).toBe(`image ${key(1)}`);
+    expect(await text(await respond(photo(key(2)), url(`/photos/${key(2)}.webp`), deps))).toBe(`image ${key(2)}`);
+    expect(Object.keys(await caches.dump(PHOTO_CACHE))).toEqual([`/photos/${key(1)}.webp`]);
+  });
 });

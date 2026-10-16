@@ -123,22 +123,31 @@ export async function handleMessage(data: unknown, ports: readonly MessagePortLi
 const isImage = (response: Response) => response.status === 200 && (response.headers.get('content-type') ?? '').toLowerCase().startsWith('image/');
 
 /**
+ * Keeps one photo, the oldest going first so that at most PHOTO_CACHE_LIMIT stay. A sign-out
+ * happened since `epoch`: the photo goes to the page, not into the cache of the closed session.
+ */
+async function storePhoto(url: string, response: Response, epoch: number | undefined, deps: WorkerDeps): Promise<void> {
+  const current = () => deps.photoEpoch?.value === epoch;
+  const cache = await deps.caches.open(PHOTO_CACHE);
+  if (!current()) return;
+  // Room first: a full storage refuses the write.
+  const keys = await cache.keys();
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - PHOTO_CACHE_LIMIT + 1)).map((key) => cache.delete(key)));
+  if (!current()) return;
+  await cache.put(url, response);
+}
+
+/**
  * Photos (W12): first the cache, then the network. The URL is immutable, so a copy never expires;
- * only 200 images are kept, at most PHOTO_CACHE_LIMIT, the oldest going first.
+ * only 200 images are kept. The cache only helps: when it fails, the network answer still reaches the page.
  */
 async function respondPhoto(url: string, target: RequestInfo, deps: WorkerDeps): Promise<Response> {
   // Read before the first wait: a sign-out during the cache lookup must stop the store too.
   const epoch = deps.photoEpoch?.value;
-  const cached = await (await deps.caches.open(PHOTO_CACHE)).match(url);
+  const cached = await deps.caches.open(PHOTO_CACHE).then((cache) => cache.match(url)).catch(() => undefined);
   if (cached) return cached;
   const response = await deps.fetch(target);
-  if (!isImage(response)) return response;
-  const cache = await deps.caches.open(PHOTO_CACHE);
-  // A sign-out happened meanwhile: the photo goes to the page, not into the cache of the closed session.
-  if (deps.photoEpoch?.value !== epoch) return response;
-  await cache.put(url, response.clone());
-  const keys = await cache.keys();
-  await Promise.all(keys.slice(0, Math.max(0, keys.length - PHOTO_CACHE_LIMIT)).map((key) => cache.delete(key)));
+  if (isImage(response)) await storePhoto(url, response.clone(), epoch, deps).catch(() => {});
   return response;
 }
 
