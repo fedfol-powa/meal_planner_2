@@ -626,6 +626,33 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
   non viste ricadute senza foto). Prove locali senza la produzione
   (`protocollo-worker.md`, «Prove sullo stack locale»), controllando l'URL di Auth.
 
+**Esito delle prove sullo stack locale** (16 ottobre 2026; Supabase locale con il ricettario
+importato, `wrangler dev` con R2 e Images locali, build della SPA con l'Auth locale, accesso
+verificato verso `127.0.0.1`, mai la produzione; agent-browser a 390 px e a 1280 px):
+
+- caricamento da file nella scheda ricetta come curatrice (ridimensionamento nel browser,
+  WebP salvato dal binding Images, foto 16:9 con il pulsante «Foto»); sostituzione dal
+  foglio (la precedente risulta tolta nella tabella) e rimozione con conferma; la foto
+  tolta risponde `404` dalla rotta;
+- schede del menu e del ricettario: banner 3:1 con l'etichetta verde sopra, schede senza
+  foto invariate, foto del pasto passato desaturata; membro non curatore: foto visibile,
+  nessun comando, nessun input di file;
+- rotta `/photos/<chiave>`: `Cache-Control: private, no-store`, `nosniff`, CSP
+  `default-src 'none'; sandbox`, `Cross-Origin-Resource-Policy: same-origin`, `ETag`;
+- offline dopo una visita (Worker fermo e browser offline, riapertura a freddo): le foto
+  viste arrivano dalla cache `cosasimangia-photos-v1`, una foto tolta dalla cache ricade
+  nella scheda senza foto; all'uscita dall'account la cache delle foto non c'è più;
+- `setPhotoFromUrl` via REST con una JPEG pubblica che porta EXIF con GPS: il WebP salvato
+  contiene il solo blocco `VP8 `, senza `EXIF` né `XMP`. La rimozione dei blocchi RIFF
+  nel Worker non serve. È il binding Images **locale** (ridotto): dopo il rilascio va
+  ripetuta la verifica con il binding vero (un `setPhotoFromUrl` con una foto con GPS e il
+  controllo dei blocchi del file servito);
+- la prova ha trovato un difetto, corretto prima della PR: il lato pagina della cache
+  (`web/src/pwa/photos.ts`) importava una costante di `sw-rules.ts`, Rollup spostava il
+  modulo in un chunk condiviso e `sw.js` cominciava con un `import`, che un service worker
+  classico non valuta (registrazione fallita). Ora la build fallisce se `sw.js` importa
+  altri chunk (`assertSelfContained`).
+
 **Da provare a mano sull'iPhone dopo il rilascio** (annotato per il coordinatore): dalla
 PWA installata, «Aggiungi foto» offre «Scatta foto» e «Libreria foto»; una foto HEIC della
 libreria si carica (conversione del browser e `createImageBitmap`); orientamento corretto
