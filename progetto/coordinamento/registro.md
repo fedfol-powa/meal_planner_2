@@ -5,7 +5,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Worker attivi
 
-**16/10, W11 avviato su C (gestione della famiglia)** con l'approvazione dell'utente: brief `brief/w11-gestione-famiglia.md`, branch `ondata3/gestione-famiglia` da `main` locale, worktree `.worktrees/famiglia`. Decisione dell'utente del 16/10: **una sola PR** per tutta C. Decisione di prodotto attesa dal brainstorming: se e come un invito alla famiglia crea un account. Fase: brainstorming.
+**16/10, W11 avviato su C (gestione della famiglia)** con l'approvazione dell'utente: brief `brief/w11-gestione-famiglia.md`, branch `ondata3/gestione-famiglia` da `main` locale, worktree `.worktrees/famiglia`. Decisione dell'utente del 16/10: **una sola PR** per tutta C. Decisione di prodotto attesa dal brainstorming: se e come un invito alla famiglia crea un account (decisa: tetto di 10 account per link). Spec e piano pronti (commit 02bcbdc); revisione Codex in corso (tab «R W11 spec», rapporto `revisioni/w11-spec-piano.md`). Messaggio al worker: `messaggi/w11-01-riepilogo-design.md`.
 
 **16/10 mattina, #47 rilasciata** (commit cecefef, versione `75d29930-6125-41bd-acf4-786814218171`; rollback `d53e1bce-1a3f-48a9-9a7e-9220787cf7e1`, nata dal ricaricamento del segreto `SUPABASE_SECRET_KEY` il 15/10): migrazione `20261015100000_user_admin.sql` applicata. Lanciato dall'utente con `!` (il classificatore di Claude Code blocca il rilascio dal coordinatore). Provata dall'utente sull'iPhone il 16/10: funziona; **#38 chiusa**. **R23 chiuso:** esportazione della notte 15→16/10 `exports/2026-10-16T02-30Z.json.gz.enc` di 134456 byte (130983 la notte prima), nessun duplicato alle 04:30.
 

@@ -222,3 +222,6 @@ w1:p3V	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/47 #f
 w1:p3V	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/47 (disable recaps in /config) #c7f0f473
 w1:p3V	STATO: PR_CORRETTA #07713718
 w1:p3V	STATO: PR_CORRETTA #c1cf9aa7
+w1:p42	STATO: DOMANDA account creato da un invito alla famiglia (opzioni 1–4, consigliata la 2) #7772acd5
+w1:p42	STATO: DOMANDA riepilogo del design prima della spec #83c7f8bd
+w1:p42	STATO: SPEC_E_PIANO_PRONTI #8e57869f
