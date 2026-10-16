@@ -29,15 +29,23 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 - Funzioni: schema `app`, `security definer`, `set search_path = ''`, `EXECUTE` revocato
   a `public` e concesso solo ai ruoli della spec (sezione 1); `coverage_test.sql`
   aggiornato a ogni funzione nuova.
-- Lucchetti: `app_admin_roles` prima, poi `select … for update` sulle righe di
-  `app.families` in ordine di id; i percorsi della famiglia prendono solo la propria
-  riga. Transazioni `read committed`.
+- Lucchetti (spec, sezione 1, «Ordine dei lucchetti»): `app_admin_roles` → righe di
+  `app.families` in ordine di id, prima di ogni scrittura su righe della famiglia →
+  link → prenotazioni → resto; chi parte da impronta o prenotazione legge senza
+  lucchetto, prende i lucchetti nell'ordine e ricontrolla. I percorsi della famiglia non
+  prendono `app_admin_roles`. Transazioni `read committed`. `family.delete`,
+  `account.delete`, `users.delete` ripetono una volta su `40P01`.
 - `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; nessuna scrittura nello
   schema `auth`.
 - Pagine pubbliche: `role: 'public'`, `mcp: false`, `rateLimit` (`read`/`accept`, binding
   esistenti), token di 32 byte nel frammento, nel database solo l'impronta SHA-256.
 - Niente aggiornamenti ottimistici; comandi disattivati offline.
-- Tetto: `FAMILY_INVITATION_ACCOUNT_LIMIT = 10`; validità del link 7 giorni; ripresa
+- Schermate secondo `design/design.md` e `design/index.html`, confrontate con
+  `design/references/hellofresh/` e con le rotte del quarto e sesto giro in
+  `prototype/`; si riusano token e componenti esistenti (`settings-card`, `row-list`,
+  etichette, pulsante `danger`, `BottomSheet`), nessun linguaggio visivo nuovo.
+- Tetto: `FAMILY_INVITATION_ACCOUNT_LIMIT = 10` prenotazioni per link (email distinte;
+  testi «persone registrate con questo link»); validità del link 7 giorni; ripresa
   delle cancellazioni ferme da `5 minutes`; segnalazione `account_deletion_overdue` dopo
   3 tentativi falliti.
 - Nei log mai password, token, email, nomi o corpi di richiesta e risposta.
@@ -72,13 +80,15 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 - Modifica: `supabase/tests/coverage_test.sql` (elenchi di `anon` e `authenticated`)
 
 **Interfacce:**
-- Produce: tabelle `app.family_invitations`, `app.family_invitation_accounts`,
-  `app.family_removals`, `app.account_deletions` (spec, sezione 1, colonne esatte);
-  trigger di versione su `family_invitations` con `app.touch_family_version()`;
-  funzioni `create_family_invitation`, `revoke_family_invitation`,
-  `family_invitations_view`, `family_invitation_by_token`, `claim_family_invitation`,
-  `complete_family_invitation`, `family_invitation_status`, `join_family` con le firme e i
-  codici della spec (sezione 1).
+- Produce: tabelle `app.family_invitations`, `app.family_invitation_reservations`,
+  `app.family_joins`, `app.family_removals`, `app.account_deletions` (spec, sezione 1,
+  colonne esatte); trigger di versione su `family_invitations` e `family_joins` con
+  `app.touch_family_version()`; funzioni `create_family_invitation`,
+  `revoke_family_invitation`, `family_invitations_view`, `family_joins_view`,
+  `family_invitation_by_token`, `claim_family_invitation` (`returns table (user_id uuid,
+  email text, state text, member boolean)`), `complete_family_invitation(p_user_id
+  uuid)` (`returns table (family_id uuid, joined boolean)`), `family_invitation_status`,
+  `join_family`, con firme, passi e codici della spec (sezione 1).
 
 - [ ] **Passo 1: test pgTAP che falliscono** in `family_management_test.sql` (con
   `helpers/setup.psql` e le fixture esistenti): tabelle con RLS e senza privilegi a
@@ -94,14 +104,19 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `already_member`; rimozione posteriore al link → `status` senza riga e `join`
   `P0A01`, mentre un altro utente entra; link creato dopo la rimozione → entra; uscita
   volontaria (cancellazione dell'appartenenza senza `family_removals`) → il link vale.
+  In più tutti i casi della spec (sezione 5, pgTAP, punti «Inviti», «Stato terminale» e
+  «Registro»), in particolare: `reserved` a link revocato → `closed`; famiglia eliminata
+  → prenotazione con riferimenti nulli ritrovata per impronta ed email; accettazione →
+  rimozione → `claim` → `joined` con `member` falso e nessuna scrittura; ripetizione con
+  la stessa email dopo `weak_password` senza riga in più.
 - [ ] **Passo 2:** `supabase test db` → i nuovi test falliscono.
 - [ ] **Passo 3:** scrivere tabelle, indici, trigger, funzioni e `grant` nella
-  migrazione. `claim` e `complete` seguono `claim_app_invitation` e
-  `complete_app_invitation` di `20261013100000_app_invitations.sql`; `complete` e
-  `join_family` prendono `for update` sulla riga della famiglia prima di inserire.
+  migrazione, con l'ordine dei lucchetti della spec in ogni funzione (famiglia prima
+  dell'invito, invito prima della prenotazione, rilettura dopo i lucchetti).
 - [ ] **Passo 4:** `supabase db reset && supabase test db` → tutti verdi, compreso
   `coverage_test`.
-- [ ] **Passo 5: commit** «Database: inviti alla famiglia e rimozioni».
+- [ ] **Passo 5: commit** «Database: inviti alla famiglia, prenotazioni, ingressi e
+  rimozioni».
 
 ### Compito 2: funzioni di membri, ruoli, uscita ed eliminazione
 
@@ -154,8 +169,9 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   void`, `app.pending_account_deletions(interval) returns table (user_id uuid, attempts
   int)`, `app.record_account_deletion_attempt(uuid, text) returns int`,
   `app.admin_account_deletions() returns table (user_id uuid, requested_at timestamptz,
-  attempts int, last_error text)`; codici `P0A11`, `P0A12` (sollevato dal server, nessuna
-  funzione), `P0A13`.
+  attempts int, last_error text)`; trigger `user_roles_require_profile` su
+  `app.user_roles` con la funzione `app.user_roles_require_profile()`; codici `P0A11`,
+  `P0A12` (sollevato dal server, nessuna funzione), `P0A13`, `P0A15`.
 
 - [ ] **Passo 1: test pgTAP**: piano con i tre esiti, candidati, `lastAppAdmin`,
   `openInvitations` (link più inviti all'app `pending`), `pending`; chiamante né
@@ -169,10 +185,18 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `record_account_deletion_attempt(user, null)` con l'utente ancora in `auth.users` →
   `55000`, dopo `delete from auth.users` → `completed_at`; `pending_account_deletions`
   ignora le righe più recenti dell'intervallo; `admin_account_deletions` solo
-  `app_admin`; `create_app_invitation` per l'email di un account in attesa → `P0A03`.
+  `app_admin`; `create_app_invitation` per l'email di un account in attesa → `P0A03`;
+  `set_user_role` che assegna un ruolo a un account in attesa → `P0A07`;
+  `complete_app_invitation` per un account nuovo ancora funzionante; con la famiglia che
+  continua, nessuna prenotazione con l'email della persona e nessuna sua riga in
+  `family_joins`, conteggio del link invariato; richiesta con `client_id` nei claim
+  (`request.jwt.claims`) e una famiglia `deleted` → `P0A15` e nessuna scrittura; la
+  stessa senza famiglie `deleted` → procede.
 - [ ] **Passo 2:** `supabase test db` → falliscono.
 - [ ] **Passo 3:** implementare `begin_account_deletion` nell'ordine esatto della spec
-  (sezione 1, passi 1–11), con un commento che richiama la regola del lucchetto di B.
+  (sezione 1, passi 1–11: profilo prima dei ruoli, controllo del canale prima delle
+  scritture), con un commento che richiama la regola del lucchetto di B; il trigger sui
+  ruoli con un commento che lo collega al passo 10.
 - [ ] **Passo 4:** `supabase db reset && supabase test db` → verdi.
 - [ ] **Passo 5: commit** «Database: cancellazione dell'account in attesa e ripresa».
 
@@ -230,13 +254,15 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `contract/src/family/members.ts` (crea, solo `join` in questo compito) e
   `contract/src/family/index.ts`, `server/src/family/members.ts` (crea) e
   `server/src/family/router.ts`, `server/src/messages.ts`
-- Test: `server/test/family-invitations.test.ts`
+- Test: `server/test/family-invitations.test.ts`,
+  `server/test/family-invitations-locks.test.ts`
 
 **Interfacce:**
 - Consuma: funzioni del compito 1; `newToken`, `hashTokenHex` da
   `server/src/app-invitations/tokens.ts`; `createInvitedAccount`; `publicContext`.
-- Produce: `familyInvitations.{list, create, revoke, get, status, accept}` e
-  `family.join` con input, output ed errori della spec;
+- Produce: `familyInvitations.{list, create, revoke, listJoins, get, status, accept}`
+  (`accept` → `{ email, joined }`) e `family.join` con input, output ed errori della
+  spec;
   `familyInvitationUrl(origin: string, token: string): string` (`/invite#<token>`);
   `FAMILY_INVITATION_ACCOUNT_LIMIT` esportata dal contratto; `mapFamilyError(error)` in
   `server/src/family/db-errors.ts` (crea) per `P0A09`→`last_admin`, `P0A10`→`sole_member`,
@@ -252,21 +278,35 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `accept refuses the eleventh new account with invitation_unavailable`; `a registered
   user joins after the cap`; `expired, revoked and post-removal links give the same
   invitation_unavailable`; `status reports alreadyMember without changes`; `join is
-  idempotent and returns the profile with the new current family`; `public operations
+  idempotent and returns the profile with the new current family`; `a removed member
+  repeating accept stays out and Auth is not called`; `repeating accept after the
+  account was deleted does not recreate the old id`; `revocation between claim and
+  complete leaves the account without a family and answers joined false`; `family
+  deleted during the Auth call: the retry answers joined false` (con `holdNextCreate` di
+  `fake-auth.ts`); `interruption after creation, then family deleted: the retry answers
+  joined false`; `listJoins shows new and existing accounts with former members
+  unnamed`. In `family-invitations-locks.test.ts` i due casi del tetto concorrente della
+  spec (sezione 5) con nove prenotazioni di partenza; `public operations
   answer rate_limited with refuseAll`; `MCP lists familyInvitations_list/create/revoke/
   status and family_join, not get or accept`. Più `contract/src/check.test.ts` verde
   con le operazioni nuove (regole delle pubbliche).
 - [ ] **Passo 2:** `npm test -w server -- test/family-invitations.test.ts` → falliscono.
 - [ ] **Passo 3:** contratto, gestori e registrazioni; `accept` con i tre passi di A
-  (due `anonDb`, creazione dell'account in mezzo senza connessioni).
+  (due `anonDb`, creazione dell'account in mezzo senza connessioni), saltando Auth e
+  `complete` con `state` `joined` o `closed`.
+- [ ] **Passo 3b:** in locale, una volta, togliere a mano il `for update` sull'invito in
+  `claim_family_invitation` e vedere fallire il test del tetto concorrente sul
+  risultato (11 prenotazioni); non si fa commit della prova.
 - [ ] **Passo 4:** `npm run typecheck && npm test` → verdi.
 - [ ] **Passo 5: commit** «Inviti alla famiglia: contratto, server e MCP».
 
 ### Compito 7: membri, ruoli, uscita ed eliminazione nel server, con i lucchetti
 
 **File:**
-- Modifica: `contract/src/family/members.ts`, `server/src/family/members.ts`
-- Test: `server/test/family-members.test.ts`, `server/test/family-locks.test.ts`
+- Modifica: `contract/src/family/members.ts`, `server/src/family/members.ts`,
+  `server/src/pipeline.ts` (`RETRY_ON_DEADLOCK`)
+- Test: `server/test/family-members.test.ts`, `server/test/family-locks.test.ts`,
+  `server/test/pipeline.test.ts`
 
 **Interfacce:**
 - Consuma: funzioni del compito 2; `mapFamilyError`.
@@ -278,14 +318,21 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   the same token, web and MCP`; `the average leaves out the removed member and the
   rating stays`; `leave repeated answers forbidden`; `family_delete over MCP answers
   web_only with the page URL and keeps the family`; `delete from the web removes the
-  family and returns the profile without it`. In `family-locks.test.ts` i casi 1–5 della
-  spec (sezione 5, modello di `users-locks.test.ts`: `holdTransaction`, PID della
+  family and returns the profile without it`; `leave answers invalid on successorId when
+  the other administrator left meanwhile`. In `family-locks.test.ts` i casi 1–7 della
+  spec (il caso 1 si aspetta `P0A13`, il caso 5 esclude `40P01`, il caso 6 la ripetizione
+  di `family.delete`) (sezione 5, modello di `users-locks.test.ts`: `holdTransaction`, PID della
   seconda connessione, attesa accertata in `pg_stat_activity` con
   `wait_event_type = 'Lock'`), con l'invariante «almeno un amministratore se ci sono
   membri» controllata per prima. Il caso 3 e il caso 4 usano `begin_account_deletion`
   direttamente in SQL (il gestore arriva nel compito 8).
 - [ ] **Passo 2:** test → falliscono.
-- [ ] **Passo 3:** operazioni e gestori.
+- [ ] **Passo 3:** operazioni e gestori; ripetizione su `40P01` per `family.delete` (e
+  per le operazioni del compito 8): la transazione è del pipeline, quindi la ripetizione
+  sta nel pipeline, attivata da un elenco di operazioni nel server
+  (`RETRY_ON_DEADLOCK` in `server/src/pipeline.ts`, non nel contratto): una ripetizione
+  dell'intera transazione, poi l'errore ordinario (`internal`); test in
+  `pipeline.test.ts` con un `40P01` simulato.
 - [ ] **Passo 4:** `npm run typecheck && npm test` → verdi; in locale, una volta,
   sostituire a mano `leave_family` senza `for update` e vedere fallire il caso 1 per
   l'invariante (non si fa commit della prova).
@@ -324,9 +371,18 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   ciascuno il proprio account, l'uno l'altro, e cancellazione contro `set_user_role`
   (attesa sul lucchetto `advisory`, resta un amministratore).
 - [ ] **Passo 2:** test → falliscono.
-- [ ] **Passo 3:** gestori: piano ricalcolato e rimando MCP prima delle scritture;
-  `begin_account_deletion`; `afterCommit(() => finishAccountDeletion(...))` che dà
-  `{ completed }` e registra il fallimento invece di propagarlo.
+  Più: `MCP account.delete and users.delete answer web_only when the family composition
+  changes while waiting for the lock` (piano letto con F condivisa, uscita dell'altro
+  membro mentre la richiesta attende, lucchetto tenuto con `holdTransaction`);
+  `roles cannot be granted to a pending account and the last app admin survives the
+  resume` (Auth indisponibile con `failNextDelete`); in `account-deletion-locks.test.ts`
+  l'assegnazione di `app_admin` tenuta a metà contro `begin_account_deletion`, in
+  entrambi gli ordini, con l'utente senza ruoli alla fine.
+- [ ] **Passo 3:** gestori: piano letto e scorciatoia del rimando MCP; poi
+  `begin_account_deletion` (che ha la regola vera: `P0A15` → `web_only` con l'URL della
+  pagina), con la ripetizione su `40P01` del compito 7;
+  `afterCommit(() => finishAccountDeletion(...))` che dà `{ completed }` e registra il
+  fallimento invece di propagarlo.
 - [ ] **Passo 4:** `npm run typecheck && npm test` → verdi.
 - [ ] **Passo 5: commit** «Cancellazione dell'account e degli utenti: contratto, server
   e MCP».
@@ -411,7 +467,8 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `the account form creates the account, signs in and opens the menu`; `the sign-in link
   keeps the token through redirect and comes back to the invitation` (Attenzione 2);
   `without accountsAvailable there is no form but the sign-in link stays` (Attenzione 5);
-  `another account open offers sign out and continue`; `_headers` contiene `/invite` con
+  `another account open offers sign out and continue`; `joined false shows the ready
+  account text and opens login with the email`; `_headers` contiene `/invite` con
   `no-referrer` (test del file come quello esistente di A, se c'è, altrimenti nuovo).
 - [ ] **Passo 2:** test → falliscono.
 - [ ] **Passo 3:** implementare con i testi della spec.
@@ -428,10 +485,13 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   «Rendi amministratore» diretto; «Rendi membro» diretto senza link e con conferma «I 2
   link d'invito creati da Anna smetteranno di valere» con link; `last_admin` con il suo
   testo; rimozione con la conferma e la riga dei link; elenco dei link con autore,
-  scadenza, «{n} account creati»; creazione con il foglio, la nota «Il link si vede solo
-  ora» e Copia/Condividi; revoca con conferma; membro semplice con «chiedi un link a»;
-  uscita nei tre casi, successore obbligatorio, riga dei propri link, navigazione dopo
-  l'uscita; tutto disattivato offline.
+  scadenza, «{n} persone registrate con questo link»; creazione con il foglio, la nota
+  «Il link si vede solo ora» e Copia/Condividi; revoca con conferma; card «Ingressi con
+  i link» (nome o «ex membro», data, autore del link, «Account nuovo», stato vuoto);
+  membro semplice con «chiedi un link a» e senza card degli ingressi; uscita nei tre
+  casi, successore obbligatorio, riga dei propri link, `invalid` su `successorId` che
+  porta alla scelta del successore, navigazione dopo l'uscita; tutto disattivato
+  offline.
 - [ ] **Passo 2:** test → falliscono.
 - [ ] **Passo 3:** implementare (foglio di condivisione riusato da A).
 - [ ] **Passo 4:** `npm test -w web` → verdi.
@@ -447,12 +507,20 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 
 **Interfacce:**
 - Produce: nel gestore della sessione, a ogni profilo scritto nella cache,
-  `session.revoke(familyId)` per ogni famiglia del profilo precedente assente nel nuovo.
+  `session.revoke(familyId)` per ogni famiglia del profilo precedente assente nel nuovo;
+  revoche come mappa `familyId → revokedAt`; `session.restore(familyId: string,
+  startedAt: number): boolean` (vero se ha tolto la revoca) con il messaggio
+  `{ type: 'restored', userId, familyId, startedAt }` alle altre schede; chiamata dalla
+  risposta di `family.join`/`family.create` e da ogni profilo letto, partito dopo la
+  revoca, che contiene la famiglia.
 
 - [ ] **Passo 1: test**: riepilogo per l'amministratore e per il membro; conferma che
   elimina e porta a `/profile` o `/menu`; nessuna chiamata all'apertura della pagina;
   `a family missing from a fresh profile is revoked: queries removed, mark written,
-  shopping queue cleared` (Attenzione 3); `leave and delete revoke before navigating`.
+  shopping queue cleared` (Attenzione 3); `leave and delete revoke before navigating`;
+  `leave then join restores the family without old data`; `removal, new link, join
+  restores the family`; `a second tab applies restored`; `a profile read started before
+  a newer revocation does not restore`.
 - [ ] **Passo 2:** test → falliscono.
 - [ ] **Passo 3:** implementare.
 - [ ] **Passo 4:** `npm test -w web` → verdi.
@@ -517,7 +585,9 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 - [ ] **Passo 1:** `npm run typecheck && npm test && npm run build -w web`, `supabase
   test db`, `scripts/invitations/invite-stack.sh` → tutti verdi.
 - [ ] **Passo 2:** prova con la skill agent-browser su `wrangler dev` con lo stack
-  locale (variabili dello stack esplicite, URL di Auth controllato prima di accedere) e
+  locale, confrontando ogni schermata con `design/design.md`, `design/index.html`, i
+  riferimenti di `design/references/hellofresh/` e le rotte del prototipo (quarto e
+  sesto giro), (variabili dello stack esplicite, URL di Auth controllato prima di accedere) e
   in modalità finta, a 1280 e 390 px, in italiano e inglese, con un nome lungo: i
   percorsi della spec (sezione 5, «Web»). Correggere quanto emerge con commit piccoli.
 - [ ] **Passo 3:** aggiornare la spec di dettaglio con «Provato con agent-browser» e
