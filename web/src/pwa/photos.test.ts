@@ -46,3 +46,11 @@ describe('photo cache of the page (W12)', () => {
     expect(clear).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the name of the photo cache', () => {
+  it('is the worker’s, written twice so that the page never imports the worker modules', async () => {
+    const { PHOTO_CACHE: ofWorker } = await import('./sw-rules');
+    const { PHOTO_CACHE_NAME } = await import('./photos');
+    expect(PHOTO_CACHE_NAME).toBe(ofWorker);
+  });
+});

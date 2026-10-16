@@ -1,5 +1,10 @@
 import type { Session } from '../session/session';
-import { PHOTO_CACHE } from './sw-rules';
+
+/**
+ * The cache of the worker (sw-rules.ts, PHOTO_CACHE), written again here: importing a worker module
+ * from the page would put it in a chunk shared with sw.js, which a classic worker cannot load.
+ */
+export const PHOTO_CACHE_NAME = 'cosasimangia-photos-v1';
 
 /** How long the sign-out waits for the worker before deleting the cache itself. */
 const ANSWER_TIMEOUT_MS = 2000;
@@ -32,7 +37,7 @@ export async function clearPhotos(deps: PhotoDeps = defaults()): Promise<void> {
       }
     });
   }
-  await deps.caches?.delete(PHOTO_CACHE).catch(() => false);
+  await deps.caches?.delete(PHOTO_CACHE_NAME).catch(() => false);
 }
 
 function defaults(): PhotoDeps {
