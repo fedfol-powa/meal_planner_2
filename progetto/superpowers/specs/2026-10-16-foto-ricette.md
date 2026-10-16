@@ -3,7 +3,9 @@
 Creato: 16 ottobre 2026
 Stato: spec di dettaglio dopo il brainstorming con il coordinatore (domande 1 e 2 e
 conferma dell'agente, risposte dell'utente del 16 ottobre 2026) e una verifica interna di
-un costruttore indipendente (foto delle bozze servite, ricette da libro).
+un costruttore indipendente (foto delle bozze servite, ricette da libro); corretta dopo la
+revisione di spec e piano (`revisioni/w12-spec-piano.md`, rilievi 1–6, e decisioni del
+coordinatore in `messaggi/w12-01-revisione-spec.md`).
 Branch: `ondata3/foto-ricette` · Worktree: `.worktrees/foto`
 
 Subordinata alla specifica principale
@@ -32,7 +34,7 @@ Dentro:
 - foto nelle viste delle ricette e nelle schede (menu, ricettario, suggerimenti della
   revisione dei pasti, scheda ricetta);
 - cache a runtime delle foto già viste nel service worker;
-- riferimenti alle foto nell'esportazione notturna e conservazione delle foto tolte;
+- riferimenti alle foto nell'esportazione notturna e conservazione illimitata degli oggetti;
 - guida all'agente aggiornata.
 
 Fuori (dal brief): foto per le 56 ricette importate (le aggiungono i curatori una per
@@ -158,15 +160,18 @@ una chiave nuova; un oggetto non si riscrive mai.
 (scelta tecnica, motivata):
 
 - L'app si autentica con un token, che un `<img>` non manda. Gli URL firmati a scadenza
-  cambierebbero nel tempo: rompono la cache immutabile, la copia delle viste sul
-  dispositivo (una vista salvata porterebbe URL scaduti, contro la regola della sezione 1
-  che mostra subito la copia all'apertura, anche offline) e la cache del service worker.
-- Il ricettario è unico e non contiene dati delle famiglie. Una foto di una ricetta è
+  cambierebbero nel tempo: rompono la copia delle viste sul dispositivo (una vista salvata
+  porterebbe URL scaduti, contro la regola della sezione 1 che mostra subito la copia
+  all'apertura, anche offline) e la cache del service worker, che si basa su URL stabili.
+- Le foto sono **del ricettario, non dati di una famiglia**: una foto di una ricetta è
   visibile a ogni utente con accesso al ricettario. Il rischio residuo di una chiave non
   indovinabile è che chi ha avuto l'URL lo passi a terzi: per una foto di un piatto è
   accettabile. Una foto scattata in casa può mostrare un ambiente domestico: lo si
-  mitiga servendo solo le foto **correnti** (sotto), così togliere la foto la rende
-  irraggiungibile dalla rete anche durante la conservazione.
+  mitiga servendo solo le foto **correnti** (sotto), così una foto tolta non si scarica
+  più dal Worker. Restano due limiti dichiarati: le copie già salvate fuori dall'app
+  (un'immagine scaricata o inoltrata da qualcuno che l'ha vista) non sono revocabili, e
+  la cache delle foto di un dispositivo dove la foto era già stata vista la conserva fino
+  all'uscita dall'account o all'espulsione per il tetto (sezione 7).
 - **Ricette da libro:** la rotta serve anche le foto delle ricette di un libro, che il
   ricettario propone solo alle famiglie che hanno quel libro. Quel limite riguarda quali
   ricette si propongono, non dati riservati: la ricetta stessa resta nel ricettario
@@ -188,8 +193,14 @@ una chiave nuova; un oggetto non si riscrive mai.
    (`photo_object_missing`);
 5. risposta con il corpo di R2 e le intestazioni:
    - `Content-Type` dal database;
-   - `Cache-Control: public, max-age=31536000, immutable` (la chiave cambia a ogni
-     sostituzione, quindi il contenuto di un URL non cambia mai);
+   - `Cache-Control: private, no-store` (rilievo 2 della revisione, decisione del
+     coordinatore): la risposta non entra nella cache HTTP del browser né in cache
+     condivise, che l'app non può svuotare all'uscita e che continuerebbero a servire una
+     foto tolta. L'offline lo garantisce **solo** la cache esplicita del service worker
+     (sezione 7): la Cache API non applica le direttive HTTP e la chiave è immutabile,
+     quindi lì vale «prima la cache, poi la rete». Senza service worker attivo (prima
+     visita, browser senza supporto) ogni apertura scarica di nuovo la foto: costo
+     accettato;
    - `X-Content-Type-Options: nosniff`;
    - `Content-Security-Policy: default-src 'none'; sandbox` (difesa se l'URL si apre
      direttamente);
@@ -206,8 +217,8 @@ Errori della rotta in JSON come le altre rotte del server (`not_found`, `rate_li
 origine, quindi una futura `img-src 'self'` le ammette senza eccezioni. Nessuna modifica.
 
 **Costo:** R2 ha 10 GB gratuiti al mese; 1.000 foto da circa 250 KB fanno 250 MB.
-Le letture dalla rotta passano dal Worker (piano a pagamento già attivo); con la cache
-immutabile ogni dispositivo scarica una foto una volta.
+Le letture dalla rotta passano dal Worker (piano a pagamento già attivo); con la cache del
+service worker ogni dispositivo scarica una foto una volta per sessione.
 
 ## 4. Formati, misure e ridimensionamento
 
@@ -234,10 +245,12 @@ per pochi utenti.
   risultato, invece di trasformare a ogni richiesta (`cf.image` su `fetch` o URL
   `/cdn-cgi/image/`), che conterebbe una trasformazione per variante e richiederebbe una
   zona con il dominio.
-- **Esito del binding:** se fallisce (limite raggiunto, formato non decodificabile)
-  l'operazione risponde `invalid` sul campo dell'immagine con il codice `photo_unreadable`
-  per un'immagine non decodificabile, `internal` per un errore del servizio; nessun
-  oggetto scritto.
+- **Esito del binding:** un'immagine che `info` o `input` non decodificano → `invalid` sul
+  campo dell'immagine con il codice `photo_unreadable`. Il limite mensile raggiunto (errore
+  `9422` nel messaggio dell'eccezione del binding) → `internal` con il log
+  `photo_images_limit` (gli altri errori del servizio → `internal` con
+  `photo_images_failed`). In ogni caso nessun oggetto scritto in R2, nessuna riga, e la
+  foto precedente resta corrente (rilievo 3 della revisione, provato nei test).
 - **In locale:** `wrangler dev` offre una versione ridotta del binding (larghezza,
   altezza, rotazione, formato), sufficiente. Nei test in Node il binding si sostituisce
   con un'implementazione finta iniettata (stesso modo dell'env finto dei test del server)
@@ -252,12 +265,16 @@ per pochi utenti.
 
 **Controlli dell'immagine, comuni ai due canali** (dopo `info`):
 
-- formato in ingresso fra `image/jpeg`, `image/png`, `image/webp`, `image/avif`; rifiutati
-  SVG (può contenere script), GIF e il resto → `invalid`, codice `photo_type`;
+- formato in ingresso fra `image/jpeg`, `image/png`, `image/webp`, cioè i formati in
+  ingresso del piano Images Free; **AVIF in ingresso no**, perché la documentazione di
+  Cloudflare lo riserva al piano Enterprise (rilievo 3 della revisione; AVIF in uscita è
+  un'altra cosa e non serve). Rifiutati AVIF, SVG (può contenere script), GIF e il resto →
+  `invalid`, codice `photo_type`. Dall'app il problema non si pone, perché il browser
+  ricodifica in JPEG; via indirizzo arrivano i byte originali e vale questo controllo;
 - lato corto almeno 400 px → altrimenti `invalid`, codice `photo_too_small` (le miniature
   dei siti renderebbero male nel banner);
-- dimensione in ingresso: dall'app al più 10 MB (limite del contratto con `z.file()`),
-  via indirizzo al più 10 MB scaricati (sotto il limite di 20 MB di `.input()`) →
+- dimensione in ingresso: dall'app al più 10 MB (limite del corpo applicato durante la
+  lettura, sezione 5, più `z.file().max()` nel contratto), via indirizzo al più 10 MB scaricati (sotto il limite di 20 MB di `.input()`) →
   `invalid`, codice `photo_too_large`;
 - risultato al più 1 MB (controllo di sicurezza, non atteso).
 
@@ -279,7 +296,7 @@ nell'area `recipes`. Tutte `offline: false`.
 
 | Operazione | Metadati | Input | Output |
 |---|---|---|---|
-| `catalogue.uploadPhoto` | `mcp: false`, `role: 'curator'`, `creates: true` | `{ id: uuid, recipeId: uuid, file: z.file() }` (JPEG, PNG, WebP o AVIF, al più 10 MB) | `photoView` |
+| `catalogue.uploadPhoto` | `mcp: false`, `role: 'curator'`, `creates: true` | `{ id: uuid, recipeId: uuid, file: z.file() }` (JPEG, PNG o WebP, al più 10 MB) | `photoView` |
 | `catalogue.setPhotoFromUrl` | `mcp: { readOnly: false }`, `role: 'curator'`, `creates: true` | `{ id: uuid, recipeId: uuid, imageUrl: string }` | `photoView` |
 | `catalogue.removePhoto` | `mcp: { readOnly: false }`, `role: 'curator'` | `{ recipeId: uuid }` | `{ recipeId, photo: null }` |
 
@@ -292,6 +309,17 @@ della richiesta, così l'agente può scaricarla o dare il link al curatore, che 
   strumento esposto e uno strumento con un file in ingresso non ha uno schema utile per gli
   agenti. Il file arriva con il protocollo RPC di oRPC (multipart, `z.file()`, supporto
   documentato: Context7, 16 ottobre 2026); in OpenAPI resta `multipart/form-data`.
+- **Limite del corpo prima del parser** (rilievo 4 della revisione): oRPC tiene in memoria
+  `File` e `Blob`, e `z.file().max()` valida un file già letto. Per questo `route` in
+  `server/src/app.ts`, **prima** di `handler.handle` e prima di qualsiasi verifica del
+  token, avvolge il corpo delle richieste ai due percorsi di `uploadPhoto` (RPC
+  `/api/rpc/catalogue/uploadPhoto` e OpenAPI `/api/catalogue/recipes/{recipeId}/photo/upload`)
+  in un flusso che conta i byte e si interrompe oltre **10 MiB di file più 64 KiB per
+  l'involucro multipart** (`UPLOAD_BODY_LIMIT`). Un `Content-Length` dichiarato oltre il
+  limite si rifiuta subito, ma il controllo non si affida a quell'intestazione: un corpo a
+  pezzi senza `Content-Length` si interrompe durante la lettura. Esito: `413` con il corpo
+  JSON `{ code: 'invalid', status: 413, data: { issues: [{ path: ['file'], code: 'photo_too_large' }] } }`,
+  senza chiamate a Images né a R2. Gli altri percorsi non cambiano.
 - **Idempotenza:** `id` scelto dal client. Se esiste già una riga con quell'`id` per la
   stessa ricetta, l'operazione non scarica, non trasforma e non scrive: risponde con lo
   stato attuale della foto di quella ricetta. Un `id` già usato per un'altra ricetta →
@@ -304,8 +332,8 @@ della richiesta, così l'agente può scaricarla o dare il link al curatore, che 
   dell'utente prima del gestore. Il gestore controlla la ricetta, scarica e trasforma
   l'immagine, scrive l'oggetto in R2 e solo dopo inserisce la riga (togliendo la
   precedente) sotto il lucchetto della ricetta. Se la transazione fallisce dopo la
-  scrittura in R2, l'oggetto resta orfano e lo toglie la pulizia (sezione 7): mai un
-  riferimento senza oggetto. La connessione resta occupata per la durata dello
+  scrittura in R2, l'oggetto resta orfano nel bucket (non si cancella mai in automatico,
+  sezione 7): mai un riferimento senza oggetto. La connessione resta occupata per la durata dello
   scaricamento (al più 10 s, sotto) e della trasformazione: accettato per operazioni
   rare con pochi curatori; se servisse, si sposterebbe il lavoro di rete prima della
   transazione con un passo dedicato della pipeline.
@@ -391,7 +419,21 @@ legge con `useIsCurator()` (area `catalogue`). Offline i comandi sono disabilita
 `uploadPhoto`, `removePhoto` (e `setPhotoFromUrl` non usata dal web) marcano scadute e
 fanno rileggere le query delle ricette (`recipes`), del menu e dei suggerimenti della
 famiglia corrente e quelle dell'area `catalogue`; la scheda aperta mostra la foto alla
-rilettura. Una mutazione TanStack in corso conta già come «pagina occupata» (`useBusyCheck`):
+rilettura.
+
+**Risposte superate** (rilievo 5 della revisione): la sola invalidazione non basta. Una
+modifica del pasto partita prima di un caricamento può rispondere con la settimana e la
+foto vecchia dopo che la rilettura ha già mostrato quella nuova, e `runMealMutation` la
+scriverebbe. Le foto entrano nel meccanismo comune già usato per i voti
+(`ratingsConfirmed` in `web/src/api/mutations.ts`): un contatore per sessione delle
+modifiche confermate del ricettario, `catalogueChangesConfirmed(session)`, che cresce a
+ogni `uploadPhoto` o `removePhoto` riuscita (il ricettario è globale, quindi il contatore
+non è per famiglia). `runMealMutation` lo legge alla partenza e, se all'arrivo della
+risposta è cambiato, non scrive la settimana: la marca scaduta e la fa rileggere, come
+per un voto confermato nel frattempo. Un test lo prova con la risposta del pasto
+ritardata.
+
+Una mutazione TanStack in corso conta già come «pagina occupata» (`useBusyCheck`):
 nessun ricaricamento della PWA a metà caricamento. Il ridimensionamento nel browser avviene
 dentro la funzione della mutazione, quindi è coperto dallo stesso controllo.
 
@@ -399,8 +441,8 @@ dentro la funzione della mutazione, quindi è coperto dallo stesso controllo.
 «Aggiungi foto» / «Add photo», «Foto» / «Photo», «Sostituisci la foto» / «Replace photo»,
 «Togli la foto» / «Remove photo», «Togliere la foto?» / «Remove the photo?», «Togli» /
 «Remove», «Indietro» / «Back», «Caricamento…» / «Uploading…», e i testi degli errori:
-`photo_type` «Formato non supportato: usa una foto JPEG, PNG, WebP o AVIF.» / «Unsupported
-format: use a JPEG, PNG, WebP or AVIF photo.»; `photo_too_small` «La foto è troppo
+`photo_type` «Formato non supportato: usa una foto JPEG, PNG o WebP.» / «Unsupported
+format: use a JPEG, PNG or WebP photo.»; `photo_too_small` «La foto è troppo
 piccola.» / «The photo is too small.»; `photo_too_large` «La foto è troppo grande.» /
 «The photo is too large.»; `photo_unreadable` «Non riesco a leggere questa immagine.» /
 «This image can't be read.». Testo finale nel piano; stessa voce per MCP lato server.
@@ -410,7 +452,9 @@ piccola.» / «The photo is too small.»; `photo_too_large` «La foto è troppo 
 **Service worker** (`web/src/pwa/`): strategia nuova `photo` per `GET` della stessa origine
 su `/photos/*` (fuori da `SERVER_PREFIXES`, che restano in passthrough):
 
-- **cache-first** in una cache dedicata `cosasimangia-photos-v1`, **non legata alla
+- è l'**unica** cache delle foto: la rotta risponde `Cache-Control: private, no-store`
+  (sezione 3), quindi né la cache HTTP del browser né cache condivise ne conservano copie;
+- **prima la cache, poi la rete** in una cache dedicata `cosasimangia-photos-v1`, **non legata alla
   versione della build** e quindi non toccata dal precache né dalla rotazione delle tre
   versioni: `staleCaches` deve escluderla esplicitamente (oggi prende ogni nome con il
   prefisso `cosasimangia-`), con un test;
@@ -419,9 +463,16 @@ su `/photos/*` (fuori da `SERVER_PREFIXES`, che restano in passthrough):
   le voci più vecchie per ordine di inserimento (`cache.keys()` restituisce l'ordine di
   inserimento); niente scadenza a tempo, l'URL è immutabile;
 - **mai nel precache**: le foto non sono file della build;
-- **dati sul dispositivo** (sezione 1): la procedura unica di chiusura della sessione
-  cancella anche la cache delle foto, come la copia delle viste: niente resta di un
-  utente che esce, anche se le foto non sono dati delle famiglie;
+- **uscita dall'account** (sezione 1): le foto sono del ricettario, non dati di una
+  famiglia, ma si tolgono comunque con la cache delle foto, come la copia delle viste.
+  La procedura unica di chiusura della sessione (aggancio `session.onClose`) manda al
+  service worker il messaggio `{ type: 'clear-photos' }` e, se nessun worker controlla la
+  pagina, cancella la cache direttamente. Il worker tiene un numero d'epoca: lo fa
+  crescere, poi cancella la cache. Ogni risposta di una foto ricorda l'epoca alla
+  partenza e si salva solo se l'epoca non è cambiata, così **una risposta arrivata
+  durante l'uscita non ricrea la cache** della sessione chiusa (rilievo 2 della revisione).
+  Se il worker si riavvia, le richieste in corso muoiono con lui: l'epoca persa non apre
+  varchi. Copie già salvate fuori dall'app non sono revocabili (sezione 3);
 - una foto mai vista non è disponibile offline e la scheda ricade nella forma senza foto.
 
 **Esportazione notturna:** `recipe_photos` è una tabella di `app`, quindi entra
@@ -431,33 +482,32 @@ modifica al codice dell'esportazione; un test lo verifica. Il ripristino da espo
 (`scripts/backup/restore.ts`) riporta le righe; le immagini restano nel bucket delle foto,
 che non si ripristina.
 
-**Conservazione delle foto tolte o sostituite: 30 giorni**, decisa dal codice, **non da
-una regola del ciclo di vita di R2** (scelta tecnica):
+**Conservazione: illimitata, nessuna cancellazione automatica** (rilievo 1 della
+revisione, decisione del coordinatore del 16 ottobre 2026). Gli oggetti nel bucket delle
+foto non si cancellano mai in automatico: né le foto tolte o sostituite, né gli orfani.
 
-- le regole del ciclo di vita di R2 contano l'età dell'oggetto dalla creazione, non dalla
-  rimozione della foto: una foto caricata un anno fa e tolta oggi sparirebbe subito, e un
-  ripristino dell'esportazione di ieri avrebbe un riferimento rotto. Spostare gli oggetti
-  tolti sotto un altro prefisso per farli scadere cambierebbe la chiave e romperebbe
-  proprio i riferimenti delle esportazioni;
-- 30 giorni coprono abbondantemente le 7 esportazioni conservate: ripristinando la più
-  vecchia, ogni foto che allora era corrente esiste ancora.
+- **Perché:** una pulizia che guarda solo il database corrente e l'età degli oggetti non
+  distingue un caricamento fallito da una foto ancora citata da un'altra esportazione
+  conservata. Esempio della revisione: si ripristina un'esportazione precedente al
+  caricamento di una foto, la foto sparisce dal database, ma un'esportazione successiva
+  che la cita è ancora fra le 7 conservate; cancellare l'oggetto renderebbe rotto il suo
+  ripristino. Inoltre le 7 esportazioni conservate sono le ultime 7 riuscite, non gli
+  ultimi 7 giorni: dopo una serie di notti fallite una finestra a tempo non basterebbe.
+  Le regole del ciclo di vita di R2 hanno lo stesso difetto e in più contano l'età dalla
+  creazione dell'oggetto, non dalla rimozione della foto.
+- **Costo:** minimo. Qualche centinaio di foto da poche centinaia di KB, contro i 10 GB
+  gratuiti di R2.
+- **Orfani:** gli oggetti di caricamenti la cui transazione è fallita (sezione 5) e,
+  dopo un ripristino da un'esportazione più vecchia, quelli delle foto caricate dopo
+  quell'esportazione restano nel bucket senza riga. Non fanno danni: la rotta li serve
+  solo se il database li indica come correnti.
+- **Una pulizia futura** dovrà tenere conto dei riferimenti in **tutte le esportazioni
+  conservate** (per esempio con un elenco delle chiavi citate scritto accanto a ogni
+  esportazione), oltre che del database corrente, e in caso di verifica incompleta dovrà
+  conservare gli oggetti. Fuori perimetro.
 
-**Pulizia** in `server/src/catalogue/photos/sweep.ts`, eseguita dal Cron Trigger
-dell'esportazione notturna **dopo** l'esportazione, come parte indipendente (un errore
-dell'una non salta l'altra, come le due parti del cron orario), nel ruolo `app_backup`
-(sola lettura del database, scritture solo in R2):
-
-1. elenca gli oggetti del bucket sotto `photos/`;
-2. legge da `recipe_photos` le chiavi e `removed_at`;
-3. cancella da R2 gli oggetti di foto con `removed_at` più vecchio di 30 giorni;
-4. cancella gli **orfani** (oggetti senza riga) caricati da più di 2 giorni: caricamenti
-   la cui transazione è fallita e, dopo un ripristino da un'esportazione più vecchia, foto
-   caricate dopo quell'esportazione. I 2 giorni evitano di toccare un caricamento in corso;
-5. log `photo_sweep_done` con i conteggi, `photo_sweep_failed` con la fase.
-
-Le righe restano nel database (storico mai cancellato); cancellare due volte lo stesso
-oggetto in R2 non è un errore. Con il binding `PHOTOS` assente la pulizia scrive
-`photo_sweep_not_configured` e non fa nulla.
+Il punto 6 del brief resta soddisfatto, con la conservazione illimitata: un ripristino da
+qualunque esportazione conservata trova tutte le immagini che cita.
 
 ## 8. Infrastruttura e passi esterni (per il runbook del coordinatore)
 
@@ -477,7 +527,7 @@ Passi esterni nel rilascio, **non li faccio io**:
 
 1. creare il bucket `cosasimangia-photos` nella giurisdizione `eu` (dashboard o
    `wrangler r2 bucket create cosasimangia-photos --jurisdiction eu`), senza accesso
-   pubblico, senza dominio personalizzato, **senza regole del ciclo di vita** (sezione 7);
+   pubblico, senza dominio personalizzato;
 2. verificare che Cloudflare Images sia disponibile sull'account di POWA nel piano Free
    (le trasformazioni del binding sono comprese; nessun acquisto) e che il binding `IMAGES`
    si pubblichi;
@@ -499,7 +549,13 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
 - **Server** (Vitest con l'env finto, bucket in memoria, binding Images finto, `fetch`
   finta per gli indirizzi):
   - permessi: un membro non curatore riceve `forbidden` sulle tre operazioni;
-  - tipi e dimensioni rifiutati (SVG, GIF, troppo grande, troppo piccola, illeggibile);
+  - tipi e dimensioni rifiutati (AVIF, SVG, GIF, troppo grande, troppo piccola,
+    illeggibile);
+  - errore `9422` del binding: `internal`, foto precedente intatta, nessun oggetto né
+    riga nuovi;
+  - corpo del caricamento oltre `UPLOAD_BODY_LIMIT` senza `Content-Length` e con
+    `Content-Length` dichiarato oltre: `413` prima del parser e del token, lettura
+    interrotta, nessuna chiamata a Images né a R2;
   - indirizzi non validi (http, IP letterali, `localhost`, credenziali, porta), redirect
     verso un indirizzo non ammesso, più di 3 redirect, tempo scaduto, 404, corpo oltre il
     limite senza `Content-Length`;
@@ -510,9 +566,9 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
     versione «invariato» che cambia dopo una foto nuova;
   - rotta `/photos/*`: intestazioni, `404` per foto tolta, chiave malformata o oggetto
     mancante, `429` dal limitatore;
-  - esportazione con le righe di `recipe_photos`;
-  - pulizia: tolte da più di 30 giorni cancellate, tolte da meno conservate, orfani oltre
-    2 giorni cancellati, correnti mai toccate;
+  - esportazione con le righe di `recipe_photos`, senza i byte delle immagini; dopo
+    esportazione, sostituzione e ripristino nel database di prova, la foto dell'esportazione
+    torna servita e il suo oggetto è ancora nel bucket (nessuna cancellazione automatica);
   - strumenti MCP presenti (`catalogue_setPhotoFromUrl`, `catalogue_removePhoto`) e
     `uploadPhoto` assente; URL assoluti via MCP.
 - **Web** (Vitest e Testing Library): schede con e senza foto (senza foto il markup di
@@ -520,7 +576,8 @@ bucket in memoria e un binding finto, come i test dell'esportazione.
   curatori e solo nella scheda ricetta, foglio con sostituisci e togli, errori tradotti,
   ridimensionamento (funzione pura del calcolo delle misure; canvas finto), service worker
   (strategia `photo`, cache dedicata esclusa dalla rotazione, tetto, cancellazione alla
-  chiusura della sessione).
+  chiusura della sessione, risposta arrivata durante l'uscita non salvata); risposta di un
+  pasto ritardata dopo un caricamento confermato: scartata e settimana riletta.
 - **Stack locale con agent-browser**, anche a larghezza da telefono (390 px): caricamento
   di una foto da file (l'input di file con un file di prova), schede del menu e del
   ricettario con e senza foto confrontate con `design/references/hellofresh/` e il
@@ -560,20 +617,25 @@ libreria di decodifica e codifica nel Worker (sezione 4).
   dalle versioni; bozze con foto ammesse ma non mostrate; trigger sul contatore del
   ricettario (sezione 2);
 - bucket R2 `cosasimangia-photos` (UE, privato), chiavi casuali da 128 bit, rotta
-  `/photos/<chiave>` senza autenticazione che serve solo le foto correnti, cache immutabile
-  e limitatore per IP (sezione 1, tabella delle rotte; sezione 8);
+  `/photos/<chiave>` senza autenticazione che serve solo le foto correnti, con
+  `Cache-Control: private, no-store` e limitatore per IP (sezione 1, tabella delle rotte;
+  sezione 8);
 - WebP con lato lungo 1600 px, una sola misura, trasformato una volta al caricamento con il
-  binding Images (piano Free); ridimensionamento JPEG nel browser prima del caricamento
-  (sezione 1, componenti; sezione 15 «Hosting e costi»);
-- `catalogue.uploadPhoto` solo web (`mcp: false`), `catalogue.setPhotoFromUrl` e
+  binding Images (piano Free, ingresso JPEG, PNG e WebP, niente AVIF); ridimensionamento
+  JPEG nel browser prima del caricamento (sezione 1, componenti; sezione 15 «Hosting e
+  costi»);
+- `catalogue.uploadPhoto` solo web (`mcp: false`), con il limite del corpo applicato
+  durante la lettura prima del parser; `catalogue.setPhotoFromUrl` e
   `catalogue.removePhoto` anche MCP; scaricamento controllato (https, niente IP né nomi
   interni, 3 redirect, 10 s, 10 MB) (sezioni 1 e 13);
 - campo facoltativo `photoUrl` nelle viste delle ricette (sezione 1, «Modifiche solo
-  additive»);
-- cache a runtime delle foto nel service worker, separata dal precache, 300 voci,
-  cancellata alla chiusura della sessione (sezione 1, «Copia e sessione sul dispositivo»);
-- esportazione con i soli riferimenti; conservazione di 30 giorni delle foto tolte con una
-  pulizia nel cron notturno, senza regole del ciclo di vita (sezione 8, «Esportazione
-  notturna»);
+  additive»); modifiche delle foto nel meccanismo delle risposte superate del web
+  (sezione 1, «Letture dalla copia sul dispositivo»);
+- cache delle foto solo nel service worker, separata dal precache, 300 voci, cancellata
+  alla chiusura della sessione anche contro le risposte in volo; copie esterne non
+  revocabili (sezione 1, «Copia e sessione sul dispositivo»);
+- esportazione con i soli riferimenti; oggetti del bucket mai cancellati in automatico,
+  orfani ammessi, una pulizia futura dovrà considerare tutte le esportazioni conservate
+  (sezione 8, «Esportazione notturna»);
 - ripristino dell'intero catalogo e foto: da decidere con quell'attività (sezione 15);
 - sezione 15: voce «Foto delle ricette» chiusa.
