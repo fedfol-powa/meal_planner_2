@@ -472,3 +472,137 @@ grant execute on function app.family_invitation_by_token(bytea) to anon;
 grant execute on function app.claim_family_invitation(bytea, text) to anon;
 grant execute on function app.account_id_deleted(uuid) to anon;
 grant execute on function app.complete_family_invitation(uuid) to anon;
+
+-- Members, roles, leaving, deletion. Every function locks the family row first (missing family:
+-- 42501, as for someone else's family), then checks the caller again under the lock: two
+-- administrators leaving or demoting each other queue on the row and the second sees the first.
+
+-- Revokes the open links (expired or not) created by a person; the caller holds the family locks.
+-- p_family_id null: every family (account deletion, which locked them all).
+create function app.revoke_invitations_of(p_family_id uuid, p_user_id uuid, p_reason text)
+returns int language plpgsql security definer set search_path = '' as $$
+declare
+	v_count int;
+begin
+	update app.family_invitations
+		set revoked_at = now(), revoked_by = auth.uid(), revoke_reason = p_reason
+		where created_by = p_user_id and revoked_at is null and (p_family_id is null or family_id = p_family_id);
+	get diagnostics v_count = row_count;
+	return v_count;
+end;
+$$;
+
+create function app.set_family_member_role(p_family_id uuid, p_user_id uuid, p_role text)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+	v_role text;
+begin
+	perform 1 from app.families where id = p_family_id for update;
+	if not found or not app.is_family_admin(p_family_id) then
+		raise exception 'family admins only' using errcode = '42501';
+	end if;
+	if p_role is null or p_role not in ('family_admin', 'member') then
+		raise exception 'unknown role' using errcode = '22023';
+	end if;
+	select role into v_role from app.family_members where family_id = p_family_id and user_id = p_user_id;
+	if not found then raise exception 'not a member' using errcode = 'P0A14'; end if;
+	if v_role = p_role then return; end if;
+	if p_role = 'member' then
+		if not exists (select 1 from app.family_members
+			where family_id = p_family_id and role = 'family_admin' and user_id <> p_user_id) then
+			raise exception 'last family admin' using errcode = 'P0A09';
+		end if;
+		perform app.revoke_invitations_of(p_family_id, p_user_id, 'creator_demoted');
+	end if;
+	update app.family_members set role = p_role where family_id = p_family_id and user_id = p_user_id;
+end;
+$$;
+
+-- The caller stays an administrator: the last administrator is never at stake here.
+create function app.remove_family_member(p_family_id uuid, p_user_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+	perform 1 from app.families where id = p_family_id for update;
+	if not found or not app.is_family_admin(p_family_id) then
+		raise exception 'family admins only' using errcode = '42501';
+	end if;
+	if p_user_id = auth.uid() then raise exception 'use leave' using errcode = '22023'; end if;
+	if not exists (select 1 from app.family_members where family_id = p_family_id and user_id = p_user_id) then
+		return;
+	end if;
+	insert into app.family_removals (family_id, user_id, removed_by) values (p_family_id, p_user_id, auth.uid());
+	perform app.revoke_invitations_of(p_family_id, p_user_id, 'creator_removed');
+	delete from app.family_members where family_id = p_family_id and user_id = p_user_id;
+end;
+$$;
+
+create function app.leave_family(p_family_id uuid, p_successor_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+	v_user uuid := auth.uid();
+begin
+	perform 1 from app.families where id = p_family_id for update;
+	if not found or not app.is_member(p_family_id) then
+		raise exception 'not a member' using errcode = '42501';
+	end if;
+	if not exists (select 1 from app.family_members where family_id = p_family_id and user_id <> v_user) then
+		raise exception 'sole member' using errcode = 'P0A10';
+	end if;
+	if app.is_family_admin(p_family_id) and not exists (select 1 from app.family_members
+		where family_id = p_family_id and role = 'family_admin' and user_id <> v_user) then
+		if p_successor_id is null or p_successor_id = v_user or not exists (select 1 from app.family_members
+			where family_id = p_family_id and user_id = p_successor_id) then
+			raise exception 'successor required' using errcode = 'P0A13';
+		end if;
+		update app.family_members set role = 'family_admin' where family_id = p_family_id and user_id = p_successor_id;
+	elsif p_successor_id is not null then
+		raise exception 'no successor needed' using errcode = 'P0A13';
+	end if;
+	perform app.revoke_invitations_of(p_family_id, v_user, 'creator_left');
+	delete from app.family_members where family_id = p_family_id and user_id = v_user;
+end;
+$$;
+
+create function app.family_deletion_view(p_family_id uuid)
+returns table (name text, member_names jsonb, week_count int, can_delete boolean)
+language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
+begin
+	if not app.is_member(p_family_id) then
+		raise exception 'members only' using errcode = '42501';
+	end if;
+	return query
+		select f.name,
+			coalesce((select jsonb_agg(p.display_name order by lower(p.display_name), p.user_id)
+				from app.family_members m join app.profiles p on p.user_id = m.user_id
+				where m.family_id = f.id), '[]'::jsonb),
+			(select count(*)::int from app.weeks w where w.family_id = f.id),
+			app.is_family_admin(f.id)
+		from app.families f where f.id = p_family_id;
+end;
+$$;
+
+-- The cascade removes memberships, weeks, meals, logs, lists, exclusions, settings, links, joins,
+-- removals, jobs and temporary lists; reservations stay with null references (spec, decision 17).
+create function app.delete_family(p_family_id uuid)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+	perform 1 from app.families where id = p_family_id for update;
+	if not found or not app.is_family_admin(p_family_id) then
+		raise exception 'family admins only' using errcode = '42501';
+	end if;
+	delete from app.families where id = p_family_id;
+end;
+$$;
+
+revoke execute on function app.revoke_invitations_of(uuid, uuid, text) from public;
+revoke execute on function app.set_family_member_role(uuid, uuid, text) from public;
+revoke execute on function app.remove_family_member(uuid, uuid) from public;
+revoke execute on function app.leave_family(uuid, uuid) from public;
+revoke execute on function app.family_deletion_view(uuid) from public;
+revoke execute on function app.delete_family(uuid) from public;
+grant execute on function app.set_family_member_role(uuid, uuid, text) to authenticated;
+grant execute on function app.remove_family_member(uuid, uuid) to authenticated;
+grant execute on function app.leave_family(uuid, uuid) to authenticated;
+grant execute on function app.family_deletion_view(uuid) to authenticated;
+grant execute on function app.delete_family(uuid) to authenticated;

@@ -330,5 +330,177 @@ select is(app.account_id_deleted(tests.uid('gina')), true, 'deleted id');
 select is(app.account_id_deleted(tests.uid('anna')), false, 'live id');
 reset role;
 
+
+-- ===== Members, roles, leaving, deletion (task 2) =====
+create function tests.make_family(p_name text, p_admin text, p_members text[]) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+	v_id uuid;
+	v_name text;
+begin
+	insert into app.families (name) values ('test-' || p_name) returning id into v_id;
+	insert into app.family_members (family_id, user_id, role) values (v_id, tests.uid(p_admin), 'family_admin');
+	foreach v_name in array p_members loop
+		insert into app.family_members (family_id, user_id, role) values (v_id, tests.uid(v_name), 'member');
+	end loop;
+	return v_id;
+end;
+$$;
+create function tests.role_in(p_family text, p_user text) returns text
+language sql stable security definer set search_path = '' as $$
+	select role from app.family_members where family_id = tests.family(p_family) and user_id = tests.uid(p_user);
+$$;
+create function tests.reason(p_id uuid) returns text
+language sql stable security definer set search_path = '' as $$
+	select revoke_reason from app.family_invitations where id = p_id;
+$$;
+grant execute on function tests.role_in(text, text), tests.reason(uuid) to authenticated, anon;
+select tests.create_user(n) from unnest(array['pa', 'pb', 'pc', 'qa', 'qb', 'qc']) n;
+select tests.make_family('P', 'pa', array['pb', 'pc']);
+select tests.make_family('Q', 'qa', array[]::text[]);
+
+-- Roles
+select tests.login('pb');
+select throws_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pc'), 'family_admin')$$, '42501', null, 'a member cannot change roles');
+reset role;
+select tests.login('pa');
+select throws_ok($$select app.set_family_member_role(gen_random_uuid(), tests.uid('pc'), 'member')$$, '42501', null, 'unknown family');
+select throws_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pb'), 'owner')$$, '22023', null, 'invalid role');
+select throws_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('gina'), 'member')$$, 'P0A14', null, 'not a member');
+select throws_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pa'), 'member')$$, 'P0A09', null, 'last admin cannot step down');
+select lives_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pb'), 'family_admin')$$, 'promote');
+select lives_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pb'), 'family_admin')$$, 'same role: no effect');
+select is(tests.role_in('P', 'pb'), 'family_admin', 'promoted');
+reset role;
+select tests.login('pb');
+select app.create_family_invitation(tests.family('P'), '00000000-0000-4000-8000-00000000c001', tests.h('p1'));
+select app.create_family_invitation(tests.family('P'), '00000000-0000-4000-8000-00000000c002', tests.h('p2'));
+reset role;
+select tests.become('anon');
+select is(tests.claim('p2', 'rp@x.it'), 'create/false', 'reservation on the link of pb');
+reset role;
+update app.family_invitations set expires_at = now() - interval '1 minute' where id = '00000000-0000-4000-8000-00000000c002';
+select tests.login('pa');
+select lives_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pb'), 'member')$$, 'demote');
+select is(tests.reason('00000000-0000-4000-8000-00000000c001'), 'creator_demoted', 'usable link revoked on demotion');
+select is(tests.reason('00000000-0000-4000-8000-00000000c002'), 'creator_demoted', 'expired open link revoked on demotion');
+reset role;
+select tests.become('anon');
+select is(tests.claim('p2', 'rp@x.it'), 'unavailable/false', 'reservation on the revoked link closes');
+reset role;
+select tests.login('pa');
+select app.set_family_member_role(tests.family('P'), tests.uid('pb'), 'family_admin');
+select lives_ok($$select app.set_family_member_role(tests.family('P'), tests.uid('pa'), 'member')$$, 'step down with another admin');
+select is(tests.role_in('P', 'pa'), 'member', 'stepped down');
+reset role;
+
+-- Removal
+select tests.login('pa');
+select throws_ok($$select app.remove_family_member(tests.family('P'), tests.uid('pc'))$$, '42501', null, 'a member cannot remove');
+reset role;
+select tests.login('pb');
+select throws_ok($$select app.remove_family_member(tests.family('P'), tests.uid('pb'))$$, '22023', null, 'removing oneself');
+select app.set_family_member_role(tests.family('P'), tests.uid('pa'), 'family_admin');
+reset role;
+select tests.login('pa');
+select app.create_family_invitation(tests.family('P'), '00000000-0000-4000-8000-00000000c003', tests.h('p3'));
+reset role;
+insert into app.ratings (user_id, recipe_id, stars) values (tests.uid('pa'), tests.recipe('pasta-al-pomodoro'), 5),
+	(tests.uid('pb'), tests.recipe('pasta-al-pomodoro'), 1);
+select is((select average from app.family_scores where family_id = tests.family('P') and recipe_id = tests.recipe('pasta-al-pomodoro')),
+	3.00, 'average of both');
+select tests.login('pb');
+select lives_ok($$select app.remove_family_member(tests.family('P'), tests.uid('pa'))$$, 'remove');
+select lives_ok($$select app.remove_family_member(tests.family('P'), tests.uid('pa'))$$, 'remove again: no effect');
+reset role;
+select is((select count(*) from app.family_removals where family_id = tests.family('P') and user_id = tests.uid('pa')), 1::bigint, 'one removal row');
+select is((select removed_by from app.family_removals where family_id = tests.family('P') and user_id = tests.uid('pa')), tests.uid('pb'), 'removed by');
+select is(tests.role_in('P', 'pa'), null, 'no longer a member');
+select is(tests.reason('00000000-0000-4000-8000-00000000c003'), 'creator_removed', 'links revoked on removal');
+select is((select average || '/' || votes from app.family_scores where family_id = tests.family('P') and recipe_id = tests.recipe('pasta-al-pomodoro')),
+	'1.00/1', 'the removed member leaves the average');
+select is((select count(*) from app.ratings where user_id = tests.uid('pa')), 1::bigint, 'the rating stays');
+
+-- Leaving
+select tests.login('qa');
+select throws_ok($$select app.leave_family(tests.family('Q'), null)$$, 'P0A10', null, 'sole member must delete');
+reset role;
+insert into app.family_members (family_id, user_id, role) values (tests.family('Q'), tests.uid('qb'), 'member'), (tests.family('Q'), tests.uid('qc'), 'member');
+select tests.login('qa');
+select app.create_family_invitation(tests.family('Q'), '00000000-0000-4000-8000-00000000d001', tests.h('q1'));
+reset role;
+select tests.become('anon');
+select is(tests.claim('q1', 'rq@x.it'), 'create/false', 'reservation on the link of qa');
+reset role;
+update app.family_invitations set expires_at = now() - interval '1 minute' where id = '00000000-0000-4000-8000-00000000d001';
+select tests.login('qa');
+select throws_ok($$select app.leave_family(tests.family('Q'), null)$$, 'P0A13', null, 'last admin needs a successor');
+select throws_ok($$select app.leave_family(tests.family('Q'), tests.uid('qa'))$$, 'P0A13', null, 'oneself is not a successor');
+select throws_ok($$select app.leave_family(tests.family('Q'), tests.uid('gina'))$$, 'P0A13', null, 'successor not a member');
+select lives_ok($$select app.leave_family(tests.family('Q'), tests.uid('qb'))$$, 'leave naming a successor');
+select throws_ok($$select app.leave_family(tests.family('Q'), tests.uid('qb'))$$, '42501', null, 'leaving again: forbidden');
+reset role;
+select is(tests.role_in('Q', 'qb'), 'family_admin', 'successor promoted');
+select is(tests.role_in('Q', 'qa'), null, 'left');
+select is(tests.reason('00000000-0000-4000-8000-00000000d001'), 'creator_left', 'expired open link revoked on leaving');
+select is((select count(*) from app.family_removals where family_id = tests.family('Q')), 0::bigint, 'leaving writes no removal');
+select tests.become('anon');
+select is(tests.claim('q1', 'rq@x.it'), 'unavailable/false', 'reservation on the link closes');
+reset role;
+select tests.login('qc');
+select throws_ok($$select app.leave_family(tests.family('Q'), tests.uid('qb'))$$, 'P0A13', null, 'a member names no successor');
+select lives_ok($$select app.leave_family(tests.family('Q'), null)$$, 'a member leaves');
+reset role;
+select is(tests.role_in('Q', 'qc'), null, 'member left');
+
+-- Deletion view
+select tests.login('franco');
+select is((select name || '|' || member_names::text || '|' || week_count || '|' || can_delete from app.family_deletion_view(tests.family('Verdi'))),
+	'test-Verdi|["Franco"]|1|true', 'deletion summary');
+reset role;
+select tests.login('anna');
+select throws_ok($$select * from app.family_deletion_view(tests.family('Verdi'))$$, '42501', null, 'not a member');
+reset role;
+select tests.login('dario');
+select is((select can_delete from app.family_deletion_view(tests.family('Rossi'))), false, 'a member cannot delete');
+select throws_ok($$select app.delete_family(tests.family('Rossi'))$$, '42501', null, 'a member cannot delete');
+reset role;
+
+-- Deletion: everything of the family goes, the rest stays
+select set_config('tests.rossi', tests.family('Rossi')::text, true);
+select set_config('tests.rossi_week', tests.week('Rossi')::text, true);
+insert into app.weekly_jobs (family_id, target_week) values (tests.family('Rossi'), '2026-10-19');
+insert into app.ratings (user_id, recipe_id, stars) values (tests.uid('dario'), tests.recipe('pasta-al-pomodoro'), 4)
+	on conflict do nothing;
+select ok((select count(*) from app.family_invitations where family_id = tests.family('Rossi')) > 0, 'Rossi has links');
+select ok((select count(*) from app.meal_slots where week_id = tests.week('Rossi')) > 0, 'Rossi has meals');
+select tests.login('anna');
+select lives_ok($$select app.delete_family(tests.family('Rossi'))$$, 'admin deletes');
+reset role;
+select is(
+	(select count(*) from app.family_members where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.weeks where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.meal_slots where week_id = current_setting('tests.rossi_week')::uuid)
+	+ (select count(*) from app.meal_changes c join app.meal_slots s on s.id = c.meal_slot_id where s.week_id = current_setting('tests.rossi_week')::uuid)
+	+ (select count(*) from app.meal_actions where week_id = current_setting('tests.rossi_week')::uuid)
+	+ (select count(*) from app.shopping_lists where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.recipe_exclusions where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.family_ingredients where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.family_books where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.family_tried_recipes where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.weekly_jobs where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.temporary_lists where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.family_invitations where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.family_joins where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.family_removals where family_id = current_setting('tests.rossi')::uuid)
+	+ (select count(*) from app.families where id = current_setting('tests.rossi')::uuid),
+	0::bigint, 'nothing of the family left');
+select ok((select count(*) from app.family_invitation_reservations where token_hash in (tests.h('l3'), tests.h('l4'))
+	and family_id is null and invitation_id is null) > 0, 'reservations stay without references');
+select is((select count(*) from app.ratings where user_id = tests.uid('dario')), 1::bigint, 'ratings stay');
+select is((select count(*) from app.families where id = tests.family('Verdi')), 1::bigint, 'other families stay');
+select is((select count(*) from auth.users where id = tests.uid('dario')), 1::bigint, 'accounts stay');
+select is((select current_family_id from app.profile_preferences where user_id = tests.uid('dario')), null, 'shown family cleared');
+
 select * from finish();
 rollback;
