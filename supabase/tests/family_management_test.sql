@@ -502,5 +502,192 @@ select is((select count(*) from app.families where id = tests.family('Verdi')), 
 select is((select count(*) from auth.users where id = tests.uid('dario')), 1::bigint, 'accounts stay');
 select is((select current_family_id from app.profile_preferences where user_id = tests.uid('dario')), null, 'shown family cleared');
 
+-- ===== Account deletion (task 3) =====
+create function tests.alive(p_user_id uuid) returns boolean language sql stable security definer set search_path = '' as $$
+	select exists (select 1 from app.profiles where user_id = p_user_id);
+$$;
+create function tests.plan_outcome(p_plan jsonb, p_family uuid) returns text language sql immutable as $$
+	select f ->> 'outcome' from jsonb_array_elements(p_plan -> 'families') f where (f ->> 'familyId')::uuid = p_family;
+$$;
+grant execute on function tests.alive(uuid), tests.plan_outcome(jsonb, uuid) to authenticated, anon, app_job;
+select tests.create_user(n) from unnest(array['da', 'db', 'dc', 'dd', 'df']) n;
+select tests.make_family('S1', 'db', array[]::text[]);
+select tests.make_family('S2', 'da', array['dc', 'dd']);
+select tests.make_family('S3', 'da', array[]::text[]);
+select tests.make_family('S4', 'df', array['dc']);
+select set_config('tests.s2', tests.family('S2')::text, true);
+select set_config('tests.s3', tests.family('S3')::text, true);
+-- da joins S1 with a link, creates links in S2 (one expired with a reservation), rates a recipe
+select tests.login('db');
+select app.create_family_invitation(tests.family('S1'), '00000000-0000-4000-8000-00000000e001', tests.h('s1'));
+reset role;
+select tests.login('da');
+select app.join_family(tests.h('s1'));
+select app.create_family_invitation(tests.family('S2'), '00000000-0000-4000-8000-00000000e002', tests.h('s2a'));
+select app.create_family_invitation(tests.family('S2'), '00000000-0000-4000-8000-00000000e003', tests.h('s2b'));
+reset role;
+select tests.become('anon');
+select tests.claim('s2b', 'rs@x.it');
+reset role;
+update app.family_invitations set expires_at = now() - interval '1 minute' where id = '00000000-0000-4000-8000-00000000e003';
+insert into app.ratings (user_id, recipe_id, stars) values (tests.uid('da'), tests.recipe('pasta-al-pomodoro'), 3);
+
+-- The last app admin
+select tests.login('elena');
+select is((app.account_deletion_plan(tests.uid('elena')) ->> 'lastAppAdmin')::boolean, true, 'elena is the last app admin');
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('elena'), '{}', '{}'), 'P0A08', null, 'last app admin cannot be deleted');
+reset role;
+insert into app.user_roles (user_id, role) values (tests.uid('da'), 'app_admin');
+select tests.login('da');
+select app.create_app_invitation('00000000-0000-4000-8000-00000000e101', tests.h('ai1'), 'invited-by-da@x.it', '[]');
+reset role;
+
+-- Plan
+select tests.login('dc');
+select throws_ok(format('select app.account_deletion_plan(%L)', tests.uid('da')), '42501', null, 'neither the person nor an app admin');
+reset role;
+select tests.login('elena');
+select throws_ok(format('select app.account_deletion_plan(%L)', gen_random_uuid()), 'P0A07', null, 'unknown user');
+select set_config('tests.plan', app.account_deletion_plan(tests.uid('da'))::text, true);
+reset role;
+select is(tests.plan_outcome(current_setting('tests.plan')::jsonb, tests.family('S1')), 'stays', 'stays');
+select is(tests.plan_outcome(current_setting('tests.plan')::jsonb, tests.family('S2')), 'needs_successor', 'needs a successor');
+select is(tests.plan_outcome(current_setting('tests.plan')::jsonb, tests.family('S3')), 'deleted', 'deleted');
+select is((select jsonb_agg(c ->> 'displayName' order by c ->> 'displayName') from jsonb_array_elements(current_setting('tests.plan')::jsonb -> 'families') f,
+	jsonb_array_elements(f -> 'candidates') c where (f ->> 'familyId')::uuid = tests.family('S2')), '["Dc", "Dd"]'::jsonb, 'candidates');
+select is((current_setting('tests.plan')::jsonb ->> 'lastAppAdmin')::boolean, false, 'not the last app admin');
+select is((current_setting('tests.plan')::jsonb ->> 'openInvitations')::int, 3, 'open links and pending app invitations');
+select is((current_setting('tests.plan')::jsonb ->> 'pending')::boolean, false, 'not pending');
+select tests.login('da');
+select is(app.account_deletion_plan(tests.uid('da')) -> 'families', current_setting('tests.plan')::jsonb -> 'families', 'same plan for oneself');
+
+-- Begin: refusals write nothing
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), json_build_object(tests.family('S2'), tests.uid('dc')), '{}'),
+	'P0A11', null, 'different set of deleted families');
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), '{}', array[tests.family('S3')]),
+	'P0A13', null, 'missing successor');
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), json_build_object(tests.family('S2'), tests.uid('gina')), array[tests.family('S3')]),
+	'P0A13', null, 'successor not a member');
+reset role;
+select tests.login('dc');
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), json_build_object(tests.family('S2'), tests.uid('dc')), array[tests.family('S3')]),
+	'42501', null, 'someone else without app_admin');
+reset role;
+-- An agent cannot delete families
+select tests.login_with_claims(jsonb_build_object('sub', tests.uid('da'), 'role', 'authenticated', 'client_id', gen_random_uuid()));
+select throws_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), json_build_object(tests.family('S2'), tests.uid('dc')), array[tests.family('S3')]),
+	'P0A15', null, 'agent request deleting a family');
+reset role;
+select ok(tests.alive(tests.uid('da')), 'nothing written');
+
+-- Begin
+select tests.login('da');
+select lives_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), json_build_object(tests.family('S2'), tests.uid('dc')), array[tests.family('S3')]),
+	'deletion begins');
+select lives_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('da'), '{}', '{}'), 'second call: no effect');
+reset role;
+select is(tests.role_in('S2', 'dc'), 'family_admin', 'successor promoted');
+select is((select count(*) from app.families where id = current_setting('tests.s3')::uuid), 0::bigint, 'sole-member family deleted');
+select is((select count(*) from app.families where id = tests.family('S1')), 1::bigint, 'other family stays');
+select is(tests.reason('00000000-0000-4000-8000-00000000e002'), 'creator_deleted', 'link revoked');
+select is(tests.reason('00000000-0000-4000-8000-00000000e003'), 'creator_deleted', 'expired open link revoked');
+select is((select status from app.app_invitations where id = '00000000-0000-4000-8000-00000000e101'), 'revoked', 'app invitation revoked');
+select is(
+	(select count(*) from app.ratings where user_id = tests.uid('da'))
+	+ (select count(*) from app.user_roles where user_id = tests.uid('da'))
+	+ (select count(*) from app.family_members where user_id = tests.uid('da'))
+	+ (select count(*) from app.profiles where user_id = tests.uid('da'))
+	+ (select count(*) from app.profile_preferences where user_id = tests.uid('da'))
+	+ (select count(*) from app.family_joins where user_id = tests.uid('da')),
+	0::bigint, 'app data of the person deleted');
+select is((select requested_by from app.account_deletions where user_id = tests.uid('da')), tests.uid('da'), 'pending row');
+select is((select count(*) from auth.users where id = tests.uid('da')), 1::bigint, 'the account is still in Auth');
+select tests.login('da');
+select throws_ok($$select app.create_family(gen_random_uuid(), 'test-After', 'metric', 'Europe/Rome')$$, '42501', null, 'no family after the deletion began');
+reset role;
+select tests.login('elena');
+select throws_ok(format('select app.set_user_role(%L, %L, true)', tests.uid('da'), 'app_admin'), 'P0A07', null, 'no role for a pending account');
+select throws_ok($$select app.create_app_invitation(gen_random_uuid(), tests.h('ai2'), 'da@test.local', '[]')$$, 'P0A03', null, 'email still taken');
+select is((select count(*) from app.admin_account_deletions() where user_id = tests.uid('da')), 1::bigint, 'admins see the pending row');
+select is((app.account_deletion_plan(tests.uid('da')) ->> 'pending')::boolean, true, 'plan says pending');
+reset role;
+select tests.login('dc');
+select throws_ok($$select * from app.admin_account_deletions()$$, '42501', null, 'app admins only');
+reset role;
+
+-- Agent request without families to delete proceeds
+select tests.login_with_claims(jsonb_build_object('sub', tests.uid('dd'), 'role', 'authenticated', 'client_id', gen_random_uuid()));
+select lives_ok(format('select app.begin_account_deletion(%L, %L, %L)', tests.uid('dd'), '{}', '{}'), 'agent request with no family to delete');
+reset role;
+select ok(not tests.alive(tests.uid('dd')), 'deleted');
+
+-- Attempts and closing (job)
+select tests.become('app_job');
+select is((select count(*) from app.pending_account_deletions('5 minutes') where user_id = tests.uid('da')), 0::bigint, 'recent rows are left alone');
+select is((select count(*) from app.pending_account_deletions('-1 minute') where user_id = tests.uid('da')), 1::bigint, 'idle rows are resumed');
+select is(app.record_account_deletion_attempt(tests.uid('da'), 'auth_admin_failed'), 1, 'failed attempt counted');
+select throws_ok(format('select app.record_account_deletion_attempt(%L, null)', tests.uid('da')), '55000', null, 'cannot close while in Auth');
+reset role;
+select is((select last_error from app.account_deletions where user_id = tests.uid('da')), 'auth_admin_failed', 'last error');
+select set_config('tests.da', tests.uid('da')::text, true);
+delete from auth.users where id = current_setting('tests.da')::uuid;
+select tests.become('app_job');
+select is(app.record_account_deletion_attempt(current_setting('tests.da')::uuid, null), 1, 'closed');
+reset role;
+select ok((select completed_at is not null from app.account_deletions where user_id = current_setting('tests.da')::uuid), 'completed');
+select throws_ok(format($$insert into auth.users (id, email, aud, role) values (%L, 'da2@x.it', 'authenticated', 'authenticated')$$, current_setting('tests.da')),
+	'P0A01', null, 'a deleted id cannot get a profile again');
+select is((select count(*) from auth.users where email = 'da2@x.it'), 0::bigint, 'no account left');
+select tests.become('anon');
+select is(app.account_id_deleted(current_setting('tests.da')::uuid), true, 'deleted id');
+reset role;
+
+-- One email reserved on two links: the deletion clears it from both, counts unchanged
+select tests.login('franco');
+select app.create_family_invitation(tests.family('Verdi'), '00000000-0000-4000-8000-00000000e004', tests.h('v1'));
+reset role;
+select tests.become('anon');
+select tests.claim('s1', 'eve@x.it');
+select set_config('tests.u1', current_setting('tests.claimed'), true);
+select tests.claim('v1', 'eve@x.it');
+select set_config('tests.u2', current_setting('tests.claimed'), true);
+reset role;
+select tests.create_account(current_setting('tests.u2')::uuid, 'eve@x.it');
+select tests.become('anon');
+select is(tests.complete(current_setting('tests.u2')::uuid), tests.family('Verdi')::text || '/true', 'eve joins Verdi');
+reset role;
+select tests.login_as(current_setting('tests.u2')::uuid);
+select lives_ok(format('select app.begin_account_deletion(%L, %L, %L)', current_setting('tests.u2'), '{}', '{}'), 'eve deletes the account');
+reset role;
+select is((select count(*) from app.family_invitation_reservations where email = 'eve@x.it'), 0::bigint, 'the email is gone from every reservation');
+select is((select string_agg(status, ',' order by status) from app.family_invitation_reservations
+	where user_id in (current_setting('tests.u1')::uuid, current_setting('tests.u2')::uuid)), 'closed,joined', 'states');
+select is((select count(*) from app.family_invitation_reservations where invitation_id = '00000000-0000-4000-8000-00000000e001'), 1::bigint, 'count of L1 unchanged');
+select is((select count(*) from app.family_invitation_reservations where invitation_id = '00000000-0000-4000-8000-00000000e004'), 1::bigint, 'count of L2 unchanged');
+select is((select count(*) from app.family_joins where user_id = current_setting('tests.u2')::uuid), 0::bigint, 'no join row of the person');
+select tests.become('anon');
+select throws_ok(format('select tests.complete(%L)', current_setting('tests.u1')), 'P0A01', null, 'the other reservation cannot complete');
+select throws_ok($$select tests.claim('s1', 'eve@x.it')$$, 'P0A03', null, 'the email stays taken until Auth deletes the account');
+reset role;
+delete from auth.users where id = current_setting('tests.u2')::uuid;
+select tests.become('anon');
+select is(tests.claim('s1', 'eve@x.it'), 'create/false', 'a new registration gets a new id');
+select isnt(current_setting('tests.claimed'), current_setting('tests.u1'), 'new id');
+reset role;
+
+-- Roles need a profile; a new account from an app invitation still gets its roles
+select throws_ok(format($$insert into app.user_roles (user_id, role) values (%L, 'recipe_curator')$$, tests.uid('dd')), 'P0A07', null, 'no role without a profile');
+select tests.login('elena');
+select app.create_app_invitation('00000000-0000-4000-8000-00000000e102', tests.h('ai3'), 'fresh@x.it', '["recipe_curator"]');
+reset role;
+select tests.become('anon');
+select set_config('tests.fresh', (select user_id::text from app.claim_app_invitation(tests.h('ai3'), 'fresh@x.it')), true);
+reset role;
+select tests.create_account(current_setting('tests.fresh')::uuid, 'fresh@x.it');
+select tests.become('anon');
+select lives_ok(format('select app.complete_app_invitation(%L, %L)', tests.h('ai3'), current_setting('tests.fresh')), 'app invitation completes');
+reset role;
+select is((select count(*) from app.user_roles where user_id = current_setting('tests.fresh')::uuid), 1::bigint, 'role granted');
+
 select * from finish();
 rollback;

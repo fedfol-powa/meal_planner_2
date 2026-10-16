@@ -606,3 +606,226 @@ grant execute on function app.remove_family_member(uuid, uuid) to authenticated;
 grant execute on function app.leave_family(uuid, uuid) to authenticated;
 grant execute on function app.family_deletion_view(uuid) to authenticated;
 grant execute on function app.delete_family(uuid) to authenticated;
+
+-- Account deletion (spec, sections 1 and 4): the first transaction deletes the app data and
+-- writes a pending row; the server then deletes the Auth account and closes the row.
+
+-- Decision 18: a role needs the recipient's profile. FOR KEY SHARE queues an assignment in
+-- progress with begin_account_deletion, which deletes the profile before the roles (step 10).
+create function app.user_roles_require_profile() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+	perform 1 from app.profiles where user_id = new.user_id for key share;
+	if not found then raise exception 'unknown user' using errcode = 'P0A07'; end if;
+	return new;
+end;
+$$;
+create trigger user_roles_require_profile before insert on app.user_roles
+	for each row execute function app.user_roles_require_profile();
+
+-- A deleted id never gets a profile again: Auth cannot recreate it (the profile is created by
+-- the trigger on auth.users, in the same transaction).
+create function app.profiles_reject_deleted_ids() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+	if exists (select 1 from app.account_deletions where user_id = new.user_id) then
+		raise exception 'deleted account' using errcode = 'P0A01';
+	end if;
+	return new;
+end;
+$$;
+create trigger profiles_reject_deleted_ids before insert on app.profiles
+	for each row execute function app.profiles_reject_deleted_ids();
+
+-- What happens to each family of the user: stays, needs_successor (with the candidates), deleted.
+create function app.account_deletion_families(p_user_id uuid)
+returns table (family_id uuid, name text, outcome text, candidates jsonb)
+language sql stable security definer set search_path = '' as $$
+	select f.id, f.name, o.outcome,
+		case when o.outcome = 'needs_successor' then coalesce((
+			select jsonb_agg(jsonb_build_object('userId', x.user_id, 'displayName', p.display_name)
+				order by lower(p.display_name), x.user_id)
+			from app.family_members x join app.profiles p on p.user_id = x.user_id
+			where x.family_id = f.id and x.user_id <> p_user_id), '[]'::jsonb)
+		else '[]'::jsonb end
+	from app.family_members m
+	join app.families f on f.id = m.family_id
+	cross join lateral (
+		select case
+			when not exists (select 1 from app.family_members x where x.family_id = f.id and x.user_id <> p_user_id) then 'deleted'
+			when m.role = 'family_admin' and not exists (select 1 from app.family_members x
+				where x.family_id = f.id and x.user_id <> p_user_id and x.role = 'family_admin') then 'needs_successor'
+			else 'stays'
+		end as outcome
+	) o
+	where m.user_id = p_user_id
+	order by lower(f.name), f.id;
+$$;
+
+create function app.is_last_app_admin(p_user_id uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+	select exists (select 1 from app.user_roles where user_id = p_user_id and role = 'app_admin')
+		and not exists (select 1 from app.user_roles where user_id <> p_user_id and role = 'app_admin');
+$$;
+
+create function app.account_deletion_plan(p_user_id uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+	if p_user_id is distinct from auth.uid() and not app.has_role('app_admin') then
+		raise exception 'not allowed' using errcode = '42501';
+	end if;
+	if not exists (select 1 from auth.users where id = p_user_id) then
+		raise exception 'unknown user' using errcode = 'P0A07';
+	end if;
+	return jsonb_build_object(
+		'families', coalesce((select jsonb_agg(jsonb_build_object('familyId', d.family_id, 'name', d.name,
+			'outcome', d.outcome, 'candidates', d.candidates)) from app.account_deletion_families(p_user_id) d), '[]'::jsonb),
+		'lastAppAdmin', app.is_last_app_admin(p_user_id),
+		'openInvitations', (select count(*) from app.family_invitations where created_by = p_user_id and revoked_at is null)
+			+ (select count(*) from app.app_invitations where created_by = p_user_id and status = 'pending'),
+		'pending', exists (select 1 from app.account_deletions where user_id = p_user_id and completed_at is null)
+	);
+end;
+$$;
+
+create function app.begin_account_deletion(p_user_id uuid, p_successors jsonb, p_deleted_families uuid[])
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+	v_email text;
+	v_families uuid[];
+	v_deleted uuid[];
+	v_family record;
+	v_successor text;
+begin
+	-- 1. RULE of activity B (app.set_user_role): every path that removes app_admin takes this lock
+	-- and, under it, checks again both the caller and the number of administrators.
+	perform pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0));
+	-- 2. Authorisation under the lock: oneself, or still an app admin.
+	if p_user_id is distinct from auth.uid() and not app.has_role('app_admin') then
+		raise exception 'not allowed' using errcode = '42501';
+	end if;
+	-- 3. Already started: the Auth step resumes it.
+	if exists (select 1 from app.account_deletions where user_id = p_user_id) then return; end if;
+	select lower(btrim(email)) into v_email from auth.users where id = p_user_id;
+	if not found then raise exception 'unknown user' using errcode = 'P0A07'; end if;
+	-- 4.
+	if app.is_last_app_admin(p_user_id) then raise exception 'last app admin' using errcode = 'P0A08'; end if;
+	-- 5. User lock (no new membership from here), email lock (no new reservation), then the
+	-- families of the user, of their open links and of their reservations, in id order; then links, reservations.
+	perform app.lock_user_memberships(p_user_id);
+	if v_email is not null and v_email <> '' then
+		perform pg_advisory_xact_lock(hashtextextended('registration_email:' || v_email, 0));
+	end if;
+	select coalesce(array_agg(distinct x.id order by x.id), '{}') into v_families from (
+		select family_id as id from app.family_members where user_id = p_user_id
+		union select family_id from app.family_invitations where created_by = p_user_id and revoked_at is null
+		union select family_id from app.family_invitation_reservations
+			where family_id is not null and (user_id = p_user_id or email = v_email)
+	) x;
+	perform 1 from app.families where id = any (v_families) order by id for update;
+	perform 1 from app.family_invitations
+		where family_id = any (v_families) or (created_by = p_user_id and revoked_at is null)
+		order by id for update;
+	perform 1 from app.family_invitation_reservations where user_id = p_user_id or email = v_email
+		order by user_id for update;
+	-- 6. The plan again, under the locks.
+	select coalesce(array_agg(d.family_id order by d.family_id), '{}') into v_deleted
+		from app.account_deletion_families(p_user_id) d where d.outcome = 'deleted';
+	if v_deleted <> coalesce((select array_agg(distinct x order by x) from unnest(p_deleted_families) x), '{}') then
+		raise exception 'plan changed' using errcode = 'P0A11';
+	end if;
+	for v_family in select d.family_id from app.account_deletion_families(p_user_id) d where d.outcome = 'needs_successor' loop
+		v_successor := p_successors ->> v_family.family_id::text;
+		if v_successor is null or not exists (select 1 from app.family_members m
+			where m.family_id = v_family.family_id and m.user_id::text = v_successor and m.user_id <> p_user_id) then
+			raise exception 'successor required' using errcode = 'P0A13';
+		end if;
+	end loop;
+	-- Decision 20: an agent (client_id in the token, as channelOf) never deletes a family.
+	if auth.jwt() ->> 'client_id' is not null and cardinality(v_deleted) > 0 then
+		raise exception 'web only' using errcode = 'P0A15';
+	end if;
+	-- 7. Successors.
+	update app.family_members m set role = 'family_admin'
+		from app.account_deletion_families(p_user_id) d
+		where d.outcome = 'needs_successor' and m.family_id = d.family_id
+			and m.user_id::text = p_successors ->> d.family_id::text;
+	-- 8. Links, app invitations, reservations (by id or email), join records.
+	perform app.revoke_invitations_of(null, p_user_id, 'creator_deleted');
+	update app.app_invitations set status = 'revoked', revoked_at = now(), revoked_by = auth.uid()
+		where created_by = p_user_id and status = 'pending';
+	update app.family_invitation_reservations
+		set email = null,
+			status = case when status = 'reserved' then 'closed' else status end,
+			finished_at = coalesce(finished_at, now())
+		where user_id = p_user_id or email = v_email;
+	delete from app.family_joins where user_id = p_user_id;
+	-- 9. Families with the user as sole member.
+	delete from app.families where id = any (v_deleted);
+	-- 10. Profile first (decision 18), then roles, ratings, memberships.
+	delete from app.profiles where user_id = p_user_id;
+	delete from app.user_roles where user_id = p_user_id;
+	delete from app.ratings where user_id = p_user_id;
+	delete from app.family_members where user_id = p_user_id;
+	-- 11.
+	insert into app.account_deletions (user_id, requested_by) values (p_user_id, auth.uid());
+end;
+$$;
+
+create function app.pending_account_deletions(p_older_than interval)
+returns table (user_id uuid, attempts int)
+language sql stable security definer set search_path = '' as $$
+	select d.user_id, d.attempts from app.account_deletions d
+	where d.completed_at is null and coalesce(d.last_attempt_at, d.requested_at) < now() - p_older_than
+	order by d.requested_at;
+$$;
+
+create function app.record_account_deletion_attempt(p_user_id uuid, p_error text) returns int
+language plpgsql security definer set search_path = '' as $$
+declare
+	v_attempts int;
+begin
+	if p_error is null then
+		if exists (select 1 from auth.users where id = p_user_id) then
+			raise exception 'account still in Auth' using errcode = '55000';
+		end if;
+		update app.account_deletions set completed_at = coalesce(completed_at, now())
+			where user_id = p_user_id returning attempts into v_attempts;
+	else
+		update app.account_deletions
+			set attempts = attempts + 1, last_error = p_error, last_attempt_at = now()
+			where user_id = p_user_id returning attempts into v_attempts;
+	end if;
+	if not found then raise exception 'unknown deletion' using errcode = 'P0A07'; end if;
+	return v_attempts;
+end;
+$$;
+
+create function app.admin_account_deletions()
+returns table (user_id uuid, requested_at timestamptz, attempts int, last_error text)
+language plpgsql stable security definer set search_path = '' as $$
+#variable_conflict use_column
+begin
+	if not app.has_role('app_admin') then
+		raise exception 'app admins only' using errcode = '42501';
+	end if;
+	return query
+		select d.user_id, d.requested_at, d.attempts, d.last_error from app.account_deletions d
+		where d.completed_at is null order by d.requested_at;
+end;
+$$;
+
+revoke execute on function app.user_roles_require_profile() from public;
+revoke execute on function app.profiles_reject_deleted_ids() from public;
+revoke execute on function app.account_deletion_families(uuid) from public;
+revoke execute on function app.is_last_app_admin(uuid) from public;
+revoke execute on function app.account_deletion_plan(uuid) from public;
+revoke execute on function app.begin_account_deletion(uuid, jsonb, uuid[]) from public;
+revoke execute on function app.pending_account_deletions(interval) from public;
+revoke execute on function app.record_account_deletion_attempt(uuid, text) from public;
+revoke execute on function app.admin_account_deletions() from public;
+grant execute on function app.account_deletion_plan(uuid) to authenticated;
+grant execute on function app.begin_account_deletion(uuid, jsonb, uuid[]) to authenticated;
+grant execute on function app.admin_account_deletions() to authenticated;
+grant execute on function app.pending_account_deletions(interval) to app_job;
+grant execute on function app.record_account_deletion_attempt(uuid, text) to app_job;
