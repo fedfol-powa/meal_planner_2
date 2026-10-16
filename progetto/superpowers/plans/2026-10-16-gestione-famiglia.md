@@ -30,7 +30,8 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   a `public` e concesso solo ai ruoli della spec (sezione 1); `coverage_test.sql`
   aggiornato a ogni funzione nuova.
 - Lucchetti (spec, sezione 1, «Ordine dei lucchetti»): `app_admin_roles` → utente
-  (`user_memberships:<id>`, poi ricontrollo di profilo e `account_deletions`) → righe di
+  (`user_memberships:<id>`, poi ricontrollo di profilo e `account_deletions`) → email
+  (`registration_email:<email normalizzata>`, primo lucchetto di `claim`) → righe di
   `app.families` in ordine di id, prima di ogni scrittura su righe della famiglia →
   link → prenotazioni → resto; chi parte da impronta o prenotazione legge senza
   lucchetto, prende i lucchetti nell'ordine e ricontrolla. I percorsi della famiglia non
@@ -120,9 +121,11 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   `reserved`; `create_family_test.sql` invariato e verde.
 - [ ] **Passo 2:** `supabase test db` → i nuovi test falliscono.
 - [ ] **Passo 3:** scrivere tabelle, indici, trigger, funzioni e `grant` nella
-  migrazione, con l'ordine dei lucchetti della spec in ogni funzione (utente, poi
-  famiglia, invito, prenotazione; rilettura dopo i lucchetti); `claim` non solleva per
-  gli esiti che scrivono uno stato; inserimento della prenotazione con `on conflict
+  migrazione, con l'ordine dei lucchetti della spec in ogni funzione (utente, email,
+  famiglia, invito, prenotazione; rilettura dopo i lucchetti); `claim` con i passi della
+  spec nell'ordine esatto (lucchetto dell'email, prenotazione esistente, solo poi i
+  controlli di una registrazione nuova) e senza sollevare per gli esiti che scrivono uno
+  stato; inserimento della prenotazione con `on conflict
   (token_hash, email) where email is not null do nothing` e rilettura.
 - [ ] **Passo 4:** `supabase db reset && supabase test db` → tutti verdi, compreso
   `coverage_test`.
@@ -206,6 +209,8 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   stessa senza famiglie `deleted` → procede; email prenotata su due link con id
   diversi, account solo per uno, cancellazione → nessuna prenotazione con quell'email,
   conteggi invariati; link scaduto e aperto dell'utente revocato (`creator_deleted`);
+  `begin_account_deletion` prende il lucchetto dell'email dopo quello dell'utente
+  (verificato nei test di concorrenza del compito 6);
   inserimento in `auth.users` di un id in `account_deletions` → errore, nessuna riga
   rimasta; `create_family` dello stesso utente dopo `begin_account_deletion` confermata →
   `42501`.
@@ -307,7 +312,11 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   unnamed`; le due sequenze con richieste in volo della spec (sezione 5, «Accettazione con
   richieste in volo»), con Auth e `complete` sospendibili separatamente; `list` non
   versionata, aggiornata dopo una prenotazione con `weak_password` e dopo una scadenza. In `family-invitations-locks.test.ts` i due casi del tetto concorrente della
-  spec (sezione 5) con nove prenotazioni di partenza; `public operations
+  spec (sezione 5) con nove prenotazioni di partenza, la stessa email alla decima quota
+  (seconda richiesta in attesa accertata sul lucchetto dell'email, stesso id, nessun
+  errore) e la prenotazione in corso su L1 contro la cancellazione di U2 in entrambi gli
+  ordini (nessuna email rimasta, conteggi invariati; nell'ordine opposto
+  `account_exists`); `public operations
   answer rate_limited with refuseAll`; `MCP lists familyInvitations_list/create/revoke/
   status and family_join, not get or accept`. Più `contract/src/check.test.ts` verde
   con le operazioni nuove (regole delle pubbliche).
@@ -535,15 +544,20 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
 **Interfacce:**
 - Produce: nel gestore della sessione, a ogni profilo scritto nella cache,
   `session.revoke(familyId)` per ogni famiglia del profilo precedente assente nel nuovo;
-  per famiglia `revokedAt` e `restoredAt` (orologio del dispositivo), revocata se
-  `revokedAt > restoredAt`; `session.restore(familyId: string, startedAt: number):
-  boolean` (vero se ha tolto la revoca); messaggi `{ type: 'revoked', userId, familyId,
-  revokedAt }` (campo nuovo, istante originale) e `{ type: 'restored', userId, familyId,
-  startedAt }`, applicati con la regola del massimo in qualunque ordine; segno persistito
-  con `revokedAt`, cancellato da `restore` solo se anteriore a `startedAt`; `restore`
-  chiamata dalla risposta di `family.join`/`family.create` e da ogni profilo letto che
-  contiene la famiglia. Modifica anche `web/src/session/channel.ts` e
-  `web/src/api/persister.ts` (`markRevoked` con l'istante).
+  record persistito `revokedKey` → `{ revokedAt, restoredAt }` (un numero della
+  versione precedente vale `{ revokedAt: n, restoredAt: 0 }`), scritto solo con
+  `store.transact` e fusione col massimo, mai cancellato al ripristino;
+  `markRevoked(store, userId, familyId, at)` e `markRestored(store, userId, familyId,
+  startedAt)` in `web/src/api/persister.ts` (il secondo sostituisce `clearRevoked`);
+  accesso revocato se `revokedAt > restoredAt`; pulizia separata: ogni revoca, propria o
+  ricevuta, toglie sempre le viste e le operazioni della spesa della famiglia fino a
+  `revokedAt`, e il persister non scrive né ripristina viste con `dataUpdatedAt <=
+  revokedAt`; `session.restore(familyId: string, startedAt: number): boolean`;
+  messaggi `{ type: 'revoked', userId, familyId, revokedAt }` (campo nuovo) e
+  `{ type: 'restored', userId, familyId, startedAt }`; `restore` chiamata dalla
+  risposta di `family.join`/`family.create` e da ogni profilo letto che contiene la
+  famiglia. Modifica anche `web/src/session/channel.ts`, `web/src/api/persister.ts` e
+  `web/src/features/shopping/queue/queue.ts` (pulizia fino a un istante).
 
 - [ ] **Passo 1: test**: riepilogo per l'amministratore e per il membro; conferma che
   elimina e porta a `/profile` o `/menu`; nessuna chiamata all'apertura della pagina;
@@ -553,8 +567,12 @@ il piano rimanda alle sue sezioni per tabelle, funzioni, testi e stati).
   restores the family`; `a second tab applies restored`; `a profile read started before
   a newer revocation does not restore`; `delayed revoked then restored, and the reverse
   order, leave the family visible in the second tab`; `a real revocation after the
-  rejoin wins in both tabs`; `a persisted mark older than the restore does not revoke at
-  start`.
+  rejoin wins in both tabs`; e i casi della terza revisione (spec, sezione 5, «Web»,
+  rilievo 3): `reverse delivery removes the old queries and queued shopping operations
+  from tab B and re-reads the family`; `a late tab rewriting the old revocation keeps the
+  family visible`; `a third session started later does not restore queries older than
+  the revocation and shows the family`; `a numeric mark from the previous version reads
+  as revokedAt`.
 - [ ] **Passo 2:** test → falliscono.
 - [ ] **Passo 3:** implementare.
 - [ ] **Passo 4:** `npm test -w web` → verdi.
