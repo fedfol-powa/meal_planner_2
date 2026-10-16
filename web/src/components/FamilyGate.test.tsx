@@ -31,6 +31,10 @@ describe('family state', () => {
     renderApp('/menu', { api: withProfile(async () => profile({ families: [], currentFamilyId: null })) });
     expect((await screen.findByRole('link', { name: 'Crea la tua famiglia' })).getAttribute('href')).toBe('/family/new');
   });
+  it('points to the invitation links under the create button', async () => {
+    renderApp('/menu', { api: withProfile(async () => profile({ families: [], currentFamilyId: null })) });
+    expect(await screen.findByText('Hai un link d’invito? Aprilo per entrare nella famiglia di chi te l’ha mandato.')).toBeTruthy();
+  });
   it('treats a vanished current family as no family', async () => {
     renderApp('/menu', { api: withProfile(async () => profile({ currentFamilyId: 'family-gone' })) });
     expect(await screen.findByText('Non fai ancora parte di una famiglia')).toBeTruthy();

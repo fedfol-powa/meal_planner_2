@@ -8,6 +8,7 @@ export const it = {
   'onboarding.later': 'Il resto si sistema dalle impostazioni.',
   'onboarding.create': 'Crea la famiglia',
   'onboarding.ready': 'Il primo menu è pronto',
+  'onboarding.invite': 'Invita la famiglia',
   'onboarding.settings': 'Sistema le impostazioni',
   'onboarding.homeScreen': 'Per usarla dalla schermata Home: Condividi › Aggiungi alla schermata Home, poi entra con email e password.'
 };
@@ -21,6 +22,7 @@ export const en = {
   'onboarding.later': 'Everything else can be adjusted in the settings.',
   'onboarding.create': 'Create the family',
   'onboarding.ready': 'Your first menu is ready',
+  'onboarding.invite': 'Invite your family',
   'onboarding.settings': 'Adjust the settings',
   'onboarding.homeScreen': 'To use it from your Home Screen: Share › Add to Home Screen, then sign in with email and password.'
 } satisfies Record<keyof typeof it, string>;

@@ -14,6 +14,7 @@ describe('welcome card in the menu', () => {
     expect(screen.queryByText('Il primo menu è pronto')).toBeNull();
     expect(await screen.findByText('Il primo menu è pronto')).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Pasti della settimana' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Invita la famiglia' }).getAttribute('href')).toBe('/profile/family');
     expect(screen.getByRole('link', { name: 'Sistema le impostazioni' }).getAttribute('href')).toBe('/profile/family/settings');
     expect(screen.queryByText(/schermata Home/)).toBeNull();
     const length = history.length;

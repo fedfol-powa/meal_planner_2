@@ -142,6 +142,7 @@ html { height: 100%; }
 .state-notice { margin: 16px 0; padding: 20px; background: var(--paper); box-shadow: var(--card-shadow); }
 .state-notice h2 { margin: 0 0 8px; font: 400 1.25rem/1.3 var(--heading-font); }
 .state-notice p { margin: 0 0 16px; color: var(--body-text); }
+.state-notice .state-notice-hint { margin: 12px 0 0; color: var(--muted); font-size: 0.875rem; }
 .offline-banner { flex: none; margin: 0; padding: 8px 16px; color: #fff; background: var(--ink); font-size: 0.875rem; text-align: center; }
 /* Entry pages (round 4): sign-in. */
 .entry-page { height: 100%; overflow-y: auto; width: min(100%, 420px); margin-inline: auto; padding: max(48px, env(safe-area-inset-top)) 16px 32px; }
