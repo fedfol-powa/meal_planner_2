@@ -1,11 +1,13 @@
 # Piano generale dell'implementazione
 
 Creato: 11 ottobre 2026
-Ultimo aggiornamento: 16 ottobre 2026
+Ultimo aggiornamento: 17 ottobre 2026
 Stato: approvato dall'utente l'11 ottobre 2026; ondate 1 e 2 completate, traguardo A in
-produzione dal 12–13 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev`; ondata 3
-avviata il 13 ottobre 2026, attività A rilasciata il 15 ottobre 2026, attività B il 16
-ottobre 2026; attività C il 16 ottobre 2026.
+produzione dal 12–13 ottobre 2026 su `https://cosasimangia.qunidi.workers.dev` e dal 17
+ottobre 2026 su `https://cosasimangia.app`; ondata 3 avviata il 13 ottobre 2026,
+attività A rilasciata il 15 ottobre 2026, attività B il 16 ottobre 2026; attività C il 16
+ottobre 2026; foto delle ricette (parte di E) il 16 ottobre 2026; passi esterni
+dell'attività D fatti il 17 ottobre 2026, parte software da fare.
 
 Coordina il lavoro dalla fine del prototipo all'app funzionante. Sostituisce la tabella
 delle fasi della specifica, sezione 10, e il piano M1a del 29 settembre. Ogni attività
@@ -25,7 +27,8 @@ Scelte dell'utente dell'11 ottobre 2026 sul perimetro del traguardo A:
   (dal 13 ottobre Google è facoltativo e subordinato alle verifiche sull'iPhone; email
   e password restano l'accesso permanente, «Login» sotto);
 - passi esterni (DNS di `qunidi.it`, Resend, Google) rimandati finché non servono:
-  si parte dall'indirizzo `workers.dev`.
+  si parte dall'indirizzo `workers.dev` (dal 17 ottobre 2026 app ed email su
+  `cosasimangia.app`, `workers.dev` spento; decisione dell'utente).
 
 ## Ondate
 
@@ -68,11 +71,11 @@ test. Ordine e parallelismo si fissano a fine ondata 1.
 
 Inviti familiari e all'app (l'invito crea l'account; prima della verifica del dominio
 di invio la password si sceglie sulla pagina dell'invito, senza email; dopo l'attività D
-il link nell'email serve solo a scegliere la password), wizard; subordinati al DNS di
-`qunidi.it`: dominio di invio `cosasimangia.qunidi.it` con Resend, recupero della
-password via email, email operative di job ed esportazione (l'app resta su
-`workers.dev`; un suo trasferimento sul dominio non è nell'ondata 3 e richiederà una
-decisione distinta); accesso con Google facoltativo solo dopo due verifiche
+il link nell'email serve solo a scegliere la password), wizard; dominio di invio con
+Resend, recupero della password via email, email operative di job ed esportazione (fino
+al 16 ottobre 2026 subordinati al DNS di `qunidi.it`; dal 17 ottobre 2026 app ed email
+su `cosasimangia.app`, con DNS, dominio in Resend e SMTP di Supabase Auth già
+configurati); accesso con Google facoltativo solo dopo due verifiche
 sull'iPhone con l'app installata (ritorno della sessione nella PWA dopo il redirect
 OAuth, collegamento dell'identità Google con le iscrizioni spente), amministrazione dell'app, ripristino dell'intero catalogo,
 Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del
@@ -84,19 +87,24 @@ Primo obiettivo: una persona nuova riceve un invito all'app, ottiene l'account e
 propria famiglia. Un solo worker Claude alla volta, revisori Codex senza limite, solito
 metodo. Finché il DNS di `qunidi.it` non si può modificare, niente email (specifica,
 sezione 7, «Prima della verifica del dominio di invio»): il flusso da implementare in A
-è quello senza email.
+è quello senza email. Dal 17 ottobre 2026 il dominio è `cosasimangia.app` e il blocco
+del DNS non c'è più (riga D).
 
 | # | Attività | Contenuto | Usa | Produce per |
 |---|---|---|---|---|
 | A | Inviti all'app e famiglie nuove — **fatta** (PR #45, rilasciata il 15/10/2026; spec `specs/2026-10-13-inviti-app.md`) | `app_invitations` e operazioni (anche MCP); pagina `/invite/app#<token>` con email, nome e password, account creato dal server già confermato, poi accesso con email e password nella stessa pagina (se fallisce dopo la creazione, la pagina lo dice e porta all'accesso normale: l'account esiste e l'invito risulta usato); wizard «Crea la tua famiglia» e «Crea un'altra famiglia»; `/admin` con la sola sezione Inviti | profilo e famiglia (ondata 2) | B, C |
 | B | Amministrazione utenti e ruoli (#38) — **fatta** (PR #47, rilasciata il 16/10/2026; spec `specs/2026-10-15-amministrazione-utenti.md`) | `/admin` Utenti: ricerca, ruoli curatore e amministratore, ultimo amministratore protetto; MCP. La cancellazione degli utenti è passata a C (decisione dell'utente del 15/10) | scheletro di `/admin` e controlli `app_admin` di A | C |
 | C | Gestione della famiglia — **fatta** (PR #52, unita e rilasciata il 16/10/2026; spec `specs/2026-10-16-gestione-famiglia.md`) | inviti alla famiglia (`family_invitations`, `family_removals`, `/invite#<token>`), rimozione, uscita con successore, ruoli, eliminazione della famiglia, cancellazione dell'account e cancellazione degli utenti dall'amministrazione (dal dettaglio di B, decisione dell'utente del 15/10) | creazione dell'account da invito di A; lucchetto `app_admin_roles` e dettaglio dell'utente di B | — |
-| D | Dominio di invio ed email | record DNS in `qunidi.it` (dominio già aggiunto in Resend, `eu-west-1`), SMTP personalizzato di Supabase Auth, link della password via email, «password dimenticata», email operative di job ed esportazione (sezioni 4 e 8 della specifica) | DNS modificabile (passo esterno dell'utente) | — |
-| E | Resto dell'ondata | Per esempio: Google, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della singola ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, «rigenera», modulo manuale del ricettario, giudice AI, foto (#39). Elenco esemplificativo: il perimetro completo è nella sezione 10 della specifica | — | — |
+| D | Dominio di invio ed email — **passi esterni fatti** il 17/10/2026, parte software da fare | Passi esterni: dominio `cosasimangia.app` su Cloudflare al posto di `cosasimangia.qunidi.it` (PR #56 rilasciata il 17/10; PR #57, solo lo script di rilascio, unita senza nuovo rilascio), verificato in Resend (DKIM `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`), *Site URL* e *Redirect URLs* sul nuovo dominio, SMTP personalizzato di Supabase Auth su Resend con mittente `Cosa si mangia <noreply@cosasimangia.app>`. Parte software: link della password via email dopo l'accettazione di un invito, «password dimenticata», email operative per i fallimenti di job ed esportazione (sezioni 4 e 8 della specifica), fine del rischio accettato delle email non verificate negli inviti | dominio e SMTP (fatti) | — |
+| E | Resto dell'ondata | Per esempio: Google, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della singola ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, «rigenera», modulo manuale del ricettario, giudice AI, foto (#39) — **foto fatte** (W12, PR #54, rilasciata il 16/10/2026; spec `specs/2026-10-16-foto-ricette.md`; 46 ricette con la foto, 4 ancora senza). Elenco esemplificativo: il perimetro completo è nella sezione 10 della specifica | — | — |
 
 B e C partono solo dopo il merge di A, con le interfacce di A registrate in «Interfacce
-decise». D resta bloccata finché il DNS di `qunidi.it` non si può modificare; E, come B
-e C, procede intanto senza aspettarla. Fino a C la scheda dopo la prima generazione
+decise». D è rimasta bloccata dal DNS di `qunidi.it` fino al 17 ottobre 2026, quando
+l'utente ha scelto `cosasimangia.app` e i passi esterni sono stati fatti; E, come B e
+C, è proseguita intanto senza aspettarla. **Ordine concordato con l'utente il 17 ottobre
+2026:** questa PR di documentazione; poi la correzione del difetto #48 del pianificatore,
+prima della generazione di mercoledì 21 ottobre, insieme a #51; poi la parte
+software di D; poi E, nelle parti scelte dall'utente. Fino a C la scheda dopo la prima generazione
 mostra solo «Sistema le impostazioni» (decisione del coordinatore del 13 ottobre 2026).
 
 ### Ordine dell'ondata 2 (approvato dall'utente l'11 ottobre 2026)
@@ -238,6 +246,8 @@ solo il coordinatore.
 - **Amministrazione utenti, interfaccia per C (W10, PR #47 unita il 15/10, rilasciata il 16/10):** sezione 6 di `progetto/superpowers/specs/2026-10-15-amministrazione-utenti.md`; qui in breve. **Lucchetto dell'ultimo amministratore dell'app:** ogni percorso che toglie `app_admin` (oggi `app.set_user_role`, con C la cancellazione di un account, proprio o di un altro utente, che toglie il ruolo per cascata, e qualunque script futuro) prende `pg_advisory_xact_lock(hashtextextended('app_admin_roles', 0))` nella stessa transazione e, sotto il lucchetto, ricontrolla l'autorizzazione di chi chiama per l'operazione richiesta e protegge l'ultimo amministratore: per `app.set_user_role` significa verificare di nuovo `app_admin`, mentre la cancellazione del proprio account resta consentita anche a chi non ha ruoli globali; se l'account è l'ultimo amministratore rifiuta con `last_app_admin` (`P0A08` nel database). Le assegnazioni, compresa `app.complete_app_invitation`, non lo prendono. Le transazioni degli utenti devono restare `read committed` (verificato da `server/test/users-locks.test.ts`). **Comando di cancellazione:** C aggiunge in `web/src/features/admin/UserPage.tsx`, sotto la card «Famiglie», l'area di pericolo del prototipo («Elimina l'utente» verso `/admin/users/$userId/delete`; per il proprio account il rimando alle Preferenze); B non lascia segnaposto. **Riusabili:** `users.get` dà già nome ed email per l'intestazione in terza persona della pagina di cancellazione; area `users` del contratto e del server (`contract/src/users/`, `server/src/users/`, traduzione degli errori in `server/src/users/db-errors.ts`) dove aggiungere l'operazione di cancellazione; funzioni `app.admin_user` e `app.admin_user_families` (solo nome e ruolo delle famiglie); stato dell'accesso `AdminAccess` e bersaglio `users` del registro delle mutazioni nel web. Il numero di agenti collegati, tolto dal dettaglio, può tornare con la cancellazione, che deve già revocare gli accessi.
 - **Gestione della famiglia, interfacce condivise (W11, spec e piano approvati il 16/10 dopo quattro revisioni; dettaglio nella sezione 7 di `progetto/superpowers/specs/2026-10-16-gestione-famiglia.md`):** **ordine completo dei lucchetti** per ogni percorso presente e futuro: `app_admin_roles` (solo chi può togliere `app_admin`) → lucchetto dell'utente `pg_advisory_xact_lock(hashtextextended('user_memberships:' || user_id, 0))` → lucchetto dell'email `hashtextextended('registration_email:' || email normalizzata, 0)` → `select … for update` sulle righe di `app.families` in ordine di id, prima di ogni scrittura su righe della famiglia → link (`family_invitations`) → prenotazioni → resto; sotto i lucchetti si ricontrolla tutto (`read committed`). Il lucchetto dell'utente lo prende ogni percorso che crea un'appartenenza o una prenotazione (anche `app.create_family` di A, ridefinita) e la cancellazione dell'account. Ogni inserimento in `app.user_roles` richiede il profilo del destinatario; un id in `account_deletions` non riottiene un profilo. **`afterCommit`** in `server/src/pipeline.ts`: seguito eseguito dopo il commit senza connessioni aperte, i cui errori non annullano né ripetono la transazione. **`RETRY_ON_DEADLOCK`**: operazioni ripetute una volta su `40P01` (`family.delete`, `account.delete`, `users.delete`), primo tentativo annullato per intero, seguito solo del tentativo confermato.
 
+- **Foto delle ricette (W12, PR #54 unita e rilasciata il 16/10; dettaglio in `progetto/superpowers/specs/2026-10-16-foto-ricette.md`):** tabella `app.recipe_photos` con al più una foto corrente per ricetta, righe mai cancellate, trigger sul contatore del ricettario, lucchetto sulla riga di `app.recipes` prima di scrivere; la foto è fuori dal documento e dalle versioni. Campo facoltativo `photoUrl` nelle viste delle ricette, in `recipeMatchView` e in `draftView` (relativo nel web, assoluto via MCP). Operazioni `catalogue.uploadPhoto` (`mcp: false`), `catalogue.setPhotoFromUrl` e `catalogue.removePhoto`. Bucket `cosasimangia-photos` (binding `PHOTOS`), binding `IMAGES`, limitatore `PHOTO_READ_LIMIT` (`namespace_id` 9103), rotta `/photos/*` in `run_worker_first`. Nel web contatore `catalogueChangesConfirmed(session)` per le risposte superate dei pasti e cache del service worker `cosasimangia-photos-v1`, esclusa da `staleCaches` e cancellata alla chiusura della sessione. Il ripristino dell'intero catalogo dovrà decidere come trattare le foto, che non fanno parte dello storico delle versioni.
+
 ## Registro delle decisioni del coordinamento
 
 | Data | Decisione |
@@ -279,3 +289,6 @@ solo il coordinatore.
 | 16 ottobre 2026 | Attività C (W11) avviata con una sola PR per tutta l'attività (decisione dell'utente). Decisione dell'utente: un invito alla famiglia crea l'account di chi non ce l'ha fino a un tetto di 10 account per link; oltre il tetto lo stesso messaggio di un link non valido; account e ingresso nella famiglia in un solo passaggio con conferma esplicita; l'amministratore della famiglia vede chi è entrato, con quale link e quando; il rischio dell'email non verificata resta accettato fino all'attività D |
 | 16 ottobre 2026 | Spec e piano di W11 approvati dal coordinatore dopo quattro revisioni Codex (`revisioni/w11-spec-piano*.md`) e una verifica del coordinatore sul diff finale (71f3e5b). Decisioni del coordinatore: i link d'invito alla famiglia creati da chi esce, viene rimosso, retrocesso o cancellato si revocano (anche scaduti con prenotazioni), con il numero detto nella conferma; ripresa delle cancellazioni dal Cron Trigger orario; account già creato da un invito diventato inutilizzabile resta, senza famiglia; il tetto conta le prenotazioni (email distinte), testo «persone registrate con questo link»; elenco e ingressi dei link non versionati |
 | 16 ottobre 2026 | W12 (foto delle ricette, #39): approvata la devDependency del server `@orpc/openapi-client` `1.15.5`, solo per i test del limite del caricamento (già nel lockfile come dipendenza di `@orpc/openapi`, nessun pacchetto nuovo); a runtime il binding Images di Cloudflare al posto di una libreria di immagini. Decisioni del coordinatore: nessuna cancellazione automatica degli oggetti del bucket delle foto, `/photos/*` senza cache HTTP e offline solo dalla cache del service worker. Spec e piano approvati dopo tre revisioni Codex e la verifica del coordinatore su 4732d64 |
+| 16 ottobre 2026 | Unita e rilasciata la PR #54 (foto delle ricette, W12, issue #39) dopo due revisioni del codice: bucket `cosasimangia-photos` creato dall'utente, migrazione `20261016110000_recipe_photos.sql`, versione `5dce4dda-67d7-4315-97f3-608631f45796`. Foto popolate via MCP la sera stessa, con l'autorizzazione esplicita dell'utente a caricarle senza conferme una per una: 46 ricette con la foto, 4 ancora senza. Decisioni riportate nella specifica principale il 17 ottobre |
+| 17 ottobre 2026 | Decisione dell'utente: app ed email su `cosasimangia.app` al posto di `cosasimangia.qunidi.it`, DNS su Cloudflare nella zona dell'account di POWA, `www` rimandato con un 301, `workers.dev` spento. Unite le PR #56 (dominio personalizzato del Worker), rilasciata il 17/10 alle 04:23 UTC, e #57 (controllo del rilascio, unita dopo senza nuovo rilascio), versione `8d4763ec-b29d-4d09-941b-9411c22fa3f9`. Dominio verificato in Resend, *Site URL* e *Redirect URLs* solo sul nuovo dominio, SMTP di Supabase Auth su Resend con una chiave dedicata di solo invio, prova con un magic link riuscita; PWA reinstallata sull'iPhone e agente MCP ricollegato a `https://cosasimangia.app/mcp` |
+| 17 ottobre 2026 | L'attività D non è più bloccata: restano la parte software (link della password via email, «password dimenticata», email operative, fine del rischio delle email non verificate negli inviti). Ordine concordato con l'utente: PR di documentazione con le decisioni delle foto e del dominio, correzione di #48 prima della generazione del 21/10 (insieme a #51), parte software di D, poi E scelta dall'utente |

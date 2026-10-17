@@ -1,22 +1,24 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 16 ottobre 2026 (decisioni della gestione della famiglia,
-attività C dell'ondata 3, PR #52)
+Ultimo aggiornamento: 17 ottobre 2026 (decisioni delle foto delle ricette, attività E
+dell'ondata 3, PR #54; dominio `cosasimangia.app` e passi esterni dell'attività D)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
 `design/percorsi.md`) e architettura verificata l'8 ottobre: il prototipo resta il
 riferimento dei percorsi approvati.
 Stato attuale: traguardo A in produzione dal 12–13 ottobre 2026 su
-`https://cosasimangia.qunidi.workers.dev` (dal rilascio successivo al 17 ottobre su
-`https://cosasimangia.app`, sezione 1), con il collaudo completo ancora in corso
+`https://cosasimangia.qunidi.workers.dev` e dal 17 ottobre 2026 su
+`https://cosasimangia.app` (sezione 1), con il collaudo completo ancora in corso
 (sezione 10); dal 15 ottobre 2026 in produzione anche gli inviti all'app e la creazione
 delle famiglie (attività A dell'ondata 3), dal 16 ottobre l'amministrazione di utenti e
 ruoli (attività B) e la gestione della famiglia (attività C: inviti alla famiglia,
 membri e ruoli, uscita, eliminazione della famiglia, cancellazione dell'account e degli
 utenti), con collaudo e prove sull'iPhone riusciti il 16 ottobre 2026
-(sezione 10).
+(sezione 10), e le foto delle ricette (attività E, issue #39). Dal 17 ottobre i passi
+esterni dell'attività D (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti;
+resta la parte software.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -112,7 +114,8 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
 **Decisioni confermate l'8 ottobre 2026, hosting e costi:**
 
 - account Cloudflare di POWA (`federico.folloni@powa.space`, deciso l'11 ottobre 2026):
-  vi stanno Worker, Hyperdrive e la zona DNS di `qunidi.it`;
+  vi stanno Worker, Hyperdrive e la zona DNS di `qunidi.it`, e dal 17 ottobre 2026 la
+  zona di `cosasimangia.app`;
 - server in un Worker di Cloudflare (oRPC senza Hono), che serve anche la SPA come file statici, al
   posto della funzione su Netlify; collegamento a Supabase tramite Hyperdrive; piano a
   pagamento di Workers da 5 $ al mese, accettato dall'utente l'8 ottobre 2026 dopo la
@@ -123,7 +126,9 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   orario;
 - email di Supabase Auth e del server con Resend, piano gratuito, inviate da
   `cosasimangia.qunidi.it`; dal 13 ottobre 2026 arrivano solo dopo la verifica del
-  dominio di invio (attività D dell'ondata 3, sotto);
+  dominio di invio (attività D dell'ondata 3, sotto). Dal 17 ottobre 2026 il dominio di
+  invio è `cosasimangia.app`, verificato in Resend lo stesso giorno, e Supabase Auth
+  spedisce con l'SMTP di Resend (sezione 1);
 - app servita su `cosasimangia.qunidi.it`, sottodominio di `qunidi.it`, dominio
   dell'utente (deciso l'8 ottobre 2026); lo stesso sottodominio è il dominio di invio
   verificato in Resend. **Superata il 13 ottobre 2026 per l'app**: l'app resta su
@@ -134,7 +139,9 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   nello stesso account). Il Worker risponde solo sul dominio personalizzato:
   `workers.dev` spento, senza reindirizzamenti né endpoint lasciati sul vecchio indirizzo;
   `www.cosasimangia.app` rimanda al dominio con un 301 (regola della zona). Mittente
-  `noreply@cosasimangia.app`; DMARC `p=none` finché Resend non è verificato. Il cambio
+  `noreply@cosasimangia.app`; DMARC `p=none`. Lo stesso giorno l'utente ha pubblicato i
+  record di Resend (DKIM `resend._domainkey`, MX e SPF su `send.`) e il dominio è stato
+  verificato. Il cambio
   costringe a reinstallare la PWA, a ricollegare gli agenti MCP con
   `https://cosasimangia.app/mcp` e a rigenerare i link per Bring non ancora aperti;
   *Site URL* e *Redirect URLs* passano al nuovo dominio;
@@ -145,7 +152,8 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   esistenti; si confrontano comunque i record su Aruba con quelli importati da
   Cloudflare prima di cambiare i nameserver. Il record dell'app lo crea Cloudflare,
   quelli di verifica di Resend si aggiungono a mano. Dal 13 ottobre 2026 il DNS per ora
-  non si può modificare (sotto);
+  non si può modificare (sotto); dal 17 ottobre 2026 `qunidi.it` non serve più né
+  all'app né alle email (sopra);
 - letture dalla copia salvata sul dispositivo, verificata con contatori di versione:
   il server trasferisce una vista solo quando è cambiata.
 
@@ -285,7 +293,8 @@ e allarmi via email di job ed esportazione aspettano il dominio (attività D). L
 resta su `https://cosasimangia.qunidi.workers.dev`, con *Site URL* e *Redirect URLs*
 sulla stessa origine: il dominio `cosasimangia.qunidi.it` serve solo a spedire, e
 spostare l'app costringerebbe a reinstallare la PWA. Il trasferimento dell'app esce
-dall'ondata 3 e richiederà una decisione distinta.
+dall'ondata 3 e richiederà una decisione distinta. **Superata il 17 ottobre 2026**
+(sotto): app ed email su `cosasimangia.app`.
 
 **Decisioni del 13–15 ottobre 2026, inviti all'app e famiglie nuove rilasciati**
 (attività A dell'ondata 3, PR #45, rilasciata il 15 ottobre; particolari in
@@ -358,6 +367,40 @@ particolari in `progetto/superpowers/specs/2026-10-15-amministrazione-utenti.md`
   7 e 13);
 - ordine unico dei lucchetti, ripetizione su `40P01` e `afterCommit` (sezioni 1 e 2).
 
+**Decisioni del 16 ottobre 2026, foto delle ricette rilasciate** (W12, attività E
+dell'ondata 3, issue #39, PR #54 unita e rilasciata il 16 ottobre; particolari in
+`progetto/superpowers/specs/2026-10-16-foto-ricette.md`):
+
+- **decisioni dell'utente**: la foto si aggiunge, si sostituisce e si toglie solo dalla
+  scheda ricetta aperta, dai curatori («Aggiungi foto», pulsante «Foto» con il foglio
+  «Sostituisci la foto» / «Togli la foto»), mai dalle schede compatte; nessuna
+  provenienza della foto, né salvata né mostrata; l'agente può impostare una foto da
+  qualunque indirizzo, di norma dalla pagina della fonte, dopo averla mostrata al
+  curatore e ricevuto un sì esplicito (Parte 1 e sezioni 8, 13 e 14);
+- una foto corrente per ricetta in `app.recipe_photos`, fuori dal documento e dalle
+  versioni, con lo storico di chi l'ha caricata e da quale canale (sezione 2);
+- bucket R2 privato `cosasimangia-photos`, chiavi casuali da 128 bit e rotta
+  `/photos/<chiave>` senza autenticazione che serve solo le foto correnti; WebP da
+  1600 px prodotto una volta al caricamento con il binding Images (sezione 1);
+- caricamento dall'app solo web, impostazione da un indirizzo e rimozione anche via MCP
+  (sezioni 1 e 13);
+- cache delle foto solo nel service worker, cancellata all'uscita; esportazione con i
+  soli riferimenti e oggetti mai cancellati in automatico (sezioni 1 e 8);
+- foto popolate via MCP il 16 ottobre 2026: 46 ricette con la foto, 4 ancora senza
+  (sezione 10).
+
+**Decisioni dell'utente del 17 ottobre 2026, dominio `cosasimangia.app`** (PR #56 rilasciata il
+17 ottobre, PR #57 unita senza nuovo rilascio; sezione 1):
+
+- app ed email su `cosasimangia.app` al posto di `cosasimangia.qunidi.it`, con il DNS su
+  Cloudflare nella zona dell'account di POWA; `www` rimanda al dominio con un 301;
+  `workers.dev` spento;
+- dominio verificato in Resend; *Site URL* e *Redirect URLs* di Supabase Auth solo sul
+  nuovo dominio; SMTP personalizzato di Supabase Auth su Resend, mittente
+  `Cosa si mangia <noreply@cosasimangia.app>` (sezioni 1 e 7);
+- l'attività D non è più bloccata: i passi esterni sono fatti, resta la parte software
+  (sezioni 7 e 10).
+
 ---
 
 ## Parte 1: cosa fa l'app (per tutti)
@@ -412,8 +455,9 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   esempio su WhatsApp) e la persona, sulla pagina dell'invito, scrive in un solo modulo
   la sua email, il suo nome e la password (per un invito all'app l'email deve essere
   quella dell'invito): è il suo primo accesso, e la pagina la fa entrare subito. Chi ha
-  già un account accede e conferma l'ingresso. Quando il dominio di invio sarà
-  verificato arriveranno l'invito per email e la «password dimenticata». Dal 15 ottobre
+  già un account accede e conferma l'ingresso. Il dominio di invio è verificato dal 17
+  ottobre 2026: l'invito per email e la «password dimenticata» arriveranno con la parte
+  software dell'attività D. Dal 15 ottobre
   2026 ci sono gli inviti all'app; dal 16 ottobre anche quelli alla
   famiglia. Chi ha un account crea la
   propria Famiglia, o un'altra dal Profilo, scegliendo nome e unità di misura, e trova
@@ -588,6 +632,16 @@ Il sistema deve consentire il recupero dagli errori tramite backup e ripristino;
 curatore può aprire una versione precedente di una ricetta e ripristinarla, mentre il
 recupero dell'intero catalogo è riservato agli amministratori dell'app (sezione 8).
 
+Dal 16 ottobre 2026 una ricetta può avere **una foto**, che si vede in cima alle schede
+del menu, del ricettario e dei suggerimenti e nella scheda ricetta; senza foto le schede
+restano come prima. La foto si aggiunge, si sostituisce e si toglie **solo dalla scheda
+ricetta aperta**, e solo dai curatori: «Aggiungi foto» quando manca (sul telefono si
+può scattarla o sceglierla dalla libreria), il pulsante «Foto» sulla foto per
+sostituirla o toglierla. Le schede compatte non hanno comandi per la foto. Non si
+indica da dove viene la foto (decisione dell'utente del 16 ottobre 2026). Cambiare la
+foto non crea una nuova versione della ricetta: i pasti passati mostrano la foto
+attuale.
+
 ### Lingua e unità di misura
 
 Ogni persona sceglie la propria lingua: **italiano o inglese britannico**. La scelta
@@ -616,6 +670,12 @@ una famiglia di cui la persona è l'unico membro.
 Con un link d'invito alla famiglia, chi ha già un account può entrare anche
 dall'agente, che chiede prima conferma; un account nuovo invece si crea solo sulla
 pagina dell'invito (gestione della famiglia, dal 16 ottobre 2026).
+
+Un curatore può chiedere al proprio agente di mettere la foto a una ricetta: l'agente
+la cerca di norma sulla pagina della fonte, ma può prenderla da qualunque sito; prima di
+impostarla la mostra al curatore e procede solo dopo un sì esplicito, come per la
+pubblicazione (decisione dell'utente del 16 ottobre 2026). L'agente può anche
+sostituirla o toglierla; caricare un file dal telefono si fa invece dall'app.
 
 Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
 deve poter avvenire tramite l'agente. Una pagina dell'app, «Collega un agente» nel
@@ -744,9 +804,11 @@ configurato per workspace.
   | `/api/*` e `/api/openapi.json` | Test, documentazione, eventuali client futuri | Stesse operazioni in forma REST documentata, generata dal contratto |
   | `/mcp` | Agenti | Strumenti MCP generati dal contratto (sezione 13) |
   | `/shopping-lists/<token>` | Bring! | Pagina HTML con JSON-LD resa dal server (sezione 6) |
+  | `/photos/<chiave>` | App web, agenti, curatori | Foto corrente di una ricetta, senza autenticazione, dal bucket delle foto (dal 16 ottobre 2026, sotto) |
 
   La SPA arriva dagli asset statici di Workers con ripiego su `index.html`; il Worker
-  si esegue per primo solo sulle rotte del server (`/api/*`, `/mcp`, `/.well-known/*`).
+  si esegue per primo solo sulle rotte del server (`/api/*`, `/mcp`, `/.well-known/*`,
+  `/photos/*`).
   Il job settimanale non ha una rotta: è l'evento `scheduled` di un Cron Trigger del
   Worker (sezione 4); lo stesso evento, con un'espressione cron sua, avvia
   l'esportazione notturna (sezione 8).
@@ -776,13 +838,15 @@ configurato per workspace.
   Auth e una **chiave segreta dedicata**, `SUPABASE_SECRET_KEY` (segreto del Worker,
   chiave `worker-invitations` creata dall'utente e revocabile da sola, 15 ottobre 2026),
   letta solo dal modulo `server/src/accounts/`. Senza il segreto il resto dell'app
-  funziona e l'accettazione risponde `internal`. *Site URL* e *Redirect URLs* restano
-  sull'origine effettiva dell'app, `https://cosasimangia.app` dal 17 ottobre 2026 (prima
-  `https://cosasimangia.qunidi.workers.dev`), anche
-  quando il dominio di invio `cosasimangia.qunidi.it` sarà verificato (attività D): il
-  dominio serve solo a spedire. Un trasferimento dell'app su quel dominio non è
-  nell'ondata 3, richiederà una decisione distinta e l'aggiornamento di questi valori
-  (decisione dell'utente del 13 ottobre 2026).
+  funziona e l'accettazione risponde `internal`. *Site URL* e *Redirect URLs* stanno
+  sull'origine effettiva dell'app, `https://cosasimangia.app` dal 17 ottobre 2026, solo
+  sul nuovo dominio (prima `https://cosasimangia.qunidi.workers.dev`, con il dominio
+  `cosasimangia.qunidi.it` previsto solo per spedire; decisione dell'utente del 13
+  ottobre 2026, superata il 17). Dal 17 ottobre 2026 Supabase Auth spedisce con un
+  **SMTP personalizzato su Resend** (`smtp.resend.com:465`, utente `resend`, una chiave
+  API dedicata di solo invio limitata al dominio), mittente
+  `Cosa si mangia <noreply@cosasimangia.app>`, impostato dall'utente; una prova con un
+  magic link è arrivata correttamente.
   Per il cambio della password dal Profilo (sezione 7) «Secure password change» è
   **spento** in produzione, come precondizione: senza email non c'è riautenticazione.
   «Require current password when updating» l'ha acceso l'utente il 13 ottobre 2026; il
@@ -847,9 +911,37 @@ configurato per workspace.
   meno 5 per migrazioni, strumenti e dashboard.
   Nel codice del Worker le cache di modulo conservano solo dati già risolti, mai
   promesse di I/O condivise fra richieste, che Workers annulla.
-- **Email con Resend** (sezione 7): SMTP di Supabase Auth e API per le email del server,
-  solo dopo la verifica del dominio di invio (attività D dell'ondata 3); fino ad allora
-  l'app non spedisce email.
+- **Email con Resend** (sezione 7): SMTP di Supabase Auth e API per le email del server.
+  Il dominio `cosasimangia.app` è verificato in Resend dal 17 ottobre 2026 (DKIM
+  `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`) e l'SMTP di Supabase Auth è
+  configurato (sopra); le email dell'app (link della password dopo un invito, «password
+  dimenticata», allarmi di job ed esportazione) restano da realizzare nella parte
+  software dell'attività D dell'ondata 3: fino ad allora l'app non le spedisce.
+- **Foto delle ricette** (W12, PR #54, rilasciata il 16 ottobre 2026; particolari nella
+  spec di dettaglio `2026-10-16-foto-ricette.md`): bucket R2 `cosasimangia-photos`
+  nella giurisdizione `eu`, privato, senza dominio `r2.dev` né dominio personalizzato,
+  binding `PHOTOS`, separato da quello delle esportazioni. Chiave dell'oggetto
+  `photos/<22 caratteri base64url>.webp`, 128 bit casuali generati dal Worker a ogni
+  caricamento; un oggetto non si riscrive mai. La rotta `/photos/<chiave>` serve le foto
+  **senza autenticazione e senza URL firmati**, che cambierebbero nel tempo e
+  romperebbero copia sul dispositivo e cache del service worker: le foto sono del
+  ricettario, non dati di una famiglia, e la chiave non si indovina. La rotta applica un
+  limitatore per IP (`PHOTO_READ_LIMIT`, `namespace_id` `9103`, 300 richieste ogni 60 s,
+  poi `429`), valida la forma della chiave, chiede al database con `app.served_photo`
+  (ruolo `anon`) se è la foto **corrente** di una ricetta, bozze comprese, e solo allora
+  legge R2; una foto tolta o sostituita risponde `404`. Intestazioni:
+  `Cache-Control: private, no-store` (nessuna cache HTTP che l'app non possa svuotare;
+  l'offline lo dà solo il service worker, sotto), `nosniff`,
+  `Content-Security-Policy: default-src 'none'; sandbox`,
+  `Cross-Origin-Resource-Policy: same-origin`, `ETag`. **Formato salvato: WebP**, lato
+  lungo al più 1600 px, qualità 80, una sola misura per schede e scheda ricetta,
+  prodotta **una volta al caricamento** con il binding Images di Cloudflare (`IMAGES`,
+  piano Free, mai trasformazioni alla lettura); in ingresso solo JPEG, PNG e WebP (AVIF
+  è riservato al piano Enterprise; SVG e GIF rifiutati), lato corto almeno 400 px, al
+  più 10 MB. Prima del caricamento dall'app il browser riduce l'immagine a 2048 px in
+  JPEG con `createImageBitmap` e un `<canvas>`, senza librerie: meno dati su rete mobile
+  e niente metadati (posizione GPS compresa). `PHOTOS` e `IMAGES` sono facoltativi
+  nell'ambiente: senza, i caricamenti rispondono `internal` e la rotta `404`.
 - **Un solo runtime.** Il modulo `domain/` gira solo nel Worker: il job settimanale non
   usa un'Edge Function e non serve la compatibilità con Deno. `domain/` resta
   TypeScript puro, senza dipendenze dal runtime.
@@ -923,7 +1015,9 @@ e scrivere (la generazione pigra del menu, sezione 4).
   futuro, sezione 2): `app_admin_roles` (solo per chi può togliere `app_admin`) →
   lucchetto dell'utente → lucchetto dell'email → righe delle famiglie in ordine di id →
   link alla famiglia → prenotazioni → il resto, con il ricontrollo di chi chiama e
-  delle condizioni sotto i lucchetti. Le modifiche ordinarie di una famiglia (pasti,
+  delle condizioni sotto i lucchetti. Impostare o togliere la foto di una ricetta (PR
+  #54) blocca prima la riga di `app.recipes` e poi scrive in `app.recipe_photos`
+  («il resto»), così due sostituzioni concorrenti si serializzano e vince l'ultima. Le modifiche ordinarie di una famiglia (pasti,
   spesa, impostazioni) bloccano prima le proprie righe e poi la famiglia nel trigger di
   versione: contro l'eliminazione di una famiglia o di un account può nascere un ciclo
   che Postgres interrompe con `40P01`. Per questo le tre operazioni di cancellazione
@@ -1001,6 +1095,32 @@ di validazione condivisi con `domain/`. Regole:
   `deletion` nelle righe e nel dettaglio per un account in attesa. `account.delete` e
   `users.delete` rispondono `{ completed }`: falso se la cancellazione in Auth è fallita
   e resta da riprendere (sezione 7).
+- **Foto delle ricette** (PR #54, rilasciata il 16 ottobre 2026; particolari nella spec
+  di dettaglio `2026-10-16-foto-ricette.md`, sezione 5): nell'area `catalogue`, ruolo
+  `curator`, tutte `offline: false`, `catalogue.uploadPhoto` (`{ id, recipeId, file }`,
+  **solo web** con `mcp: false`, perché MCP non trasporta file; il file arriva in
+  multipart con il protocollo RPC di oRPC), `catalogue.setPhotoFromUrl`
+  (`{ id, recipeId, imageUrl }`, anche MCP) e `catalogue.removePhoto` (`{ recipeId }`, a
+  stato assoluto, anche MCP); le prime due rispondono con `{ recipeId, photo: { id,
+  url, width, height } }`. Idempotenza sull'`id` scelto dal client; la foto si imposta
+  su ricette in bozza, pubblicate e archiviate. **Limite del corpo prima del parser**:
+  oRPC tiene i file in memoria, quindi `route` legge da sé, con un limite di 10 MiB più
+  64 KiB, il corpo di ogni richiesta multipart sotto `/api/` e di quelle dirette ai
+  percorsi di `uploadPhoto`, prima di verificare il token, e oltre il limite fa
+  rifiutare la richiesta da un interceptor con `invalid` (stato 413) e l'issue
+  `photo_too_large`, serializzato da oRPC per ciascun trasporto. **Scaricamento da un
+  indirizzo** controllato: solo `https:`, niente credenziali né porte diverse da 443,
+  niente IP letterali, nomi interni o l'origine dell'app, al più 3 redirect rivalidati,
+  10 s e 10 MB; nessun cookie o token inviato. Errori con i codici esistenti: `invalid`
+  sul campo (`file` o `imageUrl`) con un codice fra `photo_type`, `photo_too_small`,
+  `photo_too_large`, `photo_unreadable`, `photo_url` e `photo_unreachable`;
+  `not_found`; `forbidden`. Il lavoro di rete avviene dentro la transazione
+  dell'utente, prima della scrittura della riga: un fallimento dopo la scrittura in R2
+  lascia un oggetto orfano, mai un riferimento senza oggetto. Le viste delle ricette
+  (riepilogo, quindi ricettario, scheda, menu e suggerimenti), i risultati di
+  `catalogue.searchRecipes` e la vista della bozza ricevono il campo facoltativo
+  `photoUrl`: relativo nell'app, assoluto via MCP con l'origine della richiesta, `null`
+  senza foto e, nelle viste delle famiglie, per una ricetta mai pubblicata.
 - **Viste già pronte.** Le letture restituiscono testi nella lingua dell'utente,
   quantità scalate e convertite nel sistema della famiglia, voti (media e proprio) e
   ultima modifica: web e MCP mostrano gli stessi contenuti e il client resta sottile.
@@ -1078,7 +1198,12 @@ di validazione condivisi con `domain/`. Regole:
   stessa vista o da un cambio di lingua non si scrive: marca scadute le viste. Vale
   anche fra mutazioni diverse: un voto confermato mentre un'azione sul pasto è in corso
   rende superata la risposta dell'azione, che porterebbe il voto vecchio, e la
-  settimana si rilegge (revisione dei pasti nel web, 12 ottobre 2026).
+  settimana si rilegge (revisione dei pasti nel web, 12 ottobre 2026). Lo stesso vale
+  per le foto (PR #54): un contatore per sessione delle modifiche confermate del
+  ricettario (`catalogueChangesConfirmed`), che cresce a ogni caricamento o rimozione
+  riuscita, rende superata la risposta di un'azione sul pasto partita prima, e la
+  settimana si rilegge. Le mutazioni delle foto non sono ottimistiche: fanno rileggere
+  ricette, menu, suggerimenti e area `catalogue`.
   `users.setRole` ha nel registro delle mutazioni del web un bersaglio `users` che, come
   quello degli inviti all'app, non scrive la risposta nella cache in modo generico: fa
   rileggere le query `['users']` e il profilo; la pagina del dettaglio scrive la
@@ -1171,14 +1296,24 @@ di validazione condivisi con `domain/`. Regole:
   solo fra versioni con questo meccanismo: per tornare ad A₀, la versione precedente
   al nuovo meccanismo, bisogna chiudere tutte le finestre dell'app. La prima apertura
   offline dell'app installata
-  è garantita dalla seconda visita. Le query
+  è garantita dalla seconda visita. **Foto** (PR #54): strategia a parte per `/photos/*`,
+  prima la cache e poi la rete, in una cache dedicata `cosasimangia-photos-v1` non
+  legata alla build, esclusa dalla rotazione delle versioni e mai nel precache; solo
+  risposte `200` di tipo `image/*`, al più 300 foto, poi si tolgono le più vecchie; è
+  l'unica cache delle foto. Alla chiusura della sessione la cache delle foto si
+  cancella, e un numero d'epoca impedisce a una risposta arrivata durante l'uscita di
+  ricrearla. Restano due limiti dichiarati: le copie salvate fuori dall'app non sono
+  revocabili, e una foto mai vista non è disponibile offline (la scheda torna alla
+  forma senza foto). Le query
   usano `queryOptions` scritte a mano con chiavi `[area, operazione, input]` e la lingua
   nella chiave. Senza le variabili di Supabase l'app parte in modalità finta, con un
   client che implementa la stessa interfaccia di quello vero.
 - **Modifiche solo additive.** App e server si pubblicano insieme, ma richieste in coda
   offline e agenti possono usare una forma precedente: si aggiungono campi facoltativi
   e operazioni, non si rinominano né si tolgono senza un periodo di compatibilità.
-  **`CACHE_SCHEMA`** (`web/src/api/persister.ts`): chi cambia in modo incompatibile la
+  Esempio: il campo facoltativo `photoUrl` delle viste delle ricette (PR #54), assente
+  nelle copie e nelle risposte di prima e trattato come `null`, senza cambiare
+  `CACHE_SCHEMA`. **`CACHE_SCHEMA`** (`web/src/api/persister.ts`): chi cambia in modo incompatibile la
   forma dei dati salvati sul dispositivo o le chiavi delle query (un campo tolto o
   rinominato, un tipo cambiato, una chiave diversa per la stessa lettura) cambia la
   costante, e la copia sul dispositivo si scarta senza migrazione. È l'unica eccezione
@@ -1244,7 +1379,8 @@ varietà, quantità e unità. Lo stesso schema vale per la bozza (documento parz
 versione pubblicata (documento completo e immutabile), l'import e l'export YAML, gli
 strumenti MCP e il modulo dei curatori; la validazione di bozza e di pubblicazione
 (sezione 8) sono due livelli dello stesso schema. Il documento ha una `schemaVersion`
-e campi della fonte piatti; tag, foto, stato e date stanno fuori dal documento. Lo
+e campi della fonte piatti; tag, foto (`recipe_photos`, sotto), stato e date stanno fuori
+dal documento. Lo
 schema zod descrive la struttura della bozza; la pubblicazione aggiunge controlli che
 restituiscono codici e percorsi dei campi e uno schema stretto per il pubblicato. Le
 colonne di `recipes` e `recipe_ingredients` sono **proiezioni** della versione
@@ -1274,6 +1410,7 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | `recipe_draft_requests` | `id` della richiesta, `draft_id`, `requested_by`, `requested_at`: una richiesta di revisione che ha ripreso una bozza già aperta, così la sua ripetizione restituisce la stessa bozza anche dopo la chiusura (sezione 1, idempotenza) |
 | `recipe_versions` | `recipe_id`, `version`, `content` (documento completo pubblicato), `published_by`, `published_at` (istante della scrittura, letto dopo tutte le attese, non l'inizio della richiesta: un'attesa non rende una versione retroattiva per un pasto già passato), `channel`, `restored_from` (versione ripubblicata) e, per un ripristino dell'intero catalogo, la data ripristinata; storico in sola aggiunta. `recipes.version` indica la versione corrente; i pasti passati usano la versione in vigore quando sono diventati passati (sezione 5, review R1) |
 | `recipe_status_changes` | `recipe_id`, `status`, `changed_by`, `changed_at`: storico in sola aggiunta di pubblicazioni, archiviazioni e ritorni nel ricettario. Con `recipe_versions` e `ingredient_versions` permette di ricostruire il catalogo com'era a qualunque istante, senza copie periodiche (deciso l'8 ottobre 2026, sezione 8) |
+| `recipe_photos` | Foto delle ricette (migrazione `20261016110000_recipe_photos.sql`, PR #54, rilasciata il 16 ottobre 2026): `id` scelto dal client (idempotenza), `recipe_id`, `storage_key` (chiave dell'oggetto nel bucket delle foto, univoca, forma `photos/<22 caratteri base64url>.webp` controllata), `content_type` (solo `image/webp`), `width`, `height`, `bytes`, `created_by` e `removed_by` (`on delete set null`, come le altre colonne d'autore del ricettario), `created_at`, `channel` (`web`/`mcp`), `removed_at` (sostituita o tolta). Tabella dedicata e non una colonna di `recipes`, per conservare storico, attribuzione e idempotenza. **Al più una foto corrente per ricetta** (indice univoco parziale su `recipe_id` dove `removed_at` è nullo); righe mai cancellate. Nessuna provenienza della foto (decisione dell'utente del 16 ottobre 2026). RLS: lettura per chi può leggere la ricetta, scritture solo con `recipe_curator` (`insert` e `update` delle sole colonne di rimozione), nessun `delete`; `app_backup` legge tutto, `app_job` nulla. La funzione `app.served_photo(chiave)`, `security definer` ed eseguibile solo da `anon`, dice alla rotta pubblica se una chiave è di una foto corrente, bozze comprese. Un trigger fa crescere il contatore del ricettario a ogni scrittura, anche per la foto di una bozza. La foto non sta nel documento né nelle versioni: cambiarla non crea una versione né apre una bozza, il ripristino di una versione non la tocca, l'archiviazione la conserva; una bozza nuova può averla (via MCP) ma le viste la mostrano solo dopo la pubblicazione |
 
 **Utenti, ruoli globali e amministrazione:**
 
@@ -1721,8 +1858,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `weekly_job_failed`, `weekly_job_overdue` (dal giovedì alle 08:00 che precede la
   settimana, cioè 12 ore dopo le 20:00 del mercoledì) e `weekly_job_abandoned`. Su
   questi ultimi due arriverà un'email con Resend al referente operativo del servizio
-  (ondata 3, attività D: solo dopo la verifica del dominio di invio; fino ad allora
-  restano i log), insieme a quella sui fallimenti dell'esportazione notturna (sezione 8). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
+  (ondata 3, parte software dell'attività D; il dominio di invio è verificato dal 17
+  ottobre 2026; fino ad allora restano i log), insieme a quella sui fallimenti dell'esportazione notturna (sezione 8). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
   curatore non abilita a ricevere segnalazioni sulle altre famiglie. Contenuti e accessi
   operativi devono rispettare la separazione dei ruoli della sezione 2.
 - **Famiglia eliminata durante il job** (PR #52): una famiglia eliminata dopo la
@@ -2048,8 +2185,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   accesa una sessione di più di 24 ore riceverebbe `reauthentication_needed`).
   «Require current password when updating» acceso dall'utente il 13 ottobre 2026; il
   minimo di produzione non è verificato, la SPA impone 8 (sezione 1).
-- **Password dimenticata** (ondata 3, attività D, solo dopo la verifica del dominio di
-  invio; sotto, «Prima della verifica del dominio di invio»): recupero via email con
+- **Password dimenticata** (ondata 3, attività D, da realizzare nella sua parte
+  software; il dominio di invio è verificato dal 17 ottobre 2026, sotto): recupero via email con
   Resend; il link apre Safari una volta per scegliere la password nuova, poi si entra
   nell'app con email e password. È un caso raro e il passaggio da Safari è accettabile.
   Fino ad allora l'amministratore reimposta la password dalla dashboard di Supabase.
@@ -2077,7 +2214,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Prima della verifica del dominio di invio** (decisione dell'utente del 13 ottobre
   2026, temporanea; in produzione dal 15 ottobre con l'attività A): il DNS di
   `qunidi.it` per ora non si può modificare, quindi Resend non verifica
-  `cosasimangia.qunidi.it` e l'app non spedisce email. L'invito all'app si accetta sulla
+  `cosasimangia.qunidi.it` e l'app non spedisce email. Dal 17 ottobre 2026 il dominio di
+  invio `cosasimangia.app` è verificato, ma il flusso resta questo finché la parte
+  software dell'attività D non è rilasciata. L'invito all'app si accetta sulla
   pagina `/invite/app#<token>`: la persona scrive in un solo modulo l'email dell'invito,
   che deve coincidere, il suo nome e la password (due volte); il server crea l'account
   già confermato. Subito dopo la creazione la stessa pagina fa entrare la persona con
@@ -2096,7 +2235,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   email distinte che hanno iniziato a registrarsi, riuscite o no; un `weak_password`
   riprovato con la stessa email non consuma un'altra quota; chi ha già un account entra
   anche a tetto raggiunto). Oltre il tetto il link vale come non valido per creare
-  account. L'email scritta non è verificata fino all'attività D: un'email presa da
+  account. L'email scritta non è verificata fino all'attività D, la cui parte software
+  chiude questo rischio accettato: un'email presa da
   altri si rimedia cancellando quell'account dall'amministrazione. Niente «password
   dimenticata» e niente email di allarme in questa fase: una password dimenticata la
   reimposta l'amministratore dalla dashboard di Supabase.
@@ -2121,20 +2261,23 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   chiusura per una revoca nel frattempo resta senza ruoli né famiglia e si gestisce
   dall'elenco degli utenti (attività B, dal 16 ottobre 2026), dove compare. Nei log mai password, token, email né corpi di
   richiesta e risposta.
-- **Dopo l'attività D** (dominio di invio verificato): il link nell'email che la persona
+- **Dopo l'attività D** (dominio di invio verificato il 17 ottobre 2026, parte software
+  da realizzare): il link nell'email che la persona
   riceve serve **solo a scegliere la password**: apre Safari una volta, poi la persona
   entra nell'app con email e password. Arrivano anche la «password dimenticata» e le
   email operative di job ed esportazione (sezioni 4 e 8). Si passa al link nell'email
   senza rifare il flusso di A: cambia solo il modo in cui la persona riceve il link e
   dimostra di possedere l'email, mentre prenotazione e chiusura restano uguali; se D
   vorrà il link di Supabase per scegliere la password, la creazione dell'account avrà
-  una variante senza password. Il dominio è già aggiunto in Resend (regione
-  `eu-west-1`), in attesa dei record DNS. L'app resta comunque su
-  `https://cosasimangia.qunidi.workers.dev` (sezione 1).
+  una variante senza password. Dal 17 ottobre 2026 app ed email stanno sullo stesso
+  dominio, `cosasimangia.app`, verificato in Resend, e Supabase Auth spedisce con l'SMTP
+  di Resend (sezione 1).
 - **Uscita e revoca sul dispositivo**: «Esci» chiude la sessione solo su questo
   dispositivo e cancella i dati salvati dell'utente anche se il servizio non risponde;
   un accesso revocato a una famiglia ne toglie subito i dati dal dispositivo (sezione 1).
-- **Email con Resend** (deciso l'8 ottobre 2026; attivo solo dopo l'attività D),
+- **Email con Resend** (deciso l'8 ottobre 2026; dominio e SMTP di Supabase Auth
+  configurati il 17 ottobre 2026, email dell'app attive solo con la parte software
+  dell'attività D),
   piano gratuito: 3.000 email al mese, al massimo 100 al giorno; oltre il limite
   l'invio si sospende, senza addebiti. Supabase Auth lo userà come SMTP personalizzato
   per le email degli inviti e del recupero della password, che servono solo a scegliere
@@ -2143,9 +2286,11 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   Supabase non basta: consegna solo agli indirizzi dei membri del team
   dell'organizzazione Supabase, con pochi invii all'ora ed è solo per le prove. Con un
   SMTP personalizzato Supabase parte da 30 email all'ora, configurabile. Il dominio di
-  invio è `cosasimangia.qunidi.it`, già aggiunto in Resend ma non ancora verificato;
-  è distinto dall'origine dell'app, che resta `https://cosasimangia.qunidi.workers.dev`
-  (sezione 1).
+  invio, previsto prima in `cosasimangia.qunidi.it`, è dal 17 ottobre 2026
+  `cosasimangia.app`, lo stesso dell'app (decisione dell'utente), verificato in Resend
+  con DKIM `resend._domainkey`, MX e SPF su `send.` e DMARC `p=none`; mittente
+  `Cosa si mangia <noreply@cosasimangia.app>`, chiave API dedicata di solo invio
+  limitata al dominio (sezione 1).
 - **Inviti alla famiglia** (uniti e rilasciati il 16 ottobre 2026 con l'attività C, PR
   #52; testi, stati delle pagine e sequenze nella spec di dettaglio
   `2026-10-16-gestione-famiglia.md`, sezioni 2 e 3):
@@ -2663,6 +2808,28 @@ curatore cancellato restano; le colonne d'autore diventano nulle per cascata e l
 bozze aperte restano agli altri curatori, che possono riprenderle, pubblicarle o
 scartarle.
 
+**Foto delle ricette** (W12, PR #54, rilasciata il 16 ottobre 2026; particolari nella
+spec di dettaglio `2026-10-16-foto-ricette.md`): una foto per ricetta, fuori dal
+documento e dalle versioni (sezione 2). **Decisioni dell'utente del 16 ottobre 2026:**
+nell'app la foto si aggiunge, si sostituisce e si toglie solo dalla scheda ricetta
+aperta, dai curatori: «Aggiungi foto» senza foto, che apre il selettore del telefono
+(scatto o libreria); con la foto, il pulsante «Foto» sulla foto apre un foglio con
+«Sostituisci la foto» e «Togli la foto», con conferma per togliere. Le schede compatte
+del menu e del ricettario non hanno comandi per la foto; gli altri utenti non vedono
+comandi. Nessun aggiornamento ottimistico: la foto appare quando il server conferma.
+**Nessuna provenienza**: con la foto si salvano solo chi l'ha caricata, quando e da
+quale canale, che l'app non mostra. **Via MCP** l'agente imposta la foto da un
+indirizzo (`catalogue.setPhotoFromUrl`), di norma l'immagine della pagina della fonte
+(`og:image` o l'immagine della ricetta in schema.org), ma può prenderla da qualunque
+sito, anche per le ricette di casa o da libro; la mostra al curatore e la imposta solo
+dopo un sì esplicito, come per la pubblicazione, e non deduce mai ingredienti
+dall'immagine. Queste istruzioni sono nella sezione «Foto» di `catalogue.getGuide`.
+Una bozza nuova può avere la foto via MCP prima della pubblicazione; nell'app la bozza
+resta in sola lettura e le viste mostrano la foto solo dopo la pubblicazione. Il
+16 ottobre 2026, con l'autorizzazione esplicita dell'utente a caricarle senza conferme
+una per una, le foto sono state impostate via MCP dalle pagine delle fonti e con una
+ricerca online: 46 ricette hanno la foto, 4 ne sono ancora senza.
+
 **Backup e ripristino richiesti:** il ricettario deve poter essere recuperato dopo
 modifiche errate o eventi imprevisti. Il design deve coprire ricette, ingredienti,
 traduzioni, fonti, riferimenti ai libri e bozze, mantenendo coerenti i collegamenti con
@@ -2698,7 +2865,8 @@ i pasti delle famiglie. Un export YAML occasionale non è da solo un piano di ba
   cambiano; i pasti passati restano sulla versione mangiata (R1). L'anteprima mostra le
   ricette per gruppo prima della conferma. Il ripristino scrive solo nuove versioni,
   quindi per annullarlo basta ripristinare l'istante che lo precede: la copia «Prima
-  del ripristino» del sesto giro non serve più.
+  del ripristino» del sesto giro non serve più. Le foto non fanno parte dello storico
+  ricostruibile: come trattarle si decide con questa attività (sezione 15).
 
 Storico e backup hanno scopi distinti: lo storico permette di correggere un contributo
 o riportare il catalogo a una data; la perdita o il danneggiamento del database sono
@@ -2747,14 +2915,26 @@ l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore).
   senza dati. Procedura scritta in `supabase/README.md`, comprese le configurazioni che
   dipendono dal progetto Supabase, da aggiornare in ordine dopo un ripristino su un
   progetto nuovo.
+- **Foto delle ricette** (PR #54, 16 ottobre 2026): `recipe_photos` è una tabella di
+  `app` ed entra da sola nell'esportazione, che contiene quindi i **riferimenti** alle
+  foto (chiavi, misure, autori, date), **non le immagini**; il ripristino riporta le
+  righe e le immagini restano nel bucket `cosasimangia-photos`, che non si ripristina.
+  **Conservazione illimitata** (decisione del coordinatore del 16 ottobre 2026): gli
+  oggetti del bucket non si cancellano mai in automatico, né le foto tolte o sostituite
+  né gli orfani (caricamenti la cui transazione è fallita, foto caricate dopo
+  un'esportazione poi ripristinata), così un ripristino da qualunque esportazione
+  conservata trova tutte le immagini che cita; le regole di ciclo di vita di R2 hanno lo
+  stesso difetto di una pulizia a tempo. Il costo resta minimo rispetto ai 10 GB
+  gratuiti di R2. Una pulizia futura dovrà considerare i riferimenti di tutte le
+  esportazioni conservate oltre al database corrente, e nel dubbio conservare.
 - **Collaudo in due prove** (sezione 9): una prova locale completa, criterio di fine
   della PR, ripetuta in CI; una prova di produzione, voce separata a carico
   dell'utente dopo la creazione del bucket, con la chiave presa dal gestore di
   password, così si verifica anche la copia: fatta il 13 ottobre 2026 sulla prima
   esportazione notturna, prima dell'import dei dati veri, con ripristino locale
   riuscito. L'email di allarme sui fallimenti arriva
-  nell'ondata 3 con quelle del job (sezione 4), solo dopo la verifica del dominio di
-  invio (attività D). Restano da misurare i tempi di
+  nell'ondata 3 con quelle del job (sezione 4), con la parte software dell'attività D
+  (dominio di invio verificato il 17 ottobre 2026). Restano da misurare i tempi di
   recupero con un'esportazione vera (sezione 15).
 
 Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
@@ -2963,16 +3143,21 @@ implementa solo ciò che dipende da interfacce già fissate nel piano generale o
 |---|---|---|
 | **1 Fondamenta** | Piattaforma (Worker, contratto, verifica dei token, CI), schema e permessi, documento ricetta e import, dominio di unità e spesa, app web di base | Base comune per le attività del traguardo A |
 | **2 Traguardo A** | Profilo, famiglia e impostazioni senza inviti; ricettario e voti; menu, pianificatore, job del mercoledì e generazione pigra; revisione dei pasti; spesa, anche offline; gestione del ricettario tramite MCP, con le bozze visibili nell'app; collegamento degli agenti; esportazione notturna in R2; messa in produzione con l'import del ricettario e dei dati della famiglia | La famiglia di Federico usa l'app ogni settimana, con il ricettario gestito anche tramite agente MCP |
-| **3 Prodotto** | Inviti familiari e all'app, che creano l'account con la password scelta dalla persona (prima della verifica del dominio di invio sulla pagina dell'invito, senza email), wizard e generazione su richiesta, Google facoltativo dopo la prova sull'iPhone; subordinati al DNS di `qunidi.it`: dominio di invio `cosasimangia.qunidi.it` con Resend, link della password via email, recupero della password, email del job e dell'esportazione (l'app resta su `workers.dev`); amministrazione dell'app, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
+| **3 Prodotto** | Inviti familiari e all'app, che creano l'account con la password scelta dalla persona (prima della verifica del dominio di invio sulla pagina dell'invito, senza email), wizard e generazione su richiesta, Google facoltativo dopo la prova sull'iPhone; dominio di invio con Resend, link della password via email, recupero della password, email del job e dell'esportazione (subordinati al DNS di `qunidi.it` fino al 16 ottobre 2026, poi su `cosasimangia.app` insieme all'app); amministrazione dell'app, ripristino dell'intero catalogo, archiviazione, versioni e ripristino della ricetta nell'app, PDF della spesa, Claude Desktop e ChatGPT, cancellazioni, apertura ad altre famiglie, modulo manuale del ricettario (ultima priorità), giudice AI opzionale | L'app diventa un prodotto aperto ad altre famiglie |
 
 Ondata 3 avviata il 13 ottobre 2026, con l'ordine A–E del piano generale: le attività
 che non spediscono email procedono subito, quelle che dipendono dal DNS di `qunidi.it`
 sono raccolte nell'attività D, che può restare bloccata senza fermare le altre. Il
 trasferimento dell'app su `cosasimangia.qunidi.it` non fa parte dell'ondata 3 e
 richiederà una decisione distinta (sezione 7). Il 17 ottobre 2026 l'utente ha scelto
-invece `cosasimangia.app` per app ed email (sezione 1), sbloccando il DNS dell'attività D.
+invece `cosasimangia.app` per app ed email (sezione 1), sbloccando il DNS dell'attività D:
+i suoi passi esterni (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti lo
+stesso giorno, la parte software resta da fare. Ordine concordato con l'utente il 17
+ottobre 2026: la correzione del difetto #48 del pianificatore prima della generazione di
+mercoledì 21 ottobre (insieme a #51), poi la parte software di D, poi le parti
+di E scelte dall'utente (piano generale).
 
-**Stato al 16 ottobre 2026:**
+**Stato al 17 ottobre 2026:**
 
 | Attività | Stato |
 |---|---|
@@ -2991,14 +3176,18 @@ invece `cosasimangia.app` per app ed email (sezione 1), sbloccando il DNS dell'a
 | Inviti all'app e famiglie nuove (ondata 3, attività A) | Unita (PR #45) e rilasciata il 15 ottobre 2026, con la migrazione `20261013100000_app_invitations.sql` e il segreto `SUPABASE_SECRET_KEY` (chiave dedicata `worker-invitations`); provata dall'utente sull'iPhone: invito, account, nome, famiglia, schermata Home e accesso nella PWA installata |
 | Amministrazione di utenti e ruoli (ondata 3, attività B, issue #38) | Unita (PR #47) il 15 ottobre 2026 e rilasciata il 16 ottobre con la migrazione `20261015100000_user_admin.sql` (versione del Worker `75d29930-6125-41bd-acf4-786814218171`), senza segreti né risorse nuove; provata dall'utente sull'iPhone. La cancellazione degli utenti è passata all'attività C |
 | Gestione della famiglia (ondata 3, attività C) | Unita (PR #52) e rilasciata il 16 ottobre 2026 con la migrazione `20261016100000_family_management.sql` (versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`, commit `9228598`), senza segreti, binding, Cron Trigger né risorse nuove; provata con agent-browser sullo stack locale e nella modalità finta. Collaudo e prove sull'iPhone riusciti il 16 ottobre 2026: l'utente ha collaudato con l'account e la famiglia di prova di A, eliminati con i comandi di C (spec di dettaglio, sezione 6), e ha provato a mano sull'iPhone la pagina dell'invito aperta da WhatsApp, la condivisione del link, i fogli di conferma e la cancellazione dell'account nella PWA installata |
+| Foto delle ricette (ondata 3, attività E, issue #39) | Unita (PR #54) e rilasciata il 16 ottobre 2026 con la migrazione `20261016110000_recipe_photos.sql` (versione del Worker `5dce4dda-67d7-4315-97f3-608631f45796`, commit `41d9918`), con il bucket `cosasimangia-photos` creato dall'utente e i binding `PHOTOS` e `IMAGES`; provata con agent-browser sullo stack locale. Foto popolate via MCP la sera stessa: 46 ricette con la foto, 4 ancora senza. Restano le prove a mano sull'iPhone (scatto e libreria, foto HEIC, orientamento, tempi su rete mobile, offline dopo una visita) e la verifica dei metadati con il binding Images di produzione (spec di dettaglio, sezione 9) |
+| Dominio `cosasimangia.app` | PR #56 (dominio personalizzato del Worker, `workers_dev` spento) unita e rilasciata il 17 ottobre 2026 alle 04:23 UTC; PR #57 (controllo del rilascio) unita dopo, senza nuovo rilascio (versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); il vecchio indirizzo risponde 404. Dominio verificato in Resend, *Site URL* e *Redirect URLs* solo sul nuovo dominio, SMTP di Supabase Auth su Resend con una prova riuscita, PWA reinstallata sull'iPhone e agente MCP di Claude Code ricollegato a `https://cosasimangia.app/mcp` |
+| Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra); parte software da fare: link della password via email dopo l'accettazione di un invito, «password dimenticata», email operative per i fallimenti di job ed esportazione (sezioni 4 e 8), fine del rischio accettato delle email non verificate negli inviti (sezione 7) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
 esterni (DNS di `qunidi.it`, Resend, Google) rimandati finché non servono, partendo
 dall'indirizzo `workers.dev`. Aperte il 13 ottobre 2026: cambio della password dal
 Profilo nel traguardo A, ad alta priorità perché la password è la strada permanente
-(issue #37, rilasciato lo stesso giorno), pagina dei ruoli globali nell'ondata 3 (issue #38),
-foto delle ricette da progettare (issue #39); sezione 15.
+(issue #37, rilasciato lo stesso giorno), pagina dei ruoli globali nell'ondata 3 (issue #38,
+rilasciata il 16 ottobre), foto delle ricette da progettare (issue #39, rilasciate il 16
+ottobre 2026; sezioni 1, 2 e 8).
 
 **Messa in produzione** (decisa l'11–12 ottobre 2026; particolari, runbook e ritorni
 indietro in `progetto/superpowers/specs/2026-10-11-messa-in-produzione.md` e nel suo
@@ -3158,8 +3347,10 @@ dei libri.
 equivalente MCP per lo stesso utente e con gli stessi permessi, **tranne l'eliminazione di
 una famiglia**, che MCP può soltanto indirizzare alla pagina dell'app. Le operazioni
 `public` senza utente (lettura e accettazione degli inviti all'app e alla famiglia) restano fuori da MCP
-per costruzione (`mcp: false` imposto da `contract/src/check.ts`). Il server espone operazioni applicative,
-non accesso generico alle tabelle.
+per costruzione (`mcp: false` imposto da `contract/src/check.ts`). Il caricamento di un
+file di foto (`catalogue.uploadPhoto`, dal 16 ottobre 2026) è solo web perché MCP non
+trasporta file: l'equivalente per l'agente è l'impostazione da un indirizzo (sotto). Il
+server espone operazioni applicative, non accesso generico alle tabelle.
 
 **Architettura decisa l'8 ottobre 2026** (sezione 1):
 
@@ -3253,10 +3444,23 @@ non accesso generico alle tabelle.
   risponde `web_only` con l'URL della pagina (`/profile/account/delete` o
   `/admin/users/<id>/delete`). Un controllo preliminare del gestore è solo una
   scorciatoia. Gli strumenti non dichiarano `webOnly`, perché non sempre rimandano.
+- **Foto delle ricette** (PR #54, rilasciata il 16 ottobre 2026): strumenti
+  `catalogue_setPhotoFromUrl` e `catalogue_removePhoto`, solo per i curatori;
+  `catalogue.uploadPhoto` non è uno strumento (`mcp: false`, non `webOnly`: uno
+  strumento con un file in ingresso non avrebbe uno schema utile agli agenti). Via MCP
+  l'URL della foto nelle risposte, nei risultati di `catalogue_searchRecipes` e nelle
+  bozze è assoluto, così l'agente la scarica o ne dà il link al curatore, che lo apre nel
+  browser. **Decisione dell'utente del 16 ottobre 2026:** l'agente può prendere
+  l'immagine da qualunque sito, di norma dalla pagina della fonte, la mostra al curatore
+  e la imposta solo dopo un sì esplicito: come per la pubblicazione, la conferma è
+  affidata alle istruzioni della guida, senza campi in più. Lo scaricamento lo fa il
+  Worker con i controlli della sezione 1.
 - **Istruzioni per l'agente**, a partire da quelle sugli ingredienti (sezione 8),
   servite dal server MCP stesso, non solo descritte nella pagina dell'app: per la
   gestione del ricettario sono `catalogue.getGuide`, testo in inglese con flusso,
-  conferma del curatore, conflitti, requisiti per pubblicare e ingredienti.
+  conferma del curatore, conflitti, requisiti per pubblicare e ingredienti; dal 16
+  ottobre 2026 anche la sezione «Foto» (una foto per ricetta fuori dalle versioni, dove
+  cercarla, conferma prima di impostarla, mai ingredienti dedotti dall'immagine).
 
 Compatibilità effettiva dei quattro client e consegna delle esportazioni restano da
 verificare con una prova prima dell'implementazione (sezione 15).
@@ -3277,7 +3481,7 @@ implicite alla copertura delle operazioni.
 | Voti e generazione | Dare, cambiare o togliere il proprio voto (`ratings.set`, a stato assoluto, `null` per toglierlo); richiedere la generazione nei limiti previsti (ondata 3) |
 | Spesa | Leggere la lista di una settimana, spuntare voci (con la quantità letta dalla vista), rimettere ingredienti esclusi, aggiungere voci libere, ottenere testo e collegamento Bring!, poi il PDF |
 | Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`; dal 15 ottobre 2026 creare una famiglia (`family_create`). Con l'attività C (unita e rilasciata il 16 ottobre 2026): creare, elencare e revocare i link d'invito e leggere gli ingressi (`familyInvitations_*`), entrare con un link avendo già un account (`family_join`), cambiare ruolo, rimuovere un membro e uscire (`family_setMemberRole`, `family_removeMember`, `family_leave`); leggere il riepilogo dell'eliminazione (`family_getDeletion`) e richiederla (`family_delete`), ottenendo solo il collegamento alla pagina web; leggere il piano e cancellare il proprio account (`account_getDeletionPlan`, `account_delete`), rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
-| Gestione del ricettario | Area `catalogue`, ruolo di curatore, senza famiglia: conoscere i requisiti e le istruzioni sugli ingredienti, cercare le ricette pubblicate e archiviate, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web) e leggerne i salvataggi, controllare una bozza senza pubblicarla, pubblicare ricette complete, scartare bozze, modificare ricette di qualunque autore, cercare, leggere, creare e modificare ingredienti con le equivalenze di ricetta, elencare varietà già usate e controllare una varietà, elencare e creare libri, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una |
+| Gestione del ricettario | Area `catalogue`, ruolo di curatore, senza famiglia: conoscere i requisiti e le istruzioni sugli ingredienti, cercare le ricette pubblicate e archiviate, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web) e leggerne i salvataggi, controllare una bozza senza pubblicarla, pubblicare ricette complete, scartare bozze, modificare ricette di qualunque autore, cercare, leggere, creare e modificare ingredienti con le equivalenze di ricetta, elencare varietà già usate e controllare una varietà, elencare e creare libri, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una; dal 16 ottobre 2026 impostare la foto di una ricetta da un indirizzo, sostituirla e toglierla (`catalogue_setPhotoFromUrl`, `catalogue_removePhoto`), mentre il caricamento di un file resta solo web |
 | Amministrazione globale | Dal 15 ottobre 2026 inviti all'app (`appInvitations_create`, `_list`, `_revoke`); dal 16 ottobre cercare e leggere gli utenti, assegnare e togliere i ruoli e nominare amministratori (`users_list`, `users_get`, `users_setRole`). Con l'attività C (unita e rilasciata il 16 ottobre 2026) cancellare utenti con i vincoli previsti (`users_getDeletionPlan`, `users_delete`), restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia. Poi ripristino dell'intero catalogo a una data |
 
 Il server ricava l'identità dall'accesso autenticato e verifica il diritto di operare
@@ -3518,6 +3722,17 @@ account; un account in attesa ha nell'amministrazione «Cancellazione in corso»
 Pagine dedicate con conferma a pulsante rosso, riepiloghi famiglia per famiglia e
 scelta del successore restano nella forma del prototipo.
 
+**Comandi delle foto nell'app** (decisioni dell'utente del 16 ottobre 2026, PR #54;
+sezione 8): la foto si gestisce solo dalla scheda ricetta aperta, mai dalle schede
+compatte del menu o del ricettario. Senza foto il curatore vede sotto l'intestazione il
+pulsante bordato «Aggiungi foto», che apre il selettore di file del telefono (sull'iPhone
+«Scatta foto» o «Libreria foto»); con la foto, un pulsante a icona «Foto» nell'angolo in
+alto a destra della foto apre il foglio dal basso con «Sostituisci la foto» e «Togli la
+foto», con la conferma «Togliere la foto?» nel foglio. Durante il caricamento il
+pulsante mostra «Caricamento…» ed è disabilitato; gli errori compaiono nel foglio o sotto
+il pulsante. Gli altri utenti non vedono comandi; offline i comandi sono disabilitati.
+Nessuna riga sulla provenienza della foto.
+
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
 su iPhone. Il materiale approvato è raccolto in `design/`:
@@ -3537,9 +3752,13 @@ testo e pulsanti primari `#232323`, verde `#067A46` per gli accenti e stato atti
 della navbar; titoli dei piatti in Agrandir Regular, sezioni in Agrandir Tight Bold,
 corpo e controlli in Roboto. Schede bianche con fotografia quando disponibile e
 ombra leggera; pulsanti da 8 px di raggio e separatori sottili. File dei font,
-dimensioni, pesi, spazi e stati sono definiti nella guida. Oggi le ricette dell'app
-non hanno foto (il modello dei dati non le prevede, sezione 2) e le schede si mostrano
-senza: le foto delle ricette sono da progettare (issue #39, sezione 15).
+dimensioni, pesi, spazi e stati sono definiti nella guida. Dal 16 ottobre 2026 (PR
+#54, issue #39) le ricette possono avere una foto (sezioni 2 e 8): con la foto le
+schede del menu, del ricettario e dei suggerimenti della revisione dei pasti hanno il
+banner 3:1 con l'etichetta del pasto o del gruppo sopra la foto, in verde con testo
+bianco, e la foto del pasto passato è desaturata; senza foto, o se l'immagine non si
+carica, la scheda resta identica a quella senza foto, senza riquadri vuoti. La foto è
+decorativa (testo alternativo vuoto) e non si stampa.
 
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
@@ -3561,7 +3780,8 @@ per invertire l'ordine scelto, che lascia in fondo le ricette senza voto o mai m
 Nella scheda
 ricetta il titolo apre la fonte e sotto seguono voto, descrizione, porzioni e
 ingredienti (dettagli in `design/design.md`); aperta da un pasto, parte dalle porzioni del
-pasto (sezione 5).
+pasto (sezione 5). Con la foto, la scheda ricetta la mostra in 16:9 sotto l'intestazione,
+prima della riga della fonte.
 La navbar mostra solo icone, con nomi accessibili,
 rispettando l'area sicura dell'iPhone e senza coprire i contenuti. Gli ingredienti si
 espandono nelle singole card. Questi elementi costituiscono la base delle relative
@@ -3617,13 +3837,13 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 |---|---|---|
 | Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account, dopo l'attività D, dettagli tecnici da verificare nel progetto per inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio. **Chiusa il 16 ottobre 2026 la regola equivalente per gli inviti alla famiglia** (decisione dell'utente, attività C, PR #52): il link crea l'account a chi non ce l'ha, al più 10 persone registrate per link, con account e ingresso in un solo passaggio e l'email non verificata fino all'attività D (sezione 7). **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7) | Sezione 7 |
 | Cancellazione | **Chiusa il 16 ottobre 2026** con l'attività C (PR #52, unita e rilasciata il 16 ottobre 2026): passaggio da MCP al web, procedura tecnica e revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise decisi nella spec `2026-10-16-gestione-famiglia.md` e riportati nelle sezioni 1, 2, 4, 7, 8 e 13 | Sezioni 2, 7 e 13 |
-| Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
+| Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Foto delle ricette nel ripristino dell'intero catalogo: non fanno parte dello storico ricostruibile, da decidere con quell'attività (sezione 8; le esportazioni ne contengono i riferimenti e gli oggetti non si cancellano mai). Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
 | Prototipo | Tutti i percorsi approvati entro il sesto giro (7 ottobre 2026); architettura verificata l'8 ottobre. Il prototipo resta in Svelte come riferimento dei percorsi; dall'8 ottobre il ripristino del catalogo vi si fa scegliendo una data (sezione 8) | Sezione 14 |
 | Implementazione | Automazione della pubblicazione con GitHub Actions, da rivalutare quando i rilasci diventano frequenti. Decisi l'11 ottobre le fasi nel piano generale (sezione 10), il flusso Git con CI e l'integrazione Supabase senza «Deploy to production» (sezione 1); l'11–12 ottobre, nella messa in produzione, pubblicazione a mano con `npm run release` al posto dell'automazione prima del traguardo A, migrazioni di produzione con la CLI di Supabase dentro `npm run release` prima del deploy, operazioni sulla produzione con anteprima e impronta (sezioni 1 e 10) | Sezioni 1 e 10 |
-| Foto delle ricette | Da progettare (issue #39, 13 ottobre 2026): archiviazione, chi le carica (curatore, agente o fonte), diritti d'uso, cache offline, esportazione e ripristino. Il linguaggio visivo prevede la fotografia quando disponibile, ma oggi le ricette non hanno foto | Sezioni 2, 8 e 14 |
+| Foto delle ricette | **Chiusa il 16 ottobre 2026** (issue #39, W12, PR #54 unita e rilasciata il 16 ottobre; spec `2026-10-16-foto-ricette.md`): una foto per ricetta in `recipe_photos`, fuori dalle versioni; bucket R2 privato con rotta `/photos/<chiave>` che serve solo le foto correnti; caricamento dall'app solo dalla scheda ricetta e solo per i curatori, impostazione da un indirizzo via MCP con conferma del curatore; nessuna provenienza della foto (decisione dell'utente, supera la «fonte» fra le domande di questa voce); cache offline solo nel service worker; esportazione con i soli riferimenti e oggetti mai cancellati in automatico (sezioni 1, 2, 8, 13 e 14). Resta da decidere, con il ripristino dell'intero catalogo, come trattare le foto (voce Backup e ripristino) | Sezioni 1, 2, 8, 13 e 14 |
 | Architettura | Valutare nell'ondata 2 `@orpc/tanstack-query` (per ora `queryOptions` scritte a mano). Decisi l'11 ottobre 2026 oRPC senza Hono, Postgres.js senza ORM e l'SDK ufficiale di MCP, provati su Workers con RLS tramite Hyperdrive, e cosa fa crescere i contatori di versione (sezione 1) | Sezione 1 |
-| Hosting e costi | Pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3; una richiesta all'API ne usa circa 7, una chiamata MCP circa 13, misurati l'11 ottobre), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare; dal 13 ottobre il dominio serve solo per l'invio, subordinato al DNS (attività D), e l'app resta su `workers.dev` | Sezioni 1, 4, 7 e 8 |
+| Hosting e costi | Pausa del progetto gratuito evitata davvero dal job orario; CPU del giudice, se lo si sperimenta. Decisi l'8 ottobre Cloudflare Workers sul piano a pagamento da 5 $ al mese (il pianificatore usa circa 20-25 ms di CPU per settimana, sezione 3; una richiesta all'API ne usa circa 7, una chiamata MCP circa 13, misurati l'11 ottobre), Supabase gratuito, Resend, il dominio `cosasimangia.qunidi.it` e il DNS di `qunidi.it` su Cloudflare; dal 13 ottobre il dominio serve solo per l'invio, subordinato al DNS (attività D), e l'app resta su `workers.dev`; **dal 17 ottobre 2026** app ed email su `cosasimangia.app`, comprato dall'utente su Cloudflare, con `workers.dev` spento, dominio verificato in Resend e SMTP di Supabase Auth su Resend (sezioni 1 e 7). Decisi il 16 ottobre (PR #54) per le foto: bucket R2 dentro i 10 GB gratuiti, una sola trasformazione WebP per caricamento con il binding Images sul piano Free (5.000 trasformazioni uniche al mese, oltre falliscono senza addebiti), mai trasformazioni alla lettura, ridimensionamento JPEG nel browser prima del caricamento (sezione 1) | Sezioni 1, 4, 7 e 8 |
 | Calendario | Fuso orario della famiglia deciso l'8 ottobre (dal browser alla creazione, modificabile dagli amministratori, ricalcolo anche per i pasti passati; sezione 2). Generazione su richiesta («rigenera») nell'ondata 3; il wizard non genera (deciso l'11 ottobre) (review R3; le chiusure sono state eliminate; prima generazione di una famiglia nuova decisa nel quarto giro; generazione pigra come rete di sicurezza del job decisa l'8 ottobre; l'11 ottobre regola unica di generazione all'apertura per la settimana in corso e la successiva, recupero e abbandono dei job, generazioni serializzate per famiglia, sezione 4) | Sezioni 2, 4 e 5 |
 | Pianificatore e giudice | Classificazione dei vincoli in parte decisa nell'esperimento dell'8 ottobre: vincoli rigidi (compreso il massimo settimanale degli ingredienti limitati) filtrano, voto ≤ 2 ammesso solo senza alternative, slot senza candidati segnati «nessuna ricetta adatta», regole di settimana (venerdì pesce, intervalli, quota) riparate quando possibile e altrimenti mostrate nel report. Restano: come mostrare alla famiglia una regola non soddisfatta, un modello di regola per «niente skottle il lunedì sera», crescita del ricettario per la quota note/nuove; chiarire se il giudice può conoscere la posizione dei pasti liberi (review R5) | Sezioni 3 e 9 |
 
@@ -3671,7 +3891,9 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 15 ottobre 2026, inviti all'app e famiglie nuove | Riportate le decisioni della spec `2026-10-13-inviti-app.md` (W9, attività A dell'ondata 3, PR #45, rilasciata il 15 ottobre). Pagina dell'invito con email, nome e password in un solo modulo, che vale come primo accesso; link `/invite/app#<token>` con il token nel frammento, solo l'impronta SHA-256 nel database, link visibile solo alla creazione e «Nuovo link» nell'elenco (differenza dal sesto giro); un solo messaggio per invito scaduto, revocato, usato o inesistente; «Crea la tua famiglia» senza famiglie, wizard `/family/new` e scheda di benvenuto con il solo «Sistema le impostazioni» e la nota della schermata Home su iOS in Safari. Tecniche: ruolo `public` del contratto con `mcp: false` e `rateLimit`, pipeline in `anon` senza token e senza transazione propria; codici `invitation_unavailable` e `rate_limited`, motivi `account_exists` e `already_accepted`, codice delle `refine` dal messaggio; tabella `app_invitations` con prenotazione e funzioni per token; account creato dal Worker con l'API di amministrazione di Supabase Auth e la chiave segreta dedicata, senza mai riscrivere un account esistente; limiti di frequenza con il binding `ratelimit`; `family.create` con `app.create_family`, senza generazione; iscrizioni spente anche nello stack locale; `Referrer-Policy: no-referrer` anche nella shell; fusi a scostamento trattati come non validi. Chiusa in sezione 15 l'API di Supabase per creare l'utente. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 4, 5, 7, 9, 10, 13, 14 e 15 aggiornate |
 | 15–16 ottobre 2026, amministrazione di utenti e ruoli | Riportate le decisioni della spec `2026-10-15-amministrazione-utenti.md` (W10, attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16 con la versione `75d29930-6125-41bd-acf4-786814218171`). Decisione dell'utente del 15 ottobre: la cancellazione degli utenti dall'amministrazione passa all'attività C, con la cancellazione dell'account. Prodotto: sezione Utenti di `/admin` sopra «Inviti all'app», ricerca per nome o email che ignora le maiuscole ma non gli accenti, al più 50 risultati con l'invito a restringere; dettaglio con «Questo è il tuo account», interruttori dei due ruoli e famiglie per solo nome e ruolo, senza il numero di agenti collegati del prototipo; conferma per nominare un amministratore e per rinunciare al proprio ruolo, ritorno al Profilo senza avviso a comparsa dopo la rinuncia (scostamenti dal sesto giro); «Apri l'utente» da `account_exists`; per un amministratore retrocesso altrove dati e comandi che spariscono alla prima risposta `forbidden`, poi «Non hai accesso a questa pagina» dopo la verifica del profilo o, se fallisce, l'errore con «Riprova» senza i dati precedenti; ruoli di chi ha già un account cambiati dall'app e via MCP, con la conferma affidata alle istruzioni dell'agente. Tecniche: funzioni `app.admin_users`, `app.admin_user`, `app.admin_user_families`, `app.set_user_role` (`security definer`, solo `app_admin`, letture di `auth.users` senza scritture); lucchetto consultivo `app_admin_roles` obbligatorio nella stessa transazione per ogni percorso che toglie `app_admin`, compresa la cancellazione di un account, con il ricontrollo sotto il lucchetto dell'autorizzazione di chi chiama per l'operazione richiesta (per `app.set_user_role` di nuovo `app_admin`; la cancellazione del proprio account resta consentita senza ruoli globali) e dell'ultimo amministratore, e assegnazioni senza lucchetto; transazioni degli utenti in `read committed`, verificato da un test; codici SQLSTATE `P0A07` e `P0A08`; area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`; ruoli letti a ogni richiesta, validi subito anche per gli agenti collegati; bersaglio `users` nel registro delle mutazioni del web senza scrittura generica della risposta. Chiusa in sezione 15 la pagina dei ruoli globali. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 7, 10, 13, 14 e 15 aggiornate |
 | 16 ottobre 2026, gestione della famiglia | Riportate le decisioni della spec `2026-10-16-gestione-famiglia.md` (W11, attività C dell'ondata 3, PR #52 unita e rilasciata il 16 ottobre con la versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`; collaudo e prove sull'iPhone riusciti il 16 ottobre 2026). Decisione dell'utente: un link d'invito alla famiglia crea l'account a chi non ce l'ha, al più 10 persone per link, con account e ingresso in un solo passaggio ed email non verificata fino all'attività D. Decisioni del coordinatore: tetto contato sulle persone registrate; link di chi esce, viene rimosso, retrocesso o cancellato revocati per tutti; registro degli ingressi; account rimasto senza famiglia se l'ingresso diventa impossibile; ripresa delle cancellazioni dal Cron Trigger orario. Inoltre: link visibile solo alla creazione; cancellazione dell'account e degli utenti in tre passi, con rimando MCP deciso nel database; ultimo amministratore della famiglia protetto dalla riga della famiglia e ordine unico dei lucchetti; famiglie sparite revocate sul dispositivo; scostamenti dal quarto e dal sesto giro in sezione 14. Chiuse in sezione 15 la regola degli inviti alla famiglia senza email e la voce Cancellazione. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 10, 13, 14, 15 e 17 aggiornate |
+| 16–17 ottobre 2026, foto delle ricette | Riportate le decisioni della spec `2026-10-16-foto-ricette.md` (W12, attività E dell'ondata 3, issue #39, PR #54 unita e rilasciata il 16 ottobre con la migrazione `20261016110000_recipe_photos.sql` e la versione del Worker `5dce4dda-67d7-4315-97f3-608631f45796`; bucket `cosasimangia-photos`). Decisioni dell'utente: foto gestita solo dalla scheda ricetta aperta e solo dai curatori («Aggiungi foto», pulsante «Foto» con «Sostituisci la foto» e «Togli la foto»), nessun comando nelle schede compatte; nessuna provenienza della foto; agente libero di prendere l'immagine da qualunque sito, di norma dalla fonte, con il sì esplicito del curatore. Tecniche: tabella `recipe_photos` con una foto corrente per ricetta, fuori dal documento e dalle versioni, trigger sul contatore del ricettario e lucchetto sulla ricetta; bucket R2 privato, chiavi casuali da 128 bit, rotta `/photos/<chiave>` senza autenticazione che serve solo le foto correnti, con `Cache-Control: private, no-store` e limitatore per IP; WebP da 1600 px prodotto una volta con il binding Images, ridimensionamento JPEG nel browser; `catalogue.uploadPhoto` solo web con il limite del corpo prima del parser, `setPhotoFromUrl` e `removePhoto` anche MCP con scaricamento controllato; `photoUrl` facoltativo nelle viste; risposte superate dei pasti dopo una modifica delle foto; cache delle foto solo nel service worker, cancellata all'uscita; esportazione con i soli riferimenti e oggetti mai cancellati in automatico. Foto popolate via MCP il 16 ottobre: 46 ricette con la foto, 4 ancora senza. Chiusa in sezione 15 la voce Foto delle ricette; aperta in Backup e ripristino la questione delle foto nel ripristino dell'intero catalogo. Intestazione, Parte 1 e sezioni 1, 2, 8, 10, 13, 14 e 15 aggiornate |
 | 17 ottobre 2026, dominio | Decisione dell'utente: app ed email su `cosasimangia.app`, comprato su Cloudflare, al posto di `cosasimangia.qunidi.it`; `workers.dev` spento senza reindirizzamenti, `www` rimandato al dominio, mittente `noreply@cosasimangia.app`. Il controllo del rilascio richiede un dominio personalizzato del Worker con `workers_dev` spento. Sezioni 1 e 10 e intestazione aggiornate |
+| 17 ottobre 2026, dominio completato e attività D | Rilascio del dominio il 17 ottobre alle 04:23 UTC (PR #56, versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); DNS nella zona Cloudflare dell'account di POWA; dominio verificato in Resend (DKIM `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`); *Site URL* e *Redirect URLs* solo sul nuovo dominio; SMTP personalizzato di Supabase Auth su Resend (`smtp.resend.com:465`, chiave dedicata di solo invio limitata al dominio), mittente `Cosa si mangia <noreply@cosasimangia.app>`, prova con un magic link riuscita; PWA reinstallata sull'iPhone e agente MCP ricollegato a `https://cosasimangia.app/mcp`. L'attività D non è più bloccata: resta la parte software (link della password via email dopo un invito, «password dimenticata», email operative di job ed esportazione, fine del rischio delle email non verificate negli inviti). Ordine concordato con l'utente: correzione di #48 prima della generazione del 21 ottobre (insieme a #51), poi la parte software di D, poi E. Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

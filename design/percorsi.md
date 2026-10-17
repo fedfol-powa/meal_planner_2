@@ -1,7 +1,7 @@
 # Percorsi del prototipo di Cosa si mangia
 
 Creato: 6 ottobre 2026
-Ultimo aggiornamento: 16 ottobre 2026
+Ultimo aggiornamento: 17 ottobre 2026
 Stato: metodo e ordine dei percorsi concordati con l'utente il 6 ottobre 2026;
 primo, secondo, terzo e quarto giro approvati il 6 ottobre 2026, quinto giro
 (Gestione del ricettario) e sesto giro (MCP e Amministrazione dell'app) il 7 ottobre;
@@ -1143,3 +1143,31 @@ restano nella forma del prototipo. Scostamenti:
 - un account in attesa di cancellazione ha nell'amministrazione «Cancellazione in
   corso» e «Completa la cancellazione»; chi vi accede vede «Questo account è stato
   cancellato.».
+
+### Foto delle ricette nell'app (16 ottobre 2026)
+
+Le foto delle ricette, che il prototipo mostrava solo dai dati demo, sono realizzate
+nell'app con la PR #54 (W12, issue #39), unita e rilasciata in produzione il 16 ottobre
+2026 (specifica, sezioni 8 e 14; particolari in
+`progetto/superpowers/specs/2026-10-16-foto-ricette.md`, sezioni 1 e 6). Schede del
+menu, del ricettario e dei suggerimenti della revisione dei pasti con il banner basso
+3:1 del primo giro e l'etichetta del pasto sopra la foto; foto del pasto passato
+desaturata come nel prototipo; scheda ricetta con la foto in 16:9 sotto
+l'intestazione. Senza foto, o se l'immagine non si carica, le schede restano nella forma
+senza foto. Aggiunte rispetto al prototipo, che non aveva comandi per la foto
+(decisioni dell'utente del 16 ottobre 2026):
+
+- la foto si gestisce **solo dalla scheda ricetta aperta**, e solo dai curatori; le
+  schede compatte non hanno comandi per la foto;
+- senza foto, il pulsante bordato «Aggiungi foto» sotto l'intestazione apre il
+  selettore del telefono («Scatta foto» o «Libreria foto» sull'iPhone);
+- con la foto, il pulsante a icona «Foto» in alto a destra sulla foto apre il foglio
+  dal basso con «Sostituisci la foto» e «Togli la foto», con la conferma «Togliere la
+  foto?» nel foglio; durante il caricamento il pulsante mostra «Caricamento…»;
+- nessuna riga sulla provenienza della foto;
+- via MCP l'agente propone una foto da un indirizzo, la mostra al curatore e la imposta
+  dopo un sì esplicito.
+
+Il 16 ottobre 2026 le foto sono state popolate via MCP: 46 ricette con la foto, 4
+ancora senza. Restano le prove a mano sull'iPhone (scatto e libreria, foto HEIC,
+orientamento, rete mobile, offline dopo una visita).
