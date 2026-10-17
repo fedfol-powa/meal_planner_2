@@ -5,26 +5,30 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 17 ottobre 2026, pomeriggio)
 
-- **Attività in corso:** W15, parte software di D (brief `brief/w15-email.md`). Brainstorming
-  chiuso (sette domande di prodotto decise dall'utente, design in tre parti approvato dal
-  coordinatore, rilievi in `messaggi/w15-01-design-1.md`; decisioni nel registro del piano
-  generale); spec e piano pronti (`0d72f95`); revisione DA RIFARE (`revisioni/w15-spec-piano.md`, 12 rilievi, decisioni del coordinatore in `messaggi/w15-02-revisione-spec.md`); correzioni in `f99b1b7`; seconda revisione DA RIFARE (`revisioni/w15-spec-piano-2.md`, rilievi in `messaggi/w15-03-revisione-spec-2.md`: prima email spedita dal server con Resend, etichetta «Non ha ancora confermato l'email» e niente ingresso automatico dopo la password, approvati dall'utente); correzioni in `8107d6e`; terza revisione APPROVABILE CON CORREZIONI (`revisioni/w15-spec-piano-3.md`, tre rilievi in `messaggi/w15-04-revisione-spec-3.md`); correzioni in `76db16f` verificate dal coordinatore: **spec e piano approvati**; `/clear` e ripresa; implementazione fatta, **PR #64 aperta** (`d5a84a6`, +6776 −676, 123 file); revisione della PR APPROVABILE CON CORREZIONI (`revisioni/w15-pr64.md`: falso allarme dei backup, due minori) e CI rossa (`ForgotPage.test.tsx`); rilievi in `messaggi/w15-05-revisione-pr64.md`; fase: correzioni.
-- **Worker attivi:** W15, tab «W15 email», pane `w1:p4Q`, branch `ondata3/email`,
-  worktree `.worktrees/email`.
+- **Attività in corso:** rilascio della parte software di D. **PR #64 unita** (W15, `7f9342a`,
+  revisione `revisioni/w15-pr64.md` con tre rilievi corretti e verificati dal coordinatore, CI
+  verde). Da fare: passi esterni del runbook (spec `specs/2026-10-17-email.md`, sezione 9:
+  chiave Resend del server, segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, template di
+  recupero, `mailer_otp_exp` 86400), migrazione `20261017100000_email.sql`, anteprima e «vai»
+  dell'utente, controlli dopo il rilascio e prova sull'iPhone. Sottoagente del coordinatore
+  sulla specifica principale (branch `docs/specifica-email`, PR da unire con «mergia»).
+- **Worker attivi:** nessuno. W15 chiuso (tab, worktree e branch rimossi).
 - **Revisori attivi:** nessuno.
-- **Domande in sospeso:** nessuna.
+- **Domande in sospeso:** chiave Resend e indirizzo per gli allarmi (utente).
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
-  non consuma l'utilizzo settimanale di Claude (utente, 17/10): le revisioni non vanno
-  risparmiate per questo.
+  non consuma l'utilizzo settimanale di Claude (utente, 17/10).
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** rapporto della revisione e CI della #64 → rilievi a W15 o merge; poi rilascio (anteprima, passi esterni del runbook della spec, «vai» dell'utente). Poi: ricettario esteso dall'utente, E (parti scelte dall'utente), issue #49, #55,
-  #39 (4 ricette senza foto), #62 (worker curatore del ricettario, da rivedere con
-  l'utente), pulizia dei worktree di PR già unite, R26 rimandata.
+- **Prossimo passo:** passi esterni e rilascio di D; PR della specifica. Poi: ricettario
+  esteso dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza
+  foto), #62 (worker curatore del ricettario), pulizia dei worktree di PR già unite, R26
+  rimandata.
 
 ## Storico
 
 ### Worker e attività (fino al 17/10)
+
+**17/10 pomeriggio, W15 (parte software di D):** brainstorming con sette decisioni dell'utente; spec e piano approvati dopo tre revisioni Codex (`revisioni/w15-spec-piano*.md`, messaggi `w15-01` … `w15-04`; semplificazioni approvate dall'utente: prima email dal server, etichetta «Non ha ancora confermato l'email», «Accedi» dopo la password); PR #64 (+6776 −676) con revisione APPROVABILE CON CORREZIONI e CI rossa su un test instabile, correzioni in `67a0a7a` verificate dal coordinatore, **unita** (`7f9342a`).
 
 **17/10 pomeriggio:** W14 chiuso dopo la prova finale con «riprendiamo» (tab, worktree e branch rimossi). PR #63 di documentazione unita (`4770182`, «mergia» dell'utente, senza revisione Codex per sua scelta): frase su `AGENTS.md` nella specifica principale, somiglianza e zoom nella specifica e in `design/design.md`, `*.prompt` dei revisori fuori da Git, regola del rilascio allentata (il coordinatore lancia `--apply` dopo il «vai»; il commit l'ha fatto l'utente con `!`, perché il classificatore ha bloccato la modifica al coordinatore e al sottoagente). Issue #62 aperta (worker curatore del ricettario). W15 avviato sulla parte software di D.
 
