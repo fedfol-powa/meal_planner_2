@@ -1207,7 +1207,9 @@ rilascio in preparazione (specifica, sezioni 7 e 14; testi e stati in
   link…»), con «Manda di nuovo» dopo 60 secondi e «Torna all'accesso»;
 - **etichetta «Non ha ancora confermato l'email»** sotto il nome nella pagina dei membri,
   nello stile di «Dal {data}», e accanto ai ruoli nelle righe e nel dettaglio degli utenti
-  di `/admin`, finché la persona non sceglie la password.
+  di `/admin`, finché la persona non conferma l'email aprendo il link (la conferma
+  avviene alla verifica, prima del salvataggio della password; chi abbandona il modulo
+  usa «Password dimenticata»).
 
 Le pagine nuove hanno la forma delle pagine d'ingresso del prototipo (marchio, colonna
 stretta, cambio di lingua, «Sei offline» con i comandi disattivati). Restano le prove a
