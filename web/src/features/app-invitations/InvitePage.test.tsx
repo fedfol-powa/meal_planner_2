@@ -27,8 +27,13 @@ function fill(email = ' Giulia@X.it ') {
 const resendButton = () => screen.getByRole('button', { name: 'Rimanda l’email' }) as HTMLButtonElement;
 const minute = async () => act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
-/** As in pwa/busy.app.test.tsx: the real update loop with a worker of another version. */
+/**
+ * As in pwa/busy.app.test.tsx: the real update loop with a worker of another version. Under fake
+ * timers `resume()` waits for the answer itself, not for a time: the loop asks `isBusy` only once
+ * the worker's version has arrived and differs, right before it reloads or not.
+ */
 function newVersionWaiting() {
+  let checks = 0;
   const doc = Object.assign(new EventTarget(), { visibilityState: 'visible' as DocumentVisibilityState });
   const reload = vi.fn();
   const container = Object.assign(new EventTarget(), {
@@ -44,16 +49,21 @@ function newVersionWaiting() {
     storage: { getItem: (k) => entries.get(k) ?? null, setItem: (k, v) => void entries.set(k, v), removeItem: (k) => void entries.delete(k) },
     reload,
     pageVersion: 'current',
-    isBusy
+    isBusy: () => {
+      checks += 1;
+      return isBusy();
+    }
   });
   return {
     reload,
     async resume() {
+      const before = checks;
       doc.visibilityState = 'hidden';
       doc.dispatchEvent(new Event('visibilitychange'));
       doc.visibilityState = 'visible';
       doc.dispatchEvent(new Event('visibilitychange'));
-      await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+      // vi.waitFor polls on real timers; the worker answers through a real MessageChannel.
+      await act(() => vi.waitFor(() => expect(checks).toBe(before + 1)));
     }
   };
 }
