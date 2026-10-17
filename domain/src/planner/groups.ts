@@ -17,12 +17,16 @@ export function dishKindsOf(recipe: PlannerRecipe): DishKind[] {
 	return kinds;
 }
 
-/** What two recipes have in common for the similarity penalty (spec section 3). */
+/**
+ * What two recipes have in common for the similarity penalty (spec section 3). The primary ingredient
+ * of one among the required lines of the other counts too, unless the primary ingredient is the same.
+ */
 export function sharedFeatures(a: PlannerRecipe, b: PlannerRecipe): string[] {
 	const shared: string[] = [];
 	if (a.proteinGroup === b.proteinGroup && a.proteinGroup !== 'vegetarian') shared.push('protein');
 	if (a.carbohydrateGroup === b.carbohydrateGroup && a.carbohydrateGroup !== 'none') shared.push('carbohydrate');
 	if (a.primaryIngredientId !== null && a.primaryIngredientId === b.primaryIngredientId) shared.push('primary_ingredient');
+	else if ((a.primaryIngredientId !== null && uses(b, a.primaryIngredientId)) || (b.primaryIngredientId !== null && uses(a, b.primaryIngredientId))) shared.push('primary_ingredient_line');
 	if (a.category === b.category && a.category !== 'other') shared.push('category');
 	return shared;
 }

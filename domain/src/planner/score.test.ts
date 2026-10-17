@@ -21,6 +21,20 @@ describe('scoreCandidate', () => {
 		expect(scoreCandidate(similar, monday, ctx)).toBeLessThan(scoreCandidate(different, monday, ctx));
 	});
 
+	it('penalises lunch and dinner of the same day when one has the primary ingredient of the other (issue #48)', () => {
+		const tuesdayLunch = { date: '2026-10-13', mealType: 'lunch' as const };
+		const tuesdayDinner = { date: '2026-10-13', mealType: 'dinner' as const };
+		const line = (ingredientId: string) => ({ ingredientId, isOptional: false });
+		const orecchiette = recipe('orecchiette', { proteinGroup: 'vegetarian', carbohydrateGroup: 'pasta', category: 'other', primaryIngredientId: 'broccoli', ingredients: [line('orecchiette'), line('broccoli')] });
+		const wok = (id: string, vegetable: string) => recipe(id, { proteinGroup: 'fish', carbohydrateGroup: 'rice', category: 'wok', primaryIngredientId: 'gamberi', ingredients: [line(vegetable), line('gamberi'), line('riso')] });
+		const withBroccoli = wok('wokBroccoli', 'broccoli');
+		const withCourgettes = wok('wokZucchine', 'zucchine');
+		const input = baseInput({ recipes: [orecchiette, withBroccoli, withCourgettes] });
+		const ctx = buildContext(input, [{ ...tuesdayLunch, recipe: orecchiette }]);
+		const gap = scoreCandidate(withCourgettes, tuesdayDinner, ctx) - scoreCandidate(withBroccoli, tuesdayDinner, ctx);
+		expect(gap).toBeCloseTo(input.settings.weights.similarity);
+	});
+
 	it('penalises a group already at its weekly maximum', () => {
 		const steak = recipe('steak', { proteinGroup: 'red_meat' });
 		const burger = recipe('burger', { proteinGroup: 'red_meat' });
