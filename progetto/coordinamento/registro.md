@@ -8,17 +8,17 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Attività in corso:** W15, parte software di D (brief `brief/w15-email.md`). Brainstorming
   chiuso (sette domande di prodotto decise dall'utente, design in tre parti approvato dal
   coordinatore, rilievi in `messaggi/w15-01-design-1.md`; decisioni nel registro del piano
-  generale); spec e piano pronti (`0d72f95`); revisione DA RIFARE (`revisioni/w15-spec-piano.md`, 12 rilievi, decisioni del coordinatore in `messaggi/w15-02-revisione-spec.md`); correzioni in `f99b1b7`; seconda revisione DA RIFARE (`revisioni/w15-spec-piano-2.md`, rilievi in `messaggi/w15-03-revisione-spec-2.md`: prima email spedita dal server con Resend, etichetta «Non ha ancora confermato l'email» e niente ingresso automatico dopo la password, approvati dall'utente); correzioni in `8107d6e`, terza revisione in corso.
+  generale); spec e piano pronti (`0d72f95`); revisione DA RIFARE (`revisioni/w15-spec-piano.md`, 12 rilievi, decisioni del coordinatore in `messaggi/w15-02-revisione-spec.md`); correzioni in `f99b1b7`; seconda revisione DA RIFARE (`revisioni/w15-spec-piano-2.md`, rilievi in `messaggi/w15-03-revisione-spec-2.md`: prima email spedita dal server con Resend, etichetta «Non ha ancora confermato l'email» e niente ingresso automatico dopo la password, approvati dall'utente); correzioni in `8107d6e`; terza revisione APPROVABILE CON CORREZIONI (`revisioni/w15-spec-piano-3.md`, tre rilievi in `messaggi/w15-04-revisione-spec-3.md`); fase: correzioni, poi verifica del coordinatore sul diff.
 - **Worker attivi:** W15, tab «W15 email», pane `w1:p4Q`, branch `ondata3/email`,
   worktree `.worktrees/email`.
-- **Revisori attivi:** tab «R W15 spec-3» (pane `w1:p4T`), rapporto `revisioni/w15-spec-piano-3.md`.
+- **Revisori attivi:** nessuno.
 - **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
   non consuma l'utilizzo settimanale di Claude (utente, 17/10): le revisioni non vanno
   risparmiate per questo.
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** rapporto della terza revisione → rilievi o via all'implementazione. Poi: ricettario esteso dall'utente, E (parti scelte dall'utente), issue #49, #55,
+- **Prossimo passo:** verifica del diff delle correzioni → spec e piano approvati, `/clear` di W15 e via all'implementazione. Poi: ricettario esteso dall'utente, E (parti scelte dall'utente), issue #49, #55,
   #39 (4 ricette senza foto), #62 (worker curatore del ricettario, da rivedere con
   l'utente), pulizia dei worktree di PR già unite, R26 rimandata.
 
