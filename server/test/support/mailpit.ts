@@ -14,7 +14,7 @@ export interface ReceivedEmail {
 }
 
 interface Summary {
-	messages: { ID: string; Created: string; To: { Address: string }[] | null }[];
+	messages: { ID: string; To: { Address: string }[] | null }[];
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -32,21 +32,36 @@ function passwordLink(html: string, text: string): string | null {
 	return /(https?:\/\/\S*\/password#\S+)/.exec(text)?.[1] ?? null;
 }
 
-/** IDs of the emails to `address`, newest first, received at or after `after`. */
-export async function emailIdsTo(address: string, after?: Date): Promise<string[]> {
+/** The emails to an address already in Mailpit at a given moment (ids, not clock times). */
+export type EmailMark = { address: string; seen: Set<string> };
+
+async function allIdsTo(address: string): Promise<string[]> {
 	const query = new URLSearchParams({ query: `to:"${address}"`, limit: '50' });
 	const { messages } = await getJson<Summary>(`/api/v1/search?${query}`);
 	return messages
 		.filter((m) => (m.To ?? []).some((to) => to.Address.toLowerCase() === address.toLowerCase()))
-		.filter((m) => !after || Date.parse(m.Created) >= after.getTime())
 		.map((m) => m.ID);
 }
 
 /**
- * The newest email to `address` (received at or after `after`), waiting up to `timeoutMs`
- * for it to arrive; throws when none comes.
+ * Records the emails to `address` present now. Comparing ids instead of timestamps keeps the
+ * tests right when the host clock and Mailpit's container clock drift apart.
  */
-export async function latestEmailTo(address: string, options: { after?: Date; timeoutMs?: number } = {}): Promise<ReceivedEmail> {
+export async function markEmails(address: string): Promise<EmailMark> {
+	return { address, seen: new Set(await allIdsTo(address)) };
+}
+
+/** IDs of the emails to the marked address, newest first, that were not there at the mark. */
+export async function emailIdsTo(address: string, since?: EmailMark): Promise<string[]> {
+	if (since && since.address !== address) throw new Error('mailpit: mark taken for another address');
+	return (await allIdsTo(address)).filter((id) => !since?.seen.has(id));
+}
+
+/**
+ * The newest email to `address` that arrived after `after` was taken, waiting up to `timeoutMs`
+ * for it; throws when none comes.
+ */
+export async function latestEmailTo(address: string, options: { after?: EmailMark; timeoutMs?: number } = {}): Promise<ReceivedEmail> {
 	const deadline = Date.now() + (options.timeoutMs ?? 10_000);
 	for (;;) {
 		const [id] = await emailIdsTo(address, options.after);

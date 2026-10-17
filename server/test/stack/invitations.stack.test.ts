@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import type { Env } from '../../src/env.ts';
 import { router } from '../../src/router.ts';
-import { choosePassword, latestEmailTo, MAILPIT_API_URL } from '../support/mailpit.ts';
+import { choosePassword, latestEmailTo, markEmails, MAILPIT_API_URL } from '../support/mailpit.ts';
 import { allowAll, rpcClient, testEnv } from '../support/requests.ts';
 
 const NAMES = ['STACK_SUPABASE_URL', 'STACK_SUPABASE_PUBLISHABLE_KEY', 'STACK_SUPABASE_SECRET_KEY', 'STACK_DB_URL'] as const;
@@ -82,7 +82,7 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 		const email = fresh('giulia');
 		const token = await inviteFor(email, ['recipe_curator']);
 		expect((await client().appInvitations.get({ token })).invitedBy).toBe('Federico');
-		const before = new Date();
+		const before = await markEmails(email);
 		expect(await client().appInvitations.accept({ token, email, displayName: 'Giulia', locale: 'it-IT' })).toEqual({ email, passwordEmail: 'sent' });
 		// No password yet: it is chosen from the link of the email.
 		const mail = await latestEmailTo(email, { after: before });

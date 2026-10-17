@@ -84,11 +84,15 @@ args+=(-e GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD=true)
 [ -n "$limit" ] && args+=(-e "GOTRUE_RATE_LIMIT_EMAIL_SENT=$limit")
 
 remove_own
+# From here on a failure removes the container this run created (and only that one).
+ready=
+trap '[ -n "$ready" ] || remove_own' EXIT
 $CLI run -d --name "$name" --label "$LABEL" --network "$network" -p 127.0.0.1::9999 "${args[@]}" "$image" auth >/dev/null
 hostport=$($CLI port "$name" 9999/tcp | head -n1)
 url="http://127.0.0.1:${hostport##*:}"
 for _ in $(seq 1 60); do
 	if curl -fsS "$url/health" >/dev/null 2>&1; then
+		ready=1
 		echo "$url"
 		exit 0
 	fi
@@ -96,5 +100,4 @@ for _ in $(seq 1 60); do
 done
 echo "Auth at $url did not become healthy; last logs:" >&2
 $CLI logs --tail 20 "$name" >&2 || true
-$CLI rm -f "$name" >/dev/null || true
 exit 1

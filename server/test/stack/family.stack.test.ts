@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import type { Env } from '../../src/env.ts';
 import { router } from '../../src/router.ts';
-import { choosePassword, latestEmailTo, MAILPIT_API_URL } from '../support/mailpit.ts';
+import { choosePassword, latestEmailTo, markEmails, MAILPIT_API_URL } from '../support/mailpit.ts';
 import { allowAll, mcp, rpcClient, testEnv } from '../support/requests.ts';
 
 const NAMES = ['STACK_SUPABASE_URL', 'STACK_SUPABASE_PUBLISHABLE_KEY', 'STACK_SUPABASE_SECRET_KEY', 'STACK_DB_URL'] as const;
@@ -110,7 +110,7 @@ describe.skipIf(!present)('family management against the local stack', () => {
 		expect((await client().familyInvitations.get({ token })).familyName).toBe('Stack');
 		const email = `w15-giulia-${crypto.randomUUID().slice(0, 8)}@example.test`;
 		emails.push(email);
-		const before = new Date();
+		const before = await markEmails(email);
 		expect(await client().familyInvitations.accept({ token, email, displayName: 'Giulia', locale: 'it-IT' })).toEqual({ email, joined: true, passwordEmail: 'sent' });
 		const mail = await latestEmailTo(email, { after: before });
 		expect(await choosePassword(`${url}/auth/v1`, publishable, mail.link!, 'stack-password')).toEqual({ verified: 200, saved: 200 });

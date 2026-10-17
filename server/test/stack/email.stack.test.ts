@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import type { Env } from '../../src/env.ts';
 import { router } from '../../src/router.ts';
-import { choosePassword, emailIdsTo, latestEmailTo, MAILPIT_API_URL } from '../support/mailpit.ts';
+import { choosePassword, emailIdsTo, latestEmailTo, markEmails, MAILPIT_API_URL } from '../support/mailpit.ts';
 import { allowAll, rpcClient, testEnv } from '../support/requests.ts';
 
 /**
@@ -113,7 +113,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		const name = '<b>Rossi & figli</b>';
 		const { federico, familyId, token } = await familyLink(name);
 		const email = fresh('family');
-		const before = new Date();
+		const before = await markEmails(email);
 		expect(await client().familyInvitations.accept({ token, email, displayName: 'Giulia', locale: 'en-GB' })).toEqual({ email, joined: true, passwordEmail: 'sent' });
 		const mail = await latestEmailTo(email, { after: before });
 		expect(mail.subject).toBe('Choose your password for Cosa si mangia');
@@ -131,7 +131,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 	it('2. app invitation: same path, roles assigned, text without a family', async () => {
 		const email = fresh('app');
 		const token = await appInvitation(email, ['recipe_curator']);
-		const before = new Date();
+		const before = await markEmails(email);
 		expect(await client().appInvitations.accept({ token, email, displayName: 'Marta', locale: 'it-IT' })).toEqual({ email, passwordEmail: 'sent' });
 		const mail = await latestEmailTo(email, { after: before });
 		expect(mail.subject).toBe('Scegli la password per Cosa si mangia');
@@ -147,7 +147,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 	it('3. verified without saving: confirmed, no known password; «Password dimenticata» saves it', async () => {
 		const email = fresh('verified');
 		const token = await appInvitation(email);
-		const before = new Date();
+		const before = await markEmails(email);
 		await client().appInvitations.accept({ token, email, displayName: 'Vera', locale: 'it-IT' });
 		const mail = await latestEmailTo(email, { after: before });
 		const verify = await fetch(`${auth()}/verify`, {
@@ -160,7 +160,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		// generate_link set recovery_sent_at: Supabase's own spacing applies to /recover for 60 seconds.
 		expect(await recover(email)).toMatchObject({ status: 429, code: 'over_email_send_rate_limit' });
 		await ageRecovery(email);
-		const asked = new Date();
+		const asked = await markEmails(email);
 		expect((await recover(email)).status).toBe(200);
 		const recovery = await latestEmailTo(email, { after: asked });
 		expect(recovery.subject).toBe('Scegli una nuova password per Cosa si mangia');
@@ -175,7 +175,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 			method: 'POST', headers: { apikey: secret, 'content-type': 'application/json' }, body: JSON.stringify({ email: unconfirmed, email_confirm: false }),
 		});
 		expect(created.status).toBe(200);
-		const sent = new Date();
+		const sent = await markEmails(unconfirmed);
 		expect((await recover(unconfirmed)).status).toBe(200);
 		expect((await latestEmailTo(unconfirmed, { after: sent })).subject).toBe('Scegli una nuova password per Cosa si mangia');
 	});
@@ -183,7 +183,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 	it('4. resend from the invitation page: generic text, even after removal; too_soon; the first link no longer works', async () => {
 		const { federico, familyId, token } = await familyLink('Casa Bianchi');
 		const email = fresh('resend');
-		const first = new Date();
+		const first = await markEmails(email);
 		await client().familyInvitations.accept({ token, email, displayName: 'Rino', locale: 'it-IT' });
 		const firstMail = await latestEmailTo(email, { after: first });
 		expect(firstMail.text).toContain('famiglia Casa Bianchi');
@@ -191,7 +191,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		await federico.family.removeMember({ familyId, userId: id });
 		expect(await client().familyInvitations.resendPasswordEmail({ token, email, locale: 'it-IT' })).toEqual({ passwordEmail: 'too_soon' });
 		await agePasswordEmail(id);
-		const second = new Date();
+		const second = await markEmails(email);
 		expect(await client().familyInvitations.resendPasswordEmail({ token, email, locale: 'it-IT' })).toEqual({ passwordEmail: 'sent' });
 		const secondMail = await latestEmailTo(email, { after: second });
 		expect(secondMail.id).not.toBe(firstMail.id);
@@ -213,7 +213,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		// An invitee: the link of the server's email, verified and saved on the strict service.
 		const email = fresh('strict');
 		const token = await appInvitation(email);
-		const before = new Date();
+		const before = await markEmails(email);
 		await client().appInvitations.accept({ token, email, displayName: 'Sara', locale: 'it-IT' });
 		const mail = await latestEmailTo(email, { after: before });
 		expect(await choosePassword(strict, null, mail.link!, 'sara-pass-1')).toEqual({ verified: 200, saved: 200 });
@@ -221,7 +221,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 
 		// A recovery of someone with a password.
 		const known = await person('strict-recovery');
-		const asked = new Date();
+		const asked = await markEmails(known.email);
 		expect((await recover(known.email)).status).toBe(200);
 		const recovery = await latestEmailTo(known.email, { after: asked });
 		expect(await choosePassword(strict, null, recovery.link!, 'renewed-pass-2')).toEqual({ verified: 200, saved: 200 });
@@ -244,22 +244,27 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		const token = (await federico.appInvitations.create({ id: crypto.randomUUID(), email, roles: [] })).url.split('#')[1]!;
 		const real = globalThis.fetch;
 		let deleted: { completed: boolean } | null = null;
+		let generateLinkStatus: number | null = null;
 		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
 			const target = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 			// The acceptance is held after its closing and the SQL authorisation: the account is deleted for good meanwhile.
 			if (!deleted && target === `${url}/auth/v1/admin/generate_link`) {
 				const { id } = (await authUser(email))!;
 				deleted = await federico.users.delete({ id, successors: {}, deletedFamilies: [] });
+				const answer = await real(input, init);
+				generateLinkStatus = answer.status;
+				return answer;
 			}
 			return real(input, init);
 		});
-		const before = new Date();
+		const before = await markEmails(email);
 		try {
 			expect(await client().appInvitations.accept({ token, email, displayName: 'Corsa', locale: 'it-IT' })).toEqual({ email, passwordEmail: 'unavailable' });
 		} finally {
 			spy.mockRestore();
 		}
 		expect(deleted).toEqual({ completed: true });
+		expect(generateLinkStatus).toBe(404);
 		expect(await authUser(email)).toBeUndefined();
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 		expect(await emailIdsTo(email, before)).toEqual([]);
@@ -270,14 +275,14 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		await client(english.token).profile.update({ locale: 'en-GB' });
 		const metadata = (await authUser(english.email))!.metadata;
 		expect(metadata).toMatchObject({ display_name: 'Emma', locale: 'en-GB' });
-		const asked = new Date();
+		const asked = await markEmails(english.email);
 		expect((await recover(english.email)).status).toBe(200);
 		const mail = await latestEmailTo(english.email, { after: asked });
 		expect(mail.subject).toBe('Choose a new password for Cosa si mangia');
 		expect(mail.html).toContain('Someone asked for a new password');
 
 		const italian = await person('italian', { display_name: 'Ivo' });
-		const again = new Date();
+		const again = await markEmails(italian.email);
 		expect((await recover(italian.email)).status).toBe(200);
 		expect((await latestEmailTo(italian.email, { after: again })).subject).toBe('Scegli una nuova password per Cosa si mangia');
 	});
@@ -292,7 +297,7 @@ describe.skipIf(!present)('emails against the local stack', () => {
 		expect(again).toMatchObject({ status: 429, code: 'over_email_send_rate_limit' });
 		expect(again.message).toMatch(/^For security purposes, you can only request this after \d+ seconds?\.$/);
 		const nobody = `w15-nobody-${crypto.randomUUID().slice(0, 8)}@example.test`;
-		const quiet = new Date();
+		const quiet = await markEmails(nobody);
 		expect((await recover(nobody)).status).toBe(200);
 		expect((await recover(nobody)).status).toBe(200);
 
