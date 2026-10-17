@@ -13,6 +13,8 @@
 	// through a redirect rule of the zone.
 	"workers_dev": false,
 	"routes": [{ "pattern": "cosasimangia.app", "custom_domain": true }],
+	// Secrets (never in vars; `wrangler secret put`): RESEND_API_KEY (send-only Resend key, password and alert emails)
+	// and OPS_ALERT_EMAIL (address of the operations contact), spec W15, section 5.
 	"vars": {
 		// Supabase project URL; token issuer and JWKS are derived from it.
 		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
