@@ -1,7 +1,10 @@
 // Recipe attributes for the planner: proposed by the agent from verified data, reviewed by the user.
 import { parse } from 'yaml';
 import { CARBOHYDRATE_GROUPS, CATEGORIES, PROTEIN_GROUPS, SEASONS, type CarbohydrateGroup, type Category, type PlannerRecipe, type ProteinGroup, type RecipeMealType, type Season } from '../../domain/src/planner/index.ts';
+import type { IngredientLineMapping } from '../import/inputs.ts';
 import { durationOf, slug, type OriginRecipe } from './origin.ts';
+
+const OPTIONAL = /facoltativ|opzional/i;
 
 export interface RecipeAttributes {
 	mealType: RecipeMealType;
@@ -70,10 +73,20 @@ export function parseAttributes(text: string, recipes: OriginRecipe[]): { attrib
 	return { attributes, errors };
 }
 
-export function toPlannerRecipes(recipes: OriginRecipe[], attributes: Map<string, RecipeAttributes>): PlannerRecipe[] {
+/**
+ * With the import's line mappings (scripts/import/ingredient-lines.yaml) the lines and the primary
+ * ingredient get the ingredients they have in production; without, the slug of the origin line name.
+ */
+export function toPlannerRecipes(recipes: OriginRecipe[], attributes: Map<string, RecipeAttributes>, lines?: ReadonlyMap<string, IngredientLineMapping>): PlannerRecipe[] {
 	return recipes.map((recipe) => {
 		const a = attributes.get(recipe.id);
 		if (!a) throw new Error(`No attributes for ${recipe.id}`);
+		const ingredients = (recipe.ingredienti ?? []).map((line) => {
+			const mapping = lines?.get(line.nome);
+			if (!mapping) return { name: line.nome, ingredientId: slug(line.nome), isOptional: OPTIONAL.test(line.nome) };
+			return { name: line.nome, ingredientId: mapping.ingredient, isOptional: mapping.optional || OPTIONAL.test(String(line.quantita)) };
+		});
+		const primary = a.primaryIngredient === null ? null : (ingredients.find((line) => slug(line.name) === a.primaryIngredient)?.ingredientId ?? a.primaryIngredient);
 		return {
 			id: recipe.id,
 			durationMinutes: a.durationMinutes ?? durationOf(recipe.tempo),
@@ -85,8 +98,8 @@ export function toPlannerRecipes(recipes: OriginRecipe[], attributes: Map<string
 			hasVegetables: a.hasVegetables,
 			isHeavy: a.isHeavy,
 			seasons: a.seasons,
-			primaryIngredientId: a.primaryIngredient,
-			ingredients: (recipe.ingredienti ?? []).map((line) => ({ ingredientId: slug(line.nome), isOptional: /facoltativ|opzional/i.test(line.nome) })),
+			primaryIngredientId: primary,
+			ingredients: ingredients.map(({ ingredientId, isOptional }) => ({ ingredientId, isOptional })),
 			bookId: recipe.libro ? slug(recipe.libro.titolo) : null
 		};
 	});

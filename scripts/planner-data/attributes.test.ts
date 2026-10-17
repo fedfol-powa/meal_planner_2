@@ -51,4 +51,18 @@ describe('parseAttributes', () => {
 		const { attributes } = parseAttributes(valid.replace('seasons: []', 'seasons: []\n    duration_minutes: 40'), [wok]);
 		expect(toPlannerRecipes([wok], attributes)[0].durationMinutes).toBe(40);
 	});
+	it('maps lines and the primary ingredient to the ingredients of the import', () => {
+		const pasta: OriginRecipe = { ...wok, id: 'pasta', ingredienti: [{ nome: 'Broccolo', quantita: '1 kg' }, { nome: 'Gamberi', quantita: '200 g' }, { nome: 'Alici', quantita: '4 (facoltative)' }] };
+		const { attributes, errors } = parseAttributes(valid.replace('  wok:', '  pasta:').replace('petto-di-pollo', 'broccolo'), [pasta]);
+		expect(errors).toEqual([]);
+		const mapping = (ingredient: string, optional = false) => ({ ingredient, variety: null, preparation: null, optional, note: null });
+		const lines = new Map([['Broccolo', mapping('broccoli')], ['Gamberi', mapping('gamberi', true)], ['Alici', mapping('alici')]]);
+		const [recipe] = toPlannerRecipes([pasta], attributes, lines);
+		expect(recipe.primaryIngredientId).toBe('broccoli');
+		expect(recipe.ingredients).toEqual([
+			{ ingredientId: 'broccoli', isOptional: false },
+			{ ingredientId: 'gamberi', isOptional: true },
+			{ ingredientId: 'alici', isOptional: true }
+		]);
+	});
 });

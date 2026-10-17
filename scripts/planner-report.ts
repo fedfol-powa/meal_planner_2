@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { addDays, fillWeek, FOOD_GROUPS, generateWeek, hardViolations, isOutOfSeason, weekdayOf, weekMetrics, type PastMeal, type PlannedWeek, type PlannerInput, type WeekMetrics } from '../domain/src/planner/index.ts';
+import { readInputs } from './import/inputs.ts';
 import { parseAttributes, toPlannerRecipes } from './planner-data/attributes.ts';
 import { curatorFamilySettings, curatorRestrictions } from './planner-data/family.ts';
 import { familyScoresOf, historyOf, originDir, publishable, readOriginRecipes } from './planner-data/origin.ts';
@@ -17,7 +18,8 @@ if (errors.length) {
 	console.error(errors.join('\n'));
 	process.exit(1);
 }
-const recipes = toPlannerRecipes(catalogue, attributes);
+// The ingredients the recipes have in production, as mapped by the import.
+const recipes = toPlannerRecipes(catalogue, attributes, readInputs(resolve(root, 'scripts/import')).lines);
 const names = new Map(all.map((r) => [r.id, r.nome]));
 const byId = new Map(recipes.map((r) => [r.id, r]));
 const settings = curatorFamilySettings();
