@@ -174,6 +174,17 @@ describe('agent consent', () => {
       const project = { name: 'AuthApiError', status: 429, code: 'over_email_send_rate_limit', message: 'email rate limit exceeded' };
       expect(await withReset(vi.fn(async () => ({ data: null, error: project }))).backend.requestPasswordEmail('a@b.c')).toEqual({ ok: false, reason: 'project_limit' });
     });
+    it.each([
+      ['the per-address text', { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 42 seconds.' }, { ok: true }],
+      ['the project text', { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded' }, { ok: false, reason: 'project_limit' }],
+      ['no message', { code: 'over_email_send_rate_limit' }, { ok: true }],
+      ['an unknown message', { code: 'over_email_send_rate_limit', message: 'Slow down, please' }, { ok: true }],
+      ['another code', { code: 'over_request_rate_limit', message: 'Request rate limit reached' }, { ok: true }],
+      ['no code and no message', {}, { ok: true }]
+    ])('a 429 with %s: only the project limit is told, every other one counts as sent', async (_, error, outcome) => {
+      const { backend } = withReset(vi.fn(async () => ({ data: null, error: { name: 'AuthApiError', status: 429, ...error } })));
+      expect(await backend.requestPasswordEmail('a@b.c')).toEqual(outcome);
+    });
     it('maps a lost request to network and the rest to unknown', async () => {
       expect(await withReset(vi.fn(async () => ({ data: null, error: new AuthRetryableFetchError('offline', 0) }))).backend.requestPasswordEmail('a@b.c')).toEqual({ ok: false, reason: 'network' });
       expect(await withReset(vi.fn(async () => ({ data: null, error: { name: 'AuthApiError', status: 500, message: 'boom' } }))).backend.requestPasswordEmail('a@b.c')).toEqual({ ok: false, reason: 'unknown' });

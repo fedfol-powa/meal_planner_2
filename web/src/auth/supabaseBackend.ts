@@ -13,10 +13,17 @@ export function authorizationFailure(error: { status?: number; name?: string }):
   return 'unknown';
 }
 
-/** The per-address 429 is told apart by its message; the project's hourly limit has another one. */
+/** Supabase's message for the project's hourly email limit (verified on the stack, spec W15). */
+const PROJECT_EMAIL_LIMIT = /email rate limit exceeded/i;
+
+/**
+ * Only the project's hourly limit is told apart, by its message; every other 429 (the per-address
+ * one, or a message absent or unknown) counts as sent, so the answer never tells whether the
+ * account exists (spec W15, decision 17).
+ */
 export function passwordEmailFailure(error: { code?: string; status?: number; name?: string; message?: string }): 'sent' | 'project_limit' | 'network' | 'unknown' {
   if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network';
-  if (error.status === 429 || error.code === 'over_email_send_rate_limit') return /only request this after/i.test(error.message ?? '') ? 'sent' : 'project_limit';
+  if (error.status === 429 || error.code === 'over_email_send_rate_limit') return PROJECT_EMAIL_LIMIT.test(error.message ?? '') ? 'project_limit' : 'sent';
   return 'unknown';
 }
 
