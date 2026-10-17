@@ -27,7 +27,8 @@ printf 'CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=%s\nSUPABASE_UR
 
 log=$(mktemp)
 # The test Worker (production app plus the test operations): same wrangler.jsonc, other entry.
-(cd server && exec npx wrangler dev test/e2e/worker.ts --port "$port" --ip 127.0.0.1 --inspector-port "${INSPECTOR_PORT:-9229}" > "$log" 2>&1) &
+# --local-upstream keeps the local origin: otherwise wrangler dev takes the custom domain of the routes.
+(cd server && exec npx wrangler dev test/e2e/worker.ts --port "$port" --ip 127.0.0.1 --local-upstream "127.0.0.1:$port" --inspector-port "${INSPECTOR_PORT:-9229}" > "$log" 2>&1) &
 worker=$!
 cleanup() { kill "$worker" 2>/dev/null || true; rm -f "$env_file"; }
 trap cleanup EXIT
