@@ -5,14 +5,11 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 17 ottobre 2026, pomeriggio)
 
-- **Attività in corso:** collaudo della parte software di D. **Rilasciata** il 17/10 alle
-  17:54 UTC dopo il «vai» dell'utente, lanciata dal coordinatore: versione
-  `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`; rollback `4538c715-25d7-44cf-b6fe-d4f6e9f5a337`,
-  ma con correzione in avanti come scelta normale), migrazione `20261017100000_email.sql`
-  applicata, controlli del rilascio superati. Allarme di prova `ops_alert_test/2026-10-17`
-  inserito alle 17:54 UTC (atteso all'esecuzione oraria delle 18:00 UTC). Da fare: invito di
-  prova e «Password dimenticata» dell'utente, prova sull'iPhone, lettura degli allarmi del
-  primo giro (eventi dei 7 giorni prima).
+- **Attività in corso:** nessuna. **Attività D chiusa** (17/10): rilasciata alle 17:54 UTC,
+  versione `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`), invito di prova,
+  «Password dimenticata», allarme di prova e prova sull'iPhone riusciti (utente). Nella
+  specifica principale lo stato di D dice ancora «rilascio in preparazione»: da aggiornare
+  con la prossima PR di documentazione.
 - **Worker attivi:** nessuno. W16 chiuso dopo il merge della #66 (revisione APPROVABILE,
   `revisioni/w16-pr66.md`); tab, worktree e branch rimossi.
 - **Revisori attivi:** nessuno.
@@ -21,7 +18,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   non consuma l'utilizzo settimanale di Claude (utente, 17/10).
 - **In produzione:** versione `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`, 17/10
   17:54 UTC, attività D).
-- **Prossimo passo:** prove dell'utente e allarme di prova; poi chiudere D. Poi: ricettario
+- **Prossimo passo:** l'utente sceglie da dove ripartire. Poi: ricettario
   esteso dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza
   foto), #62 (worker curatore del ricettario), #67 (test FamilyDeletePage), pulizia dei worktree di PR già unite, R26
   rimandata.
