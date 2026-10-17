@@ -68,7 +68,8 @@ describe('«Collega un agente»', () => {
     expect(disconnect.mock.calls[0]![0]).toEqual({ clientId: expect.any(String) });
     expect(await screen.findByText('Claude Code scollegato.')).toBeTruthy();
     await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(1));
-    expect(screen.queryByText('Claude Code', { selector: '.row-main' })).toBeNull();
+    // The row goes with the answer of the reread, not with its start.
+    await waitFor(() => expect(screen.queryByText('Claude Code', { selector: '.row-main' })).toBeNull());
   });
 
   it('shows a fallback name and the generic removal for an unknown client', async () => {

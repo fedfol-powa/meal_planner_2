@@ -65,8 +65,10 @@ describe('/password/forgot', () => {
     expect(screen.queryByRole('button', { name: 'Manda di nuovo' })).toBeNull();
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
     fireEvent.click(screen.getByRole('button', { name: 'Manda di nuovo' }));
-    await waitFor(() => expect(backend.passwordEmailCalls).toEqual(['giulia@x.it', 'giulia@x.it']));
-    expect(screen.queryByRole('button', { name: 'Manda di nuovo' })).toBeNull();
+    expect(backend.passwordEmailCalls).toEqual(['giulia@x.it', 'giulia@x.it']);
+    // The call is recorded at the click; the button goes away only after the answer, when the
+    // passive effect of the new sending restarts the 60 seconds, a few scheduler tasks later.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Manda di nuovo' })).toBeNull());
   });
 
   it('the limit of the project', async () => {
