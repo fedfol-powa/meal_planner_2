@@ -95,6 +95,8 @@ interface WorkerConfig {
 	vars?: Record<string, string>;
 	hyperdrive?: { id?: string }[];
 	r2_buckets?: { bucket_name: string; jurisdiction?: string }[];
+	workers_dev?: boolean;
+	routes?: (string | { pattern?: string; custom_domain?: boolean })[];
 }
 
 export async function preview(deps: Deps, env: NodeJS.ProcessEnv, scope: Scope = {}): Promise<Preview> {
@@ -168,9 +170,10 @@ export async function preview(deps: Deps, env: NodeJS.ProcessEnv, scope: Scope =
 			const args = wrangler('r2', 'bucket', 'info', bucket.bucket_name, ...(bucket.jurisdiction ? ['--jurisdiction', bucket.jurisdiction] : []));
 			if (deps.run('npx', args, server).status !== 0) add('r2', `bucket ${bucket.bucket_name} not found`);
 		}
-		const name = worker.name ?? '';
-		if (!productionUrl || !new RegExp(`^https://${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.[a-z0-9-]+\\.workers\\.dev$`).test(productionUrl))
-			add('production-url', `productionUrl in scripts/release.config.json must be https://${name}.<subdomain>.workers.dev`);
+		// The app answers only on its custom domain: workers.dev is off (domain cosasimangia.app, 17 October 2026).
+		const domains = (worker.routes ?? []).flatMap((r) => (typeof r === 'object' && r.custom_domain && r.pattern ? [r.pattern] : []));
+		if (!productionUrl || worker.workers_dev !== false || !domains.some((d) => productionUrl === `https://${d}`))
+			add('production-url', 'productionUrl in scripts/release.config.json must be https://<custom domain of the Worker>, with workers_dev false');
 		const deployments = deps.run('npx', wrangler('deployments', 'status', '--json'), server);
 		if (deployments.status !== 0) {
 			const said = `${deployments.stdout}\n${deployments.stderr}`;
@@ -302,7 +305,7 @@ export async function apply(deps: Deps, env: NodeJS.ProcessEnv, confirmation: st
 	if (deployed.status !== 0) return fail('deploy', 'wrangler deploy failed');
 	const entry = deployEntry(deps.readFile(output));
 	const url = p.productionUrl!;
-	if (!entry?.version_id || entry.worker_name !== p.workerName || entry.worker_name_overridden || !entry.targets?.includes(url))
+	if (!entry?.version_id || entry.worker_name !== p.workerName || entry.worker_name_overridden || !entry.targets?.includes(new URL(url).host))
 		return fail('deploy-target', `the deploy did not publish ${p.workerName} at ${url}: check before anything else`);
 	const versionId = entry.version_id;
 

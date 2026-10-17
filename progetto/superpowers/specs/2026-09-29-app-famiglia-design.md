@@ -9,7 +9,8 @@ Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi
 `design/percorsi.md`) e architettura verificata l'8 ottobre: il prototipo resta il
 riferimento dei percorsi approvati.
 Stato attuale: traguardo A in produzione dal 12–13 ottobre 2026 su
-`https://cosasimangia.qunidi.workers.dev`, con il collaudo completo ancora in corso
+`https://cosasimangia.qunidi.workers.dev` (dal rilascio successivo al 17 ottobre su
+`https://cosasimangia.app`, sezione 1), con il collaudo completo ancora in corso
 (sezione 10); dal 15 ottobre 2026 in produzione anche gli inviti all'app e la creazione
 delle famiglie (attività A dell'ondata 3), dal 16 ottobre l'amministrazione di utenti e
 ruoli (attività B) e la gestione della famiglia (attività C: inviti alla famiglia,
@@ -127,7 +128,16 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   dell'utente (deciso l'8 ottobre 2026); lo stesso sottodominio è il dominio di invio
   verificato in Resend. **Superata il 13 ottobre 2026 per l'app**: l'app resta su
   `https://cosasimangia.qunidi.workers.dev` e il sottodominio serve solo come dominio
-  di invio; un trasferimento dell'app richiederà una decisione distinta (sotto);
+  di invio; un trasferimento dell'app richiederà una decisione distinta (sotto).
+  **Superata il 17 ottobre 2026** (decisione dell'utente): app ed email su
+  `cosasimangia.app`, dominio comprato dall'utente su Cloudflare (registrazione e DNS
+  nello stesso account). Il Worker risponde solo sul dominio personalizzato:
+  `workers.dev` spento, senza reindirizzamenti né endpoint lasciati sul vecchio indirizzo;
+  `www.cosasimangia.app` rimanda al dominio con un 301 (regola della zona). Mittente
+  `noreply@cosasimangia.app`; DMARC `p=none` finché Resend non è verificato. Il cambio
+  costringe a reinstallare la PWA, a ricollegare gli agenti MCP con
+  `https://cosasimangia.app/mcp` e a rigenerare i link per Bring non ancora aperti;
+  *Site URL* e *Redirect URLs* passano al nuovo dominio;
 - DNS di `qunidi.it` spostato da Aruba a Cloudflare (piano gratuito), perché il dominio
   personalizzato di un Worker richiede una zona attiva su Cloudflare; la registrazione
   del dominio resta su Aruba. Su `qunidi.it` non c'è posta collegata (verificato con
@@ -767,7 +777,8 @@ configurato per workspace.
   chiave `worker-invitations` creata dall'utente e revocabile da sola, 15 ottobre 2026),
   letta solo dal modulo `server/src/accounts/`. Senza il segreto il resto dell'app
   funziona e l'accettazione risponde `internal`. *Site URL* e *Redirect URLs* restano
-  sull'origine effettiva dell'app, `https://cosasimangia.qunidi.workers.dev`, anche
+  sull'origine effettiva dell'app, `https://cosasimangia.app` dal 17 ottobre 2026 (prima
+  `https://cosasimangia.qunidi.workers.dev`), anche
   quando il dominio di invio `cosasimangia.qunidi.it` sarà verificato (attività D): il
   dominio serve solo a spedire. Un trasferimento dell'app su quel dominio non è
   nell'ondata 3, richiederà una decisione distinta e l'aggiornamento di questi valori
@@ -828,8 +839,9 @@ configurato per workspace.
   raggiungibile in IPv4 sul piano gratuito), con il limite di connessioni di Hyperdrive
   esplicito e sotto la dimensione del pool di Supabase: con il valore di default (20)
   la prova dell'11 ottobre ha avuto richieste appese sotto carico, con 10 nessun errore.
-  Il Worker si chiama `cosasimangia` e per ora è servito da `workers.dev` dell'account
-  di POWA, all'indirizzo `https://cosasimangia.qunidi.workers.dev`; Hyperdrive
+  Il Worker si chiama `cosasimangia` ed è servito dal dominio personalizzato
+  `https://cosasimangia.app` (dal 17 ottobre 2026; prima
+  `https://cosasimangia.qunidi.workers.dev`, ora spento); Hyperdrive
   (`cosasimangia`, creato dall'utente nella dashboard con la password di `app_server`)
   ha `origin_connection_limit` esplicito, in produzione 10: il pool di Supabase (15)
   meno 5 per migrazioni, strumenti e dashboard.
@@ -2957,7 +2969,8 @@ Ondata 3 avviata il 13 ottobre 2026, con l'ordine A–E del piano generale: le a
 che non spediscono email procedono subito, quelle che dipendono dal DNS di `qunidi.it`
 sono raccolte nell'attività D, che può restare bloccata senza fermare le altre. Il
 trasferimento dell'app su `cosasimangia.qunidi.it` non fa parte dell'ondata 3 e
-richiederà una decisione distinta (sezione 7).
+richiederà una decisione distinta (sezione 7). Il 17 ottobre 2026 l'utente ha scelto
+invece `cosasimangia.app` per app ed email (sezione 1), sbloccando il DNS dell'attività D.
 
 **Stato al 16 ottobre 2026:**
 
@@ -3658,6 +3671,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 15 ottobre 2026, inviti all'app e famiglie nuove | Riportate le decisioni della spec `2026-10-13-inviti-app.md` (W9, attività A dell'ondata 3, PR #45, rilasciata il 15 ottobre). Pagina dell'invito con email, nome e password in un solo modulo, che vale come primo accesso; link `/invite/app#<token>` con il token nel frammento, solo l'impronta SHA-256 nel database, link visibile solo alla creazione e «Nuovo link» nell'elenco (differenza dal sesto giro); un solo messaggio per invito scaduto, revocato, usato o inesistente; «Crea la tua famiglia» senza famiglie, wizard `/family/new` e scheda di benvenuto con il solo «Sistema le impostazioni» e la nota della schermata Home su iOS in Safari. Tecniche: ruolo `public` del contratto con `mcp: false` e `rateLimit`, pipeline in `anon` senza token e senza transazione propria; codici `invitation_unavailable` e `rate_limited`, motivi `account_exists` e `already_accepted`, codice delle `refine` dal messaggio; tabella `app_invitations` con prenotazione e funzioni per token; account creato dal Worker con l'API di amministrazione di Supabase Auth e la chiave segreta dedicata, senza mai riscrivere un account esistente; limiti di frequenza con il binding `ratelimit`; `family.create` con `app.create_family`, senza generazione; iscrizioni spente anche nello stack locale; `Referrer-Policy: no-referrer` anche nella shell; fusi a scostamento trattati come non validi. Chiusa in sezione 15 l'API di Supabase per creare l'utente. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 4, 5, 7, 9, 10, 13, 14 e 15 aggiornate |
 | 15–16 ottobre 2026, amministrazione di utenti e ruoli | Riportate le decisioni della spec `2026-10-15-amministrazione-utenti.md` (W10, attività B dell'ondata 3, issue #38, PR #47 unita il 15 ottobre e rilasciata il 16 con la versione `75d29930-6125-41bd-acf4-786814218171`). Decisione dell'utente del 15 ottobre: la cancellazione degli utenti dall'amministrazione passa all'attività C, con la cancellazione dell'account. Prodotto: sezione Utenti di `/admin` sopra «Inviti all'app», ricerca per nome o email che ignora le maiuscole ma non gli accenti, al più 50 risultati con l'invito a restringere; dettaglio con «Questo è il tuo account», interruttori dei due ruoli e famiglie per solo nome e ruolo, senza il numero di agenti collegati del prototipo; conferma per nominare un amministratore e per rinunciare al proprio ruolo, ritorno al Profilo senza avviso a comparsa dopo la rinuncia (scostamenti dal sesto giro); «Apri l'utente» da `account_exists`; per un amministratore retrocesso altrove dati e comandi che spariscono alla prima risposta `forbidden`, poi «Non hai accesso a questa pagina» dopo la verifica del profilo o, se fallisce, l'errore con «Riprova» senza i dati precedenti; ruoli di chi ha già un account cambiati dall'app e via MCP, con la conferma affidata alle istruzioni dell'agente. Tecniche: funzioni `app.admin_users`, `app.admin_user`, `app.admin_user_families`, `app.set_user_role` (`security definer`, solo `app_admin`, letture di `auth.users` senza scritture); lucchetto consultivo `app_admin_roles` obbligatorio nella stessa transazione per ogni percorso che toglie `app_admin`, compresa la cancellazione di un account, con il ricontrollo sotto il lucchetto dell'autorizzazione di chi chiama per l'operazione richiesta (per `app.set_user_role` di nuovo `app_admin`; la cancellazione del proprio account resta consentita senza ruoli globali) e dell'ultimo amministratore, e assegnazioni senza lucchetto; transazioni degli utenti in `read committed`, verificato da un test; codici SQLSTATE `P0A07` e `P0A08`; area `users` del contratto e strumenti `users_list`, `users_get`, `users_setRole`; ruoli letti a ogni richiesta, validi subito anche per gli agenti collegati; bersaglio `users` nel registro delle mutazioni del web senza scrittura generica della risposta. Chiusa in sezione 15 la pagina dei ruoli globali. Esito: provata dall'utente sull'iPhone. Intestazione, Parte 1 e sezioni 1, 2, 7, 10, 13, 14 e 15 aggiornate |
 | 16 ottobre 2026, gestione della famiglia | Riportate le decisioni della spec `2026-10-16-gestione-famiglia.md` (W11, attività C dell'ondata 3, PR #52 unita e rilasciata il 16 ottobre con la versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`; collaudo e prove sull'iPhone riusciti il 16 ottobre 2026). Decisione dell'utente: un link d'invito alla famiglia crea l'account a chi non ce l'ha, al più 10 persone per link, con account e ingresso in un solo passaggio ed email non verificata fino all'attività D. Decisioni del coordinatore: tetto contato sulle persone registrate; link di chi esce, viene rimosso, retrocesso o cancellato revocati per tutti; registro degli ingressi; account rimasto senza famiglia se l'ingresso diventa impossibile; ripresa delle cancellazioni dal Cron Trigger orario. Inoltre: link visibile solo alla creazione; cancellazione dell'account e degli utenti in tre passi, con rimando MCP deciso nel database; ultimo amministratore della famiglia protetto dalla riga della famiglia e ordine unico dei lucchetti; famiglie sparite revocate sul dispositivo; scostamenti dal quarto e dal sesto giro in sezione 14. Chiuse in sezione 15 la regola degli inviti alla famiglia senza email e la voce Cancellazione. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 10, 13, 14, 15 e 17 aggiornate |
+| 17 ottobre 2026, dominio | Decisione dell'utente: app ed email su `cosasimangia.app`, comprato su Cloudflare, al posto di `cosasimangia.qunidi.it`; `workers.dev` spento senza reindirizzamenti, `www` rimandato al dominio, mittente `noreply@cosasimangia.app`. Il controllo del rilascio richiede un dominio personalizzato del Worker con `workers_dev` spento. Sezioni 1 e 10 e intestazione aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 

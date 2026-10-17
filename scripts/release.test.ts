@@ -15,12 +15,16 @@ const WRANGLER = `{
 	"account_id": "acc",
 	"vars": { "SUPABASE_URL": "https://${ref}.supabase.co", "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_abc" },
 	"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "abc123" }],
-	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }]
+	"r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "cosasimangia-backups", "jurisdiction": "eu" }],
+	"workers_dev": false,
+	"routes": [{ "pattern": "cosasimangia.app", "custom_domain": true }]
 }`;
 const WEB_ENV = `VITE_SUPABASE_URL=https://${ref}.supabase.co\nVITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_abc\n`;
 const env = { POSTGRES_DATABASE_URL: `postgresql://postgres.${ref}:pw-secret@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=/ca.crt` };
 
-const URL_OK = 'https://cosasimangia.powa.workers.dev';
+const URL_OK = 'https://cosasimangia.app';
+// Wrangler lists a custom domain as its bare host, without the scheme.
+const TARGET_OK = 'cosasimangia.app';
 const NEW_VERSION = '11111111-1111-4111-8111-111111111111';
 const OLD_VERSION = '00000000-0000-4000-8000-000000000000';
 const OUTPUT = '/tmp/release-test/wrangler-output.ndjson';
@@ -71,9 +75,9 @@ function fakeDeps(over: FakeOver = {}) {
 		}
 		if (key.startsWith('npx wrangler deploy')) {
 			deployed = true;
-			const entry = { type: 'deploy', worker_name: 'cosasimangia', version_id: NEW_VERSION, targets: [URL_OK], worker_name_overridden: false, ...over.deployOutput };
+			const entry = { type: 'deploy', worker_name: 'cosasimangia', version_id: NEW_VERSION, targets: [TARGET_OK, 'schedule: 0 * * * *'], worker_name_overridden: false, ...over.deployOutput };
 			files[OUTPUT] = `{"type":"wrangler-session"}\n${JSON.stringify(entry)}\n`;
-			return ok(`${URL_OK}\n`);
+			return ok(`${TARGET_OK}\n`);
 		}
 		return ok('');
 	};
@@ -262,7 +266,8 @@ describe('after the deploy: the new version is the one answering (finding 6)', (
 		for (const [over, check] of [
 			[{ deployOutput: { worker_name: 'cosasimangia-review-other' } }, 'deploy-target'],
 			[{ deployOutput: { worker_name_overridden: true } }, 'deploy-target'],
-			[{ deployOutput: { targets: ['https://cosasimangia.other.workers.dev'] } }, 'deploy-target'],
+			[{ deployOutput: { targets: ['other.app'] } }, 'deploy-target'],
+			[{ deployOutput: { targets: [URL_OK] } }, 'deploy-target'],
 			[{ statusAfter: OLD_VERSION }, 'new-version'],
 			[{ servingVersion: OLD_VERSION }, 'new-version'],
 		] as const) {
@@ -274,6 +279,14 @@ describe('after the deploy: the new version is the one answering (finding 6)', (
 	it('needs the production url in the configuration, with the Worker name', async () => {
 		expect(await checks({ files: { 'scripts/release.config.json': '{"productionUrl":null,"requiredSecrets":[]}' } })).toContain('production-url');
 		expect(await checks({ files: { 'scripts/release.config.json': '{"productionUrl":"https://other.powa.workers.dev","requiredSecrets":[]}' } })).toContain('production-url');
+	});
+	it('needs the production url to be a custom domain of the Worker, with workers.dev off', async () => {
+		const config = (url: string) => ({ 'scripts/release.config.json': `{"productionUrl":"${url}","requiredSecrets":[]}` });
+		expect(await checks({ files: config('https://cosasimangia.powa.workers.dev') })).toContain('production-url');
+		expect(await checks({ files: config('https://other.app') })).toContain('production-url');
+		expect(await checks({ files: config(URL_OK) })).not.toContain('production-url');
+		expect(await checks({ files: { 'server/wrangler.jsonc': WRANGLER.replace('"workers_dev": false', '"workers_dev": true') } })).toContain('production-url');
+		expect(await checks({ files: { 'server/wrangler.jsonc': WRANGLER.replace('"custom_domain": true', '"custom_domain": false') } })).toContain('production-url');
 	});
 });
 

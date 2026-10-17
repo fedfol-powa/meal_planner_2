@@ -91,7 +91,8 @@ derivano API web, OpenAPI e strumenti MCP (SDK ufficiale di MCP); dipendenze del
 al minimo: oRPC, zod, Postgres.js senza ORM, `jose`; Supabase sul piano gratuito (Postgres, Auth con
 server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
 un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
-app ed email sul dominio `cosasimangia.qunidi.it`, con il DNS di `qunidi.it` su Cloudflare;
+app ed email sul dominio `cosasimangia.app` (deciso il 17 ottobre 2026, al posto di
+`cosasimangia.qunidi.it`), con il DNS su Cloudflare; `workers.dev` spento;
 account Cloudflare di POWA (deciso l'11 ottobre 2026);
 modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
 l'8 ottobre 2026 per il costo. Workers sul piano a pagamento da 5 $ al mese (CPU
