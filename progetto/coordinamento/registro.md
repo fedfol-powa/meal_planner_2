@@ -15,8 +15,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   Management API in `.env.production.local`). **Rilascio bloccato dalla CI rossa su `main`**
   per test web instabili: W16 li stabilizza. PR #65 (specifica) unita (`84d5271`).
 - **Worker attivi:** W16, tab «W16 test», pane `w1:p4X`, branch `correzioni/test-instabili`,
-  worktree `.worktrees/test-instabili`, brief `brief/w16-test-instabili.md`. W15 chiuso.
-- **Revisori attivi:** nessuno.
+  worktree `.worktrees/test-instabili`, brief `brief/w16-test-instabili.md`; **PR #66 aperta**
+  (+140 −10, 5 file), revisione in corso. W15 chiuso.
+- **Revisori attivi:** tab «R W16 PR66» (pane `w1:p4Y`), rapporto `revisioni/w16-pr66.md`.
 - **Domande in sospeso:** token della Management API di Supabase (utente).
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
   non consuma l'utilizzo settimanale di Claude (utente, 17/10).
