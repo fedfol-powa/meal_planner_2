@@ -55,12 +55,17 @@ export function ForgotPage() {
     // Busy until the answer is handled (spec W8).
     void trackBusy(
       (async () => {
-        const result = await backend.requestPasswordEmail(address);
-        sending.current = false;
-        setBusy(false);
-        if (!result.ok) return setFailure(result.reason);
-        setSentTo(address);
-        setSentAt(Date.now());
+        try {
+          const result = await backend.requestPasswordEmail(address);
+          if (!result.ok) return setFailure(result.reason);
+          setSentTo(address);
+          setSentAt(Date.now());
+        } catch {
+          setFailure('unknown');
+        } finally {
+          sending.current = false;
+          setBusy(false);
+        }
       })()
     );
   }

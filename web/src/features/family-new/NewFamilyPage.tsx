@@ -1,4 +1,4 @@
-import { getRouteApi, Link, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { errorKey } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
@@ -10,7 +10,6 @@ import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
 import styles from './NewFamilyPage.module.css';
 
-const route = getRouteApi('/_app/family/new');
 
 type Units = 'metric' | 'uk_imperial';
 
@@ -31,7 +30,6 @@ export function NewFamilyPage() {
   const online = useOnline();
   const profile = useProfile();
   const navigate = useNavigate();
-  const { granted } = route.useSearch();
   // Made at opening: a double tap or a repeat never creates two families.
   const [id] = useState(() => crypto.randomUUID());
   const [name, setName] = useState('');
@@ -61,7 +59,6 @@ export function NewFamilyPage() {
     <section className="secondary-view app-view">
       <div className="page-column">
         <PageHeader back={back} title={t('onboarding.title')} />
-        {granted && <p className={styles.granted} role="status">{t('invite.rolesGranted', { roles: granted.map((role) => t(`role.${role}`)).join(', ') })}</p>}
         <form onSubmit={submit}>
           <label className="field">
             {t('onboarding.name')}

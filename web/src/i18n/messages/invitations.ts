@@ -24,7 +24,7 @@ export const it = {
   'invite.mail.title': 'Controlla la posta',
   'invite.mail.sent': 'Ti abbiamo mandato un’email a {email}: apri il link per scegliere la password. Poi entrerai con email e password.',
   'invite.mail.valid': 'Il link vale 24 ore. Controlla anche la posta indesiderata.',
-  'invite.mail.rolesAfter': 'Quando entri potrai anche gestire il ricettario',
+  'invite.mail.rolesAfter': 'Quando entri potrai anche gestire il ricettario.',
   'invite.mail.resend': 'Rimanda l’email',
   'invite.mail.restart': 'Email sbagliata? Ricomincia',
   'invite.mail.gone': 'Non possiamo mandare l’email per questo account. Chiedi un link nuovo a chi ti ha invitato.',
@@ -33,7 +33,6 @@ export const it = {
   'invite.mail.notNeeded': 'Il tuo account è pronto: entra con email e password',
   'invite.mail.noResend': 'Non possiamo rimandare l’email da qui: usa «Password dimenticata?» dalla pagina di accesso',
   'invite.mail.notSent': 'Hai già usato questo link con questa email. Se non hai ancora scelto la password, rimanda l’email; altrimenti entra.',
-  'invite.rolesGranted': 'Ora sei anche {roles}',
   'role.recipe_curator': 'curatore del ricettario',
   'role.app_admin': 'amministratore dell’app'
 };
@@ -72,7 +71,6 @@ export const en = {
   'invite.mail.notNeeded': 'Your account is ready: sign in with your email and password',
   'invite.mail.noResend': 'We cannot send the email again from here: use “Forgotten your password?” on the sign-in page',
   'invite.mail.notSent': 'You have already used this link with this email. If you have not chosen your password yet, send the email again; otherwise sign in.',
-  'invite.rolesGranted': 'You are now also {roles}',
   'role.recipe_curator': 'recipe curator',
   'role.app_admin': 'app administrator'
 } satisfies Record<keyof typeof it, string>;

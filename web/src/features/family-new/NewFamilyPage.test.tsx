@@ -44,9 +44,4 @@ describe('/family/new', () => {
     setOnline(false);
     await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(true));
   });
-
-  it('tells about the roles the invitation gave', async () => {
-    renderApp('/family/new?granted=recipe_curator', { api: api() });
-    expect(await screen.findByText('Ora sei anche curatore del ricettario')).toBeTruthy();
-  });
 });

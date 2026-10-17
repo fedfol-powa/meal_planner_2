@@ -171,6 +171,7 @@ describe('/password', () => {
     await screen.findByRole('heading', { name: 'Scegli la password' });
     choose();
     expect(await screen.findByText('Password salvata.')).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toBe('Password salvata.');
     expect(screen.getByText('Ora entra con la tua email e la nuova password.')).toBeTruthy();
     expect(screen.queryByText(/schermata Home/)).toBeNull();
     blur();
@@ -194,6 +195,8 @@ describe('/password', () => {
     server.verify = json(403, { code: 'otp_expired' });
     const { history } = renderApp(PATH, { backend: createStubBackend(null) });
     expect(await screen.findByRole('heading', { name: INVALID })).toBeTruthy();
+    // An outcome that arrives after an async step is announced to screen readers.
+    expect(screen.getByRole('alert').textContent).toBe(INVALID);
     expect(screen.getByRole('link', { name: 'Chiedi un link nuovo' }).getAttribute('href')).toBe('/password/forgot');
     expect(registeredBusy()).toBe(false);
     fireEvent.click(screen.getByRole('link', { name: 'Chiedi un link nuovo' }));
@@ -205,6 +208,7 @@ describe('/password', () => {
     server.verify = offline;
     renderApp(PATH, { backend: createStubBackend(null) });
     expect(await screen.findByRole('heading', { level: 1, name: VERIFY_FAILED })).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toBe(VERIFY_FAILED);
     expect(screen.getByRole('link', { name: 'Chiedi un link nuovo' }).getAttribute('href')).toBe('/password/forgot');
     expect(screen.queryByText(INVALID)).toBeNull();
     expect(registeredBusy()).toBe(false);

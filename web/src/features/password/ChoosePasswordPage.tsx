@@ -182,7 +182,7 @@ function Invalid() {
   const t = useT();
   return (
     <>
-      <h1 className="entry-title">{t('password.choose.invalid')}</h1>
+      <div role="alert"><h1 className="entry-title">{t('password.choose.invalid')}</h1></div>
       <AskNew />
     </>
   );
@@ -193,7 +193,7 @@ function Unverified() {
   const t = useT();
   return (
     <>
-      <h1 className="entry-title">{t('password.choose.verifyFailed')}</h1>
+      <div role="alert"><h1 className="entry-title">{t('password.choose.verifyFailed')}</h1></div>
       <AskNew />
     </>
   );
@@ -203,7 +203,7 @@ function Done({ email }: { email: string }) {
   const t = useT();
   return (
     <>
-      <h1 className="entry-title">{t('password.choose.done')}</h1>
+      <div role="alert"><h1 className="entry-title">{t('password.choose.done')}</h1></div>
       <p>{t('password.choose.doneNext')}</p>
       {needsHomeScreenHint() && <p>{t('password.choose.homeScreen')}</p>}
       <div className={styles.actions}>

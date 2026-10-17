@@ -65,7 +65,7 @@ describe('/invite/app', () => {
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
-    expect(await screen.findByText('Quando entri potrai anche gestire il ricettario')).toBeTruthy();
+    expect(await screen.findByText('Quando entri potrai anche gestire il ricettario.')).toBeTruthy();
   });
 
   it('«Rimanda l’email» is enabled after 60 seconds and resends with the email of the answer', async () => {
