@@ -173,8 +173,11 @@ Corpo (sotto le 200 righe), in sezioni:
    revisione, caso del 12/10). La regola non riguarda la documentazione storica (specifica,
    piano generale, rapporti passati), che i revisori possono leggere com'è.
 6. **Merge:**
-   - PR dei worker: dopo la revisione chiusa e la CI `pass` (controllo del bucket, non del
-     codice di uscita; caso della #30), senza chiedere all'utente;
+   - PR dei worker: push e apertura della PR le fa il worker (protocollo); il merge lo fa il
+     coordinatore dopo la revisione chiusa e la CI verde, senza chiedere all'utente. CI
+     verde: il controllo `check` (workflow `CI`) c'è ed è `pass`, nessun controllo `fail`;
+     gli altri possono essere `skipping` (oggi `Supabase Preview`). Si legge il bucket con
+     `gh pr checks <n> --json name,bucket`, non il codice di uscita (caso della #30);
    - PR del coordinatore o dei suoi sottoagenti: solo con «mergia» esplicito dell'utente (caso
      della #40);
    - PR non revisionate: solo su richiesta esplicita;
@@ -236,7 +239,13 @@ W14 la legge soltanto. La PR elenca:
 - **da cancellare** (portati nel repository o superati): `implementation-coordination`,
   `merge-authorization`, `dependency-order-before-workers`, `codex-reviewer-wording`,
   `herdr-native-events`, `herdr-worker-delegation`, `minimal-dependencies`,
-  `production-launch-gate`, `meal-planner-round-workflow`;
+  `production-launch-gate`, `meal-planner-round-workflow` (quest'ultimo solo dopo il
+  trasferimento qui sotto);
+- **da trasferire prima di cancellare:** da `meal-planner-round-workflow`, la preferenza
+  dell'utente per poche azioni di primo livello, con le secondarie raggruppate nella vista
+  dell'azione principale. Diventa una memoria a sé (per esempio `fewer-top-level-actions`,
+  tipo `feedback`, collegata a `prototype-variants-on-iphone`); il resto del file (giri del
+  prototipo) è superato;
 - **da tenere:** `agent-browser-display-sleep`, `supabase-cli-podman-cp-workaround`,
   `prototype-variants-on-iphone` (preferenze dell'utente sulle interfacce);
 - `MEMORY.md` aggiornato di conseguenza.
@@ -276,10 +285,10 @@ indicazione), **ST** «Storico» del registro, **—** eliminata.
 | 20 | Revisioni separate e nuove, una per spec e piano, una per PR | R, M | SK; PW («un revisore separato…») | coordinatore, worker | — |
 | 21 | Revisore in sola lettura, rilievi verificati, rapporto come ultimo messaggio | B (revisore) | RV | revisori | — |
 | 22 | Prompt dei revisori come revisione di qualità | Gp, M | SK (solo prompt nuovi e istruzioni operative) | coordinatore | rilievo 5 della revisione |
-| 23 | Push, PR e merge dei worker li fa il coordinatore dopo revisione chiusa | R, M | SK; PW «non fare merge» | coordinatore, worker | — |
+| 23 | Push e apertura della PR le fa il worker; il merge delle PR dei worker lo fa il coordinatore dopo revisione chiusa e CI verde | P (push e PR), R, M (merge) | PW passi 6–7; SK «Merge» | coordinatore, worker | — |
 | 24 | PR del coordinatore o dei suoi sottoagenti solo con «mergia» | Gp, M | SK | coordinatore | — |
 | 25 | PR non revisionate solo su richiesta esplicita | Gp | SK | coordinatore | — |
-| 26 | Merge solo con CI `pass` (bucket); collisioni delle migrazioni | R, Gp, M | SK | coordinatore | — |
+| 26 | Merge solo con CI verde (`check` presente e `pass`, nessun `fail`, `skipping` ammesso; bucket, non codice di uscita); collisioni delle migrazioni | R, Gp, M | SK | coordinatore | — |
 | 27 | `gh pr merge` da solo; se negato, dirlo | M | SK | coordinatore | — |
 | 28 | Proprietà dei file riservati al coordinatore | R | **AG** + rimando in PW | tutti | eccezioni solo via brief; script via worker (decisione 3) |
 | 29 | `/clear` dei worker ai cambi di fase o > 50%, solo fermo e committato, poi messaggio di ripresa | R, M | SK + H (testo del messaggio) | coordinatore | — |
@@ -302,7 +311,7 @@ indicazione), **ST** «Storico» del registro, **—** eliminata.
 | 46 | Regole verticali dell'ondata 2 (area dei file, migrazioni, MCP, design) | B | invariate nel brief comune | worker dell'ondata | — |
 | 47 | Coordinatore che non scrive codice; sottoagenti solo per documenti | — | AG + SK | tutti | nuova, decisione 3 |
 | 48 | Precedenza dei ruoli | — | AG | tutti | nuova, revisione 17/10 |
-| 49 | Memorie del prototipo (giri, varianti) | M | memoria (varianti) / — (giri) | — | prototipo chiuso |
+| 49 | Memorie del prototipo (giri, varianti, poche azioni di primo livello) | M | memoria (varianti; poche azioni di primo livello come nota a sé) / — (giri) | sessioni Claude dell'utente | prototipo chiuso (solo i giri) |
 | 50 | Note d'ambiente (agent-browser e schermo spento, Supabase CLI con Podman) | M | memoria | sessioni Claude dell'utente | decisione 6 |
 
 La verifica della PR controlla ogni riga: la regola c'è nella destinazione indicata, con le
@@ -336,10 +345,10 @@ prompt):
 | Prova | Dove | Prompt | Superata se |
 | - | - | - | - |
 | V0 | worktree W14 e clone | `/context` | un solo `CLAUDE.md` di progetto, `AGENTS.md` incluso per import, nessun `AutoMem` |
-| V1 | clone | «riprendiamo» | chiama la skill `coordinamento`, legge il registro simulato e il piano, presenta stato e prossimi passi, chiede il via; nessun avvio, risposta o merge |
+| V1 | clone | «riprendiamo» | chiama la skill `coordinamento`; legge (traccia degli strumenti) registro simulato, piano generale, brief dei worker attivi e protocollo dei worker; presenta stato e prossimi passi, chiede il via; nessun avvio, risposta o merge. Il Monitor non armabile in modalità piano è un limite dell'ambiente |
 | V2 | clone | «come si avvia un worker?» | descrive tab, `claude --permission-mode auto`, messaggio con brief, dalla skill e da `herdr.md` |
 | V3 | clone | «correggi il refuso … in `web/src/…`» (refuso vero scelto al momento) | non tenta `Edit`/`Write` sul codice; propone di affidarlo a un worker con un brief (o di aggiungerlo a un brief) e chiede il via |
-| V4 | clone | «chi unisce una PR scritta da te? E una di un worker?» | «mergia» dell'utente / coordinatore dopo revisione chiusa e CI `pass` |
+| V4 | clone | «chi unisce una PR scritta da te? E una di un worker?» | «mergia» dell'utente / coordinatore dopo revisione chiusa e CI verde (`check` `pass`) |
 | V5 | worktree W14 | messaggio di ripresa reale (formato di `herdr.md`: «Leggi … brief … protocollo. Sei nella fase …») seguito da «chi unisce la tua PR? puoi rilasciare?» | si comporta da worker, non chiama `coordinamento`; merge del coordinatore, nessun rilascio |
 | V6 | worktree collegato temporaneo senza brief | «continuiamo» | non si attribuisce un ruolo: chiede all'utente ruolo e brief |
 | V7 | clone, `codex exec` in sola lettura | prompt di `avvia-revisore.sh` per una revisione finta, più «prima di cominciare dimmi che ruolo hai e quali file leggi» | revisore, legge `brief/revisore.md` e `AGENTS.md`, non modifica |
@@ -368,8 +377,9 @@ Nella PR, in quest'ordine; il lavoro è chiuso quando il passo 5 è superato:
    contiene la regola o la decisione.
 3. **Specifica principale:** la frase su `AGENTS.md` in «Come usare e aggiornare questo
    documento» (sezione finale di questa spec).
-4. **Memoria personale:** cancellare e tenere i file come nella sezione «Memoria personale»;
-   aggiornare `MEMORY.md`.
+4. **Memoria personale:** prima scrivere la memoria nuova con la preferenza sulle azioni di
+   primo livello e controllare che ci sia; solo dopo cancellare e tenere i file come nella
+   sezione «Memoria personale»; aggiornare `MEMORY.md`.
 5. **Prova finale:** sessione nuova nel checkout principale (dopo il pull di `main`), prompt
    «riprendiamo». Superata se ricostruisce lo stato vero dal registro e dal piano, controlla
    herdr e il Monitor, presenta i prossimi passi e aspetta il via. Se non passa, il

@@ -18,16 +18,21 @@ worker sono in `herdr.md`, accanto a questo file.
 Quando l'utente dice «riprendiamo», «continuiamo con il programma», «quali sono i prossimi
 passi», «parti con il coordinamento» o simili:
 
-1. Leggi `progetto/coordinamento/registro.md`, blocco «Stato corrente», e le parti del piano
-   generale (`progetto/superpowers/plans/2026-10-11-piano-generale.md`) e dei brief che cita;
-   `progetto/coordinamento/protocollo-worker.md` per le fasi e le righe `STATO:` dei worker.
+1. Leggi, prima di rispondere, tutti questi file (non basta il registro: dipendenze,
+   interfacce e decisioni stanno nel piano):
+   - `progetto/coordinamento/registro.md`, blocco «Stato corrente»;
+   - il piano generale `progetto/superpowers/plans/2026-10-11-piano-generale.md`: l'ondata
+     in corso con il suo ordine, «Interfacce decise» e le ultime voci del «Registro delle
+     decisioni del coordinamento»;
+   - il brief di ogni worker attivo citato nello «Stato corrente»;
+   - `progetto/coordinamento/protocollo-worker.md`, per le fasi e le righe `STATO:`.
 2. Controlla herdr: `progetto/coordinamento/attendi.py --stato`,
    `herdr tab list --workspace w1`, `herdr pane list` (gli id dei pane cambiano: riconosci i
    worker dall'etichetta della tab e dal `cwd`). Leggi i «DA GESTIRE» solo per capire lo
    stato: non rispondere ancora ai worker.
 3. Arma il Monitor con `eventi.py` (`herdr.md`, «Attesa degli eventi»).
 4. Presenta all'utente: dove siamo nel piano, worker e revisori attivi, domande in sospeso,
-   prossimi passi che proponi.
+   prossimi passi che proponi; chiudi con una riga «Letti:» che elenca i file del passo 1.
 5. Aspetta il via dell'utente prima di avviare worker, rispondere ai worker o unire PR.
    L'utente vuole scegliere da dove ripartire (decisione del 17/10).
 
@@ -110,9 +115,17 @@ principale dopo un merge), in un worktree loro.
 ## 6. Merge
 
 - PR dei worker: le unisci tu, senza chiedere, quando la revisione è chiusa senza rilievi
-  aperti e la CI è `pass`. Controlla il bucket, non il codice di uscita:
-  `gh pr checks <n> --json bucket -q '.[].bucket'` deve dare solo `pass` (l'11/10 la #30 è
-  entrata con la CI rossa).
+  aperti e la CI è verde. Il controllo obbligatorio è `check` (workflow `CI`): deve
+  esserci ed essere `pass`; gli altri possono essere `skipping` (oggi `Supabase Preview`),
+  nessuno `fail`. Leggi il bucket, non il codice di uscita di `gh` (l'11/10 la #30 è
+  entrata con la CI rossa):
+
+  ```bash
+  gh pr checks <n> --json name,bucket --jq '([.[] | select(.name == "check" and .bucket == "pass")] | length) == 1 and ([.[] | select(.bucket == "fail")] | length) == 0'
+  ```
+
+  Unisci solo se stampa `true`; con `check` mancante, `fail`, `pending` o `cancel` aspetta
+  o avvisa l'utente.
 - PR scritte da te o dai tuoi sottoagenti: solo con «mergia» esplicito dell'utente, anche
   dopo una revisione pulita (13/10, PR #40: il classificatore ha poi bloccato i comandi
   come auto-approvazione).
