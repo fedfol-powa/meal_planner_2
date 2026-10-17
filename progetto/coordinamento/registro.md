@@ -5,31 +5,28 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 17 ottobre 2026, pomeriggio)
 
-- **Attività in corso:** PR di documentazione del coordinatore (sottoagente in un worktree
-  suo, branch `docs/specifica-somiglianza-istruzioni`): frase su `AGENTS.md` nella
-  specifica principale, decisioni di somiglianza e zoom (sezione 3 e `design/design.md`),
-  skill `coordinamento` sezione 7 (rilascio dal coordinatore dopo il «vai»), `*.prompt`
-  dei revisori fuori da Git. Serve il «mergia» dell'utente. In parallelo W15, parte
-  software di D (brief `brief/w15-email.md`, approvato dall'utente il 17/10), fase:
-  brainstorming.
+- **Attività in corso:** W15, parte software di D (brief `brief/w15-email.md`). Brainstorming
+  chiuso (sette domande di prodotto decise dall'utente, design in tre parti approvato dal
+  coordinatore, rilievi in `messaggi/w15-01-design-1.md`; decisioni nel registro del piano
+  generale); fase: scrittura di spec e piano, poi revisione Codex.
 - **Worker attivi:** W15, tab «W15 email», pane `w1:p4Q`, branch `ondata3/email`,
-  worktree `.worktrees/email`; avviato il 17/10 pomeriggio. W14 chiuso (prova finale con «riprendiamo» superata il
-  17/10; tab, worktree e branch rimossi).
+  worktree `.worktrees/email`.
 - **Revisori attivi:** nessuno.
 - **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Utilizzo settimanale all'87%
   il 17/10 mattina (azzeramento 18/10 alle 15): revisioni Codex solo dove servono.
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** PR di documentazione → «mergia»; brainstorming di W15 (domande di
-  prodotto all'utente). Poi: ricettario esteso
-  dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza foto),
-  #62 (worker curatore del ricettario, da rivedere con l'utente più avanti), pulizia dei
-  worktree di PR già unite, R26 rimandata.
+- **Prossimo passo:** `STATO: SPEC_E_PIANO_PRONTI` di W15 → revisione Codex di spec e
+  piano. Poi: ricettario esteso dall'utente, E (parti scelte dall'utente), issue #49, #55,
+  #39 (4 ricette senza foto), #62 (worker curatore del ricettario, da rivedere con
+  l'utente), pulizia dei worktree di PR già unite, R26 rimandata.
 
 ## Storico
 
 ### Worker e attività (fino al 17/10)
+
+**17/10 pomeriggio:** W14 chiuso dopo la prova finale con «riprendiamo» (tab, worktree e branch rimossi). PR #63 di documentazione unita (`4770182`, «mergia» dell'utente, senza revisione Codex per sua scelta): frase su `AGENTS.md` nella specifica principale, somiglianza e zoom nella specifica e in `design/design.md`, `*.prompt` dei revisori fuori da Git, regola del rilascio allentata (il coordinatore lancia `--apply` dopo il «vai»; il commit l'ha fatto l'utente con `!`, perché il classificatore ha bloccato la modifica al coordinatore e al sottoagente). Issue #62 aperta (worker curatore del ricettario). W15 avviato sulla parte software di D.
 
 
 **17/10, W13 chiuso: PR #60 unita** (`a6adf55`; #48 caratteristica `primary_ingredient_line` della somiglianza, #51 campi a 16px con test statico conservativo). Revisione Codex `revisioni/w13-pr60.md` DA CORREGGERE: test dei campi reso conservativo (verificato dal coordinatore con i due casi del revisore); carne rossa oltre il massimo in 3 settimane su 20 invece di 1 nel report: **accettata dall'utente** (17/10), la causa è il ricettario troppo piccolo, l'utente lo estenderà a breve con ricette più varie. **Da fare:** rilascio (anteprima del coordinatore, «vai» dell'utente, lancio con `!`) prima di mercoledì 21/10 alle 20:00; prova sull'iPhone (campo di ricerca in «Cambia pasto», Safari e PWA); decisioni del piano `plans/2026-10-17-somiglianza-e-zoom.md` nella specifica principale (sezione 3) e in `design/design.md`; chiudere #48 e #51 dopo la prova; rimuovere tab e worktree di W13. **W14** (tab «W14 istruzioni», pane `w1:p4K`, worktree `.worktrees/istruzioni`): brainstorming fatto dall'utente nel pane, spec e piano rivisti (`revisioni/w14-spec-piano.md` DA CORREGGERE, rilievi in `messaggi/w14-01-revisione-spec.md`), corretti. Utilizzo settimanale all'87% il 17/10 mattina (azzeramento 18/10 alle 15): revisioni Codex solo dove servono.
