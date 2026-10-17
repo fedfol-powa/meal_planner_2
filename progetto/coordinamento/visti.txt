@@ -249,3 +249,18 @@ w1:p4E	REVISORE_FINITO
 w1:p4A	STATO: PR_CORRETTA #87f2e8fc
 w1:p4G	REVISORE_FINITO
 w1:p4A	STATO: PR_CORRETTA #a584bb35
+w1:p4K	STATO: DOMANDA brainstorming 1: ultima regola che hai dovuto ripetere #48aadc53
+w1:p4J	STATO: PR_APERTA https://github.com/fedfol-powa/meal_planner_2/pull/60 #90bf7f89
+w1:p4K	STATO: DOMANDA brainstorming 2: come apri una sessione da coordinatore e cosa deve fare da sola #4912e70a
+w1:p4K	STATO: DOMANDA brainstorming 3: alla ripresa il coordinatore riferisce e aspetta, o riparte subito? #54eb50fd
+w1:p4K	STATO: DOMANDA brainstorming 5: errori o correzioni ricorrenti dei worker #ef9ae6d8
+w1:p4K	STATO: DOMANDA brainstorming 6: togliere la storia da AGENTS.md #74e006b4
+w1:p4K	STATO: DOMANDA brainstorming 7: cosa fare della memoria personale del coordinatore #2a74f2dd
+w1:p4M	REVISORE_FINITO
+w1:p4K	STATO: DOMANDA brainstorming 8: conferma del quadro complessivo prima della spec #ffe16ca7
+w1:p4K	STATO: DOMANDA proprietà di registro.md e brief/revisore.md #fc8d781b
+w1:p4K	STATO: SPEC_E_PIANO_PRONTI #aceea6b5
+w1:p4J	STATO: DOMANDA quale variante per la carne rossa oltre il massimo: riparazione con intervalli e regole #0c0f4d4b
+w1:p4N	REVISORE_FINITO
+w1:p4J	STATO: DOMANDA quale variante per la carne rossa oltre il massimo: riparazione con intervalli e regole #0c0f4d4b
+w1:p4J	STATO: PR_CORRETTA #372adb45
