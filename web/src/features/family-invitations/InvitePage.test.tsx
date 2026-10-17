@@ -199,7 +199,7 @@ describe('/invite (family)', () => {
     await waitFor(() => expect(resendButton().disabled).toBe(true));
   });
 
-  it('a resend answered too_soon keeps the wait; failed lets the person repeat at once', async () => {
+  it('a resend answered too_soon or failed keeps the wait', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const resend = vi.fn().mockResolvedValueOnce({ passwordEmail: 'too_soon' }).mockResolvedValueOnce({ passwordEmail: 'failed' });
     setFamilyInvitationClient(publicClient({ resendPasswordEmail: resend }));
@@ -214,7 +214,9 @@ describe('/invite (family)', () => {
     await minute();
     fireEvent.click(resendButton());
     expect(await screen.findByText('Non siamo riusciti a mandare l’email.')).toBeTruthy();
-    await waitFor(() => expect(resendButton().disabled).toBe(false));
+    expect(resendButton().disabled).toBe(true);
+    await minute();
+    expect(resendButton().disabled).toBe(false);
   });
 
   it('a resend not needed or unavailable sends to the sign-in page with the email', async () => {
@@ -242,7 +244,7 @@ describe('/invite (family)', () => {
     await screen.findByRole('heading', { name: 'Controlla la posta' });
     await minute();
     fireEvent.click(resendButton());
-    expect(await screen.findByText('Non possiamo rimandare l’email da qui: usa “Password dimenticata?” dalla pagina di accesso')).toBeTruthy();
+    expect(await screen.findByText('Non possiamo rimandare l’email da qui: usa «Password dimenticata?» dalla pagina di accesso')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
   });
 
@@ -283,6 +285,7 @@ describe('/invite (family)', () => {
     expect(await screen.findByText('Non possiamo mandare l’email per questo account. Chiedi un link nuovo a chi ti ha invitato.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Email sbagliata? Ricomincia' })).toBeNull();
+    expect(screen.queryByRole('heading')).toBeNull();
   });
 
   it('the sign-in link keeps the token in the fragment, never in the query, and comes back to the invitation', async () => {
@@ -332,6 +335,7 @@ describe('/invite (family)', () => {
     fill();
     expect(await screen.findByText('Questo invito non vale più, ma il tuo account è pronto')).toBeTruthy();
     expect(screen.getByText(/Ti abbiamo mandato un’email a giulia@x.it/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Email sbagliata? Ricomincia' })).toBeNull();
     expect(signIn).not.toHaveBeenCalled();
   });
 

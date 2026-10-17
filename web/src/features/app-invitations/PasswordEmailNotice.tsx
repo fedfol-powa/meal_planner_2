@@ -14,8 +14,8 @@ type Status = Exclude<AcceptOutcome, 'unavailable'> | 'noResend' | 'gone';
 
 /** Seconds between two sends: the server's limit per person (spec W15), repeated here. */
 const WAIT_MS = 60_000;
-/** After these answers an email just left (or left a moment ago): the next one waits. */
-const waits = (status: Status) => status === 'sent' || status === 'too_soon';
+/** After these answers a send was recorded (also a failed one, spec W15 §2): the next one waits. */
+const waits = (status: Status) => status === 'sent' || status === 'too_soon' || status === 'failed';
 
 const TEXTS: Partial<Record<Status, MessageKey>> = {
   failed: 'invite.mail.failed',
@@ -95,19 +95,19 @@ export function PasswordEmailNotice({ email, outcome, roles = [], note, resend, 
     <button type="button" className="text-button wide" onClick={onRestart}>{t('invite.mail.restart')}</button>
   );
 
-  const title = note ? null : <h1 className="entry-title">{t(status === 'sent' ? 'invite.mail.title' : 'invite.ready')}</h1>;
+  const title = note || status === 'gone' ? null : <h1 className="entry-title">{t(status === 'sent' ? 'invite.mail.title' : 'invite.ready')}</h1>;
   return (
     <>
       {title}
       {note}
       {status === 'sent' ? (
         <>
-          <p>{t('invite.mail.sent', { email })}</p>
+          <p role="status">{t('invite.mail.sent', { email })}</p>
           <p>{t('invite.mail.valid')}</p>
-          {roles.length > 0 && <p>{t('invite.mail.rolesAfter', { roles: roles.map((role) => t(`role.${role}`)).join(', ') })}</p>}
+          {roles.includes('recipe_curator') && <p>{t('invite.mail.rolesAfter')}</p>}
         </>
       ) : (
-        <p>{t(TEXTS[status]!)}</p>
+        <p role="status">{t(TEXTS[status]!)}</p>
       )}
       {error && <p className="form-error" role="alert">{t(error)}</p>}
       {(status === 'sent' || status === 'failed' || status === 'too_soon' || status === 'not_sent') && resendButton}

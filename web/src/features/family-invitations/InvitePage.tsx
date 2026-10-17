@@ -58,8 +58,8 @@ export function InvitePage() {
   const [busy, setBusy] = useState(false);
   const ids = useId();
 
-  // Generation of (page, link, identity): an answer of an older one changes nothing. The ref, not the state, keeps one submission even with two taps
-  // before the next render.
+  // Generation of (page, link, identity): an older answer changes nothing. A ref keeps one
+  // submission at a time.
   const generation = useRef(0);
   const sending = useRef(false);
   const signedOut = useRef(state.status === 'signedOut');
@@ -212,7 +212,7 @@ export function InvitePage() {
             </>
           )}
           resend={() => familyInvitationClient.resendPasswordEmail({ token, email: phase.email, locale })}
-          onRestart={() => restart(phase.link)}
+          onRestart={phase.joined ? () => restart(phase.link) : undefined}
         />
       )}
       {phase.kind === 'signedIn' && state.status === 'signedIn' && (

@@ -65,7 +65,7 @@ describe('/invite/app', () => {
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
-    expect(await screen.findByText('Quando entri sarai anche curatore del ricettario')).toBeTruthy();
+    expect(await screen.findByText('Quando entri potrai anche gestire il ricettario')).toBeTruthy();
   });
 
   it('«Rimanda l’email» is enabled after 60 seconds and resends with the email of the answer', async () => {
@@ -103,7 +103,7 @@ describe('/invite/app', () => {
     expect(resendButton().disabled).toBe(false);
   });
 
-  it('a resend that fails says so and can be repeated at once', async () => {
+  it('a resend that fails says so and waits 60 seconds before the next one', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const resend = vi.fn().mockResolvedValueOnce({ passwordEmail: 'failed' }).mockResolvedValue({ passwordEmail: 'sent' });
     setInvitationClient(valid({ resendPasswordEmail: resend }));
@@ -113,8 +113,10 @@ describe('/invite/app', () => {
     await screen.findByRole('heading', { name: 'Controlla la posta' });
     await minute();
     fireEvent.click(resendButton());
-    expect(await screen.findByText('Non siamo riusciti a mandare l’email.')).toBeTruthy();
-    await waitFor(() => expect(resendButton().disabled).toBe(false));
+    const outcome = await screen.findByText('Non siamo riusciti a mandare l’email.');
+    expect(outcome.getAttribute('role')).toBe('status');
+    expect(resendButton().disabled).toBe(true);
+    await minute();
     fireEvent.click(resendButton());
     await waitFor(() => expect(resend).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/Ti abbiamo mandato un’email a giulia@x.it/)).toBeTruthy();
@@ -145,7 +147,7 @@ describe('/invite/app', () => {
     await screen.findByRole('heading', { name: 'Controlla la posta' });
     await minute();
     fireEvent.click(resendButton());
-    expect(await screen.findByText('Non possiamo rimandare l’email da qui: usa “Password dimenticata?” dalla pagina di accesso')).toBeTruthy();
+    expect(await screen.findByText('Non possiamo rimandare l’email da qui: usa «Password dimenticata?» dalla pagina di accesso')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
   });
@@ -175,13 +177,16 @@ describe('/invite/app', () => {
     expect(resendButton()).toBeTruthy();
   });
 
-  it('accept answered failed lets the person resend at once', async () => {
+  it('accept answered failed waits 60 seconds before «Rimanda l’email»', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const client = valid({ accept: vi.fn(async () => ({ email: 'giulia@x.it', passwordEmail: 'failed' })) });
     setInvitationClient(client);
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
     await screen.findByText('Non siamo riusciti a mandare l’email.');
+    expect(resendButton().disabled).toBe(true);
+    await minute();
     expect(resendButton().disabled).toBe(false);
     fireEvent.click(resendButton());
     await waitFor(() => expect(client.resendPasswordEmail).toHaveBeenCalled());
@@ -204,6 +209,7 @@ describe('/invite/app', () => {
     expect(await screen.findByText('Non possiamo mandare l’email per questo account. Chiedi un link nuovo a chi ti ha invitato.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
     expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('heading')).toBeNull();
   });
 
   it('one message for every unusable link', async () => {
@@ -345,6 +351,20 @@ describe('/invite/app', () => {
     deferred.answer();
     await new Promise((r) => setTimeout(r, 20));
     expect(history.location.pathname).toBe('/login');
+    expect(screen.queryByRole('heading', { name: 'Controlla la posta' })).toBeNull();
+  });
+
+  it('a late answer after someone signed in meanwhile shows nothing', async () => {
+    const deferred = deferredAccept();
+    setInvitationClient(valid({ accept: deferred.accept }));
+    const backend = createStubBackend(null);
+    renderApp(`/invite/app#${TOKEN}`, { backend });
+    await screen.findByLabelText('Email');
+    fill();
+    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
+    backend.emit('SIGNED_IN', { id: 'other', email: 'altro@x.it' } as never); // a sign-in from another tab
+    deferred.answer();
+    await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByRole('heading', { name: 'Controlla la posta' })).toBeNull();
   });
 
