@@ -4,7 +4,9 @@
 body { margin: 0; height: 100dvh; overflow: hidden; background: var(--canvas); color: var(--ink); font: 400 1rem/1.5 var(--text-font); font-synthesis: none; }
 a { color: inherit; }
 button, input, summary, a { -webkit-tap-highlight-color: transparent; }
-button, input { font: inherit; }
+button { font: inherit; }
+/* Fields keep their own 16px text, whatever their label: iOS zooms the page on smaller text (issue #51). */
+input, select, textarea { font: 400 1rem/1.5 var(--text-font); }
 a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
 ::selection { color: #fff; background: var(--green); }
 .shell { width: min(100%, 1200px); height: 100%; min-height: 0; margin-inline: auto; display: flex; flex-direction: column; }
