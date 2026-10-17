@@ -236,17 +236,24 @@ describe('language', () => {
       const week = useQuery(weekQuery(useQueryDeps(), 'f', '2026-10-05'));
       return <><p>week: {week.data?.startsOn ?? '-'}</p><button onClick={() => setLocale('en-GB')}>switch</button></>;
     }
-    // One client per language: the count of reads is shared by both.
-    let call = 0;
+    // One client per language: the Italian read waits, the English one answers at once.
+    let italianAsked = false;
     renderSession(<LanguageProbe />, {
       backend,
       locale: 'it-IT',
-      api: (id) => {
-        const base = api(async () => meOf(id))(id);
-        return { ...base, menu: { ...base.menu, getWeek: () => (call++ === 0 ? new Promise((resolve) => (releaseItalian = resolve)) : Promise.resolve({ unchanged: false as const, version: 'en', data: weekIn('english') })) } };
+      createApi: (user) => (locale) => {
+        const base = api(async () => meOf(user?.id ?? null))(user?.id ?? null);
+        const getWeek = () => {
+          if (locale === 'en-GB') return Promise.resolve({ unchanged: false as const, version: 'en', data: weekIn('english') });
+          italianAsked = true;
+          return new Promise<Read<WeekView>>((resolve) => (releaseItalian = resolve));
+        };
+        return { ...base, menu: { ...base.menu, getWeek } };
       }
     });
-    await screen.findByText('week: -');
+    // «week: -» is on screen before the query starts: switch only with the Italian read in flight.
+    await waitFor(() => expect(italianAsked).toBe(true));
+    expect(screen.getByText('week: -')).toBeTruthy();
     fireEvent.click(screen.getByText('switch'));
     await screen.findByText('week: english');
     await act(async () => releaseItalian({ unchanged: false, version: 'it', data: weekIn('italiano') }));
