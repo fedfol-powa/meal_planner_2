@@ -3,7 +3,7 @@
 Stato operativo dei worker. Aggiornato dal coordinatore a ogni cambio di fase.
 Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e `cwd`).
 
-## Stato corrente (aggiornato il 17 ottobre 2026, pomeriggio)
+## Stato corrente (aggiornato il 17 ottobre 2026, sera)
 
 - **Attività in corso:** nessuna. **Attività D chiusa** (17/10): rilasciata alle 17:54 UTC,
   versione `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`), invito di prova,
@@ -13,12 +13,23 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Worker attivi:** nessuno. W16 chiuso dopo il merge della #66 (revisione APPROVABILE,
   `revisioni/w16-pr66.md`); tab, worktree e branch rimossi.
 - **Revisori attivi:** nessuno.
-- **Domande in sospeso:** nessuna.
+- **Evolutiva nuova, ricetta da un link (E, scelta dell'utente il 17/10):** brainstorming
+  fatto con il coordinatore; descrizione in
+  `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md` (bozza da un link
+  qualsiasi, estrazione senza AI da schema.org o metadati, «Completa con Claude» con
+  `claude.ai/new?q=`, pubblicazione in chat dopo il «sì»). Verificato dall'utente
+  sull'iPhone: connettore MCP nell'app Claude e link precompilato funzionanti. L'utente ha
+  messo in pausa dopo la descrizione («riprenderemo più avanti»).
+- **Domande in sospeso:** per l'utente, la lettura della descrizione (con le domande del
+  controllo del costruttore, se ce ne sono).
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
   non consuma l'utilizzo settimanale di Claude (utente, 17/10).
 - **In produzione:** versione `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`, 17/10
   17:54 UTC, attività D).
-- **Prossimo passo:** l'utente sceglie da dove ripartire. Poi: ricettario
+- **Prossimo passo:** alla ripresa, l'utente approva la descrizione della ricetta da un
+  link; poi il coordinatore scrive il brief di un worker per il prototipo in `prototype/`
+  (varianti nel pannello Prova), approvato dall'utente prima dell'avvio; giri di feedback;
+  poi spec di dettaglio, piano, revisioni. In coda: ricettario
   esteso dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza
   foto), #62 (worker curatore del ricettario), #67 (test FamilyDeletePage), pulizia dei worktree di PR già unite, R26
   rimandata.
