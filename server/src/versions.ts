@@ -16,6 +16,12 @@ export async function readVersion(tx: Tx, scopes: VersionScope[], input: unknown
 		if (!rows[0]) throw appError('forbidden');
 		parts.push(`f${familyId}:${rows[0].version}`);
 	}
+	if (scopes.includes('emailUnconfirmed')) {
+		// A fingerprint of the members' labels: Auth confirms an email without touching the family (spec W15).
+		const familyId = (input as { familyId: string }).familyId;
+		const [row] = await tx<{ version: string }[]>`select app.family_email_unconfirmed_version(${familyId}::uuid) as version`;
+		parts.push(`e${row!.version}`);
+	}
 	if (scopes.includes('catalogue')) {
 		const rows = await tx<{ version: string }[]>`select version::text as version from app.catalogue_state`;
 		parts.push(`c${rows[0]?.version ?? '0'}`);

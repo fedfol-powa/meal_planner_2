@@ -51,10 +51,23 @@ describe.skipIf(!hasDatabase)('users administration', () => {
 		const federico = await admin();
 		const orphan = await actors.user();
 		const byEmail = await federico.client.users.list({ query: emailOf(orphan.userId).toUpperCase() });
-		expect(byEmail.users).toEqual([{ id: orphan.userId, displayName: expect.any(String), email: emailOf(orphan.userId), roles: [], deletion: null }]);
+		expect(byEmail.users).toEqual([{ id: orphan.userId, displayName: expect.any(String), email: emailOf(orphan.userId), roles: [], deletion: null, emailUnconfirmed: false }]);
 		expect(byEmail.more).toBe(false);
 		const [{ display_name }] = await actors.db.admin<{ display_name: string }[]>`select display_name from app.profiles where user_id = ${orphan.userId}`;
 		expect((await federico.client.users.list({ query: display_name })).users.map((u) => u.id)).toContain(orphan.userId);
+	});
+
+	it('marks an account whose email is not confirmed, in the list, the detail and over MCP (spec W15)', async () => {
+		const federico = await admin({ agent: true });
+		const invited = await actors.user();
+		await actors.db.admin`update auth.users set email_confirmed_at = null where id = ${invited.userId}`;
+		const query = emailOf(invited.userId);
+		expect((await federico.client.users.list({ query })).users[0]!.emailUnconfirmed).toBe(true);
+		expect((await federico.client.users.get({ id: invited.userId })).user.emailUnconfirmed).toBe(true);
+		const listed = await call(federico.token, 'users_list', { query });
+		expect(toolBody(listed).users[0].emailUnconfirmed).toBe(true);
+		await actors.db.admin`update auth.users set email_confirmed_at = now() where id = ${invited.userId}`;
+		expect((await federico.client.users.get({ id: invited.userId })).user.emailUnconfirmed).toBe(false);
 	});
 
 	it('treats % and _ in the query as text', async () => {
@@ -78,7 +91,7 @@ describe.skipIf(!hasDatabase)('users administration', () => {
 		await actors.db.createFamily([{ userId: anna.userId, role: 'family_admin' }]);
 		const detail = await federico.client.users.get({ id: anna.userId });
 		expect(detail).toEqual({
-			user: { id: anna.userId, displayName: expect.any(String), email: emailOf(anna.userId), roles: [], deletion: null, lastAppAdmin: false },
+			user: { id: anna.userId, displayName: expect.any(String), email: emailOf(anna.userId), roles: [], deletion: null, emailUnconfirmed: false, lastAppAdmin: false },
 			families: [{ name: 'Test', role: 'family_admin' }],
 		});
 		expect(Object.keys(detail.families[0]!)).toEqual(['name', 'role']);
