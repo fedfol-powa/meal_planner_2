@@ -2,18 +2,15 @@ import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
 import { localeSchema } from '../locale.ts';
 import { op } from '../op.ts';
+import { passwordEmailSchema, resendOutcomeSchema } from '../password.ts';
 import { displayNameSchema } from '../profile/index.ts';
 
 export const globalRoleSchema = z.enum(['recipe_curator', 'app_admin']);
 export type GlobalRole = z.infer<typeof globalRoleSchema>;
-export const PASSWORD_MAX_BYTES = 72;
 export const invitationEmailSchema = z.string().trim().toLowerCase().pipe(z.email().max(320));
 export const invitationTokenSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/);
-/** 8 characters as the web app; at most 72 bytes, bcrypt's limit (spec W9). */
-export const invitationPasswordSchema = z
-	.string()
-	.min(8)
-	.refine((value) => new TextEncoder().encode(value).length <= PASSWORD_MAX_BYTES, { message: 'password_too_long' });
+/** "Rimanda l'email" from an invitation page: the link and the email the acceptance answered (spec W15). */
+export const resendPasswordEmailInputSchema = z.object({ token: invitationTokenSchema, email: invitationEmailSchema, locale: localeSchema });
 
 const rolesSchema = z.array(globalRoleSchema).max(2).refine((roles) => new Set(roles).size === roles.length, { message: 'duplicate' });
 
@@ -62,7 +59,11 @@ export const appInvitationsContract = {
 		.input(z.object({ token: invitationTokenSchema }))
 		.output(z.object({ invitedBy: z.string().nullable(), roles: z.array(globalRoleSchema) })),
 	accept: op({ mcp: false, offline: false, role: 'public', rateLimit: 'accept' })
-		.route({ method: 'POST', path: '/app-invitations/accept', summary: 'Accept an app invitation: creates the account (no sign-in)' })
+		.route({
+			method: 'POST',
+			path: '/app-invitations/accept',
+			summary: 'Accept an app invitation: creates the account with the email to confirm and sends the email to choose the password (no sign-in)',
+		})
 		.errors({
 			invitation_unavailable: errorDefinitions.invitation_unavailable,
 			rate_limited: errorDefinitions.rate_limited,
@@ -73,9 +74,13 @@ export const appInvitationsContract = {
 				token: invitationTokenSchema,
 				email: invitationEmailSchema,
 				displayName: displayNameSchema,
-				password: invitationPasswordSchema,
 				locale: localeSchema,
 			}),
 		)
-		.output(z.object({ email: z.string() })),
+		.output(z.object({ email: z.string(), passwordEmail: passwordEmailSchema })),
+	resendPasswordEmail: op({ mcp: false, offline: false, role: 'public', rateLimit: 'accept' })
+		.route({ method: 'POST', path: '/app-invitations/resend-password-email', summary: 'Send again the email to choose the password, from the invitation page (no sign-in)' })
+		.errors({ rate_limited: errorDefinitions.rate_limited })
+		.input(resendPasswordEmailInputSchema)
+		.output(z.object({ passwordEmail: resendOutcomeSchema })),
 };

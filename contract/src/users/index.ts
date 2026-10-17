@@ -20,6 +20,8 @@ export const userRowSchema = z.object({
 	email: z.string(),
 	roles: z.array(globalRoleSchema),
 	deletion: userDeletionSchema.nullable(),
+	/** Account from an invitation whose email is not confirmed yet (spec W15, section 2). */
+	emailUnconfirmed: z.boolean(),
 });
 export type UserRow = z.infer<typeof userRowSchema>;
 

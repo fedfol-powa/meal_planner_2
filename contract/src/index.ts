@@ -7,6 +7,7 @@ export { op, type OperationMeta, type RateLimitName, type Role, type VersionScop
 export { isVersionedOutput, versionedInput, versionedOutput } from './versioned.ts';
 export * from './recipes/index.ts';
 export * from './profile/index.ts';
+export * from './password.ts';
 export * from './app-invitations/index.ts';
 export * from './users/index.ts';
 export * from './family/index.ts';

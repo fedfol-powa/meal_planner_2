@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { invitationEmailSchema, invitationPasswordSchema, invitationTokenSchema } from '../app-invitations/index.ts';
+import { invitationEmailSchema, invitationTokenSchema, resendPasswordEmailInputSchema } from '../app-invitations/index.ts';
 import { errorDefinitions } from '../errors.ts';
 import { localeSchema } from '../locale.ts';
 import { op } from '../op.ts';
+import { passwordEmailSchema, resendOutcomeSchema } from '../password.ts';
 import { displayNameSchema } from '../profile/index.ts';
 
 /** New accounts a link can register (spec W11, decision 1): distinct emails that started to register. */
@@ -83,16 +84,24 @@ export const familyInvitationsContract = {
 		.input(token)
 		.output(z.object({ familyId: z.uuid(), familyName: z.string(), invitedBy: z.string().nullable(), alreadyMember: z.boolean() })),
 	accept: op({ mcp: false, offline: false, role: 'public', rateLimit: 'accept' })
-		.route({ method: 'POST', path: '/family-invitations/accept', summary: 'Create an account from a family link and join the family (no sign-in)' })
+		.route({
+			method: 'POST',
+			path: '/family-invitations/accept',
+			summary: 'Create an account from a family link, join the family and send the email to choose the password (no sign-in)',
+		})
 		.errors({ ...unavailable, rate_limited: errorDefinitions.rate_limited, not_allowed: errorDefinitions.not_allowed })
 		.input(
 			token.extend({
 				email: invitationEmailSchema,
 				displayName: displayNameSchema,
-				password: invitationPasswordSchema,
 				locale: localeSchema,
 			}),
 		)
 		/** `joined: false`: the account is ready but the link no longer lets it in (spec W11, decision 17). */
-		.output(z.object({ email: z.string(), joined: z.boolean() })),
+		.output(z.object({ email: z.string(), joined: z.boolean(), passwordEmail: passwordEmailSchema })),
+	resendPasswordEmail: op({ mcp: false, offline: false, role: 'public', rateLimit: 'accept' })
+		.route({ method: 'POST', path: '/family-invitations/resend-password-email', summary: 'Send again the email to choose the password, from the invitation page (no sign-in)' })
+		.errors({ rate_limited: errorDefinitions.rate_limited })
+		.input(resendPasswordEmailInputSchema)
+		.output(z.object({ passwordEmail: resendOutcomeSchema })),
 };

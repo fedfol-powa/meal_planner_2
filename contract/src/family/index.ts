@@ -2,7 +2,7 @@ import { GROUP_MAX, knownNewSchema, mealRuleSchema, slotSettingSchema, WEEKLY_MA
 import { FOOD_GROUPS, MEAL_TYPES } from '@app/domain/planner';
 import { z } from 'zod';
 import { errorDefinitions } from '../errors.ts';
-import { op } from '../op.ts';
+import { op, type VersionScope } from '../op.ts';
 import { versionedInput, versionedOutput } from '../versioned.ts';
 import { measurementSystemSchema, profileViewSchema } from '../profile/index.ts';
 import { familyMembersContract } from './members.ts';
@@ -19,7 +19,7 @@ const groupBound = z.number().int().min(0).max(GROUP_MAX);
 const adminWrite = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyAdmin' });
 /** Any member of the family. */
 const memberWrite = () => op({ mcp: { readOnly: false }, offline: false, role: 'familyMember' });
-const memberRead = (reads?: ('family' | 'catalogue')[]) =>
+const memberRead = (reads?: VersionScope[]) =>
 	op({ mcp: { readOnly: true }, offline: false, role: 'familyMember', ...(reads ? { reads } : {}) });
 
 export const familyContract = {
@@ -39,7 +39,7 @@ export const familyContract = {
 			}),
 		)
 		.output(profileViewSchema),
-	get: memberRead(['family'])
+	get: memberRead(['family', 'emailUnconfirmed'])
 		.route({
 			method: 'GET',
 			path: '/families/{familyId}',

@@ -17,6 +17,8 @@ export const familyViewSchema = z.object({
 			role: familyRoleSchema,
 			isMe: z.boolean(),
 			joinedAt: z.iso.datetime({ offset: true }),
+			/** Account from an invitation whose email is not confirmed yet (spec W15, section 2). */
+			emailUnconfirmed: z.boolean(),
 		}),
 	),
 });

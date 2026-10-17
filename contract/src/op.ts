@@ -4,7 +4,8 @@ import { commonErrors } from './errors.ts';
 export type Role = 'user' | 'familyMember' | 'familyAdmin' | 'curator' | 'appAdmin' | 'public';
 /** Limiters of the public operations: bindings `INVITE_READ_LIMIT` and `INVITE_ACCEPT_LIMIT` of the Worker. */
 export type RateLimitName = 'read' | 'accept';
-export type VersionScope = 'family' | 'catalogue';
+/** `emailUnconfirmed`: the "not confirmed yet" label of the members, read from Auth (spec W15). */
+export type VersionScope = 'family' | 'catalogue' | 'emailUnconfirmed';
 
 /** Required on every operation: the contract test rejects operations without it. */
 export interface OperationMeta {
