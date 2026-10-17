@@ -3,7 +3,8 @@
 Creato: 29 settembre 2026
 Ultimo aggiornamento: 17 ottobre 2026 (decisioni delle foto delle ricette, attività E
 dell'ondata 3, PR #54; dominio `cosasimangia.app` e passi esterni dell'attività D;
-somiglianza dell'ingrediente principale e campi a 16 px, PR #60)
+somiglianza dell'ingrediente principale e campi a 16 px, PR #60; email dell'app, parte
+software dell'attività D, PR #64)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -18,8 +19,9 @@ ruoli (attività B) e la gestione della famiglia (attività C: inviti alla famig
 membri e ruoli, uscita, eliminazione della famiglia, cancellazione dell'account e degli
 utenti), con collaudo e prove sull'iPhone riusciti il 16 ottobre 2026
 (sezione 10), e le foto delle ricette (attività E, issue #39). Dal 17 ottobre i passi
-esterni dell'attività D (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti;
-resta la parte software.
+esterni dell'attività D (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti e la
+parte software, le email dell'app (PR #64), è unita lo stesso giorno, con il rilascio in
+preparazione.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -57,8 +59,8 @@ sezione 15 e non vanno trattati come decisioni approvate.
   obbligatori per pubblicare, anche per le ricette importate; ammesse indicazioni
   esplicite come "q.b.", senza usarle per sostituire dati mancanti;
 - operazioni dell'app disponibili anche tramite MCP, con due eccezioni: le operazioni
-  `public` senza utente (lettura e accettazione degli inviti all'app e alla famiglia),
-  mai esposte, e
+  `public` senza utente (lettura e accettazione degli inviti all'app e alla famiglia e,
+  dall'attività D, reinvio dell'email per la password), mai esposte, e
   l'eliminazione di una famiglia: esecuzione solo nell'app web e risposta MCP con URL alla pagina
   dedicata. Browser previsto anche per collegare l'account e riautenticarsi;
 - client MCP obiettivo della prima versione: Codex CLI, Claude Code, ChatGPT e Claude
@@ -131,7 +133,9 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   `cosasimangia.qunidi.it`; dal 13 ottobre 2026 arrivano solo dopo la verifica del
   dominio di invio (attività D dell'ondata 3, sotto). Dal 17 ottobre 2026 il dominio di
   invio è `cosasimangia.app`, verificato in Resend lo stesso giorno, e Supabase Auth
-  spedisce con l'SMTP di Resend (sezione 1);
+  spedisce con l'SMTP di Resend (sezione 1); le email dell'app arrivano con la parte
+  software dell'attività D (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+  sotto);
 - app servita su `cosasimangia.qunidi.it`, sottodominio di `qunidi.it`, dominio
   dell'utente (deciso l'8 ottobre 2026); lo stesso sottodominio è il dominio di invio
   verificato in Resend. **Superata il 13 ottobre 2026 per l'app**: l'app resta su
@@ -352,8 +356,9 @@ particolari in `progetto/superpowers/specs/2026-10-15-amministrazione-utenti.md`
   creare l'account a chi non ce l'ha, **al più a 10 persone per link**; oltre il tetto
   il link risponde, per la creazione, come un link non valido. Account e ingresso nella
   famiglia sono un solo passaggio con conferma esplicita; l'email scritta non è
-  verificata fino all'attività D e un'email presa da altri si rimedia cancellando
-  quell'account dall'amministrazione (Parte 1 e sezione 7);
+  verificata fino al rilascio dell'attività D, che chiude il rischio (sotto), e fino ad
+  allora un'email presa da altri si rimedia cancellando quell'account
+  dall'amministrazione (Parte 1 e sezione 7);
 - decisioni del coordinatore: il tetto conta le persone registrate con quel link;
   i link creati da una persona si revocano per tutti quando esce, viene rimossa, perde
   il ruolo o cancella l'account; registro degli ingressi per gli amministratori della
@@ -401,8 +406,40 @@ dell'ondata 3, issue #39, PR #54 unita e rilasciata il 16 ottobre; particolari i
 - dominio verificato in Resend; *Site URL* e *Redirect URLs* di Supabase Auth solo sul
   nuovo dominio; SMTP personalizzato di Supabase Auth su Resend, mittente
   `Cosa si mangia <noreply@cosasimangia.app>` (sezioni 1 e 7);
-- l'attività D non è più bloccata: i passi esterni sono fatti, resta la parte software
-  (sezioni 7 e 10).
+- l'attività D non è più bloccata: i passi esterni sono fatti; la parte software è unita
+  lo stesso giorno (sotto; sezioni 7 e 10).
+
+**Decisioni del 17 ottobre 2026, email dell'app unite** (W15, parte software
+dell'attività D dell'ondata 3, PR #64 unita il 17 ottobre, rilascio in preparazione;
+particolari in `progetto/superpowers/specs/2026-10-17-email.md`):
+
+- **decisioni dell'utente**: chi accetta un invito, all'app o alla famiglia, senza avere
+  un account scrive sulla pagina solo email e nome; il server crea l'account con l'email
+  da confermare e gli spedisce l'email «Scegli la password», con il nome della famiglia
+  solo nella prima; la password si sceglie su `/password`, poi si entra con email e
+  password. Un solo meccanismo per i due inviti, con prenotazione e chiusura invariate:
+  finisce il rischio accettato delle email non verificate. Il link d'invito si condivide
+  a mano come prima e quello all'app non si spedisce per email; gli account creati prima
+  di D restano come sono, e chi ha già un account entra con la sua password (Parte 1 e
+  sezione 7);
+- la persona compare subito tra i membri, o ha i ruoli dell'invito all'app, con
+  l'etichetta «Non ha ancora confermato l'email», anche in `/admin`, finché non apre il
+  link dell'email (la conferma avviene alla verifica del link, prima del salvataggio
+  della password); la pagina dell'invito mostra «Controlla la posta» con «Rimanda l'email»
+  (testo generico) e, per la famiglia, «Email sbagliata? Ricomincia»; chi conferma
+  l'email senza salvare la password usa «Password dimenticata» (Parte 1 e sezione 7);
+- **«Password dimenticata»** dalla pagina di accesso, con la stessa risposta che
+  l'account esista o no, link di 24 ore verso `/password`, regole della password del
+  Profilo, altre sessioni chiuse e, dopo il salvataggio, «Accedi» senza ingresso
+  automatico; rischio noto accettato dell'endpoint pubblico di Supabase (sezione 7);
+- le email sono nella lingua della persona: quella della pagina dell'invito per «Scegli
+  la password», quella delle Preferenze per il recupero (sezione 12);
+- **email operative** al referente per menu in ritardo o abbandonato, esportazione
+  notturna mancante e cancellazione di un account bloccata: un'email per evento, meglio
+  un doppione raro che un allarme perso, righe scadute o ambigue gestite a mano (sezioni
+  4 e 8);
+- ritorno indietro con una correzione in avanti; dopo un rollback i link spediti non
+  valgono e si usa «Password dimenticata» (sezioni 1 e 7).
 
 ---
 
@@ -439,9 +476,10 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   Chi apre il link entra come membro dopo una conferma esplicita; chi è stato rimosso
   da una famiglia può tornare solo con un link nuovo, creato dopo la rimozione. Un link
   vale 7 giorni, si può usare più volte e si vede solo quando lo si crea: se lo si
-  perde se ne crea un altro. Chi non ha ancora un account lo crea dal link stesso,
-  scegliendo nome e password, ed entra subito nella famiglia; con lo stesso link si
-  registrano al massimo 10 persone nuove (decisione dell'utente del 16 ottobre 2026).
+  perde se ne crea un altro. Chi non ha ancora un account lo crea dal link stesso ed
+  entra subito nella famiglia; con lo stesso link si registrano al massimo 10 persone
+  nuove (decisione dell'utente del 16 ottobre 2026). Come si sceglie la password è
+  scritto sotto, «Si entra su invito».
   Ognuno può uscire da una famiglia quando vuole; se è l'ultimo amministratore e ci
   sono altri membri, sceglie chi lo diventa al suo posto.
 - **L'amministratore della famiglia** gestisce membri, inviti e impostazioni di quella
@@ -454,13 +492,25 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
 - **Si entra su invito.** L'iscrizione libera è spenta: l'account nasce quando una
   persona accetta un invito, a una famiglia o all'app, e sceglie la sua password; da lì
   entra nell'app con email e password (ondata 3, decisioni dell'utente del 13 ottobre
-  2026). Finché l'app non può spedire email chi invita manda a mano il link (per
-  esempio su WhatsApp) e la persona, sulla pagina dell'invito, scrive in un solo modulo
-  la sua email, il suo nome e la password (per un invito all'app l'email deve essere
-  quella dell'invito): è il suo primo accesso, e la pagina la fa entrare subito. Chi ha
-  già un account accede e conferma l'ingresso. Il dominio di invio è verificato dal 17
-  ottobre 2026: l'invito per email e la «password dimenticata» arriveranno con la parte
-  software dell'attività D. Dal 15 ottobre
+  2026). Chi invita manda a mano il link (per esempio su WhatsApp): l'app non spedisce
+  il link d'invito. Con le email dell'app (attività D, unite il 17 ottobre 2026, rilascio
+  in preparazione) la persona scrive sulla pagina dell'invito solo la sua email e il suo
+  nome (per un invito all'app l'email deve essere quella dell'invito); la pagina dice
+  «Controlla la posta» e arriva l'email «Scegli la password», che per un invito alla
+  famiglia nomina la famiglia. Il link apre Safari una volta: aprirlo dimostra che
+  l'email è sua, e sulla pagina la persona sceglie la password; poi entra con email e
+  password, anche nell'app installata. Se l'email non arriva la pagina dell'invito la
+  rimanda, e per un invito alla famiglia «Email sbagliata? Ricomincia» riporta al modulo.
+  Nel frattempo la persona compare già tra i membri, o ha già i ruoli dell'invito
+  all'app, con la scritta «Non ha ancora confermato l'email», che sparisce quando apre il
+  link dell'email; se poi non salva la password, usa «Password dimenticata». Chi ha già un account
+  accede con la sua password e conferma l'ingresso. Chi ha dimenticato la password la
+  recupera da solo con «Password dimenticata?» nella pagina di accesso: riceve un link
+  valido 24 ore per sceglierne una nuova, dopo di che gli altri dispositivi e gli agenti
+  collegati devono accedere di nuovo. Fino al rilascio resta il flusso precedente: la
+  persona scrive anche la password nello stesso modulo e la pagina la fa entrare subito,
+  senza verificare l'email, e una password dimenticata la reimposta l'amministratore.
+  Dal 15 ottobre
   2026 ci sono gli inviti all'app; dal 16 ottobre anche quelli alla
   famiglia. Chi ha un account crea la
   propria Famiglia, o un'altra dal Profilo, scegliendo nome e unità di misura, e trova
@@ -713,14 +763,18 @@ chiama una persona precisa e può darle il ruolo di curatore o di amministratore
 accetta, ma non la fa entrare in una famiglia. Regole decise nel sesto giro del
 prototipo, sezione 7. Dal 15 ottobre 2026 la pagina c'è con la sezione degli inviti
 all'app: il link si vede solo quando si crea l'invito, e se lo si perde se ne crea uno
-nuovo.
+nuovo. Il link si manda a mano: l'app non lo spedisce per email, nemmeno dopo
+l'attività D (decisione dell'utente del 17 ottobre 2026).
 
 Dal 16 ottobre 2026 sopra gli inviti c'è la sezione **Utenti**: si cerca una persona
 per nome o per email (maiuscole e minuscole non contano, gli accenti sì) e, se i
 risultati sono più di 50, l'app chiede di restringere la ricerca. Toccando una persona
 se ne apre la scheda, con l'email, i due ruoli da accendere o spegnere (curatore del
 ricettario e amministratore dell'app) e le famiglie di cui fa parte, solo per nome e
-ruolo, senza i loro contenuti. Nominare un amministratore e rinunciare al proprio ruolo
+ruolo, senza i loro contenuti. Con le email dell'app (attività D) chi ha un account nato
+da un invito e non ha ancora confermato l'email (la conferma avviene aprendo il link
+dell'email, prima del salvataggio della password) compare con «Non ha ancora confermato
+l'email», nell'elenco e nella scheda. Nominare un amministratore e rinunciare al proprio ruolo
 chiedono una conferma; chi rinuncia torna al Profilo e non vede più la pagina. L'ultimo
 amministratore non può perdere il ruolo: prima se ne nomina un altro. Un ruolo
 cambiato vale subito, anche per gli agenti già collegati. Se si prova a invitare
@@ -746,8 +800,9 @@ persona restano nell'elenco senza email, con «account cancellato».
 - Non permette di aggiungere ricette senza il ruolo di curatore.
 - Non carica ricette da file: si aggiungono tramite l'agente o dal modulo dei curatori.
 - Non espone uno storico completo delle modifiche ai pasti (si mostra solo l'ultima).
-- Non manda notifiche sui menu; restano i messaggi previsti per accesso, inviti e
-  segnalazione degli errori del job all'operatore del servizio.
+- Non manda notifiche sui menu; restano le email per scegliere o recuperare la password
+  e le segnalazioni all'operatore del servizio (menu in ritardo o abbandonato,
+  esportazione notturna mancante, cancellazione di un account bloccata).
 
 ---
 
@@ -841,7 +896,13 @@ configurato per workspace.
   Auth e una **chiave segreta dedicata**, `SUPABASE_SECRET_KEY` (segreto del Worker,
   chiave `worker-invitations` creata dall'utente e revocabile da sola, 15 ottobre 2026),
   letta solo dal modulo `server/src/accounts/`. Senza il segreto il resto dell'app
-  funziona e l'accettazione risponde `internal`. *Site URL* e *Redirect URLs* stanno
+  funziona e l'accettazione risponde `internal`. Con le email dell'app (PR #64) lo
+  stesso modulo crea l'account senza password e con l'email da confermare, ottiene il
+  link per scegliere la password con `POST /auth/v1/admin/generate_link` di tipo
+  `recovery` (non spedisce nulla e, per un'email senza account, risponde 404 senza
+  creare utenti) e allinea `user_metadata.locale` quando cambia la lingua del profilo;
+  nei metadati di Auth restano solo nome e `locale`, mai uno stato dell'app, perché due
+  scritture concorrenti dei metadati possono perdere una chiave. *Site URL* e *Redirect URLs* stanno
   sull'origine effettiva dell'app, `https://cosasimangia.app` dal 17 ottobre 2026, solo
   sul nuovo dominio (prima `https://cosasimangia.qunidi.workers.dev`, con il dominio
   `cosasimangia.qunidi.it` previsto solo per spedire; decisione dell'utente del 13
@@ -854,12 +915,24 @@ configurato per workspace.
   **spento** in produzione, come precondizione: senza email non c'è riautenticazione.
   «Require current password when updating» l'ha acceso l'utente il 13 ottobre 2026; il
   minimo di lunghezza della password in produzione non è verificato, la SPA impone 8.
+  L'opzione non blocca la pagina `/password` delle email dell'app, perché Supabase non
+  la applica alle sessioni di recupero (provato sullo stack locale, sezione 9). Con la
+  PR #64 la durata del codice delle email (`mailer_otp_exp`) è di 86400 secondi, cioè
+  24 ore, e restano i limiti di Auth del progetto (30 email all'ora, un recupero al
+  minuto per indirizzo); il template `recovery` di Supabase Auth, in italiano e inglese
+  britannico, serve solo alla «Password dimenticata» e porta a
+  `/password#token_hash=…&type=recovery` (passi esterni nel runbook della spec di
+  dettaglio `2026-10-17-email.md`, sezione 9).
   Dal 15 ottobre 2026 (PR #45) anche lo stack locale ha le iscrizioni spente, come la
   produzione: `[auth] enable_signup = false`, mentre `[auth.email] enable_signup` resta
   acceso, perché nella CLI spegnerebbe l'intero provider email e con esso l'accesso con
   password. Le persone di prova si creano con l'API di amministrazione e la chiave
   segreta locale. `minimum_password_length = 8`; la CLI non esprime in `config.toml`
-  l'opzione della password attuale, che in locale e in CI resta spenta.
+  l'opzione della password attuale, che nello stack resta spenta: la prova obbligatoria
+  con l'opzione accesa usa un secondo servizio di Auth (sezione 9). Dalla PR #64 lo stack
+  ha `enable_confirmations = true`, `otp_expiry = 86400`, `max_frequency = "60s"`, il
+  template di recupero e Mailpit acceso anche in CI; le email del server vanno a Mailpit
+  con `MAILPIT_API_URL`, che esiste solo in locale e in CI, mai in produzione.
 - **Flusso Git**: PR verso `main`, che è la produzione; CI su GitHub Actions a ogni PR
   con typecheck, test e migrazioni reali.
 - **Pubblicazione con `npm run release`** (decisa l'11–12 ottobre 2026 nella messa in
@@ -917,9 +990,21 @@ configurato per workspace.
 - **Email con Resend** (sezione 7): SMTP di Supabase Auth e API per le email del server.
   Il dominio `cosasimangia.app` è verificato in Resend dal 17 ottobre 2026 (DKIM
   `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`) e l'SMTP di Supabase Auth è
-  configurato (sopra); le email dell'app (link della password dopo un invito, «password
-  dimenticata», allarmi di job ed esportazione) restano da realizzare nella parte
-  software dell'attività D dell'ondata 3: fino ad allora l'app non le spedisce.
+  configurato (sopra). Le email dell'app sono la parte software dell'attività D (PR
+  #64, unita il 17 ottobre 2026, rilascio in preparazione; particolari nella spec di
+  dettaglio `2026-10-17-email.md`, sezioni 2 e 5): l'email «Scegli la password» dopo un
+  invito e «Rimanda l'email» le spedisce il Worker con l'API di Resend
+  (`server/src/mail/`, una sola chiamata `fetch`, senza SDK), con il link di
+  `generate_link`; la «Password dimenticata» la spedisce Supabase Auth con il suo SMTP e
+  il template `recovery`; le email operative le spedisce il Worker con la stessa API
+  (sezione 4). Segreti del Worker: **`RESEND_API_KEY`**, chiave Resend di solo invio
+  limitata al dominio e distinta da quella dell'SMTP di Supabase, **obbligatoria per il
+  rilascio** (senza, le accettazioni rispondono che l'email non è partita), e
+  **`OPS_ALERT_EMAIL`**, l'indirizzo del referente, mai salvato nel database. Mittente
+  `Cosa si mangia <noreply@cosasimangia.app>`. Fino al rilascio l'app non spedisce email
+  proprie. **Ritorno indietro** dopo il rilascio: correzione in avanti, perché con un
+  `wrangler rollback` i link già spediti puntano a `/password`, che la versione
+  precedente non ha; chi li ha ricevuti usa poi «Password dimenticata».
 - **Foto delle ricette** (W12, PR #54, rilasciata il 16 ottobre 2026; particolari nella
   spec di dettaglio `2026-10-16-foto-ricette.md`): bucket R2 `cosasimangia-photos`
   nella giurisdizione `eu`, privato, senza dominio `r2.dev` né dominio personalizzato,
@@ -1031,7 +1116,9 @@ e scrivere (la generazione pigra del menu, sezione 4).
   gestore può restituire un seguito che la pipeline esegue dopo il commit, senza
   connessioni aperte, e il cui risultato diventa la risposta; un suo errore non annulla
   né ripete la transazione. Serve alla cancellazione dell'account, che chiama Supabase
-  Auth solo dopo aver confermato la prima transazione (sezione 7).
+  Auth solo dopo aver confermato la prima transazione (sezione 7), e dalla PR #64 a
+  `profile.update`, che dopo un cambio di lingua allinea `user_metadata.locale` in Auth
+  (un fallimento scrive solo un log).
 - **Canale ricavato dal token.** Le sessioni dell'app web non hanno il claim
   `client_id`, i token rilasciati agli agenti dal server OAuth di Supabase sì: è il
   modo verificabile, richiesto dalla sezione 13, per distinguere web e MCP senza fidarsi
@@ -1080,7 +1167,21 @@ di validazione condivisi con `domain/`. Regole:
   rifiuta con `internal` un'operazione pubblica arrivata per errore al controllo dei
   ruoli. Dalla gestione della famiglia (PR #52) sono `public` anche lettura e
   accettazione dell'invito alla famiglia (`familyInvitations.get` e `.accept`), con gli
-  stessi limitatori degli inviti all'app.
+  stessi limitatori degli inviti all'app; dalla PR #64 anche
+  `appInvitations.resendPasswordEmail` e `familyInvitations.resendPasswordEmail`
+  (`rateLimit: 'accept'`).
+- **Email dell'app** (PR #64, unita il 17 ottobre 2026; particolari nella spec di
+  dettaglio `2026-10-17-email.md`, sezioni 2 e 7): `appInvitations.accept` e
+  `familyInvitations.accept` non chiedono più la password (una `password` mandata da
+  un client vecchio si scarta) e rispondono con l'email normalizzata e `passwordEmail`
+  (`sent`, `failed`, `too_soon`, `not_needed`, `not_sent`, `unavailable`); sparisce
+  `weak_password`. Le due `resendPasswordEmail` (`{ token, email, locale }`) rimandano
+  l'email con il testo generico. `family.get` (membri), `users.list` e `users.get`
+  ricevono `emailUnconfirmed: boolean`, letto da `auth.users.email_confirmed_at`.
+  `VersionScope` riceve l'ambito `emailUnconfirmed`, usato solo da `family.get`: la
+  versione comprende un'impronta delle coppie (membro, non confermato), che cambia anche
+  a conteggio invariato. `profile.update` ha il seguito dopo il commit per la lingua
+  (sopra).
 - **Amministrazione degli utenti** (PR #47, 16 ottobre 2026; particolari nella spec di
   dettaglio `2026-10-15-amministrazione-utenti.md`, sezione 2): area `users` con
   `users.list` (`{ query? }`, al più 50 righe e `more`, senza cursore), `users.get`
@@ -1228,7 +1329,10 @@ di validazione condivisi con `domain/`. Regole:
   Voti e nomi fanno crescere tutte le famiglie dell'utente, una bozza citata dai pasti le
   famiglie che la citano; le bozze non toccano il contatore del ricettario. La versione
   restituita compone i soli contatori dichiarati dall'operazione (`reads`), la lingua e
-  la versione del Worker.
+  la versione del Worker. L'etichetta «Non ha ancora confermato l'email» dei membri
+  (PR #64) dipende da Supabase Auth, che nessun contatore segue: `family.get` aggiunge
+  l'ambito `emailUnconfirmed`, un'impronta delle coppie (membro, non confermato) letta
+  da una funzione del database (sezione 2).
 - **Copia e sessione sul dispositivo** (app web di base, 11 ottobre 2026). La cache usa
   `@tanstack/react-query-persist-client` con un persister IndexedDB scritto a mano: una
   copia per utente, legata alla sessione e cancellata a ogni chiusura, `buster` sulla
@@ -1266,7 +1370,14 @@ di validazione condivisi con `domain/`. Regole:
   Poi cambia con `PUT /auth/v1/user` e il token della sessione letta all'inizio,
   controllando l'identità (utente e `session_id`) prima del cambio e dopo un rifiuto,
   mai dopo un successo; `session_expired` mostra il messaggio della sessione scaduta e
-  porta all'uscita comune con il pulsante «Accedi di nuovo», non da sola.
+  porta all'uscita comune con il pulsante «Accedi di nuovo», non da sola. Allo stesso
+  modo la pagina `/password` delle email dell'app (PR #64) non usa il client condiviso
+  di Supabase e **non adotta sessioni**: verifica il codice del frammento con una
+  chiamata diretta a `/auth/v1/verify`, tiene solo in memoria il token della verifica,
+  salva la password con `PUT /auth/v1/user` legato a quel token e poi lo scarta; nel
+  browser non si scrive nessuna sessione e si entra da `/login`. La pagina è occupata
+  dalla richiesta di verifica finché conserva un token utilizzabile, anche dopo un
+  salvataggio fallito, così l'aggiornamento della PWA non la ricarica a metà.
   Service worker scritto a mano, senza plugin (aggiornamento della PWA, 13 ottobre 2026):
   **navigazioni dalla shell installata** della versione attiva, rete solo se manca dalla
   cache, rotte del server mai intercettate. Sostituisce le navigazioni dalla rete con
@@ -1316,7 +1427,8 @@ di validazione condivisi con `domain/`. Regole:
   e operazioni, non si rinominano né si tolgono senza un periodo di compatibilità.
   Esempio: il campo facoltativo `photoUrl` delle viste delle ricette (PR #54), assente
   nelle copie e nelle risposte di prima e trattato come `null`, senza cambiare
-  `CACHE_SCHEMA`. **`CACHE_SCHEMA`** (`web/src/api/persister.ts`): chi cambia in modo incompatibile la
+  `CACHE_SCHEMA`; così `emailUnconfirmed` (PR #64), che il client vecchio ignora,
+  mentre le risposte di `accept` non si salvano. **`CACHE_SCHEMA`** (`web/src/api/persister.ts`): chi cambia in modo incompatibile la
   forma dei dati salvati sul dispositivo o le chiavi delle query (un campo tolto o
   rinominato, un tipo cambiato, una chiave diversa per la stessa lettura) cambia la
   costante, e la copia sul dispositivo si scarta senza migrazione. È l'unica eccezione
@@ -1423,6 +1535,8 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | `profile_preferences` | `user_id`, `current_family_id`: famiglia mostrata, ricordata sul server; privata (RLS del solo proprietario), perché `profiles` è leggibile dai co-membri; chiave esterna composta verso `family_members` |
 | `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`), con `granted_by` e `granted_at`. Nessuna scrittura diretta da `authenticated` (solo `SELECT` delle proprie righe): i ruoli si assegnano all'accettazione di un invito all'app e, dal 16 ottobre 2026, dall'amministrazione con `app.set_user_role` (sotto). Con la PR #52 il trigger `user_roles_require_profile` rifiuta (`P0A07`) un ruolo per chi non ha il profilo, cioè per un account in cancellazione |
 | `account_deletions` | Cancellazioni avviate (PR #52): `user_id` senza chiave esterna (la riga sopravvive all'utente), `requested_by`, `requested_at`, `attempts`, `last_error` (solo un codice), `last_attempt_at`, `completed_at`. Nessun dato personale; le righe completate restano. Lettura solo dalle funzioni |
+| `password_emails` | Ultimo invio dell'email «Scegli la password» per persona (migrazione `20261017100000_email.sql`, PR #64): `user_id` (chiave primaria), `sent_at`. Tiene l'intervallo di 60 secondi fra due invii dalla pagina dell'invito; nessun privilegio diretto, la scrivono solo le funzioni dei reinvii (sotto); righe più vecchie di 7 giorni cancellate dal cron orario |
+| `ops_alerts` | Email operative (PR #64): chiave (`event`, `key`), `event` fra `weekly_job_overdue`, `weekly_job_abandoned`, `backup_export_missing`, `account_deletion_overdue` e `ops_alert_test`; `details` (solo id, codici, numeri e date), `subject` e `body` scritti una volta alla creazione, `created_at`, `claimed_at`, `sent_at`, `closed_at`, `closed_reason` (`expired`/`ambiguous`), `attempts`. Nessun indirizzo. RLS con tutto ad `app_job`, lettura ad `app_backup`, nulla per `authenticated` e `anon`; righe più vecchie di 90 giorni cancellate (sezione 4) |
 | `app_invitations` | Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia (sesto giro; migrazione `20261013100000_app_invitations.sql`, PR #45): `id` scelto dal client, `token_hash` (impronta SHA-256 del token, mai il token in chiaro), `email` normalizzata, `roles` (sottoinsieme di `recipe_curator` e `app_admin`, anche vuoto), `created_by`, `created_at`, `expires_at` (7 giorni), `status` (`pending`/`accepted`/`revoked`, scaduto calcolato), `revoked_at` e `revoked_by`, prenotazione dell'account all'accettazione (`reserved_user_id`, `reserved_at`), `accepted_by` e `accepted_at`. Un solo invito `pending` per email. RLS: lettura solo agli `app_admin`, nessuna scrittura diretta; tutto passa dalle funzioni descritte sotto. Dal 16 ottobre 2026 (PR #52) `email` ammette `null` per gli inviti di un account cancellato, con il vincolo `app_invitations_pending_email` (un invito `pending` ha sempre l'email) |
 | `app.connected_agents()` | Funzione, non tabella (collegamento degli agenti, migrazione `20261011200000_connected_agents.sql`): agenti autorizzati da chi chiama, cioè client, nome registrato, data del collegamento e ultimo rinnovo dell'accesso (massimo di `updated_at` delle sessioni vive del client). `security definer`, legge `auth.oauth_consents`, `auth.oauth_clients` e `auth.sessions`, solo righe dell'utente corrente e grant non revocati; eseguibile solo da `authenticated`. Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13): la tabella `agent_authorizations` prevista per l'ondata 3 non serve |
 | `catalogue_state` | Contatore di versione del ricettario, comune a tutte le famiglie (sezione 1) |
@@ -1556,6 +1670,23 @@ ricontrolla (`read committed`). I percorsi della famiglia non prendono mai
 basta alla vista dei membri. L'eliminazione di una famiglia cancella a cascata dati,
 link, ingressi, rimozioni e job; le prenotazioni restano, senza famiglia, per ritrovare
 l'account creato e per il tetto.
+
+**Email dell'app** (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+migrazione `20261017100000_email.sql`, solo additiva; particolari nella spec di
+dettaglio `2026-10-17-email.md`, sezioni 2, 5 e 11). Tabelle nuove `password_emails` e
+`ops_alerts` (sopra). Funzioni `security definer` dello schema `app`: per `anon`
+`app.app_invitation_password_email` e `app.family_invitation_password_email`, che
+autorizzano un invio solo a chi ha il token del link e l'email di una prenotazione già
+chiusa, rispondono `unavailable`, `not_needed` (email già confermata), `too_soon` o
+`send` e, con `send`, registrano l'invio in modo atomico, così di due richieste
+concorrenti una sola spedisce; il nome della famiglia esce solo per la prima email, con
+la prenotazione `joined` e la persona ancora membro. Per `authenticated`
+`app.family_email_unconfirmed` e `app.family_email_unconfirmed_version` (solo membri) e
+`app.admin_email_unconfirmed` (solo `app_admin`, al più 200 id), che da `auth.users`
+leggono soltanto se `email_confirmed_at` è nullo. Per `app_job`
+`app.overdue_account_deletions` (cancellazioni con almeno N tentativi falliti in una
+finestra, completate comprese) e `app.prune_password_emails`. Nessuna scrittura nello
+schema `auth`; prenotazioni e chiusure degli inviti restano quelle di A e C.
 
 **Ruolo dell'esportazione** (11 ottobre 2026, migrazione `20261012110000_backup.sql`):
 `app_backup`, NOLOGIN e BYPASSRLS, ha solo `SELECT` su tutte le tabelle di `app`
@@ -1872,11 +2003,13 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   aperti); poi si chiude come `abandoned`. Nel log restano solo campi scelti:
   `weekly_job_failed`, `weekly_job_overdue` (dal giovedì alle 08:00 che precede la
   settimana, cioè 12 ore dopo le 20:00 del mercoledì) e `weekly_job_abandoned`. Su
-  questi ultimi due arriverà un'email con Resend al referente operativo del servizio
-  (ondata 3, parte software dell'attività D; il dominio di invio è verificato dal 17
-  ottobre 2026; fino ad allora restano i log), insieme a quella sui fallimenti dell'esportazione notturna (sezione 8). Questo destinatario va configurato esplicitamente: assegnare il ruolo di
+  questi ultimi due arriva un'email al referente operativo del servizio (sotto, «Email
+  operative»), insieme a quelle sull'esportazione notturna mancante (sezione 8) e sulle
+  cancellazioni bloccate. Questo destinatario è configurato esplicitamente, con il
+  segreto `OPS_ALERT_EMAIL` (sezione 1): assegnare il ruolo di
   curatore non abilita a ricevere segnalazioni sulle altre famiglie. Contenuti e accessi
-  operativi devono rispettare la separazione dei ruoli della sezione 2.
+  operativi devono rispettare la separazione dei ruoli della sezione 2: le email portano
+  l'id della famiglia, mai il nome né indirizzi.
 - **Famiglia eliminata durante il job** (PR #52): una famiglia eliminata dopo la
   selezione fa fallire l'inserimento per chiave esterna (`23503`) o non trova più il
   job; il job lo tratta come «famiglia eliminata», scrive `weekly_job_family_gone`
@@ -1889,7 +2022,32 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `account_deletion_failed`; dopo 3 tentativi falliti `account_deletion_overdue` a
   livello `error`, come `weekly_job_overdue`, e di nuovo a ogni tentativo. Nessun
   abbandono: i dati dell'app sono già cancellati e la riga si riprova ogni ora. Nei log
-  solo id, codici e numeri.
+  solo id, codici e numeri. Dal terzo tentativo fallito parte anche l'email operativa
+  `account_deletion_overdue` (sotto).
+- **Email operative** (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+  particolari nella spec di dettaglio `2026-10-17-email.md`, sezione 5): quattro eventi,
+  `weekly_job_overdue`, `weekly_job_abandoned`, `backup_export_missing` e
+  `account_deletion_overdue`, un'email ciascuno al referente, con l'API di Resend.
+  **Meglio un doppione raro che un allarme perso** (decisione del coordinatore): ogni
+  allarme si registra in `ops_alerts` in una transazione `job` **propria**, mai in
+  quella del lavoro, quindi job, ripresa ed esportazione confermano il proprio stato
+  anche se l'allarme non si registra. Gli agganci immediati (job abbandonato o in
+  ritardo, terzo fallimento di una cancellazione, esecuzione delle 04:30 senza
+  esportazione) accorciano l'attesa ma non sono la garanzia: la garanzia è la
+  **riconciliazione oraria** sugli stati persistiti degli ultimi 7 giorni, conclusi
+  compresi, con la chiave primaria che evita i doppioni. Limite dichiarato: un job
+  chiuso `done` dopo la soglia del ritardo perché la settimana era già nata dalla
+  generazione pigra può dare un allarme in più. **Consegna**: ogni riga si acquisisce in
+  modo atomico (una sola esecuzione la spedisce), oggetto e corpo sono quelli salvati
+  alla creazione, la chiamata porta una chiave di idempotenza e si ritenta fino a 24
+  ore; ogni `409` di idempotenza chiude la riga come ambigua, tranne
+  `concurrent_idempotent_requests` (la stessa chiave ancora in corso), che è transitorio:
+  libera l'acquisizione (`claimed_at = null`) e la riga si ritenta entro la finestra.
+  Una riga ambigua e una non spedita entro 24 ore, che scade, hanno un log di errore e
+  restano **senza rispedizione**: si leggono con
+  uno script di sola lettura e si gestiscono a mano. Senza `RESEND_API_KEY` o
+  `OPS_ALERT_EMAIL` non si acquisisce nulla. Al primo giro dopo il rilascio la
+  riconciliazione può segnalare eventi dei 7 giorni precedenti, già noti.
 - **Generazione su richiesta** ("rigenera" se la settimana manca; il wizard non genera,
   deciso l'11 ottobre 2026): stessa funzione, al massimo 3 volte a settimana per famiglia.
   Il wizard è arrivato il 15 ottobre 2026 senza «rigenera», che resta nell'ondata 3
@@ -2180,10 +2338,10 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   dell'utente del 13 ottobre 2026, che sostituisce il link via email della specifica di
   base). Sull'iPhone la PWA installata sulla schermata Home non condivide cookie e
   archivio con Safari: un link che apre Safari lascia lì la sessione e l'app installata
-  resta fuori. Per questo nessun link via email serve a entrare; quando l'app potrà
-  spedire email (dopo l'attività D dell'ondata 3), i link nelle email serviranno solo a
-  scegliere o reimpostare la password (sotto). Nell'app non c'è ancora «password
-  dimenticata» (attività D). Nel traguardo A (sezione 10) gli account li ha creati
+  resta fuori. Per questo nessun link via email serve a entrare: i link delle email
+  dell'app (attività D dell'ondata 3, PR #64, unita il 17 ottobre 2026, rilascio in
+  preparazione) servono solo a scegliere o reimpostare la password (sotto). Nel
+  traguardo A (sezione 10) gli account li ha creati
   l'amministratore dalla dashboard di Supabase (*Add user*, con email confermata e
   password scelta da lui) e famiglia, appartenenze e ruoli globali li ha preparati lo
   script di avvio `bootstrap.sql` (sezione 10); dal 15 ottobre 2026 gli account nascono
@@ -2200,11 +2358,26 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   accesa una sessione di più di 24 ore riceverebbe `reauthentication_needed`).
   «Require current password when updating» acceso dall'utente il 13 ottobre 2026; il
   minimo di produzione non è verificato, la SPA impone 8 (sezione 1).
-- **Password dimenticata** (ondata 3, attività D, da realizzare nella sua parte
-  software; il dominio di invio è verificato dal 17 ottobre 2026, sotto): recupero via email con
-  Resend; il link apre Safari una volta per scegliere la password nuova, poi si entra
-  nell'app con email e password. È un caso raro e il passaggio da Safari è accettabile.
-  Fino ad allora l'amministratore reimposta la password dalla dashboard di Supabase.
+- **Password dimenticata** (ondata 3, attività D, PR #64, unita il 17 ottobre 2026,
+  rilascio in preparazione; decisioni dell'utente; particolari nella spec di dettaglio
+  `2026-10-17-email.md`, sezione 3): sotto «Entra» la pagina di accesso ha
+  «Password dimenticata?» verso `/password/forgot`, con l'email già scritta. La pagina
+  chiede l'email e risponde **sempre allo stesso modo**, che l'account esista o no,
+  anche oltre il limite di un invio al minuto per indirizzo; solo il limite orario del
+  progetto ha un suo messaggio. L'email la spedisce Supabase Auth
+  (`resetPasswordForEmail`, template `recovery`, sezione 1) e il link, valido **24 ore**,
+  apre Safari una volta su `/password`, la stessa pagina degli inviti: password con le
+  regole del Profilo, ripetuta, poi «Salva la password». Dopo il salvataggio Supabase
+  chiude le altre sessioni, agenti compresi, e la pagina mostra «Password salvata.» con
+  **«Accedi»** verso `/login` con l'email già scritta: **nessun ingresso automatico**
+  (decisione del coordinatore e dell'utente), perché nella PWA installata si entra
+  comunque con email e password. Un link scaduto o già usato dà «Questo link non vale
+  più» con «Chiedi un link nuovo»; con un altro account aperto nel browser la pagina
+  propone «Esci e continua» prima di usare il codice. **Rischio noto accettato**:
+  l'endpoint pubblico `/auth/v1/recover` di Supabase risponde 429 a una seconda
+  richiesta entro un minuto solo per un indirizzo con un account, e la UI non lo rivela.
+  È un caso raro e il passaggio da Safari è accettabile. Fino al rilascio
+  l'amministratore reimposta la password dalla dashboard di Supabase.
 - **Google** (decisione dell'utente del 13 ottobre 2026): comodità facoltativa, da
   aggiungere solo dopo una prova sull'iPhone con l'app installata. Da verificare nel
   progetto: se il ritorno dal redirect OAuth porta la sessione dentro la PWA
@@ -2222,16 +2395,15 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   creazione delle famiglie da parte degli utenti sono in produzione dal 15 ottobre 2026
   (attività A, PR #45); inviti alla famiglia ed eliminazione delle famiglie sono in
   produzione dal 16 ottobre 2026 con l'attività C (PR #52). Come si sceglie
-  la password dipende dal dominio di invio (sotto): prima della verifica sulla pagina
-  dell'invito, senza email (il flusso in produzione per gli inviti all'app); dopo
-  l'attività D con un link nell'email, i cui dettagli tecnici restano da verificare
-  (sezione 15).
+  la password dipende dall'attività D (sotto): prima sulla pagina dell'invito, senza
+  email (il flusso in produzione fino al rilascio di D); dopo con il link dell'email
+  «Scegli la password» (sotto, «Dopo l'attività D»).
 - **Prima della verifica del dominio di invio** (decisione dell'utente del 13 ottobre
   2026, temporanea; in produzione dal 15 ottobre con l'attività A): il DNS di
   `qunidi.it` per ora non si può modificare, quindi Resend non verifica
   `cosasimangia.qunidi.it` e l'app non spedisce email. Dal 17 ottobre 2026 il dominio di
-  invio `cosasimangia.app` è verificato, ma il flusso resta questo finché la parte
-  software dell'attività D non è rilasciata. L'invito all'app si accetta sulla
+  invio `cosasimangia.app` è verificato e la parte software dell'attività D è unita
+  (PR #64), ma il flusso resta questo finché non è rilasciata. L'invito all'app si accetta sulla
   pagina `/invite/app#<token>`: la persona scrive in un solo modulo l'email dell'invito,
   che deve coincidere, il suo nome e la password (due volte); il server crea l'account
   già confermato. Subito dopo la creazione la stessa pagina fa entrare la persona con
@@ -2250,8 +2422,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   email distinte che hanno iniziato a registrarsi, riuscite o no; un `weak_password`
   riprovato con la stessa email non consuma un'altra quota; chi ha già un account entra
   anche a tetto raggiunto). Oltre il tetto il link vale come non valido per creare
-  account. L'email scritta non è verificata fino all'attività D, la cui parte software
-  chiude questo rischio accettato: un'email presa da
+  account. L'email scritta non è verificata fino al rilascio dell'attività D, che chiude
+  questo rischio accettato: fino ad allora un'email presa da
   altri si rimedia cancellando quell'account dall'amministrazione. Niente «password
   dimenticata» e niente email di allarme in questa fase: una password dimenticata la
   reimposta l'amministratore dalla dashboard di Supabase.
@@ -2275,29 +2447,56 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   l'invito accettato e assegna i ruoli globali. Un account creato e poi rimasto senza
   chiusura per una revoca nel frattempo resta senza ruoli né famiglia e si gestisce
   dall'elenco degli utenti (attività B, dal 16 ottobre 2026), dove compare. Nei log mai password, token, email né corpi di
-  richiesta e risposta.
+  richiesta e risposta. Con l'attività D cambia solo la creazione (sotto): senza
+  password, con `email_confirm: false` e i soli nome e lingua nei metadati, e un esito
+  ambiguo riconciliato dice anche se l'email è già confermata.
 - **Dopo l'attività D** (dominio di invio verificato il 17 ottobre 2026, parte software
-  da realizzare): il link nell'email che la persona
-  riceve serve **solo a scegliere la password**: apre Safari una volta, poi la persona
-  entra nell'app con email e password. Arrivano anche la «password dimenticata» e le
-  email operative di job ed esportazione (sezioni 4 e 8). Si passa al link nell'email
-  senza rifare il flusso di A: cambia solo il modo in cui la persona riceve il link e
-  dimostra di possedere l'email, mentre prenotazione e chiusura restano uguali; se D
-  vorrà il link di Supabase per scegliere la password, la creazione dell'account avrà
-  una variante senza password. Dal 17 ottobre 2026 app ed email stanno sullo stesso
+  unita lo stesso giorno con la PR #64, rilascio in preparazione; decisioni dell'utente;
+  testi, stati delle pagine e sequenze nella spec di dettaglio `2026-10-17-email.md`,
+  sezioni 2 e 3). **Un solo meccanismo per i due inviti**, all'app e alla famiglia:
+  il link d'invito si condivide a mano come prima; chi non ha un account scrive sulla
+  pagina solo email e nome, non la password (pulsanti «Continua» per l'app ed «Entra
+  nella famiglia» per la famiglia, con la riga «Ti mandiamo un'email per scegliere la
+  password.»); il server prenota e chiude come prima e crea l'account **senza password
+  e con l'email da confermare** (nessuno conosce la password: chi scrive l'email di un
+  altro non ottiene nulla). Dopo la chiusura, fuori da ogni transazione, il server
+  spedisce con Resend l'email **«Scegli la password»** con un link a
+  `/password#token_hash=…&type=recovery` ottenuto da `generate_link` (sezione 1), valido
+  24 ore; solo la prima email di un invito alla famiglia nomina la famiglia. Il link apre
+  Safari una volta su `/password`: la verifica del link conferma l'email, prima di ogni
+  salvataggio; poi la persona sceglie la password (regole del Profilo) e, con «Accedi»,
+  entra con email e password,
+  anche nella PWA installata. Un errore dell'email **non annulla l'accettazione**. La
+  pagina dell'invito non fa più entrare: mostra **«Controlla la posta»** con l'email,
+  la durata del link, «Rimanda l'email» (dopo 60 secondi, testo generico, mai il nome
+  della famiglia) e, solo per la famiglia, **«Email sbagliata? Ricomincia»**, che riporta
+  al modulo vuoto sullo stesso link; ha messaggi propri per email non partita, invio
+  troppo ravvicinato, account già pronto, link già usato con quella email e account
+  cancellato nel frattempo. Chi entra da un invito all'app non passa più dal wizard: dopo
+  la password entra e trova «Crea la tua famiglia». **Durante l'attesa** la persona
+  compare subito tra i membri, o ha i ruoli dell'invito all'app, con l'etichetta
+  **«Non ha ancora confermato l'email»** (pagina dei membri e `/admin`, sotto), finché
+  la verifica del link non conferma l'email; chi apre
+  il link e conferma l'email senza salvare la password usa «Password dimenticata».
+  **Chi ha già un account** accetta un invito alla famiglia con la sua password, senza
+  verifiche; **gli account creati prima di D restano come sono**. Il passaggio fra
+  versioni non alza `CACHE_SCHEMA`; una PWA rimasta indietro che manda ancora la
+  password ottiene comunque l'account e l'email (matrice nella spec di dettaglio,
+  sezione 3). Arrivano anche la «password dimenticata» (sopra) e le email operative
+  (sezioni 4 e 8). Dal 17 ottobre 2026 app ed email stanno sullo stesso
   dominio, `cosasimangia.app`, verificato in Resend, e Supabase Auth spedisce con l'SMTP
   di Resend (sezione 1).
 - **Uscita e revoca sul dispositivo**: «Esci» chiude la sessione solo su questo
   dispositivo e cancella i dati salvati dell'utente anche se il servizio non risponde;
   un accesso revocato a una famiglia ne toglie subito i dati dal dispositivo (sezione 1).
 - **Email con Resend** (deciso l'8 ottobre 2026; dominio e SMTP di Supabase Auth
-  configurati il 17 ottobre 2026, email dell'app attive solo con la parte software
-  dell'attività D),
-  piano gratuito: 3.000 email al mese, al massimo 100 al giorno; oltre il limite
-  l'invio si sospende, senza addebiti. Supabase Auth lo userà come SMTP personalizzato
-  per le email degli inviti e del recupero della password, che servono solo a scegliere
-  la password; il server lo chiamerà via API per le proprie email operative
-  (segnalazioni del job e dell'esportazione, sezioni 4 e 8). Il servizio di default di
+  configurati il 17 ottobre 2026, email dell'app attive con il rilascio della parte
+  software dell'attività D, PR #64),
+  piano gratuito: 3.000 email al mese, al massimo 100 al giorno, condivise fra SMTP di
+  Supabase e API del server; oltre il limite l'invio si sospende, senza addebiti.
+  Supabase Auth lo usa come SMTP personalizzato solo per la «password dimenticata»; il
+  server lo chiama via API per l'email «Scegli la password» degli inviti, per «Rimanda
+  l'email» e per le proprie email operative (sezioni 4 e 8). Il servizio di default di
   Supabase non basta: consegna solo agli indirizzi dei membri del team
   dell'organizzazione Supabase, con pochi invii all'ora ed è solo per le prove. Con un
   SMTP personalizzato Supabase parte da 30 email all'ora, configurabile. Il dominio di
@@ -2326,7 +2525,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     gli amministratori della famiglia vedono gli ultimi 50 nella pagina dei membri;
   - la pagina dell'invito si legge anche senza accesso (solo nome della famiglia e chi
     invita); chi non ha un account lo crea sulla pagina (sopra, «Prima della verifica
-    del dominio di invio») ed entra nella famiglia, che diventa quella mostrata; chi ha
+    del dominio di invio» e, dal rilascio di D, «Dopo l'attività D») ed entra nella
+    famiglia, che diventa quella mostrata; chi ha
     un account accede, torna alla pagina con il token sempre nel frammento e conferma
     l'ingresso; chi ne fa già parte non cambia niente. A tetto raggiunto la pagina
     lascia solo l'accesso;
@@ -2376,8 +2576,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `/invite/*` ha `Referrer-Policy: no-referrer` in `web/public/_headers`, e `index.html`
   porta anche `<meta name="referrer" content="no-referrer">`, perché con il service
   worker attivo la navigazione riceve la shell dalla cache, senza le intestazioni di
-  `_headers`; vale per tutta l'app, che non dipende dal referrer. Finché manca il dominio
-  di invio il link si copia o si condivide e si manda a mano, senza email dall'app.
+  `_headers`; vale per tutta l'app, che non dipende dal referrer. Il link si copia o si
+  condivide e si manda a mano, senza email dall'app, anche dopo l'attività D
+  (decisione dell'utente del 17 ottobre 2026; «Invia per email» resta un'idea futura).
   L'iscrizione aperta
   della specifica di base non c'è più: le iscrizioni libere sono spente dal 12 ottobre
   2026 e restano spente (decisione dell'utente del 13 ottobre 2026).
@@ -2448,13 +2649,18 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   cancellazione è segnato nell'elenco e, nel dettaglio, ha lo stato dei tentativi e il
   comando per completarla al posto degli interruttori dei ruoli (sotto, «Cancellazione
   dell'account»).
+  **Con l'attività D** (PR #64) righe e dettaglio degli utenti mostrano accanto ai ruoli
+  l'etichetta «Non ha ancora confermato l'email» per gli account nati da un invito che
+  non hanno ancora confermato l'email aprendo il link (sopra, «Dopo l'attività D»).
 - **Recupero del ricettario**: il ripristino completo a una data è riservato agli
   amministratori dell'app. Il percorso dedicato deve essere rappresentato nel prototipo;
   i curatori hanno invece il ripristino della singola ricetta.
 - **Primo accesso** (quarto giro del prototipo, aggiornato il 15 ottobre 2026): per chi
   entra da invito è l'accettazione stessa. Il nome si chiede sulla pagina dell'invito,
-  insieme a email e password, e arriva al profilo tramite `user_metadata.display_name`;
-  non c'è una schermata separata, e il nome resta modificabile nelle Preferenze. Lingua
+  insieme all'email (e, fino al rilascio di D, alla password), e arriva al profilo
+  tramite `user_metadata.display_name`; non c'è una schermata separata, e il nome resta
+  modificabile nelle Preferenze. Con D il primo ingresso avviene da `/login`, dopo la
+  password scelta su `/password`. Lingua
   iniziale dal browser (italiano → `it-IT`, altrimenti `en-GB`), modificabile già nella
   pagina di accesso e in quella dell'invito, e scritta nel profilo all'accettazione.
   Senza famiglie il Menu, la Spesa e le altre schermate della famiglia mostrano «Non fai
@@ -2489,7 +2695,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   (`/profile/family`) link d'invito, ingressi con i link, azioni sui membri e uscita;
   in fondo alle impostazioni della famiglia, per gli amministratori, l'eliminazione;
   nelle Preferenze la cancellazione dell'account. Tutti i comandi sono disattivati
-  senza connessione e nessuna modifica è ottimistica.
+  senza connessione e nessuna modifica è ottimistica. **Con l'attività D** (PR #64)
+  nella pagina dei membri, sotto il nome, chi non ha ancora confermato l'email ha
+  l'etichetta «Non ha ancora confermato l'email», visibile a tutti i membri.
 - **Cambio di ruolo nella famiglia** (attività C): un amministratore nomina un altro
   membro amministratore con un gesto diretto; la retrocessione chiede conferma solo se
   la persona ha link attivi, perché smetteranno di valere. L'ultimo amministratore non
@@ -2515,7 +2723,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   lo stato senza famiglia.
 - **Preferenze personali**: nome e lingua, modificabili dall'utente nelle proprie
   impostazioni e tramite MCP, indipendentemente dalle impostazioni della famiglia.
-  Da qui si esce dall'account e si apre la cancellazione.
+  Da qui si esce dall'account e si apre la cancellazione. Dall'attività D un cambio di
+  lingua, dal web o via MCP, si copia anche nei metadati di Supabase Auth, così l'email
+  della «password dimenticata» arriva nella lingua scelta (sezioni 1 e 12).
 - **Cancellazione dell'account, regole confermate**: possibile da parte dell'utente
   stesso e degli amministratori dell'app. Entrambe arrivano con l'attività C
   dell'ondata 3 (PR #52, unita e rilasciata il 16 ottobre 2026): la
@@ -2626,7 +2836,16 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `INVITE_ACCEPT_LIMIT` (accettazione, 5 al minuto); oltre il limite la risposta è
   `rate_limited` e la pagina dice «Troppi tentativi. Riprova tra un minuto». I contatori
   sono per sede di Cloudflare e approssimati: un freno al carico su database e Auth
-  (l'API di amministrazione di Auth non ha limiti propri), non una garanzia.
+  (l'API di amministrazione di Auth non ha limiti propri), non una garanzia. **Email
+  dell'app** (PR #64): dalla pagina dell'invito, accettazione e «Rimanda l'email» stanno
+  sotto `INVITE_ACCEPT_LIMIT` e in più **un invio al minuto per persona**, tenuto da una
+  riga nel database (`password_emails`, sezione 2) perché deve valere per persona e la
+  stessa funzione autorizza la richiesta con token ed email: oltre, «Ti abbiamo appena
+  mandato un'email: aspetta un minuto prima di chiederne un'altra.». Il reinvio richiede
+  il token del link e l'email della prenotazione, quindi non serve a sondare indirizzi.
+  La «password dimenticata» ha i limiti di Supabase Auth: un invio al minuto per
+  indirizzo, che la pagina tratta come «Inviato», e 30 email all'ora per il progetto,
+  con «Abbiamo inviato troppe email in poco tempo. Riprova tra qualche minuto.».
 
 ### 8. Ricettario: database, curatori, validazione e scambio dati
 
@@ -2947,10 +3166,13 @@ l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore).
   dell'utente dopo la creazione del bucket, con la chiave presa dal gestore di
   password, così si verifica anche la copia: fatta il 13 ottobre 2026 sulla prima
   esportazione notturna, prima dell'import dei dati veri, con ripristino locale
-  riuscito. L'email di allarme sui fallimenti arriva
-  nell'ondata 3 con quelle del job (sezione 4), con la parte software dell'attività D
-  (dominio di invio verificato il 17 ottobre 2026). Restano da misurare i tempi di
-  recupero con un'esportazione vera (sezione 15).
+  riuscito. L'email di allarme `backup_export_missing` arriva con quelle del job
+  (sezione 4), con la parte software dell'attività D (PR #64, unita il 17 ottobre 2026,
+  rilascio in preparazione): dall'esecuzione delle 04:30 senza l'esportazione del giorno,
+  con il motivo (`failed`, `too_large`, `not_configured`), e dalla riconciliazione oraria
+  per ogni data degli ultimi 7 giorni senza un'esportazione in R2 (`missing`; oggi solo
+  dalle 05:00, mai oggi-7, che la conservazione delle ultime 7 copie cancella). Restano
+  da misurare i tempi di recupero con un'esportazione vera (sezione 15).
 
 Le azioni di recupero esposte nell'app devono essere disponibili anche via MCP con gli
 stessi permessi e controlli. Il design distinguerà queste azioni dai compiti operativi
@@ -3131,6 +3353,26 @@ rivedono con l'utente (decisione del coordinatore, 11 ottobre 2026).
   `internal`, due accettazioni concorrenti e il rifiuto della Data API sullo schema
   `app`. Provato con agent-browser su `wrangler dev` anche a 390 px, e sull'iPhone
   dall'utente dopo il rilascio del 15 ottobre 2026.
+- **Email dell'app** (PR #64; elenco completo nella spec di dettaglio
+  `2026-10-17-email.md`, sezione 8): pgTAP su `ops_alerts`, `password_emails` e sulle
+  funzioni dei reinvii, dell'etichetta e di `app_job`; test del server con Auth, Resend
+  e Mailpit finti (nessuna chiamata a `/auth/v1/invite` né a `/auth/v1/recover` dalle
+  accettazioni, account cancellato prima o dopo l'autorizzazione senza account ricreati,
+  reinvii concorrenti con una sola email, impronta della versione a conteggio invariato,
+  allarmi con interruzioni e lavoro concluso dopo, consegna concorrente, `409` ambiguo,
+  scadenza). **Mailpit acceso nella CI** (`supabase start` senza escluderlo), con le
+  email del server mandate a Mailpit da `MAILPIT_API_URL`; i test dello stack leggono i
+  link da Mailpit, verificano, salvano la password e accedono, anche quelli degli inviti
+  già esistenti. **Prova obbligatoria con «Require current password when updating»
+  acceso** su un secondo servizio di Auth dello stack
+  (`scripts/test-support/auth-require-current.sh`), perché la CLI non esprime l'opzione
+  in `config.toml`: `/password` salva per un invitato e per un recupero, mentre il
+  Profilo senza password attuale è rifiutato; un altro servizio dedicato, con il limite
+  orario delle email basso, prova il 429 del progetto. Test web delle pagine `/password`
+  e `/password/forgot`, delle pagine d'invito e delle etichette; agent-browser sullo
+  stack locale, compreso il passaggio dalla shell vecchia (`/password#…` non trovata con
+  il frammento intatto, poi verificata dalla versione nuova). Dopo il rilascio
+  l'utente prova sull'iPhone email, PWA e resa delle email nelle due lingue.
 - **End to end** (agent-browser e iPhone): accettazione di un invito con creazione dell'account, scelta della password e accesso con email e password nella PWA installata, creazione della famiglia, invito, modifica di uno
   slot, voto, generazione della lista con pagina Bring!, cambio lingua e unità,
   collegamento MCP e operazioni di gestione del ricettario e amministrazione.
@@ -3169,10 +3411,11 @@ trasferimento dell'app su `cosasimangia.qunidi.it` non fa parte dell'ondata 3 e
 richiederà una decisione distinta (sezione 7). Il 17 ottobre 2026 l'utente ha scelto
 invece `cosasimangia.app` per app ed email (sezione 1), sbloccando il DNS dell'attività D:
 i suoi passi esterni (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti lo
-stesso giorno, la parte software resta da fare. Ordine concordato con l'utente il 17
+stesso giorno. Ordine concordato con l'utente il 17
 ottobre 2026: la correzione del difetto #48 del pianificatore prima della generazione di
-mercoledì 21 ottobre (insieme a #51), poi la parte software di D, poi le parti
-di E scelte dall'utente (piano generale).
+mercoledì 21 ottobre (insieme a #51), poi la parte software di D, unita lo stesso giorno
+(PR #64) con il rilascio in preparazione, poi le parti di E scelte dall'utente (piano
+generale).
 
 **Stato al 17 ottobre 2026:**
 
@@ -3195,7 +3438,7 @@ di E scelte dall'utente (piano generale).
 | Gestione della famiglia (ondata 3, attività C) | Unita (PR #52) e rilasciata il 16 ottobre 2026 con la migrazione `20261016100000_family_management.sql` (versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`, commit `9228598`), senza segreti, binding, Cron Trigger né risorse nuove; provata con agent-browser sullo stack locale e nella modalità finta. Collaudo e prove sull'iPhone riusciti il 16 ottobre 2026: l'utente ha collaudato con l'account e la famiglia di prova di A, eliminati con i comandi di C (spec di dettaglio, sezione 6), e ha provato a mano sull'iPhone la pagina dell'invito aperta da WhatsApp, la condivisione del link, i fogli di conferma e la cancellazione dell'account nella PWA installata |
 | Foto delle ricette (ondata 3, attività E, issue #39) | Unita (PR #54) e rilasciata il 16 ottobre 2026 con la migrazione `20261016110000_recipe_photos.sql` (versione del Worker `5dce4dda-67d7-4315-97f3-608631f45796`, commit `41d9918`), con il bucket `cosasimangia-photos` creato dall'utente e i binding `PHOTOS` e `IMAGES`; provata con agent-browser sullo stack locale. Foto popolate via MCP la sera stessa: 46 ricette con la foto, 4 ancora senza. Restano le prove a mano sull'iPhone (scatto e libreria, foto HEIC, orientamento, tempi su rete mobile, offline dopo una visita) e la verifica dei metadati con il binding Images di produzione (spec di dettaglio, sezione 9) |
 | Dominio `cosasimangia.app` | PR #56 (dominio personalizzato del Worker, `workers_dev` spento) unita e rilasciata il 17 ottobre 2026 alle 04:23 UTC; PR #57 (controllo del rilascio) unita dopo, senza nuovo rilascio (versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); il vecchio indirizzo risponde 404. Dominio verificato in Resend, *Site URL* e *Redirect URLs* solo sul nuovo dominio, SMTP di Supabase Auth su Resend con una prova riuscita, PWA reinstallata sull'iPhone e agente MCP di Claude Code ricollegato a `https://cosasimangia.app/mcp` |
-| Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra); parte software da fare: link della password via email dopo l'accettazione di un invito, «password dimenticata», email operative per i fallimenti di job ed esportazione (sezioni 4 e 8), fine del rischio accettato delle email non verificate negli inviti (sezione 7) |
+| Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra). Parte software (W15, spec `2026-10-17-email.md`) unita il 17 ottobre 2026 con la PR #64 e la migrazione `20261017100000_email.sql`: email «Scegli la password» dal server dopo l'accettazione di un invito, `/password` e «password dimenticata», etichetta «Non ha ancora confermato l'email», email operative di job, esportazione e cancellazioni (sezioni 4, 7 e 8), fine del rischio accettato delle email non verificate negli inviti. **Rilascio in preparazione**: prima del deploy i segreti `RESEND_API_KEY` (obbligatorio) e `OPS_ALERT_EMAIL`, il template di recupero e `mailer_otp_exp` in produzione; dopo, invito di prova, «password dimenticata» di prova e prova degli allarmi (runbook nella spec di dettaglio, sezione 9) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -3358,12 +3601,22 @@ le trascrizioni originali delle fonti e i titoli bibliografici sono distinti dai
 localizzati obbligatori. I collegamenti alle fonti non diventano traduzioni dei siti o
 dei libri.
 
+**Lingua delle email** (decisione dell'utente, PR #64, unita il 17 ottobre 2026): ogni
+email arriva nella lingua della persona, italiano o inglese britannico. L'email «Scegli
+la password», spedita dal server, usa la lingua della pagina dell'invito; la «password
+dimenticata», spedita da Supabase Auth, usa `user_metadata.locale`, che il server
+allinea alla lingua delle Preferenze a ogni cambio (web e MCP), con l'italiano se manca.
+Una scrittura concorrente dei metadati può lasciare al più la lingua precedente nel
+recupero, difetto innocuo accettato. Le email operative al referente sono solo in
+italiano.
+
 ### 13. MCP e guida al collegamento
 
 **Requisito:** ogni operazione dell'utente autenticato disponibile nell'app deve avere un
 equivalente MCP per lo stesso utente e con gli stessi permessi, **tranne l'eliminazione di
 una famiglia**, che MCP può soltanto indirizzare alla pagina dell'app. Le operazioni
-`public` senza utente (lettura e accettazione degli inviti all'app e alla famiglia) restano fuori da MCP
+`public` senza utente (lettura e accettazione degli inviti all'app e alla famiglia e,
+dalla PR #64, reinvio dell'email per la password) restano fuori da MCP
 per costruzione (`mcp: false` imposto da `contract/src/check.ts`). Il caricamento di un
 file di foto (`catalogue.uploadPhoto`, dal 16 ottobre 2026) è solo web perché MCP non
 trasporta file: l'equivalente per l'agente è l'impostazione da un indirizzo (sotto). Il
@@ -3472,6 +3725,12 @@ server espone operazioni applicative, non accesso generico alle tabelle.
   e la imposta solo dopo un sì esplicito: come per la pubblicazione, la conferma è
   affidata alle istruzioni della guida, senza campi in più. Lo scaricamento lo fa il
   Worker con i controlli della sezione 1.
+- **Email dell'app** (PR #64, unita il 17 ottobre 2026): **nessuno strumento nuovo**.
+  `appInvitations.resendPasswordEmail` e `familyInvitations.resendPasswordEmail` sono
+  `public` e restano fuori da MCP; gli strumenti esistenti di famiglia e utenti
+  (`family_get`, `users_list`, `users_get`) ricevono `emailUnconfirmed` dalle stesse
+  viste del web, e `profile_update` allinea la lingua anche nei metadati di Auth
+  (sezione 12).
 - **Istruzioni per l'agente**, a partire da quelle sugli ingredienti (sezione 8),
   servite dal server MCP stesso, non solo descritte nella pagina dell'app: per la
   gestione del ricettario sono `catalogue.getGuide`, testo in inglese con flusso,
@@ -3736,6 +3995,13 @@ si va al Menu con «Non fai ancora parte di una famiglia», perché l'app non ha
 numero di agenti collegati compare solo sulla pagina di cancellazione del proprio
 account; un account in attesa ha nell'amministrazione «Cancellazione in corso» e
 «Completa la cancellazione», e chi vi accede vede «Questo account è stato cancellato.».
+**Con le email dell'app** (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+sezione 7) le due pagine d'invito non chiedono più la password e non fanno entrare:
+dopo email e nome mostrano «Controlla la posta»; si aggiungono le pagine pubbliche
+`/password` e `/password/forgot`, con la forma delle pagine d'ingresso (marchio, colonna
+stretta, cambio di lingua), e «Password dimenticata?» nella pagina di accesso; l'etichetta «Non ha ancora confermato
+l'email» sta sotto il nome nella pagina dei membri, nello stile di «Dal {data}», e
+accanto ai ruoli in `/admin`. Il prototipo non aveva questi stati.
 Pagine dedicate con conferma a pulsante rosso, riepiloghi famiglia per famiglia e
 scelta del successore restano nella forma del prototipo.
 
@@ -3856,7 +4122,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Per l'invito che crea l'account, dopo l'attività D, dettagli tecnici da verificare nel progetto per inviare il link per scegliere la password. Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio. **Chiusa il 16 ottobre 2026 la regola equivalente per gli inviti alla famiglia** (decisione dell'utente, attività C, PR #52): il link crea l'account a chi non ce l'ha, al più 10 persone registrate per link, con account e ingresso in un solo passaggio e l'email non verificata fino all'attività D (sezione 7). **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7) | Sezione 7 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio. **Chiusa il 16 ottobre 2026 la regola equivalente per gli inviti alla famiglia** (decisione dell'utente, attività C, PR #52): il link crea l'account a chi non ce l'ha, al più 10 persone registrate per link, con account e ingresso in un solo passaggio e l'email non verificata fino all'attività D (sezione 7). **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7). **Chiusi il 17 ottobre 2026 i dettagli tecnici per inviare il link per scegliere la password** (W15, parte software dell'attività D, PR #64, rilascio in preparazione; spec `2026-10-17-email.md`): account creato senza password e con l'email da confermare, link da `generate_link` di tipo `recovery` spedito dal server con Resend, pagina `/password` senza adozione della sessione, stesso meccanismo per inviti all'app e alla famiglia, fine del rischio delle email non verificate; «password dimenticata» con il template di Supabase (sezioni 1, 2 e 7) | Sezione 7 |
 | Cancellazione | **Chiusa il 16 ottobre 2026** con l'attività C (PR #52, unita e rilasciata il 16 ottobre 2026): passaggio da MCP al web, procedura tecnica e revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise decisi nella spec `2026-10-16-gestione-famiglia.md` e riportati nelle sezioni 1, 2, 4, 7, 8 e 13 | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Foto delle ricette nel ripristino dell'intero catalogo: non fanno parte dello storico ricostruibile, da decidere con quell'attività (sezione 8; le esportazioni ne contengono i riferimenti e gli oggetti non si cancellano mai). Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
@@ -3916,6 +4182,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 17 ottobre 2026, dominio | Decisione dell'utente: app ed email su `cosasimangia.app`, comprato su Cloudflare, al posto di `cosasimangia.qunidi.it`; `workers.dev` spento senza reindirizzamenti, `www` rimandato al dominio, mittente `noreply@cosasimangia.app`. Il controllo del rilascio richiede un dominio personalizzato del Worker con `workers_dev` spento. Sezioni 1 e 10 e intestazione aggiornate |
 | 17 ottobre 2026, dominio completato e attività D | Rilascio del dominio il 17 ottobre alle 04:23 UTC (PR #56, versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); DNS nella zona Cloudflare dell'account di POWA; dominio verificato in Resend (DKIM `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`); *Site URL* e *Redirect URLs* solo sul nuovo dominio; SMTP personalizzato di Supabase Auth su Resend (`smtp.resend.com:465`, chiave dedicata di solo invio limitata al dominio), mittente `Cosa si mangia <noreply@cosasimangia.app>`, prova con un magic link riuscita; PWA reinstallata sull'iPhone e agente MCP ricollegato a `https://cosasimangia.app/mcp`. L'attività D non è più bloccata: resta la parte software (link della password via email dopo un invito, «password dimenticata», email operative di job ed esportazione, fine del rischio delle email non verificate negli inviti). Ordine concordato con l'utente: correzione di #48 prima della generazione del 21 ottobre (insieme a #51), poi la parte software di D, poi E. Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
 | 17 ottobre 2026, somiglianza e zoom | Riportate le decisioni del piano `2026-10-17-somiglianza-e-zoom.md` (W13, issue #48 e #51, PR #60). Decisione dell'utente: nuova caratteristica della somiglianza `primary_ingredient_line`, quando l'ingrediente principale di una ricetta è una riga non facoltativa dell'altra, con lo stesso peso e la stessa finestra delle altre; solo penalità, nessun vincolo sul giorno per ingredienti o proteine. Accettata la carne rossa oltre il massimo in 3 settimane su 20 nel report, senza cambiare la riparazione. Report del pianificatore con gli ingredienti dell'import; testo dei campi di almeno 16 px perché iOS non ingrandisca la pagina, zoom del viewport libero (sezioni 3, 9 e 14, `design/design.md`) |
+| 17 ottobre 2026, email dell'app | Riportate le decisioni della spec `2026-10-17-email.md` (W15, parte software dell'attività D dell'ondata 3, PR #64 unita il 17 ottobre con la migrazione `20261017100000_email.sql`; rilascio in preparazione). Decisioni dell'utente: verifica dell'email negli inviti con un solo meccanismo per inviti all'app e alla famiglia (pagina con email e nome, account con l'email da confermare, email «Scegli la password» con il nome della famiglia solo nella prima, password scelta su `/password`, prenotazione e chiusura invariate), fine del rischio accettato; link d'invito all'app non spedito per email; account creati prima di D invariati; attesa con la persona subito visibile e l'etichetta «Non ha ancora confermato l'email», «Controlla la posta», «Rimanda l'email» ed «Email sbagliata? Ricomincia»; «password dimenticata» dalla pagina di accesso con risposta sempre uguale, link di 24 ore e «Accedi» dopo il salvataggio, senza ingresso automatico; email nella lingua della persona; quattro email operative, un'email per evento. Decisioni del coordinatore: prima email e reinvio spediti dal server con Resend e il link di `generate_link` di tipo `recovery`, template di Supabase solo per il recupero, nei metadati di Auth solo nome e `locale`; allarmi registrati fuori dalle transazioni del lavoro, riconciliazione oraria su 7 giorni di stati persistiti, consegna atomica con corpo immutabile, ogni `409` di idempotenza ambiguo tranne `concurrent_idempotent_requests`, transitorio e ritentato, e scadenza a 24 ore senza rispedizione; non enumerazione nella UI con il rischio residuo dell'endpoint pubblico di Supabase; correzione in avanti come ritorno indietro. Tecniche: segreti `RESEND_API_KEY` (obbligatorio, distinto dall'SMTP) e `OPS_ALERT_EMAIL`, `MAILPIT_API_URL` solo in locale e in CI; `mailer_otp_exp` 86400; `/password` con chiamate dirette e nessuna adozione della sessione; `accept` senza password con `passwordEmail`, `resendPasswordEmail` pubbliche, `emailUnconfirmed` nelle viste e ambito di versione `emailUnconfirmed`; tabelle `ops_alerts` e `password_emails`; un invio al minuto per persona dalla pagina dell'invito; Mailpit nella CI e prova obbligatoria con «Require current password» su un secondo servizio di Auth; nessuno strumento MCP nuovo. Chiusi in sezione 15 i dettagli tecnici del link per scegliere la password. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 9, 10, 12, 13, 14 e 15 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
