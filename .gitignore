@@ -21,3 +21,5 @@ dist/
 .wrangler/
 .dev.vars
 progetto/coordinamento/visti.txt
+# Prompt dei revisori: li riscrive avvia-revisore.sh a ogni revisione
+progetto/coordinamento/revisioni/*.prompt

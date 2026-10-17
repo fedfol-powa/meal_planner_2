@@ -81,7 +81,7 @@ localizzabili in italiano e inglese britannico.
   richieste prima di accedere (15/10: due accessi di prova sono arrivati in produzione).
 - Nessuna scrittura in produzione (dati, migrazioni, segreti, rilasci) senza anteprima e
   «vai» dell'utente: è l'app che la famiglia usa davvero.
-- I worker non rilasciano: il rilascio lo prepara il coordinatore e lo lancia l'utente.
+- Il rilascio lo prepara il coordinatore e parte solo dopo il «vai» dell'utente; i worker no.
 - Il progetto di origine `../meal_planner` si legge soltanto: è attivo e separato. Le sue
   regole di merito (`progetto/REGOLE.md`) sono il punto di partenza dei default, non di qui.
 

@@ -21,8 +21,8 @@ fare; qui c'è come.
   tocchi server, database o MCP.
 - Lingua, Context7, dipendenze e prove sullo stack locale: regole di `AGENTS.md`
   («Regole per tutti»). Le dipendenze nuove le approva il coordinatore.
-- Il rilascio in produzione non lo fai mai tu: lo prepara il coordinatore e lo lancia
-  l'utente.
+- Il rilascio in produzione non lo fai mai tu: lo prepara il coordinatore e parte
+  solo dopo il «vai» dell'utente.
 
 ## Fasi
 

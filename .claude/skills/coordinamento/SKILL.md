@@ -146,9 +146,11 @@ principale dopo un merge), in un worktree loro.
 - Ogni scrittura in produzione (dati, migrazioni, segreti, rilasci) passa da anteprima,
   «vai» dell'utente, applicazione.
 - Rilascio: prepari l'anteprima con `npm run release` (senza `--apply`) da un checkout
-  pulito; dopo il «vai» l'utente lancia `npm run release -- --apply` con `!` dalla cartella
-  principale (il classificatore di Claude Code lo blocca al coordinatore). Migrazioni con
-  la CLI di Supabase, prima del rilascio che le usa.
+  pulito di `main`; dopo l'anteprima e il «vai» esplicito dell'utente lanci tu
+  `npm run release -- --apply <impronta> --credentials <file>` dallo stesso checkout
+  (comandi in `server/README.md`; il 17/10 è partito dal coordinatore senza blocchi). Se il
+  classificatore di Claude Code lo blocca, lo lancia l'utente con `!` dalla cartella
+  principale. Migrazioni con la CLI di Supabase, prima del rilascio che le usa.
 - Credenziali solo in file locali ignorati da Git, scritti dall'utente; mai nella
   conversazione.
 - I worker non rilasciano.
