@@ -62,7 +62,7 @@ arriva al rilascio.
    `POSTGRES_DATABASE_URL`, `web/.env.production`, `server/wrangler.jsonc`, eventuale
    `supabase link`); configurazione del Worker (account, nessuna sezione `env`,
    Hyperdrive, bucket, segreti di `scripts/release.config.json`, `productionUrl`
-   `https://<nome>.<sottodominio>.workers.dev`, chiave pubblica **uguale** a quella
+   `https://<dominio personalizzato del Worker>` con `workers_dev` spento, chiave pubblica **uguale** a quella
    della SPA); Supabase Auth in sola lettura (chiave pubblica valida, iscrizioni spente,
    OAuth server attivo con registrazione dinamica); build della SPA con i soli valori di
    `web/.env.production` e bundle del Worker; migrazioni pendenti dall'elenco di

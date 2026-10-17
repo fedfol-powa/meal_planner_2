@@ -305,7 +305,7 @@ export async function apply(deps: Deps, env: NodeJS.ProcessEnv, confirmation: st
 	if (deployed.status !== 0) return fail('deploy', 'wrangler deploy failed');
 	const entry = deployEntry(deps.readFile(output));
 	const url = p.productionUrl!;
-	if (!entry?.version_id || entry.worker_name !== p.workerName || entry.worker_name_overridden || !entry.targets?.includes(new URL(url).host))
+	if (!entry?.version_id || entry.worker_name !== p.workerName || entry.worker_name_overridden || !entry.targets?.some((t) => t === `${new URL(url).host} (custom domain)`))
 		return fail('deploy-target', `the deploy did not publish ${p.workerName} at ${url}: check before anything else`);
 	const versionId = entry.version_id;
 

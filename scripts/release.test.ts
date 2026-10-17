@@ -23,8 +23,8 @@ const WEB_ENV = `VITE_SUPABASE_URL=https://${ref}.supabase.co\nVITE_SUPABASE_PUB
 const env = { POSTGRES_DATABASE_URL: `postgresql://postgres.${ref}:pw-secret@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=/ca.crt` };
 
 const URL_OK = 'https://cosasimangia.app';
-// Wrangler lists a custom domain as its bare host, without the scheme.
-const TARGET_OK = 'cosasimangia.app';
+// Wrangler lists a custom domain as its host followed by « (custom domain)», without the scheme (release of 17 October 2026).
+const TARGET_OK = 'cosasimangia.app (custom domain)';
 const NEW_VERSION = '11111111-1111-4111-8111-111111111111';
 const OLD_VERSION = '00000000-0000-4000-8000-000000000000';
 const OUTPUT = '/tmp/release-test/wrangler-output.ndjson';
@@ -266,7 +266,8 @@ describe('after the deploy: the new version is the one answering (finding 6)', (
 		for (const [over, check] of [
 			[{ deployOutput: { worker_name: 'cosasimangia-review-other' } }, 'deploy-target'],
 			[{ deployOutput: { worker_name_overridden: true } }, 'deploy-target'],
-			[{ deployOutput: { targets: ['other.app'] } }, 'deploy-target'],
+			[{ deployOutput: { targets: ['other.app (custom domain)'] } }, 'deploy-target'],
+			[{ deployOutput: { targets: ['cosasimangia.app'] } }, 'deploy-target'],
 			[{ deployOutput: { targets: [URL_OK] } }, 'deploy-target'],
 			[{ statusAfter: OLD_VERSION }, 'new-version'],
 			[{ servingVersion: OLD_VERSION }, 'new-version'],
