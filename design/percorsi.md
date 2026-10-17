@@ -1093,7 +1093,9 @@ solo ora: se lo perdi, crea un nuovo link». Nell'elenco non c'è «Copia il lin
 inviti in attesa e scaduti c'è «Nuovo link», che crea un invito nuovo con la stessa
 email e gli stessi ruoli e sostituisce quello in attesa. Il motivo è che il database
 conserva solo l'impronta del token. Il link è `/invite/app#<token>` al posto di
-`/invite/app/[token]`.
+`/invite/app/[token]`. La pagina dell'invito chiedeva email, nome e password e faceva
+entrare subito; con le email dell'app chiede solo email e nome (sotto, «Email
+dell'app»). Il link si manda sempre a mano: l'app non lo spedisce per email.
 
 ### Sezione Utenti nell'app (16 ottobre 2026)
 
@@ -1132,7 +1134,8 @@ restano nella forma del prototipo. Scostamenti:
   e i link scaduti con registrazioni da completare, con «Revoca», e non ricondivide il
   link: se ne crea uno nuovo;
 - chi non ha un account lo crea sulla pagina dell'invito con email, nome e password
-  («Crea l'account ed entra»), al posto del primo accesso simulato in `/welcome`;
+  («Crea l'account ed entra»), al posto del primo accesso simulato in `/welcome`; con le
+  email dell'app la password esce dal modulo (sotto, «Email dell'app»);
 - nella pagina dei membri c'è la card «Ingressi con i link»;
 - «Rendi membro» chiede conferma quando la persona ha link attivi, e rimozione,
   uscita e cancellazione dicono quanti link smetteranno di valere;
@@ -1171,3 +1174,42 @@ senza foto. Aggiunte rispetto al prototipo, che non aveva comandi per la foto
 Il 16 ottobre 2026 le foto sono state popolate via MCP: 46 ricette con la foto, 4
 ancora senza. Restano le prove a mano sull'iPhone (scatto e libreria, foto HEIC,
 orientamento, rete mobile, offline dopo una visita).
+
+### Email dell'app (17 ottobre 2026)
+
+L'accesso con le email, che il prototipo simulava con `/welcome`, è realizzato nell'app
+con la PR #64 (W15, parte software dell'attività D), unita il 17 ottobre 2026, con il
+rilascio in preparazione (specifica, sezioni 7 e 14; testi e stati in
+`progetto/superpowers/specs/2026-10-17-email.md`, sezione 3). Pagine nuove o cambiate:
+
+- **pagine d'invito** (`/invite/app#<token>` e `/invite#<token>`): senza password, solo
+  email e nome, con «Continua» (app) o «Entra nella famiglia» (famiglia) e la riga «Ti
+  mandiamo un'email per scegliere la password.»; la pagina non fa più entrare. Dopo
+  l'invio mostra **«Controlla la posta»**: l'email a cui è partita, «Il link vale 24 ore.
+  Controlla anche la posta indesiderata.», «Rimanda l'email» abilitato dopo 60 secondi e,
+  solo per la famiglia, «Email sbagliata? Ricomincia», che riporta al modulo vuoto sullo
+  stesso link. Messaggi propri per email non partita, email appena mandata, account già
+  pronto («Vai all'accesso»), link già usato con quella email e account cancellato nel
+  frattempo. Chi ha già un account accede e conferma l'ingresso come prima. Chi entra da
+  un invito all'app non passa più dal wizard: dopo la password entra e trova «Crea la tua
+  famiglia»;
+- **`/password`**: si apre dal link dell'email «Scegli la password» o della «Password
+  dimenticata», in Safari. «Scegli la password», «Account: {email}», password e
+  ripetizione con le regole del Profilo, la riga sugli altri dispositivi e agenti che
+  dovranno accedere di nuovo, «Salva la password»; poi «Password salvata.», «Ora entra
+  con la tua email e la nuova password.» e **«Accedi»** verso `/login` con l'email già
+  scritta, senza ingresso automatico, più la riga per la schermata Home su iOS in Safari.
+  Link scaduto, usato o pagina ricaricata: «Questo link non vale più» con «Chiedi un link
+  nuovo»; con un altro account aperto: «Esci e continua»;
+- **`/password/forgot`**, da «Password dimenticata?» sotto «Entra» nella pagina di
+  accesso: «Password dimenticata», l'email e «Manda il link»; poi sempre la stessa
+  risposta, che l'account esista o no («Se l'email ha un account, ti abbiamo mandato un
+  link…»), con «Manda di nuovo» dopo 60 secondi e «Torna all'accesso»;
+- **etichetta «Non ha ancora confermato l'email»** sotto il nome nella pagina dei membri,
+  nello stile di «Dal {data}», e accanto ai ruoli nelle righe e nel dettaglio degli utenti
+  di `/admin`, finché la persona non sceglie la password.
+
+Le pagine nuove hanno la forma delle pagine d'ingresso del prototipo (marchio, colonna
+stretta, cambio di lingua, «Sei offline» con i comandi disattivati). Restano le prove a
+mano sull'iPhone dopo il rilascio (email aperta dall'app Mail con la PWA installata,
+«Password dimenticata» dalla PWA, resa delle email in italiano e in inglese).
