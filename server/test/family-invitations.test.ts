@@ -1,6 +1,6 @@
 import type { Contract } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { errorOf, setupActors, type Actor, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
 import { installFakeAuth } from './support/fake-auth.ts';
@@ -172,6 +172,47 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 			expect(await accepting).toEqual({ email: address, joined: false, passwordEmail: 'sent' });
 			expect(auth.mails[0]!.text).toContain('Per cominciare a usare Cosa si mangia');
 			expect(auth.mails[0]!.text).not.toContain('Test');
+		});
+
+		it('an error in the email step never undoes the acceptance: failed, membership kept, only a code logged', async () => {
+			const { familyId, token } = await setup();
+			const address = email();
+			let lines: string[] = [];
+		const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+			await actors.db.admin`revoke execute on function app.family_invitation_password_email(bytea, text, boolean) from anon`;
+			try {
+				expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true, passwordEmail: 'failed' });
+			} finally {
+				await actors.db.admin`grant execute on function app.family_invitation_password_email(bytea, text, boolean) to anon`;
+				lines = logs.mock.calls.map((c) => String(c[0]));
+			logs.mockRestore();
+			}
+			expect(await memberRole(familyId, (await userByEmail(address))!)).toBe('member');
+			const line = lines.find((l) => l.includes('password_email_failed'));
+			expect(line).toBeDefined();
+			expect(line).toContain('42501');
+			expect(line).not.toContain(address);
+			expect(auth.calls).toEqual(['POST']);
+		});
+
+		it('account deleted after the closing and before the authorisation: unavailable, Auth not called again', async () => {
+			const { token } = await setup();
+			const address = email();
+			// The last write of the closing transaction is the current family of the new member:
+			// the account of this email disappears right after it, inside the same transaction.
+			const trigger = `w15_delete_${crypto.randomUUID().replace(/-/g, '')}`;
+			await actors.db.admin.unsafe(`
+				create function app.${trigger}() returns trigger language plpgsql as $$
+				begin delete from auth.users where id = new.user_id and email = '${address}'; return null; end $$;
+				create trigger ${trigger} after insert or update on app.profile_preferences
+				for each row when (new.current_family_id is not null) execute function app.${trigger}()`);
+			try {
+				expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true, passwordEmail: 'unavailable' });
+			} finally {
+				await actors.db.admin.unsafe(`drop trigger ${trigger} on app.profile_preferences; drop function app.${trigger}()`);
+			}
+			expect(auth.calls).toEqual(['POST']);
+			expect(await userByEmail(address)).toBeUndefined();
 		});
 
 		it('account deleted after the authorisation and before generate_link: unavailable, nothing created', async () => {

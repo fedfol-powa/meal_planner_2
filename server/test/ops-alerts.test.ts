@@ -34,6 +34,7 @@ describe.skipIf(!hasDatabase)('operational alerts', () => {
 		sql = postgres(db.appServerUrl, { max: 4, fetch_types: false });
 	});
 	afterAll(async () => {
+		if (db) await db.admin`delete from app.ops_alerts where key like 't7-%'`;
 		await sql?.end();
 		await db?.close();
 	});

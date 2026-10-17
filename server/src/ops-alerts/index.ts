@@ -99,13 +99,13 @@ async function deliverOne(sql: postgres.Sql, env: AlertEnv, to: string, event: s
 	if (claimed.length !== 1) return;
 	const result = await sendEmail(env, { to, subject: claimed[0]!.subject, text: claimed[0]!.body, idempotencyKey: `${event}/${key}` }, { fetch: options.fetch });
 	if (result.ok) {
-		await withDbOn(sql, { kind: 'job' }, (tx) => tx`update app.ops_alerts set sent_at = now() where event = ${event} and key = ${key}`);
+		await withDbOn(sql, { kind: 'job' }, (tx) => tx`update app.ops_alerts set sent_at = now() where event = ${event} and key = ${key} and sent_at is null and closed_at is null`);
 		logEvent('ops_alert_sent', { alert: event, key });
 	} else if (result.status === 409 && result.code !== 'concurrent_idempotent_requests') {
-		await withDbOn(sql, { kind: 'job' }, (tx) => tx`update app.ops_alerts set closed_at = now(), closed_reason = 'ambiguous' where event = ${event} and key = ${key}`);
+		await withDbOn(sql, { kind: 'job' }, (tx) => tx`update app.ops_alerts set closed_at = now(), closed_reason = 'ambiguous' where event = ${event} and key = ${key} and sent_at is null and closed_at is null`);
 		logEvent('ops_alert_ambiguous', { alert: event, key }, 'error');
 	} else {
-		await withDbOn(sql, { kind: 'job' }, (tx) => tx`update app.ops_alerts set claimed_at = null where event = ${event} and key = ${key}`);
+		await withDbOn(sql, { kind: 'job' }, (tx) => tx`update app.ops_alerts set claimed_at = null where event = ${event} and key = ${key} and sent_at is null and closed_at is null`);
 		logEvent('ops_alert_failed', { alert: event, key, status: result.status }, 'error');
 	}
 }

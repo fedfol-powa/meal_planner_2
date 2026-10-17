@@ -1,6 +1,6 @@
 import type { Contract } from '@app/contract';
 import type { ContractRouterClient } from '@orpc/contract';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { errorOf, setupActors, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
 import { installFakeAuth } from './support/fake-auth.ts';
@@ -191,6 +191,27 @@ describe.skipIf(!hasDatabase)('app invitations: link and acceptance', () => {
 		auth.failNextMail(500);
 		expect(await anonymous().appInvitations.accept(form(mail.token, mail.email))).toEqual({ email: mail.email, passwordEmail: 'failed' });
 		expect(await status(mail.id)).toBe('accepted');
+	});
+
+	it('an error in the email step never undoes the acceptance: failed, invitation closed, only a code logged', async () => {
+		const { email, id, token } = await invite();
+		let lines: string[] = [];
+		const logs = vi.spyOn(console, 'error').mockImplementation(() => {});
+		await actors.db.admin`revoke execute on function app.app_invitation_password_email(bytea, text) from anon`;
+		try {
+			expect(await anonymous().appInvitations.accept(form(token, email))).toEqual({ email, passwordEmail: 'failed' });
+		} finally {
+			await actors.db.admin`grant execute on function app.app_invitation_password_email(bytea, text) to anon`;
+			lines = logs.mock.calls.map((c) => String(c[0]));
+			logs.mockRestore();
+		}
+		expect(await status(id)).toBe('accepted');
+		expect(await accounts(email)).toBe(1);
+		const line = lines.find((l) => l.includes('password_email_failed'));
+		expect(line).toBeDefined();
+		expect(line).toContain('42501');
+		expect(line).not.toContain(email);
+		expect(auth.calls).toEqual(['POST']);
 	});
 
 	it('account deleted after the closing and before the authorisation: unavailable, Auth not called again', async () => {

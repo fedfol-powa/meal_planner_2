@@ -1,6 +1,6 @@
 import type { Locale } from '@app/contract';
 import { createInvitedAccount } from '../accounts/index.ts';
-import { deliverPasswordEmail, type PasswordEmailGrant } from '../app-invitations/password-email.ts';
+import { deliverPasswordEmail, deliverPasswordEmailSafely, type PasswordEmailGrant } from '../app-invitations/password-email.ts';
 import { hashTokenHex, newToken } from '../app-invitations/tokens.ts';
 import { appError } from '../errors.ts';
 import { mapFamilyError } from '../family/db-errors.ts';
@@ -20,8 +20,8 @@ interface Claim {
 }
 
 /** The family name only with `first`, for a joined reservation of a current member (spec W15, section 2). */
-const passwordEmailOf = (ctx: PublicOperationContext, hex: string, email: string, locale: Locale, first: boolean) =>
-	deliverPasswordEmail(ctx, (tx) => tx<PasswordEmailGrant[]>`
+const passwordEmailOf = (ctx: PublicOperationContext, hex: string, email: string, locale: Locale, first: boolean, deliver = deliverPasswordEmail) =>
+	deliver(ctx, (tx) => tx<PasswordEmailGrant[]>`
 		select * from app.family_invitation_password_email(decode(${hex}, 'hex'), ${email}, ${first})`, locale);
 
 export function familyInvitationsRouter(os: Implementer) {
@@ -87,7 +87,7 @@ export function familyInvitationsRouter(os: Implementer) {
 			const done = await ctx
 				.anonDb(async (tx) => (await tx<{ joined: boolean }[]>`select * from app.complete_family_invitation(${userId}::uuid)`)[0]!)
 				.catch(mapFamilyError);
-			const passwordEmail = await passwordEmailOf(ctx, hex, claim.email, input.locale, true);
+			const passwordEmail = await passwordEmailOf(ctx, hex, claim.email, input.locale, true, deliverPasswordEmailSafely);
 			return { email: claim.email, joined: done.joined, passwordEmail };
 		}),
 		resendPasswordEmail: os.familyInvitations.resendPasswordEmail.handler(async ({ context, input }) => {

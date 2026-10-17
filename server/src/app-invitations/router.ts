@@ -4,7 +4,7 @@ import type { Tx } from '../db.ts';
 import { appError } from '../errors.ts';
 import { publicContext, type Implementer, type PublicOperationContext } from '../pipeline.ts';
 import { mapInvitationError } from './db-errors.ts';
-import { deliverPasswordEmail, type PasswordEmailGrant } from './password-email.ts';
+import { deliverPasswordEmail, deliverPasswordEmailSafely, type PasswordEmailGrant } from './password-email.ts';
 import { hashTokenHex, invitationUrl, newToken } from './tokens.ts';
 import { invitationView, type InvitationRow } from './views.ts';
 
@@ -13,8 +13,8 @@ async function viewOf(tx: Tx, id: string, now: Date) {
 	return invitationView(row!, now);
 }
 
-const passwordEmailOf = (ctx: PublicOperationContext, hex: string, email: string, locale: Locale) =>
-	deliverPasswordEmail(ctx, (tx) => tx<PasswordEmailGrant[]>`
+const passwordEmailOf = (ctx: PublicOperationContext, hex: string, email: string, locale: Locale, deliver = deliverPasswordEmail) =>
+	deliver(ctx, (tx) => tx<PasswordEmailGrant[]>`
 		select * from app.app_invitation_password_email(decode(${hex}, 'hex'), ${email})`, locale);
 
 export function appInvitationsRouter(os: Implementer) {
@@ -73,7 +73,7 @@ export function appInvitationsRouter(os: Implementer) {
 			await ctx
 				.anonDb((tx) => tx`select app.complete_app_invitation(decode(${hex}, 'hex'), ${reserved.user_id}::uuid)`)
 				.catch(mapInvitationError);
-			const passwordEmail = await passwordEmailOf(ctx, hex, reserved.email, input.locale);
+			const passwordEmail = await passwordEmailOf(ctx, hex, reserved.email, input.locale, deliverPasswordEmailSafely);
 			return { email: reserved.email, passwordEmail };
 		}),
 		resendPasswordEmail: os.appInvitations.resendPasswordEmail.handler(async ({ context, input }) => {
