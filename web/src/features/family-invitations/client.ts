@@ -5,7 +5,7 @@ import { createRpcClient } from '../../api/rpc';
 import type { Api } from '../../api/types';
 import { env } from '../../env';
 
-type Public = Pick<Api['familyInvitations'], 'get' | 'accept'>;
+type Public = Pick<Api['familyInvitations'], 'get' | 'accept' | 'resendPasswordEmail'>;
 
 /** The fake mode's link without a session: the demo family's links, in memory. */
 function fakeClient(): Public {
@@ -26,7 +26,7 @@ function fakeClient(): Public {
     },
     bump: () => undefined
   });
-  return { get: area.get, accept: area.accept };
+  return { get: area.get, accept: area.accept, resendPasswordEmail: area.resendPasswordEmail };
 }
 
 /** The link's operations without a session (spec W11): no token is ever sent. */

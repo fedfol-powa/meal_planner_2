@@ -4,7 +4,7 @@ import { useApi } from '../../api/ApiProvider';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
 import { useAuth } from '../../auth/AuthProvider';
-import type { AuthUser, SignInFailure } from '../../auth/backend';
+import type { AuthUser } from '../../auth/backend';
 import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
@@ -14,7 +14,8 @@ import { useChooseLocale, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import styles from '../app-invitations/InvitePage.module.css';
 import own from './InvitePage.module.css';
-import { accountFormErrors, fragment, isClosingAccount, PASSWORD_ISSUES, signOutAndContinue, TOKEN, type AccountField as Field } from '../app-invitations/token';
+import { PasswordEmailNotice, type AcceptOutcome } from '../app-invitations/PasswordEmailNotice';
+import { accountFormErrors, fragment, TOKEN, type AccountField as Field } from '../app-invitations/token';
 import { familyInvitationClient } from './client';
 
 const PATH = '/invite';
@@ -28,36 +29,36 @@ type Phase =
   | { kind: 'unavailable' }
   | { kind: 'limited' }
   | { kind: 'failed'; error: unknown }
-  /** The account exists but the link no longer lets it in (spec W11, decision 17). */
-  | { kind: 'notJoined'; email: string }
-  | { kind: 'signInFailed'; email: string; reason: SignInFailure };
+  /** The account is ready (spec W15): the outcome of the first email; `joined` false: the link no longer lets it in. */
+  | { kind: 'mail'; email: string; outcome: AcceptOutcome; joined: boolean; link: SignedOutLink };
 
+type SignedOutLink = Omit<Extract<Phase, { kind: 'signedOut' }>, 'kind'>;
 type FormError = { kind: 'message'; key: MessageKey } | { kind: 'accountExists'; email: string };
 
 /**
  * Family invitation (spec W11, «Pagina dell'invito `/invite#<token>`»): public, the token in the
- * fragment, as the app invitation. Signed out: a new account that joins, or sign-in and back here;
+ * fragment, as the app invitation. Signed out: a new account that joins (it then picks its password
+ * from the email, spec W15), or sign-in and back here;
  * signed in: joining with the account open, or «Esci e continua».
  */
 export function InvitePage() {
   const t = useT();
   const { locale } = useLocale();
   const chooseLocale = useChooseLocale();
-  const { state, backend } = useAuth();
+  const { state } = useAuth();
   const api = useApi();
   const router = useRouter();
   const online = useOnline();
   const token = useRouterState({ select: (s) => s.location.hash });
   const identity = state.status === 'signedIn' ? state.user.id : null;
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
-  const [values, setValues] = useState({ email: '', name: '', password: '', again: '' });
+  const [values, setValues] = useState({ email: '', name: '' });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, MessageKey>>>({});
   const [formError, setFormError] = useState<FormError | null>(null);
   const [busy, setBusy] = useState(false);
   const ids = useId();
 
-  // Generation of (page, link, identity): an answer of an older one changes nothing and never
-  // signs in or navigates. The ref, not the state, keeps one submission even with two taps
+  // Generation of (page, link, identity): an answer of an older one changes nothing. The ref, not the state, keeps one submission even with two taps
   // before the next render.
   const generation = useRef(0);
   const sending = useRef(false);
@@ -109,64 +110,38 @@ export function InvitePage() {
     sending.current = true;
     setBusy(true);
     const mine = generation.current;
-    // The attempt watches page, link and identity itself, until its answer is handled: the page
-    // may remount meanwhile (our own sign-in), and coming back to the same link is a new attempt.
-    let valid = true;
-    // Once the account exists, a sign-in with its email is ours, not someone else's.
-    let ours: string | null = null;
-    // Our session was reported: a sign-out from now on ends the attempt (the earlier one of
-    // «Esci e continua» does not).
-    let entered = false;
-    const stopAuth = backend.onChange((event) => {
-      if (!event.user) {
-        if (entered) valid = false;
-        return;
-      }
-      if (isClosingAccount(event.user.id)) return;
-      if (ours !== null && event.user.email.toLowerCase() === ours) entered = true;
-      else valid = false;
-    });
-    const stopHistory = router.history.subscribe(() => {
-      const at = router.history.location;
-      if (at.pathname !== PATH || fragment(at.hash) !== token) valid = false;
-    });
-    const { password } = values;
-    // Before the sign-in also: this page still in place, still nobody signed in.
-    const current = () => valid && generation.current === mine && signedOut.current;
-    // Busy until the answer is handled, the sign-in included (spec W8).
+    // Busy until the answer is handled (spec W8). The answer of an older generation (page left,
+    // another link) changes nothing.
     await trackBusy(
       (async () => {
         try {
-          const { email, joined } = await familyInvitationClient.accept({ token, email: values.email.trim(), displayName: values.name.trim(), password, locale });
-          if (!current()) return; // left, another link, or someone signed in meanwhile: no sign-in
-          // The account is ready but the link no longer lets it in: sign-in with the email written.
-          if (!joined) return setPhase({ kind: 'notJoined', email });
-          ours = email.toLowerCase(); // our own sign-in follows
-          const result = await backend.signIn(email, password);
-          if (!valid) return; // left (even if back on this link) or someone else signed in
-          // Supabase reports the new session after signIn() resolves: the sign-in route forwards to
-          // the menu, with the family the server made the one shown, once the app sees the session.
-          if (result.ok) await router.navigate({ to: '/login', search: { redirect: '/menu' }, replace: true });
-          else setPhase({ kind: 'signInFailed', email, reason: result.reason });
+          const { email, joined, passwordEmail } = await familyInvitationClient.accept({ token, email: values.email.trim(), displayName: values.name.trim(), locale });
+          if (generation.current !== mine) return;
+          setPhase((current) => (current.kind === 'signedOut' ? { kind: 'mail', email, outcome: passwordEmail, joined, link: current } : current));
         } catch (error) {
-          if (!valid || generation.current !== mine) return;
+          if (generation.current !== mine) return;
           const failure = toApiError(error);
           const issues = (failure.data as { issues?: { path: (string | number)[]; code: string }[] } | undefined)?.issues ?? [];
           const issue = (field: string) => issues.find((i) => i.path[0] === field)?.code;
           if (failure.code === 'invitation_unavailable') setPhase({ kind: 'unavailable' });
           else if (failure.code === 'rate_limited') setFormError({ kind: 'message', key: 'invite.limited' });
           else if (failure.code === 'invalid' && issue('email')) setFieldErrors({ email: 'invite.emailInvalid' });
-          else if (failure.code === 'invalid' && issue('password')) setFieldErrors({ password: PASSWORD_ISSUES[issue('password')!] ?? 'invite.passwordLong' });
           else if (failure.code === 'not_allowed') setFormError({ kind: 'accountExists', email: values.email.trim() });
           else setFormError({ kind: 'message', key: errorKey(error) });
         } finally {
-          stopAuth();
-          stopHistory();
           sending.current = false;
           setBusy(false);
         }
       })()
     );
+  }
+
+  /** «Email sbagliata? Ricomincia»: the empty form on the same link, in memory (no reload). */
+  function restart(link: SignedOutLink) {
+    setValues({ email: '', name: '' });
+    setFieldErrors({});
+    setFormError(null);
+    setPhase({ kind: 'signedOut', ...link });
   }
 
   const field = (name: Field, label: MessageKey, input: { type: string; autoComplete: string; autoCapitalize?: string }, help?: MessageKey) => {
@@ -226,19 +201,19 @@ export function InvitePage() {
           <button type="button" className="text-button wide" onClick={() => void load()}>{t('authorize.retry')}</button>
         </>
       )}
-      {phase.kind === 'notJoined' && (
-        <>
-          <h1 className="entry-title">{t('invite.ready')}</h1>
-          <p>{t('familyInvite.notJoined')}</p>
-          {toLogin(phase.email)}
-        </>
-      )}
-      {phase.kind === 'signInFailed' && (
-        <>
-          <h1 className="entry-title">{t('invite.ready')}</h1>
-          <p>{t(phase.reason === 'invalid_credentials' ? 'invite.signInFailed' : 'invite.signInUnreachable')}</p>
-          {toLogin(phase.email)}
-        </>
+      {phase.kind === 'mail' && (
+        <PasswordEmailNotice
+          email={phase.email}
+          outcome={phase.outcome}
+          note={phase.joined ? undefined : (
+            <>
+              <h1 className="entry-title">{t('invite.ready')}</h1>
+              <p>{t('familyInvite.notJoined')}</p>
+            </>
+          )}
+          resend={() => familyInvitationClient.resendPasswordEmail({ token, email: phase.email, locale })}
+          onRestart={() => restart(phase.link)}
+        />
       )}
       {phase.kind === 'signedIn' && state.status === 'signedIn' && (
         <SignedIn
@@ -264,8 +239,7 @@ export function InvitePage() {
               )}
               {field('email', 'invite.email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none' })}
               {field('name', 'invite.name', { type: 'text', autoComplete: 'name' }, 'invite.nameHelp')}
-              {field('password', 'invite.password', { type: 'password', autoComplete: 'new-password' })}
-              {field('again', 'invite.passwordAgain', { type: 'password', autoComplete: 'new-password' })}
+              <p className={styles.help}>{t('invite.passwordNote')}</p>
               <button type="submit" className="text-button primary wide" disabled={busy || !online}>{t('familyInvite.submit')}</button>
             </form>
           ) : (
@@ -365,7 +339,7 @@ function SignedIn({ link, token, user, generation, isCurrent, onUnavailable, hea
       <div className={own.actions}>
         <button type="button" className="text-button primary wide" disabled={join.isPending || !online} onClick={enter}>{t('familyInvite.join')}</button>
         {/* Another person's account open on this device: «Esci e continua» of A. */}
-        <button type="button" className="text-button wide" disabled={join.isPending} onClick={() => signOutAndContinue(user.id, signOut)}>{t('invite.signOut')}</button>
+        <button type="button" className="text-button wide" disabled={join.isPending} onClick={() => void signOut()}>{t('invite.signOut')}</button>
       </div>
     </>
   );

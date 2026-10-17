@@ -72,9 +72,10 @@ describe('fake family invitations', () => {
     const { as } = world();
     const anonymous = as('user-new');
     const token = FAKE_FAMILY_INVITE_TOKEN;
-    const form = (email: string) => ({ token, email, displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' as const });
-    expect(await anonymous.familyInvitations.accept(form('giulia@x.it'))).toEqual({ email: 'giulia@x.it', joined: true });
-    expect(await anonymous.familyInvitations.accept(form('giulia@x.it'))).toEqual({ email: 'giulia@x.it', joined: true });
+    const form = (email: string) => ({ token, email, displayName: 'Giulia', locale: 'it-IT' as const });
+    expect(await anonymous.familyInvitations.accept(form('giulia@x.it'))).toEqual({ email: 'giulia@x.it', joined: true, passwordEmail: 'sent' });
+    expect(await anonymous.familyInvitations.accept(form('giulia@x.it'))).toEqual({ email: 'giulia@x.it', joined: true, passwordEmail: 'not_sent' });
+    expect(await anonymous.familyInvitations.resendPasswordEmail({ token, email: 'giulia@x.it', locale: 'it-IT' })).toEqual({ passwordEmail: 'sent' });
     await expect(anonymous.familyInvitations.accept(form('anna@example.com'))).rejects.toEqual(new ApiError('not_allowed', { reason: 'account_exists' }));
     for (let i = 0; i < 9; i++) await anonymous.familyInvitations.accept(form(`p${i}@x.it`));
     expect((await anonymous.familyInvitations.get({ token })).accountsAvailable).toBe(false);

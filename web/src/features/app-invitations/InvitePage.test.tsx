@@ -1,4 +1,5 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import type { GlobalRole } from '@app/contract';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
 import { renderApp } from '../../test/renderApp';
@@ -6,51 +7,203 @@ import { createStubBackend } from '../../test/stubBackend';
 import { setInvitationClient } from './client';
 
 const TOKEN = 'a'.repeat(43);
+type Outcome = 'sent' | 'failed' | 'too_soon' | 'not_needed' | 'not_sent' | 'unavailable';
 const valid = (overrides = {}) => ({
-  get: vi.fn(async () => ({ invitedBy: 'Federico', roles: [] })),
-  accept: vi.fn(async ({ email }: { email: string }) => ({ email })),
+  get: vi.fn(async () => ({ invitedBy: 'Federico', roles: [] as GlobalRole[] })),
+  // The answer carries the normalised email, not the field's.
+  accept: vi.fn(async (_input: { email: string }) => ({ email: 'giulia@x.it', passwordEmail: 'sent' as Outcome })),
+  resendPasswordEmail: vi.fn(async (_input: { token: string; email: string; locale: string }) => ({ passwordEmail: 'sent' as 'sent' | 'failed' | 'too_soon' | 'not_needed' | 'unavailable' })),
   ...overrides
 });
 
-function fill(password = 'segreta123', again = password) {
-  fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'giulia@x.it' } });
+function fill(email = ' Giulia@X.it ') {
+  fireEvent.change(screen.getByLabelText('Email'), { target: { value: email } });
   fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Giulia' } });
-  fireEvent.change(screen.getByLabelText('Password'), { target: { value: password } });
-  fireEvent.change(screen.getByLabelText('Ripeti la password'), { target: { value: again } });
-  fireEvent.click(screen.getByRole('button', { name: 'Crea l’account' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Continua' }));
 }
 
-describe('/invite/app', () => {
-  afterEach(() => vi.restoreAllMocks());
+const resendButton = () => screen.getByRole('button', { name: 'Rimanda l’email' }) as HTMLButtonElement;
+const minute = async () => act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
-  it('shows who invites and creates the account, then signs in and opens the wizard', async () => {
+describe('/invite/app', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('shows who invites and a form with no password', async () => {
+    setInvitationClient(valid());
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    expect(await screen.findByRole('heading', { name: 'Hai un invito per Cosa si mangia?' })).toBeTruthy();
+    expect(screen.getByText('Te l’ha mandato Federico')).toBeTruthy();
+    expect(screen.getByLabelText('Email')).toBeTruthy();
+    expect(screen.getByLabelText('Nome')).toBeTruthy();
+    expect(screen.queryByLabelText('Password')).toBeNull();
+    expect(screen.queryByLabelText('Ripeti la password')).toBeNull();
+    expect(screen.getByText('Ti mandiamo un’email per scegliere la password.')).toBeTruthy();
+  });
+
+  it('accepts without a password, never signs in, and asks to check the mail with the email of the answer', async () => {
     const client = valid();
     setInvitationClient(client);
     const backend = createStubBackend(null);
     const signIn = vi.spyOn(backend, 'signIn');
     const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    expect(await screen.findByRole('heading', { name: 'Hai un invito per Cosa si mangia?' })).toBeTruthy();
-    expect(screen.getByText('Te l’ha mandato Federico')).toBeTruthy();
-    fill();
-    await waitFor(() => expect(client.accept).toHaveBeenCalledWith({ token: TOKEN, email: 'giulia@x.it', displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' }));
-    await waitFor(() => expect(signIn).toHaveBeenCalledWith('giulia@x.it', 'segreta123'));
-    await waitFor(() => expect(history.location.pathname).toBe('/family/new'));
-  });
-
-  it('opens the wizard also when the sign-in is reported after it resolves (Supabase)', async () => {
-    setInvitationClient(valid({ get: vi.fn(async () => ({ invitedBy: 'Federico', roles: ['recipe_curator'] })) }));
-    const backend = createStubBackend({ id: 'user-federico', email: 'federico@example.com' });
-    vi.spyOn(backend, 'signIn').mockImplementation(async (email) => {
-      setTimeout(() => backend.setUser({ id: 'user-giulia', email }), 20);
-      return { ok: true };
-    });
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    // After «Esci e continua», as from WhatsApp with the administrator's session open.
-    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
     await screen.findByLabelText('Email');
     fill();
-    await waitFor(() => expect(history.location.pathname).toBe('/family/new'));
-    expect(history.location.search).toContain('recipe_curator');
+    await waitFor(() => expect(client.accept).toHaveBeenCalledWith({ token: TOKEN, email: 'Giulia@X.it', displayName: 'Giulia', locale: 'it-IT' }));
+    expect(await screen.findByRole('heading', { name: 'Controlla la posta' })).toBeTruthy();
+    expect(screen.getByText('Ti abbiamo mandato un’email a giulia@x.it: apri il link per scegliere la password. Poi entrerai con email e password.')).toBeTruthy();
+    expect(screen.getByText('Il link vale 24 ore. Controlla anche la posta indesiderata.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Email sbagliata? Ricomincia' })).toBeNull();
+    expect(signIn).not.toHaveBeenCalled();
+    expect(history.location.pathname).toBe('/invite/app');
+  });
+
+  it('with roles, says the person will also be curator', async () => {
+    setInvitationClient(valid({ get: vi.fn(async () => ({ invitedBy: 'Federico', roles: ['recipe_curator'] as GlobalRole[] })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText('Quando entri sarai anche curatore del ricettario')).toBeTruthy();
+  });
+
+  it('«Rimanda l’email» is enabled after 60 seconds and resends with the email of the answer', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const client = valid();
+    setInvitationClient(client);
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    expect(resendButton().disabled).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_000); });
+    expect(resendButton().disabled).toBe(true);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    expect(resendButton().disabled).toBe(false);
+    fireEvent.click(resendButton());
+    await waitFor(() => expect(client.resendPasswordEmail).toHaveBeenCalledWith({ token: TOKEN, email: 'giulia@x.it', locale: 'it-IT' }));
+    // A new send: the wait starts again.
+    await waitFor(() => expect(resendButton().disabled).toBe(true));
+    expect(screen.getByText('Ti abbiamo mandato un’email a giulia@x.it: apri il link per scegliere la password. Poi entrerai con email e password.')).toBeTruthy();
+  });
+
+  it('a resend answered too_soon keeps the 60-second wait', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setInvitationClient(valid({ resendPasswordEmail: vi.fn(async () => ({ passwordEmail: 'too_soon' })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    await minute();
+    fireEvent.click(resendButton());
+    expect(await screen.findByText('Ti abbiamo appena mandato un’email: aspetta un minuto prima di chiederne un’altra.')).toBeTruthy();
+    expect(resendButton().disabled).toBe(true);
+    await minute();
+    expect(resendButton().disabled).toBe(false);
+  });
+
+  it('a resend that fails says so and can be repeated at once', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const resend = vi.fn().mockResolvedValueOnce({ passwordEmail: 'failed' }).mockResolvedValue({ passwordEmail: 'sent' });
+    setInvitationClient(valid({ resendPasswordEmail: resend }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    await minute();
+    fireEvent.click(resendButton());
+    expect(await screen.findByText('Non siamo riusciti a mandare l’email.')).toBeTruthy();
+    await waitFor(() => expect(resendButton().disabled).toBe(false));
+    fireEvent.click(resendButton());
+    await waitFor(() => expect(resend).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText(/Ti abbiamo mandato un’email a giulia@x.it/)).toBeTruthy();
+  });
+
+  it('a resend not needed or unavailable sends to the sign-in page with the email', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const resend = vi.fn().mockResolvedValueOnce({ passwordEmail: 'not_needed' });
+    setInvitationClient(valid({ resendPasswordEmail: resend }));
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    await minute();
+    fireEvent.click(resendButton());
+    expect(await screen.findByText('Il tuo account è pronto: entra con email e password')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'Vai all’accesso' }));
+    await waitFor(() => expect(history.location.href).toBe('/login?email=giulia%40x.it'));
+  });
+
+  it('a resend unavailable points to «Password dimenticata?»', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setInvitationClient(valid({ resendPasswordEmail: vi.fn(async () => ({ passwordEmail: 'unavailable' })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    await minute();
+    fireEvent.click(resendButton());
+    expect(await screen.findByText('Non possiamo rimandare l’email da qui: usa “Password dimenticata?” dalla pagina di accesso')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
+  });
+
+  it('a resend refused by the network keeps the button', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    setInvitationClient(valid({ resendPasswordEmail: vi.fn(async () => { throw new ApiError('rate_limited'); }) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    await minute();
+    fireEvent.click(resendButton());
+    expect(await screen.findByText('Troppi tentativi. Riprova tra un minuto.')).toBeTruthy();
+    await waitFor(() => expect(resendButton().disabled).toBe(false));
+  });
+
+  it.each([
+    ['failed', 'Non siamo riusciti a mandare l’email.'],
+    ['too_soon', 'Ti abbiamo appena mandato un’email: aspetta un minuto prima di chiederne un’altra.']
+  ] as const)('accept answered %s shows its text with «Rimanda l’email»', async (passwordEmail, text) => {
+    setInvitationClient(valid({ accept: vi.fn(async () => ({ email: 'giulia@x.it', passwordEmail })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText(text)).toBeTruthy();
+    expect(resendButton()).toBeTruthy();
+  });
+
+  it('accept answered failed lets the person resend at once', async () => {
+    const client = valid({ accept: vi.fn(async () => ({ email: 'giulia@x.it', passwordEmail: 'failed' })) });
+    setInvitationClient(client);
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByText('Non siamo riusciti a mandare l’email.');
+    expect(resendButton().disabled).toBe(false);
+    fireEvent.click(resendButton());
+    await waitFor(() => expect(client.resendPasswordEmail).toHaveBeenCalled());
+  });
+
+  it('accept answered not_needed leads to sign-in', async () => {
+    setInvitationClient(valid({ accept: vi.fn(async () => ({ email: 'giulia@x.it', passwordEmail: 'not_needed' })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText('Il tuo account è pronto: entra con email e password')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
+  });
+
+  it('accept answered unavailable: only the message, no commands', async () => {
+    setInvitationClient(valid({ accept: vi.fn(async () => ({ email: 'giulia@x.it', passwordEmail: 'unavailable' })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    expect(await screen.findByText('Non possiamo mandare l’email per questo account. Chiedi un link nuovo a chi ti ha invitato.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
   });
 
   it('one message for every unusable link', async () => {
@@ -60,15 +213,15 @@ describe('/invite/app', () => {
     expect(screen.getByText('Chiedi un link nuovo a chi ti ha invitato.')).toBeTruthy();
   });
 
-  it('checks the passwords before sending', async () => {
+  it('asks for the name before sending', async () => {
     const client = valid();
     setInvitationClient(client);
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
-    fill('segreta123', 'diversa123');
-    expect(await screen.findByText('Le due password non coincidono')).toBeTruthy();
-    fill('è'.repeat(37));
-    expect(await screen.findByText(/Password troppo lunga/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'giulia@x.it' } });
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }));
+    expect(await screen.findByText('Scrivi il tuo nome')).toBeTruthy();
     expect(client.accept).not.toHaveBeenCalled();
   });
 
@@ -80,28 +233,6 @@ describe('/invite/app', () => {
     expect(await screen.findByText('Non è l’email di questo invito')).toBeTruthy();
   });
 
-  it('when sign-in fails after the creation, leads to the login page with the email', async () => {
-    setInvitationClient(valid());
-    const backend = createStubBackend(null);
-    vi.spyOn(backend, 'signIn').mockResolvedValue({ ok: false, reason: 'network' });
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    await screen.findByLabelText('Email');
-    fill();
-    expect(await screen.findByText('Il tuo account è pronto, ma l’accesso non è riuscito: controlla la connessione ed entra con la password che hai appena scelto.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('link', { name: 'Vai all’accesso' }));
-    await waitFor(() => expect(history.location.href).toBe('/login?email=giulia%40x.it'));
-  });
-
-  it('when the password is refused after a repeated acceptance, speaks of the first password', async () => {
-    setInvitationClient(valid());
-    const backend = createStubBackend(null);
-    vi.spyOn(backend, 'signIn').mockResolvedValue({ ok: false, reason: 'invalid_credentials' });
-    renderApp(`/invite/app#${TOKEN}`, { backend });
-    await screen.findByLabelText('Email');
-    fill();
-    expect(await screen.findByText('Il tuo account è pronto: entra con la password che hai scelto la prima volta.')).toBeTruthy();
-  });
-
   it('tells a malformed email from the email of another invitation', async () => {
     setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('invalid', { issues: [{ path: ['email'], code: 'invalid_format' }] }); }) }));
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
@@ -111,12 +242,13 @@ describe('/invite/app', () => {
     expect(screen.queryByText('Non è l’email di questo invito')).toBeNull();
   });
 
-  it('translates password_too_long from the server', async () => {
-    setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('invalid', { issues: [{ path: ['password'], code: 'password_too_long' }] }); }) }));
+  it('an existing account: the message with the link to sign in', async () => {
+    setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('not_allowed', { reason: 'account_exists' }); }) }));
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
-    expect(await screen.findByText(/Password troppo lunga/)).toBeTruthy();
+    expect(await screen.findByText(/Esiste già un account con questa email/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
   });
 
   it('too many attempts while loading: «Riprova» reads the link again', async () => {
@@ -160,32 +292,23 @@ describe('/invite/app', () => {
     endSignOut();
     fill();
     await waitFor(() => expect(client.accept).toHaveBeenCalled());
-  });
-
-  it('says when Auth refuses the password as weak', async () => {
-    setInvitationClient(valid({ accept: vi.fn(async () => { throw new ApiError('invalid', { issues: [{ path: ['password'], code: 'weak_password' }] }); }) }));
-    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
-    await screen.findByLabelText('Email');
-    fill();
-    expect(await screen.findByText('Password troppo debole: scegline una più lunga o meno comune')).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Controlla la posta' })).toBeTruthy();
   });
 
   it('an event of the account being signed out during the request does not drop the answer', async () => {
     const deferred = deferredAccept();
     setInvitationClient(valid({ accept: deferred.accept }));
     const backend = createStubBackend({ id: 'user-federico', email: 'federico@example.com' });
-    const signIn = vi.spyOn(backend, 'signIn');
     renderApp(`/invite/app#${TOKEN}`, { backend });
     const endSignOut = backend.holdSignOut();
     fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
     await screen.findByLabelText('Email');
     fill();
     await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
-    // Supabase reports the closing account once more while it ends it.
     backend.emit('TOKEN_REFRESHED', { id: 'user-federico', email: 'federico@example.com' });
     endSignOut();
     deferred.answer();
-    await waitFor(() => expect(signIn).toHaveBeenCalledWith('giulia@x.it', 'segreta123'));
+    expect(await screen.findByRole('heading', { name: 'Controlla la posta' })).toBeTruthy();
   });
 
   it('after a reload of a used link, the page says it is no longer valid and offers sign-in', async () => {
@@ -197,7 +320,7 @@ describe('/invite/app', () => {
   /** An acceptance whose answer the test releases. */
   function deferredAccept() {
     let answer!: () => void;
-    const accept = vi.fn(({ email }: { email: string }) => new Promise<{ email: string }>((r) => (answer = () => r({ email }))));
+    const accept = vi.fn((_input: { email: string }) => new Promise<{ email: string; passwordEmail: Outcome }>((r) => (answer = () => r({ email: 'giulia@x.it', passwordEmail: 'sent' }))));
     return { accept, answer: () => answer() };
   }
 
@@ -207,138 +330,34 @@ describe('/invite/app', () => {
     renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
-    fireEvent.click(screen.getByRole('button', { name: 'Crea l’account' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continua' }));
     expect(deferred.accept).toHaveBeenCalledTimes(1);
   });
 
-  it('a late answer after leaving the page neither signs in nor navigates', async () => {
+  it('a late answer after leaving the page changes nothing', async () => {
     const deferred = deferredAccept();
     setInvitationClient(valid({ accept: deferred.accept }));
-    const backend = createStubBackend(null);
-    const signIn = vi.spyOn(backend, 'signIn');
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
     await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
     history.push('/login');
     deferred.answer();
     await new Promise((r) => setTimeout(r, 20));
-    expect(signIn).not.toHaveBeenCalled();
     expect(history.location.pathname).toBe('/login');
+    expect(screen.queryByRole('heading', { name: 'Controlla la posta' })).toBeNull();
   });
 
-  it('a late answer after someone signed in meanwhile neither signs in nor navigates', async () => {
+  it('a late answer for another link (fragment changed) shows nothing', async () => {
     const deferred = deferredAccept();
     setInvitationClient(valid({ accept: deferred.accept }));
-    const backend = createStubBackend(null);
-    const signIn = vi.spyOn(backend, 'signIn');
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    await screen.findByLabelText('Email');
-    fill();
-    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
-    backend.emit('SIGNED_IN', { id: 'other', email: 'altro@x.it' } as never); // a sign-in from another tab
-    deferred.answer();
-    await new Promise((r) => setTimeout(r, 20));
-    expect(signIn).not.toHaveBeenCalled();
-    expect(history.location.pathname).not.toBe('/family/new');
-  });
-
-  it('a late answer for another link (fragment changed) neither signs in nor navigates', async () => {
-    const deferred = deferredAccept();
-    setInvitationClient(valid({ accept: deferred.accept }));
-    const backend = createStubBackend(null);
-    const signIn = vi.spyOn(backend, 'signIn');
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
+    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
     await screen.findByLabelText('Email');
     fill();
     await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
     history.replace(`/invite/app#${'b'.repeat(43)}`);
     deferred.answer();
     await new Promise((r) => setTimeout(r, 20));
-    expect(signIn).not.toHaveBeenCalled();
-  });
-
-  /** A sign-in whose answer the test releases; the session is reported by the test, if at all. */
-  function heldSignIn(backend: ReturnType<typeof createStubBackend>) {
-    let answer!: () => void;
-    const signIn = vi.spyOn(backend, 'signIn').mockImplementation(() => new Promise((r) => (answer = () => r({ ok: true }))));
-    return { signIn, answer: () => answer() };
-  }
-
-  it('the account closed earlier signing in again ends the attempt (the exception lasts only while it is closed)', async () => {
-    const deferred = deferredAccept();
-    setInvitationClient(valid({ accept: deferred.accept }));
-    const federico = { id: 'user-federico', email: 'federico@example.com' };
-    const backend = createStubBackend(federico);
-    const signIn = vi.spyOn(backend, 'signIn');
-    renderApp(`/invite/app#${TOKEN}`, { backend });
-    fireEvent.click(await screen.findByRole('button', { name: 'Esci e continua' }));
-    await screen.findByLabelText('Email');
-    await waitFor(() => expect(backend.signOutCalls).toBe(1));
-    await new Promise((r) => setTimeout(r, 0)); // the sign-out is over
-    fill();
-    await waitFor(() => expect(deferred.accept).toHaveBeenCalled());
-    // A signs in again (another tab), then the answer arrives before React re-renders.
-    backend.setUser(federico);
-    deferred.answer();
-    await new Promise((r) => setTimeout(r, 20));
-    expect(signIn).not.toHaveBeenCalled();
-  });
-
-  it('someone else signing in while our sign-in is pending: the old attempt does not navigate', async () => {
-    setInvitationClient(valid());
-    const backend = createStubBackend(null);
-    const held = heldSignIn(backend);
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    await screen.findByLabelText('Email');
-    fill();
-    await waitFor(() => expect(held.signIn).toHaveBeenCalled());
-    backend.setUser({ id: 'other', email: 'altro@x.it' }); // another tab
-    held.answer();
-    await new Promise((r) => setTimeout(r, 20));
-    expect(history.location.pathname).not.toBe('/family/new');
-    expect(history.location.pathname).not.toBe('/login');
-  });
-
-  it('leaving and coming back to the same link while our sign-in is pending: the old attempt does not navigate', async () => {
-    setInvitationClient(valid());
-    const backend = createStubBackend(null);
-    const held = heldSignIn(backend);
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    await screen.findByLabelText('Email');
-    fill();
-    await waitFor(() => expect(held.signIn).toHaveBeenCalled());
-    history.push('/login');
-    history.push(`/invite/app#${TOKEN}`);
-    held.answer();
-    await new Promise((r) => setTimeout(r, 20));
-    expect(history.location.pathname).toBe('/invite/app');
-  });
-
-  it('a sign-out after our own session was reported ends the pending sign-in attempt', async () => {
-    let accepted = false;
-    setInvitationClient(valid({
-      get: vi.fn(async () => {
-        if (accepted) throw new ApiError('invitation_unavailable');
-        return { invitedBy: 'Federico', roles: [] };
-      }),
-      accept: vi.fn(async ({ email }: { email: string }) => {
-        accepted = true;
-        return { email };
-      })
-    }));
-    const backend = createStubBackend(null);
-    const held = heldSignIn(backend);
-    const { history } = renderApp(`/invite/app#${TOKEN}`, { backend });
-    await screen.findByLabelText('Email');
-    fill();
-    await waitFor(() => expect(held.signIn).toHaveBeenCalled());
-    backend.setUser({ id: 'user-giulia', email: 'giulia@x.it' }); // our own sign-in, reported
-    await screen.findByText('Questo invito non vale più');
-    backend.setUser(null); // a sign-out in another tab
-    await new Promise((r) => setTimeout(r, 20));
-    held.answer();
-    await new Promise((r) => setTimeout(r, 30));
-    expect(history.location.pathname).toBe('/invite/app');
+    expect(screen.queryByRole('heading', { name: 'Controlla la posta' })).toBeNull();
   });
 });
