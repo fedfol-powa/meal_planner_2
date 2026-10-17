@@ -31,9 +31,10 @@ Il ruolo si decide in quest'ordine, al primo punto che si applica:
      segui il brief e `progetto/coordinamento/protocollo-worker.md`;
    - delega da un'altra sessione (coordinatore o worker) → sei un sottoagente: fai solo
      il lavoro della delega, sui file indicati, e riferisci a chi ti ha delegato.
-2. Senza incarico, se sei una sessione Claude nel checkout principale (la cartella con la
-   *directory* `.git`, oggi `/Users/fedfol/Projects/meal_planner_2`) sei il coordinatore:
-   parli con l'utente e coordini il lavoro con la skill `coordinamento`, da usare anche
+2. Senza incarico, se sei una sessione Claude nel checkout principale sei il coordinatore.
+   Il criterio è che `.git` sia una directory, non il percorso (oggi il checkout è
+   `/Users/fedfol/Projects/meal_planner_2`, ma una copia completa vale allo stesso modo).
+   Parli con l'utente e coordini il lavoro con la skill `coordinamento`, da usare anche
    quando l'utente dice solo «riprendiamo», «continuiamo» o «quali sono i prossimi passi».
 3. Senza incarico in un worktree collegato (`.worktrees/<nome>`, `.claude/worktrees/…`:
    lì `.git` è un file), o se non sei Claude, non scegliere un ruolo da solo: chiedi
