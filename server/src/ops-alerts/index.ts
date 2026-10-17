@@ -5,9 +5,9 @@ import { logEvent } from '../log.ts';
 import { sendEmail } from '../mail/transport.ts';
 import { alertMessage, type AlertDetails, type AlertEvent } from './messages.ts';
 
-export type { AlertEvent } from './messages.ts';
+export type { AlertDetails, AlertEvent } from './messages.ts';
 
-type AlertEnv = Pick<Env, 'RESEND_API_KEY' | 'OPS_ALERT_EMAIL' | 'MAILPIT_API_URL'>;
+export type AlertEnv = Pick<Env, 'RESEND_API_KEY' | 'OPS_ALERT_EMAIL' | 'MAILPIT_API_URL'>;
 
 /** SQLSTATE only: error messages can carry data. */
 function sqlState(error: unknown): string {

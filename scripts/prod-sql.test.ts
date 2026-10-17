@@ -31,7 +31,15 @@ describe('the closed list', () => {
 			expect(checkSqlText(readFileSync(spec.file, 'utf8')).sort(), name).toEqual(Object.keys(spec.variables).sort());
 			expect(spec.launch, name).toBe(name === 'bootstrap');
 		}
-		expect(Object.keys(SCRIPTS).sort()).toEqual(['bootstrap', 'check-first-generation', 'migrations-state', 'reset-app-data', 'show-fingerprint']);
+		expect(Object.keys(SCRIPTS).sort()).toEqual(['bootstrap', 'check-first-generation', 'migrations-state', 'ops-alert-test', 'ops-alerts-unsent', 'reset-app-data', 'show-fingerprint']);
+	});
+	it('declares the two alert scripts of W15: the test writes, the list of unsent alerts only reads', () => {
+		expect(SCRIPTS['ops-alert-test']).toEqual({ file: 'supabase/scripts/ops-alert-test.sql', variables: { day: 'date' }, readOnly: false, launch: false });
+		expect(SCRIPTS['ops-alerts-unsent']).toEqual({ file: 'supabase/scripts/ops-alerts-unsent.sql', variables: {}, readOnly: true, launch: false });
+		expect(checkOperation(parseCommand(['--apply', 'ops-alert-test', '--set', 'day=2026-10-20', '--confirm', 'x'])).readOnly).toBe(false);
+		expect(refusal(['--preview', 'ops-alert-test', '--set', 'day=2026-02-30'])).toMatch(/day/);
+		expect(refusal(['--preview', 'ops-alert-test'])).toMatch(/day is required/);
+		expect(refusal(['--apply', 'ops-alerts-unsent', '--confirm', 'x'])).toMatch(/read only/);
 	});
 	it('accepts a declared operation', () => {
 		expect(checkOperation(parseCommand(['--preview', 'bootstrap', '--launch', ...sets(bootstrapSets)])).file).toBe('supabase/scripts/bootstrap.sql');

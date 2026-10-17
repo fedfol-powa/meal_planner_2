@@ -1,8 +1,21 @@
+import postgres from 'postgres';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { resumeAccountDeletions } from '../src/account/resume.ts';
 import { setupActors, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
 import { installFakeAuth } from './support/fake-auth.ts';
+
+// Recording an alert for these users fails as a failing table would: insertAlert's own error path.
+const alertsFailing = vi.hoisted(() => new Set<string>());
+vi.mock('../src/ops-alerts/index.ts', async (original) => {
+	const actual = await original<typeof import('../src/ops-alerts/index.ts')>();
+	const failingSql = { begin: () => Promise.reject(Object.assign(new Error('permission denied'), { code: '42501' })) } as unknown as postgres.Sql;
+	return {
+		...actual,
+		insertAlert: (sql: postgres.Sql, alert: Parameters<typeof actual.insertAlert>[1]) =>
+			actual.insertAlert(alertsFailing.has(String(alert.details.userId)) ? failingSql : sql, alert),
+	};
+});
 
 describe.skipIf(!hasDatabase)('resume of account deletions (hourly)', () => {
 	let actors: Actors;
@@ -15,7 +28,14 @@ describe.skipIf(!hasDatabase)('resume of account deletions (hourly)', () => {
 	beforeEach(async () => {
 		await actors.db.admin`update app.account_deletions set last_attempt_at = now() where completed_at is null`;
 	});
+	// Every resume of this file may raise alerts for its own users, the older tests' included: the
+	// rows created while it ran go.
+	let startedAt: Date;
+	beforeAll(async () => {
+		[{ now: startedAt }] = await actors.db.admin<{ now: Date }[]>`select clock_timestamp() as now`;
+	});
 	afterAll(async () => {
+		if (startedAt) await actors.db.admin`delete from app.ops_alerts where event = 'account_deletion_overdue' and created_at >= ${startedAt}`;
 		auth?.restore();
 		await actors?.close();
 	});
@@ -76,6 +96,62 @@ describe.skipIf(!hasDatabase)('resume of account deletions (hourly)', () => {
 		await resumeAccountDeletions(actors.env, now);
 		quiet.mockRestore();
 		expect((await row(stuck)).completed).toBe(true);
+	});
+
+	const alertRow = async (userId: string) =>
+		(await actors.db.admin<{ details: string; sent: boolean }[]>`
+			select details::text as details, sent_at is not null as sent from app.ops_alerts where event = 'account_deletion_overdue' and key = ${userId}`)[0];
+	const alerting = { OPS_ALERT_EMAIL: 'ops@example.test' };
+	const quiet = () => [vi.spyOn(console, 'log').mockImplementation(() => {}), vi.spyOn(console, 'error').mockImplementation(() => {})] as const;
+	// Not vi.restoreAllMocks(): it would also remove the fake Auth.
+	const loud = (spies: readonly MockInstance[]) => spies.forEach((spy) => spy.mockRestore());
+
+	it('raises account_deletion_overdue at the third failure and delivers it at once', async () => {
+		const stuck = await pending(70, 2);
+		auth.failNextDelete(503);
+		const mailsBefore = auth.mails.length;
+		const spies = quiet();
+		await resumeAccountDeletions({ ...actors.env, ...alerting }, now);
+		loud(spies);
+		const row = await alertRow(stuck);
+		expect(JSON.parse(row!.details)).toEqual({ userId: stuck, attempts: 3 });
+		expect(row!.sent).toBe(true);
+		const mail = auth.mails.slice(mailsBefore).find((m) => m.text.includes(stuck));
+		expect(mail).toMatchObject({ to: 'ops@example.test', subject: '[Cosa si mangia] Cancellazione di un account bloccata' });
+	});
+
+	it('no alert before the third failure', async () => {
+		const early = await pending(70, 1);
+		auth.failNextDelete(503);
+		const spies = quiet();
+		await resumeAccountDeletions({ ...actors.env, ...alerting }, now);
+		loud(spies);
+		expect(await alertRow(early)).toBeUndefined();
+	});
+
+	it('the resume completes when the alert table fails', async () => {
+		const stuck = await pending(70, 2);
+		alertsFailing.add(stuck);
+		auth.failNextDelete(503);
+		const spies = quiet();
+		await expect(resumeAccountDeletions({ ...actors.env, ...alerting }, now)).resolves.toBeUndefined();
+		const errors = events(spies[1]);
+		loud(spies);
+		alertsFailing.delete(stuck);
+		expect(errors).toContainEqual({ event: 'ops_alert_insert_failed', alert: 'account_deletion_overdue', code: '42501' });
+		expect(await row(stuck)).toEqual({ attempts: 3, completed: false });
+		expect(await alertRow(stuck)).toBeUndefined();
+	});
+
+	it('the resume completes when the mail transport fails: the alert waits for the next delivery', async () => {
+		const stuck = await pending(70, 2);
+		auth.failNextDelete(503);
+		auth.failNextMail(500);
+		const spies = quiet();
+		await expect(resumeAccountDeletions({ ...actors.env, ...alerting }, now)).resolves.toBeUndefined();
+		loud(spies);
+		expect(await row(stuck)).toEqual({ attempts: 3, completed: false });
+		expect((await alertRow(stuck))?.sent).toBe(false);
 	});
 
 	it('logs no email, name or token', async () => {

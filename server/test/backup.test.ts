@@ -18,6 +18,17 @@ vi.mock('../src/backup/read.ts', async (original) => {
 	return { ...actual, readSnapshot: (tx: Parameters<typeof actual.readSnapshot>[0]) => (readCalls.count++, actual.readSnapshot(tx)) };
 });
 
+// Recording an alert with these keys fails as a failing table would: insertAlert's own error path.
+const alertsFailing = vi.hoisted(() => new Set<string>());
+vi.mock('../src/ops-alerts/index.ts', async (original) => {
+	const actual = await original<typeof import('../src/ops-alerts/index.ts')>();
+	const failingSql = { begin: () => Promise.reject(Object.assign(new Error('permission denied'), { code: '42501' })) } as unknown as postgres.Sql;
+	return {
+		...actual,
+		insertAlert: (sql: postgres.Sql, alert: Parameters<typeof actual.insertAlert>[1]) => actual.insertAlert(alertsFailing.has(alert.key) ? failingSql : sql, alert),
+	};
+});
+
 describe.skipIf(!hasDatabase)('nightly export', () => {
 	let db: TestDatabase;
 	let sql: postgres.Sql;
@@ -28,6 +39,8 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		fx = await seedBackupFixtures(db);
 	});
 	afterAll(async () => {
+		// The alert tests use dates of 2032 only.
+		if (db) await db.admin`delete from app.ops_alerts where event = 'backup_export_missing' and key like '2032-%'`;
 		await sql?.end();
 		await db?.close();
 	});
@@ -175,6 +188,74 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		const env = { HYPERDRIVE: { connectionString: db.appServerUrl }, BACKUPS: bucket.asBucket(), BACKUP_ENCRYPTION_KEY: keyB64, BACKUP_KEY_ID: 'k1' } as unknown as Env;
 		expect(await runNightlyExport(env, night(12))).toBe('done');
 		expect(bucket.objects.size).toBe(1);
+	});
+
+	describe('alerts of a missing export (spec W15, section 5)', () => {
+		/** A night of January 2032: dates no other test uses. */
+		const alertNight = (day: number, hour: number) => new Date(Date.UTC(2032, 0, day, hour, 30));
+		const alertRow = async (date: string) =>
+			(await db.admin<{ details: string; sent: boolean }[]>`select details::text as details, sent_at is not null as sent from app.ops_alerts where event = 'backup_export_missing' and key = ${date}`)[0];
+		const fakeResend = (status = 200) => {
+			const keys: string[] = [];
+			const impl = (async (_url: string | URL | Request, init?: RequestInit) => {
+				keys.push((init!.headers as Record<string, string>)['idempotency-key']!);
+				return new Response('{}', { status });
+			}) as typeof fetch;
+			return { keys, delivery: { env: { RESEND_API_KEY: 're_test', OPS_ALERT_EMAIL: 'ops@example.test' }, fetch: impl } };
+		};
+		const withAlerts = (bucket: MemoryBucket, delivery: ReturnType<typeof fakeResend>['delivery'], limitBytes?: number): ExportDeps => ({ ...deps(bucket, limitBytes), alerts: delivery });
+
+		it('04:30 without the night\'s export raises the alert with the reason, delivered at once', async () => {
+			quiet();
+			const resend = fakeResend();
+			const failing = new MemoryBucket();
+			failing.failPut = true;
+			expect(await runNightlyExportOn(withAlerts(failing, resend.delivery), alertNight(1, 4))).toBe('failed');
+			expect(JSON.parse((await alertRow('2032-01-01'))!.details)).toEqual({ reason: 'failed' });
+			expect((await alertRow('2032-01-01'))!.sent).toBe(true);
+			expect(resend.keys).toContain('backup_export_missing/2032-01-01');
+			expect(await runNightlyExportOn(withAlerts(new MemoryBucket(), resend.delivery, 1000), alertNight(2, 4))).toBe('too_large');
+			expect(JSON.parse((await alertRow('2032-01-02'))!.details)).toEqual({ reason: 'too_large' });
+		});
+
+		it('04:30 without bucket or key raises not_configured', async () => {
+			quiet();
+			const env = { HYPERDRIVE: { connectionString: db.appServerUrl }, BACKUP_ENCRYPTION_KEY: keyB64 } as unknown as Env;
+			expect(await runNightlyExport(env, alertNight(3, 4))).toBe('failed');
+			expect(JSON.parse((await alertRow('2032-01-03'))!.details)).toEqual({ reason: 'not_configured' });
+			expect(await runNightlyExport(env, alertNight(4, 2))).toBe('failed');
+			expect(await alertRow('2032-01-04')).toBeUndefined();
+		});
+
+		it('02:30 never raises, and a skipped 04:30 neither', async () => {
+			quiet();
+			const resend = fakeResend();
+			const failing = new MemoryBucket();
+			failing.failPut = true;
+			expect(await runNightlyExportOn(withAlerts(failing, resend.delivery), alertNight(5, 2))).toBe('failed');
+			expect(await runNightlyExportOn(withAlerts(new MemoryBucket(), resend.delivery, 1000), alertNight(5, 2))).toBe('too_large');
+			expect(await alertRow('2032-01-05')).toBeUndefined();
+			const bucket = new MemoryBucket();
+			expect(await runNightlyExportOn(withAlerts(bucket, resend.delivery), alertNight(6, 2))).toBe('done');
+			expect(await runNightlyExportOn(withAlerts(bucket, resend.delivery), alertNight(6, 4))).toBe('skipped');
+			expect(await alertRow('2032-01-06')).toBeUndefined();
+			expect(resend.keys.filter((k) => k.includes('2032-01-05') || k.includes('2032-01-06'))).toEqual([]);
+		});
+
+		it('the export keeps its outcome when the alert table or Resend fail', async () => {
+			const { error } = quiet();
+			const failing = new MemoryBucket();
+			failing.failPut = true;
+			alertsFailing.add('2032-01-07');
+			expect(await runNightlyExportOn(withAlerts(failing, fakeResend().delivery), alertNight(7, 4))).toBe('failed');
+			alertsFailing.delete('2032-01-07');
+			expect(events(error)).toContainEqual({ event: 'ops_alert_insert_failed', alert: 'backup_export_missing', code: '42501' });
+			expect(await alertRow('2032-01-07')).toBeUndefined();
+			const resend = fakeResend(500);
+			expect(await runNightlyExportOn(withAlerts(failing, resend.delivery), alertNight(8, 4))).toBe('failed');
+			expect(resend.keys).toContain('backup_export_missing/2032-01-08');
+			expect((await alertRow('2032-01-08'))!.sent).toBe(false);
+		});
 	});
 
 	class Rollback extends Error {}
