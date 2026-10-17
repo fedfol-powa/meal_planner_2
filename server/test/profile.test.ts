@@ -1,13 +1,20 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { errorOf, setupActors, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
+import { installFakeAuth } from './support/fake-auth.ts';
 
 describe.skipIf(!hasDatabase)('profile', () => {
 	let actors: Actors;
+	let auth: ReturnType<typeof installFakeAuth>;
 	beforeAll(async () => {
 		actors = await setupActors();
+		// profile.update calls Auth after the commit when the language changes (spec W15).
+		auth = installFakeAuth(actors.db);
 	});
-	afterAll(() => actors?.close());
+	afterAll(async () => {
+		auth?.restore();
+		await actors?.close();
+	});
 
 	const versionOf = async (familyId: string) =>
 		(await actors.db.admin<{ v: string }[]>`select data_version::text as v from app.families where id = ${familyId}`)[0]!.v;
@@ -41,6 +48,36 @@ describe.skipIf(!hasDatabase)('profile', () => {
 		expect(view.user).toMatchObject({ displayName: 'Bruno', locale: 'en-GB' });
 		expect((await bruno.client.session.whoami({})).locale).toBe('en-GB');
 		expect((await bruno.client.profile.update({ locale: 'it-IT' })).user).toMatchObject({ displayName: 'Bruno', locale: 'it-IT' });
+	});
+
+	describe('the language of the Auth emails (spec W15, section 2)', () => {
+		it('a change of language puts only the locale in Auth, after the commit', async () => {
+			const dora = await actors.user();
+			auth.metadata.length = 0;
+			auth.openTransactionsAtPut.length = 0;
+			await dora.client.profile.update({ displayName: 'Dora', locale: 'en-GB' });
+			expect(auth.metadata).toEqual([{ id: dora.userId, body: { user_metadata: { locale: 'en-GB' } } }]);
+			expect(auth.openTransactionsAtPut).toEqual([0]);
+		});
+
+		it('a change of the name only does not call Auth', async () => {
+			const ezio = await actors.user();
+			auth.metadata.length = 0;
+			await ezio.client.profile.update({ displayName: 'Ezio' });
+			expect(auth.metadata).toEqual([]);
+		});
+
+		it('a failure of Auth leaves the answer unchanged and is logged without data', async () => {
+			const fede = await actors.user();
+			const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+			auth.failNextPut();
+			const view = await fede.client.profile.update({ locale: 'en-GB' });
+			expect(view.user.locale).toBe('en-GB');
+			const lines = errors.mock.calls.map(([line]) => String(line));
+			errors.mockRestore();
+			expect(lines.map((line) => JSON.parse(line).event)).toContain('auth_locale_sync_failed');
+			expect(lines.join('\n')).not.toContain('@');
+		});
 	});
 
 	it('refuses an empty name, a long name or an empty change', async () => {

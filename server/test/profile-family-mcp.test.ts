@@ -4,6 +4,7 @@ import { collectTools } from '../src/mcp.ts';
 import { messages } from '../src/messages.ts';
 import { setupActors, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
+import { installFakeAuth } from './support/fake-auth.ts';
 import { mcp, rest, toolBody } from './support/requests.ts';
 
 describe('profile and family tools', () => {
@@ -25,6 +26,18 @@ describe.skipIf(!hasDatabase)('profile and family over MCP and REST', () => {
 	afterAll(() => actors?.close());
 
 	const call = (token: string, name: string, args: unknown) => mcp(actors.app, actors.env, token, 'tools/call', { name, arguments: args });
+
+	it('a change of language from an agent reaches Auth too (spec W15)', async () => {
+		const auth = installFakeAuth(actors.db);
+		try {
+			const agent = await actors.user({ agent: true });
+			const result = await call(agent.token, 'profile_update', { locale: 'en-GB' });
+			expect(result.body.result.isError).toBeFalsy();
+			expect(auth.metadata).toEqual([{ id: agent.userId, body: { user_metadata: { locale: 'en-GB' } } }]);
+		} finally {
+			auth.restore();
+		}
+	});
 
 	it('lets an administrator agent write and read back', async () => {
 		const agent = await actors.user({ agent: true });

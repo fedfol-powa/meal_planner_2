@@ -30,6 +30,7 @@ export function installFakeAuth(db: TestDatabase) {
 	const mails: FakeMail[] = [];
 	const forbidden: string[] = [];
 	const openTransactionsAtCreate: number[] = [];
+	const openTransactionsAtPut: number[] = [];
 	let before: ReturnType<typeof barrier> | null = null;
 	let after: ReturnType<typeof barrier> | null = null;
 	let beforeLink: ReturnType<typeof barrier> | null = null;
@@ -97,6 +98,9 @@ export function installFakeAuth(db: TestDatabase) {
 		if (method === 'PUT') {
 			const body = JSON.parse(String(init!.body));
 			metadata.push({ id: id!, body });
+			const [{ n }] = await db.admin<{ n: number }[]>`
+				select count(*)::int as n from pg_stat_activity where usename = 'app_server' and xact_start is not null`;
+			openTransactionsAtPut.push(n);
 			if (failPut) { failPut = false; return Response.json({}, { status: 500 }); }
 			const updated = await db.admin`
 				update auth.users set raw_user_meta_data = raw_user_meta_data || ${db.admin.json(body.user_metadata ?? {})}
@@ -128,6 +132,7 @@ export function installFakeAuth(db: TestDatabase) {
 		/** Calls to /auth/v1/invite or /auth/v1/recover: always empty in a correct server. */
 		forbidden,
 		openTransactionsAtCreate,
+		openTransactionsAtPut,
 		holdNextCreate: () => hold((b) => (before = b)),
 		holdAfterNextCreate: () => hold((b) => (after = b)),
 		/** Stops the next generate_link before it reads the user. */
