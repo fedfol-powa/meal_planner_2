@@ -59,10 +59,12 @@ describe('/password/forgot', () => {
     send();
     await screen.findByText(SENT);
     expect(screen.queryByRole('button', { name: 'Manda di nuovo' })).toBeNull();
-    await act(async () => {
-      vi.advanceTimersByTime(60_000);
-    });
-    fireEvent.click(await screen.findByRole('button', { name: 'Manda di nuovo' }));
+    // The 60-second timer starts in a passive effect, which React's scheduler runs on a real
+    // macrotask after the commit: the async advance yields one before moving the fake clock.
+    await act(async () => { await vi.advanceTimersByTimeAsync(59_000); });
+    expect(screen.queryByRole('button', { name: 'Manda di nuovo' })).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    fireEvent.click(screen.getByRole('button', { name: 'Manda di nuovo' }));
     await waitFor(() => expect(backend.passwordEmailCalls).toEqual(['giulia@x.it', 'giulia@x.it']));
     expect(screen.queryByRole('button', { name: 'Manda di nuovo' })).toBeNull();
   });
