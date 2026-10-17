@@ -23,8 +23,8 @@ export const SERVER_FAMILY: FamilyView = {
   timeZone: 'Europe/Rome',
   myRole: 'member',
   members: [
-    { userId: '9d0e1f2a-3b4c-4d5e-8f60-718293a4b5c6', displayName: 'Amministratrice dal server', role: 'family_admin', isMe: false, joinedAt: '2026-09-01T10:00:00+02:00' },
-    { userId: WHOAMI.userId, displayName: 'Persona dal server', role: 'member', isMe: true, joinedAt: '2026-09-02T10:00:00+02:00' }
+    { userId: '9d0e1f2a-3b4c-4d5e-8f60-718293a4b5c6', displayName: 'Amministratrice dal server', role: 'family_admin', isMe: false, joinedAt: '2026-09-01T10:00:00+02:00', emailUnconfirmed: false },
+    { userId: WHOAMI.userId, displayName: 'Persona dal server', role: 'member', isMe: true, joinedAt: '2026-09-02T10:00:00+02:00', emailUnconfirmed: false }
   ]
 };
 

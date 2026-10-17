@@ -15,7 +15,7 @@ describe('fake users', () => {
     const { area } = make();
     expect((await area.list({ query: 'FEDERICO' })).users.map((u) => u.id)).toEqual([DEMO_USER_ID]);
     expect((await area.list({})).users.map((u) => u.displayName)).toEqual(['Anna', 'Federico', 'Ospite', 'Tom']);
-    expect((await area.list({ query: 'ospite@' })).users).toEqual([{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: [], deletion: null }]);
+    expect((await area.list({ query: 'ospite@' })).users).toEqual([{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: [], deletion: null, emailUnconfirmed: false }]);
     expect((await area.list({})).more).toBe(false);
   });
   it('protects the last app admin and is idempotent', async () => {

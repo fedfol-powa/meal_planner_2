@@ -138,6 +138,7 @@ function UserDetailView({ back }: { back: ReactNode }) {
       {detail && (
         <>
           <p className={`meta-line ${styles.userEmail}`}>{detail.user.email}</p>
+          {detail.user.emailUnconfirmed && <p className="meta-line">{t('members.emailUnconfirmed')}</p>}
           {isSelf && <p className="meta-line">{t('admin.yourAccount')}</p>}
           {deletion ? (
             <section className="settings-card" aria-labelledby="deletion-title">

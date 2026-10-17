@@ -52,6 +52,24 @@ async function enabled(name: string) {
 const roleOf = (name: string) => screen.getByText(name, { selector: '.row-main' }).closest('li')!.querySelector('.label-chip')!.textContent;
 
 describe('members', () => {
+  it('labels under the name who has not confirmed the email yet, and only them', async () => {
+    const { api, backend } = setup(FEDERICO, (data) => {
+      data.family.members.find((m) => m.id === 'user-anna')!.emailUnconfirmed = true;
+    });
+    renderApp('/profile/family', { api, backend });
+    expect(await screen.findByText('Federico (tu)')).toBeTruthy();
+    const label = screen.getAllByText("Non ha ancora confermato l'email", { selector: 'small' });
+    expect(label).toHaveLength(1);
+    expect(label[0]!.closest('li')!.textContent).toContain('Anna');
+  });
+
+  it('shows no label when every email is confirmed', async () => {
+    const { api, backend } = setup();
+    renderApp('/profile/family', { api, backend });
+    expect(await screen.findByText('Federico (tu)')).toBeTruthy();
+    expect(screen.queryByText(/Non ha ancora confermato/)).toBeNull();
+  });
+
   it('gives an administrator actions on the other people, never on their own name', async () => {
     const { api, backend } = setup();
     renderApp('/profile/family', { api, backend });

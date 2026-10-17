@@ -30,6 +30,22 @@ describe('/admin/users/$userId', () => {
     expect(screen.queryByText(/Elimina/)).toBeNull();
   });
 
+  it('labels the detail of an account whose email is not confirmed yet, and not the others', async () => {
+    const api = adminApi();
+    const real = api.users.get.bind(api.users);
+    vi.spyOn(api.users, 'get').mockImplementation(async (input) => {
+      const result = await real(input);
+      return { ...result, user: { ...result.user, emailUnconfirmed: true } };
+    });
+    const first = renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api });
+    expect(await screen.findByText("Non ha ancora confermato l'email")).toBeTruthy();
+    first.unmount();
+    vi.restoreAllMocks();
+    renderApp(`/admin/users/${FAKE_GUEST_ID}`, { api: adminApi() });
+    await screen.findByText('ospite@example.com');
+    expect(screen.queryByText(/Non ha ancora confermato/)).toBeNull();
+  });
+
   it('marks one’s own account, in Italian and in English', async () => {
     const first = renderApp(`/admin/users/${DEMO_USER_ID}`, { api: adminApi() });
     expect(await screen.findByText('Questo è il tuo account')).toBeTruthy();

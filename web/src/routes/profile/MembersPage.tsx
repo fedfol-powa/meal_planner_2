@@ -85,6 +85,7 @@ function MembersContent({ view, refetch }: { view: FamilyDetailView; refetch: ()
               <span className="row-main">
                 {m.isMe ? t('members.you', { name: m.displayName }) : m.displayName}
                 <small>{t('members.since', { time: formatDayMonth(locale, m.joinedAt.slice(0, 10)) })}</small>
+                {m.emailUnconfirmed && <small>{t('members.emailUnconfirmed')}</small>}
               </span>
               <span className={m.role === 'member' ? 'label-chip neutral' : 'label-chip'}>{t(`profile.role.${m.role}`)}</span>
               {isAdmin && !m.isMe && (

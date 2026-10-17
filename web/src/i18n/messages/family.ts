@@ -2,6 +2,7 @@
 export const it = {
   'members.you': '{name} (tu)',
   'members.since': 'Dal {time}',
+  'members.emailUnconfirmed': "Non ha ancora confermato l'email",
   'members.askAdmin': 'Per invitare qualcuno chiedi un link a: {names}.',
   'settings.intro': 'Valgono per i prossimi menu e per i suggerimenti; i menu già fatti non cambiano.',
   'settings.readOnly': 'Solo gli amministratori della famiglia possono cambiare le impostazioni.',
@@ -153,6 +154,7 @@ export const it = {
 export const en = {
   'members.you': '{name} (you)',
   'members.since': 'Since {time}',
+  'members.emailUnconfirmed': "Hasn't confirmed their email yet",
   'members.askAdmin': 'To invite someone, ask for a link from: {names}.',
   'settings.intro': 'They apply to the next menus and to suggestions; menus already made do not change.',
   'settings.readOnly': 'Only family administrators can change the settings.',

@@ -8,7 +8,7 @@ import { DEMO_USER_ID } from '../../api/fake/seed';
 import { LanguageSwitch } from '../../test/LanguageSwitch';
 import { renderApp } from '../../test/renderApp';
 
-const adminApi = () => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0, globalRoles: ['app_admin'] });
+const adminApi = (locale: 'it-IT' | 'en-GB' = 'it-IT') => createFakeApi({ getLocale: () => locale, latencyMs: 0, globalRoles: ['app_admin'] });
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -30,6 +30,31 @@ describe('/admin users', () => {
     const me = (await screen.findByText(/· Tu/)).closest('a')!;
     expect(within(me).getByText('amministratore dell’app')).toBeTruthy();
     expect(await screen.findByText('ospite@example.com')).toBeTruthy();
+  });
+
+  it('labels the rows whose email is not confirmed yet, in Italian and in English', async () => {
+    for (const locale of ['it-IT', 'en-GB'] as const) {
+      const api = adminApi(locale);
+      await api.profile.update({ locale });
+      const real = api.users.list.bind(api.users);
+      vi.spyOn(api.users, 'list').mockImplementation(async (input) => {
+        const result = await real(input);
+        return { ...result, users: result.users.map((u) => ({ ...u, emailUnconfirmed: u.id === FAKE_GUEST_ID })) };
+      });
+      const view = renderApp('/admin', { api, locale });
+      const text = locale === 'it-IT' ? "Non ha ancora confermato l'email" : "Hasn't confirmed their email yet";
+      const guest = (await screen.findByText('ospite@example.com')).closest('a')!;
+      expect(within(guest).getByText(text)).toBeTruthy();
+      expect(screen.getAllByText(text)).toHaveLength(1);
+      view.unmount();
+      vi.restoreAllMocks();
+    }
+  });
+
+  it('shows no label when the emails are confirmed', async () => {
+    renderApp('/admin', { api: adminApi() });
+    await screen.findByText('ospite@example.com');
+    expect(screen.queryByText(/Non ha ancora confermato/)).toBeNull();
   });
 
   it('searches once after typing stops, keeping the previous list meanwhile', async () => {
@@ -105,7 +130,7 @@ describe('/admin users', () => {
     search('os'); // forbidden
     expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
     // The answer of the earlier search arrives: it was for a view no longer allowed.
-    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'], deletion: null }], more: false });
+    late.resolve({ users: [{ id: FAKE_GUEST_ID, displayName: 'Ospite', email: 'ospite@example.com', roles: ['app_admin'], deletion: null, emailUnconfirmed: false }], more: false });
     await new Promise((r) => setTimeout(r, 20));
     nothingShown();
     // Out and back in, the profile still failing and the list never answering: the earlier
