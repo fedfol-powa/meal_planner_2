@@ -13,6 +13,8 @@ export interface RecipesSearch {
 export interface RecipeSearch { servings?: number; from?: 'menu' | 'recipes'; day?: IsoDate; slot?: string }
 /** `email`: written in advance, e.g. after an invitation whose automatic sign-in failed (spec W9). */
 export interface LoginSearch { redirect?: string; email?: string }
+/** `email`: written in advance on /password/forgot, from the sign-in page (spec W15). */
+export interface EmailSearch { email?: string }
 /** `family`: the family to delete (spec W11); the link of the settings and of the agents. */
 export interface FamilyDeleteSearch { family?: string }
 
@@ -88,4 +90,8 @@ export function toRecipesSearch(query: RecipeQuery): RecipesSearch {
 
 export function validateFamilyDeleteSearch(raw: Record<string, unknown>): FamilyDeleteSearch {
   return { family: typeof raw.family === 'string' && raw.family !== '' ? raw.family : undefined };
+}
+
+export function validateEmailSearch(raw: Record<string, unknown>): EmailSearch {
+  return { email: typeof raw.email === 'string' && raw.email.length <= 320 ? raw.email : undefined };
 }

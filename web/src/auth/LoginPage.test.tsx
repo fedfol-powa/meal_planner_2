@@ -17,6 +17,15 @@ describe('sign-in page', () => {
     renderApp('/login?email=giulia%40x.it', { backend: createStubBackend(null) });
     expect(((await screen.findByLabelText('Email')) as HTMLInputElement).value).toBe('giulia@x.it');
   });
+  it('«Password dimenticata?» leads to /password/forgot with the email written (spec W15)', async () => {
+    const { history } = renderApp('/login', { backend: createStubBackend(null) });
+    const link = await screen.findByRole('link', { name: 'Password dimenticata?' });
+    expect(link.getAttribute('href')).toBe('/password/forgot');
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: ' giulia@x.it ' } });
+    fireEvent.click(screen.getByRole('link', { name: 'Password dimenticata?' }));
+    await waitFor(() => expect(history.location.href).toBe('/password/forgot?email=giulia%40x.it'));
+    expect(((await screen.findByLabelText('Email')) as HTMLInputElement).value).toBe('giulia@x.it');
+  });
   it('explains wrong credentials and network problems', async () => {
     const backend = createStubBackend(null);
     renderApp('/login', { backend });

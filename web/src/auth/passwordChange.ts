@@ -11,10 +11,17 @@ export type PasswordFieldErrors = Partial<Record<PasswordField, PasswordFieldErr
 export function validatePasswordChange({ current, next, confirm }: Record<PasswordField, string>): PasswordFieldErrors {
   const errors: PasswordFieldErrors = {};
   if (!current) errors.current = 'required';
+  const fresh = validateNewPassword({ next, confirm });
+  if (!fresh.next && next === current) fresh.next = 'same_as_current';
+  return { ...errors, ...fresh };
+}
+
+/** The new password and its repetition, also for /password where there is no current one (spec W15). */
+export function validateNewPassword({ next, confirm }: Record<'next' | 'confirm', string>): PasswordFieldErrors {
+  const errors: PasswordFieldErrors = {};
   if (!next) errors.next = 'required';
   else if ([...next].length < PASSWORD_MIN_LENGTH) errors.next = 'too_short';
   else if (new TextEncoder().encode(next).length > PASSWORD_MAX_BYTES) errors.next = 'too_long';
-  else if (next === current) errors.next = 'same_as_current';
   if (!confirm) errors.confirm = 'required';
   else if (next && confirm !== next) errors.confirm = 'mismatch';
   return errors;
