@@ -7,16 +7,22 @@ fare; qui c'è come.
 
 - Sei un worker coordinato da un'altra sessione Claude (il **coordinatore**), che
   parla con l'utente. Chi ti risponde nel terminale è il coordinatore, a volte l'utente.
+- Il ruolo resta lo stesso anche dopo un `/clear`: il messaggio di ripresa cita brief,
+  fase, spec e piano; rileggi brief e protocollo e continua dalla fase indicata. La skill
+  `coordinamento` non è per te, anche se la vedi nel repository.
+- Le skill superpowers sono già attive nella tua sessione.
 - Lavori nel tuo worktree e nel tuo branch, indicati nel brief. Non toccare altri
-  worktree né `main`.
-- Leggi prima `AGENTS.md`, poi le parti della specifica
+  worktree né `main`. I file riservati al coordinatore (`AGENTS.md`, «Proprietà dei
+  file») li tocchi solo se il brief te li delega.
+- Leggi le parti della specifica
   `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md` indicate nel brief
   (sezioni 1, 15 e 16 sempre), il piano generale
   `progetto/superpowers/plans/2026-10-11-piano-generale.md` e `spike/REPORT.md` se
   tocchi server, database o MCP.
-- Documentazione di librerie e servizi con Context7, non a memoria.
-- Dipendenze al minimo: per ogni libreria nuova scrivi cosa sostituisce e cosa costa
-  farne a meno. Le approva il coordinatore.
+- Lingua, Context7, dipendenze e prove sullo stack locale: regole di `AGENTS.md`
+  («Regole per tutti»). Le dipendenze nuove le approva il coordinatore.
+- Il rilascio in produzione non lo fai mai tu: lo prepara il coordinatore e lo lancia
+  l'utente.
 
 ## Fasi
 
@@ -54,15 +60,3 @@ fare; qui c'è come.
   design o una domanda del brainstorming) l'ultima riga del messaggio è una riga
   `STATO:` (per esempio `STATO: DOMANDA sezione 2 del design`). Senza, l'ascoltatore
   del coordinatore può non segnalarti e resti fermo.
-- Le regole di `AGENTS.md` valgono sempre: codice in inglese, documenti in italiano,
-  testi per l'utente localizzabili in italiano e inglese britannico, ingredienti mai
-  dedotti dal nome del piatto.
-
-## Prove sullo stack locale
-
-`web/.env.production` è versionato e punta alla produzione: una `vite build` normale
-produce una SPA che parla con l'Auth di produzione. Per le prove con lo stack locale
-passa esplicitamente le variabili dello stack (`VITE_SUPABASE_URL`, chiave pubblicabile
-locale) o usa il server di sviluppo, e controlla l'URL di Auth nelle richieste prima di
-accedere. Mai credenziali di prova verso la produzione (15/10: due accessi di prova di W10
-sono arrivati lì, rifiutati).
