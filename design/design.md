@@ -290,7 +290,11 @@ modifica sotto il titolo. Su schermi larghi la pagina è una colonna di 720 px.
 - **Pagine secondarie** come la spesa: freccia e nome della destinazione, titolo,
   colonna di 720 px su schermi larghi.
 - **Moduli:** etichetta in grassetto 14 px sopra il campo; campi e select alti 44 px,
-  bordo scuro, raggio 8 px; scelte con radio e caselle verdi da 20 px.
+  bordo scuro, raggio 8 px; scelte con radio e caselle verdi da 20 px. Il testo dei
+  campi (`input`, `select`, `textarea`) è di almeno 16 px, con una dimensione esplicita
+  che non eredita quella dell'etichetta, anche nei filtri e nelle griglie strette: sotto
+  i 16 px iOS ingrandisce la pagina al tocco del campo (issue #51). Lo zoom del viewport
+  resta libero: niente `maximum-scale` né `user-scalable`.
 - **Griglia «Chi mangia quando»:** una riga per giorno, colonne Pranzo e Cena; ogni
   cella è un pulsante da 48 px con porzioni (icona persona), il testo del pasto fisso
   in verde su fondo dei pasti liberi, oppure "—" se non pianificato; il tempo massimo

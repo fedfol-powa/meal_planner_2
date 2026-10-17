@@ -2,7 +2,8 @@
 
 Creato: 29 settembre 2026
 Ultimo aggiornamento: 17 ottobre 2026 (decisioni delle foto delle ricette, attività E
-dell'ondata 3, PR #54; dominio `cosasimangia.app` e passi esterni dell'attività D)
+dell'ondata 3, PR #54; dominio `cosasimangia.app` e passi esterni dell'attività D;
+somiglianza dell'ingrediente principale e campi a 16 px, PR #60)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -1698,9 +1699,15 @@ valere anche per le operazioni eseguite da amministratori dell'app.
 - **stagione**;
 - **equilibrio**: distanza dagli intervalli settimanali per gruppo alimentare;
 - **somiglianza**: penalità per pasti vicini che condividono proteina principale,
-  carboidrato principale, ingrediente principale o categoria. Il peso decresce con la
-  distanza in pasti. La finestra è mobile, attraversa le settimane e guarda anche ai
-  pasti già pianificati dopo;
+  carboidrato principale, ingrediente principale o categoria, oppure quando l'ingrediente
+  principale di uno è una riga non facoltativa dell'altro (`primary_ingredient_line`; per
+  esempio orecchiette ai broccoli e riso saltato con broccoli e gamberi; deciso il 17
+  ottobre 2026, issue #48, PR #60). Se le due ricette hanno lo stesso ingrediente
+  principale conta una volta sola; una ricetta senza ingrediente principale conta solo
+  dal lato dell'altra. Ogni caratteristica condivisa, compresa questa, pesa allo stesso
+  modo e usa la stessa finestra; il peso decresce con la distanza in pasti. Resta una
+  penalità, non un vincolo: nessuna regola sul giorno per ingredienti o proteine. La
+  finestra è mobile, attraversa le settimane e guarda anche ai pasti già pianificati dopo;
 - **quota note/nuove**: "nota" vuol dire cucinata da questa famiglia nelle ultime 8
   settimane; una ricetta non cucinata da più tempo conta di nuovo come nuova (deciso l'8
   ottobre 2026). La quota si applica da quando la famiglia ha almeno 10 ricette
@@ -1766,6 +1773,12 @@ e venerdì pesce sempre presente; settimane giudicate credibili dall'utente. Con
 ricette la quota note/nuove non si rispetta (dopo tre settimane le nuove scendono a 0-2
 su 12): servono circa 25-30 ricette in più, lavoro di gestione del ricettario. Non
 esprimibile con i modelli di regola la regola d'origine «niente skottle il lunedì sera».
+
+Con la somiglianza per riga dell'ingrediente principale (17 ottobre 2026, PR #60) il
+report ha la carne rossa oltre il massimo in 3 settimane su 20 invece di 1. L'utente lo
+accetta senza correzioni: il passo 4 non cambia. Il ricettario ha ancora poche ricette e
+le uniche nuove rimaste sono di carne rossa, quindi la quota le spinge; la soluzione è
+aggiungere ricette più varie.
 
 Il seme casuale è derivato da famiglia e settimana: a parità di ingresso la settimana è la
 stessa, e quindi testabile. Il perché di una scelta non viene salvato né mostrato: non è un
@@ -2991,8 +3004,10 @@ rivedono con l'utente (decisione del coordinatore, 11 ottobre 2026).
   - **report di qualità**: `npm run planner-report` (`scripts/planner-report.ts`) genera 20
     settimane con i dati reali della famiglia del curatore e riporta violazioni, gruppi
     rispetto agli intervalli, quota note/nuove, coppie simili più vicine e ripetizioni,
-    in `progetto/reports/planner-report.md`. Va guardato prima di attivare il job. Prima
-    esecuzione l'8 ottobre 2026 (esito nella sezione 3); i test unitari e di proprietà
+    in `progetto/reports/planner-report.md`. Usa gli ingredienti dell'import
+    (`scripts/import/ingredient-lines.yaml`) come la produzione, non lo slug del nome
+    della riga d'origine (17 ottobre 2026, PR #60). Va guardato prima di attivare il job.
+    Prima esecuzione l'8 ottobre 2026 (esito nella sezione 3); i test unitari e di proprietà
     del pianificatore sono in `domain/src/planner/`.
 - **Giudice** (solo se lo si sperimenta):
   - test unitari della ricaduta: spento, timeout, errore, risposta non valida portano sempre
@@ -3760,7 +3775,11 @@ schede del menu, del ricettario e dei suggerimenti della revisione dei pasti han
 banner 3:1 con l'etichetta del pasto o del gruppo sopra la foto, in verde con testo
 bianco, e la foto del pasto passato è desaturata; senza foto, o se l'immagine non si
 carica, la scheda resta identica a quella senza foto, senza riquadri vuoti. La foto è
-decorativa (testo alternativo vuoto) e non si stampa.
+decorativa (testo alternativo vuoto) e non si stampa. Il testo dei campi (`input`,
+`select`, `textarea`) è sempre di almeno 16 px, con una dimensione esplicita che non
+dipende dall'etichetta, perché iOS non ingrandisca la pagina al tocco; lo zoom del
+viewport resta libero (17 ottobre 2026, issue #51, PR #60). Lo controlla il test del CSS
+`web/src/design/fieldFontSize.test.ts`.
 
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
@@ -3896,6 +3915,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 16–17 ottobre 2026, foto delle ricette | Riportate le decisioni della spec `2026-10-16-foto-ricette.md` (W12, attività E dell'ondata 3, issue #39, PR #54 unita e rilasciata il 16 ottobre con la migrazione `20261016110000_recipe_photos.sql` e la versione del Worker `5dce4dda-67d7-4315-97f3-608631f45796`; bucket `cosasimangia-photos`). Decisioni dell'utente: foto gestita solo dalla scheda ricetta aperta e solo dai curatori («Aggiungi foto», pulsante «Foto» con «Sostituisci la foto» e «Togli la foto»), nessun comando nelle schede compatte; nessuna provenienza della foto; agente libero di prendere l'immagine da qualunque sito, di norma dalla fonte, con il sì esplicito del curatore. Tecniche: tabella `recipe_photos` con una foto corrente per ricetta, fuori dal documento e dalle versioni, trigger sul contatore del ricettario e lucchetto sulla ricetta; bucket R2 privato, chiavi casuali da 128 bit, rotta `/photos/<chiave>` senza autenticazione che serve solo le foto correnti, con `Cache-Control: private, no-store` e limitatore per IP; WebP da 1600 px prodotto una volta con il binding Images, ridimensionamento JPEG nel browser; `catalogue.uploadPhoto` solo web con il limite del corpo prima del parser, `setPhotoFromUrl` e `removePhoto` anche MCP con scaricamento controllato; `photoUrl` facoltativo nelle viste; risposte superate dei pasti dopo una modifica delle foto; cache delle foto solo nel service worker, cancellata all'uscita; esportazione con i soli riferimenti e oggetti mai cancellati in automatico. Foto popolate via MCP il 16 ottobre: 46 ricette con la foto, 4 ancora senza. Chiusa in sezione 15 la voce Foto delle ricette; aperta in Backup e ripristino la questione delle foto nel ripristino dell'intero catalogo. Intestazione, Parte 1 e sezioni 1, 2, 8, 10, 13, 14 e 15 aggiornate |
 | 17 ottobre 2026, dominio | Decisione dell'utente: app ed email su `cosasimangia.app`, comprato su Cloudflare, al posto di `cosasimangia.qunidi.it`; `workers.dev` spento senza reindirizzamenti, `www` rimandato al dominio, mittente `noreply@cosasimangia.app`. Il controllo del rilascio richiede un dominio personalizzato del Worker con `workers_dev` spento. Sezioni 1 e 10 e intestazione aggiornate |
 | 17 ottobre 2026, dominio completato e attività D | Rilascio del dominio il 17 ottobre alle 04:23 UTC (PR #56, versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); DNS nella zona Cloudflare dell'account di POWA; dominio verificato in Resend (DKIM `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`); *Site URL* e *Redirect URLs* solo sul nuovo dominio; SMTP personalizzato di Supabase Auth su Resend (`smtp.resend.com:465`, chiave dedicata di solo invio limitata al dominio), mittente `Cosa si mangia <noreply@cosasimangia.app>`, prova con un magic link riuscita; PWA reinstallata sull'iPhone e agente MCP ricollegato a `https://cosasimangia.app/mcp`. L'attività D non è più bloccata: resta la parte software (link della password via email dopo un invito, «password dimenticata», email operative di job ed esportazione, fine del rischio delle email non verificate negli inviti). Ordine concordato con l'utente: correzione di #48 prima della generazione del 21 ottobre (insieme a #51), poi la parte software di D, poi E. Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
+| 17 ottobre 2026, somiglianza e zoom | Riportate le decisioni del piano `2026-10-17-somiglianza-e-zoom.md` (W13, issue #48 e #51, PR #60). Decisione dell'utente: nuova caratteristica della somiglianza `primary_ingredient_line`, quando l'ingrediente principale di una ricetta è una riga non facoltativa dell'altra, con lo stesso peso e la stessa finestra delle altre; solo penalità, nessun vincolo sul giorno per ingredienti o proteine. Accettata la carne rossa oltre il massimo in 3 settimane su 20 nel report, senza cambiare la riparazione. Report del pianificatore con gli ingredienti dell'import; testo dei campi di almeno 16 px perché iOS non ingrandisca la pagina, zoom del viewport libero (sezioni 3, 9 e 14, `design/design.md`) |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
