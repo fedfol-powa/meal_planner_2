@@ -163,6 +163,9 @@ function ChooseForm({ state }: { state: Extract<LinkState, { status: 'verified' 
 
 function Waiting() {
   const t = useT();
+  const online = useOnline();
+  // Offline the code is not used yet: nothing is in flight, the banner says it all.
+  if (!online) return null;
   return <p className="meta-line" aria-busy="true">{t('password.choose.verifying')}</p>;
 }
 
@@ -190,7 +193,7 @@ function Unverified() {
   const t = useT();
   return (
     <>
-      <p className="form-error" role="alert">{t('password.choose.verifyFailed')}</p>
+      <h1 className="entry-title">{t('password.choose.verifyFailed')}</h1>
       <AskNew />
     </>
   );

@@ -79,18 +79,28 @@ async function overdueJobs(sql: postgres.Sql, now: Date): Promise<void> {
 
 /**
  * 3. UTC dates of the last 7 days whose second attempt has passed (earlier days; today from 05:00)
- * without an export in R2. The export keeps the newest 7, so the window matches.
+ * without an export in R2. The export keeps the newest 7: from 05:00 those are today and the 6
+ * days before; before 05:00 today's is not done, so the date 7 days ago is still one of them.
+ * Each date has its own try: one failing list never skips the others (the first error is
+ * rethrown at the end, for one log line).
  */
 async function missingExports(sql: postgres.Sql, bucket: R2Bucket | undefined, now: Date): Promise<void> {
-	for (let daysAgo = WINDOW_DAYS - 1; daysAgo >= 0; daysAgo--) {
+	const first = now.getUTCHours() < EXPORT_SECOND_ATTEMPT_DONE_HOUR ? WINDOW_DAYS : WINDOW_DAYS - 1;
+	const failures: unknown[] = [];
+	for (let daysAgo = first; daysAgo >= 0; daysAgo--) {
 		if (daysAgo === 0 && now.getUTCHours() < EXPORT_SECOND_ATTEMPT_DONE_HOUR) continue;
 		const date = new Date(now.getTime() - daysAgo * DAY_MS).toISOString().slice(0, 10);
-		let reason: 'missing' | 'not_configured';
-		if (!bucket) reason = 'not_configured';
-		else if ((await bucket.list({ prefix: exportDayPrefix(date), limit: 1 })).objects.length > 0) continue;
-		else reason = 'missing';
-		await insertAlert(sql, { event: 'backup_export_missing', key: date, details: { reason } });
+		try {
+			let reason: 'missing' | 'not_configured';
+			if (!bucket) reason = 'not_configured';
+			else if ((await bucket.list({ prefix: exportDayPrefix(date), limit: 1 })).objects.length > 0) continue;
+			else reason = 'missing';
+			await insertAlert(sql, { event: 'backup_export_missing', key: date, details: { reason } });
+		} catch (error) {
+			failures.push(error);
+		}
 	}
+	if (failures.length > 0) throw failures[0];
 }
 
 /** 4. Deletions requested in the last 7 days with at least 3 failed attempts, completed or not. */

@@ -134,6 +134,9 @@ describe('/password', () => {
     expect(await screen.findByText('Sei offline: puoi consultare i dati già caricati.')).toBeTruthy();
     expect(server.calls).toHaveLength(0);
     expect(registeredBusy()).toBe(false);
+    // Nothing is in flight: no «Verifica del link…», nothing busy.
+    expect(screen.queryByText(/Verifica del link/)).toBeNull();
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
     expect(history.location.hash).toBe('#token_hash=hash-1&type=recovery');
     setOnline(true);
     expect(await screen.findByRole('heading', { name: 'Scegli la password' })).toBeTruthy();
@@ -201,7 +204,7 @@ describe('/password', () => {
     const server = authServer();
     server.verify = offline;
     renderApp(PATH, { backend: createStubBackend(null) });
-    expect(await screen.findByText(VERIFY_FAILED)).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: VERIFY_FAILED })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Chiedi un link nuovo' }).getAttribute('href')).toBe('/password/forgot');
     expect(screen.queryByText(INVALID)).toBeNull();
     expect(registeredBusy()).toBe(false);
@@ -217,6 +220,18 @@ describe('/password', () => {
       expect(screen.queryByText(INVALID)).toBeNull();
       unmount();
     }
+  });
+
+  it('leaving for /password/forgot and coming back drops the verified state: «non vale più», no form', async () => {
+    authServer();
+    const { history } = renderApp(PATH, { backend: createStubBackend(null) });
+    await screen.findByRole('heading', { name: 'Scegli la password' });
+    await waitFor(() => expect(history.location.hash).toBe(''));
+    await act(() => history.push('/password/forgot'));
+    await waitFor(() => expect(history.location.pathname).toBe('/password/forgot'));
+    await act(() => history.push('/password'));
+    expect(await screen.findByRole('heading', { name: INVALID })).toBeTruthy();
+    expect(screen.queryByLabelText('Ripeti la password')).toBeNull();
   });
 
   it('without a fragment and nothing verified in memory: «non vale più», no request', async () => {

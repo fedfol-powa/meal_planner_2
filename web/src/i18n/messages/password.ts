@@ -95,7 +95,7 @@ export const en = {
   'password.forgot.email': 'Email',
   'password.forgot.submit': 'Send the link',
   'password.forgot.back': 'Back to sign-in',
-  'password.forgot.sent': 'If the email has an account, we’ve sent it a link to choose a new password. Check your spam folder too.',
+  'password.forgot.sent': 'If there’s an account for this email, we’ve sent a link to choose a new password. Check your spam folder too.',
   'password.forgot.validity': 'The link is valid for 24 hours.',
   'password.forgot.again': 'Send again',
   'password.forgot.error.project_limit': 'We’ve sent too many emails in a short time. Try again in a few minutes.',

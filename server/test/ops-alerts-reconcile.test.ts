@@ -111,10 +111,35 @@ describe.skipIf(!hasDatabase)('reconciliation of operational alerts', () => {
 		await reconcileAlerts(sql, envWith(bucket), new Date('2030-05-08T04:00:00Z'));
 		expect(JSON.parse((await alert('backup_export_missing', '2030-05-03'))!.details)).toEqual({ reason: 'missing' });
 		expect(await alert('backup_export_missing', '2030-05-08')).toBeUndefined(); // before 05:00
-		expect(await alert('backup_export_missing', '2030-05-01')).toBeUndefined(); // outside the 7 days
+		// Before 05:00 the date 7 days ago is still inside the window: its export may be the last one kept.
+		expect(JSON.parse((await alert('backup_export_missing', '2030-05-01'))!.details)).toEqual({ reason: 'missing' });
+		expect(await alert('backup_export_missing', '2030-04-30')).toBeUndefined(); // outside the window
 		expect(await alert('backup_export_missing', '2030-05-02')).toBeUndefined();
 		await reconcileAlerts(sql, envWith(bucket), new Date('2030-05-08T05:00:00Z'));
 		expect(JSON.parse((await alert('backup_export_missing', '2030-05-08'))!.details)).toEqual({ reason: 'missing' });
+	});
+
+	it('from 05:00 the window starts 6 days back', async () => {
+		quiet();
+		await reconcileAlerts(sql, envWith(bucketWith()), new Date('2030-08-10T05:00:00Z'));
+		expect(await alert('backup_export_missing', '2030-08-03')).toBeUndefined();
+		expect(await alert('backup_export_missing', '2030-08-04')).toBeDefined();
+		expect(await alert('backup_export_missing', '2030-08-10')).toBeDefined();
+	});
+
+	it('a bucket.list that fails for one date does not skip the others, and logs once', async () => {
+		const logs = quiet();
+		const bucket = bucketWith();
+		const list = bucket.list.bind(bucket);
+		bucket.list = async (options = {}) => {
+			if (options.prefix?.includes('2030-09-05')) throw new Error('r2 down');
+			return list(options);
+		};
+		await reconcileAlerts(sql, envWith(bucket), new Date('2030-09-08T06:00:00Z'));
+		expect(await alert('backup_export_missing', '2030-09-05')).toBeUndefined();
+		for (const date of ['2030-09-02', '2030-09-04', '2030-09-06', '2030-09-08']) expect(await alert('backup_export_missing', date), date).toBeDefined();
+		const failures = logs.error.mock.calls.map(([line]) => JSON.parse(String(line))).filter((f) => f.rule === 'export');
+		expect(failures).toHaveLength(1);
 	});
 
 	it('without the BACKUPS binding the missing dates have the reason not_configured', async () => {

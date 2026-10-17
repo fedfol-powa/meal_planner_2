@@ -29,7 +29,8 @@ export async function dispatchScheduled(cron: string, env: Env, time: Date): Pro
 				logEvent('account_deletion_resume_crashed', { ...diagnosticOf(error) }, 'error');
 				failures.push(error);
 			});
-			await runAlertSteps(env, time);
+			// A synchronous throw (a bad connection string) must not hide the job or resume failure.
+			await runAlertSteps(env, time).catch((error: unknown) => logEvent('ops_alert_steps_crashed', { ...diagnosticOf(error) }, 'error'));
 			if (failures.length > 0) throw failures[0];
 			return;
 		}

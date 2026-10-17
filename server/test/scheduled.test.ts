@@ -81,6 +81,21 @@ describe('scheduled dispatch', () => {
 		vi.restoreAllMocks();
 	});
 
+	it('a synchronous throw of the alert steps is logged and never hides the job failure', async () => {
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		runWeeklyJob.mockRejectedValueOnce(new Error('down'));
+		connect.mockImplementationOnce(() => {
+			throw new Error('bad connection string');
+		});
+		await expect(dispatchScheduled(HOURLY_CRON, env, time)).rejects.toThrow('down');
+		expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['weekly_job_crashed', 'ops_alert_steps_crashed']);
+		connect.mockImplementationOnce(() => {
+			throw new Error('bad connection string');
+		});
+		await expect(dispatchScheduled(HOURLY_CRON, env, time)).resolves.toBeUndefined();
+		vi.restoreAllMocks();
+	});
+
 	it('a failure in one does not stop the other, and the failure still reaches the Worker', async () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		runWeeklyJob.mockRejectedValueOnce(Object.assign(new Error('down'), { code: '57P01' }));
