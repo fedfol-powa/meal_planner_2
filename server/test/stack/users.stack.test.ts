@@ -59,7 +59,7 @@ describe.skipIf(!present)('user administration against the local stack', () => {
 		await admin!`insert into app.user_roles (user_id, role) values (${federico.id}, 'app_admin')`;
 		const giulia = await person('giulia');
 		const found = await client(federico.token).users.list({ query: giulia.email.toUpperCase() });
-		expect(found.users).toEqual([{ id: giulia.id, displayName: 'giulia', email: giulia.email, roles: [], deletion: null }]);
+		expect(found.users).toEqual([{ id: giulia.id, displayName: 'giulia', email: giulia.email, roles: [], deletion: null, emailUnconfirmed: false }]);
 		expect((await client(federico.token).users.get({ id: giulia.id })).families).toEqual([]);
 		await client(federico.token).users.setRole({ id: giulia.id, role: 'recipe_curator', granted: true });
 		expect((await client(giulia.token).profile.get({})).user.globalRoles).toEqual(['recipe_curator']);

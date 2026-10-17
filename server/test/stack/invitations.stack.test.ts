@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import type { Env } from '../../src/env.ts';
 import { router } from '../../src/router.ts';
+import { choosePassword, latestEmailTo, MAILPIT_API_URL } from '../support/mailpit.ts';
 import { allowAll, rpcClient, testEnv } from '../support/requests.ts';
 
 const NAMES = ['STACK_SUPABASE_URL', 'STACK_SUPABASE_PUBLISHABLE_KEY', 'STACK_SUPABASE_SECRET_KEY', 'STACK_DB_URL'] as const;
@@ -29,7 +30,7 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 		const appServer = new URL(process.env.STACK_DB_URL!);
 		appServer.username = 'app_server';
 		appServer.password = 'app_server_test';
-		workerEnv = { ...testEnv(appServer.toString()), SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: publishable, SUPABASE_SECRET_KEY: secret, INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll };
+		workerEnv = { ...testEnv(appServer.toString()), SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: publishable, SUPABASE_SECRET_KEY: secret, MAILPIT_API_URL, INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll };
 		app = createApp({ contract, router, resourceName: 'stack' });
 	});
 	afterAll(async () => {
@@ -40,7 +41,7 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 
 	const client = (token?: string) => rpcClient<ContractRouterClient<Contract>>(app, workerEnv, token);
 	const fresh = (prefix: string) => {
-		const email = `${prefix}-${crypto.randomUUID().slice(0, 8)}@x.it`;
+		const email = `w15-${prefix}-${crypto.randomUUID().slice(0, 8)}@example.test`;
 		emails.push(email);
 		return email;
 	};
@@ -81,7 +82,11 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 		const email = fresh('giulia');
 		const token = await inviteFor(email, ['recipe_curator']);
 		expect((await client().appInvitations.get({ token })).invitedBy).toBe('Federico');
-		expect(await client().appInvitations.accept({ token, email, displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' })).toEqual({ email });
+		const before = new Date();
+		expect(await client().appInvitations.accept({ token, email, displayName: 'Giulia', locale: 'it-IT' })).toEqual({ email, passwordEmail: 'sent' });
+		// No password yet: it is chosen from the link of the email.
+		const mail = await latestEmailTo(email, { after: before });
+		expect(await choosePassword(`${url}/auth/v1`, publishable, mail.link!, 'segreta123')).toEqual({ verified: 200, saved: 200 });
 		const access = await signIn(email, 'segreta123');
 		expect(access).not.toBeNull();
 		const giulia = client(access!);
@@ -92,14 +97,14 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 		expect((await admin!`select count(*)::int as n from app.weeks where family_id = ${familyId}`)[0]!.n).toBeGreaterThan(0);
 	});
 
-	it('the first creation prevails: a later acceptance changes neither password nor profile', async () => {
+	it('the first creation prevails: a later acceptance changes neither password nor profile, and sends nothing', async () => {
 		const email = fresh('first');
 		const token = await inviteFor(email, ['recipe_curator']);
 		// A first acceptance stopped after the creation: id reserved, account created with its data.
 		const id = await reserve(token, email);
 		await adminCreate({ id, email, password: 'prima-pass-1', user_metadata: { display_name: 'Prima', locale: 'en-GB' } });
-		expect(await client().appInvitations.accept({ token, email, displayName: 'Seconda', password: 'seconda-pass-2', locale: 'it-IT' })).toEqual({ email });
-		expect(await signIn(email, 'seconda-pass-2')).toBeNull();
+		// Confirmed by the admin API: no email to choose a password.
+		expect(await client().appInvitations.accept({ token, email, displayName: 'Seconda', locale: 'it-IT' })).toEqual({ email, passwordEmail: 'not_needed' });
 		const access = await signIn(email, 'prima-pass-1');
 		expect(access).not.toBeNull();
 		expect((await client(access!).profile.get({})).user).toMatchObject({ displayName: 'Prima', locale: 'en-GB', globalRoles: ['recipe_curator'] });
@@ -120,7 +125,7 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 			return real(input, init);
 		});
 		try {
-			const first = await client().appInvitations.accept({ token, email, displayName: 'Tarda', password: 'tarda-pass-1', locale: 'it-IT' }).catch((e) => e);
+			const first = await client().appInvitations.accept({ token, email, displayName: 'Tarda', locale: 'it-IT' }).catch((e) => e);
 			expect(first.code).toBe('internal');
 		} finally {
 			spy.mockRestore();
@@ -128,15 +133,15 @@ describe.skipIf(!present)('invitations against the local stack', () => {
 		// The original creation becomes visible late, with the reserved id.
 		const id = (await admin!<{ reserved_user_id: string }[]>`select reserved_user_id from app.app_invitations where email = ${email}`)[0]!.reserved_user_id;
 		await adminCreate({ id, email, password: 'tarda-pass-1', user_metadata: { display_name: 'Tarda', locale: 'it-IT' } });
-		expect(await client().appInvitations.accept({ token, email, displayName: 'Tarda', password: 'tarda-pass-1', locale: 'it-IT' })).toEqual({ email });
+		expect(await client().appInvitations.accept({ token, email, displayName: 'Tarda', locale: 'it-IT' })).toEqual({ email, passwordEmail: 'not_needed' });
 		expect((await admin!`select role from app.user_roles where user_id = ${id}`).map((r) => r.role)).toEqual(['recipe_curator']);
 	});
 
 	it('two concurrent acceptances from the Worker: one account', async () => {
 		const email = fresh('twice');
 		const token = await inviteFor(email);
-		const accept = (password: string) => client().appInvitations.accept({ token, email, displayName: 'Due', password, locale: 'it-IT' });
-		const results = await Promise.allSettled([accept('prima-pass-1'), accept('seconda-pass-2')]);
+		const accept = () => client().appInvitations.accept({ token, email, displayName: 'Due', locale: 'it-IT' });
+		const results = await Promise.allSettled([accept(), accept()]);
 		expect(results.some((r) => r.status === 'fulfilled')).toBe(true);
 		for (const r of results) if (r.status === 'rejected') expect((r.reason as { code: string }).code).toBe('invitation_unavailable');
 		expect((await admin!`select count(*)::int as n from auth.users where email = ${email}`)[0]!.n).toBe(1);
