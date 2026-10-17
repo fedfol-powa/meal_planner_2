@@ -9,7 +9,10 @@
 	// Hourly weekly job (spec section 4): next week for families past Wednesday 20:00, retries of open jobs.
 	// Nightly export to R2 at 02:30 UTC, retried at 04:30 when the night has none (spec section 8).
 	"triggers": { "crons": ["0 * * * *", "30 2,4 * * *"] },
-	"workers_dev": true,
+	// The app answers only on its own domain (17 October 2026): workers.dev is off, www redirects to it
+	// through a redirect rule of the zone.
+	"workers_dev": false,
+	"routes": [{ "pattern": "cosasimangia.app", "custom_domain": true }],
 	"vars": {
 		// Supabase project URL; token issuer and JWKS are derived from it.
 		"SUPABASE_URL": "https://lronuqvtjdhfyychnscr.supabase.co",
