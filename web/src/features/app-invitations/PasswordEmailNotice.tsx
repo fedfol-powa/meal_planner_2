@@ -5,6 +5,7 @@ import { errorKey } from '../../api/errors';
 import { useOnline } from '../../components/OfflineBanner';
 import { useT } from '../../i18n/LocaleProvider';
 import type { MessageKey } from '../../i18n/messages';
+import { trackBusy } from '../../pwa/busy';
 
 export type AcceptOutcome = 'sent' | 'failed' | 'too_soon' | 'not_needed' | 'not_sent' | 'unavailable';
 export type ResendOutcome = Exclude<AcceptOutcome, 'not_sent'>;
@@ -63,31 +64,36 @@ export function PasswordEmailNotice({ email, outcome, roles = [], note, resend, 
     return () => clearTimeout(timer);
   }, [locked, round]);
 
-  async function again() {
+  function again() {
     if (sending.current) return;
     sending.current = true;
     setPending(true);
     setError(null);
-    try {
-      const { passwordEmail } = await resend();
-      if (!mounted.current) return;
-      const next: Status = passwordEmail === 'unavailable' ? 'noResend' : passwordEmail;
-      setStatus(next);
-      setLocked(waits(next));
-      setRound((r) => r + 1);
-    } catch (failure) {
-      if (mounted.current) setError(errorKey(failure));
-    } finally {
-      sending.current = false;
-      if (mounted.current) setPending(false);
-    }
+    // Busy until the answer is handled, as the acceptance (spec W8).
+    void trackBusy(
+      (async () => {
+        try {
+          const { passwordEmail } = await resend();
+          if (!mounted.current) return;
+          const next: Status = passwordEmail === 'unavailable' ? 'noResend' : passwordEmail;
+          setStatus(next);
+          setLocked(waits(next));
+          setRound((r) => r + 1);
+        } catch (failure) {
+          if (mounted.current) setError(errorKey(failure));
+        } finally {
+          sending.current = false;
+          if (mounted.current) setPending(false);
+        }
+      })()
+    );
   }
 
   const toLogin = (
     <Link to="/login" search={{ email }} className="text-button primary wide">{t('invite.toLogin')}</Link>
   );
   const resendButton = (
-    <button type="button" className="text-button wide" disabled={locked || pending || !online} onClick={() => void again()}>
+    <button type="button" className="text-button wide" disabled={locked || pending || !online} onClick={again}>
       {t('invite.mail.resend')}
     </button>
   );

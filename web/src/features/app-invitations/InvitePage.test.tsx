@@ -2,6 +2,8 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import type { GlobalRole } from '@app/contract';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../api/errors';
+import { isBusy, registeredBusy, resetBusy } from '../../pwa/busy';
+import { startUpdates, type ContainerLike, type DocumentLike } from '../../pwa/update';
 import { renderApp } from '../../test/renderApp';
 import { createStubBackend } from '../../test/stubBackend';
 import { setInvitationClient } from './client';
@@ -25,10 +27,42 @@ function fill(email = ' Giulia@X.it ') {
 const resendButton = () => screen.getByRole('button', { name: 'Rimanda l’email' }) as HTMLButtonElement;
 const minute = async () => act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
 
+/** As in pwa/busy.app.test.tsx: the real update loop with a worker of another version. */
+function newVersionWaiting() {
+  const doc = Object.assign(new EventTarget(), { visibilityState: 'visible' as DocumentVisibilityState });
+  const reload = vi.fn();
+  const container = Object.assign(new EventTarget(), {
+    controller: { postMessage: (_: unknown, ports: MessagePort[]) => ports[0]!.postMessage({ type: 'version', version: 'next' }) },
+    register: async () => ({ update: async () => {} }),
+    getRegistration: async () => undefined
+  });
+  const entries = new Map<string, string>();
+  void startUpdates({
+    container: container as ContainerLike,
+    document: doc as DocumentLike,
+    loaded: new Promise(() => {}),
+    storage: { getItem: (k) => entries.get(k) ?? null, setItem: (k, v) => void entries.set(k, v), removeItem: (k) => void entries.delete(k) },
+    reload,
+    pageVersion: 'current',
+    isBusy
+  });
+  return {
+    reload,
+    async resume() {
+      doc.visibilityState = 'hidden';
+      doc.dispatchEvent(new Event('visibilitychange'));
+      doc.visibilityState = 'visible';
+      doc.dispatchEvent(new Event('visibilitychange'));
+      await act(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    }
+  };
+}
+
 describe('/invite/app', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    resetBusy();
   });
 
   it('shows who invites and a form with no password', async () => {
@@ -150,6 +184,31 @@ describe('/invite/app', () => {
     expect(await screen.findByText('Non possiamo rimandare l’email da qui: usa «Password dimenticata?» dalla pagina di accesso')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Vai all’accesso' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Rimanda l’email' })).toBeNull();
+  });
+
+  it('a resend in flight keeps the page busy: back in the foreground with an update → no reload', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let answer!: (value: { passwordEmail: 'sent' }) => void;
+    const resend = vi.fn(() => new Promise<{ passwordEmail: 'sent' }>((resolve) => { answer = resolve; }));
+    setInvitationClient(valid({ resendPasswordEmail: resend }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await screen.findByLabelText('Email');
+    fill();
+    await screen.findByRole('heading', { name: 'Controlla la posta' });
+    await minute();
+    expect(registeredBusy()).toBe(false);
+    fireEvent.click(resendButton());
+    await waitFor(() => expect(resend).toHaveBeenCalled());
+    expect(registeredBusy()).toBe(true);
+    const update = newVersionWaiting();
+    await update.resume();
+    expect(update.reload).not.toHaveBeenCalled();
+    await act(async () => answer({ passwordEmail: 'sent' }));
+    // The answer is handled: a new wait, and the page is free again.
+    await waitFor(() => expect(resendButton().disabled).toBe(true));
+    expect(registeredBusy()).toBe(false);
+    await update.resume();
+    expect(update.reload).toHaveBeenCalled();
   });
 
   it('a resend refused by the network keeps the button', async () => {
