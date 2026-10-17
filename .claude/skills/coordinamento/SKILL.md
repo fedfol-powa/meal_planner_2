@@ -19,7 +19,8 @@ Quando l'utente dice «riprendiamo», «continuiamo con il programma», «quali 
 passi», «parti con il coordinamento» o simili:
 
 1. Leggi `progetto/coordinamento/registro.md`, blocco «Stato corrente», e le parti del piano
-   generale (`progetto/superpowers/plans/2026-10-11-piano-generale.md`) e dei brief che cita.
+   generale (`progetto/superpowers/plans/2026-10-11-piano-generale.md`) e dei brief che cita;
+   `progetto/coordinamento/protocollo-worker.md` per le fasi e le righe `STATO:` dei worker.
 2. Controlla herdr: `progetto/coordinamento/attendi.py --stato`,
    `herdr tab list --workspace w1`, `herdr pane list` (gli id dei pane cambiano: riconosci i
    worker dall'etichetta della tab e dal `cwd`). Leggi i «DA GESTIRE» solo per capire lo
@@ -66,8 +67,8 @@ principale dopo un merge), in un worktree loro.
 - Brief: in `progetto/coordinamento/brief/`, sul modello dei brief recenti; ogni brief
   nuovo lo approva l'utente prima dell'avvio. Se il lavoro tocca file riservati
   (`AGENTS.md`, «Proprietà dei file») il brief lo delega in modo esplicito.
-- Limite: il numero di worker Claude contemporanei è nel registro («Stato corrente»,
-  oggi 1); lo cambia solo l'utente. I revisori Codex non contano.
+- Limite: il numero di worker Claude contemporanei è nel registro («Stato corrente»);
+  lo cambia solo l'utente. I revisori Codex non contano.
 - Avvio del worker: `herdr.md`, «Avviare un worker».
 
 ## 4. Durante il lavoro dei worker
@@ -92,7 +93,10 @@ principale dopo un merge), in un worktree loro.
 
 - Revisori Codex, avviati con
   `progetto/coordinamento/avvia-revisore.sh <etichetta> <worktree> <rapporto> <istruzioni>`
-  (modello e ragionamento in `REVIEW_MODEL` e `REVIEW_EFFORT`); il rapporto finisce in
+  (modello e ragionamento in `REVIEW_MODEL` e `REVIEW_EFFORT`). L'etichetta comincia con
+  `R ` (per esempio `"R W15 PR"`), quella dei worker con `W`: `eventi.py` e `attendi.py`
+  riconoscono i pane da lì, e un revisore con un'altra etichetta non viene segnalato. Il
+  rapporto finisce in
   `progetto/coordinamento/revisioni/`, il pane stampa `REVISORE_FINITO`.
 - Una revisione per spec e piano e una per la PR, sempre con un revisore nuovo, senza il
   contesto dell'autore. Chiudi la tab del revisore appena il rapporto è scritto.
@@ -113,10 +117,10 @@ principale dopo un merge), in un worktree loro.
   dopo una revisione pulita (13/10, PR #40: il classificatore ha poi bloccato i comandi
   come auto-approvazione).
 - PR non revisionate: solo se l'utente lo chiede esplicitamente.
-- Prima di una PR con migrazioni, controlla che la versione non collida con altre PR aperte
+- Prima di unire una PR con migrazioni, controlla che la versione non collida con altre PR aperte
   o appena unite.
 - Esegui `gh pr merge <n> --merge` da solo, non concatenato ad altri comandi; se viene
-  negato, dillo all'utente invece di passargli il merge come compito.
+  negato, dillo all'utente; non trasformare il merge in un compito per l'utente.
 - Dopo il merge: avvisa l'utente; riporta le «Decisioni da riportare nella specifica» nella
   specifica principale (e se serve piano generale e `design/percorsi.md`) con un
   sottoagente in un worktree e una PR tua, che chiede il «mergia»; chiudi tab e worktree

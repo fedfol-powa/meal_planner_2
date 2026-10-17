@@ -1,8 +1,9 @@
 # herdr: worker, eventi e messaggi
 
 Riferimento operativo della skill `coordinamento`. Gli script sono in
-`progetto/coordinamento/`. I worker stanno nelle tab «W…», i revisori nelle tab «R …» del
-workspace `w1`.
+`progetto/coordinamento/`. I worker stanno nelle tab con etichetta che comincia con `W`, i
+revisori in quelle che cominciano con `R ` (R e spazio), nel workspace `w1`: gli script
+riconoscono i pane solo dall'etichetta.
 
 ## Avviare un worker
 

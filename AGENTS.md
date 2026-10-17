@@ -29,15 +29,15 @@ Il ruolo si decide in quest'ordine, al primo punto che si applica:
      revisore: segui `progetto/coordinamento/brief/revisore.md`;
    - brief di un worker, o messaggio di ripresa che cita un brief → sei un worker:
      segui il brief e `progetto/coordinamento/protocollo-worker.md`;
-   - delega di un sottoagente del coordinatore → sei un sottoagente: fai solo il
-     lavoro della delega, sui documenti indicati.
-2. Senza incarico, nel checkout principale (la cartella con la *directory* `.git`, oggi
-   `/Users/fedfol/Projects/meal_planner_2`) sei il coordinatore: parli con l'utente e
-   coordini il lavoro con la skill `coordinamento`, da usare anche quando l'utente dice
-   solo «riprendiamo», «continuiamo» o «quali sono i prossimi passi».
+   - delega da un'altra sessione (coordinatore o worker) → sei un sottoagente: fai solo
+     il lavoro della delega, sui file indicati, e riferisci a chi ti ha delegato.
+2. Senza incarico, se sei una sessione Claude nel checkout principale (la cartella con la
+   *directory* `.git`, oggi `/Users/fedfol/Projects/meal_planner_2`) sei il coordinatore:
+   parli con l'utente e coordini il lavoro con la skill `coordinamento`, da usare anche
+   quando l'utente dice solo «riprendiamo», «continuiamo» o «quali sono i prossimi passi».
 3. Senza incarico in un worktree collegato (`.worktrees/<nome>`, `.claude/worktrees/…`:
-   lì `.git` è un file) non scegliere un ruolo da solo: chiedi all'utente quale ruolo e
-   quale brief hai.
+   lì `.git` è un file), o se non sei Claude, non scegliere un ruolo da solo: chiedi
+   all'utente quale ruolo e quale brief hai.
 
 ### Confine del coordinatore
 
@@ -69,7 +69,8 @@ localizzabili in italiano e inglese britannico.
 - Documentazione di librerie e servizi (React, oRPC, Supabase, Cloudflare…) con Context7,
   non a memoria: le API cambiano più in fretta dei dati di addestramento.
 - Dipendenze al minimo: per ogni libreria nuova scrivi cosa sostituisce e cosa costa farne
-  a meno; la approva il coordinatore. Pochi utenti, architettura semplice.
+  a meno; prima le API della piattaforma o il codice già presente. La approva il
+  coordinatore. Pochi utenti, architettura semplice.
 - Ingredienti delle ricette solo verificati sulla fonte o dati dall'utente, mai dedotti dal
   nome del piatto: un ingrediente inventato finisce nella spesa della famiglia.
 - Prove sullo stack locale, mai credenziali di prova verso la produzione. `web/.env.production`
@@ -80,16 +81,15 @@ localizzabili in italiano e inglese britannico.
 - Nessuna scrittura in produzione (dati, migrazioni, segreti, rilasci) senza anteprima e
   «vai» dell'utente: è l'app che la famiglia usa davvero.
 - I worker non rilasciano: il rilascio lo prepara il coordinatore e lo lancia l'utente.
-- Il progetto di origine `../meal_planner` si legge soltanto: è attivo e separato.
+- Il progetto di origine `../meal_planner` si legge soltanto: è attivo e separato. Le sue
+  regole di merito (`progetto/REGOLE.md`) sono il punto di partenza dei default, non di qui.
 
 ## Stack in breve
 
-SPA React (Vite, TanStack Router e Query) servita da un Worker di Cloudflare con oRPC, da
-cui derivano API web, OpenAPI e strumenti MCP; server con poche dipendenze (oRPC, zod,
-Postgres.js senza ORM, `jose`). Supabase (Postgres con RLS, Auth, pg_cron) via Hyperdrive,
-migrazioni in `supabase/migrations/`; email con Resend; esportazione notturna in R2; modulo
-di dominio TypeScript puro in `domain/`. Il prototipo Svelte in `prototype/` resta solo
-come riferimento dei percorsi. Motivazioni e dettagli: specifica, sezioni 1, 13 e 15.
+SPA React (Vite, TanStack) servita da un Worker di Cloudflare con oRPC, da cui derivano API
+web, OpenAPI e strumenti MCP; Supabase (Postgres con RLS, Auth, pg_cron) via Hyperdrive,
+migrazioni in `supabase/migrations/`; Resend; backup in R2; dominio puro in `domain/`;
+`prototype/` (Svelte) solo come riferimento dei percorsi. Dettagli: specifica, sezioni 1, 13, 15.
 
 ## Git
 
