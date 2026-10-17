@@ -13,8 +13,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   worktree `.worktrees/email`.
 - **Revisori attivi:** nessuno.
 - **Domande in sospeso:** nessuna.
-- **Limite:** 1 worker Claude; revisori Codex senza limite. Utilizzo settimanale all'87%
-  il 17/10 mattina (azzeramento 18/10 alle 15): revisioni Codex solo dove servono.
+- **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
+  non consuma l'utilizzo settimanale di Claude (utente, 17/10): le revisioni non vanno
+  risparmiate per questo.
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
 - **Prossimo passo:** `STATO: SPEC_E_PIANO_PRONTI` di W15 → revisione Codex di spec e
