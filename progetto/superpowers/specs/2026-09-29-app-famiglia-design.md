@@ -33,10 +33,12 @@ di dettaglio o implementazione aggiorna le sezioni interessate di questo documen
 Le decisioni superate si ritrovano nella cronologia Git, non in requisiti contraddittori
 lasciati attivi nel testo.
 
-`AGENTS.md` contiene il metodo di lavoro e rimanda qui per il prodotto. Piani, prototipo
-e documenti di approfondimento devono essere coerenti con questa specifica e non possono
-diventare fonti alternative delle decisioni. Ogni piano indica quali sezioni realizza;
-la revisione verifica sia il risultato sia l'allineamento della specifica.
+`AGENTS.md` contiene le regole comuni a tutti gli agenti e i ruoli; il metodo del
+coordinatore è nella skill `.claude/skills/coordinamento/`, quello dei worker in
+`progetto/coordinamento/protocollo-worker.md`. Tutti rimandano qui per il prodotto. Piani,
+prototipo e documenti di approfondimento devono essere coerenti con questa specifica e non
+possono diventare fonti alternative delle decisioni. Ogni piano indica quali sezioni
+realizza; la revisione verifica sia il risultato sia l'allineamento della specifica.
 
 La Parte 1 descrive l'app per chi la usa; la Parte 2 descrive dati, comportamenti e
 architettura. Il linguaggio visivo approvato è definito nella sezione 14 e reso operativo
