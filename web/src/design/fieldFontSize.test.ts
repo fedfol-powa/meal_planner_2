@@ -64,7 +64,7 @@ function fieldClasses(): Set<string> {
 		for (const match of source.matchAll(/className=(?:\{styles\.(\w+)\}|"([^"]*)"|'([^']*)')/g)) {
 			const tags = [...source.slice(0, match.index).matchAll(/<([a-zA-Z][\w.]*)/g)];
 			if (!FIELD.test(tags.at(-1)?.[1] ?? '')) continue;
-			for (const name of (match[1] ?? match[2] ?? match[3]).split(/\s+/)) if (name) classes.add(name);
+			for (const name of (match[1] ?? match[2] ?? match[3] ?? '').split(/\s+/)) if (name) classes.add(name);
 		}
 	}
 	return classes;
@@ -82,7 +82,7 @@ const classes = fieldClasses();
 
 const targetsField = (selector: string): boolean => {
 	const last = selector.split(/\s*[\s>+~]\s*/).at(-1) ?? '';
-	return FIELD.test(last) || [...last.matchAll(/\.([\w-]+)/g)].some((m) => classes.has(m[1]));
+	return FIELD.test(last) || [...last.matchAll(/\.([\w-]+)/g)].some((m) => classes.has(m[1] ?? ''));
 };
 
 describe('text size of the fields (issue #51)', () => {
