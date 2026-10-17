@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postgres from 'postgres';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { runNightlyExportOn, type ExportDeps } from '../src/backup/export.ts';
+import { importKey } from '../src/backup/format.ts';
 import type { Env } from '../src/env.ts';
 import { alertMessage } from '../src/ops-alerts/messages.ts';
 import { reconcileAlerts } from '../src/ops-alerts/reconcile.ts';
@@ -104,19 +106,41 @@ describe.skipIf(!hasDatabase)('reconciliation of operational alerts', () => {
 		expect(await alert('weekly_job_overdue', `${familyId}:2030-04-08`)).toBeDefined();
 	});
 
-	it('raises backup_export_missing for each past UTC date without an export, today only from 05:00', async () => {
+	it('a successful 02:30 export prunes the oldest copy: the 03:00 and 04:00 reconciliations raise nothing', async () => {
 		quiet();
-		// 2030-05-01 … 2030-05-07: exports for all but the 3rd; today (the 8th) has none yet.
-		const bucket = bucketWith('2030-05-02', '2030-05-04', '2030-05-05', '2030-05-06', '2030-05-07');
+		// The previous 7 nights all exported; tonight's export succeeds and keeps only the newest 7.
+		const bucket = bucketWith('2030-05-01', '2030-05-02', '2030-05-03', '2030-05-04', '2030-05-05', '2030-05-06', '2030-05-07');
+		const deps: ExportDeps = { sql, bucket: bucket.asBucket(), key: await importKey(btoa(String.fromCharCode(...new Uint8Array(32).fill(7)))), keyId: 'k1', workerVersion: 'test', limitBytes: 64 * 1024 * 1024 };
+		expect(await runNightlyExportOn(deps, new Date('2030-05-08T02:30:00Z'))).toBe('done');
+		expect([...bucket.objects.keys()].some((key) => key.startsWith('exports/2030-05-01'))).toBe(false);
+		await reconcileAlerts(sql, envWith(bucket), new Date('2030-05-08T03:00:00Z'));
 		await reconcileAlerts(sql, envWith(bucket), new Date('2030-05-08T04:00:00Z'));
-		expect(JSON.parse((await alert('backup_export_missing', '2030-05-03'))!.details)).toEqual({ reason: 'missing' });
-		expect(await alert('backup_export_missing', '2030-05-08')).toBeUndefined(); // before 05:00
-		// Before 05:00 the date 7 days ago is still inside the window: its export may be the last one kept.
-		expect(JSON.parse((await alert('backup_export_missing', '2030-05-01'))!.details)).toEqual({ reason: 'missing' });
-		expect(await alert('backup_export_missing', '2030-04-30')).toBeUndefined(); // outside the window
-		expect(await alert('backup_export_missing', '2030-05-02')).toBeUndefined();
-		await reconcileAlerts(sql, envWith(bucket), new Date('2030-05-08T05:00:00Z'));
-		expect(JSON.parse((await alert('backup_export_missing', '2030-05-08'))!.details)).toEqual({ reason: 'missing' });
+		for (let day = 1; day <= 8; day++) {
+			const date = `2030-05-0${day}`;
+			expect(await alert('backup_export_missing', date), date).toBeUndefined();
+		}
+	});
+
+	it('a hole inside the window (today-3) is raised before and after 05:00; today-7 is never checked', async () => {
+		quiet();
+		// Before 05:00: 2030-11-10 at 04:00, exports for 11-04 … 11-09 but the 7th; none for 11-03 (today-7).
+		await reconcileAlerts(sql, envWith(bucketWith('2030-11-04', '2030-11-05', '2030-11-06', '2030-11-08', '2030-11-09')), new Date('2030-11-10T04:00:00Z'));
+		expect(JSON.parse((await alert('backup_export_missing', '2030-11-07'))!.details)).toEqual({ reason: 'missing' });
+		expect(await alert('backup_export_missing', '2030-11-03')).toBeUndefined();
+		// From 05:00: 2030-11-20, exports for 11-14 … 11-20 but the 17th; none for 11-13 (today-7).
+		await reconcileAlerts(sql, envWith(bucketWith('2030-11-14', '2030-11-15', '2030-11-16', '2030-11-18', '2030-11-19', '2030-11-20')), new Date('2030-11-20T05:00:00Z'));
+		expect(JSON.parse((await alert('backup_export_missing', '2030-11-17'))!.details)).toEqual({ reason: 'missing' });
+		expect(await alert('backup_export_missing', '2030-11-13')).toBeUndefined();
+	});
+
+	it("today's date is checked only from 05:00, after the second attempt", async () => {
+		quiet();
+		const bucket = bucketWith('2030-12-04', '2030-12-05', '2030-12-06', '2030-12-07', '2030-12-08', '2030-12-09');
+		await reconcileAlerts(sql, envWith(bucket), new Date('2030-12-10T04:59:00Z'));
+		expect(await alert('backup_export_missing', '2030-12-10')).toBeUndefined();
+		await reconcileAlerts(sql, envWith(bucket), new Date('2030-12-10T05:00:00Z'));
+		expect(JSON.parse((await alert('backup_export_missing', '2030-12-10'))!.details)).toEqual({ reason: 'missing' });
+		for (let day = 3; day <= 9; day++) expect(await alert('backup_export_missing', `2030-12-${String(day).padStart(2, '0')}`)).toBeUndefined();
 	});
 
 	it('from 05:00 the window starts 6 days back', async () => {

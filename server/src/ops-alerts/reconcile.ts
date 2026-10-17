@@ -78,17 +78,16 @@ async function overdueJobs(sql: postgres.Sql, now: Date): Promise<void> {
 }
 
 /**
- * 3. UTC dates of the last 7 days whose second attempt has passed (earlier days; today from 05:00)
- * without an export in R2. The export keeps the newest 7: from 05:00 those are today and the 6
- * days before; before 05:00 today's is not done, so the date 7 days ago is still one of them.
+ * 3. UTC dates whose second attempt has passed without an export in R2: today-1 … today-6 always,
+ * today from 05:00. Never today-7: a successful 02:30 export keeps only the newest 7, so its copy
+ * may be gone by design; each date has been checked on the 7 days before (spec W15, section 5).
  * Each date has its own try: one failing list never skips the others (the first error is
  * rethrown at the end, for one log line).
  */
 async function missingExports(sql: postgres.Sql, bucket: R2Bucket | undefined, now: Date): Promise<void> {
-	const first = now.getUTCHours() < EXPORT_SECOND_ATTEMPT_DONE_HOUR ? WINDOW_DAYS : WINDOW_DAYS - 1;
+	const last = now.getUTCHours() < EXPORT_SECOND_ATTEMPT_DONE_HOUR ? 1 : 0;
 	const failures: unknown[] = [];
-	for (let daysAgo = first; daysAgo >= 0; daysAgo--) {
-		if (daysAgo === 0 && now.getUTCHours() < EXPORT_SECOND_ATTEMPT_DONE_HOUR) continue;
+	for (let daysAgo = WINDOW_DAYS - 1; daysAgo >= last; daysAgo--) {
 		const date = new Date(now.getTime() - daysAgo * DAY_MS).toISOString().slice(0, 10);
 		try {
 			let reason: 'missing' | 'not_configured';
