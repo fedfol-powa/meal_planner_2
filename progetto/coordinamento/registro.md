@@ -9,18 +9,20 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   suo, branch `docs/specifica-somiglianza-istruzioni`): frase su `AGENTS.md` nella
   specifica principale, decisioni di somiglianza e zoom (sezione 3 e `design/design.md`),
   skill `coordinamento` sezione 7 (rilascio dal coordinatore dopo il «vai»), `*.prompt`
-  dei revisori fuori da Git. Serve il «mergia» dell'utente. Poi parte software di D:
-  brief `brief/w15-email.md` scritto, da far approvare all'utente.
-- **Worker attivi:** nessuno. W14 chiuso (prova finale con «riprendiamo» superata il
+  dei revisori fuori da Git. Serve il «mergia» dell'utente. In parallelo W15, parte
+  software di D (brief `brief/w15-email.md`, approvato dall'utente il 17/10), fase:
+  brainstorming.
+- **Worker attivi:** W15, tab «W15 email», pane `w1:p4Q`, branch `ondata3/email`,
+  worktree `.worktrees/email`; avviato il 17/10 pomeriggio. W14 chiuso (prova finale con «riprendiamo» superata il
   17/10; tab, worktree e branch rimossi).
 - **Revisori attivi:** nessuno.
-- **Domande in sospeso:** approvazione del brief W15 (utente).
+- **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Utilizzo settimanale all'87%
   il 17/10 mattina (azzeramento 18/10 alle 15): revisioni Codex solo dove servono.
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** PR di documentazione → «mergia»; brief W15 approvato → avvio di W15
-  (branch `ondata3/email`, worktree `.worktrees/email`). Poi: ricettario esteso
+- **Prossimo passo:** PR di documentazione → «mergia»; brainstorming di W15 (domande di
+  prodotto all'utente). Poi: ricettario esteso
   dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza foto),
   #62 (worker curatore del ricettario, da rivedere con l'utente più avanti), pulizia dei
   worktree di PR già unite, R26 rimandata.
