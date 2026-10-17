@@ -15,8 +15,20 @@ async function pendingDeletions(tx: Tx): Promise<Deletions> {
 	return new Map(rows.map((row) => [row.user_id, { requestedAt: row.requested_at.toISOString(), attempts: row.attempts }]));
 }
 
-const rowView = (row: UserRowDb, deletions: Deletions) => ({
+/**
+ * Accounts from an invitation whose email is not confirmed yet (spec W15, section 2): one read for
+ * the page. The ids travel as text: no array serializer without fetch_types.
+ */
+async function unconfirmedOf(tx: Tx, ids: string[]): Promise<Set<string>> {
+	if (ids.length === 0) return new Set();
+	const rows = await tx<{ user_id: string; unconfirmed: boolean }[]>`
+		select user_id, unconfirmed from app.admin_email_unconfirmed(string_to_array(${ids.join(',')}, ',')::uuid[])`.catch(mapUsersError);
+	return new Set(rows.filter((row) => row.unconfirmed).map((row) => row.user_id));
+}
+
+const rowView = (row: UserRowDb, deletions: Deletions, unconfirmed: Set<string>) => ({
 	id: row.id, displayName: row.display_name, email: row.email, roles: row.roles, deletion: deletions.get(row.id) ?? null,
+	emailUnconfirmed: unconfirmed.has(row.id),
 });
 
 /** One's own account is deleted from the preferences (spec W11, P0A12, raised here). */
@@ -33,7 +45,7 @@ async function detail(tx: Tx, id: string, locale: Locale): Promise<UserDetail> {
 		select name, role from app.admin_user_families(${id}::uuid)`.catch(mapUsersError);
 	const collator = new Intl.Collator(locale);
 	return {
-		user: { ...rowView(row, await pendingDeletions(tx)), lastAppAdmin: row.last_app_admin },
+		user: { ...rowView(row, await pendingDeletions(tx), await unconfirmedOf(tx, [row.id])), lastAppAdmin: row.last_app_admin },
 		families: families.map(({ name, role }) => ({ name, role })).sort((a, b) => collator.compare(a.name, b.name)),
 	};
 }
@@ -44,8 +56,10 @@ export function usersRouter(os: Implementer) {
 		list: os.users.list.handler(async ({ context, input }) => {
 			const rows = await context.tx<UserRowDb[]>`
 				select id, display_name, email, roles from app.admin_users(${input.query ?? ''}, ${USERS_LIST_LIMIT})`.catch(mapUsersError);
+			const page = rows.slice(0, USERS_LIST_LIMIT);
 			const deletions = await pendingDeletions(context.tx);
-			return { users: rows.slice(0, USERS_LIST_LIMIT).map((row) => rowView(row, deletions)), more: rows.length > USERS_LIST_LIMIT };
+			const unconfirmed = await unconfirmedOf(context.tx, page.map((row) => row.id));
+			return { users: page.map((row) => rowView(row, deletions, unconfirmed)), more: rows.length > USERS_LIST_LIMIT };
 		}),
 		get: os.users.get.handler(({ context, input }) => detail(context.tx, input.id, context.locale)),
 		setRole: os.users.setRole.handler(async ({ context, input }) => {

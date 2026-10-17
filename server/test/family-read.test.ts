@@ -2,6 +2,7 @@ import { defaultPlannerSettings } from '@app/domain/planner';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { errorOf, setupActors, type Actor, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
+import { mcp, toolBody } from './support/requests.ts';
 
 /** Data of a fresh versioned answer; fails on `unchanged`. */
 function fresh<T>(answer: { unchanged: true; version: string } | { unchanged: false; version: string; data: T }): T {
@@ -32,9 +33,9 @@ describe.skipIf(!hasDatabase)('family reads', () => {
 	it('lists members, admins first, with my role', async () => {
 		const view = fresh(await member.client.family.get({ familyId }));
 		expect(view).toMatchObject({ id: familyId, name: 'Test', measurementSystem: 'metric', timeZone: 'Europe/Rome', myRole: 'member' });
-		expect(view.members.map((m) => [m.userId, m.displayName, m.role, m.isMe])).toEqual([
-			[admin.userId, 'Zoe', 'family_admin', false],
-			[member.userId, 'Aldo', 'member', true],
+		expect(view.members.map((m) => [m.userId, m.displayName, m.role, m.isMe, m.emailUnconfirmed])).toEqual([
+			[admin.userId, 'Zoe', 'family_admin', false, false],
+			[member.userId, 'Aldo', 'member', true, false],
 		]);
 		expect(Date.parse(view.members[0]!.joinedAt)).not.toBeNaN();
 	});
@@ -44,6 +45,51 @@ describe.skipIf(!hasDatabase)('family reads', () => {
 		expect(await member.client.family.get({ familyId, knownVersion: first.version })).toEqual({ unchanged: true, version: first.version });
 		await actors.db.admin`update app.families set name = 'Renamed' where id = ${familyId}`;
 		expect(fresh(await member.client.family.get({ familyId, knownVersion: first.version })).name).toBe('Renamed');
+	});
+
+	describe('the label «Non ha ancora confermato l\'email» (spec W15, section 2)', () => {
+		const setConfirmed = (userId: string, confirmed: boolean) =>
+			actors.db.admin`update auth.users set email_confirmed_at = ${confirmed ? new Date() : null} where id = ${userId}`;
+		const family = async () => {
+			const a = await actors.user();
+			const b = await actors.user();
+			const id = await actors.db.createFamily([{ userId: a.userId, role: 'family_admin' }, { userId: b.userId, role: 'member' }]);
+			return { a, b, id };
+		};
+
+		it('marks a member whose email is not confirmed, also over MCP', async () => {
+			const { a, b, id } = await family();
+			await setConfirmed(b.userId, false);
+			const view = fresh(await a.client.family.get({ familyId: id }));
+			expect(view.members.find((m) => m.userId === b.userId)!.emailUnconfirmed).toBe(true);
+			expect(view.members.find((m) => m.userId === a.userId)!.emailUnconfirmed).toBe(false);
+			const agent = await actors.user({ agent: true });
+			await actors.db.addMember(id, agent.userId, 'member');
+			const tool = await mcp(actors.app, actors.env, agent.token, 'tools/call', { name: 'family_get', arguments: { familyId: id } });
+			const members = toolBody(tool).data.members as { userId: string; emailUnconfirmed: boolean }[];
+			expect(members.find((m) => m.userId === b.userId)!.emailUnconfirmed).toBe(true);
+		});
+
+		it('a member confirming the email changes the version', async () => {
+			const { a, b, id } = await family();
+			await setConfirmed(b.userId, false);
+			const first = await a.client.family.get({ familyId: id });
+			await setConfirmed(b.userId, true);
+			const second = await a.client.family.get({ familyId: id, knownVersion: first.version });
+			expect(fresh(second).members.find((m) => m.userId === b.userId)!.emailUnconfirmed).toBe(false);
+		});
+
+		it('a swap at the same count changes the version', async () => {
+			const { a, b, id } = await family();
+			const c = await actors.user();
+			await actors.db.addMember(id, c.userId, 'member');
+			await setConfirmed(b.userId, false);
+			const first = await a.client.family.get({ familyId: id });
+			await setConfirmed(b.userId, true);
+			await setConfirmed(c.userId, false);
+			const second = await a.client.family.get({ familyId: id, knownVersion: first.version });
+			expect(fresh(second).members.filter((m) => m.emailUnconfirmed).map((m) => m.userId)).toEqual([c.userId]);
+		});
 	});
 
 	it('refuses strangers and unknown families alike, also as an agent', async () => {

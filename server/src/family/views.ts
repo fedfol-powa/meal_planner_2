@@ -12,11 +12,13 @@ export async function familyView(tx: Tx, familyId: string, locale: Locale): Prom
 		select id, name, measurement_system as "measurementSystem", time_zone as "timeZone"
 		from app.families where id = ${familyId}`;
 	if (!family) throw appError('forbidden');
-	const members = await tx<{ userId: string; displayName: string; role: 'family_admin' | 'member'; isMe: boolean; joinedAt: Date }[]>`
+	// emailUnconfirmed: only whether Auth has the email confirmed (spec W15, section 2).
+	const members = await tx<{ userId: string; displayName: string; role: 'family_admin' | 'member'; isMe: boolean; joinedAt: Date; emailUnconfirmed: boolean }[]>`
 		select m.user_id as "userId", coalesce(p.display_name, '') as "displayName", m.role,
-			m.user_id = auth.uid() as "isMe", m.joined_at as "joinedAt"
+			m.user_id = auth.uid() as "isMe", m.joined_at as "joinedAt", coalesce(u.unconfirmed, false) as "emailUnconfirmed"
 		from app.family_members m
 		left join app.profiles p on p.user_id = m.user_id
+		left join app.family_email_unconfirmed(${familyId}::uuid) u on u.user_id = m.user_id
 		where m.family_id = ${familyId}`;
 	const me = members.find((m) => m.isMe);
 	if (!me) throw appError('forbidden');

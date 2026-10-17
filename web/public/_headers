@@ -6,3 +6,9 @@
 
 /login
   Referrer-Policy: no-referrer
+
+/password
+  Referrer-Policy: no-referrer
+
+/password/*
+  Referrer-Policy: no-referrer

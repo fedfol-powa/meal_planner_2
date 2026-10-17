@@ -67,8 +67,8 @@ export async function setupDatabase(): Promise<TestDatabase> {
 			const metadata = { display_name: `Test ${userId.slice(0, 8)}`, locale: options.locale ?? 'it-IT' };
 			// The W2 trigger on auth.users creates the profile from the metadata.
 			await admin`
-				insert into auth.users (id, email, aud, role, raw_user_meta_data)
-				values (${userId}, ${`${userId}@test.local`}, 'authenticated', 'authenticated', ${admin.json(metadata)})`;
+				insert into auth.users (id, email, aud, role, raw_user_meta_data, email_confirmed_at)
+				values (${userId}, ${`${userId}@test.local`}, 'authenticated', 'authenticated', ${admin.json(metadata)}, now())`;
 			await admin`insert into auth.sessions (id, user_id) values (${sessionId}, ${userId})`;
 			return { userId, sessionId };
 		},

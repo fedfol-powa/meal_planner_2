@@ -32,6 +32,9 @@ export const SCRIPTS: Record<string, ScriptSpec> = {
 		launch: true,
 	},
 	'reset-app-data': { file: 'supabase/scripts/reset-app-data.sql', variables: { expected_fingerprint: 'fingerprint' }, readOnly: false, launch: false },
+	// Operational alerts (spec W15, section 9, points 9 and 10).
+	'ops-alert-test': { file: 'supabase/scripts/ops-alert-test.sql', variables: { day: 'date' }, readOnly: false, launch: false },
+	'ops-alerts-unsent': { file: 'supabase/scripts/ops-alerts-unsent.sql', variables: {}, readOnly: true, launch: false },
 };
 
 const FINGERPRINT_FILE = 'supabase/scripts/app-fingerprint.sql';

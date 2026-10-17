@@ -26,7 +26,9 @@ import { NewFamilyPage } from './features/family-new/NewFamilyPage';
 import { FamilyDeletePage } from './features/family-delete/FamilyDeletePage';
 import { AccountDeletePage } from './features/account/AccountDeletePage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
-import { validateFamilyDeleteSearch, validateLoginSearch, validateMenuSearch, validateNewFamilySearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
+import { ChoosePasswordPage } from './features/password/ChoosePasswordPage';
+import { ForgotPage } from './features/password/ForgotPage';
+import { validateEmailSearch, validateFamilyDeleteSearch, validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
 
 /** `exit.pending`: a session just closed here; its redirect to sign-in drops the page, and the next person starts from the menu. */
 export interface RouterContext { auth: AuthState; exit: { pending: boolean } }
@@ -50,6 +52,10 @@ const loginRoute = createRoute({
   },
   component: LoginPage
 });
+
+// Password links (spec W15): public, like the sign-in page; the code of /password in the fragment.
+const forgotRoute = createRoute({ getParentRoute: () => rootRoute, path: '/password/forgot', validateSearch: validateEmailSearch, component: ForgotPage });
+const choosePasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: '/password', component: ChoosePasswordPage });
 
 // Agent consent (spec section 13): no navbar; signing in first comes back here (after «Cambia account», to the page that asks to start again from the agent).
 const authorizeRoute = createRoute({
@@ -101,7 +107,7 @@ const familyDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/
 // Deletion of one's own account (spec W11): only navigation, nothing is deleted on opening; also the link agents get.
 const accountDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/account/delete', component: AccountDeletePage });
 // New family (spec W9): the minimal wizard, also «Crea un'altra famiglia» from the profile.
-const newFamilyRoute = createRoute({ getParentRoute: () => appRoute, path: '/family/new', validateSearch: validateNewFamilySearch, component: NewFamilyPage });
+const newFamilyRoute = createRoute({ getParentRoute: () => appRoute, path: '/family/new', component: NewFamilyPage });
 // App administration (spec W9): app_admin only, also checked by the server.
 const adminRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin', component: AdminPage });
 const userRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin/users/$userId', component: UserPage });
@@ -113,6 +119,8 @@ const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shop
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  forgotRoute,
+  choosePasswordRoute,
   authorizeRoute,
   appInviteRoute,
   familyInviteRoute,

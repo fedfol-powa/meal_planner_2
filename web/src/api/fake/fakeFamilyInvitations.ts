@@ -107,18 +107,22 @@ export function createFakeFamilyInvitations(deps: Deps) {
       if (!alreadyMember && (!usable(link) || removedAfter(link, deps.userId))) throw new ApiError('invitation_unavailable');
       return deps.delayed({ familyId: deps.familyId, familyName: data.name, invitedBy: nameOf(link.createdBy), alreadyMember });
     },
-    async accept({ token, email, displayName }: { token: string; email: string; displayName: string; password: string; locale: string }) {
+    async accept({ token, email, displayName }: { token: string; email: string; displayName: string; locale: string }) {
       const normalized = email.trim().toLowerCase();
       const link = byToken(token);
       const reserved = link?.registrations.find((r) => r.email === normalized);
       // A terminal reservation answers as it is, without writing.
-      if (reserved) return deps.delayed({ email: normalized, joined: reserved.status === 'joined' });
+      if (reserved) return deps.delayed({ email: normalized, joined: reserved.status === 'joined', passwordEmail: 'not_sent' as const });
       if (!usable(link)) throw new ApiError('invitation_unavailable');
       if (deps.accountExists(normalized)) throw new ApiError('not_allowed', { reason: 'account_exists' });
       if (link.registrations.length >= FAMILY_INVITATION_ACCOUNT_LIMIT) throw new ApiError('invitation_unavailable');
       link.registrations.push({ email: normalized, status: 'joined' });
       addMember(link, `user-${crypto.randomUUID()}`, 'new_account', displayName.trim());
-      return deps.delayed({ email: normalized, joined: true });
+      return deps.delayed({ email: normalized, joined: true, passwordEmail: 'sent' as const });
+    },
+    /** The fake mode sends no email: «Rimanda l'email» always answers `sent` (spec W15). */
+    async resendPasswordEmail(_input: { token: string; email: string; locale: string }) {
+      return deps.delayed({ passwordEmail: 'sent' as const });
     }
   } as unknown as Api['familyInvitations'];
 

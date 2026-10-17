@@ -1,8 +1,9 @@
 import { createFakeAppInvitations } from '../../api/fake/fakeAppInvitations';
 import { createRpcClient } from '../../api/rpc';
+import type { Api } from '../../api/types';
 import { env } from '../../env';
 
-type Public = Pick<ReturnType<typeof createFakeAppInvitations>, 'get' | 'accept'>;
+type Public = Pick<Api['appInvitations'], 'get' | 'accept' | 'resendPasswordEmail'>;
 
 /** The link's operations, without a session (spec W9): no token is ever sent. */
 function defaultClient(): Public {

@@ -28,7 +28,7 @@ export interface FakeFamilyData {
   joins: FakeJoin[];
 }
 
-export interface FakeMember { id: string; displayName?: string; role: FamilyRole; joinedAt: string }
+export interface FakeMember { id: string; displayName?: string; role: FamilyRole; joinedAt: string; emailUnconfirmed?: boolean }
 export interface FakeLink {
   id: string; token: string; createdBy: string; createdAt: string; expiresAt: string; revokedAt: string | null;
   /** Emails that started to register from the link, in any state: the cap counter. */
@@ -148,12 +148,12 @@ export function createFakeFamily(deps: FamilyDeps): FamilyApi {
     deps.checkFamily(familyId);
     if (!isAdmin()) throw new ApiError('forbidden');
   };
-  const people = () => data.members.map((m) => ({ id: m.id, displayName: memberName(m, self), role: m.role, joinedAt: m.joinedAt }));
+  const people = () => data.members.map((m) => ({ id: m.id, displayName: memberName(m, self), role: m.role, joinedAt: m.joinedAt, emailUnconfirmed: m.emailUnconfirmed ?? false }));
   const nameOf = (userId: string) => people().find((p) => p.id === userId)?.displayName ?? null;
 
   function familyView(): FamilyDetailView {
     const members = people()
-      .map((p) => ({ userId: p.id, displayName: p.displayName, role: p.role, isMe: p.id === deps.userId, joinedAt: p.joinedAt }))
+      .map((p) => ({ userId: p.id, displayName: p.displayName, role: p.role, isMe: p.id === deps.userId, joinedAt: p.joinedAt, emailUnconfirmed: p.emailUnconfirmed }))
       .sort((a, b) => (a.role === b.role ? a.displayName.localeCompare(b.displayName) : a.role === 'family_admin' ? -1 : 1));
     return { id: deps.familyId, name: data.name, measurementSystem: data.measurementSystem, timeZone: data.timeZone, myRole: roleOf(deps.userId) ?? 'member', members };
   }

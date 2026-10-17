@@ -1,13 +1,19 @@
 import type { Locale } from '@app/contract';
+import { updateAccountLocale } from '../accounts/index.ts';
 import { appError } from '../errors.ts';
-import type { Implementer } from '../pipeline.ts';
+import { logEvent } from '../log.ts';
+import { afterCommit, type Implementer } from '../pipeline.ts';
 import { profileView } from './views.ts';
 
 export function profileRouter(os: Implementer) {
 	return {
 		get: os.profile.get.handler(({ context }) => profileView(context.tx, context.locale)),
 
-		/** The new language applies to this answer and, through the session, to every next request. */
+		/**
+		 * The new language applies to this answer and, through the session, to every next request.
+		 * Spec W15: after the commit, also to the metadata of Auth, the language of the "forgotten
+		 * password" email; a failure is only logged.
+		 */
 		update: os.profile.update.handler(async ({ context, input }) => {
 			// Only the given columns: naming display_name would bump every family of the user
 			// (their views show the name) even for a change of language.
@@ -21,7 +27,15 @@ export function profileRouter(os: Implementer) {
 				where user_id = auth.uid()
 				returning locale`;
 			if (!rows[0]) throw appError('unauthorized');
-			return profileView(context.tx, rows[0].locale);
+			const view = await profileView(context.tx, rows[0].locale);
+			const locale = input.locale;
+			if (locale === undefined) return view;
+			const { env, userId } = context;
+			return afterCommit(async () => {
+				await updateAccountLocale(env, userId, locale).catch((error: unknown) =>
+					logEvent('auth_locale_sync_failed', { status: (error as { status?: number | null }).status ?? null }, 'error'));
+				return view;
+			});
 		}),
 
 		/** Remembered on the server, private to the user; a family the user is not in is forbidden. */

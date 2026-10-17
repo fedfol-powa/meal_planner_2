@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { getRouteApi } from '@tanstack/react-router';
+import { getRouteApi, Link } from '@tanstack/react-router';
 import { useT } from '../i18n/LocaleProvider';
 import { trackBusy } from '../pwa/busy';
 import { useAuth } from './AuthProvider';
@@ -54,6 +54,9 @@ export function LoginPage() {
           {busy ? t('auth.submitting') : t('auth.submit')}
         </button>
       </form>
+      <p className="meta-line">
+        <Link to="/password/forgot" search={email.trim() ? { email: email.trim() } : {}}>{t('password.forgot.link')}</Link>
+      </p>
     </main>
   );
 }

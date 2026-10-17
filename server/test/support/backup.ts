@@ -32,5 +32,9 @@ export async function seedBackupFixtures(db: TestDatabase): Promise<BackupFixtur
 		where id = '${userId}'`);
 	await db.admin`insert into auth.identities (provider_id, user_id, identity_data, provider)
 		values (${userId}, ${userId}, ${db.admin.json({ sub: userId, email: `${userId}@test.local` })}, 'email')`;
+	// W15: an operational alert and a password email (spec 2026-10-17-email, section 5).
+	await db.admin`insert into app.ops_alerts (event, key, details, subject, body, claimed_at, attempts)
+		values ('ops_alert_test', ${`backup-${familyId}`}, ${db.admin.json({ familyId })}, 'Subject', 'Body', now(), 1)`;
+	await db.admin`insert into app.password_emails (user_id, sent_at) values (${userId}, now())`;
 	return { userId, familyId, listId };
 }

@@ -3,13 +3,27 @@ import type { AgentAuthorization, AuthBackend, AuthorizationFailure, Authorizati
 import { changePasswordWith, sessionIdOf, type SessionRead } from './passwordChangeRequests';
 
 export const AUTH_STORAGE_KEY = 'cosasimangia-auth';
-export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession'>;
+export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession' | 'resetPasswordForEmail'>;
 
 export type OAuthApi = Pick<SupabaseClient['auth']['oauth'], 'getAuthorizationDetails' | 'approveAuthorization' | 'denyAuthorization'>;
 
 export function authorizationFailure(error: { status?: number; name?: string }): AuthorizationFailure {
   if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network';
   if (error.status === 400 || error.status === 404) return 'not_found';
+  return 'unknown';
+}
+
+/** Supabase's message for the project's hourly email limit (verified on the stack, spec W15). */
+const PROJECT_EMAIL_LIMIT = /email rate limit exceeded/i;
+
+/**
+ * Only the project's hourly limit is told apart, by its message; every other 429 (the per-address
+ * one, or a message absent or unknown) counts as sent, so the answer never tells whether the
+ * account exists (spec W15, decision 17).
+ */
+export function passwordEmailFailure(error: { code?: string; status?: number; name?: string; message?: string }): 'sent' | 'project_limit' | 'network' | 'unknown' {
+  if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network';
+  if (error.status === 429 || error.code === 'over_email_send_rate_limit') return PROJECT_EMAIL_LIMIT.test(error.message ?? '') ? 'project_limit' : 'sent';
   return 'unknown';
 }
 
@@ -100,6 +114,12 @@ export function createSupabaseBackend(
         current,
         next
       );
+    },
+    async requestPasswordEmail(email) {
+      const { error } = await auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/password` });
+      if (!error) return { ok: true };
+      const outcome = passwordEmailFailure(error);
+      return outcome === 'sent' ? { ok: true } : { ok: false, reason: outcome };
     },
     async refresh() {
       const { data, error } = await auth.refreshSession();

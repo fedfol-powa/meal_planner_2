@@ -53,10 +53,11 @@ export function UsersSection() {
                 <span className="row-main">
                   <span>{user.displayName}{user.id === me && <span className={styles.you}>{` · ${t('admin.you')}`}</span>}</span>
                   <small>{user.email}</small>
-                  {(user.roles.length > 0 || user.deletion) && (
+                  {(user.roles.length > 0 || user.deletion || user.emailUnconfirmed) && (
                     <span className={styles.roles}>
                       {user.roles.map((role) => <span key={role} className={styles.role}>{t(`role.${role}`)}</span>)}
                       {user.deletion && <span className={styles.role}>{t('admin.deletionPending')}</span>}
+                      {user.emailUnconfirmed && <span className={styles.role}>{t('members.emailUnconfirmed')}</span>}
                     </span>
                   )}
                 </span>

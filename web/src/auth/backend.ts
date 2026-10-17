@@ -16,6 +16,8 @@ export type ChangePasswordFailure =
   | 'network'
   | 'unknown';
 export type ChangePasswordResult = { ok: true } | { ok: false; reason: ChangePasswordFailure };
+/** Outcome of asking for a password link; the per-address rate limit counts as sent (spec, decision 17). */
+export type PasswordEmailResult = { ok: true } | { ok: false; reason: 'project_limit' | 'network' | 'unknown' };
 /** Outcome of one renewal (W4's interface): `network` changes nothing, `rejected` ends the session. */
 /** The token and the person it belongs to, read together from the same stored session. */
 export interface Credentials { accessToken: string; userId: string }
@@ -59,6 +61,8 @@ export interface AuthBackend {
   signOut(): Promise<void>;
   /** Checks `current` with a throwaway sign-in, then sets `next` with this device's captured session; other sessions end. */
   changePassword(current: string, next: string): Promise<ChangePasswordResult>;
+  /** Sends the recovery link (public call, no session adopted); the answer is the same whether the account exists or not. */
+  requestPasswordEmail(email: string): Promise<PasswordEmailResult>;
   /** One renewal of the session; `userId` is the user of the renewed token. */
   refresh(): Promise<RenewResult>;
   /** For the oRPC link (Authorization: Bearer), read at every request; null without a session. */
@@ -90,6 +94,7 @@ export function createFakeBackend(): AuthBackend {
     signIn: async () => ({ ok: true }),
     signOut: async () => undefined,
     changePassword: async () => ({ ok: true }),
+    requestPasswordEmail: async () => ({ ok: true }),
     refresh: async () => ({ kind: 'ok', userId: DEMO_USER.id }),
     getCredentials: async () => null,
     getAuthorization: async () => ({ ok: true, value: DEMO_AUTHORIZATION }),

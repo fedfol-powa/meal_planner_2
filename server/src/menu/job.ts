@@ -2,6 +2,7 @@ import { catchUpTarget, isJobOverdue, isNextWeekDue, nextWeekStart } from '@app/
 import postgres from 'postgres';
 import { withDbOn } from '../db.ts';
 import { logEvent } from '../log.ts';
+import { raiseAlert, type AlertDelivery } from '../ops-alerts/raise.ts';
 import { errorCode, generateWeek } from './generation.ts';
 import { markAbandoned, markFailed } from './job-status.ts';
 import { localIn } from './time.ts';
@@ -15,6 +16,8 @@ interface OpenJob {
 export interface WeeklyJobOptions {
 	/** Only these families; tests use it, the hourly job serves them all. */
 	families?: readonly string[];
+	/** Immediate delivery of the alerts this run raises; without it they wait for the hourly delivery. */
+	alerts?: AlertDelivery;
 }
 
 /** The hourly job (spec section 4.2): dispatch new targets, then every open job, one at a time. */
@@ -50,13 +53,18 @@ export async function runWeeklyJobOn(sql: postgres.Sql, now: Date, options: Week
 		const local = localIn(familyId, timeZone, now);
 		const target = catchUpTarget(local, targetWeek);
 		if (!target) {
+			let attempts: number | null;
 			try {
-				const attempts = await markAbandoned(sql, familyId, targetWeek);
+				attempts = await markAbandoned(sql, familyId, targetWeek);
 				logEvent('weekly_job_abandoned', { familyId, weekStart: targetWeek, attempts }, 'error');
 				result.abandoned++;
 			} catch (error) {
 				logEvent('weekly_job_status_failed', { familyId, weekStart: targetWeek, status: 'abandoned', code: errorCode(error) }, 'error');
+				continue;
 			}
+			// Only once the abandonment is saved, in its own transaction: it never undoes it (decision 16).
+			if (attempts !== null)
+				await raiseAlert(sql, { event: 'weekly_job_abandoned', key: `${familyId}:${targetWeek}`, details: { familyId, weekStart: targetWeek, attempts } }, options.alerts);
 			continue;
 		}
 		try {
@@ -76,7 +84,10 @@ export async function runWeeklyJobOn(sql: postgres.Sql, now: Date, options: Week
 			try {
 				const attempts = await markFailed(sql, familyId, targetWeek, code);
 				logEvent('weekly_job_failed', { familyId, weekStart: targetWeek, attempts, code });
-				if (isJobOverdue(local, targetWeek)) logEvent('weekly_job_overdue', { familyId, weekStart: targetWeek, attempts });
+				if (isJobOverdue(local, targetWeek)) {
+					logEvent('weekly_job_overdue', { familyId, weekStart: targetWeek, attempts });
+					await raiseAlert(sql, { event: 'weekly_job_overdue', key: `${familyId}:${targetWeek}`, details: { familyId, weekStart: targetWeek } }, options.alerts);
+				}
 			} catch (saveError) {
 				logEvent('weekly_job_status_failed', { familyId, weekStart: targetWeek, status: 'failed', code: errorCode(saveError) }, 'error');
 			}
@@ -85,10 +96,10 @@ export async function runWeeklyJobOn(sql: postgres.Sql, now: Date, options: Week
 	return result;
 }
 
-export async function runWeeklyJob(connectionString: string, now: Date) {
+export async function runWeeklyJob(connectionString: string, now: Date, alerts?: AlertDelivery) {
 	const sql = postgres(connectionString, { max: 1, fetch_types: false, connect_timeout: 10 });
 	try {
-		return await runWeeklyJobOn(sql, now);
+		return await runWeeklyJobOn(sql, now, { alerts });
 	} finally {
 		await sql.end().catch(() => {});
 	}

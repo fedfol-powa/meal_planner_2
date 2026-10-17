@@ -1,4 +1,4 @@
-import type { AgentAuthorization, AuthBackend, ChangePasswordResult, AuthEvent, AuthorizationResult, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
+import type { AgentAuthorization, AuthBackend, ChangePasswordResult, PasswordEmailResult, AuthEvent, AuthorizationResult, AuthEventType, AuthUser, Credentials, RenewResult, SessionCheck, SignInResult } from '../auth/backend';
 
 export interface StubBackend extends AuthBackend {
   nextSignIn: SignInResult;
@@ -31,6 +31,9 @@ export interface StubBackend extends AuthBackend {
   /** Answer of changePassword ({ ok: true } by default). */
   nextChangePassword: ChangePasswordResult;
   changePasswordCalls: { current: string; next: string }[];
+  /** Answer of requestPasswordEmail ({ ok: true } by default) and the addresses asked. */
+  nextPasswordEmail: PasswordEmailResult;
+  passwordEmailCalls: string[];
   /** The next changePassword() waits until the returned function answers it. */
   holdChangePassword(): (result: ChangePasswordResult) => void;
   /** The next signOut() waits until the returned function ends it. */
@@ -64,6 +67,12 @@ export function createStubBackend(initial: AuthUser | null, mode: 'fake' | 'supa
     decisions: [],
     nextChangePassword: { ok: true },
     changePasswordCalls: [],
+    nextPasswordEmail: { ok: true },
+    passwordEmailCalls: [],
+    async requestPasswordEmail(email) {
+      backend.passwordEmailCalls.push(email);
+      return backend.nextPasswordEmail;
+    },
     holdChangePassword() {
       let answer: (result: ChangePasswordResult) => void = () => {};
       heldChangePassword = new Promise<ChangePasswordResult>((resolve) => (answer = resolve));

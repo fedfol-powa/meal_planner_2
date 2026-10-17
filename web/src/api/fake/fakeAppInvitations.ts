@@ -74,12 +74,16 @@ export function createFakeAppInvitations(latencyMs = 0, accountExists: (email: s
       if (!usable(row)) throw new ApiError('invitation_unavailable');
       return delayed({ invitedBy: row.createdByName, roles: row.roles });
     },
-    async accept({ token: value, email, displayName }: { token: string; email: string; displayName: string; password: string; locale: string }) {
+    async accept({ token: value, email, displayName }: { token: string; email: string; displayName: string; locale: string }) {
       const row = byToken(value);
       if (!usable(row)) throw new ApiError('invitation_unavailable');
       if (row.email !== email.trim().toLowerCase()) throw new ApiError('invalid', { issues: [{ path: ['email'], code: 'email_mismatch' }] });
       Object.assign(row, { status: 'accepted', acceptedAt: new Date().toISOString(), acceptedByName: displayName });
-      return delayed({ email: email.trim().toLowerCase() });
+      return delayed({ email: email.trim().toLowerCase(), passwordEmail: 'sent' as const });
+    },
+    /** The fake mode sends no email: «Rimanda l'email» always answers `sent` (spec W15). */
+    async resendPasswordEmail(_input: { token: string; email: string; locale: string }) {
+      return delayed({ passwordEmail: 'sent' as const });
     }
   };
   stores.set(area, rows);

@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<body style="margin:0;padding:24px;background:#FAF8F3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#232323">
+<div style="max-width:420px;margin:0 auto;background:#ffffff;border-radius:12px;padding:24px">
+<p style="margin:0 0 16px;font-weight:600;color:#067A46">Cosa si mangia?</p>
+{{ if and .Data.locale (eq .Data.locale "en-GB") }}
+<h1 style="font-size:20px;margin:0 0 12px">Choose a new password</h1>
+<p style="margin:0 0 16px">Someone asked for a new password for {{ .Email }} on Cosa si mangia. Open the link to choose it: you will then sign in with your email and the new password, in the app too.</p>
+<p style="margin:0 0 16px"><a href="{{ .SiteURL }}/password#token_hash={{ .TokenHash }}&type=recovery" style="display:inline-block;background:#232323;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px">Choose your password</a></p>
+<p style="margin:0;font-size:13px;color:#676767">The link is valid for 24 hours. If you did not ask for it, ignore this email: your password does not change.</p>
+{{ else }}
+<h1 style="font-size:20px;margin:0 0 12px">Scegli una nuova password</h1>
+<p style="margin:0 0 16px">È stata chiesta una nuova password per {{ .Email }} su Cosa si mangia. Apri il link per sceglierla: poi entrerai con la tua email e la nuova password, anche nell'app.</p>
+<p style="margin:0 0 16px"><a href="{{ .SiteURL }}/password#token_hash={{ .TokenHash }}&type=recovery" style="display:inline-block;background:#232323;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px">Scegli la password</a></p>
+<p style="margin:0;font-size:13px;color:#676767">Il link vale 24 ore. Se non l'hai chiesto tu, ignora questa email: la tua password non cambia.</p>
+{{ end }}
+</div>
+</body>
+</html>

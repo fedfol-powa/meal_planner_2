@@ -3,7 +3,6 @@ import { Link, useRouter, useRouterState } from '@tanstack/react-router';
 import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAuth } from '../../auth/AuthProvider';
-import type { SignInFailure } from '../../auth/backend';
 import { useOnline } from '../../components/OfflineBanner';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../../i18n/messages';
@@ -12,7 +11,8 @@ import { useChooseLocale, useSignOut } from '../../session/SessionScope';
 import { useProfile } from '../../session/useFamily';
 import { invitationClient } from './client';
 import styles from './InvitePage.module.css';
-import { accountFormErrors, fragment, isClosingAccount, PASSWORD_ISSUES, signOutAndContinue, TOKEN, type AccountField as Field } from './token';
+import { PasswordEmailNotice, type AcceptOutcome } from './PasswordEmailNotice';
+import { accountFormErrors, fragment, TOKEN, type AccountField as Field } from './token';
 
 type Phase =
   | { kind: 'loading' }
@@ -20,33 +20,34 @@ type Phase =
   | { kind: 'unavailable' }
   | { kind: 'limited' }
   | { kind: 'failed'; error: unknown }
-  | { kind: 'signInFailed'; email: string; reason: SignInFailure };
+  /** The account is ready: «Controlla la posta» and the other outcomes of the first email. */
+  | { kind: 'mail'; email: string; outcome: AcceptOutcome; roles: GlobalRole[] };
 
 type FormError = { kind: 'message'; key: MessageKey } | { kind: 'accountExists'; email: string };
 
 /**
- * App invitation (spec W9, «Pagina dell'invito»): public, the token in the fragment. Email, name
- * and password in one form; the server creates the account, then this page signs in.
+ * App invitation (spec W9 and W15, «Pagine d'invito»): public, the token in the fragment. Email and
+ * name in one form; the server creates the account and emails the link to choose the password. This
+ * page never signs in.
  */
 export function InvitePage() {
   const t = useT();
   const { locale } = useLocale();
   const chooseLocale = useChooseLocale();
-  const { state, backend } = useAuth();
+  const { state } = useAuth();
   const signOut = useSignOut();
   const router = useRouter();
   const online = useOnline();
   const token = useRouterState({ select: (s) => s.location.hash });
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
-  const [values, setValues] = useState({ email: '', name: '', password: '', again: '' });
+  const [values, setValues] = useState({ email: '', name: '' });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, MessageKey>>>({});
   const [formError, setFormError] = useState<FormError | null>(null);
   const [busy, setBusy] = useState(false);
   const ids = useId();
 
-  // Generation of (page, link, identity): an answer of an older one changes nothing and never
-  // signs in or navigates. The ref, not the state, keeps one submission even with two taps
-  // before the next render.
+  // Generation of (page, link, identity): an older answer changes nothing. A ref keeps one
+  // submission at a time.
   const generation = useRef(0);
   const sending = useRef(false);
   const signedOut = useRef(state.status === 'signedOut');
@@ -89,7 +90,7 @@ export function InvitePage() {
 
   const set = (field: Field) => (value: string) => setValues((v) => ({ ...v, [field]: value }));
 
-  async function submit(event: FormEvent, roles: GlobalRole[]) {
+  async function submit(event: FormEvent) {
     event.preventDefault();
     if (sending.current || !signedOut.current) return;
     const errors = accountFormErrors(values);
@@ -99,59 +100,25 @@ export function InvitePage() {
     sending.current = true;
     setBusy(true);
     const mine = generation.current;
-    // The attempt watches page, link and identity itself, until its answer is handled: the page
-    // may remount meanwhile (our own sign-in), and coming back to the same link is a new attempt.
-    let valid = true;
-    // Once the account exists, a sign-in with its email is ours, not someone else's.
-    let ours: string | null = null;
-    // Our session was reported: a sign-out from now on ends the attempt (the earlier one of
-    // «Esci e continua» does not).
-    let entered = false;
-    const stopAuth = backend.onChange((event) => {
-      if (!event.user) {
-        if (entered) valid = false;
-        return;
-      }
-      if (isClosingAccount(event.user.id)) return;
-      if (ours !== null && event.user.email.toLowerCase() === ours) entered = true;
-      else valid = false;
-    });
-    const stopHistory = router.history.subscribe(() => {
-      const at = router.history.location;
-      if (at.pathname !== '/invite/app' || fragment(at.hash) !== token) valid = false;
-    });
-    const { password } = values;
-    // Before the sign-in also: this page still in place, still nobody signed in.
-    const current = () => valid && generation.current === mine && signedOut.current;
-    // Busy until the answer is handled, the sign-in included (spec W8).
+    // Busy until the answer is handled (spec W8). The answer of an older generation (page left,
+    // another link) changes nothing.
     await trackBusy(
       (async () => {
         try {
-          const { email } = await invitationClient.accept({ token, email: values.email.trim(), displayName: values.name.trim(), password, locale });
-          if (!current()) return; // left, another link, or someone signed in meanwhile: no sign-in
-          ours = email.toLowerCase(); // our own sign-in follows
-          const result = await backend.signIn(email, password);
-          if (!valid) return; // left (even if back on this link) or someone else signed in
-          if (result.ok) {
-            // Supabase reports the new session after signIn() resolves (and the page may be remounted
-            // then): the sign-in route forwards to the wizard once the app sees the session.
-            const granted = roles.length ? `?granted=${roles.join(',')}` : '';
-            await router.navigate({ to: '/login', search: { redirect: `/family/new${granted}` }, replace: true });
-          } else setPhase({ kind: 'signInFailed', email, reason: result.reason });
+          const { email, passwordEmail } = await invitationClient.accept({ token, email: values.email.trim(), displayName: values.name.trim(), locale });
+          if (generation.current !== mine) return;
+          setPhase((current) => (current.kind === 'form' ? { kind: 'mail', email, outcome: passwordEmail, roles: current.roles } : current));
         } catch (error) {
-          if (!valid || generation.current !== mine) return;
+          if (generation.current !== mine) return;
           const failure = toApiError(error);
           const issues = (failure.data as { issues?: { path: (string | number)[]; code: string }[] } | undefined)?.issues ?? [];
           const issue = (field: string) => issues.find((i) => i.path[0] === field)?.code;
           if (failure.code === 'invitation_unavailable') setPhase({ kind: 'unavailable' });
           else if (failure.code === 'rate_limited') setFormError({ kind: 'message', key: 'invite.limited' });
           else if (failure.code === 'invalid' && issue('email')) setFieldErrors({ email: issue('email') === 'email_mismatch' ? 'invite.wrongEmail' : 'invite.emailInvalid' });
-          else if (failure.code === 'invalid' && issue('password')) setFieldErrors({ password: PASSWORD_ISSUES[issue('password')!] ?? 'invite.passwordLong' });
           else if (failure.code === 'not_allowed') setFormError({ kind: 'accountExists', email: values.email.trim() });
           else setFormError({ kind: 'message', key: errorKey(error) });
         } finally {
-          stopAuth();
-          stopHistory();
           sending.current = false;
           setBusy(false);
         }
@@ -210,12 +177,13 @@ export function InvitePage() {
           <button type="button" className="text-button wide" onClick={() => void load()}>{t('authorize.retry')}</button>
         </>
       )}
-      {phase.kind === 'signInFailed' && (
-        <>
-          <h1 className="entry-title">{t('invite.ready')}</h1>
-          <p>{t(phase.reason === 'invalid_credentials' ? 'invite.signInFailed' : 'invite.signInUnreachable')}</p>
-          {toLogin(phase.email)}
-        </>
+      {phase.kind === 'mail' && (
+        <PasswordEmailNotice
+          email={phase.email}
+          outcome={phase.outcome}
+          roles={phase.roles}
+          resend={() => invitationClient.resendPasswordEmail({ token, email: phase.email, locale })}
+        />
       )}
       {phase.kind === 'form' && (
         <>
@@ -225,10 +193,10 @@ export function InvitePage() {
           {state.status === 'signedIn' ? (
             <OtherAccount
               email={state.user.email}
-              onSignOut={() => signOutAndContinue(state.user.id, signOut)}
+              onSignOut={() => void signOut()}
             />
           ) : (
-            <form onSubmit={(event) => void submit(event, phase.roles)} noValidate>
+            <form onSubmit={(event) => void submit(event)} noValidate>
               {formError?.kind === 'message' && <p className="form-error" role="alert">{t(formError.key)}</p>}
               {formError?.kind === 'accountExists' && (
                 <p className="form-error" role="alert">
@@ -237,8 +205,7 @@ export function InvitePage() {
               )}
               {field('email', 'invite.email', { type: 'email', autoComplete: 'email', autoCapitalize: 'none' }, 'invite.emailHelp')}
               {field('name', 'invite.name', { type: 'text', autoComplete: 'name' }, 'invite.nameHelp')}
-              {field('password', 'invite.password', { type: 'password', autoComplete: 'new-password' })}
-              {field('again', 'invite.passwordAgain', { type: 'password', autoComplete: 'new-password' })}
+              <p className={styles.help}>{t('invite.passwordNote')}</p>
               <button type="submit" className="text-button primary wide" disabled={busy || !online}>{t('invite.submit')}</button>
             </form>
           )}

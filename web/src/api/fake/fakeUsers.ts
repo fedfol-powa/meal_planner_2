@@ -5,7 +5,7 @@ import { DEMO_FAMILY_ID, DEMO_PEOPLE } from './seed';
 
 type Area = Api['users'];
 type FamilyRole = 'family_admin' | 'member';
-interface Person { id: string; displayName: () => string; email: string; roles: GlobalRole[]; family: FamilyRole | null }
+interface Person { id: string; displayName: () => string; email: string; roles: GlobalRole[]; family: FamilyRole | null; emailUnconfirmed?: boolean }
 
 /** The account born from an invitation revoked after the reservation: no roles, no family (delivery of A). */
 export const FAKE_GUEST_ID = '00000000-0000-4000-8000-00000000a5e1';
@@ -33,7 +33,7 @@ export function createFakeUsers(options: {
   const guard = () => {
     if (!self.roles.includes('app_admin')) throw new ApiError('forbidden');
   };
-  const row = (p: Person): UserRow => ({ id: p.id, displayName: p.displayName(), email: p.email, roles: [...p.roles], deletion: null });
+  const row = (p: Person): UserRow => ({ id: p.id, displayName: p.displayName(), email: p.email, roles: [...p.roles], deletion: null, emailUnconfirmed: p.emailUnconfirmed ?? false });
   const find = (id: string) => {
     const person = people.find((p) => p.id === id);
     if (!person) throw new ApiError('not_found');

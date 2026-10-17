@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from
 import { withDbOn } from '../../src/db.ts';
 import { ensureWeeks, lockFamilyWeeks } from '../../src/menu/generation.ts';
 import { runWeeklyJobOn } from '../../src/menu/job.ts';
+import { reconcileAlerts } from '../../src/ops-alerts/reconcile.ts';
+import type { Env } from '../../src/env.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from '../support/db.ts';
 import { menuFixtures } from '../support/menu.ts';
 
@@ -31,6 +33,28 @@ vi.mock('../../src/menu/job-status.ts', async (original) => {
 	};
 });
 
+// Recording an alert for these families fails as a failing table would: insertAlert's own error path.
+const alertsFailing = vi.hoisted(() => new Set<string>());
+vi.mock('../../src/ops-alerts/index.ts', async (original) => {
+	const actual = await original<typeof import('../../src/ops-alerts/index.ts')>();
+	const failingSql = { begin: () => Promise.reject(Object.assign(new Error('permission denied'), { code: '42501' })) } as unknown as postgres.Sql;
+	return {
+		...actual,
+		insertAlert: (sql: postgres.Sql, alert: Parameters<typeof actual.insertAlert>[1]) =>
+			actual.insertAlert(alertsFailing.has(String(alert.details.familyId)) ? failingSql : sql, alert),
+	};
+});
+
+/** A fake Resend for the immediate delivery: records the idempotency keys it receives. */
+function fakeResend(status = 200) {
+	const keys: string[] = [];
+	const impl = (async (_url: string | URL | Request, init?: RequestInit) => {
+		keys.push((init!.headers as Record<string, string>)['idempotency-key']!);
+		return new Response('{}', { status });
+	}) as typeof fetch;
+	return { keys, delivery: { env: { RESEND_API_KEY: 're_test', OPS_ALERT_EMAIL: 'ops@example.test' }, fetch: impl } };
+}
+
 /** Each run serves only the families of its test: the shared test database holds many more. */
 describe.skipIf(!hasDatabase)('weekly job', () => {
 	let db: TestDatabase;
@@ -41,10 +65,18 @@ describe.skipIf(!hasDatabase)('weekly job', () => {
 		const fx = menuFixtures(db);
 		for (let i = 0; i < 20; i++) await fx.publishRecipe();
 	});
+	let startedAt: Date;
+	beforeAll(async () => {
+		[{ now: startedAt }] = await db.admin<{ now: Date }[]>`select clock_timestamp() as now`;
+	});
 	afterAll(async () => {
+		// The alerts raised while this file ran: its own families' and the reconciliation's.
+		await db.admin`delete from app.ops_alerts where created_at >= ${startedAt}`;
 		await sql.end();
 		await db.close();
 	});
+	const alertRow = async (event: string, key: string) =>
+		(await db.admin<{ details: string; sent: boolean }[]>`select details::text as details, sent_at is not null as sent from app.ops_alerts where event = ${event} and key = ${key}`)[0];
 
 	const jobRow = async (familyId: string, week: string) =>
 		(await db.admin<{ status: string; attempts: number; error: string | null }[]>`select status, attempts, error from app.weekly_jobs where family_id = ${familyId} and target_week = ${week}`)[0];
@@ -124,6 +156,68 @@ describe.skipIf(!hasDatabase)('weekly job', () => {
 		expect(events(logs)).toContainEqual(expect.objectContaining({ event: 'weekly_job_overdue', familyId, weekStart: '2026-12-07' }));
 		logs.mockRestore();
 		failing.delete(familyId);
+	});
+
+	it('raises weekly_job_abandoned after the abandonment and delivers it at once', async () => {
+		const familyId = await db.createFamily([]);
+		await db.admin`insert into app.weekly_jobs (family_id, target_week) values (${familyId}, '2031-03-03')`;
+		const resend = fakeResend();
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		const result = await runWeeklyJobOn(sql, new Date('2031-03-12T19:30:00Z'), { families: [familyId], alerts: resend.delivery });
+		vi.restoreAllMocks();
+		expect(result.abandoned).toBe(1);
+		const row = await alertRow('weekly_job_abandoned', `${familyId}:2031-03-03`);
+		expect(JSON.parse(row!.details)).toEqual({ familyId, weekStart: '2031-03-03', attempts: 0 });
+		expect(row!.sent).toBe(true);
+		expect(resend.keys).toContain(`weekly_job_abandoned/${familyId}:2031-03-03`);
+	});
+
+	it('confirms the abandonment when recording the alert fails, and the next reconciliation raises it', async () => {
+		const familyId = await db.createFamily([]);
+		await db.admin`insert into app.weekly_jobs (family_id, target_week) values (${familyId}, '2031-04-07')`;
+		alertsFailing.add(familyId);
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		const result = await runWeeklyJobOn(sql, new Date('2031-04-16T19:30:00Z'), { families: [familyId], alerts: fakeResend().delivery });
+		expect(result.abandoned).toBe(1);
+		expect(await jobRow(familyId, '2031-04-07')).toMatchObject({ status: 'abandoned' });
+		expect(events(errors)).toContainEqual({ event: 'ops_alert_insert_failed', alert: 'weekly_job_abandoned', code: '42501' });
+		expect(await alertRow('weekly_job_abandoned', `${familyId}:2031-04-07`)).toBeUndefined();
+		alertsFailing.delete(familyId);
+		await reconcileAlerts(sql, { HYPERDRIVE: { connectionString: '' } } as unknown as Env, new Date());
+		vi.restoreAllMocks();
+		expect(JSON.parse((await alertRow('weekly_job_abandoned', `${familyId}:2031-04-07`))!.details)).toEqual({ familyId, weekStart: '2031-04-07', attempts: 0 });
+	});
+
+	it('completes the run when Resend fails: the alert stays for the next delivery', async () => {
+		const familyId = await db.createFamily([]);
+		await db.admin`insert into app.weekly_jobs (family_id, target_week) values (${familyId}, '2031-05-05')`;
+		const resend = fakeResend(500);
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		const result = await runWeeklyJobOn(sql, new Date('2031-05-14T19:30:00Z'), { families: [familyId], alerts: resend.delivery });
+		vi.restoreAllMocks();
+		expect(result).toMatchObject({ abandoned: 1 });
+		expect(await jobRow(familyId, '2031-05-19')).toMatchObject({ status: 'done' });
+		expect(resend.keys).toContain(`weekly_job_abandoned/${familyId}:2031-05-05`);
+		expect((await alertRow('weekly_job_abandoned', `${familyId}:2031-05-05`))!.sent).toBe(false);
+	});
+
+	it('raises weekly_job_overdue when a job already overdue fails, not before the threshold', async () => {
+		const familyId = await db.createFamily([]);
+		failing.add(familyId);
+		const resend = fakeResend();
+		vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		await runWeeklyJobOn(sql, new Date('2031-06-04T19:30:00Z'), { families: [familyId], alerts: resend.delivery }); // Wednesday: failed, not overdue
+		expect(await alertRow('weekly_job_overdue', `${familyId}:2031-06-09`)).toBeUndefined();
+		await runWeeklyJobOn(sql, new Date('2031-06-05T07:30:00Z'), { families: [familyId], alerts: resend.delivery }); // Thursday 09:30 in Rome
+		failing.delete(familyId);
+		vi.restoreAllMocks();
+		const row = await alertRow('weekly_job_overdue', `${familyId}:2031-06-09`);
+		expect(JSON.parse(row!.details)).toEqual({ familyId, weekStart: '2031-06-09' });
+		expect(resend.keys).toContain(`weekly_job_overdue/${familyId}:2031-06-09`);
 	});
 
 	it('serialises the job and the lazy generation of one family: both weeks once, no failure', async () => {

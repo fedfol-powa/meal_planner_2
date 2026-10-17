@@ -2,6 +2,7 @@
 export const it = {
   'members.you': '{name} (tu)',
   'members.since': 'Dal {time}',
+  'members.emailUnconfirmed': "Non ha ancora confermato l'email",
   'members.askAdmin': 'Per invitare qualcuno chiedi un link a: {names}.',
   'settings.intro': 'Valgono per i prossimi menu e per i suggerimenti; i menu già fatti non cambiano.',
   'settings.readOnly': 'Solo gli amministratori della famiglia possono cambiare le impostazioni.',
@@ -86,7 +87,7 @@ export const it = {
   // Family invitation page (spec W11, «Pagina dell'invito»).
   'familyInvite.title': 'Entra in {family}',
   'familyInvite.from': '{name} ti invita a condividere menu e spesa della famiglia',
-  'familyInvite.submit': 'Crea l’account ed entra',
+  'familyInvite.submit': 'Entra nella famiglia',
   'familyInvite.haveAccount': 'Hai già un account?',
   'familyInvite.signIn': 'Accedi per entrare',
   'familyInvite.noAccounts': 'Questo invito non vale più per creare un account: chiedi un link nuovo',
@@ -95,7 +96,7 @@ export const it = {
   'familyInvite.already': 'Fai già parte di {family}',
   'familyInvite.openMenu': 'Apri il menu',
   'familyInvite.askNew': 'Chiedi un link nuovo a un amministratore della famiglia',
-  'familyInvite.notJoined': 'Questo invito non vale più, ma il tuo account è pronto: entra con email e password',
+  'familyInvite.notJoined': 'Questo invito non vale più, ma il tuo account è pronto',
   // Members, roles, invitation links and leaving (spec W11, «Membri e inviti»).
   'members.actions': 'Azioni per {name}',
   'members.makeAdmin': 'Rendi amministratore',
@@ -153,6 +154,7 @@ export const it = {
 export const en = {
   'members.you': '{name} (you)',
   'members.since': 'Since {time}',
+  'members.emailUnconfirmed': "Hasn't confirmed their email yet",
   'members.askAdmin': 'To invite someone, ask for a link from: {names}.',
   'settings.intro': 'They apply to the next menus and to suggestions; menus already made do not change.',
   'settings.readOnly': 'Only family administrators can change the settings.',
@@ -236,7 +238,7 @@ export const en = {
   'exclusions.includeLabel': 'Suggest {name} again',
   'familyInvite.title': 'Join {family}',
   'familyInvite.from': '{name} invites you to share the family’s menu and shopping',
-  'familyInvite.submit': 'Create the account and join',
+  'familyInvite.submit': 'Join the family',
   'familyInvite.haveAccount': 'Already have an account?',
   'familyInvite.signIn': 'Sign in to join',
   'familyInvite.noAccounts': 'This invitation can no longer be used to create an account: ask for a new link',
@@ -245,7 +247,7 @@ export const en = {
   'familyInvite.already': 'You are already in {family}',
   'familyInvite.openMenu': 'Open the menu',
   'familyInvite.askNew': 'Ask a family administrator for a new link',
-  'familyInvite.notJoined': 'This invitation is no longer valid, but your account is ready: sign in with your email and password',
+  'familyInvite.notJoined': 'This invitation is no longer valid, but your account is ready',
   'members.actions': 'Actions for {name}',
   'members.makeAdmin': 'Make administrator',
   'members.makeMember': 'Make member',

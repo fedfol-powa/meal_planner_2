@@ -27,8 +27,8 @@ describe('fake app invitations', () => {
     expect(await api.get({ token: FAKE_INVITE_TOKEN })).toEqual({ invitedBy: 'Federico', roles: [] });
     await api.create({ id, email: 'giulia@x.it', roles: [] });
     const token = fakeTokenOf(api, id);
-    await expect(api.accept({ token, email: 'altra@x.it', displayName: 'G', password: 'segreta123', locale: 'it-IT' })).rejects.toMatchObject({ code: 'invalid' });
-    expect(await api.accept({ token, email: ' Giulia@x.it', displayName: 'G', password: 'segreta123', locale: 'it-IT' })).toEqual({ email: 'giulia@x.it' });
+    await expect(api.accept({ token, email: 'altra@x.it', displayName: 'G', locale: 'it-IT' })).rejects.toMatchObject({ code: 'invalid' });
+    expect(await api.accept({ token, email: ' Giulia@x.it', displayName: 'G', locale: 'it-IT' })).toEqual({ email: 'giulia@x.it', passwordEmail: 'sent' });
     await expect(api.get({ token })).rejects.toEqual(new ApiError('invitation_unavailable'));
   });
 

@@ -2,7 +2,7 @@ import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { Env, RateLimiter } from '../../src/env.ts';
 import { UNREACHABLE_DB } from './context.ts';
-import { TEST_SUPABASE_URL } from './keys.ts';
+import { TEST_MAIL_URL, TEST_SUPABASE_URL } from './keys.ts';
 
 export interface TestApp {
 	fetch(request: Request, env: Env): Promise<Response>;
@@ -19,6 +19,7 @@ export function testEnv(connectionString = UNREACHABLE_DB): Env {
 		CF_VERSION_METADATA: { id: 'deploy-1', tag: '', timestamp: '' },
 		ASSETS: { fetch: async () => new Response('<!doctype html><title>SPA</title>', { headers: { 'content-type': 'text/html' } }) } as unknown as Fetcher,
 		SUPABASE_SECRET_KEY: 'sb_secret_test',
+		MAILPIT_API_URL: TEST_MAIL_URL,
 		INVITE_READ_LIMIT: allowAll,
 		INVITE_ACCEPT_LIMIT: allowAll,
 		PHOTO_READ_LIMIT: allowAll,

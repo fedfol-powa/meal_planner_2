@@ -194,9 +194,9 @@ it('keeps only the text when the user cannot be found', async () => {
 it('links the user of the latest attempt even when the searches answer in reverse order, and drops the link when the email changes', async () => {
   const api = adminApi();
   vi.spyOn(api.appInvitations, 'create').mockRejectedValue(new ApiError('not_allowed', { reason: 'account_exists' }));
-  const answers = new Map<string, (value: { users: { id: string; displayName: string; email: string; roles: []; deletion: null }[]; more: boolean }) => void>();
+  const answers = new Map<string, (value: { users: { id: string; displayName: string; email: string; roles: []; deletion: null; emailUnconfirmed: boolean }[]; more: boolean }) => void>();
   vi.spyOn(api.users, 'list').mockImplementation((input) => new Promise((resolve) => answers.set(input.query ?? '', resolve)));
-  const row = (id: string, email: string) => ({ users: [{ id, displayName: email, email, roles: [] as [], deletion: null }], more: false });
+  const row = (id: string, email: string) => ({ users: [{ id, displayName: email, email, roles: [] as [], deletion: null, emailUnconfirmed: false }], more: false });
   renderApp('/admin', { api });
   fireEvent.click(await screen.findByRole('button', { name: 'Nuovo invito' }));
   const sheet = await screen.findByRole('dialog', { name: 'Nuovo invito' });

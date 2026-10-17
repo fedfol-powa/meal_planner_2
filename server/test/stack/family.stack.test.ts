@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.ts';
 import type { Env } from '../../src/env.ts';
 import { router } from '../../src/router.ts';
+import { choosePassword, latestEmailTo, markEmails, MAILPIT_API_URL } from '../support/mailpit.ts';
 import { allowAll, mcp, rpcClient, testEnv } from '../support/requests.ts';
 
 const NAMES = ['STACK_SUPABASE_URL', 'STACK_SUPABASE_PUBLISHABLE_KEY', 'STACK_SUPABASE_SECRET_KEY', 'STACK_DB_URL'] as const;
@@ -40,7 +41,7 @@ describe.skipIf(!present)('family management against the local stack', () => {
 		const appServer = new URL(process.env.STACK_DB_URL!);
 		appServer.username = 'app_server';
 		appServer.password = 'app_server_test';
-		workerEnv = { ...testEnv(appServer.toString()), SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: publishable, SUPABASE_SECRET_KEY: secret, INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll };
+		workerEnv = { ...testEnv(appServer.toString()), SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: publishable, SUPABASE_SECRET_KEY: secret, MAILPIT_API_URL, INVITE_READ_LIMIT: allowAll, INVITE_ACCEPT_LIMIT: allowAll };
 		app = createApp({ contract, router, resourceName: 'stack' });
 	});
 	afterAll(async () => {
@@ -59,7 +60,7 @@ describe.skipIf(!present)('family management against the local stack', () => {
 	};
 	/** A confirmed person created with the Auth admin API, signed in with the password. */
 	async function person(prefix: string) {
-		const email = `${prefix}-${crypto.randomUUID().slice(0, 8)}@x.it`;
+		const email = `w15-${prefix}-${crypto.randomUUID().slice(0, 8)}@example.test`;
 		emails.push(email);
 		const created = await fetch(`${url}/auth/v1/admin/users`, {
 			method: 'POST', headers: { apikey: secret, 'content-type': 'application/json' },
@@ -105,11 +106,14 @@ describe.skipIf(!present)('family management against the local stack', () => {
 		const { url: link } = await client(federico.token).familyInvitations.create({ familyId, id: crypto.randomUUID() });
 		const token = link.split('#')[1]!;
 
-		// A new person: the link creates the account in Auth and the membership.
+		// A new person: the link creates the account in Auth and the membership; the password comes from the email.
 		expect((await client().familyInvitations.get({ token })).familyName).toBe('Stack');
-		const email = `giulia-${crypto.randomUUID().slice(0, 8)}@x.it`;
+		const email = `w15-giulia-${crypto.randomUUID().slice(0, 8)}@example.test`;
 		emails.push(email);
-		expect(await client().familyInvitations.accept({ token, email, displayName: 'Giulia', password: 'stack-password', locale: 'it-IT' })).toEqual({ email, joined: true });
+		const before = await markEmails(email);
+		expect(await client().familyInvitations.accept({ token, email, displayName: 'Giulia', locale: 'it-IT' })).toEqual({ email, joined: true, passwordEmail: 'sent' });
+		const mail = await latestEmailTo(email, { after: before });
+		expect(await choosePassword(`${url}/auth/v1`, publishable, mail.link!, 'stack-password')).toEqual({ verified: 200, saved: 200 });
 		const giulia = await signIn(email, 'stack-password');
 		const profile = await client(giulia.access_token).profile.get({});
 		expect(profile.currentFamilyId).toBe(familyId);

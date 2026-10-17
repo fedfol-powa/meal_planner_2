@@ -2,7 +2,7 @@ import { verifyAccessToken } from '../../src/auth.ts';
 import type { Env } from '../../src/env.ts';
 import type { RequestContext } from '../../src/pipeline.ts';
 import { allowAll } from './requests.ts';
-import { TEST_ISSUER, TEST_SUPABASE_URL, type TestKeys } from './keys.ts';
+import { TEST_ISSUER, TEST_MAIL_URL, TEST_SUPABASE_URL, type TestKeys } from './keys.ts';
 
 /** A connection string nobody listens on: any database access fails fast. */
 export const UNREACHABLE_DB = 'postgres://nobody:secret@127.0.0.1:1/none';
@@ -15,6 +15,7 @@ export function contextFor(keys: TestKeys, token: string | undefined, connection
 		CF_VERSION_METADATA: { id: 'deploy-1', tag: '', timestamp: '' },
 		ASSETS: {} as Fetcher,
 		SUPABASE_SECRET_KEY: 'sb_secret_test',
+		MAILPIT_API_URL: TEST_MAIL_URL,
 		INVITE_READ_LIMIT: allowAll,
 		INVITE_ACCEPT_LIMIT: allowAll,
 		PHOTO_READ_LIMIT: allowAll,

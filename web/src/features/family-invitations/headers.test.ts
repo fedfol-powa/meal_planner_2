@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('_headers', () => {
-  it('serves /invite, /invite/* and /login (token in the fragment) with no-referrer', () => {
+  it('serves /invite, /invite/*, /login, /password and /password/* (token in the fragment) with no-referrer', () => {
     const headers = readFileSync(new URL('../../../public/_headers', import.meta.url), 'utf8');
     const blocks = new Map<string, string[]>();
     let path = '';
@@ -15,5 +15,7 @@ describe('_headers', () => {
     expect(blocks.get('/invite')).toContain('Referrer-Policy: no-referrer');
     expect(blocks.get('/invite/*')).toContain('Referrer-Policy: no-referrer');
     expect(blocks.get('/login')).toContain('Referrer-Policy: no-referrer');
+    expect(blocks.get('/password')).toContain('Referrer-Policy: no-referrer');
+    expect(blocks.get('/password/*')).toContain('Referrer-Policy: no-referrer');
   });
 });
