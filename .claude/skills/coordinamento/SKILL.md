@@ -22,8 +22,10 @@ passi», «parti con il coordinamento» o simili:
    interfacce e decisioni stanno nel piano):
    - `progetto/coordinamento/registro.md`, blocco «Stato corrente»;
    - il piano generale `progetto/superpowers/plans/2026-10-11-piano-generale.md`: l'ondata
-     in corso con il suo ordine, «Interfacce decise» e le ultime voci del «Registro delle
-     decisioni del coordinamento»;
+     in corso con il suo ordine, le ultime voci del «Registro delle decisioni del
+     coordinamento» e, in «Interfacce decise» (lista lunga), le voci che nominano le
+     attività o i worker in corso e la prossima attività (cercale con `grep`; se non ce
+     ne sono, dillo);
    - il brief di ogni worker attivo citato nello «Stato corrente»;
    - `progetto/coordinamento/protocollo-worker.md`, per le fasi e le righe `STATO:`.
 2. Controlla herdr: `progetto/coordinamento/attendi.py --stato`,
