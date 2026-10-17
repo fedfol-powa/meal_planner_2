@@ -12,21 +12,19 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   recupero, `mailer_otp_exp` 86400), migrazione `20261017100000_email.sql`, anteprima e «vai»
   dell'utente, controlli dopo il rilascio e prova sull'iPhone. Segreti caricati dall'utente
   (verificati); configurazione di Auth fatta dall'utente il 17/10 (template di recupero,
-  `mailer_otp_exp` 86400; limiti letti: 30 email/h, 60 s per utente, invariati). **Rilascio bloccato dalla CI rossa su `main`**
-  per test web instabili: W16 li stabilizza. PR #65 (specifica) unita (`84d5271`).
-- **Worker attivi:** W16, tab «W16 test», pane `w1:p4X`, branch `correzioni/test-instabili`,
-  worktree `.worktrees/test-instabili`, brief `brief/w16-test-instabili.md`; **PR #66 aperta**
-  (+140 −10, 5 file), revisione in corso. W15 chiuso.
-- **Revisori attivi:** tab «R W16 PR66» (pane `w1:p4Y`), rapporto `revisioni/w16-pr66.md`.
+  `mailer_otp_exp` 86400; limiti letti: 30 email/h, 60 s per utente, invariati). CI di `main` di nuovo verde dopo la PR #66 di W16 (`ce6904a`,
+  quattro test stabilizzati; `FamilyDeletePage` resta instabile, issue #67). PR #65 (specifica) unita (`84d5271`).
+- **Worker attivi:** nessuno. W16 chiuso dopo il merge della #66 (revisione APPROVABILE,
+  `revisioni/w16-pr66.md`); tab, worktree e branch rimossi.
+- **Revisori attivi:** nessuno.
 - **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
   non consuma l'utilizzo settimanale di Claude (utente, 17/10).
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** PR di W16 → revisione → merge → CI verde su `main`; anteprima e
-  rilascio di D. Poi: ricettario
+- **Prossimo passo:** anteprima del rilascio di D → «vai» dell'utente → rilascio e controlli. Poi: ricettario
   esteso dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza
-  foto), #62 (worker curatore del ricettario), pulizia dei worktree di PR già unite, R26
+  foto), #62 (worker curatore del ricettario), #67 (test FamilyDeletePage), pulizia dei worktree di PR già unite, R26
   rimandata.
 
 ## Storico
