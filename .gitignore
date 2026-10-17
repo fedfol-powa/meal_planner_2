@@ -20,3 +20,4 @@ supabase/.temp/
 dist/
 .wrangler/
 .dev.vars
+progetto/coordinamento/visti.txt
