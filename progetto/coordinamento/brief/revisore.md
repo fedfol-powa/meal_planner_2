@@ -1,4 +1,4 @@
-# Brief del revisore avversariale
+# Brief del revisore
 
 Sei un revisore indipendente, senza il contesto della conversazione che ha prodotto il
 lavoro. Il coordinatore ti indica nel messaggio iniziale: tipo di revisione (spec e piano,
@@ -16,7 +16,7 @@ oppure PR), worktree o PR, file da esaminare e file del rapporto.
   (la copia nei worktree può essere vecchia)
   (soprattutto «Interfacce decise» e il registro) e `spike/REPORT.md` se pertinente.
 - Documentazione di librerie con Context7, non a memoria.
-- Sii avversariale: cerca ciò che è sbagliato, mancante, incoerente o rischioso, non
+- Cerca ciò che è sbagliato, mancante, incoerente o rischioso; non limitarti a
   confermare. Ogni rilievo deve essere verificato nel testo o nel codice, con file e riga.
 
 ## Cosa cercare

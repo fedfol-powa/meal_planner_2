@@ -1,125 +1,99 @@
 # AGENTS.md - Cosa si mangia (meal_planner_2)
 
-Istruzioni per qualsiasi agente (Claude Code, Codex o altri) che lavora in questo
-repository. Rispondi e scrivi la documentazione di progetto in italiano, con gli accenti
-normali. Tutto il codice deve essere in inglese: identificatori, nomi tecnici di file e
-directory, schema del database, API, strumenti MCP, commenti e test. I testi destinati
-agli utenti devono essere localizzabili in italiano e inglese britannico.
+Regole comuni a tutti gli agenti (Claude Code, Codex, sottoagenti) che lavorano qui.
 
 ## Cos'è
 
-Un'app web per famiglie che ogni mercoledì sera prepara in automatico il menu della
-settimana successiva, lo lascia rivedere e modificare ai membri della famiglia (con
-traccia di chi ha cambiato cosa) e genera liste della spesa effimere dai pasti scelti.
-Il ricettario è unico e ha il database come fonte di verità. I curatori possono
-aggiungere ricette tramite il proprio agente MCP, con raccolta guidata delle informazioni
-e pubblicazione solo quando sono complete; il lavoro incompleto si conserva in bozze
-visibili anche nell'app. Possono modificare l'intero ricettario, con requisiti di backup
-e ripristino definiti nella specifica. La pianificazione automatica è a regole;
-al suo interno l'AI può comparire solo come giudice opzionale tra settimane già valide.
+App web per famiglie: ogni settimana prepara il menu, lo fa rivedere ai membri e genera la
+lista della spesa; ricettario unico nel database, curato anche via agenti MCP. È in
+produzione su `cosasimangia.app` e la usa ogni giorno la famiglia dell'utente.
 
-## Documento unico di riferimento
+## Fonti e ordine di lettura
 
-Requisiti e design completo sono in
-`progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`. **Leggilo prima di tutto.**
-È il documento autorevole, versionato in Git, con parte funzionale per non tecnici,
-design tecnico, decisioni confermate e questioni ancora aperte.
+- Specifica principale `progetto/superpowers/specs/2026-09-29-app-famiglia-design.md`:
+  fonte unica di requisiti e decisioni. Chi lavora sul codice legge almeno le sezioni 1, 15
+  e 16. Spec di dettaglio, piani e brief la estendono, non diventano fonti parallele.
+- `design/design.md` (e `design/index.html`) prima di progettare o toccare una schermata;
+  il linguaggio visivo cambia solo con l'accordo dell'utente (specifica, sezione 14).
+- Piano generale `progetto/superpowers/plans/2026-10-11-piano-generale.md`: ondate,
+  interfacce decise, registro delle decisioni tecniche.
+- `spike/REPORT.md` se tocchi server, database o MCP.
+- Stato corrente del lavoro: `progetto/coordinamento/registro.md`.
 
-Ogni nuova scelta concordata che tocca il prodotto o l'architettura deve aggiornare
-le sezioni pertinenti di quel documento. Il prototipo, i design di dettaglio e i piani
-lo estendono e lo rispettano; non devono diventare fonti parallele dei requisiti.
-`AGENTS.md` stabilisce il metodo di lavoro e non sostituisce la specifica.
+## Ruoli
 
-## Linguaggio visivo approvato
+Il ruolo si decide in quest'ordine, al primo punto che si applica:
 
-Il 4 ottobre 2026 l'utente ha approvato il linguaggio visivo definitivo da usare
-per il prototipo, ispirato a HelloFresh e consolidato nella specifica, sezione 14.
-**Prima di progettare o sviluppare qualsiasi schermata, dopo la specifica leggi
-`design/design.md` e apri `design/index.html`.** La guida è la traduzione operativa
-della decisione di prodotto, non una fonte parallela di requisiti.
+1. Un incarico esplicito decide, prima della cartella in cui ti trovi:
+   - prompt di revisione (da `avvia-revisore.sh`, cita `brief/revisore.md`) → sei un
+     revisore: segui `progetto/coordinamento/brief/revisore.md`;
+   - brief di un worker, o messaggio di ripresa che cita un brief → sei un worker:
+     segui il brief e `progetto/coordinamento/protocollo-worker.md`;
+   - delega da un'altra sessione (coordinatore o worker) → sei un sottoagente: fai solo
+     il lavoro della delega, sui file indicati, e riferisci a chi ti ha delegato.
+2. Senza incarico, se sei una sessione Claude nel checkout principale sei il coordinatore.
+   Il criterio è che `.git` sia una directory, non il percorso (oggi il checkout è
+   `/Users/fedfol/Projects/meal_planner_2`, ma una copia completa vale allo stesso modo).
+   Parli con l'utente e coordini il lavoro con la skill `coordinamento`, da usare anche
+   quando l'utente dice solo «riprendiamo», «continuiamo» o «quali sono i prossimi passi».
+3. Senza incarico in un worktree collegato (`.worktrees/<nome>`, `.claude/worktrees/…`:
+   lì `.git` è un file), o se non sei Claude, non scegliere un ruolo da solo: chiedi
+   all'utente quale ruolo e quale brief hai.
 
-- Usa palette, font, gerarchie, spazi e componenti della guida; confronta il
-  risultato con l'HTML e gli screenshot approvati in `design/references/hellofresh/`.
-- Il piano del prototipo deve richiamare esplicitamente questa guida e prevedere
-  il riuso dei relativi token e componenti. Il linguaggio è già deciso: si progettano
-  i flussi e gli stati mancanti usando la stessa base visiva.
-- Il riferimento stabile è nel repository. Il sito esterno e gli screenshot della
-  ricerca spiegano la provenienza, ma non aggiornano automaticamente il design.
-- Modifiche al linguaggio richiedono accordo con l'utente e aggiornamento coerente
-  della sezione 14 della specifica e della guida.
-- I dati e le interazioni dimostrative dell'HTML non sostituiscono i requisiti:
-  catalogo globale, spesa consolidata, lingue, permessi e altri flussi restano quelli
-  della specifica. Il prototipo completo è ancora da pianificare e costruire.
+### Confine del coordinatore
 
-## Stato
+Fa da sé brief, registro, piano generale, aggiornamenti della
+specifica principale dopo un merge, anteprime dei rilasci, revisioni Codex e merge. Ogni
+modifica a codice dell'app, test, migrazioni o script va a un worker herdr, anche di una
+riga; i suoi sottoagenti lavorano solo su documenti, mai sul codice. Perché: il contesto
+del coordinatore resta libero per l'utente e per lo stato del lavoro, e ogni modifica al
+codice passa da un worker e da una revisione separata (l'utente lo ha chiesto più volte).
 
-- Base approvata il 29 settembre 2026; il 3 ottobre la specifica è stata aggiornata
-  con internazionalizzazione, MCP, gestione del ricettario, catalogo nel database e
-  amministrazione globale.
-- Linguaggio visivo approvato il 4 ottobre 2026: guida e riferimento in `design/`,
-  da usare quando inizierà il lavoro sul prototipo.
-- **Prossimo artefatto: prototipo dell'app nel repository**, da concordare e rivedere
-  con l'utente prima dell'implementazione del prodotto. La review deve rivalutare
-  funzionalità e architettura e consolidarle nella specifica.
-- Il 6 ottobre 2026 sono stati concordati metodo per giri, ordine dei percorsi e
-  architettura del prototipo: **leggi `design/percorsi.md`** prima di lavorare al
-  prototipo e aggiornalo a ogni cambio di stato. Il primo giro (Fondamenta, Menu,
-  Ricettario e voti), il secondo (Revisione dei pasti), il terzo (Spesa) e il quarto
-  (Famiglia e account) sono stati approvati il 6 ottobre 2026, il quinto (Gestione del
-  ricettario) e il sesto (MCP e Amministrazione dell'app) il 7 ottobre: tutti i percorsi
-  sono stati rivisti. L'8 ottobre 2026 è stata verificata l'architettura (React,
-  contratto delle operazioni, specifica sezione 1) e scelto l'hosting (Cloudflare
-  Workers, Supabase gratuito, Resend); resta la revisione dei piani.
-  Il prototipo è in `prototype/`
-  (istruzioni nel suo README).
-- Esito della review avversariale del 3 ottobre nella sezione 17 della specifica:
-  prototipo esplorativo possibile; rilievi aperti da risolvere prima delle relative
-  fasi di implementazione. Le raccomandazioni del revisore non sono decisioni approvate.
-- Il piano **M1a Ricettario e catalogo**
-  (`progetto/superpowers/plans/2026-09-29-m1a-ricettario-e-catalogo.md`) è superato nelle
-  parti incompatibili con i nuovi requisiti e non va eseguito come scritto.
-- M1a va ripianificato dopo il prototipo; M1b non è ancora stato scritto. La nuova
-  ripartizione sarà definita nella revisione dei piani.
-- Niente codice prima che l'utente approvi il piano e scelga il metodo di esecuzione.
+## Proprietà dei file
 
-## Stack di riferimento
+- Specifica principale, `design/percorsi.md`, `AGENTS.md`, `CLAUDE.md`, `.claude/`, piano
+  generale e `progetto/coordinamento/` li modifica solo il coordinatore.
+- Un worker li tocca solo se il suo brief glielo delega esplicitamente; l'eccezione vale
+  solo per quel brief.
+- Gli script di `progetto/coordinamento/` (`eventi.py`, `attendi.py`, `avvia-revisore.sh`)
+  sono codice: li modifica un worker con un brief che li delega, non il coordinatore.
+- I revisori non modificano nulla.
 
-Deciso l'8 ottobre 2026 dopo la verifica dell'architettura: interfaccia React (SPA con
-Vite, TanStack Router e TanStack Query); server in un Worker di Cloudflare con oRPC, senza Hono (deciso l'11 ottobre
-2026), che serve anche la SPA e implementa un contratto unico delle operazioni, da cui
-derivano API web, OpenAPI e strumenti MCP (SDK ufficiale di MCP); dipendenze del server
-al minimo: oRPC, zod, Postgres.js senza ORM, `jose`; Supabase sul piano gratuito (Postgres, Auth con
-server OAuth 2.1 per MCP, RLS, pg_cron), raggiunto dal Worker tramite Hyperdrive, con
-un'esportazione notturna al posto dei backup della piattaforma; email con Resend;
-app ed email sul dominio `cosasimangia.app` (deciso il 17 ottobre 2026, al posto di
-`cosasimangia.qunidi.it`), con il DNS su Cloudflare; `workers.dev` spento;
-account Cloudflare di POWA (deciso l'11 ottobre 2026);
-modulo di dominio TypeScript puro in `domain/`. Niente Edge Function. Hosting deciso
-l'8 ottobre 2026 per il costo. Workers sul piano a pagamento da 5 $ al mese (CPU
-del pianificatore circa 20-25 ms per settimana). Motivazioni, contratto, esito delle prove
-tecniche dell'11 ottobre e punti ancora aperti sono nella specifica, sezioni 1, 13 e 15. Il prototipo in `prototype/` resta in Svelte come
-riferimento dei percorsi.
+## Lingua
 
-L'utente ha creato l'organizzazione Supabase e collegato questo repository tramite
-l'integrazione GitHub (CLI di Supabase installata in `~/.local/bin` l'11 ottobre 2026): lo schema va creato da codice (`supabase/migrations/`). Verifica la
-configurazione dell'integrazione all'inizio di M1.
+Documenti e risposte in italiano, con gli accenti. Codice in inglese: identificatori, nomi
+tecnici di file, schema, API, strumenti MCP, commenti e test. Testi per gli utenti
+localizzabili in italiano e inglese britannico.
 
-## Progetto di origine
+## Regole per tutti
 
-`../meal_planner` (`fedfol-powa/meal_planner`) resta attivo e separato: menu in YAML,
-PDF settimanale, sito statico su Netlify. È la fonte dell'import iniziale del ricettario
-(`../meal_planner/ricettario/ricette.yaml`) e dei dati della famiglia del curatore.
-Da qui lo si legge soltanto, non lo si modifica. Le sue regole di merito
-(`../meal_planner/progetto/REGOLE.md`) sono il punto di partenza delle impostazioni di
-default, non regole di questa app.
+- Documentazione di librerie e servizi (React, oRPC, Supabase, Cloudflare…) con Context7,
+  non a memoria: le API cambiano più in fretta dei dati di addestramento.
+- Dipendenze al minimo: per ogni libreria nuova scrivi cosa sostituisce e cosa costa farne
+  a meno; prima le API della piattaforma o il codice già presente. La approva il
+  coordinatore. Pochi utenti, architettura semplice.
+- Ingredienti delle ricette solo verificati sulla fonte o dati dall'utente, mai dedotti dal
+  nome del piatto: un ingrediente inventato finisce nella spesa della famiglia.
+- Prove sullo stack locale, mai credenziali di prova verso la produzione. `web/.env.production`
+  è versionato e punta alla produzione: una `vite build` normale parla con l'Auth di
+  produzione. Per le prove passa le variabili dello stack locale (`VITE_SUPABASE_URL`,
+  chiave pubblicabile locale) o usa il server di sviluppo, e controlla l'URL di Auth nelle
+  richieste prima di accedere (15/10: due accessi di prova sono arrivati in produzione).
+- Nessuna scrittura in produzione (dati, migrazioni, segreti, rilasci) senza anteprima e
+  «vai» dell'utente: è l'app che la famiglia usa davvero.
+- I worker non rilasciano: il rilascio lo prepara il coordinatore e lo lancia l'utente.
+- Il progetto di origine `../meal_planner` si legge soltanto: è attivo e separato. Le sue
+  regole di merito (`progetto/REGOLE.md`) sono il punto di partenza dei default, non di qui.
 
-## Regole di lavoro
+## Stack in breve
 
-- Pianifica prima di eseguire e fatti approvare il piano dall'utente.
-- Documentazione di librerie e servizi (React, oRPC, Supabase, Cloudflare...): consultala con
-  Context7 invece di andare a memoria.
-- Ingredienti delle ricette: solo se verificati sulla fonte o forniti dall'utente, mai
-  dedotti dal nome del piatto (stessa regola del progetto di origine).
-- Git: nessun push su GitHub senza richiesta esplicita dell'utente. Il flusso di branch
-  (per esempio `sviluppo` e pull request verso `main`, come nel progetto di origine) si
-  decide in M1.
+SPA React (Vite, TanStack) servita da un Worker di Cloudflare con oRPC, da cui derivano API
+web, OpenAPI e strumenti MCP; Supabase (Postgres con RLS, Auth, pg_cron) via Hyperdrive,
+migrazioni in `supabase/migrations/`; Resend; backup in R2; dominio puro in `domain/`;
+`prototype/` (Svelte) solo come riferimento dei percorsi. Dettagli: specifica, sezioni 1, 13, 15.
+
+## Git
+
+Un branch e un worktree per attività, PR verso `main`, commit piccoli in italiano come nella
+storia del repository. Chi fa merge e quando sta nella skill `coordinamento` e nel
+protocollo dei worker.
