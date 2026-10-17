@@ -67,12 +67,23 @@ risposta è immediata (API finta, latenza 0), la risposta si chiude senza ascolt
 arriva dopo la rete (o 150 ms nella modalità finta): la corsa è teorica, ma è nel codice
 dell'app, non nel test.
 
-**Correzione (codice):** in `InvitePage` `enter` e `openFamily` usano `mutateAsync`, la cui
-promessa si risolve comunque; la generazione (`isCurrent`) già ignora una risposta arrivata
-dopo aver lasciato la pagina, che è il motivo per cui si usavano le callback.
-Lo stesso schema (callback di `mutate`) c'è in altre schermate (`NewFamilyPage`,
-`MembersPage`, `PhotoControls`, `RecipePicker`, `UndoToast`, `InvitationsSection`…): non
-cambiate qui, segnalate nella PR come rischio residuo per i loro test.
+**Non corretto in questa PR** (tempo scaduto, decisione del coordinatore del 17/10): il test
+resta com'è. La correzione proposta è in `InvitePage` (`enter` e `openFamily`): usare
+`mutateAsync`, la cui promessa si risolve anche senza ascoltatori; la generazione
+(`isCurrent`) già ignora una risposta arrivata dopo aver lasciato la pagina, che è il motivo per
+cui si usavano le callback. Manca ancora:
+
+- un test che dimostri la corsa in modo deterministico: un clic lanciato da un
+  `MutationObserver` del DOM subito dopo il commit **non** la riproduce, perché lì gli effetti
+  passivi sono già stati eseguiti (il modo in cui il clic arriva prima dell'iscrizione nel test
+  reale non è ancora chiarito);
+- una verifica sotto carico conclusiva: con la correzione 32 giri riusciti e nessun fallimento
+  del test prima che il giro venisse interrotto, troppo pochi rispetto a una frequenza di base
+  di circa 1 su 30-90.
+
+Lo stesso schema (callback di `mutate` per agire dopo la risposta) c'è in altre schermate
+(`NewFamilyPage`, `MembersPage`, `PhotoControls`, `RecipePicker`, `UndoToast`,
+`InvitationsSection`…): stesso rischio per i loro test con risposte immediate.
 
 ## Stessa forma in altri test
 
@@ -94,4 +105,15 @@ cambiate qui, segnalate nella PR come rischio residuo per i loro test.
 
 ## Prova di stabilità
 
-Ogni file toccato, almeno 30 giri sotto carico, comando ed esito nella PR; CI della PR verde.
+I quattro file toccati, insieme, 32 esecuzioni sotto carico (8 corsie parallele × 4 giri, 8
+processi `yes > /dev/null`, carico medio intorno a 20 su 10 core):
+
+```
+stress.sh 4 8 8 src/features/password/ForgotPage.test.tsx src/session/SessionScope.test.tsx \
+  src/features/agents/AgentsPage.test.tsx src/features/shopping/useShoppingList.test.tsx
+```
+
+Esito: 32 esecuzioni su 32 con 47 test passati su 47; nessun avvio di worker scaduto. Prima,
+con lo stesso carico, ForgotPage falliva 15 volte su 32 e SessionScope 1-3 volte su 32-40.
+Più carico (16 corsie, 12 processi `yes`) fa scadere l'avvio dei worker di vitest
+(«Failed to start forks worker»): sono errori dell'infrastruttura, contati a parte.
