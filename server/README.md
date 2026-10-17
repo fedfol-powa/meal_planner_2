@@ -13,7 +13,8 @@ Worker di Cloudflare che serve la SPA (`web/dist`) e le rotte del contratto:
    usata per scollegare gli agenti tramite Supabase Auth.
 3. Una volta sola: `npm install-scripts approve workerd` (npm 11 blocca lo script
    d'installazione del runtime usato da `wrangler dev`).
-4. `npm run build -w web`, poi `npm run dev -w server` (porta 8787).
+4. `npm run build -w web`, poi `npm run dev -w server` (porta 8787). Per le email con i link
+   dello stack locale: `npm run dev -w server -- --local-upstream 127.0.0.1:5174`.
 5. Prova: `curl -H "Authorization: Bearer <token>" http://localhost:8787/api/session/whoami`.
 
 Job settimanale in locale: `npm run dev -w server -- --test-scheduled`, poi
