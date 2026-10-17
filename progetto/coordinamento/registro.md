@@ -5,24 +5,23 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 17 ottobre 2026, pomeriggio)
 
-- **Attività in corso:** rilascio della parte software di D. **PR #64 unita** (W15, `7f9342a`,
-  revisione `revisioni/w15-pr64.md` con tre rilievi corretti e verificati dal coordinatore, CI
-  verde). Da fare: passi esterni del runbook (spec `specs/2026-10-17-email.md`, sezione 9:
-  chiave Resend del server, segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, template di
-  recupero, `mailer_otp_exp` 86400), migrazione `20261017100000_email.sql`, anteprima e «vai»
-  dell'utente, controlli dopo il rilascio e prova sull'iPhone. Segreti caricati dall'utente
-  (verificati); configurazione di Auth fatta dall'utente il 17/10 (template di recupero,
-  `mailer_otp_exp` 86400; limiti letti: 30 email/h, 60 s per utente, invariati). CI di `main` di nuovo verde dopo la PR #66 di W16 (`ce6904a`,
-  quattro test stabilizzati; `FamilyDeletePage` resta instabile, issue #67). PR #65 (specifica) unita (`84d5271`).
+- **Attività in corso:** collaudo della parte software di D. **Rilasciata** il 17/10 alle
+  17:54 UTC dopo il «vai» dell'utente, lanciata dal coordinatore: versione
+  `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`; rollback `4538c715-25d7-44cf-b6fe-d4f6e9f5a337`,
+  ma con correzione in avanti come scelta normale), migrazione `20261017100000_email.sql`
+  applicata, controlli del rilascio superati. Allarme di prova `ops_alert_test/2026-10-17`
+  inserito alle 17:54 UTC (atteso all'esecuzione oraria delle 18:00 UTC). Da fare: invito di
+  prova e «Password dimenticata» dell'utente, prova sull'iPhone, lettura degli allarmi del
+  primo giro (eventi dei 7 giorni prima).
 - **Worker attivi:** nessuno. W16 chiuso dopo il merge della #66 (revisione APPROVABILE,
   `revisioni/w16-pr66.md`); tab, worktree e branch rimossi.
 - **Revisori attivi:** nessuno.
 - **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
   non consuma l'utilizzo settimanale di Claude (utente, 17/10).
-- **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
-  17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** anteprima del rilascio di D → «vai» dell'utente → rilascio e controlli. Poi: ricettario
+- **In produzione:** versione `21616921-3cfe-4390-b19c-9e42d824cebe` (commit `4e1483e`, 17/10
+  17:54 UTC, attività D).
+- **Prossimo passo:** prove dell'utente e allarme di prova; poi chiudere D. Poi: ricettario
   esteso dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza
   foto), #62 (worker curatore del ricettario), #67 (test FamilyDeletePage), pulizia dei worktree di PR già unite, R26
   rimandata.
