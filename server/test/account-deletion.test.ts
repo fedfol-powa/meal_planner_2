@@ -192,7 +192,7 @@ describe.skipIf(!hasDatabase)('account and user deletion', () => {
 			const email = `p${crypto.randomUUID().slice(0, 8)}@x.it`;
 			const { invitation, url } = await admin.client.appInvitations.create({ id: crypto.randomUUID(), email, roles: [] });
 			const anonymous = rpcClient<ContractRouterClient<Contract>>(actors.app, actors.env);
-			await anonymous.appInvitations.accept({ token: url.split('#')[1]!, email, displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' });
+			await anonymous.appInvitations.accept({ token: url.split('#')[1]!, email, displayName: 'Giulia', locale: 'it-IT' });
 			const [user] = await actors.db.admin<{ id: string }[]>`select id from auth.users where email = ${email}`;
 			expect(await admin.client.users.delete({ id: user!.id, successors: {}, deletedFamilies: [] })).toEqual({ completed: true });
 			expect(await actors.db.admin`select id from app.app_invitations where email = ${email}`).toHaveLength(0);

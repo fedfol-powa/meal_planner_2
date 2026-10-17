@@ -3,7 +3,7 @@ import type { ContractRouterClient } from '@orpc/contract';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { errorOf, setupActors, type Actor, type Actors } from './support/actors.ts';
 import { hasDatabase } from './support/db.ts';
-import { installFakeAuth, WEAK_PASSWORD } from './support/fake-auth.ts';
+import { installFakeAuth } from './support/fake-auth.ts';
 import { mcp, refuseAll, rpcClient } from './support/requests.ts';
 
 const hex = async (token: string) => Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))).toString('hex');
@@ -20,14 +20,20 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		await actors?.close();
 	});
 	afterEach(() => {
+		// Spec W15: the server never calls /auth/v1/invite nor /auth/v1/recover.
+		expect(auth.forbidden).toEqual([]);
 		auth.calls.length = 0;
+		auth.mails.length = 0;
 		auth.openTransactionsAtCreate.length = 0;
 	});
 
 	const anonymous = () => rpcClient<ContractRouterClient<Contract>>(actors.app, actors.env);
 	const email = () => `f${crypto.randomUUID().slice(0, 8)}@x.it`;
-	const form = (token: string, address: string, over: Partial<{ displayName: string; password: string }> = {}) =>
-		({ token, email: address, displayName: 'Giulia', password: 'segreta123', locale: 'it-IT' as const, ...over });
+	const form = (token: string, address: string, over: Partial<{ displayName: string; locale: 'it-IT' | 'en-GB' }> = {}) =>
+		({ token, email: address, displayName: 'Giulia', locale: 'it-IT' as const, ...over });
+	const ageSends = (address: string) =>
+		actors.db.admin`update app.password_emails set sent_at = now() - interval '61 seconds'
+			where user_id = (select id from auth.users where email = ${address})`;
 	/** A family with its administrator, a plain member and one link of the administrator. */
 	const setup = async () => {
 		const admin = await actors.user();
@@ -103,7 +109,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 	it('accept creates the account, the membership and the current family', async () => {
 		const { familyId, token } = await setup();
 		const address = email();
-		expect(await anonymous().familyInvitations.accept(form(token, ` ${address.toUpperCase()}`))).toEqual({ email: address, joined: true });
+		expect(await anonymous().familyInvitations.accept(form(token, ` ${address.toUpperCase()}`))).toEqual({ email: address, joined: true, passwordEmail: 'sent' });
 		const userId = (await userByEmail(address))!;
 		expect(await memberRole(familyId, userId)).toBe('member');
 		const [pref] = await actors.db.admin<{ current_family_id: string }[]>`select current_family_id from app.profile_preferences where user_id = ${userId}`;
@@ -116,7 +122,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		const address = email();
 		await anonymous().familyInvitations.accept(form(token, address));
 		auth.calls.length = 0;
-		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true });
+		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true, passwordEmail: 'not_sent' });
 		expect(auth.calls).toEqual([]);
 		const userId = (await userByEmail(address))!;
 		expect(await joins(userId)).toBe(1);
@@ -124,16 +130,110 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		expect(n).toBe(1);
 	});
 
-	it('accept keeps the reservation after weak_password', async () => {
-		const { admin, familyId, token } = await setup();
-		const address = email();
-		const weak = await errorOf(anonymous().familyInvitations.accept(form(token, address, { password: WEAK_PASSWORD })));
-		expect([weak.code, weak.data]).toEqual(['invalid', { issues: [{ path: ['password'], code: 'weak_password' }] }]);
-		// Not versioned: the list shows the registration at once.
-		expect((await admin.client.familyInvitations.list({ familyId })).invitations[0]!.registrations).toBe(1);
-		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true });
-		const [{ n }] = await actors.db.admin<{ n: number }[]>`select count(*)::int as n from app.family_invitation_reservations where email = ${address}`;
-		expect(n).toBe(1);
+	describe('the email to choose the password (spec W15)', () => {
+		it('the first email names the family, escaped in the HTML, in the language of the page', async () => {
+			const { familyId, token } = await setup();
+			await actors.db.admin`update app.families set name = '<b>Rossi & figli</b>' where id = ${familyId}`;
+			const address = email();
+			await anonymous().familyInvitations.accept(form(token, address));
+			expect(auth.calls).toEqual(['POST', 'generate_link']);
+			expect(auth.mails).toHaveLength(1);
+			const [mail] = auth.mails;
+			expect(mail!.to).toBe(address);
+			expect(mail!.html).toContain('Per entrare nella famiglia &lt;b&gt;Rossi &amp; figli&lt;/b&gt; su Cosa si mangia');
+			expect(mail!.html).not.toContain('<b>Rossi');
+			expect(mail!.text).toMatch(/https:\/\/app\.test\/password#token_hash=[0-9a-f]+&type=recovery/);
+			const english = email();
+			await anonymous().familyInvitations.accept(form(token, english, { locale: 'en-GB' }));
+			expect(auth.mails[1]!.subject).toBe('Choose your password for Cosa si mangia');
+		});
+
+		it('a failing link or send answers failed and keeps the membership; the reservation is not reopened', async () => {
+			const { admin, familyId, token } = await setup();
+			const address = email();
+			auth.failNextLink(500);
+			expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true, passwordEmail: 'failed' });
+			expect(await memberRole(familyId, (await userByEmail(address))!)).toBe('member');
+			// Not versioned: the list shows the registration at once.
+			expect((await admin.client.familyInvitations.list({ familyId })).invitations[0]!.registrations).toBe(1);
+			const other = email();
+			auth.failNextMail(500);
+			expect(await anonymous().familyInvitations.accept(form(token, other))).toEqual({ email: other, joined: true, passwordEmail: 'failed' });
+		});
+
+		it('joined false: the first email has no family name', async () => {
+			const { admin, familyId, invitation, token } = await setup();
+			const address = email();
+			const held = auth.holdAfterNextCreate();
+			const accepting = anonymous().familyInvitations.accept(form(token, address));
+			await held.reached;
+			await admin.client.familyInvitations.revoke({ familyId, id: invitation.id });
+			held.release();
+			expect(await accepting).toEqual({ email: address, joined: false, passwordEmail: 'sent' });
+			expect(auth.mails[0]!.text).toContain('Per cominciare a usare Cosa si mangia');
+			expect(auth.mails[0]!.text).not.toContain('Test');
+		});
+
+		it('account deleted after the authorisation and before generate_link: unavailable, nothing created', async () => {
+			const { token } = await setup();
+			const address = email();
+			const hold = auth.holdNextLink();
+			const pending = anonymous().familyInvitations.accept(form(token, address));
+			await hold.reached;
+			await deleteAccount((await userByEmail(address))!);
+			hold.release();
+			expect(await pending).toEqual({ email: address, joined: true, passwordEmail: 'unavailable' });
+			expect(await userByEmail(address)).toBeUndefined();
+			expect(auth.calls).toEqual(['POST', 'generate_link']);
+			expect(auth.mails).toEqual([]);
+		});
+
+		const resend = (token: string, address: string) => anonymous().familyInvitations.resendPasswordEmail({ token, email: address, locale: 'it-IT' });
+
+		it('resend: too soon within 60 seconds, then the generic text, never the family, also after a removal', async () => {
+			const { admin, familyId, token } = await setup();
+			const address = email();
+			await anonymous().familyInvitations.accept(form(token, address));
+			expect(await resend(token, address)).toEqual({ passwordEmail: 'too_soon' });
+			await ageSends(address);
+			expect(await resend(token, ` ${address.toUpperCase()}`)).toEqual({ passwordEmail: 'sent' });
+			expect(auth.mails[1]!.text).toContain(`Per cominciare a usare Cosa si mangia, scegli una password per ${address}.`);
+			expect(auth.mails[1]!.text).not.toContain('famiglia');
+			await removeAs(admin.userId, familyId, (await userByEmail(address))!);
+			await ageSends(address);
+			expect(await resend(token, address)).toEqual({ passwordEmail: 'sent' });
+			expect(auth.mails[2]!.text).not.toContain('famiglia');
+		});
+
+		it('resend: two concurrent requests send one email', async () => {
+			const { token } = await setup();
+			const address = email();
+			await anonymous().familyInvitations.accept(form(token, address));
+			await ageSends(address);
+			const answers = await Promise.all([resend(token, address), resend(token, address)]);
+			expect(answers.map((a) => a.passwordEmail).sort()).toEqual(['sent', 'too_soon']);
+			expect(auth.mails).toHaveLength(2);
+		});
+
+		it('resend: unavailable with another link or email, and for a deleted account, without calling Auth', async () => {
+			const { token } = await setup();
+			const address = email();
+			await anonymous().familyInvitations.accept(form(token, address));
+			auth.calls.length = 0;
+			expect(await resend('x'.repeat(43), address)).toEqual({ passwordEmail: 'unavailable' });
+			expect(await resend(token, email())).toEqual({ passwordEmail: 'unavailable' });
+			await deleteAccount((await userByEmail(address))!);
+			expect(await resend(token, address)).toEqual({ passwordEmail: 'unavailable' });
+			expect(auth.calls).toEqual([]);
+		});
+
+		it('resend: not_needed once the email is confirmed', async () => {
+			const { token } = await setup();
+			const address = email();
+			await anonymous().familyInvitations.accept(form(token, address));
+			await actors.db.admin`update auth.users set email_confirmed_at = now() where email = ${address}`;
+			expect(await resend(token, address)).toEqual({ passwordEmail: 'not_needed' });
+		});
 	});
 
 	it('accept answers account_exists for a registered email', async () => {
@@ -209,7 +309,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		const userId = (await userByEmail(address))!;
 		await removeAs(admin.userId, familyId, userId);
 		auth.calls.length = 0;
-		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: false });
+		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: false, passwordEmail: 'not_sent' });
 		expect(auth.calls).toEqual([]);
 		expect(await memberRole(familyId, userId)).toBeUndefined();
 	});
@@ -220,7 +320,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		await anonymous().familyInvitations.accept(form(token, address));
 		const old = (await userByEmail(address))!;
 		await deleteAccount(old);
-		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true });
+		expect(await anonymous().familyInvitations.accept(form(token, address))).toMatchObject({ email: address, joined: true });
 		const renewed = (await userByEmail(address))!;
 		expect(renewed).not.toBe(old);
 		expect(await memberRole(familyId, renewed)).toBe('member');
@@ -234,7 +334,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		await held.reached;
 		await admin.client.familyInvitations.revoke({ familyId, id: invitation.id });
 		held.release();
-		expect(await accepting).toEqual({ email: address, joined: false });
+		expect(await accepting).toMatchObject({ email: address, joined: false });
 		const userId = (await userByEmail(address))!;
 		expect(userId).toBeDefined();
 		expect(await memberRole(familyId, userId)).toBeUndefined();
@@ -248,9 +348,9 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		await held.reached;
 		await actors.db.admin`delete from app.families where id = ${familyId}`;
 		held.release();
-		expect(await accepting).toEqual({ email: address, joined: false });
+		expect(await accepting).toEqual({ email: address, joined: false, passwordEmail: 'sent' });
 		expect(await userByEmail(address)).toBeDefined();
-		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: false });
+		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: false, passwordEmail: 'not_sent' });
 	});
 
 	it('interruption after creation, then family deleted: the retry answers joined false', async () => {
@@ -262,7 +362,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		await actors.db.admin`insert into auth.users (id, email, aud, role) values (${user_id}, ${address}, 'authenticated', 'authenticated')`;
 		await actors.db.admin`delete from app.families where id = ${familyId}`;
 		auth.calls.length = 0;
-		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: false });
+		expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: false, passwordEmail: 'not_sent' });
 		expect(auth.calls).toEqual([]);
 	});
 
@@ -305,7 +405,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 			await person.client.family.join({ token });
 			await removeAs(admin.userId, familyId, userId);
 			held.release();
-			expect(await accepting).toEqual({ email: address, joined: false });
+			expect(await accepting).toMatchObject({ email: address, joined: false });
 			expect(await memberRole(familyId, userId)).toBeUndefined();
 			expect(await joins(userId)).toBe(1);
 		});
@@ -331,7 +431,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 			const second = anonymous().familyInvitations.accept(form(token, address)).catch((error) => error);
 			await held.reached;
 			// The first request, with the same reserved id, completes; then the account is deleted.
-			expect(await anonymous().familyInvitations.accept(form(token, address))).toEqual({ email: address, joined: true });
+			expect(await anonymous().familyInvitations.accept(form(token, address))).toMatchObject({ email: address, joined: true });
 			const old = (await userByEmail(address))!;
 			await deleteAccount(old);
 			held.release();
@@ -347,6 +447,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		const client = rpcClient<ContractRouterClient<Contract>>(actors.app, env);
 		expect((await errorOf(client.familyInvitations.get({ token }))).code).toBe('rate_limited');
 		expect((await errorOf(client.familyInvitations.accept(form(token, email())))).code).toBe('rate_limited');
+		expect((await errorOf(client.familyInvitations.resendPasswordEmail({ token, email: email(), locale: 'it-IT' }))).code).toBe('rate_limited');
 	});
 
 	it('MCP lists familyInvitations list/create/revoke/listJoins/status and family_join, not get or accept', async () => {
@@ -357,5 +458,7 @@ describe.skipIf(!hasDatabase)('family invitations', () => {
 		}
 		expect(tools).not.toContain('familyInvitations_get');
 		expect(tools).not.toContain('familyInvitations_accept');
+		expect(tools).not.toContain('familyInvitations_resendPasswordEmail');
+		expect(tools).not.toContain('appInvitations_resendPasswordEmail');
 	});
 });

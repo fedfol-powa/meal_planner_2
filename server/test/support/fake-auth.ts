@@ -24,6 +24,8 @@ export interface FakeMail {
  */
 export function installFakeAuth(db: TestDatabase) {
 	const calls: string[] = [];
+	/** Bodies of the POST /admin/users, in order. */
+	const created: Record<string, unknown>[] = [];
 	const metadata: { id: string; body: unknown }[] = [];
 	const mails: FakeMail[] = [];
 	const forbidden: string[] = [];
@@ -68,6 +70,7 @@ export function installFakeAuth(db: TestDatabase) {
 		calls.push(`${method}${id ? ' id' : ''}`);
 		if (method === 'POST') {
 			const body = JSON.parse(String(init!.body));
+			created.push(body);
 			const [{ n }] = await db.admin<{ n: number }[]>`
 				select count(*)::int as n from pg_stat_activity where usename = 'app_server' and xact_start is not null`;
 			openTransactionsAtCreate.push(n);
@@ -118,6 +121,7 @@ export function installFakeAuth(db: TestDatabase) {
 	};
 	return {
 		calls,
+		created,
 		/** Bodies of the PUT /admin/users/{id}, in order. */
 		metadata,
 		mails,

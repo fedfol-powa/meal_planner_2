@@ -1,8 +1,10 @@
+import type { Locale } from '@app/contract';
 import { createInvitedAccount } from '../accounts/index.ts';
+import { deliverPasswordEmail, type PasswordEmailGrant } from '../app-invitations/password-email.ts';
 import { hashTokenHex, newToken } from '../app-invitations/tokens.ts';
 import { appError } from '../errors.ts';
 import { mapFamilyError } from '../family/db-errors.ts';
-import { publicContext, type Implementer } from '../pipeline.ts';
+import { publicContext, type Implementer, type PublicOperationContext } from '../pipeline.ts';
 import { invitationsView, joinsView } from './views.ts';
 
 /** The token in the fragment: never sent to a server, never in a log or a Referer (spec W11). */
@@ -16,6 +18,11 @@ interface Claim {
 	state: 'create' | 'joined' | 'closed' | 'unavailable';
 	member: boolean;
 }
+
+/** The family name only with `first`, for a joined reservation of a current member (spec W15, section 2). */
+const passwordEmailOf = (ctx: PublicOperationContext, hex: string, email: string, locale: Locale, first: boolean) =>
+	deliverPasswordEmail(ctx, (tx) => tx<PasswordEmailGrant[]>`
+		select * from app.family_invitation_password_email(decode(${hex}, 'hex'), ${email}, ${first})`, locale);
 
 export function familyInvitationsRouter(os: Implementer) {
 	return {
@@ -54,7 +61,9 @@ export function familyInvitationsRouter(os: Implementer) {
 		/**
 		 * Spec W11, section 2, following A: reserve (short anon transaction, committed), create the
 		 * account with no connection held, join in a second short transaction. A terminal reservation
-		 * never calls Auth nor writes: `joined` says whether the person is a member now.
+		 * never calls Auth nor writes: `joined` says whether the person is a member now. Spec W15:
+		 * the account has the email to confirm; after the closing, the first email to choose the
+		 * password, which a failure never undoes.
 		 */
 		accept: os.familyInvitations.accept.handler(async ({ context, input }) => {
 			const ctx = publicContext(context);
@@ -63,11 +72,11 @@ export function familyInvitationsRouter(os: Implementer) {
 				.anonDb(async (tx) => (await tx<Claim[]>`select * from app.claim_family_invitation(decode(${hex}, 'hex'), ${input.email})`)[0]!)
 				.catch(mapFamilyError);
 			if (claim.state === 'unavailable') throw appError('invitation_unavailable');
-			if (claim.state !== 'create') return { email: claim.email, joined: claim.member };
+			if (claim.state !== 'create') return { email: claim.email, joined: claim.member, passwordEmail: 'not_sent' as const };
 			const userId = claim.user_id!;
 			const outcome = await createInvitedAccount(
 				ctx.env,
-				{ id: userId, email: claim.email, password: input.password, displayName: input.displayName, locale: input.locale },
+				{ id: userId, email: claim.email, displayName: input.displayName, locale: input.locale },
 				{
 					// An id deleted meanwhile is never created again (spec W11, «Ricreazione di un id cancellato»).
 					beforeCreate: () => ctx.anonDb(async (tx) => (await tx<{ deleted: boolean }[]>`select app.account_id_deleted(${userId}::uuid) as deleted`)[0]!.deleted),
@@ -75,12 +84,15 @@ export function familyInvitationsRouter(os: Implementer) {
 			);
 			if (outcome.status === 'skipped') throw appError('invitation_unavailable');
 			if (outcome.status === 'email_taken') throw appError('not_allowed', { reason: 'account_exists' });
-			// Nothing was created: the reservation stays, usable with another password.
-			if (outcome.status === 'weak_password') throw appError('invalid', { issues: [{ path: ['password'], code: 'weak_password' }] });
 			const done = await ctx
 				.anonDb(async (tx) => (await tx<{ joined: boolean }[]>`select * from app.complete_family_invitation(${userId}::uuid)`)[0]!)
 				.catch(mapFamilyError);
-			return { email: claim.email, joined: done.joined };
+			const passwordEmail = await passwordEmailOf(ctx, hex, claim.email, input.locale, true);
+			return { email: claim.email, joined: done.joined, passwordEmail };
+		}),
+		resendPasswordEmail: os.familyInvitations.resendPasswordEmail.handler(async ({ context, input }) => {
+			const ctx = publicContext(context);
+			return { passwordEmail: await passwordEmailOf(ctx, await hashTokenHex(input.token), input.email, input.locale, false) };
 		}),
 	};
 }
