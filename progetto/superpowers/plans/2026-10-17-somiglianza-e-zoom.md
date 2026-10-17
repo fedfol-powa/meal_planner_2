@@ -178,6 +178,14 @@ anche dentro `@media`) e controlla:
 >   proteine. La finestra è mobile, attraversa le settimane e guarda anche ai pasti già
 >   pianificati dopo;
 
+**Prodotto (sezione 3, regole di settimana)** - deciso dall'utente il 17 ottobre 2026, revisione
+della PR #60: con la somiglianza nuova il report del curatore ha la carne rossa oltre il massimo in 3
+settimane su 20 invece di 1. Si accetta così, senza correzioni: nessun cambio al passo 4 della sezione 3
+(la riparazione continua a tenere la modifica che sistema di più, quota note/nuove e intervalli alla
+pari). Motivo: il ricettario ha ancora troppe poche ricette e le uniche nuove rimaste sono di carne
+rossa, quindi la quota le spinge; la soluzione è estendere il ricettario con ricette più varie, che
+l'utente farà a breve.
+
 **Tecniche**
 
 - Sezione 3 / report del pianificatore: il report usa gli ingredienti dell'import
