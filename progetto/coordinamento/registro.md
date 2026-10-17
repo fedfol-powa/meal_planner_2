@@ -3,7 +3,40 @@
 Stato operativo dei worker. Aggiornato dal coordinatore a ogni cambio di fase.
 Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e `cwd`).
 
-## Worker attivi
+## Stato corrente (aggiornato il 17 ottobre 2026, fine mattina)
+
+- **Attività in corso:** nessuna. W14 (istruzioni per gli agenti, PR #61 unita `74df85c`)
+  ha finito; resta la prova finale della consegna: sessione nuova nel checkout principale
+  con «riprendiamo» (spec `specs/2026-10-17-istruzioni-agenti.md`, «Consegna», passo 5).
+  Se passa, chiudere tab «W14 istruzioni» e worktree `.worktrees/istruzioni`.
+- **Worker attivi:** W14 fermo dopo `STATO: PR_CORRETTA`, tab «W14 istruzioni» (da chiudere).
+- **Revisori attivi:** nessuno.
+- **Domande in sospeso:** nessuna.
+- **Limite:** 1 worker Claude; revisori Codex senza limite. Utilizzo settimanale all'87%
+  il 17/10 mattina (azzeramento 18/10 alle 15): revisioni Codex solo dove servono.
+- **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
+  17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`). Prova
+  sull'iPhone riuscita, #48 e #51 chiuse. Il rilascio con `--apply` è partito dal
+  coordinatore senza blocchi del classificatore (17/10): la skill dice ancora il contrario.
+- **Prossimo passo (da proporre all'utente, che sceglie da dove ripartire):**
+  1. PR di documentazione del coordinatore (con «mergia»): frase su `AGENTS.md` nella
+     specifica principale («Come usare e aggiornare questo documento», dalla consegna di
+     W14); decisioni di `plans/2026-10-17-somiglianza-e-zoom.md` nella sezione 3 e in
+     `design/design.md`; skill `coordinamento`, sezione 7: il rilascio può partire dal
+     coordinatore dopo il «vai»; file `*.prompt` dei revisori fuori da Git (bloccano
+     l'anteprima del rilascio).
+  2. Parte software dell'attività D (link della password via email, «password
+     dimenticata», email operative, fine del rischio delle email non verificate): brief
+     da scrivere e far approvare, un worker.
+  3. L'utente estenderà a breve il ricettario con ricette più varie (risolve anche la
+     carne rossa oltre il massimo vista nel report del pianificatore).
+  4. Poi E (parti scelte dall'utente); issue aperte #49, #55, #39 (4 ricette senza foto);
+     pulizia dei worktree di PR già unite; R26 (rotazione password) rimandata.
+
+## Storico
+
+### Worker e attività (fino al 17/10)
+
 
 **17/10, W13 chiuso: PR #60 unita** (`a6adf55`; #48 caratteristica `primary_ingredient_line` della somiglianza, #51 campi a 16px con test statico conservativo). Revisione Codex `revisioni/w13-pr60.md` DA CORREGGERE: test dei campi reso conservativo (verificato dal coordinatore con i due casi del revisore); carne rossa oltre il massimo in 3 settimane su 20 invece di 1 nel report: **accettata dall'utente** (17/10), la causa è il ricettario troppo piccolo, l'utente lo estenderà a breve con ricette più varie. **Da fare:** rilascio (anteprima del coordinatore, «vai» dell'utente, lancio con `!`) prima di mercoledì 21/10 alle 20:00; prova sull'iPhone (campo di ricerca in «Cambia pasto», Safari e PWA); decisioni del piano `plans/2026-10-17-somiglianza-e-zoom.md` nella specifica principale (sezione 3) e in `design/design.md`; chiudere #48 e #51 dopo la prova; rimuovere tab e worktree di W13. **W14** (tab «W14 istruzioni», pane `w1:p4K`, worktree `.worktrees/istruzioni`): brainstorming fatto dall'utente nel pane, spec e piano rivisti (`revisioni/w14-spec-piano.md` DA CORREGGERE, rilievi in `messaggi/w14-01-revisione-spec.md`), corretti. Utilizzo settimanale all'87% il 17/10 mattina (azzeramento 18/10 alle 15): revisioni Codex solo dove servono.
 
@@ -33,20 +66,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 Unite su `main` (ondata 3): #44 (specifica W7/W8 e ondata 3 senza email), #45 (inviti all'app e famiglie nuove, W9). Unite su `main`: PR #3 (scheletro), #4 (schema), #5 (piattaforma), #6 (web), #7 (unità e spesa), #8
 (fonte delle equivalenze), #9 (ricetta e import), #12 (viste della ricetta di W6), #10 (`resolveFamilySettings` di W2), #13 (`mealRecipeVersions`, `versionedInput`, dominio con `noUncheckedIndexedAccess`), #16 (profilo e famiglia lato server), #14 (ricettario lato server), #15 (menu lato server), #11 (spesa lato server), #17 (client oRPC reale e agganci di sessione), #18 (profilo al posto di me nel web), #19 (ricettario web), #20 (menu web), #21 (profilo e famiglia web), #22 (spesa web), #23 (gestione del ricettario lato server), #24 (nomi delle varietà nella spesa), #25 (correzioni della prova sullo stack reale, shell della PWA), #28 (porzioni del pasto nella scheda), #27 (unità contate scalate), #26 (bozze e archiviate nel web per i curatori), #29 (revisione dei pasti, server), #30 (esportazione notturna in R2), #32 (versione di migrazione duplicata), #31 (collegamento degli agenti), #33 (revisione dei pasti, web), #34 (strumenti della messa in produzione), #35, #36, #40 (specifica dopo la produzione), #41 (cambio della password, W7), #43 (aggiornamento della PWA, W8). Ondata 1 completata.
 
-## Revisori attivi
 
-| Revisore | Di cosa | Tab | Stato |
-|---|---|---|---|
+### Prossime azioni precedenti
 
-## Decisioni dell'utente da ricordare (11–12/10)
-
-- **Un solo worker Claude** (12/10): W1 e W6 finiscono il lavoro in corso; il primo che termina si chiude (tab chiusa), l'altro resta l'unico worker. Revisori Codex senza limite.
-- **Messa in produzione:** caricamento dei dati, migrazioni, `bootstrap.sql` e rilasci li esegue il coordinatore, con le credenziali in un file locale ignorato da Git scritto dall'utente (mai nella conversazione), anteprima e «vai» dell'utente prima di ogni scrittura; a fine avvio l'utente cambia le password. Avvio in tre fasi: 1 infrastruttura (dopo l'approvazione del piano), 2 import e famiglia (dopo revisione dei pasti web), 3 agenti. Finestra lunedì–mercoledì entro le 19. Rilasci a mano con `npm run release`. Migrazioni dalla CLI di Supabase. Impostazioni della famiglia dallo script. Settimane già pianificate nell'origine importate come «menu in corso». Produzione: `lronuqvtjdhfyychnscr`, partenza da workers.dev.
-- **Iscrizioni libere spente in produzione** (12/10): account solo con «Add user».
-- **Poteri dei token d'agente su Supabase Auth:** solo documentati per ora, testi veritieri; «ultimo rinnovo dell'accesso».
-- **Altre:** 7 copie in R2 cifrate con chiave dell'utente; Annulla 6 s nell'app, nessun limite lato server; porzioni 1–20; scheda aperta da un pasto con le porzioni del pasto; unità contate scalate all'intero superiore tranne i pezzi (a mezzi in scheda e menu, interi nella spesa); voci della spesa «Nome (varietà)»; note e pasti liberi come scritti; ingrediente creabile senza nome inglese; nessun «Genera la prima settimana».
-
-## Prossima azione del coordinatore
 
 **Aggiornato il 16 ottobre 2026. Si riparte da qui.**
 
@@ -86,6 +108,7 @@ Decisioni del brainstorming di W9 registrate nelle «Interfacce decise» del pia
 6. Regole: PR scritte dal coordinatore o da suoi sottoagenti solo con «mergia» dell'utente; PR dei
    worker con revisione chiusa e CI verde le unisce il coordinatore. Produzione sempre anteprima →
    «vai» → applicazione. R26 (rotazione password) rimandato dall'utente.
+
 
 ### Storico della fase 1 (12–13/10)
 
