@@ -51,9 +51,9 @@ export function changePasswordFailure(error: AuthErrorLike): ChangePasswordFailu
   return 'unknown';
 }
 
-type Call = { ok: true; body: unknown } | { ok: false; error: AuthErrorLike };
+export type Call = { ok: true; body: unknown } | { ok: false; error: AuthErrorLike };
 
-async function call(deps: PasswordChangeDeps, path: string, init: { method: string; token?: string; body?: object }): Promise<Call> {
+export async function call(deps: Pick<PasswordChangeDeps, 'url' | 'publishableKey' | 'fetch'>, path: string, init: { method: string; token?: string; body?: object }): Promise<Call> {
   const headers: Record<string, string> = {
     apikey: deps.publishableKey,
     'content-type': 'application/json',

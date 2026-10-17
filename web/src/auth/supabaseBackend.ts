@@ -3,13 +3,20 @@ import type { AgentAuthorization, AuthBackend, AuthorizationFailure, Authorizati
 import { changePasswordWith, sessionIdOf, type SessionRead } from './passwordChangeRequests';
 
 export const AUTH_STORAGE_KEY = 'cosasimangia-auth';
-export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession'>;
+export type AuthClient = Pick<SupabaseClient['auth'], 'getSession' | 'onAuthStateChange' | 'signInWithPassword' | 'signOut' | 'refreshSession' | 'resetPasswordForEmail'>;
 
 export type OAuthApi = Pick<SupabaseClient['auth']['oauth'], 'getAuthorizationDetails' | 'approveAuthorization' | 'denyAuthorization'>;
 
 export function authorizationFailure(error: { status?: number; name?: string }): AuthorizationFailure {
   if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network';
   if (error.status === 400 || error.status === 404) return 'not_found';
+  return 'unknown';
+}
+
+/** The per-address 429 is told apart by its message; the project's hourly limit has another one. */
+export function passwordEmailFailure(error: { code?: string; status?: number; name?: string; message?: string }): 'sent' | 'project_limit' | 'network' | 'unknown' {
+  if (error.name === 'AuthRetryableFetchError' || error.status === 0) return 'network';
+  if (error.status === 429 || error.code === 'over_email_send_rate_limit') return /only request this after/i.test(error.message ?? '') ? 'sent' : 'project_limit';
   return 'unknown';
 }
 
@@ -100,6 +107,12 @@ export function createSupabaseBackend(
         current,
         next
       );
+    },
+    async requestPasswordEmail(email) {
+      const { error } = await auth.resetPasswordForEmail(email, { redirectTo: `${location.origin}/password` });
+      if (!error) return { ok: true };
+      const outcome = passwordEmailFailure(error);
+      return outcome === 'sent' ? { ok: true } : { ok: false, reason: outcome };
     },
     async refresh() {
       const { data, error } = await auth.refreshSession();
