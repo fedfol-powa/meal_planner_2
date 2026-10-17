@@ -82,7 +82,8 @@ describe('useShoppingList', () => {
     const world = setup();
     await waitFor(() => expect(world.state().view).not.toBeNull());
     world.server.holdNextRead();
-    void act(() => world.client().invalidateQueries({ queryKey: ['shopping'] }));
+    // Not in act: the read is held, so an async act scope would stay open across the next ones.
+    void world.client().invalidateQueries({ queryKey: ['shopping'] });
     await waitFor(() => expect(world.server.reads).toHaveBeenCalledTimes(2));
     await act(() => world.state().act(ops.tick(TOMATO), 'Pomodori'));
     await waitFor(() => expect(world.state().pendingCount).toBe(0));
