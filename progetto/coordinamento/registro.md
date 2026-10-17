@@ -11,20 +11,20 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   chiave Resend del server, segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, template di
   recupero, `mailer_otp_exp` 86400), migrazione `20261017100000_email.sql`, anteprima e «vai»
   dell'utente, controlli dopo il rilascio e prova sull'iPhone. Segreti caricati dall'utente
-  (verificati); configurazione di Auth affidata al coordinatore (serve un token della
-  Management API in `.env.production.local`). **Rilascio bloccato dalla CI rossa su `main`**
+  (verificati); configurazione di Auth fatta dall'utente il 17/10 (template di recupero,
+  `mailer_otp_exp` 86400; limiti letti: 30 email/h, 60 s per utente, invariati). **Rilascio bloccato dalla CI rossa su `main`**
   per test web instabili: W16 li stabilizza. PR #65 (specifica) unita (`84d5271`).
 - **Worker attivi:** W16, tab «W16 test», pane `w1:p4X`, branch `correzioni/test-instabili`,
   worktree `.worktrees/test-instabili`, brief `brief/w16-test-instabili.md`; **PR #66 aperta**
   (+140 −10, 5 file), revisione in corso. W15 chiuso.
 - **Revisori attivi:** tab «R W16 PR66» (pane `w1:p4Y`), rapporto `revisioni/w16-pr66.md`.
-- **Domande in sospeso:** token della Management API di Supabase (utente).
+- **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite. Codex è su un altro piano e
   non consuma l'utilizzo settimanale di Claude (utente, 17/10).
 - **In produzione:** versione `0cad6a5c-b4dc-4666-bc2c-7c5a8f701d60` (commit `645aa5d`,
   17/10 06:13 UTC, #48 e #51; rollback `8d4763ec-b29d-4d09-941b-9411c22fa3f9`).
-- **Prossimo passo:** PR di W16 → revisione → merge → CI verde su `main`; configurazione di
-  Auth; anteprima e rilascio di D. Poi: ricettario
+- **Prossimo passo:** PR di W16 → revisione → merge → CI verde su `main`; anteprima e
+  rilascio di D. Poi: ricettario
   esteso dall'utente, E (parti scelte dall'utente), issue #49, #55, #39 (4 ricette senza
   foto), #62 (worker curatore del ricettario), pulizia dei worktree di PR già unite, R26
   rimandata.
