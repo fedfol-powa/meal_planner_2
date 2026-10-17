@@ -27,6 +27,12 @@ export interface Env {
 	IMAGES?: PhotoImages;
 	/** Per-IP limiter of the public route /photos/<key>. */
 	PHOTO_READ_LIMIT: RateLimiter;
+	/** Secret: Resend API key, sending access for the domain only, distinct from Supabase's SMTP key (spec W15). */
+	RESEND_API_KEY?: string;
+	/** Secret: address of the operations contact for the alerts; never stored. */
+	OPS_ALERT_EMAIL?: string;
+	/** Local stack and CI only, never in production: send emails to Mailpit's API instead of Resend. */
+	MAILPIT_API_URL?: string;
 	/** Tests only: replaces the global fetch of setPhotoFromUrl. */
 	PHOTO_FETCH?: typeof fetch;
 }

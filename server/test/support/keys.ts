@@ -3,6 +3,8 @@ import type { KeySource } from '../../src/auth.ts';
 
 export const TEST_SUPABASE_URL = 'https://test.supabase.local';
 export const TEST_ISSUER = `${TEST_SUPABASE_URL}/auth/v1`;
+/** Mailpit's send API in the test env: the fake Auth records what reaches it (spec W15). */
+export const TEST_MAIL_URL = 'https://mail.test';
 
 export interface TestKeys {
 	keys: KeySource;
