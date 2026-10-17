@@ -300,6 +300,22 @@ describe.skipIf(!hasDatabase)('nightly export', () => {
 		expect(photos.objects.has(b)).toBe(true);
 	});
 
+	it('exports and restores operational alerts and password emails (W15)', async () => {
+		const document = await freshExport();
+		const doc = JSON.parse(document);
+		expect(doc.tables['app.ops_alerts']).toContainEqual(expect.objectContaining({ key: `backup-${fx.familyId}`, attempts: 1 }));
+		expect(doc.tables['app.password_emails']).toContainEqual(expect.objectContaining({ user_id: fx.userId }));
+		await inRolledBack(async (tx) => {
+			await emulateFreshDestination(tx);
+			await restoreExport(tx, document);
+			expect(await verifyRestored(tx)).toEqual([]);
+			const [alert] = await tx<{ details: unknown; claimed: boolean }[]>`
+				select details, claimed_at is not null as claimed from app.ops_alerts where key = ${`backup-${fx.familyId}`}`;
+			expect(alert).toEqual({ details: { familyId: fx.familyId }, claimed: true });
+			expect(await tx`select 1 from app.password_emails where user_id = ${fx.userId}`).toHaveLength(1);
+		});
+	});
+
 	it('keeps bumping counters when an imported marker equals the restoring transaction', async () => {
 		const document = await freshExport();
 		await inRolledBack(async (tx) => {
