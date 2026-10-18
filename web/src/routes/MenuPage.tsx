@@ -23,7 +23,6 @@ import { useLocale, useT } from '../i18n/LocaleProvider';
 import { addDays, isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTime } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
 import { pickSelected } from './menu/selection';
-import { slideIn } from './menu/weekSwipe';
 import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
@@ -111,9 +110,14 @@ function MenuView({ family }: { family: FamilyView }) {
   const neighbourWeeks = selected ? [mondayOf(addDays(selected, -7)), mondayOf(addDays(selected, 7))] : [];
   const months = [...new Set(neighbourWeeks.flatMap((monday) => [monday.slice(0, 7), addDays(monday, 6).slice(0, 7)]))];
   const datesWithMenu = useQueries({ queries: months.map((month) => datesQuery(deps, familyId, month)) }).flatMap((q) => q.data ?? []);
-  const dayNavigation = useRef<HTMLElement>(null);
-  // Side the next week's days come in from, set by a swipe until they are shown.
-  const entering = useRef<-1 | 1 | null>(null);
+  const hasMenu = (monday: IsoDate) => datesWithMenu.some((date) => mondayOf(date) === monday);
+  // A week alongside exists if one of its days has a menu or it is saved; when it exists it is read
+  // in advance, so that the drag of the days lands on it without «Loading…».
+  const weeksAlongside = useQueries({
+    queries: neighbourWeeks.map((monday) => ({ ...weekQuery(deps, familyId, monday), enabled: hasMenu(monday), retry: false }))
+  });
+  const exists = neighbourWeeks.map((monday, i) => !!weeksAlongside[i]?.data || hasMenu(monday));
+  const adjacent = { previous: !!exists[0], next: !!exists[1] };
 
   // A day whose week does not exist (old link, typo) falls back to the opening day.
   const weekMissing = !!requested && week.isError && toApiError(week.error).code === 'not_found';
@@ -132,13 +136,6 @@ function MenuView({ family }: { family: FamilyView }) {
     track.current?.querySelector(`#day-${selected}`)?.scrollIntoView({ block: 'nearest', inline: 'start' });
   }, [selected, week.data?.startsOn]);
 
-  // Waits for the new week (it may still be loading); a week that failed takes no slide.
-  useLayoutEffect(() => {
-    if (!entering.current || (!week.data && !week.isError)) return;
-    if (week.data) slideIn(dayNavigation.current?.querySelector('.day-links'), entering.current);
-    entering.current = null;
-  }, [week.data?.startsOn, week.isError]);
-
   /**
    * The same weekday in the next or previous week, if that week has a day with a menu or a saved
    * copy; the day itself may have no meals and is shown empty, like any such day.
@@ -148,8 +145,7 @@ function MenuView({ family }: { family: FamilyView }) {
     const target = addDays(selected, step * 7);
     const monday = mondayOf(target);
     const saved = deps.queryClient.getQueryData(queryKeys.week(familyId, monday, locale));
-    if (!saved && !datesWithMenu.some((date) => mondayOf(date) === monday)) return false;
-    entering.current = step;
+    if (!saved && !hasMenu(monday)) return false;
     select(target);
     return true;
   }
@@ -188,7 +184,7 @@ function MenuView({ family }: { family: FamilyView }) {
     <section className="calendar app-view" aria-label={t('nav.menu')}>
       <SaveNotices />
       {welcome && <WelcomeCard onClose={closeWelcome} />}
-      <nav className="day-navigation" aria-label={t('menu.days')} ref={dayNavigation}>
+      <nav className="day-navigation" aria-label={t('menu.days')}>
         <div className={styles.toolbar}>
           <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
             {formatMonthYear(locale, selected)}
@@ -200,7 +196,7 @@ function MenuView({ family }: { family: FamilyView }) {
             </Link>
           </div>
         </div>
-        <DaySelector dates={days} selected={selected} onSelect={select} onSwipe={swipeWeek} />
+        <DaySelector dates={days} selected={selected} onSelect={select} adjacent={adjacent} onSwipe={swipeWeek} />
       </nav>
       <div className="week-track" ref={track} tabIndex={0} role="region" aria-label={t('menu.week')} onScroll={onScroll}>
         {week.data.days.map((day) => (
