@@ -21,6 +21,9 @@ describe('service worker rules', () => {
     expect(strategyFor(req('/shopping-lists/abc', 'navigate'))).toBe('passthrough');
     expect(strategyFor(req('/internal/jobs/weekly', 'navigate'))).toBe('passthrough');
     expect(strategyFor(req('/sw.js'))).toBe('passthrough');
+    // The skill zip (W17): a download may come as a navigation, and must never get the shell or an old copy.
+    expect(strategyFor(req('/downloads/cosa-si-mangia.zip', 'navigate'))).toBe('passthrough');
+    expect(strategyFor(req('/downloads/cosa-si-mangia.zip'))).toBe('passthrough');
     expect(strategyFor(req('/assets/x.js', 'cors', 'GET', 'https://cdn.example'))).toBe('passthrough');
   });
   it('names caches by build and keeps the current one plus the two most recent others', () => {
