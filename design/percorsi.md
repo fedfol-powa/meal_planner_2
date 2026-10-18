@@ -119,6 +119,10 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
   con pasti; senza settimane, invito simulato a generare la prima.
 - **Calendario:** giorni a scorrimento orizzontale come nel riferimento; accanto al
   selettore un'icona calendario per scegliere qualunque giorno con menu, anche passato.
+  Nell'app (W19, PR #72, 18 ottobre 2026) uno swipe orizzontale sulla fila dei giorni
+  cambia settimana: verso sinistra la successiva, verso destra la precedente, sullo
+  stesso giorno; se la settimana non esiste la fila rimbalza, senza messaggi
+  (specifica, sezione 5).
 - **Nessuno stato della settimana** (sezione 2, decisione della tappa intermedia):
   nessuna etichetta o messaggio di stato; "non cucinato" su ogni pasto passato.
 - **Schede dei pasti:** con foto, senza foto, pasto libero, slot vuoto "nessuna ricetta
