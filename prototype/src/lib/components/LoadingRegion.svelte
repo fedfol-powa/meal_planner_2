@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { SimulatedLoad } from '#lib/store/loading.svelte.ts';
-	import { app } from '#lib/store/app.svelte.ts';
 
 	/**
 	 * Round 7: content that loads, with a skeleton of the same size meanwhile.
@@ -19,9 +18,7 @@
 <span class="visually-hidden" role="status">{load.visible ? label : ''}</span>
 <div class="loading-region" aria-busy={load.pending ? 'true' : undefined}>
 	{#if load.pending}
-		{#if app.settings.skeleton !== 'none'}
-			<div class="sk sk-{app.settings.skeleton}" class:sk-waiting={!load.visible} aria-hidden="true">{@render skeleton()}</div>
-		{/if}
+		<div class="sk sk-pulse" class:sk-waiting={!load.visible} aria-hidden="true">{@render skeleton()}</div>
 	{:else}
 		{@render children()}
 	{/if}

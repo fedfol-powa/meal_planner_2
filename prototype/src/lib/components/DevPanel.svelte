@@ -2,7 +2,7 @@
 	import { app } from '#lib/store/app.svelte.ts';
 	import { AGENT_CLIENTS, LOCALES, type AgentClient, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
 	import { goto } from '$app/navigation';
-	import { SCENARIOS, SKELETON_VARIANTS, SLOW_LOADS, type ScenarioId, type SkeletonVariant, type SlowLoad } from '#lib/store/persistence.ts';
+	import { SCENARIOS, SLOW_LOADS, type ScenarioId, type SlowLoad } from '#lib/store/persistence.ts';
 	import { clearSimulatedCache } from '#lib/store/loading.svelte.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
@@ -94,12 +94,7 @@
 	</header>
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
-	<!-- Round 7: skeleton variants with a simulated slow load, compared on the phone. -->
-	<label>{app.t('dev.skeleton')}
-		<select value={app.settings.skeleton} onchange={(e) => { const v = e.currentTarget.value as SkeletonVariant; app.update((s) => (s.settings.skeleton = v)); clearSimulatedCache(); }}>
-			{#each SKELETON_VARIANTS as id (id)}<option value={id}>{app.t(`dev.skeleton.${id}` as const)}</option>{/each}
-		</select>
-	</label>
+	<!-- Round 7: a simulated slow load, to see the skeleton chosen by the user (blocks with a slow pulse). -->
 	<label>{app.t('dev.slowLoad')}
 		<select value={app.settings.slowLoad} onchange={(e) => { const v = e.currentTarget.value as SlowLoad; app.update((s) => (s.settings.slowLoad = v)); clearSimulatedCache(); }}>
 			{#each SLOW_LOADS as id (id)}<option value={id}>{app.t(`dev.slowLoad.${id}` as const)}</option>{/each}
