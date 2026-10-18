@@ -81,12 +81,19 @@ describe.skipIf(!hasDatabase)('asset routing of wrangler.jsonc', () => {
 		return token;
 	}
 
-	/** As Bring!'s servers fetch it, and as a browser navigation. */
+	/**
+	 * As Bring!'s servers fetch it, and as a browser navigation. Each body is read as soon as its
+	 * response arrives: Miniflare wraps undici's response in a new one around the same stream, and
+	 * undici cancels that stream when the discarded original is garbage collected, so a body left
+	 * unread while the other request runs ("Body has already been read") can be lost.
+	 */
 	const fetchBoth = (path: string, method = 'GET') =>
-		Promise.all([
-			mf.dispatchFetch(`https://app.test${path}`, { method }),
-			mf.dispatchFetch(`https://app.test${path}`, { method, headers: { 'sec-fetch-mode': 'navigate', accept: 'text/html' } }),
-		]);
+		Promise.all(
+			[{ method }, { method, headers: { 'sec-fetch-mode': 'navigate', accept: 'text/html' } }].map(async (init) => {
+				const response = await mf.dispatchFetch(`https://app.test${path}`, init);
+				return { response, body: await response.text() };
+			}),
+		);
 
 	it('still serves the SPA for the app routes', async () => {
 		const response = await mf.dispatchFetch('https://app.test/menu/today', { headers: { 'sec-fetch-mode': 'navigate' } });
@@ -94,30 +101,30 @@ describe.skipIf(!hasDatabase)('asset routing of wrangler.jsonc', () => {
 	});
 
 	it('serves the skill zip as a static file, even to a navigation (W17)', async () => {
-		for (const response of await fetchBoth('/downloads/cosa-si-mangia.zip')) {
+		for (const { response, body } of await fetchBoth('/downloads/cosa-si-mangia.zip')) {
 			expect(response.status).toBe(200);
 			expect(response.headers.get('content-type')).toBe('application/zip');
-			expect(await response.text()).toBe('PK zip');
+			expect(body).toBe('PK zip');
 		}
 	});
 
 	it('reaches the Bring! page of a valid token, never the SPA', async () => {
 		const token = await temporaryList(['1 Limone']);
-		for (const response of await fetchBoth(`/shopping-lists/${token}`)) {
+		for (const { response, body } of await fetchBoth(`/shopping-lists/${token}`)) {
 			expect(response.status).toBe(200);
 			expect(response.headers.get('x-robots-tag')).toBe('noindex');
 			expect(response.headers.get('cache-control')).toBe('no-store');
-			expect(await response.text()).toContain('"recipeIngredient":["1 Limone"]');
+			expect(body).toContain('"recipeIngredient":["1 Limone"]');
 		}
 	});
 
 	it('answers 404 for an expired token through the Worker, not the SPA fallback', async () => {
 		const token = await temporaryList(['1 Limone']);
 		await db.admin`update app.temporary_lists set expires_at = now() - interval '1 minute' where token = ${token}`;
-		for (const response of await fetchBoth(`/shopping-lists/${token}`)) {
+		for (const { response, body } of await fetchBoth(`/shopping-lists/${token}`)) {
 			expect(response.status).toBe(404);
 			expect(response.headers.get('x-robots-tag')).toBe('noindex');
-			expect(await response.text()).not.toContain('SPA');
+			expect(body).not.toContain('SPA');
 		}
 	});
 
@@ -131,7 +138,7 @@ describe.skipIf(!hasDatabase)('asset routing of wrangler.jsonc', () => {
 
 	it('answers 405 to a method other than GET', async () => {
 		const token = await temporaryList(['1 Limone']);
-		for (const response of await fetchBoth(`/shopping-lists/${token}`, 'POST')) {
+		for (const { response } of await fetchBoth(`/shopping-lists/${token}`, 'POST')) {
 			expect(response.status).toBe(405);
 			expect(response.headers.get('allow')).toBe('GET');
 		}
