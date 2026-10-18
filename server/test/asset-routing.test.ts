@@ -1,5 +1,5 @@
 import { contract } from '@app/contract';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { convertV4MiniflareOptions, Miniflare, Response as MiniflareResponse, type Request as MiniflareRequest } from 'miniflare';
@@ -38,6 +38,8 @@ describe.skipIf(!hasDatabase)('asset routing of wrangler.jsonc', () => {
 		const { compatibilityDate, assets } = await assetsConfig();
 		directory = await mkdtemp(join(tmpdir(), 'assets-'));
 		await writeFile(join(directory, 'index.html'), '<!doctype html><title>SPA</title>');
+		await mkdir(join(directory, 'downloads'));
+		await writeFile(join(directory, 'downloads', 'cosa-si-mangia.zip'), 'PK zip');
 		// Miniflare 5 (alpha, installed with wrangler) takes v4 options through its converter, which
 		// drops the routing settings of the assets: they are set on the converted worker config.
 		const options = convertV4MiniflareOptions({
@@ -89,6 +91,14 @@ describe.skipIf(!hasDatabase)('asset routing of wrangler.jsonc', () => {
 	it('still serves the SPA for the app routes', async () => {
 		const response = await mf.dispatchFetch('https://app.test/menu/today', { headers: { 'sec-fetch-mode': 'navigate' } });
 		expect(await response.text()).toContain('<title>SPA</title>');
+	});
+
+	it('serves the skill zip as a static file, even to a navigation (W17)', async () => {
+		for (const response of await fetchBoth('/downloads/cosa-si-mangia.zip')) {
+			expect(response.status).toBe(200);
+			expect(response.headers.get('content-type')).toBe('application/zip');
+			expect(await response.text()).toBe('PK zip');
+		}
 	});
 
 	it('reaches the Bring! page of a valid token, never the SPA', async () => {
