@@ -109,6 +109,28 @@ describe('change recipe: suggestions while loading (W20)', () => {
     expect(within(sheet).queryAllByRole('status').some((s) => s.textContent === 'Caricamento…')).toBe(false);
   });
 
+  it('a failed reread with cards in the cache keeps the cards, with the error and no reserved space', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: () => page(0) });
+    const { article, sheet } = await openPicker(/Pizza/);
+    await within(sheet).findByRole('button', { name: 'Scegli Ricetta 0' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    server.answerMeals({
+      getSuggestions: () => {
+        throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+      }
+    });
+    if (!within(article).queryByRole('button', { name: 'Cambia ricetta' })) fireEvent.click(within(article).getByRole('button', { name: 'Modifica il pasto' }));
+    fireEvent.click(within(article).getByRole('button', { name: 'Cambia ricetta' }));
+    const again = await screen.findByRole('dialog');
+    const section = suggestionsOf(again);
+    expect(await within(section).findByRole('alert')).toBeTruthy();
+    expect(within(section).getByRole('button', { name: 'Scegli Ricetta 0' })).toBeTruthy();
+    expect(section.querySelector('[data-reserve]')).toBeNull();
+    expect(section.querySelector('.skeleton')).toBeNull();
+  });
+
   it('suggestions offline without a saved copy keep a still skeleton', async () => {
     const { server } = realMealsApp();
     server.answerMeals({ getSuggestions: (input) => page(Number(input.offset)) });

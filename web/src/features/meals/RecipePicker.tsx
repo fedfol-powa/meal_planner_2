@@ -107,11 +107,14 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
         <h3 id={`${meal.slotId}-suggestions`} className={styles.title}>{t('meals.suggestions')}</h3>
         {/* Until the suggestions arrive, blocks of their shape (W20); an empty or failed read keeps their space. */}
         <LoadingArea loading={suggestions.isPending} paused={suggestions.fetchStatus === 'paused'} skeleton={<SuggestionsSkeleton />}>
-          {(suggestions.isError || suggestions.data?.recipes.length === 0) && (
+          {/* The reserved space replaces the cards only when there are none; cards kept from the cache stay, with the error above. */}
+          {!suggestions.data?.recipes.length ? (
             <div className={styles.reserve} data-reserve>
               <div className={styles.reserved} aria-hidden="true"><SuggestionsSkeleton /></div>
               {suggestions.isError ? <p className="meta-line" role="alert">{message(suggestions.error)}</p> : <p className="meta-line">{t('meals.noSuggestions')}</p>}
             </div>
+          ) : (
+            suggestions.isError && <p className="meta-line" role="alert">{message(suggestions.error)}</p>
           )}
           {!!suggestions.data?.recipes.length && (
             <ul className={styles.cards}>

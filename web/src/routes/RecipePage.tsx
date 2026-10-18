@@ -106,7 +106,13 @@ function RecipeSkeleton() {
         <span className="stepper skeleton-line" style={{ height: 44 }} />
         <p className="meta-line skeleton-line" />
         <ul className="ingredient-list">
-          {[0, 1, 2, 3, 4].map((i) => <li key={i}><span className="skeleton-line" /></li>)}
+          {/* Name and bold quantity on one baseline, as in the list: invisible spaces give the rows their height. */}
+          {[0, 1, 2, 3, 4].map((i) => (
+            <li key={i}>
+              <span>{'\u00a0'}</span>
+              <span className="ingredient-quantity">{'\u00a0'}</span>
+            </li>
+          ))}
         </ul>
       </section>
     </>

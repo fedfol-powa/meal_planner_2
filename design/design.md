@@ -394,7 +394,10 @@ pulsazione lenta.
   movimento» e offline, quando la lettura aspetta la rete.
 - **Soglia:** lo spazio si riserva subito, i blocchi compaiono dopo 200 ms; un
   caricamento più breve non mostra nulla e non sposta nulla.
-- **Solo attese vere:** con i dati salvati sul telefono il contenuto compare subito.
+- **Solo attese vere:** quando i dati sono già disponibili sul telefono (e, per la Spesa,
+  le modifiche non ancora inviate sono state lette) il contenuto compare subito. Restano
+  due attese locali ammesse: il ripristino della copia salvata quando dura più di 200 ms
+  e la lettura delle modifiche della Spesa salvate sul telefono.
 - **Intestazioni vere:** link indietro, titoli e filtri che non dipendono dai dati sono
   quelli veri anche durante l'attesa (Spesa, Ricetta, Ricettario; nel Menu mese e fila dei
   giorni quando la settimana è nota); solo le parti dei dati sono blocchi.
