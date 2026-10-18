@@ -12,13 +12,18 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
     revisione `revisioni/spec-w19-pr73.md`), che dice ancora «rilascio in preparazione»: da
     aggiornare con la prossima PR di documentazione. Collaudo sull'iPhone dell'utente
     (sensazione del gesto) da fare.
+  - **W21, la fila dei giorni segue il dito** (correzione chiesta dall'utente dopo il rilascio
+    di W19): brief `brief/w21-swipe-trascinamento.md`; decisioni: trascinamento diretto con
+    la settimana accanto visibile, cambio oltre un terzo o con colpo veloce, resistenza verso
+    una settimana inesistente.
   - **W20, skeleton (#49):** prototipo con varianti pronto (commit `adf621e`, anteprima sulla
     porta 8766 del Mac, rete di casa o Tailscale); W20 fermo su `STATO: DOMANDA`: variante
     A (blocchi statici), B (pulsazione lenta, eccezione a design.md) o C (sagoma con titolo)
     e pagine da coprire (proposta: alta Suggerimenti, Cerca, Menu; media pasto libero,
     FamilyGate, Spesa, Ricetta, Ricettario, avvio; Cerca tiene i risultati precedenti).
     Censimento in `plans/2026-10-18-skeleton.md` nel branch.
-- **Worker attivi:** W20, tab «W20 skeleton» (pane `w1:p5B` al 18/10), branch
+- **Worker attivi:** W21, tab «W21 trascinamento» (pane `w1:p5D` al 18/10), branch
+  `correzioni/swipe-trascinamento`, worktree `.worktrees/swipe-trascinamento`. W20 (fermo), tab «W20 skeleton» (pane `w1:p5B` al 18/10), branch
   `evolutive/skeleton`, worktree `.worktrees/skeleton`. **Revisori attivi:** nessuno.
 - **Chiuse oggi:** W17 skill per Claude (rilasciata e collaudata, PR #68, #69, #70), W18 test
   instabile di Bring! (PR #71).
