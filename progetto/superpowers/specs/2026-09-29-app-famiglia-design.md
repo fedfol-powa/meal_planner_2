@@ -4241,7 +4241,7 @@ la soglia riparte a ogni attesa nuova. Pagine coperte: «Cambia ricetta» (sugge
 ricerca, proposte del pasto libero), Menu, Spesa, Ricetta, Ricettario, controllo della
 famiglia (`FamilyGate`) e avvio dell'app (prima schermo vuoto); le pagine rare (profilo,
 impostazioni, membri, esclusioni, agenti, amministrazione, bozze, eliminazioni, inviti,
-`/password`) restano con «Caricamento…». Attese coperte: controllo dell'accesso, ripristino
+`/password`) restano invariate, con i rispettivi stati di attesa. Attese coperte: controllo dell'accesso, ripristino
 della copia salvata quando dura più di 200 ms (ammesso anche con copia salvata, decisione
 del coordinatore), lettura della coda della Spesa (la lista non si mostra prima, per non far
 sparire le spunte fatte sul telefono, PR #22) e lettura dal server senza dati; con dati
