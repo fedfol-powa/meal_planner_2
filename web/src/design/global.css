@@ -18,7 +18,14 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 .app-view { flex: 1; min-height: 0; }
 .calendar { display: flex; flex-direction: column; }
 .day-navigation { flex: none; padding: max(12px, env(safe-area-inset-top)) 24px 12px; background: var(--canvas); }
-.day-links { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: 1px solid var(--ink); border-radius: 8px; overflow: hidden; }
+/* The row is a window on three weeks side by side: the finger drags the strip (pan-y: the browser keeps only the vertical axis). */
+.day-links { border: 1px solid var(--ink); border-radius: 8px; overflow: hidden; touch-action: pan-y pinch-zoom; }
+.day-strip { position: relative; }
+.day-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+/* The weeks alongside keep the days' width, plus the line that divides them from the week shown. */
+.day-week-previous, .day-week-next { position: absolute; top: 0; bottom: 0; width: calc(100% + 1px); }
+.day-week-previous { right: 100%; border-right: 1px solid var(--ink); }
+.day-week-next { left: 100%; border-left: 1px solid var(--ink); }
 .day-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 60px; padding: 10px 6px; border-right: 1px solid var(--ink); color: var(--ink); text-decoration: none; }
 .day-link:last-child { border-right: 0; }
 .day-link:hover { background: #f0ede5; }

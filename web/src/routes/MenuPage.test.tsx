@@ -1,9 +1,11 @@
+import { focusManager } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
 import type { Api, RatingSummary } from '../api/types';
 import { addDays } from '../lib/calendar';
+import { resist, stripOffset, unresist } from './menu/weekSwipe';
 import { realClients } from '../api/clients';
 import { createRpcClient } from '../api/rpc';
 import { DEMO_USER } from '../auth/backend';
@@ -63,56 +65,122 @@ describe('menu', () => {
     await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('lunedì 12 ottobre'));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
-  describe('swipe on the days', () => {
-    const row = () => current()!.parentElement!;
+  describe('dragging the days', () => {
+    // jsdom lays nothing out: the row is 350 px wide and the test drives the clock.
+    let clock = 0;
+    beforeEach(() => {
+      clock = 1000;
+      vi.spyOn(performance, 'now').mockImplementation(() => clock);
+      vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(350);
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    const row = () => current()!.closest('.day-links')!;
+    const strip = () => row().querySelector<HTMLElement>('.day-strip')!;
     const finger = (x: number, y: number, identifier = 0) => ({ identifier, clientX: x, clientY: y });
     const touch = (x: number, y: number) => ({ touches: [finger(x, y)], changedTouches: [finger(x, y)] });
-    function swipe(dx: number, dy = 0, target: Element = row()) {
+    /** Puts a finger down and moves it in four steps over `ms`, without lifting it. */
+    function press(dx: number, { dy = 0, ms = 500, target = row() as Element } = {}) {
       fireEvent.touchStart(target, touch(200, 100));
-      fireEvent.touchMove(target, touch(200 + dx, 100 + dy));
-      fireEvent.touchEnd(target, { touches: [], changedTouches: [finger(200 + dx, 100 + dy)] });
+      for (let i = 1; i <= 4; i++) {
+        clock += ms / 4;
+        fireEvent.touchMove(target, touch(200 + (dx * i) / 4, 100 + (dy * i) / 4));
+      }
+      return () => fireEvent.touchEnd(target, { touches: [], changedTouches: [finger(200 + dx, 100 + dy)] });
     }
+    /** A slow drag by default: only the distance decides. */
+    const drag = (dx: number, options: Parameters<typeof press>[1] = {}) => press(dx, options)();
+    const offset = () => strip().style.transform;
     /** Demo data without the meals of some days. */
     function apiWithout(...days: string[]) {
       const data = createFakeData();
       for (const week of data.weeks) week.slots = week.slots.filter((slot) => !days.includes(slot.date));
       return createFakeApi({ getLocale: () => 'it-IT', data, latencyMs: 0 });
     }
-    // The dates of the neighbouring months are read in advance (latency 0, a few ticks).
+    // The neighbouring dates and weeks are read in advance (latency 0, a few ticks).
     const settle = () => act(() => new Promise((r) => setTimeout(r, 20)));
 
-    it('opens the same weekday of the next week leftwards, as a new history entry', async () => {
+    it('follows the finger and shows the days of the week alongside', async () => {
+      renderApp('/menu');
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      await settle();
+      press(-60);
+      expect(offset()).toBe('translateX(-60px)');
+      const next = row().querySelector('.day-week-next')!;
+      expect(next.getAttribute('aria-hidden')).toBe('true');
+      expect([...next.querySelectorAll('strong')].map((d) => d.textContent)).toEqual(['12', '13', '14', '15', '16', '17', '18']);
+      // The same weekday is marked, as it will be on arrival; nothing there can be focused.
+      expect(next.querySelector('[aria-current="location"] strong')?.textContent).toBe('15');
+      expect(next.querySelector('a, button, [tabindex]')).toBeNull();
+      expect([...row().querySelectorAll('.day-week-previous strong')].map((d) => d.textContent)).toEqual(['28', '29', '30', '1', '2', '3', '4']);
+    });
+    it('goes back below a third of the row', async () => {
       const { history } = renderApp('/menu');
       await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
       await settle();
-      swipe(-80);
+      drag(-110);
+      await settle();
+      expect(offset()).toBe('');
+      expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
+      expect(history.location.search).not.toContain('day=');
+    });
+    it('opens the same weekday of the next week past a third leftwards, as a new history entry', async () => {
+      const { history } = renderApp('/menu');
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      await settle();
+      drag(-130);
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
+      expect(offset()).toBe('');
       expect(history.location.search).toContain('2026-10-15');
       act(() => history.back());
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
     });
-    it('opens the same weekday of the previous week rightwards', async () => {
+    it('opens the same weekday of the previous week past a third rightwards', async () => {
       renderApp('/menu?day=2026-10-06');
       await screen.findByRole('link', { name: 'martedì 6 ottobre' });
       await settle();
-      swipe(80);
+      drag(130);
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('martedì 29 settembre'));
     });
-    it('stays on the week when the next one has no menu', async () => {
+    it('changes week with a short quick flick', async () => {
+      renderApp('/menu');
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      await settle();
+      drag(-40, { ms: 50 });
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
+    });
+    it('keeps the week alongside in view until its days arrive', async () => {
+      renderApp('/menu');
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      await settle();
+      drag(-130);
+      // The whole row and its divider: the days alongside now fill it.
+      expect(offset()).toBe('translateX(-351px)');
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
+      expect(offset()).toBe('');
+    });
+    it('resists towards a week that does not exist and goes back', async () => {
       const { history } = renderApp('/menu?day=2026-10-15');
       await screen.findByRole('link', { name: 'giovedì 15 ottobre' });
       await settle();
-      swipe(-80);
+      expect(row().querySelector('.day-week-next')!.childElementCount).toBe(0);
+      const release = press(-200);
+      const moved = -Number(/-?[\d.]+/.exec(offset())![0]);
+      expect(moved).toBeGreaterThan(0);
+      expect(moved).toBeLessThan(100);
+      release();
       await settle();
+      expect(offset()).toBe('');
       expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre');
       expect(history.location.search).toContain('2026-10-15');
     });
-    it('ignores short and vertical moves', async () => {
+    it('leaves vertical moves to the page', async () => {
       const { history } = renderApp('/menu');
       await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
       await settle();
-      swipe(-30);
-      swipe(-40, 90);
+      const release = press(-40, { dy: 90 });
+      expect(offset()).toBe('');
+      release();
       await settle();
       expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
       expect(history.location.search).not.toContain('day=');
@@ -121,16 +189,16 @@ describe('menu', () => {
       const { history } = renderApp('/menu');
       const monday = await screen.findByRole('link', { name: 'lunedì 5 ottobre' });
       await settle();
-      swipe(0, 0, monday);
+      drag(0, { target: monday });
       fireEvent.click(monday);
       await waitFor(() => expect(history.location.search).toContain('2026-10-05'));
       expect(current()?.getAttribute('aria-label')).toBe('lunedì 5 ottobre');
     });
-    it('does not also choose the day under the finger after a swipe', async () => {
+    it('does not also choose the day under the finger after a drag', async () => {
       renderApp('/menu');
       const monday = await screen.findByRole('link', { name: 'lunedì 5 ottobre' });
       await settle();
-      swipe(-80, 0, monday);
+      drag(-130, { target: monday });
       fireEvent.click(monday, { detail: 1 });
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
     });
@@ -138,7 +206,7 @@ describe('menu', () => {
       renderApp('/menu', { api: apiWithout('2026-10-15') });
       await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
       await settle();
-      swipe(-80);
+      drag(-130);
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
       expect(within(document.getElementById('day-2026-10-15')!).getByText('Nessun pasto pianificato in questo giorno.')).toBeTruthy();
     });
@@ -147,77 +215,209 @@ describe('menu', () => {
       renderApp('/menu?day=2026-10-09', { api: apiWithout('2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04') });
       await screen.findByRole('link', { name: 'venerdì 9 ottobre' });
       await settle();
-      swipe(80);
+      drag(130);
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 2 ottobre'));
     });
-    it('ignores a swipe made while a second finger touched outside the row', async () => {
+    it('ignores a drag made while a second finger touched outside the row', async () => {
       const { history } = renderApp('/menu');
       await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
       await settle();
       const target = row();
       fireEvent.touchStart(target, touch(200, 100));
-      fireEvent.touchStart(document.body, { touches: [finger(200, 100), finger(50, 500, 1)], changedTouches: [finger(50, 500, 1)] });
-      fireEvent.touchEnd(document.body, { touches: [finger(200, 100)], changedTouches: [finger(50, 500, 1)] });
-      fireEvent.touchMove(target, touch(120, 100));
-      fireEvent.touchEnd(target, { touches: [], changedTouches: [finger(120, 100)] });
+      fireEvent.touchMove(target, touch(150, 100));
+      fireEvent.touchStart(document.body, { touches: [finger(150, 100), finger(50, 500, 1)], changedTouches: [finger(50, 500, 1)] });
+      expect(offset()).toBe('');
+      fireEvent.touchEnd(document.body, { touches: [finger(150, 100)], changedTouches: [finger(50, 500, 1)] });
+      fireEvent.touchMove(target, touch(20, 100));
+      fireEvent.touchEnd(target, { touches: [], changedTouches: [finger(20, 100)] });
       await settle();
+      expect(offset()).toBe('');
       expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
       expect(history.location.search).not.toContain('day=');
     });
-    it('lets a new tap choose a day right after a swipe that bounced', async () => {
+    it('lets a new tap choose a day right after a drag that went back', async () => {
       const { history } = renderApp('/menu?day=2026-10-15');
       const monday = await screen.findByRole('link', { name: 'lunedì 12 ottobre' });
       await settle();
-      swipe(-80);
+      drag(-130);
       fireEvent.touchStart(monday, touch(40, 100));
       fireEvent.touchEnd(monday, { touches: [], changedTouches: [finger(40, 100)] });
       fireEvent.click(monday, { detail: 1 });
       await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
     });
-    it('lets the keyboard choose a day right after a swipe', async () => {
+    it('lets the keyboard choose a day right after a drag', async () => {
       const { history } = renderApp('/menu?day=2026-10-15');
       const monday = await screen.findByRole('link', { name: 'lunedì 12 ottobre' });
       await settle();
-      swipe(-80);
+      drag(-130);
       fireEvent.click(monday, { detail: 0 });
       await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
     });
-    it('lets a mouse press choose a day right after a swipe, with a click without pointer type', async () => {
+    it('lets a mouse press choose a day right after a drag, with a click without pointer type', async () => {
       const { history } = renderApp('/menu?day=2026-10-15');
       const monday = await screen.findByRole('link', { name: 'lunedì 12 ottobre' });
       await settle();
-      swipe(-80);
+      drag(-130);
       fireEvent.pointerDown(monday, { pointerType: 'mouse' });
       // A plain MouseEvent, without pointerType, as older Safari sends it.
       fireEvent.click(monday, { detail: 1 });
       await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
     });
-    it('replaces a running bounce and stops it when the days go away', async () => {
+    describe('with the Web Animations API', () => {
       const cancel = vi.fn();
-      // jsdom has no Web Animations API: the test lends one to the elements.
-      const animate = vi.fn(() => ({ cancel }) as unknown as Animation);
-      HTMLElement.prototype.animate = animate;
-      try {
+      // jsdom has none: the test lends one to the elements, with animations that end when the test says.
+      let animations: Animation[] = [];
+      const animate = vi.fn(() => {
+        const animation = { cancel, onfinish: null } as unknown as Animation;
+        animations.push(animation);
+        return animation;
+      });
+      const finish = () => act(() => (animations.at(-1)!.onfinish as () => void)());
+      beforeEach(() => {
+        cancel.mockClear();
+        animate.mockClear();
+        animations = [];
+        HTMLElement.prototype.animate = animate;
+      });
+      afterEach(() => {
+        delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
+        delete (window as Partial<Window>).matchMedia;
+      });
+
+      it('animates the way back, takes the row from where it is and stops when the days go away', async () => {
         const view = renderApp('/menu?day=2026-10-15');
         await screen.findByRole('link', { name: 'giovedì 15 ottobre' });
         await settle();
-        swipe(-80);
-        swipe(-80);
-        expect(animate).toHaveBeenCalledTimes(2);
+        drag(60);
+        expect(animate).toHaveBeenCalledTimes(1);
+        // Halfway back, a new touch holds the row where it is.
+        strip().style.transform = 'translateX(30px)';
+        fireEvent.touchStart(row(), touch(200, 100));
         expect(cancel).toHaveBeenCalledTimes(1);
+        fireEvent.touchMove(row(), touch(220, 100));
+        expect(offset()).toBe('translateX(50px)');
+        fireEvent.touchEnd(row(), { touches: [], changedTouches: [finger(220, 100)] });
+        expect(animate).toHaveBeenCalledTimes(2);
         view.unmount();
         expect(cancel).toHaveBeenCalledTimes(2);
-      } finally {
-        delete (HTMLElement.prototype as Partial<HTMLElement>).animate;
-      }
-    });
-    it('offline, opens a week whose days are known and waits for it, as the calendar does', async () => {
-      try {
+      });
+      it('takes the row back from a side without a week where it is, either way', async () => {
+        renderApp('/menu?day=2026-10-15');
+        await screen.findByRole('link', { name: 'giovedì 15 ottobre' });
+        await settle();
+        drag(-60);
+        // Halfway back from the missing next week, a new touch holds the row where it is…
+        strip().style.transform = 'translateX(-40px)';
+        fireEvent.touchStart(row(), touch(200, 100));
+        expect(offset()).toBe('translateX(-40px)');
+        // …and the finger goes on from there, leftwards with resistance…
+        fireEvent.touchMove(row(), touch(190, 100));
+        expect(offset()).toBe(`translateX(${resist(unresist(-40, 350) - 10, 350)}px)`);
+        expect(stripOffset(strip())).toBeLessThan(-40);
+        // …or rightwards, towards the previous week, without a jump at the middle.
+        fireEvent.touchMove(row(), touch(300, 100));
+        expect(offset()).toBe(`translateX(${unresist(-40, 350) + 100}px)`);
+        fireEvent.touchEnd(row(), { touches: [], changedTouches: [finger(300, 100)] });
+      });
+      it('takes the row back from the side without a previous week where it is', async () => {
+        // No meals in the week of 21 September: from the 30th there is no previous week.
+        const september = Array.from({ length: 7 }, (_, i) => addDays('2026-09-21', i));
+        renderApp('/menu?day=2026-09-30', { api: apiWithout(...september) });
+        await screen.findByRole('link', { name: 'mercoledì 30 settembre' });
+        await settle();
+        drag(60);
+        strip().style.transform = 'translateX(40px)';
+        fireEvent.touchStart(row(), touch(200, 100));
+        fireEvent.touchMove(row(), touch(210, 100));
+        expect(offset()).toBe(`translateX(${resist(unresist(40, 350) + 10, 350)}px)`);
+        expect(stripOffset(strip())).toBeGreaterThan(40);
+        fireEvent.touchMove(row(), touch(100, 100));
+        expect(offset()).toBe(`translateX(${unresist(40, 350) - 100}px)`);
+        fireEvent.touchEnd(row(), { touches: [], changedTouches: [finger(100, 100)] });
+      });
+      it('ignores a tap on a day while the row completes the week change', async () => {
+        renderApp('/menu');
+        await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+        await settle();
+        drag(-130);
+        // The row is still moving: a tap on Friday 9 is neither a gesture nor a choice.
+        const friday = screen.getByRole('link', { name: 'venerdì 9 ottobre' });
+        fireEvent.touchStart(friday, touch(250, 100));
+        fireEvent.touchEnd(friday, { touches: [], changedTouches: [finger(250, 100)] });
+        fireEvent.click(friday, { detail: 1 });
+        // The page has time to act on that click before the row's movement ends.
+        await settle();
+        await finish();
+        await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
+        await settle();
+        expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre');
+      });
+      it('lets a tap choose a day again once the week has changed', async () => {
         const { history } = renderApp('/menu');
         await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
         await settle();
+        drag(-130);
+        await finish();
+        const monday = await screen.findByRole('link', { name: 'lunedì 12 ottobre' });
+        fireEvent.touchStart(monday, touch(40, 100));
+        fireEvent.touchEnd(monday, { touches: [], changedTouches: [finger(40, 100)] });
+        fireEvent.click(monday, { detail: 1 });
+        await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
+      });
+      it('completes and goes back at once with reduced motion, still following the finger', async () => {
+        window.matchMedia = vi.fn((query: string) => ({ matches: query.includes('reduce') }) as MediaQueryList);
+        renderApp('/menu');
+        await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+        await settle();
+        const release = press(-60);
+        expect(offset()).toBe('translateX(-60px)');
+        release();
+        expect(offset()).toBe('');
+        drag(-130);
+        await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
+        expect(animate).not.toHaveBeenCalled();
+      });
+    });
+    it('reads the weeks alongside once, in advance, and not again when the app comes back', async () => {
+      const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+      const getWeek = vi.spyOn(api.menu, 'getWeek');
+      renderApp('/menu', { api });
+      await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+      await settle();
+      const read = () => getWeek.mock.calls.map(([input]) => input.weekStartsOn).sort();
+      expect(read()).toEqual(['2026-09-28', '2026-10-05', '2026-10-12']);
+      // Back in the foreground: only the week shown checks its version.
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await settle();
+      expect(read()).toEqual(['2026-09-28', '2026-10-05', '2026-10-05', '2026-10-12']);
+      focusManager.setFocused(undefined);
+    });
+    it('reads the weeks alongside in advance: offline, the next one opens at once', async () => {
+      try {
+        renderApp('/menu');
+        await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+        await settle();
         act(() => setOnline(false));
-        swipe(-80);
+        drag(-130);
+        await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 15 ottobre'));
+      } finally {
+        setOnline(true);
+      }
+    });
+    it('offline, opens a week whose days are known but not saved and waits for it, as the calendar does', async () => {
+      const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+      const getWeek = api.menu.getWeek;
+      // The reading in advance of the next week never ends.
+      api.menu.getWeek = (input) => (input.weekStartsOn === '2026-10-12' ? new Promise(() => {}) : getWeek(input));
+      try {
+        const { history } = renderApp('/menu', { api });
+        await screen.findByRole('link', { name: 'giovedì 8 ottobre' });
+        await settle();
+        act(() => setOnline(false));
+        drag(-130);
         await waitFor(() => expect(history.location.search).toContain('2026-10-15'));
         expect(await screen.findByText('Caricamento…')).toBeTruthy();
       } finally {
