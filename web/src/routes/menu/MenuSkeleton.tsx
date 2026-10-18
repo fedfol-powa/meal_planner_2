@@ -36,7 +36,13 @@ export function MenuSkeleton({ weekStartsOn, selected, onSelect, paused }: { wee
           ) : (
             <Skeleton className="day-links skeleton-card">
               <div className="day-week">
-                {Array.from({ length: 7 }, (_, i) => <span key={i} className="day-link" />)}
+                {/* The day's two lines, invisible: the cells keep the height of the real ones. */}
+                {Array.from({ length: 7 }, (_, i) => (
+                  <span key={i} className="day-link">
+                    <span>{'\u00a0'}</span>
+                    <strong>{'\u00a0'}</strong>
+                  </span>
+                ))}
               </div>
             </Skeleton>
           )}

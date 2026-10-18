@@ -18,8 +18,11 @@ export function RecipeCardSkeleton({ photo = true }: { photo?: boolean }) {
           <span className="skeleton-line" />
           <span className="skeleton-line" />
         </p>
+        {/* Time (clock icon first) and source share a baseline, as in the card: an empty icon and an invisible
+            space give the row the card's height. */}
         <div className={cardStyles.metaRow}>
-          <p className="meal-meta skeleton-line" />
+          <p className="meal-meta"><svg className="icon" />{'\u00a0'}</p>
+          <p className={`meal-source ${cardStyles.source}`}>{'\u00a0'}</p>
         </div>
       </div>
       <div className={cardStyles.footer}>

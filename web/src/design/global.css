@@ -169,10 +169,11 @@ html { height: 100%; }
    elements and classes, so heights match. The slow pulse is an exception to the guide's rule on decorative
    animation, approved by the user on 18 October 2026; it stops with reduced motion and when offline. */
 .skeleton:not([data-visible='true']) { visibility: hidden; }
-.skeleton-card { display: block; background: #ebe7de; box-shadow: none; border-color: transparent; pointer-events: none; }
-.skeleton-card * { background: transparent; border-color: transparent; box-shadow: none; }
+/* Repeated classes: the fill wins over the module classes the skeleton reuses (card, group, section, action, dividers). */
+.skeleton-card.skeleton-card { background: #ebe7de; box-shadow: none; border-color: transparent; pointer-events: none; }
+.skeleton-card.skeleton-card.skeleton-card * { background: transparent; border-color: transparent; box-shadow: none; }
 .skeleton-line { display: block; height: 1.5em; height: 1lh; }
-.skeleton-block { display: block; border-radius: 8px; background: #ebe7de; pointer-events: none; }
+.skeleton-block.skeleton-block { display: block; border-radius: 8px; background: #ebe7de; pointer-events: none; }
 .skeleton-card { animation: skeleton-pulse 1.6s ease-in-out infinite alternate; }
 .skeleton-block { animation: skeleton-pulse 1.6s ease-in-out infinite alternate; }
 @keyframes skeleton-pulse { from { opacity: 1; } to { opacity: 0.5; } }
