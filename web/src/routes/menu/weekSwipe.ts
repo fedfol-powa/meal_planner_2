@@ -25,10 +25,19 @@ export function releaseStep(dx: number, velocity: number, width: number): -1 | 0
   return quick && Math.abs(dx) >= FLICK_DISTANCE ? step : 0;
 }
 
+const RESISTANCE = 0.55;
+
 /** The finger's move towards a week that does not exist: less and less, as at the end of an iOS list. */
 export function resist(dx: number, width: number): number {
   if (dx === 0 || width <= 0) return 0;
-  return Math.sign(dx) * (1 - 1 / ((Math.abs(dx) * 0.55) / width + 1)) * width;
+  return Math.sign(dx) * (1 - 1 / ((Math.abs(dx) * RESISTANCE) / width + 1)) * width;
+}
+
+/** The finger's move that `resist` turns into this offset: a drag taken over from there goes on smoothly. */
+export function unresist(offset: number, width: number): number {
+  const shown = Math.min(Math.abs(offset), width - 1);
+  if (shown <= 0 || width <= 0) return 0;
+  return (Math.sign(offset) * (width / RESISTANCE) * shown) / (width - shown);
 }
 
 /** Pixels per millisecond over the last samples, the release being the last one. */

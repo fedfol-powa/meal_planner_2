@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { formatDayLong, formatDayNumber, formatDayShort } from '../i18n/dates';
 import { useLocale } from '../i18n/LocaleProvider';
 import { addDays, type IsoDate } from '../lib/calendar';
-import { AXIS_SLOP, moveStrip, releaseStep, resist, stopMotion, stripOffset, velocityOf, type Sample } from '../routes/menu/weekSwipe';
+import { AXIS_SLOP, moveStrip, releaseStep, resist, stopMotion, stripOffset, unresist, velocityOf, type Sample } from '../routes/menu/weekSwipe';
 
 interface Props {
   dates: IsoDate[];
@@ -23,7 +23,7 @@ interface Gesture {
   id: number;
   x: number;
   y: number;
-  /** Where the strip was when the finger came down (halfway back from an earlier drag). */
+  /** Where the strip was when the finger came down (halfway back from an earlier drag), as a move of the finger before any resistance. */
   base: number;
   width: number;
   axis: 'x' | 'y' | null;
@@ -57,6 +57,8 @@ export function DaySelector({ dates, selected, onSelect, adjacent, onSwipe }: Pr
       const reach = g.width + DIVIDER;
       return exists(x < 0 ? 1 : -1) ? Math.max(-reach, Math.min(reach, x)) : resist(x, g.width);
     };
+    // The finger's move that shows the strip at `offset`: on a side without a week, before the resistance.
+    const moveFor = (offset: number, width: number) => (offset === 0 || exists(offset < 0 ? 1 : -1) ? offset : unresist(offset, width));
     const back = (from: number) => moveStrip(moving, from, 0, BACK_MS);
     const end = () => {
       const g = gesture;
@@ -71,14 +73,21 @@ export function DaySelector({ dates, selected, onSelect, adjacent, onSwipe }: Pr
 
     const onStart = (event: TouchEvent) => {
       abandon();
+      // While the row completes a week change, a touch is neither a drag nor the choice of a day:
+      // its click is ignored too, whenever it comes (a new touch afterwards resets this).
+      if (changing.current) {
+        swipedUntil.current = Infinity;
+        return;
+      }
       swipedUntil.current = 0;
       const touch = event.touches.length === 1 ? event.changedTouches[0] : undefined;
-      if (!touch || changing.current) return;
+      if (!touch) return;
       // A touch during the way back holds the row where it is.
-      const base = stripOffset(moving);
+      const shown = stripOffset(moving);
       stopMotion(moving);
-      moving.style.transform = base ? `translateX(${base}px)` : '';
-      gesture = { id: touch.identifier, x: touch.clientX, y: touch.clientY, base, width: element.clientWidth, axis: null, samples: [{ t: performance.now(), x: 0 }] };
+      moving.style.transform = shown ? `translateX(${shown}px)` : '';
+      const width = element.clientWidth;
+      gesture = { id: touch.identifier, x: touch.clientX, y: touch.clientY, base: moveFor(shown, width), width, axis: null, samples: [{ t: performance.now(), x: 0 }] };
       // A second finger anywhere on the screen ends the drag, also when it lands outside the row.
       document.addEventListener('touchstart', abandon, { capture: true, passive: true });
       stopWatching = () => {
@@ -111,7 +120,7 @@ export function DaySelector({ dates, selected, onSelect, adjacent, onSwipe }: Pr
       if (!g || !touch) return;
       end();
       const dx = touch.clientX - g.x;
-      const from = g.axis === 'x' ? position(g, dx) : g.base;
+      const from = position(g, g.axis === 'x' ? dx : 0);
       if (g.axis !== 'x') {
         if (from !== 0) back(from);
         return;

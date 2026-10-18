@@ -88,22 +88,37 @@ Valutate due strade.
   si chiama `onSwipe(step)`, che naviga con il percorso del calendario (W19). Se `onSwipe`
   risponde `false` (settimana sparita nel frattempo) la fila torna indietro.
 - **Ritorno**: verso 0 in 200 ms. Un nuovo tocco durante il ritorno riprende la fila dal
-  punto in cui si trova (posizione letta dalla trasformazione calcolata), senza salti.
+  punto in cui si trova (posizione letta dalla trasformazione calcolata), senza salti. Il
+  gesto ripreso parte dalla distanza del dito che darebbe quella posizione: su un lato senza
+  settimana è la distanza prima della resistenza (`unresist`, l'inversa di `resist`), così la
+  resistenza non si applica due volte e la fila prosegue nello stesso verso; tornando verso il
+  lato con la settimana, il passaggio per lo zero è continuo (revisione PR #74, rilievo 2).
 - Con `prefers-reduced-motion: reduce` o senza Web Animations API: completamento e ritorno
   istantanei; il trascinamento segue comunque il dito (manipolazione diretta).
-- Fra completamento e arrivo dei giorni nuovi i tocchi sulla fila si ignorano.
+- Fra completamento e arrivo dei giorni nuovi i tocchi sulla fila si ignorano, e con loro il
+  clic che il tocco produce: la protezione non si azzera, anzi resta attiva fino al clic di quel
+  tocco o al tocco successivo. Altrimenti un tocco su un giorno durante il completamento lo
+  selezionerebbe e si arriverebbe a quel giorno della settimana nuova (revisione PR #74,
+  rilievo 1). Tastiera e mouse restano come in W19.
 
 ## Arrivo senza salti
 
-- La pagina legge **in anticipo le due settimane accanto** quando le date dicono che esistono
-  (`useQueries` con la stessa `weekQuery`, abilitata solo in quel caso): al rilascio la
-  settimana è quasi sempre già nella copia locale e la pagina passa da una settimana all'altra
-  senza «Caricamento…». Costo: fino a due letture `menu.getWeek` in più per ogni settimana
-  mostrata, con la lettura condizionale per versione già in uso (`readThrough`); nessuna
-  operazione nuova. Effetto collaterale utile: offline si raggiungono anche le settimane
-  accanto già viste.
-- Le stesse letture rendono reattiva la disponibilità: una settimana è disponibile se un suo
-  giorno è in `menu.getDates` (W19) o se la sua copia è già salvata (dato della query).
+- La pagina legge **in anticipo le due settimane accanto** quando le date dicono che esistono:
+  `prefetchQuery` con la stessa `weekQuery` e `staleTime: Infinity`, quindi una sola lettura e
+  solo se la settimana non è già nella copia locale. Nessuno osserva queste letture: non si
+  ripetono al ritorno in primo piano, alla riconnessione né alle invalidazioni (decisione del
+  coordinatore dopo la revisione della PR #74). Al rilascio la settimana è quasi sempre già
+  nella copia locale e la pagina passa da una settimana all'altra senza «Caricamento…»; se la
+  copia anticipata è vecchia, all'arrivo la normale lettura della settimana mostrata ne
+  controlla la versione (`staleTime: 0`), come per ogni copia salvata.
+- **Costo:** all'apertura fino a due `menu.getWeek` in più (tre invece di una); spostandosi
+  di una settimana, al più una lettura anticipata nuova (quella oltre), più il controllo di
+  versione della settimana mostrata che c'era già; al ritorno in primo piano, alla
+  riconnessione e alle invalidazioni solo la settimana mostrata, come prima di W21. Le letture
+  sono condizionali per versione (`readThrough`); nessuna operazione nuova. Effetto collaterale
+  utile: offline si raggiungono anche le settimane accanto già lette.
+- Disponibilità: una settimana è disponibile se un suo giorno è in `menu.getDates` (W19) o se
+  la sua copia è già salvata.
 - Quando arrivano i giorni nuovi (cambia il primo giorno di `dates`) un `useLayoutEffect` di
   `DaySelector` toglie la trasformazione prima del disegno: la settimana che era a lato è ora
   quella centrale, con le stesse date e lo stesso giorno evidenziato, e la fila non lampeggia
@@ -148,6 +163,11 @@ Valutate due strade.
     trascinamento, secondo dito fuori dalla fila, nuovo tocco, tastiera, mouse senza
     `pointerType`, giorno di arrivo senza pasti, settimana a cavallo del mese, offline;
   - con movimento ridotto nessuna animazione; animazione in corso cancellata allo smontaggio.
+  - revisione PR #74, con animazioni che il test fa finire: tocco su un giorno durante il
+    completamento → si arriva comunque allo stesso giorno della settimana; dopo l'arrivo un
+    tocco sceglie di nuovo il giorno; ripresa del ritorno da entrambi i lati senza settimana,
+    proseguendo e invertendo la direzione; letture `menu.getWeek` contate all'apertura (tre) e
+    al ritorno in primo piano (una sola in più, la settimana mostrata).
 - Verifica con agent-browser a larghezza da telefono, eventi touch veri via CDP, sul server di
   sviluppo con dati finti; screenshot a metà trascinamento per la PR.
 
@@ -195,6 +215,10 @@ Tecniche (sezione 14, «Swipe sulla fila dei giorni»):
 - Completamento 220 ms e ritorno 200 ms con la Web Animations API, istantanei con
   `prefers-reduced-motion`; la fila resta sulla settimana accanto fino all'arrivo dei giorni
   nuovi.
-- Lettura anticipata delle due settimane accanto quando esistono (fino a due `menu.getWeek`
-  in più per settimana mostrata, condizionali per versione); scartato lo scorrimento nativo
+- Lettura anticipata e non osservata delle due settimane accanto quando esistono e non sono
+  già salvate (`prefetchQuery`, `staleTime: Infinity`): all'apertura fino a due `menu.getWeek`
+  in più, mai ripetute al ritorno in primo piano, alla riconnessione o alle invalidazioni;
+  all'arrivo la lettura della settimana controlla la versione. Scartato lo scorrimento nativo
   con snap (soglia e movimento ridotto non controllabili).
+- Ripresa del ritorno dalla distanza del dito prima della resistenza; un tocco durante il
+  completamento non è né gesto né scelta del giorno, e il suo clic si ignora.

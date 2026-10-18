@@ -111,13 +111,21 @@ function MenuView({ family }: { family: FamilyView }) {
   const months = [...new Set(neighbourWeeks.flatMap((monday) => [monday.slice(0, 7), addDays(monday, 6).slice(0, 7)]))];
   const datesWithMenu = useQueries({ queries: months.map((month) => datesQuery(deps, familyId, month)) }).flatMap((q) => q.data ?? []);
   const hasMenu = (monday: IsoDate) => datesWithMenu.some((date) => mondayOf(date) === monday);
-  // A week alongside exists if one of its days has a menu or it is saved; when it exists it is read
-  // in advance, so that the drag of the days lands on it without «Loading…».
-  const weeksAlongside = useQueries({
-    queries: neighbourWeeks.map((monday) => ({ ...weekQuery(deps, familyId, monday), enabled: hasMenu(monday), retry: false }))
-  });
-  const exists = neighbourWeeks.map((monday, i) => !!weeksAlongside[i]?.data || hasMenu(monday));
+  const isSaved = (monday: IsoDate) => !!deps.queryClient.getQueryData(queryKeys.week(familyId, monday, locale));
+  // A week alongside exists if one of its days has a menu or it is saved.
+  const exists = neighbourWeeks.map((monday) => hasMenu(monday) || isSaved(monday));
   const adjacent = { previous: !!exists[0], next: !!exists[1] };
+  // When it exists and is not saved yet it is read once in advance, so that the drag of the days lands
+  // on it without «Loading…». Nothing observes that read: it is not repeated when the app comes back
+  // or reconnects; on arrival the week's own read checks the saved copy's version.
+  const { api, queryClient } = deps;
+  const toRead = neighbourWeeks.filter(hasMenu).join(',');
+  useEffect(() => {
+    if (!toRead) return;
+    for (const monday of toRead.split(',')) {
+      void queryClient.prefetchQuery({ ...weekQuery({ api, queryClient, locale }, familyId, monday), staleTime: Infinity, retry: false });
+    }
+  }, [toRead, api, queryClient, locale, familyId]);
 
   // A day whose week does not exist (old link, typo) falls back to the opening day.
   const weekMissing = !!requested && week.isError && toApiError(week.error).code === 'not_found';
@@ -144,8 +152,7 @@ function MenuView({ family }: { family: FamilyView }) {
     if (!selected) return false;
     const target = addDays(selected, step * 7);
     const monday = mondayOf(target);
-    const saved = deps.queryClient.getQueryData(queryKeys.week(familyId, monday, locale));
-    if (!saved && !hasMenu(monday)) return false;
+    if (!isSaved(monday) && !hasMenu(monday)) return false;
     select(target);
     return true;
   }

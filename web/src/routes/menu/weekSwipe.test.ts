@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { releaseStep, resist, velocityOf } from './weekSwipe';
+import { releaseStep, resist, unresist, velocityOf } from './weekSwipe';
 
 describe('releaseStep', () => {
   it('goes to the next week leftwards and to the previous one rightwards past a third of the row', () => {
@@ -37,6 +37,10 @@ describe('resist', () => {
   it('keeps the direction', () => {
     expect(resist(-100, 340)).toBeCloseTo(-resist(100, 340));
     expect(resist(0, 340)).toBe(0);
+  });
+  it('is undone by unresist, either way', () => {
+    for (const dx of [-300, -40, 5, 120]) expect(unresist(resist(dx, 340), 340)).toBeCloseTo(dx);
+    expect(unresist(0, 340)).toBe(0);
   });
 });
 
