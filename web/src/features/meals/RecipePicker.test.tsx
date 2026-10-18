@@ -70,7 +70,7 @@ describe('change recipe: suggestions while loading (W20)', () => {
   it('«Proponimene altri» to an unsaved page shows the skeleton, not an empty list', async () => {
     const { server } = realMealsApp();
     const next = held<ReturnType<typeof page>>();
-    server.answerMeals({ getSuggestions: (input: { offset: number }) => (input.offset === 0 ? page(0) : next.promise) });
+    server.answerMeals({ getSuggestions: (input) => (input.offset === 0 ? page(0) : next.promise) });
     const { sheet } = await openPicker(/Pizza/);
     fireEvent.click(await within(sheet).findByRole('button', { name: 'Proponimene altri' }));
     const section = suggestionsOf(sheet);
@@ -111,7 +111,7 @@ describe('change recipe: suggestions while loading (W20)', () => {
 
   it('suggestions offline without a saved copy keep a still skeleton', async () => {
     const { server } = realMealsApp();
-    server.answerMeals({ getSuggestions: (input: { offset: number }) => page(input.offset) });
+    server.answerMeals({ getSuggestions: (input) => page(Number(input.offset)) });
     const { sheet } = await openPicker(/Pizza/);
     await within(sheet).findByRole('button', { name: 'Scegli Ricetta 0' });
     // Reading stays possible offline: the next page waits for the network.
