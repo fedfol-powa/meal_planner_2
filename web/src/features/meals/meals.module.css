@@ -37,8 +37,10 @@
 .rows { margin: 0; padding: 0; list-style: none; }
 .rows li { padding: 8px 0; }
 .rows li + li { border-top: 1px solid var(--rule); }
-.rows button { display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; }
-.rows button:disabled, .cardBody:disabled { cursor: progress; }
+/* Skeleton rows keep the padding of the rows outside the block, so they stay apart (W20). */
+.rowSkeleton { background-clip: content-box; }
+.rowBody { display: grid; gap: 2px; width: 100%; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; }
+.rowBody:disabled, .cardBody:disabled { cursor: progress; }
 
 /* Swap list, free meal and note (prototype SwapPicker.svelte and MealEditor.svelte). */
 .swapList { margin: 0; padding: 0; list-style: none; }

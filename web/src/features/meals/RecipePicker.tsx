@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { useAreaMutation } from '../../api/mutations';
-import { searchQuery, useQueryDeps } from '../../api/queries';
+import { keepPreviousWithin, searchQuery, useQueryDeps } from '../../api/queries';
 import type { MealView, RecipeQuery, RecipeSummary } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { useOnline } from '../../components/OfflineBanner';
@@ -38,7 +38,9 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
     !!query.text || query.mealType !== meal.mealType || !!query.maxMinutes || !!query.proteinGroup || !!query.minStars || !!query.sort || !!query.reversed;
   const [excluded, setExcluded] = useState<{ id: string; name: string } | null>(null);
   const suggestions = useQuery(suggestionsQuery(deps, familyId, meal.slotId, offset));
-  const search = useQuery({ ...searchQuery(deps, familyId, query), enabled: searching });
+  const searchOptions = searchQuery(deps, familyId, query);
+  // The previous results stay while the next search loads: the list does not collapse at each key (W20).
+  const search = useQuery({ ...searchOptions, enabled: searching, placeholderData: keepPreviousWithin(searchOptions.queryKey, ['familyId', 'locale']) });
   const setRecipe = useMealMutation<{ recipeId: string }>('meals.setRecipe', familyId, weekStartsOn, ({ recipeId, id }) =>
     api.meals.setRecipe({ familyId, slotId: meal.slotId, recipeId, id })
   );
@@ -143,24 +145,25 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
             <button type="button" className="text-button" onClick={() => void search.refetch()}>{t('common.retry')}</button>
           </p>
         )}
-        {searching &&
-          (results.length > 0 ? (
-            <ul className={styles.rows} aria-label={t('meals.results')}>
-              {results.map((item) => (
-                <li key={item.recipe.id}>
-                  <button type="button" aria-label={t('meals.pick', { recipe: item.recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(item.recipe.id)}>
-                    <span className={styles.name}>{item.recipe.name}</span>
-                    <span className={styles.meta}>{meta(item.recipe)}</span>
-                  </button>
-                  <RatingStars summary={item.rating} recipeId={item.recipe.id} recipeName={item.recipe.name} familyId={familyId} readOnly />
-                </li>
-              ))}
-            </ul>
-          ) : search.isError ? null : search.isSuccess ? (
-            <p className="meta-line">{t('meals.noResults')}</p>
-          ) : (
-            <p className="meta-line" role="status">{t('common.loading')}</p>
-          ))}
+        {searching && (
+          <LoadingArea loading={search.isPending} paused={search.fetchStatus === 'paused'} skeleton={<SearchSkeleton />}>
+            {results.length > 0 ? (
+              <ul className={styles.rows} aria-label={t('meals.results')}>
+                {results.map((item) => (
+                  <li key={item.recipe.id}>
+                    <button type="button" className={styles.rowBody} aria-label={t('meals.pick', { recipe: item.recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(item.recipe.id)}>
+                      <span className={styles.name}>{item.recipe.name}</span>
+                      <span className={styles.meta}>{meta(item.recipe)}</span>
+                    </button>
+                    <RatingStars summary={item.rating} recipeId={item.recipe.id} recipeName={item.recipe.name} familyId={familyId} readOnly />
+                  </li>
+                ))}
+              </ul>
+            ) : search.isSuccess ? (
+              <p className="meta-line">{t('meals.noResults')}</p>
+            ) : null}
+          </LoadingArea>
+        )}
       </section>
     </div>
   );
@@ -193,6 +196,25 @@ function SuggestionsSkeleton() {
       </ul>
       <span className={`skeleton-block ${styles.more}`} style={{ height: 44 }} />
     </>
+  );
+}
+
+/** Three result rows (name, meta, rating) for the first search, with the rows' own classes. */
+function SearchSkeleton() {
+  return (
+    <ul className={styles.rows}>
+      {[0, 1, 2].map((i) => (
+        <li key={i} className={`skeleton-card ${styles.rowSkeleton}`}>
+          <span className={styles.rowBody}>
+            <span className={`${styles.name} skeleton-line`} />
+            <span className={`${styles.meta} skeleton-line`} />
+          </span>
+          <div className={`${ratingStyles.rating} ${ratingStyles.readOnly}`}>
+            <div className={ratingStyles.row}><span className="skeleton-line" /></div>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

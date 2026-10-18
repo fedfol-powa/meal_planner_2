@@ -1,5 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ORPCError } from '@orpc/server';
 import { setOnline } from '../../test/connectivity';
 import { SERVER_RECIPE } from '../../test/rpcServer';
 import { DINNER, LUNCH, realMealsApp } from './testApp';
@@ -16,6 +17,53 @@ async function open(card: RegExp, button: string) {
   fireEvent.click(within(article).getByRole('button', { name: button }));
   return { article, sheet: await screen.findByRole('dialog') };
 }
+
+describe('free meal picks while loading (W20)', () => {
+  const openFree = async () => {
+    const { sheet } = await open(/Ricetta dal server/, 'Cambia ricetta');
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Segna come pasto libero' }));
+    await within(sheet).findByRole('textbox', { name: 'Testo del pasto libero' });
+    return sheet;
+  };
+
+  it('free meal: chips skeleton while the picks load', async () => {
+    const { server } = realMealsApp();
+    let release!: (value: unknown) => void;
+    server.answerMeals({ getSuggestions: () => new Promise((done) => (release = done)) });
+    const sheet = await openFree();
+    const form = sheet.querySelector('form')!;
+    await waitFor(() => expect(form.querySelector('.skeleton[data-visible="true"]')).not.toBeNull());
+    expect(form.querySelectorAll('.skeleton .skeleton-block')).toHaveLength(3);
+    await act(async () => release({ recipes: [], nextOffset: 0, freeTexts: ['Fuori'] }));
+    expect(await within(sheet).findByRole('button', { name: 'Fuori' })).toBeTruthy();
+    expect(form.querySelector('.skeleton')).toBeNull();
+  });
+
+  it('free meal: saved picks show at once', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: () => ({ recipes: [], nextOffset: 0, freeTexts: ['Avanzi'] }) });
+    const { sheet } = await open(/Ricetta dal server/, 'Cambia ricetta');
+    await waitFor(() => expect(server.mealCalls.some((c) => c.op === 'meals.getSuggestions')).toBe(true));
+    await waitFor(() => expect(sheet.querySelector('.skeleton')).toBeNull());
+    server.answerMeals({ getSuggestions: () => new Promise(() => undefined) });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Segna come pasto libero' }));
+    expect(await within(sheet).findByRole('button', { name: 'Avanzi' })).toBeTruthy();
+    expect(sheet.querySelector('form .skeleton')).toBeNull();
+  });
+
+  it.each([
+    ['no picks', () => ({ recipes: [], nextOffset: 0, freeTexts: [] })],
+    ['an error', () => { throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 }); }]
+  ])('free meal: %s leaves no row', async (_, answer) => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: answer });
+    const sheet = await openFree();
+    await waitFor(() => expect(server.mealCalls.some((c) => c.op === 'meals.getSuggestions')).toBe(true));
+    await waitFor(() => expect(sheet.querySelector('form .skeleton')).toBeNull());
+    expect(sheet.querySelector('form [aria-busy]')).toBeNull();
+    expect(within(sheet.querySelector('form')!).queryAllByRole('button').map((b) => b.textContent)).toEqual(['Indietro', 'Salva']);
+  });
+});
 
 describe('swap, free meal and note', () => {
   it('swaps with another meal of the week; «Indietro» goes back to the recipes', async () => {
