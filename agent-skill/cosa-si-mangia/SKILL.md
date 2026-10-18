@@ -28,8 +28,11 @@ Skill version: 2026-10-18
     `catalogue_createIngredient`, `catalogue_createBook`, `catalogue_setPhotoFromUrl`,
     `appInvitations_create`, `familyInvitations_create`. Repeating a request with the same
     `id` changes nothing, so retry a failed call with the same `id`.
-  - Every other `id` names something that exists (a user, an invitation...): take it from a
-    read such as `users_list` or `familyInvitations_list`, never generate it.
+  - Every other `id` of the tools in this skill names something that exists (a user, an
+    invitation...): take it from a read such as `users_list` or `familyInvitations_list`,
+    never generate it.
+  - For tools this skill does not cover, such as the shopping list, the tool's schema and
+    description tell whether its `id` is new or existing.
 
 ## Who and which family
 
