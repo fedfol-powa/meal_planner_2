@@ -9,10 +9,20 @@ export function swipeStep(dx: number, dy: number): -1 | 0 | 1 {
   return dx < 0 ? 1 : -1;
 }
 
+// One running animation per element: a new one replaces it, unmounting stops it.
+const running = new WeakMap<Element, Animation>();
+
+export function stopMotion(element: Element | null | undefined) {
+  if (!element) return;
+  running.get(element)?.cancel();
+  running.delete(element);
+}
+
 function animate(element: Element | null | undefined, keyframes: Keyframe[], duration: number) {
+  stopMotion(element);
   if (!element || typeof element.animate !== 'function') return;
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-  element.animate(keyframes, { duration, easing: 'ease-out' });
+  running.set(element, element.animate(keyframes, { duration, easing: 'ease-out' }));
 }
 
 /** A short nudge towards the swipe and back: there is no week that way. */

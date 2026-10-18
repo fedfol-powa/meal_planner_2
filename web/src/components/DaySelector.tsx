@@ -1,8 +1,8 @@
-import { useRef, type TouchEvent } from 'react';
+import { useEffect, useRef, type TouchEvent } from 'react';
 import { formatDayLong, formatDayNumber, formatDayShort } from '../i18n/dates';
 import { useLocale } from '../i18n/LocaleProvider';
 import type { IsoDate } from '../lib/calendar';
-import { bounce, swipeStep } from '../routes/menu/weekSwipe';
+import { bounce, stopMotion, swipeStep } from '../routes/menu/weekSwipe';
 
 interface Props {
   dates: IsoDate[];
@@ -15,19 +15,46 @@ interface Props {
 export function DaySelector({ dates, selected, onSelect, onSwipe }: Props) {
   const { locale } = useLocale();
   const row = useRef<HTMLDivElement>(null);
-  const start = useRef<{ x: number; y: number } | null>(null);
-  // Until then, the click some browsers send to the day under the finger belongs to the swipe.
+  // The finger that started on the row; null once the gesture is over or has more fingers.
+  const gesture = useRef<{ id: number; x: number; y: number } | null>(null);
+  const stopWatching = useRef(() => {});
+  // Until then, the click the browser sends to the day under the finger belongs to the swipe.
   const swipedUntil = useRef(0);
+
+  useEffect(() => {
+    const element = row.current;
+    return () => {
+      stopWatching.current();
+      stopMotion(element);
+    };
+  }, []);
+
+  const cancel = () => {
+    gesture.current = null;
+    stopWatching.current();
+  };
 
   // Passive listeners: vertical scrolling and system gestures stay native.
   const onTouchStart = (event: TouchEvent) => {
-    const touch = event.touches[0];
-    start.current = event.touches.length === 1 && touch ? { x: touch.clientX, y: touch.clientY } : null;
+    cancel();
+    swipedUntil.current = 0;
+    const touch = event.touches.length === 1 ? event.changedTouches[0] : undefined;
+    if (!touch) return;
+    gesture.current = { id: touch.identifier, x: touch.clientX, y: touch.clientY };
+    // A second finger anywhere on the screen ends the swipe, also when it lands outside the row.
+    document.addEventListener('touchstart', cancel, { capture: true, passive: true });
+    stopWatching.current = () => {
+      document.removeEventListener('touchstart', cancel, { capture: true });
+      stopWatching.current = () => {};
+    };
+  };
+  const onTouchMove = (event: TouchEvent) => {
+    if (event.touches.length > 1) cancel();
   };
   const onTouchEnd = (event: TouchEvent) => {
-    const touch = event.changedTouches[0];
-    const from = start.current;
-    start.current = null;
+    const from = gesture.current;
+    const touch = from && Array.from(event.changedTouches).find((t) => t.identifier === from.id);
+    cancel();
     if (!onSwipe || !from || !touch || event.touches.length > 0) return;
     const step = swipeStep(touch.clientX - from.x, touch.clientY - from.y);
     if (!step) return;
@@ -40,13 +67,16 @@ export function DaySelector({ dates, selected, onSelect, onSwipe }: Props) {
       ref={row}
       className="day-links"
       onTouchStart={onSwipe && onTouchStart}
+      onTouchMove={onSwipe && onTouchMove}
       onTouchEnd={onSwipe && onTouchEnd}
-      onTouchCancel={() => (start.current = null)}
+      onTouchCancel={onSwipe && cancel}
       onClickCapture={(event) => {
-        if (performance.now() < swipedUntil.current) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
+        // Keyboard activation (detail 0) and the mouse are never the swipe's click.
+        const pointerType = (event.nativeEvent as Partial<PointerEvent>).pointerType;
+        if (performance.now() >= swipedUntil.current || event.detail === 0 || pointerType === 'mouse') return;
+        swipedUntil.current = 0;
+        event.preventDefault();
+        event.stopPropagation();
       }}
     >
       {dates.map((date) => (
