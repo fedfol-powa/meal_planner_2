@@ -200,11 +200,13 @@ describe('previous data only within the same view (second review, C7)', () => {
     await screen.findByRole('link', { name: /Wok di pollo/ });
     // A first round trip puts both profiles in cache: the page stays mounted on the last switch.
     fireEvent.click(screen.getByText('test: english'));
-    await screen.findByText('Loading…');
+    // The recipe skeleton (W20) while the new language loads.
+    await waitFor(() => expect(document.querySelector('.secondary-view .skeleton')).not.toBeNull());
     fireEvent.click(screen.getByText('test: italiano'));
     await screen.findByRole('link', { name: /Wok di pollo/ });
     fireEvent.click(screen.getByText('test: english'));
-    await screen.findByText('Loading…');
+    // The recipe skeleton (W20) while the new language loads.
+    await waitFor(() => expect(document.querySelector('.secondary-view .skeleton')).not.toBeNull());
     expect(wokTitle()).toBeNull();
   });
   it('keeps the recipe while only the servings change, with the ingredients marked as updating', async () => {

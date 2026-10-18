@@ -6,8 +6,8 @@ import { isBlocking, toApiError } from '../../api/errors';
 import type { FamilyView } from '../../api/types';
 import { FamilyGate } from '../../components/FamilyGate';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
+import { BusyArea, LoadingScope, Skeleton } from '../../components/Skeleton';
 import { StateNotice } from '../../components/StateNotice';
 import { formatChangeTime, formatDayMonth } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
@@ -26,7 +26,80 @@ import { useShoppingList } from './useShoppingList';
 const route = getRouteApi('/_app/shopping/$weekStartsOn');
 
 export function ShoppingPage() {
-  return <FamilyGate>{(family) => <ShoppingView family={family} />}</FamilyGate>;
+  return <FamilyGate waiting={(paused) => <ShoppingWaiting paused={paused} />}>{(family) => <ShoppingView family={family} />}</FamilyGate>;
+}
+
+function BackLink() {
+  const t = useT();
+  const { day } = route.useSearch();
+  return (
+    <Link to="/menu" search={day ? { day } : {}} className="page-back">
+      <Icon name="chevron-left" />
+      {t('nav.menu')}
+    </Link>
+  );
+}
+
+/** The page's column and header, the same while loading, on errors and with the list (W20). */
+function ShoppingLayout({ header, children }: { header: ReactNode; children?: ReactNode }) {
+  return (
+    <section className="secondary-view app-view" aria-labelledby="list-title">
+      <div className="page-column">
+        <header className="page-header">{header}</header>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Waiting for the list, or for the changes saved on the phone (W20): back link and title are real (the week
+ * comes from the address), the summary, the «…» menu and the departments are blocks of one wait.
+ */
+function ShoppingWaiting({ paused }: { paused: boolean }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const { weekStartsOn } = route.useParams();
+  return (
+    <LoadingScope loading paused={paused}>
+      <ShoppingLayout
+        header={
+          <div className={styles.header}>
+            <BackLink />
+            <h1 className="page-title" id="list-title">{t('shopping.title', { range: weekRange(locale, weekStartsOn) })}</h1>
+            <Skeleton as="p" className={`${styles.meta} skeleton-block`} style={{ width: '30%', height: '1lh' }} />
+            <Skeleton className={styles.menuWrap}><span className="skeleton-block" style={{ width: 44, height: 44, marginRight: -8 }} /></Skeleton>
+          </div>
+        }
+      >
+        <BusyArea>
+          <Skeleton><ShoppingListSkeleton /></Skeleton>
+        </BusyArea>
+      </ShoppingLayout>
+    </LoadingScope>
+  );
+}
+
+/** Two departments of four one-line items, with the list's own classes. */
+function ShoppingListSkeleton() {
+  return (
+    <>
+      {[0, 1].map((group) => (
+        <section key={group} className={`${styles.group} skeleton-card`}>
+          <h2 className="skeleton-line" />
+          <ul className={styles.items}>
+            {[0, 1, 2, 3].map((i) => (
+              <li key={i}>
+                <div className={styles.row}>
+                  <span className={styles.item}><span className="skeleton-line" style={{ gridColumn: '1 / -1' }} /></span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </>
+  );
 }
 
 /** «12–18 ottobre», «28 settembre – 4 ottobre»: days of the week as calendar dates. */
@@ -40,24 +113,11 @@ function ShoppingView({ family }: { family: FamilyView }) {
   const t = useT();
   const { locale } = useLocale();
   const { weekStartsOn } = route.useParams();
-  const { day } = route.useSearch();
   const familyId = family.id;
   const list = useShoppingList(familyId, weekStartsOn);
 
-  const back = (
-    <Link to="/menu" search={day ? { day } : {}} className="page-back">
-      <Icon name="chevron-left" />
-      {t('nav.menu')}
-    </Link>
-  );
-  const page = (header: ReactNode, content?: ReactNode) => (
-    <section className="secondary-view app-view" aria-labelledby="list-title">
-      <div className="page-column">
-        <header className="page-header">{header}</header>
-        {content}
-      </div>
-    </section>
-  );
+  const back = <BackLink />;
+  const page = (header: ReactNode, content?: ReactNode) => <ShoppingLayout header={header}>{content}</ShoppingLayout>;
 
   const { query } = list;
   if (query.isError) {
@@ -66,7 +126,8 @@ function ShoppingView({ family }: { family: FamilyView }) {
     if (code === 'not_found' || code === 'invalid') return page(back, <StateNotice title={t('shopping.empty.title')} body={t('shopping.empty.body')} />);
     if (isBlocking(query.error, !!query.data)) return page(back, <QueryError error={query.error} onRetry={() => void query.refetch()} />);
   }
-  if (!list.view) return page(back, <Loading />);
+  // No list without the queue saved on the phone (PR #22): its wait is the same skeleton as the read's.
+  if (!list.view) return <ShoppingWaiting paused={!query.data && query.fetchStatus === 'paused'} />;
 
   const { view, pendingKeys, pendingFreeIds } = list.view;
   // A new id for every change: it ties the queued operation to its answer.

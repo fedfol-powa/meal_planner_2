@@ -10,12 +10,15 @@ import { createStubBackend } from '../../test/stubBackend';
 import { listView, MONDAY } from './fixtures';
 import { createShoppingServer } from './testServer';
 
+// The list is shown: its «…» menu exists only then (the title is already there while loading, W20).
+const listShown = () => screen.findByRole('button', { name: 'Azioni della lista' });
+
 const URL = 'https://api.getbring.com/rest/bringrecipes/deeplink?url=x&source=web';
 
 async function open() {
   const server = createShoppingServer(undefined, DEMO_FAMILY_ID);
   renderApp(`/shopping/${MONDAY}`, { createApi: () => (locale) => server.api(locale), backend: createStubBackend(DEMO_USER) });
-  await screen.findByRole('heading', { level: 1 });
+  await listShown();
   return server;
 }
 const menu = () => fireEvent.click(screen.getByRole('button', { name: 'Azioni della lista' }));
