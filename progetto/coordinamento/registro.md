@@ -15,16 +15,14 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
     `c3a72b02`).
   - **W19, swipe fra le settimane:** PR #72, rilasciata alle 12:09 UTC (versione `3260a367`).
   - **W17 skill per Claude** (PR #68, #69, #70) e **W18 test di Bring!** (PR #71).
-- **PR di documentazione:** #76 (`docs/specifica-w19-w21-w20`, worktree
-  `.worktrees/doc-skeleton`): specifica, `design/percorsi.md` e `design/design.md` per W19,
-  W21 e W20; revisione `revisioni/spec-w20-pr76.md` con un rilievo minore, corretto in
-  `dcc92f4`. Attende il «mergia» dell'utente; dopo il merge W20 va segnata rilasciata (oggi
-  dice «rilascio in preparazione»).
+- **PR di documentazione:** #76 unita (specifica per W19, W21, W20); #77
+  (`docs/rilascio-w20`, worktree `.worktrees/doc-rilascio-w20`): W20 rilasciata e W20/W21
+  collaudate; revisione `revisioni/spec-w20-pr77.md` APPROVABILE. Attende il «mergia».
 - **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** per l'utente, «mergia» della #76; collaudi sull'iPhone del
-  trascinamento (W21) e dello skeleton (W20).
+- **Domande in sospeso:** per l'utente, «mergia» della #77. Collaudi di W20 e W21 fatti
+  dall'utente (18/10: «funziona»).
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
