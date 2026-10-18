@@ -1,9 +1,9 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 18 ottobre 2026 (skeleton nei caricamenti, W20, PR #75, unita e
-in attesa di rilascio; fila dei giorni che segue il dito, W21, PR #74, e swipe fra le
-settimane, W19, PR #72, rilasciati; rilascio e collaudo della skill per Claude in
+Ultimo aggiornamento: 18 ottobre 2026 (skeleton nei caricamenti, W20, PR #75, rilasciato
+e collaudato; fila dei giorni che segue il dito, W21, PR #74, rilasciata e collaudata;
+swipe fra le settimane, W19, PR #72, rilasciato; rilascio e collaudo della skill per Claude in
 «Collega un agente», W17, PR #68; rilascio e collaudo delle email dell'app, attività D)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
@@ -25,8 +25,8 @@ parte software, le email dell'app (PR #64), è unita e rilasciata lo stesso gior
 skill per Claude (W17, PR #68) è unita, rilasciata alle 09:22 UTC e collaudata
 dall'utente. Lo stesso giorno sono rilasciati lo swipe fra le settimane nel Menu (W19,
 PR #72, alle 12:09 UTC) e la sua correzione, la fila dei giorni che segue il dito (W21,
-PR #74, alle 13:49 UTC), ed è unito lo skeleton nei caricamenti (W20, PR #75), con il
-rilascio in preparazione.
+PR #74, alle 13:49 UTC) e lo skeleton nei caricamenti (W20, PR #75, alle 16:39 UTC);
+l'utente ha collaudato sull'iPhone la fila dei giorni e lo skeleton.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -3510,8 +3510,8 @@ generale).
 | Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra). Parte software (W15, spec `2026-10-17-email.md`) unita il 17 ottobre 2026 con la PR #64 e la migrazione `20261017100000_email.sql`: email «Scegli la password» dal server dopo l'accettazione di un invito, `/password` e «password dimenticata», etichetta «Non ha ancora confermato l'email», email operative di job, esportazione e cancellazioni (sezioni 4, 7 e 8), fine del rischio accettato delle email non verificate negli inviti. **Rilasciata** il 17 ottobre 2026 alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`), dopo i segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, il template di recupero e `mailer_otp_exp` 86400 in produzione; collaudata dall'utente: invito di prova, «password dimenticata», allarme di prova e prova sull'iPhone riusciti (runbook nella spec di dettaglio, sezione 9) |
 | Skill per Claude (W17) | Unita (PR #68) e **rilasciata** il 18 ottobre 2026 alle 09:22 UTC (versione del Worker `03721d89-5d69-4ed3-92fb-a2de8746f751`, commit `cdbd7fe`), senza migrazioni, segreti né risorse nuove; zip verificato in produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`). Collaudata dall'utente il 18 ottobre: zip caricato su claude.ai e skill provata dall'app Claude, funziona (sezione 13) |
 | Swipe fra le settimane (W19) | Unito (PR #72, merge `160d83b`) e **rilasciato** il 18 ottobre 2026 alle 12:09 UTC (versione del Worker `3260a367-c445-490d-abd3-359614a19f61`, commit `160d83b`), senza migrazioni, segreti né operazioni nuove. Rimbalzo e transizione sostituiti dalla W21 (riga sotto) |
-| Fila dei giorni che segue il dito (W21) | Correzione chiesta dall'utente dopo il rilascio di W19. Unita (PR #74, merge `341bdb1`) e **rilasciata** il 18 ottobre 2026 alle 13:49 UTC (versione del Worker `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`), senza migrazioni, segreti né operazioni nuove; provata con agent-browser ed eventi touch veri sul server di sviluppo. Collaudo sull'iPhone dell'utente ancora da fare: soglia e colpo veloce, resistenza, nessun rimbalzo verticale della pagina, arrivo senza lampeggi, «Riduci movimento», gesto «indietro» di Safari (sezioni 5 e 14) |
-| Skeleton nei caricamenti (W20, issue #49) | Unito il 18 ottobre 2026 (PR #75, merge `bb523a2`), senza migrazioni, segreti, operazioni né dipendenze nuove; rilascio in preparazione. Da provare dall'utente sull'iPhone dopo il rilascio: «Cambia ricetta» su un pasto mai aperto, Cerca, «Riduci movimento», VoiceOver, avvio a freddo della PWA, Spesa con spunte fatte offline (spec `2026-10-18-skeleton.md`; sezione 14) |
+| Fila dei giorni che segue il dito (W21) | Correzione chiesta dall'utente dopo il rilascio di W19. Unita (PR #74, merge `341bdb1`) e **rilasciata** il 18 ottobre 2026 alle 13:49 UTC (versione del Worker `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`), senza migrazioni, segreti né operazioni nuove; provata con agent-browser ed eventi touch veri sul server di sviluppo. **Collaudata** dall'utente sull'iPhone il 18 ottobre 2026 (sezioni 5 e 14) |
+| Skeleton nei caricamenti (W20, issue #49) | Unito (PR #75, merge `bb523a2`) e **rilasciato** il 18 ottobre 2026 alle 16:39 UTC (versione del Worker `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`, commit `bb523a2`), senza migrazioni, segreti, operazioni né dipendenze nuove. **Collaudato** dall'utente sull'iPhone lo stesso giorno (spec `2026-10-18-skeleton.md`; sezione 14) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -4218,12 +4218,11 @@ voce nella cronologia. Se la settimana di arrivo non è nella copia locale (lett
 non finita, oppure offline e non salvata) il Menu mostra l'attesa come dal calendario; una
 settimana già salvata si raggiunge anche offline senza le date del mese. Scartato lo
 scorrimento nativo con snap: soglia di un terzo e movimento ridotto non si controllano.
-Nessuna libreria e nessuna operazione nuova. Da provare dall'utente sull'iPhone: soglia e
-colpo veloce, durate, resistenza paragonata alla fine di un elenco, pagina che non rimbalza
-in verticale, arrivo senza lampeggi, «Riduci movimento», gesto «indietro» di Safari.
+Nessuna libreria e nessuna operazione nuova. Collaudo dell'utente sull'iPhone fatto il 18
+ottobre 2026.
 
-**Caricamenti (skeleton)** (W20, issue #49, PR #75 unita il 18 ottobre 2026, rilascio in
-preparazione; spec `progetto/superpowers/specs/2026-10-18-skeleton.md`, piano
+**Caricamenti (skeleton)** (W20, issue #49, PR #75 unita e rilasciata il 18 ottobre 2026
+e collaudata dall'utente sull'iPhone; spec `progetto/superpowers/specs/2026-10-18-skeleton.md`, piano
 `progetto/superpowers/plans/2026-10-18-skeleton.md`; regole visive in `design/design.md`,
 sezione «Caricamenti (skeleton)»). Durante le attese dei dati, al posto del contenuto ci sono
 blocchi pieni della sua forma e della sua altezza, così la pagina non si sposta all'arrivo
@@ -4260,9 +4259,7 @@ pagina o area che annuncia «Caricamento…» quando i blocchi compaiono, blocch
 e mai toccabili. Componente condiviso `web/src/components/Skeleton.tsx` (`LoadingScope`
 con una sola attesa per pagina, anche per i blocchi dell'intestazione, `Skeleton`,
 `BusyArea`, `LoadingArea`), stili in `web/src/design/global.css`, nessuna dipendenza
-nuova. Da provare dall'utente sull'iPhone dopo il rilascio: «Cambia ricetta» su un pasto
-mai aperto, Cerca che non crolla a ogni lettera, «Riduci movimento», un solo annuncio con
-VoiceOver, avvio a freddo della PWA, Spesa con spunte fatte offline.
+nuova.
 
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
@@ -4404,6 +4401,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 18 ottobre 2026, skill per Claude rilasciata | Rilascio della skill per Claude (W17, PR #68) il 18 ottobre alle 09:22 UTC (versione del Worker `03721d89-5d69-4ed3-92fb-a2de8746f751`, commit `cdbd7fe`), senza migrazioni né segreti; zip verificato in produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`). Collaudata dall'utente lo stesso giorno: zip caricato su claude.ai e skill provata dall'app Claude, funziona. Intestazione, Parte 1 e sezioni 1, 10, 13, 14 e 16 aggiornate |
 | 18 ottobre 2026, swipe fra le settimane | Riportate le decisioni del piano `2026-10-18-swipe-settimane.md` (W19, PR #72 unita il 18 ottobre, merge `160d83b`; rilascio in preparazione). Decisioni dell'utente: swipe orizzontale solo sulla fila dei giorni del Menu, verso sinistra la settimana successiva e verso destra la precedente, sullo stesso giorno della settimana; settimana inesistente con un piccolo rimbalzo e nessun messaggio; giorno di arrivo senza pasti aperto vuoto; calendario invariato come alternativa (sezione 5). Tecniche: eventi touch passivi, soglia di 48 px e prevalenza 2:1 sul verticale, un solo dito, clic sintetico dopo lo swipe ignorato; esistenza della settimana da `menu.getDates` dei mesi toccati o dalla copia salvata, con la navigazione del calendario anche offline; animazioni brevi con la Web Animations API, assenti con `prefers-reduced-motion`; nessuna libreria nuova (sezione 14) |
 | 18 ottobre 2026, swipe rilasciato, trascinamento (W21) e skeleton (W20) | Swipe fra le settimane (W19) rilasciato alle 12:09 UTC (versione del Worker `3260a367-c445-490d-abd3-359614a19f61`, commit `160d83b`). Riportate le decisioni del piano `2026-10-18-swipe-trascinamento.md` (W21, PR #74, merge `341bdb1`, rilasciata alle 13:49 UTC, versione `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`; collaudo sull'iPhone da fare). Decisioni dell'utente: la fila segue il dito e mostra i giorni della settimana accanto (solo date); cambio oltre un terzo della larghezza o con un colpo veloce; resistenza verso una settimana inesistente al posto del rimbalzo; arrivo senza salti. Tecniche: striscia di tre settimane con trasformazioni scritte nel DOM, `touchmove` non passivo con `preventDefault` solo a gesto orizzontale e `touch-action: pan-y pinch-zoom`, asse a 10 px, colpo veloce da 0,5 px/ms e 20 px, curva dei bordi di iOS, 220/200 ms con la Web Animations API, letture anticipate non osservate delle settimane accanto (`prefetchQuery`, `staleTime: Infinity`, decisione del coordinatore dopo la revisione della PR #74), scartato lo scorrimento nativo con snap. Riportate le decisioni della spec `2026-10-18-skeleton.md` (W20, issue #49, PR #75, merge `bb523a2`, rilascio in preparazione). Decisioni dell'utente: variante B con pulsazione lenta, eccezione approvata alla regola sulle animazioni decorative; pagine coperte e pagine rare invariate; in Cerca i risultati precedenti restano. Decisioni del coordinatore: skeleton anche in un ripristino locale oltre 200 ms; skeleton fermo offline; sezioni dei curatori senza skeleton, con lo spostamento ammesso. Tecniche: soglia di 200 ms, attesa della coda della Spesa, una sola attesa e un solo annuncio per pagina, layout di attesa condiviso con `FamilyGate`, componente `Skeleton.tsx` senza dipendenze nuove. Intestazione e sezioni 1, 5, 10 e 14 aggiornate; percorso 1 di `design/percorsi.md` |
+| 18 ottobre 2026, skeleton rilasciato e collaudi | Rilascio dello skeleton nei caricamenti (W20, issue #49, PR #75, merge `bb523a2`) il 18 ottobre alle 16:39 UTC (versione del Worker `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`, commit `bb523a2`), senza migrazioni né segreti. Collaudato dall'utente sull'iPhone lo stesso giorno: funziona. Collaudata dall'utente anche la fila dei giorni che segue il dito (W21, PR #74), provata dopo il suo rilascio: funziona. Intestazione e sezioni 10, 14 e 16 aggiornate |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
