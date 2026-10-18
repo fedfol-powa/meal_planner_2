@@ -3,33 +3,35 @@
 Stato operativo dei worker. Aggiornato dal coordinatore a ogni cambio di fase.
 Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e `cwd`).
 
-## Stato corrente (aggiornato il 18 ottobre 2026, mezzogiorno)
+## Stato corrente (aggiornato il 18 ottobre 2026, pomeriggio)
 
-- **Attività in corso:** W19, swipe sulla fila dei giorni per cambiare settimana (richiesta
-  dell'utente del 18/10), brief `brief/w19-swipe-settimane.md`; decisioni: stesso giorno
-  della settimana, settimana inesistente → rimbalzo senza messaggio, niente prototipo. Dopo
-  W19: W20, skeleton (#49), brief `brief/w20-skeleton.md` approvato, con varianti nel
-  prototipo (scelta dell'utente).
-  - **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle 09:22 UTC (PR #68, `cdbd7fe`,
-    versione `03721d89-5d69-4ed3-92fb-a2de8746f751`, revisioni `revisioni/w17-pr68*.md`),
-    collaudata dall'utente (zip su claude.ai, funziona dall'app Claude); specifica
-    aggiornata con le PR #69 e #70 (unite).
-  - **W18, test instabile di Bring!, chiusa:** PR #71 unita il 18/10 (revisione
-    `revisioni/w18-pr71.md`, APPROVABILE). Causa nel banco di prova: `dispatchFetch` di
-    Miniflare riavvolge lo stream di undici, che il GC può annullare prima della lettura;
-    i corpi si leggono appena arriva la risposta. Solo test, nessun rilascio. Tab, worktree
-    e branch rimossi.
-- **Worker attivi:** W19, tab «W19 swipe» (pane `w1:p57` al 18/10), branch
-  `evolutive/swipe-settimane`, worktree `.worktrees/swipe-settimane`. **Revisori attivi:**
-  nessuno.
+- **Attività in corso:**
+  - **W19, swipe fra le settimane:** PR #72 unita (`160d83b`) dopo tre revisioni Codex
+    (`revisioni/w19-pr72*.md`), **rilasciata** il 18/10 alle 12:09 UTC, versione
+    `3260a367-c445-490d-abd3-359614a19f61`. Specifica aggiornata con la PR #73 (unita,
+    revisione `revisioni/spec-w19-pr73.md`), che dice ancora «rilascio in preparazione»: da
+    aggiornare con la prossima PR di documentazione. Collaudo sull'iPhone dell'utente
+    (sensazione del gesto) da fare.
+  - **W20, skeleton (#49):** prototipo con varianti pronto (commit `adf621e`, anteprima sulla
+    porta 8766 del Mac, rete di casa o Tailscale); W20 fermo su `STATO: DOMANDA`: variante
+    A (blocchi statici), B (pulsazione lenta, eccezione a design.md) o C (sagoma con titolo)
+    e pagine da coprire (proposta: alta Suggerimenti, Cerca, Menu; media pasto libero,
+    FamilyGate, Spesa, Ricetta, Ricettario, avvio; Cerca tiene i risultati precedenti).
+    Censimento in `plans/2026-10-18-skeleton.md` nel branch.
+- **Worker attivi:** W20, tab «W20 skeleton» (pane `w1:p5B` al 18/10), branch
+  `evolutive/skeleton`, worktree `.worktrees/skeleton`. **Revisori attivi:** nessuno.
+- **Chiuse oggi:** W17 skill per Claude (rilasciata e collaudata, PR #68, #69, #70), W18 test
+  instabile di Bring! (PR #71).
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** nessuna. Brief W20 approvato dall'utente il 18/10: si avvia dopo il merge di W19.
+- **Domande in sospeso:** per l'utente, variante dello skeleton e pagine; collaudo dello
+  swipe sull'iPhone.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
-- **In produzione:** versione `03721d89-5d69-4ed3-92fb-a2de8746f751` (commit `cdbd7fe`, 18/10
-  09:22 UTC, W17). Precedente per un ritorno: `21616921-3cfe-4390-b19c-9e42d824cebe`.
-- **Prossimo passo:** a scelta dell'utente: E (ricetta da un link), ricettario esteso,
-  issue #49, #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26 rimandata.
+- **In produzione:** versione `3260a367-c445-490d-abd3-359614a19f61` (commit `160d83b`, 18/10
+  12:09 UTC, W19). Precedente per un ritorno: `03721d89-5d69-4ed3-92fb-a2de8746f751`.
+- **Prossimo passo:** scelta dello skeleton → spec e piano di W20 → revisione. In coda: E,
+  ricettario esteso, issue #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26
+  rimandata.
 
 ## Storico
 
