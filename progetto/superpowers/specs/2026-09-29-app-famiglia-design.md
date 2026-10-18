@@ -1,10 +1,8 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 17 ottobre 2026 (decisioni delle foto delle ricette, attività E
-dell'ondata 3, PR #54; dominio `cosasimangia.app` e passi esterni dell'attività D;
-somiglianza dell'ingrediente principale e campi a 16 px, PR #60; email dell'app, parte
-software dell'attività D, PR #64)
+Ultimo aggiornamento: 18 ottobre 2026 (skill per Claude in «Collega un agente», W17,
+PR #68; rilascio e collaudo delle email dell'app, attività D)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -20,8 +18,9 @@ membri e ruoli, uscita, eliminazione della famiglia, cancellazione dell'account 
 utenti), con collaudo e prove sull'iPhone riusciti il 16 ottobre 2026
 (sezione 10), e le foto delle ricette (attività E, issue #39). Dal 17 ottobre i passi
 esterni dell'attività D (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti e la
-parte software, le email dell'app (PR #64), è unita lo stesso giorno, con il rilascio in
-preparazione.
+parte software, le email dell'app (PR #64), è unita e rilasciata lo stesso giorno alle
+17:54 UTC e collaudata dall'utente: l'attività D è chiusa. Il 18 ottobre è unita la
+skill per Claude (W17, PR #68), con il rilascio in preparazione.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -134,8 +133,7 @@ prototipo. La guida `design/design.md` applica la decisione della sezione 14.
   dominio di invio (attività D dell'ondata 3, sotto). Dal 17 ottobre 2026 il dominio di
   invio è `cosasimangia.app`, verificato in Resend lo stesso giorno, e Supabase Auth
   spedisce con l'SMTP di Resend (sezione 1); le email dell'app arrivano con la parte
-  software dell'attività D (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
-  sotto);
+  software dell'attività D (PR #64, unita e rilasciata il 17 ottobre 2026; sotto);
 - app servita su `cosasimangia.qunidi.it`, sottodominio di `qunidi.it`, dominio
   dell'utente (deciso l'8 ottobre 2026); lo stesso sottodominio è il dominio di invio
   verificato in Resend. **Superata il 13 ottobre 2026 per l'app**: l'app resta su
@@ -409,8 +407,8 @@ dell'ondata 3, issue #39, PR #54 unita e rilasciata il 16 ottobre; particolari i
 - l'attività D non è più bloccata: i passi esterni sono fatti; la parte software è unita
   lo stesso giorno (sotto; sezioni 7 e 10).
 
-**Decisioni del 17 ottobre 2026, email dell'app unite** (W15, parte software
-dell'attività D dell'ondata 3, PR #64 unita il 17 ottobre, rilascio in preparazione;
+**Decisioni del 17 ottobre 2026, email dell'app rilasciate** (W15, parte software
+dell'attività D dell'ondata 3, PR #64 unita e rilasciata il 17 ottobre;
 particolari in `progetto/superpowers/specs/2026-10-17-email.md`):
 
 - **decisioni dell'utente**: chi accetta un invito, all'app o alla famiglia, senza avere
@@ -440,6 +438,23 @@ particolari in `progetto/superpowers/specs/2026-10-17-email.md`):
   4 e 8);
 - ritorno indietro con una correzione in avanti; dopo un rollback i link spediti non
   valgono e si usa «Password dimenticata» (sezioni 1 e 7).
+
+**Decisioni del 18 ottobre 2026, skill per Claude unita** (W17, PR #68 unita il 18
+ottobre, rilascio in preparazione; piano in
+`progetto/superpowers/plans/2026-10-18-skill-claude.md`):
+
+- **decisioni dell'utente**: una sola skill `cosa-si-mangia` per tutti i ruoli, in un
+  solo `SKILL.md` in inglese; copre menu, famiglia, ricettario e amministrazione, non la
+  spesa; si scarica come zip dalla sezione «Skill per Claude» di «Collega un agente»,
+  visibile a tutti, con i passaggi per caricarla su claude.ai; niente prototipo (Parte 1
+  e sezioni 13 e 14);
+- le regole del ricettario restano solo in `catalogue_getGuide`: la skill vi rimanda
+  senza copiarle; conferma esplicita prima delle azioni difficili da annullare
+  (sezione 13);
+- sorgente in `agent-skill/`, zip generato da `sync-assets` in `web/public/downloads/`,
+  non versionato e servito come file statico; `/downloads/` fuori dalla cache del
+  service worker; versione della pagina letta dalla skill; test che legano i nomi degli
+  strumenti al contratto (sezioni 1 e 13).
 
 ---
 
@@ -493,8 +508,8 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   persona accetta un invito, a una famiglia o all'app, e sceglie la sua password; da lì
   entra nell'app con email e password (ondata 3, decisioni dell'utente del 13 ottobre
   2026). Chi invita manda a mano il link (per esempio su WhatsApp): l'app non spedisce
-  il link d'invito. Con le email dell'app (attività D, unite il 17 ottobre 2026, rilascio
-  in preparazione) la persona scrive sulla pagina dell'invito solo la sua email e il suo
+  il link d'invito. Con le email dell'app (attività D, unite e rilasciate il 17
+  ottobre 2026) la persona scrive sulla pagina dell'invito solo la sua email e il suo
   nome (per un invito all'app l'email deve essere quella dell'invito); la pagina dice
   «Controlla la posta» e arriva l'email «Scegli la password», che per un invito alla
   famiglia nomina la famiglia. Il link apre Safari una volta: aprirlo dimostra che
@@ -507,9 +522,7 @@ arriva già pronto, e la famiglia lo aggiusta insieme.
   accede con la sua password e conferma l'ingresso. Chi ha dimenticato la password la
   recupera da solo con «Password dimenticata?» nella pagina di accesso: riceve un link
   valido 24 ore per sceglierne una nuova, dopo di che gli altri dispositivi e gli agenti
-  collegati devono accedere di nuovo. Fino al rilascio resta il flusso precedente: la
-  persona scrive anche la password nello stesso modulo e la pagina la fa entrare subito,
-  senza verificare l'email, e una password dimenticata la reimposta l'amministratore.
+  collegati devono accedere di nuovo.
   Dal 15 ottobre
   2026 ci sono gli inviti all'app; dal 16 ottobre anche quelli alla
   famiglia. Chi ha un account crea la
@@ -730,6 +743,14 @@ impostarla la mostra al curatore e procede solo dopo un sì esplicito, come per 
 pubblicazione (decisione dell'utente del 16 ottobre 2026). L'agente può anche
 sostituirla o toglierla; caricare un file dal telefono si fa invece dall'app.
 
+Con la PR #68, unita il 18 ottobre 2026 e in attesa di rilascio, «Collega un agente»
+offrirà anche una **skill per Claude** da scaricare: un file da caricare una volta su
+claude.ai, che insegna a Claude a usare l'app secondo i ruoli della persona (menu,
+famiglia, ricettario e amministrazione, non la spesa) e a chiedere un sì prima delle
+azioni difficili da annullare. Dopo il caricamento ci sarà anche nell'app Claude sul
+telefono, con il connettore già collegato. Quando la versione mostrata nella pagina
+cambia, la si scarica e la si carica di nuovo.
+
 Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
 deve poter avvenire tramite l'agente. Una pagina dell'app, «Collega un agente» nel
 Profilo, dà l'indirizzo del servizio e i passaggi per ciascun client supportato, con
@@ -863,10 +884,12 @@ configurato per workspace.
   | `/mcp` | Agenti | Strumenti MCP generati dal contratto (sezione 13) |
   | `/shopping-lists/<token>` | Bring! | Pagina HTML con JSON-LD resa dal server (sezione 6) |
   | `/photos/<chiave>` | App web, agenti, curatori | Foto corrente di una ricetta, senza autenticazione, dal bucket delle foto (dal 16 ottobre 2026, sotto) |
+  | `/downloads/cosa-si-mangia.zip` | Chi collega Claude | Zip della skill per Claude: file statico degli asset, non una rotta del Worker (PR #68, rilascio in preparazione; sotto) |
 
   La SPA arriva dagli asset statici di Workers con ripiego su `index.html`; il Worker
   si esegue per primo solo sulle rotte del server (`/api/*`, `/mcp`, `/.well-known/*`,
-  `/photos/*`).
+  `/photos/*`). Lo zip della skill è un file degli asset: viene servito come file anche a
+  una navigazione, senza il ripiego su `index.html` (`server/test/asset-routing.test.ts`).
   Il job settimanale non ha una rotta: è l'evento `scheduled` di un Cron Trigger del
   Worker (sezione 4); lo stesso evento, con un'espressione cron sua, avvia
   l'esportazione notturna (sezione 8).
@@ -991,7 +1014,7 @@ configurato per workspace.
   Il dominio `cosasimangia.app` è verificato in Resend dal 17 ottobre 2026 (DKIM
   `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`) e l'SMTP di Supabase Auth è
   configurato (sopra). Le email dell'app sono la parte software dell'attività D (PR
-  #64, unita il 17 ottobre 2026, rilascio in preparazione; particolari nella spec di
+  #64, unita e rilasciata il 17 ottobre 2026; particolari nella spec di
   dettaglio `2026-10-17-email.md`, sezioni 2 e 5): l'email «Scegli la password» dopo un
   invito e «Rimanda l'email» le spedisce il Worker con l'API di Resend
   (`server/src/mail/`, una sola chiamata `fetch`, senza SDK), con il link di
@@ -1001,10 +1024,10 @@ configurato per workspace.
   limitata al dominio e distinta da quella dell'SMTP di Supabase, **obbligatoria per il
   rilascio** (senza, le accettazioni rispondono che l'email non è partita), e
   **`OPS_ALERT_EMAIL`**, l'indirizzo del referente, mai salvato nel database. Mittente
-  `Cosa si mangia <noreply@cosasimangia.app>`. Fino al rilascio l'app non spedisce email
-  proprie. **Ritorno indietro** dopo il rilascio: correzione in avanti, perché con un
-  `wrangler rollback` i link già spediti puntano a `/password`, che la versione
-  precedente non ha; chi li ha ricevuti usa poi «Password dimenticata».
+  `Cosa si mangia <noreply@cosasimangia.app>`. **Ritorno indietro** dopo il rilascio:
+  correzione in avanti, perché con un `wrangler rollback` i link già spediti puntano a
+  `/password`, che la versione precedente non ha; chi li ha ricevuti usa poi «Password
+  dimenticata».
 - **Foto delle ricette** (W12, PR #54, rilasciata il 16 ottobre 2026; particolari nella
   spec di dettaglio `2026-10-16-foto-ricette.md`): bucket R2 `cosasimangia-photos`
   nella giurisdizione `eu`, privato, senza dominio `r2.dev` né dominio personalizzato,
@@ -1030,6 +1053,23 @@ configurato per workspace.
   JPEG con `createImageBitmap` e un `<canvas>`, senza librerie: meno dati su rete mobile
   e niente metadati (posizione GPS compresa). `PHOTOS` e `IMAGES` sono facoltativi
   nell'ambiente: senza, i caricamenti rispondono `internal` e la rotta `404`.
+- **Skill per Claude** (W17, PR #68, unita il 18 ottobre 2026, rilascio in preparazione;
+  prodotto e test nella sezione 13): sorgente unica `agent-skill/cosa-si-mangia/SKILL.md`,
+  alla radice del repository perché la leggono i test del server e la build del web, e
+  lontana da `.claude/skills/`, che sono le skill di chi sviluppa. Lo zip
+  `cosa-si-mangia.zip`, con la cartella `cosa-si-mangia/` in cima come chiede claude.ai,
+  lo genera `web/scripts/sync-assets.mjs` a ogni `predev` e `prebuild` in
+  `web/public/downloads/`, **non versionato** (`web/.gitignore`). Lo scrive
+  `web/scripts/skill-zip.mjs` con `node:zlib` (deflate e `crc32`) e una data fissa, così
+  gli stessi file danno lo stesso zip: nessuna dipendenza nuova. Vite lo serve in
+  sviluppo, la build lo copia in `dist` e il Worker lo serve come **file statico**, fuori
+  da `run_worker_first`, senza modifiche al server. Il service worker lascia
+  **`/downloads/` sempre alla rete** (`passthrough` in `web/src/pwa/sw-rules.ts`), anche
+  per una navigazione: un download può arrivare come navigazione e riceverebbe la shell,
+  e una copia in cache resterebbe ferma a una versione vecchia; per questo lo zip sta
+  fuori da `/assets/`. La versione mostrata nella pagina la legge `web/vite.config.ts`
+  dalla riga `Skill version: AAAA-MM-GG` del `SKILL.md` (`__SKILL_VERSION__`): senza la
+  riga la build si ferma.
 - **Un solo runtime.** Il modulo `domain/` gira solo nel Worker: il job settimanale non
   usa un'Edge Function e non serve la compatibilità con Deno. `domain/` resta
   TypeScript puro, senza dipendenze dal runtime.
@@ -1671,7 +1711,7 @@ basta alla vista dei membri. L'eliminazione di una famiglia cancella a cascata d
 link, ingressi, rimozioni e job; le prenotazioni restano, senza famiglia, per ritrovare
 l'account creato e per il tetto.
 
-**Email dell'app** (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+**Email dell'app** (PR #64, unita e rilasciata il 17 ottobre 2026;
 migrazione `20261017100000_email.sql`, solo additiva; particolari nella spec di
 dettaglio `2026-10-17-email.md`, sezioni 2, 5 e 11). Tabelle nuove `password_emails` e
 `ops_alerts` (sopra). Funzioni `security definer` dello schema `app`: per `anon`
@@ -2024,7 +2064,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   abbandono: i dati dell'app sono già cancellati e la riga si riprova ogni ora. Nei log
   solo id, codici e numeri. Dal terzo tentativo fallito parte anche l'email operativa
   `account_deletion_overdue` (sotto).
-- **Email operative** (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+- **Email operative** (PR #64, unita e rilasciata il 17 ottobre 2026;
   particolari nella spec di dettaglio `2026-10-17-email.md`, sezione 5): quattro eventi,
   `weekly_job_overdue`, `weekly_job_abandoned`, `backup_export_missing` e
   `account_deletion_overdue`, un'email ciascuno al referente, con l'API di Resend.
@@ -2339,8 +2379,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   base). Sull'iPhone la PWA installata sulla schermata Home non condivide cookie e
   archivio con Safari: un link che apre Safari lascia lì la sessione e l'app installata
   resta fuori. Per questo nessun link via email serve a entrare: i link delle email
-  dell'app (attività D dell'ondata 3, PR #64, unita il 17 ottobre 2026, rilascio in
-  preparazione) servono solo a scegliere o reimpostare la password (sotto). Nel
+  dell'app (attività D dell'ondata 3, PR #64, unita e rilasciata il 17 ottobre
+  2026) servono solo a scegliere o reimpostare la password (sotto). Nel
   traguardo A (sezione 10) gli account li ha creati
   l'amministratore dalla dashboard di Supabase (*Add user*, con email confermata e
   password scelta da lui) e famiglia, appartenenze e ruoli globali li ha preparati lo
@@ -2358,8 +2398,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   accesa una sessione di più di 24 ore riceverebbe `reauthentication_needed`).
   «Require current password when updating» acceso dall'utente il 13 ottobre 2026; il
   minimo di produzione non è verificato, la SPA impone 8 (sezione 1).
-- **Password dimenticata** (ondata 3, attività D, PR #64, unita il 17 ottobre 2026,
-  rilascio in preparazione; decisioni dell'utente; particolari nella spec di dettaglio
+- **Password dimenticata** (ondata 3, attività D, PR #64, unita e rilasciata il 17
+  ottobre 2026; decisioni dell'utente; particolari nella spec di dettaglio
   `2026-10-17-email.md`, sezione 3): sotto «Entra» la pagina di accesso ha
   «Password dimenticata?» verso `/password/forgot`, con l'email già scritta. La pagina
   chiede l'email e risponde **sempre allo stesso modo**, che l'account esista o no,
@@ -2376,8 +2416,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   propone «Esci e continua» prima di usare il codice. **Rischio noto accettato**:
   l'endpoint pubblico `/auth/v1/recover` di Supabase risponde 429 a una seconda
   richiesta entro un minuto solo per un indirizzo con un account, e la UI non lo rivela.
-  È un caso raro e il passaggio da Safari è accettabile. Fino al rilascio
-  l'amministratore reimposta la password dalla dashboard di Supabase.
+  È un caso raro e il passaggio da Safari è accettabile.
 - **Google** (decisione dell'utente del 13 ottobre 2026): comodità facoltativa, da
   aggiungere solo dopo una prova sull'iPhone con l'app installata. Da verificare nel
   progetto: se il ritorno dal redirect OAuth porta la sessione dentro la PWA
@@ -2403,7 +2442,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   `qunidi.it` per ora non si può modificare, quindi Resend non verifica
   `cosasimangia.qunidi.it` e l'app non spedisce email. Dal 17 ottobre 2026 il dominio di
   invio `cosasimangia.app` è verificato e la parte software dell'attività D è unita
-  (PR #64), ma il flusso resta questo finché non è rilasciata. L'invito all'app si accetta sulla
+  (PR #64): il flusso è stato questo fino al rilascio, il 17 ottobre alle 17:54 UTC,
+  poi vale «Dopo l'attività D» (sotto). L'invito all'app si accetta sulla
   pagina `/invite/app#<token>`: la persona scrive in un solo modulo l'email dell'invito,
   che deve coincidere, il suo nome e la password (due volte); il server crea l'account
   già confermato. Subito dopo la creazione la stessa pagina fa entrare la persona con
@@ -2451,7 +2491,7 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   password, con `email_confirm: false` e i soli nome e lingua nei metadati, e un esito
   ambiguo riconciliato dice anche se l'email è già confermata.
 - **Dopo l'attività D** (dominio di invio verificato il 17 ottobre 2026, parte software
-  unita lo stesso giorno con la PR #64, rilascio in preparazione; decisioni dell'utente;
+  unita e rilasciata lo stesso giorno con la PR #64; decisioni dell'utente;
   testi, stati delle pagine e sequenze nella spec di dettaglio `2026-10-17-email.md`,
   sezioni 2 e 3). **Un solo meccanismo per i due inviti**, all'app e alla famiglia:
   il link d'invito si condivide a mano come prima; chi non ha un account scrive sulla
@@ -3167,8 +3207,8 @@ l'11 ottobre 2026: poche copie, una settimana per accorgersi di un errore).
   password, così si verifica anche la copia: fatta il 13 ottobre 2026 sulla prima
   esportazione notturna, prima dell'import dei dati veri, con ripristino locale
   riuscito. L'email di allarme `backup_export_missing` arriva con quelle del job
-  (sezione 4), con la parte software dell'attività D (PR #64, unita il 17 ottobre 2026,
-  rilascio in preparazione): dall'esecuzione delle 04:30 senza l'esportazione del giorno,
+  (sezione 4), con la parte software dell'attività D (PR #64, unita e rilasciata il 17
+  ottobre 2026): dall'esecuzione delle 04:30 senza l'esportazione del giorno,
   con il motivo (`failed`, `too_large`, `not_configured`), e dalla riconciliazione oraria
   per ogni data degli ultimi 7 giorni senza un'esportazione in R2 (`missing`; oggi solo
   dalle 05:00, mai oggi-7, che la conservazione delle ultime 7 copie cancella). Restano
@@ -3414,10 +3454,10 @@ i suoi passi esterni (DNS, dominio in Resend, SMTP di Supabase Auth) sono fatti 
 stesso giorno. Ordine concordato con l'utente il 17
 ottobre 2026: la correzione del difetto #48 del pianificatore prima della generazione di
 mercoledì 21 ottobre (insieme a #51), poi la parte software di D, unita lo stesso giorno
-(PR #64) con il rilascio in preparazione, poi le parti di E scelte dall'utente (piano
+(PR #64) e rilasciata alle 17:54 UTC, poi le parti di E scelte dall'utente (piano
 generale).
 
-**Stato al 17 ottobre 2026:**
+**Stato al 18 ottobre 2026:**
 
 | Attività | Stato |
 |---|---|
@@ -3438,7 +3478,8 @@ generale).
 | Gestione della famiglia (ondata 3, attività C) | Unita (PR #52) e rilasciata il 16 ottobre 2026 con la migrazione `20261016100000_family_management.sql` (versione del Worker `c5f006a4-9404-423c-84c8-11f748ea1dd8`, commit `9228598`), senza segreti, binding, Cron Trigger né risorse nuove; provata con agent-browser sullo stack locale e nella modalità finta. Collaudo e prove sull'iPhone riusciti il 16 ottobre 2026: l'utente ha collaudato con l'account e la famiglia di prova di A, eliminati con i comandi di C (spec di dettaglio, sezione 6), e ha provato a mano sull'iPhone la pagina dell'invito aperta da WhatsApp, la condivisione del link, i fogli di conferma e la cancellazione dell'account nella PWA installata |
 | Foto delle ricette (ondata 3, attività E, issue #39) | Unita (PR #54) e rilasciata il 16 ottobre 2026 con la migrazione `20261016110000_recipe_photos.sql` (versione del Worker `5dce4dda-67d7-4315-97f3-608631f45796`, commit `41d9918`), con il bucket `cosasimangia-photos` creato dall'utente e i binding `PHOTOS` e `IMAGES`; provata con agent-browser sullo stack locale. Foto popolate via MCP la sera stessa: 46 ricette con la foto, 4 ancora senza. Restano le prove a mano sull'iPhone (scatto e libreria, foto HEIC, orientamento, tempi su rete mobile, offline dopo una visita) e la verifica dei metadati con il binding Images di produzione (spec di dettaglio, sezione 9) |
 | Dominio `cosasimangia.app` | PR #56 (dominio personalizzato del Worker, `workers_dev` spento) unita e rilasciata il 17 ottobre 2026 alle 04:23 UTC; PR #57 (controllo del rilascio) unita dopo, senza nuovo rilascio (versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); il vecchio indirizzo risponde 404. Dominio verificato in Resend, *Site URL* e *Redirect URLs* solo sul nuovo dominio, SMTP di Supabase Auth su Resend con una prova riuscita, PWA reinstallata sull'iPhone e agente MCP di Claude Code ricollegato a `https://cosasimangia.app/mcp` |
-| Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra). Parte software (W15, spec `2026-10-17-email.md`) unita il 17 ottobre 2026 con la PR #64 e la migrazione `20261017100000_email.sql`: email «Scegli la password» dal server dopo l'accettazione di un invito, `/password` e «password dimenticata», etichetta «Non ha ancora confermato l'email», email operative di job, esportazione e cancellazioni (sezioni 4, 7 e 8), fine del rischio accettato delle email non verificate negli inviti. **Rilascio in preparazione**: prima del deploy i segreti `RESEND_API_KEY` (obbligatorio) e `OPS_ALERT_EMAIL`, il template di recupero e `mailer_otp_exp` in produzione; dopo, invito di prova, «password dimenticata» di prova e prova degli allarmi (runbook nella spec di dettaglio, sezione 9) |
+| Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra). Parte software (W15, spec `2026-10-17-email.md`) unita il 17 ottobre 2026 con la PR #64 e la migrazione `20261017100000_email.sql`: email «Scegli la password» dal server dopo l'accettazione di un invito, `/password` e «password dimenticata», etichetta «Non ha ancora confermato l'email», email operative di job, esportazione e cancellazioni (sezioni 4, 7 e 8), fine del rischio accettato delle email non verificate negli inviti. **Rilasciata** il 17 ottobre 2026 alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`), dopo i segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, il template di recupero e `mailer_otp_exp` 86400 in produzione; collaudata dall'utente: invito di prova, «password dimenticata», allarme di prova e prova sull'iPhone riusciti (runbook nella spec di dettaglio, sezione 9) |
+| Skill per Claude (W17) | Unita (PR #68) il 18 ottobre 2026, senza migrazioni, segreti né risorse nuove; **rilascio in preparazione**. Dopo il rilascio l'utente carica lo zip su claude.ai, controlla che la skill scatti con domande sul menu e la prova dall'app Claude sull'iPhone (sezione 13) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -3736,7 +3777,8 @@ server espone operazioni applicative, non accesso generico alle tabelle.
   gestione del ricettario sono `catalogue.getGuide`, testo in inglese con flusso,
   conferma del curatore, conflitti, requisiti per pubblicare e ingredienti; dal 16
   ottobre 2026 anche la sezione «Foto» (una foto per ricetta fuori dalle versioni, dove
-  cercarla, conferma prima di impostarla, mai ingredienti dedotti dall'immagine).
+  cercarla, conferma prima di impostarla, mai ingredienti dedotti dall'immagine). La
+  skill per Claude (sotto) vi rimanda senza copiarne le regole.
 
 Compatibilità effettiva dei quattro client e consegna delle esportazioni restano da
 verificare con una prova prima dell'implementazione (sezione 15).
@@ -3842,6 +3884,59 @@ Realizzata nella PR #31 (12 ottobre 2026):
   disattivati;
 - **voce nel Profilo**, nella sezione «Account»: «Collega un agente» con il numero di
   agenti collegati, oppure «Claude, ChatGPT o Codex con MCP» se non ce ne sono.
+
+**Skill per Claude** (decisioni dell'utente del 18 ottobre 2026; W17, PR #68 unita il 18
+ottobre, rilascio in preparazione; piano `2026-10-18-skill-claude.md`): sezione «Skill
+per Claude» della pagina, dopo gli esempi e la nota sull'eliminazione delle famiglie e
+prima di «Agenti collegati».
+
+- **Visibile a tutti; la skill distingue i ruoli.** Una sola skill, `cosa-si-mangia`,
+  per tutti: l'agente legge `profile_get` (ruoli globali, famiglie con il ruolo in
+  ciascuna, famiglia mostrata) e usa solo le parti che i ruoli consentono. Il server
+  controlla comunque i permessi e un ruolo nominato nella richiesta non concede nulla.
+- **Cosa copre**: menu della settimana (lettura, pasti, scambi, porzioni, note,
+  suggerimenti, annullamento, voti), impostazioni, membri e inviti della famiglia,
+  ricettario per i curatori, amministrazione (utenti, ruoli globali, inviti all'app).
+  **Non la spesa**, per scelta dell'utente: l'agente ne usa gli strumenti solo se la
+  persona lo chiede. Testo in inglese, come la guida del curatore, con l'indicazione di
+  rispondere nella lingua della persona; presuppone il connettore già collegato e, se
+  gli strumenti mancano, rimanda a Profilo › Collega un agente.
+- **Regole del ricettario solo in `catalogue_getGuide`**: la skill non le copia e chiede
+  di leggere la guida prima di ogni lavoro su ricette, ingredienti, libri o foto, perché
+  la guida può cambiare. Ripete soltanto che gli ingredienti vengono dalla fonte o dalla
+  persona, mai dal nome del piatto o da una foto.
+- **Conferme esplicite prima delle azioni irreversibili** o che toccano altre persone:
+  pubblicare una ricetta, impostare o togliere una foto, ripristinare una versione,
+  rimuovere un membro, cambiare un ruolo di famiglia o globale, nominare un
+  amministratore dell'app o togliere a sé stessi `app_admin`, revocare un invito,
+  entrare in una famiglia, uscirne o eliminarla, cancellare un utente o il proprio
+  account. Le modifiche ordinarie al menu chieste dalla persona si fanno e si
+  riferiscono, perché `meals_undo` le annulla. Password e sessioni solo su richiesta
+  esplicita. Per ogni codice d'errore la skill dice cosa fare (`web_only` con
+  `data.url`, `conflict`, `not_allowed`…).
+- **Nella pagina**: una riga su cosa fa la skill, «Scarica la skill»
+  (`/downloads/cosa-si-mangia.zip`, sezione 1) e quattro passaggi numerati per
+  claude.ai: in Settings › Capabilities attivare «Code execution and file creation»; in
+  Customize › Skills premere «+», poi «Create skill» › «Upload a skill» e scegliere il
+  file; controllare che la skill sia attiva; nell'app Claude sul telefono c'è già, con
+  il connettore collegato. I nomi dei menu di claude.ai restano in inglese anche nel
+  testo italiano. Sotto, «Versione del {data}: quando cambia, scaricala e caricala di
+  nuovo.». **La versione mostrata è quella scritta nella skill**, letta dalla build
+  (sezione 1), così le due non divergono.
+- **Formato**: un solo `SKILL.md`, senza cartella `references/`, con il frontmatter
+  `name` e `description` (nome uguale alla cartella, minuscole e trattini, al più 64
+  caratteri; descrizione al più 200); claude.ai accetta uno zip con la cartella della
+  skill in cima, non un `SKILL.md` alla radice.
+- **Test che legano la skill al contratto** (`server/test/agent-skill.test.ts`): ogni
+  nome in forma `gruppo_operazione` citato nel `SKILL.md` è uno strumento generato da
+  `collectTools`, salvo ruoli globali, codici d'errore e motivi di `not_allowed`, così
+  uno strumento rinominato o tolto fa fallire il test; l'elenco degli `id` nuovi
+  coincide con le operazioni MCP che creano, spesa esclusa; frontmatter e riga della
+  versione hanno la forma attesa. Il web controlla lo zip (una sola voce
+  `cosa-si-mangia/SKILL.md`, contenuto identico), `/downloads/` nel service worker e la
+  sezione nelle due lingue.
+- Restano all'utente, dopo il rilascio, il caricamento su claude.ai, la verifica che la
+  skill scatti con domande sul menu e la prova dall'app Claude sull'iPhone.
 
 **Schermata di autorizzazione** (sesto giro, `/authorize`, vera dalla PR #31): l'agente
 la apre nel browser, all'indirizzo con cui Supabase passa la richiesta
@@ -3995,7 +4090,7 @@ si va al Menu con «Non fai ancora parte di una famiglia», perché l'app non ha
 numero di agenti collegati compare solo sulla pagina di cancellazione del proprio
 account; un account in attesa ha nell'amministrazione «Cancellazione in corso» e
 «Completa la cancellazione», e chi vi accede vede «Questo account è stato cancellato.».
-**Con le email dell'app** (PR #64, unita il 17 ottobre 2026, rilascio in preparazione;
+**Con le email dell'app** (PR #64, unita e rilasciata il 17 ottobre 2026;
 sezione 7) le due pagine d'invito non chiedono più la password e non fanno entrare:
 dopo email e nome mostrano «Controlla la posta»; si aggiungono le pagine pubbliche
 `/password` e `/password/forgot`, con la forma delle pagine d'ingresso (marchio, colonna
@@ -4015,6 +4110,11 @@ foto», con la conferma «Togliere la foto?» nel foglio. Durante il caricamento
 pulsante mostra «Caricamento…» ed è disabilitato; gli errori compaiono nel foglio o sotto
 il pulsante. Gli altri utenti non vedono comandi; offline i comandi sono disabilitati.
 Nessuna riga sulla provenienza della foto.
+
+**Skill per Claude in «Collega un agente»** (decisione dell'utente del 18 ottobre 2026,
+PR #68, rilascio in preparazione; sezione 13): sezione nuova senza prototipo, fatta con i componenti già presenti
+nella pagina (scheda, link di testo per scaricare, passaggi numerati, riga di metadati
+per la versione), fra gli esempi e «Agenti collegati».
 
 **Linguaggio visivo definitivo, approvato il 4 ottobre 2026.** L'utente ha scelto
 il linguaggio del riferimento HTML derivato dallo studio di HelloFresh e verificato
@@ -4122,7 +4222,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 
 | Tema | Decisione da concordare | Dove confluisce |
 |---|---|---|
-| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio. **Chiusa il 16 ottobre 2026 la regola equivalente per gli inviti alla famiglia** (decisione dell'utente, attività C, PR #52): il link crea l'account a chi non ce l'ha, al più 10 persone registrate per link, con account e ingresso in un solo passaggio e l'email non verificata fino all'attività D (sezione 7). **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7). **Chiusi il 17 ottobre 2026 i dettagli tecnici per inviare il link per scegliere la password** (W15, parte software dell'attività D, PR #64, rilascio in preparazione; spec `2026-10-17-email.md`): account creato senza password e con l'email da confermare, link da `generate_link` di tipo `recovery` spedito dal server con Resend, pagina `/password` senza adozione della sessione, stesso meccanismo per inviti all'app e alla famiglia, fine del rischio delle email non verificate; «password dimenticata» con il template di Supabase (sezioni 1, 2 e 7) | Sezione 7 |
+| Utenti e inviti | Gestione degli inviti familiari da parte dell'amministrazione globale (per ora esclusa: l'amministrazione non entra nelle famiglie). Google, facoltativo, solo dopo una prova sull'iPhone con l'app installata: verificare se il redirect OAuth riporta la sessione nella PWA installata e come collegare un'identità Google con le iscrizioni spente. Minimo di lunghezza della password in produzione da verificare (la SPA impone 8). **Chiusa il 15–16 ottobre 2026 la pagina dei ruoli globali** (issue #38, PR #47): sezione Utenti di `/admin` con ricerca, dettaglio e ruoli, anche via MCP (sezioni 7 e 13). Deciso nel quarto giro: un membro rimosso rientra solo con un link creato dopo la rimozione (review R2). Decise nel sesto giro le regole degli inviti all'app (email, ruoli facoltativi, 7 giorni, uso singolo, revoca, sostituzione); il 12 ottobre 2026 iscrizioni libere spente in produzione; il 13 ottobre accesso con email e password anche dopo il traguardo A, account creato dall'invito con il link nell'email solo per scegliere la password, recupero della password via email, iscrizioni libere che restano spente; cambio della password dal Profilo rilasciato il 13 ottobre (issue #37), con «Secure password change» spento e «Require current password when updating» acceso in produzione. Il 13 ottobre, finché manca il dominio di invio, invito all'app accettato scegliendo la password sulla pagina dell'invito, senza email; recupero della password rimandato al dominio. **Chiusa il 16 ottobre 2026 la regola equivalente per gli inviti alla famiglia** (decisione dell'utente, attività C, PR #52): il link crea l'account a chi non ce l'ha, al più 10 persone registrate per link, con account e ingresso in un solo passaggio e l'email non verificata fino all'attività D (sezione 7). **Chiusa il 13–15 ottobre 2026 l'API di Supabase per creare l'utente** (PR #45, rilasciata il 15 ottobre): l'account dell'invito all'app lo crea il Worker con `POST /auth/v1/admin/users`, con l'id prenotato e `email_confirm: true`, usando la chiave segreta dedicata `SUPABASE_SECRET_KEY` letta solo da `server/src/accounts/`; gli esiti ambigui si riconciliano leggendo l'utente e un account esistente non si riscrive mai (sezioni 1 e 7). **Chiusi il 17 ottobre 2026 i dettagli tecnici per inviare il link per scegliere la password** (W15, parte software dell'attività D, PR #64, rilasciata il 17 ottobre 2026; spec `2026-10-17-email.md`): account creato senza password e con l'email da confermare, link da `generate_link` di tipo `recovery` spedito dal server con Resend, pagina `/password` senza adozione della sessione, stesso meccanismo per inviti all'app e alla famiglia, fine del rischio delle email non verificate; «password dimenticata» con il template di Supabase (sezioni 1, 2 e 7) | Sezione 7 |
 | Cancellazione | **Chiusa il 16 ottobre 2026** con l'attività C (PR #52, unita e rilasciata il 16 ottobre 2026): passaggio da MCP al web, procedura tecnica e revoca degli accessi, attribuzioni, inviti pendenti e bozze condivise decisi nella spec `2026-10-16-gestione-famiglia.md` e riportati nelle sezioni 1, 2, 4, 7, 8 e 13 | Sezioni 2, 7 e 13 |
 | Backup e ripristino | Tempi di recupero misurati con un'esportazione vera. Foto delle ricette nel ripristino dell'intero catalogo: non fanno parte dello storico ricostruibile, da decidere con quell'attività (sezione 8; le esportazioni ne contengono i riferimenti e gli oggetti non si cancellano mai). Prova di produzione fatta il 13 ottobre 2026 (prima esportazione decifrata con la chiave del gestore di password e ripristinata in locale). Decisi il 12 ottobre l'azzeramento prima dell'uso legato all'impronta di avvio (sezione 8). Decisi l'11 ottobre (PR #30) strumento (Worker su Cron Trigger, con secondo tentativo nella notte), contenuto (anche gli account; dopo un ripristino si rifà l'accesso), conservazione delle ultime 7 copie decisa dal codice, cifratura AES-256-GCM con la chiave anche nel gestore di password, limite di dimensione e procedura tecnica di ripristino provata in CI (sezioni 2, 8 e 9). Decisi nel quinto giro il ripristino della singola ricetta e la versione usata dai pasti passati, nel sesto il ripristino dell'intero catalogo (ricette successive archiviate, anteprima), l'8 ottobre l'esportazione notturna in R2 al posto dei backup della piattaforma e la ricostruzione a una data dallo storico al posto delle copie periodiche | Sezioni 8 e 9 |
 | MCP | Verifica di Claude Desktop e ChatGPT (Claude Code e Codex CLI verificati l'11 ottobre 2026 con il server OAuth 2.1 di Supabase, sezione 13), raggruppamento degli strumenti (per ora uno per operazione), consegna delle esportazioni e comportamento dei ritentativi. Limitazione dei poteri dei token d'agente su Supabase Auth, per ora solo documentati (decisione dell'utente dell'11 ottobre 2026; candidato: server di autorizzazione nel Worker). La password attuale richiesta per cambiarla è attiva in produzione dal 13 ottobre 2026 con «Require current password when updating» (sezione 13). Ultimo uso vero degli agenti: sostituito dall'ultimo rinnovo dell'accesso, servirebbe registrare le richieste autenticate. Decise nel sesto giro la pagina di collegamento, la schermata di autorizzazione e lo scollegamento dall'app; l'8 ottobre architettura, autenticazione e distinzione del canale (sezioni 1 e 13); l'11–12 ottobre (PR #31) revoca con la gestione dei grant di Supabase provata in CI, elenco e scollegamento come operazioni anche MCP, riautorizzazione che aggiunge un accesso, testi veritieri sui poteri, cambio account che riparte dall'agente (sezioni 1, 2 e 13) | Sezioni 1, 2 e 13 |
@@ -4182,7 +4282,8 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 17 ottobre 2026, dominio | Decisione dell'utente: app ed email su `cosasimangia.app`, comprato su Cloudflare, al posto di `cosasimangia.qunidi.it`; `workers.dev` spento senza reindirizzamenti, `www` rimandato al dominio, mittente `noreply@cosasimangia.app`. Il controllo del rilascio richiede un dominio personalizzato del Worker con `workers_dev` spento. Sezioni 1 e 10 e intestazione aggiornate |
 | 17 ottobre 2026, dominio completato e attività D | Rilascio del dominio il 17 ottobre alle 04:23 UTC (PR #56, versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); DNS nella zona Cloudflare dell'account di POWA; dominio verificato in Resend (DKIM `resend._domainkey`, MX e SPF su `send.`, DMARC `p=none`); *Site URL* e *Redirect URLs* solo sul nuovo dominio; SMTP personalizzato di Supabase Auth su Resend (`smtp.resend.com:465`, chiave dedicata di solo invio limitata al dominio), mittente `Cosa si mangia <noreply@cosasimangia.app>`, prova con un magic link riuscita; PWA reinstallata sull'iPhone e agente MCP ricollegato a `https://cosasimangia.app/mcp`. L'attività D non è più bloccata: resta la parte software (link della password via email dopo un invito, «password dimenticata», email operative di job ed esportazione, fine del rischio delle email non verificate negli inviti). Ordine concordato con l'utente: correzione di #48 prima della generazione del 21 ottobre (insieme a #51), poi la parte software di D, poi E. Intestazione, Parte 1 e sezioni 1, 4, 7, 8, 10 e 15 aggiornate |
 | 17 ottobre 2026, somiglianza e zoom | Riportate le decisioni del piano `2026-10-17-somiglianza-e-zoom.md` (W13, issue #48 e #51, PR #60). Decisione dell'utente: nuova caratteristica della somiglianza `primary_ingredient_line`, quando l'ingrediente principale di una ricetta è una riga non facoltativa dell'altra, con lo stesso peso e la stessa finestra delle altre; solo penalità, nessun vincolo sul giorno per ingredienti o proteine. Accettata la carne rossa oltre il massimo in 3 settimane su 20 nel report, senza cambiare la riparazione. Report del pianificatore con gli ingredienti dell'import; testo dei campi di almeno 16 px perché iOS non ingrandisca la pagina, zoom del viewport libero (sezioni 3, 9 e 14, `design/design.md`) |
-| 17 ottobre 2026, email dell'app | Riportate le decisioni della spec `2026-10-17-email.md` (W15, parte software dell'attività D dell'ondata 3, PR #64 unita il 17 ottobre con la migrazione `20261017100000_email.sql`; rilascio in preparazione). Decisioni dell'utente: verifica dell'email negli inviti con un solo meccanismo per inviti all'app e alla famiglia (pagina con email e nome, account con l'email da confermare, email «Scegli la password» con il nome della famiglia solo nella prima, password scelta su `/password`, prenotazione e chiusura invariate), fine del rischio accettato; link d'invito all'app non spedito per email; account creati prima di D invariati; attesa con la persona subito visibile e l'etichetta «Non ha ancora confermato l'email», «Controlla la posta», «Rimanda l'email» ed «Email sbagliata? Ricomincia»; «password dimenticata» dalla pagina di accesso con risposta sempre uguale, link di 24 ore e «Accedi» dopo il salvataggio, senza ingresso automatico; email nella lingua della persona; quattro email operative, un'email per evento. Decisioni del coordinatore: prima email e reinvio spediti dal server con Resend e il link di `generate_link` di tipo `recovery`, template di Supabase solo per il recupero, nei metadati di Auth solo nome e `locale`; allarmi registrati fuori dalle transazioni del lavoro, riconciliazione oraria su 7 giorni di stati persistiti, consegna atomica con corpo immutabile, ogni `409` di idempotenza ambiguo tranne `concurrent_idempotent_requests`, transitorio e ritentato, e scadenza a 24 ore senza rispedizione; non enumerazione nella UI con il rischio residuo dell'endpoint pubblico di Supabase; correzione in avanti come ritorno indietro. Tecniche: segreti `RESEND_API_KEY` (obbligatorio, distinto dall'SMTP) e `OPS_ALERT_EMAIL`, `MAILPIT_API_URL` solo in locale e in CI; `mailer_otp_exp` 86400; `/password` con chiamate dirette e nessuna adozione della sessione; `accept` senza password con `passwordEmail`, `resendPasswordEmail` pubbliche, `emailUnconfirmed` nelle viste e ambito di versione `emailUnconfirmed`; tabelle `ops_alerts` e `password_emails`; un invio al minuto per persona dalla pagina dell'invito; Mailpit nella CI e prova obbligatoria con «Require current password» su un secondo servizio di Auth; nessuno strumento MCP nuovo. Chiusi in sezione 15 i dettagli tecnici del link per scegliere la password. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 9, 10, 12, 13, 14 e 15 aggiornate |
+| 17 ottobre 2026, email dell'app | Riportate le decisioni della spec `2026-10-17-email.md` (W15, parte software dell'attività D dell'ondata 3, PR #64 unita il 17 ottobre con la migrazione `20261017100000_email.sql`; rilasciata lo stesso giorno alle 17:54 UTC con la versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe` e collaudata dall'utente). Decisioni dell'utente: verifica dell'email negli inviti con un solo meccanismo per inviti all'app e alla famiglia (pagina con email e nome, account con l'email da confermare, email «Scegli la password» con il nome della famiglia solo nella prima, password scelta su `/password`, prenotazione e chiusura invariate), fine del rischio accettato; link d'invito all'app non spedito per email; account creati prima di D invariati; attesa con la persona subito visibile e l'etichetta «Non ha ancora confermato l'email», «Controlla la posta», «Rimanda l'email» ed «Email sbagliata? Ricomincia»; «password dimenticata» dalla pagina di accesso con risposta sempre uguale, link di 24 ore e «Accedi» dopo il salvataggio, senza ingresso automatico; email nella lingua della persona; quattro email operative, un'email per evento. Decisioni del coordinatore: prima email e reinvio spediti dal server con Resend e il link di `generate_link` di tipo `recovery`, template di Supabase solo per il recupero, nei metadati di Auth solo nome e `locale`; allarmi registrati fuori dalle transazioni del lavoro, riconciliazione oraria su 7 giorni di stati persistiti, consegna atomica con corpo immutabile, ogni `409` di idempotenza ambiguo tranne `concurrent_idempotent_requests`, transitorio e ritentato, e scadenza a 24 ore senza rispedizione; non enumerazione nella UI con il rischio residuo dell'endpoint pubblico di Supabase; correzione in avanti come ritorno indietro. Tecniche: segreti `RESEND_API_KEY` (obbligatorio, distinto dall'SMTP) e `OPS_ALERT_EMAIL`, `MAILPIT_API_URL` solo in locale e in CI; `mailer_otp_exp` 86400; `/password` con chiamate dirette e nessuna adozione della sessione; `accept` senza password con `passwordEmail`, `resendPasswordEmail` pubbliche, `emailUnconfirmed` nelle viste e ambito di versione `emailUnconfirmed`; tabelle `ops_alerts` e `password_emails`; un invio al minuto per persona dalla pagina dell'invito; Mailpit nella CI e prova obbligatoria con «Require current password» su un secondo servizio di Auth; nessuno strumento MCP nuovo. Chiusi in sezione 15 i dettagli tecnici del link per scegliere la password. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 9, 10, 12, 13, 14 e 15 aggiornate |
+| 18 ottobre 2026, skill per Claude e attività D rilasciata | Riportate le decisioni del piano `2026-10-18-skill-claude.md` (W17, PR #68 unita il 18 ottobre; rilascio in preparazione). Decisioni dell'utente: una sola skill `cosa-si-mangia` per tutti i ruoli, un solo `SKILL.md` in inglese che rimanda a `catalogue_getGuide` senza copiarne le regole, menu, famiglia, ricettario e amministrazione senza la spesa, conferme esplicite prima delle azioni irreversibili, zip con la cartella in cima da caricare su claude.ai, sezione visibile a tutti, niente prototipo. Tecniche: sorgente in `agent-skill/`, zip generato da `sync-assets` in `web/public/downloads/`, non versionato e servito come file statico anche a una navigazione, `/downloads/` fuori dalla cache del service worker, versione della pagina letta dalla skill, test che legano i nomi degli strumenti al contratto. Stato dell'attività D: rilasciata il 17 ottobre alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`) e collaudata dall'utente. Intestazione, Parte 1 e sezioni 1, 10, 13, 14 e 16 aggiornate per W17; per D anche 2, 4, 7, 8 e 15 |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
