@@ -1,8 +1,9 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 18 ottobre 2026 (swipe fra le settimane nel Menu, W19, PR #72,
-unito e in attesa di rilascio; rilascio e collaudo della skill per Claude in
+Ultimo aggiornamento: 18 ottobre 2026 (skeleton nei caricamenti, W20, PR #75, unita e
+in attesa di rilascio; fila dei giorni che segue il dito, W21, PR #74, e swipe fra le
+settimane, W19, PR #72, rilasciati; rilascio e collaudo della skill per Claude in
 «Collega un agente», W17, PR #68; rilascio e collaudo delle email dell'app, attività D)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
@@ -22,8 +23,10 @@ esterni dell'attività D (DNS, dominio in Resend, SMTP di Supabase Auth) sono fa
 parte software, le email dell'app (PR #64), è unita e rilasciata lo stesso giorno alle
 17:54 UTC e collaudata dall'utente: l'attività D è chiusa. Il 18 ottobre la
 skill per Claude (W17, PR #68) è unita, rilasciata alle 09:22 UTC e collaudata
-dall'utente. Lo stesso giorno è unito lo swipe fra le settimane nel Menu (W19, PR #72),
-con il rilascio in preparazione.
+dall'utente. Lo stesso giorno sono rilasciati lo swipe fra le settimane nel Menu (W19,
+PR #72, alle 12:09 UTC) e la sua correzione, la fila dei giorni che segue il dito (W21,
+PR #74, alle 13:49 UTC), ed è unito lo skeleton nei caricamenti (W20, PR #75), con il
+rilascio in preparazione.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -869,7 +872,9 @@ configurato per workspace.
   leggono operazioni pubbliche. Token e componenti seguono `design/`; il codice del
   prototipo Svelte si riscrive, mentre la logica di dominio TypeScript e i suoi test si
   riusano. Rotte di TanStack Router definite nel codice, senza plugin delle rotte da
-  file; stili in CSS puro con token e moduli CSS.
+  file; stili in CSS puro con token e moduli CSS. Le attese dei dati usano il componente
+  condiviso `web/src/components/Skeleton.tsx` (W20, PR #75; sezione 14), senza
+  dipendenze nuove.
 - **Server in un Worker di Cloudflare** (runtime Workers con l'opzione
   `nodejs_compat`), che serve anche la SPA come file statici dallo stesso dominio
   (deciso l'8 ottobre 2026 al posto di Netlify). **Contratto con oRPC, senza Hono**
@@ -1405,7 +1410,11 @@ di validazione condivisi con `domain/`. Regole:
   iniziata prima di una revoca non entra mai nella cache né nella copia salvata, e ogni
   revoca ricevuta toglie comunque i dati salvati prima di quell'istante. Offline, se la sessione non si può rinnovare, la copia
   resta consultabile in sola lettura fino alla riconnessione, salvo la lista della spesa
-  (sezione 6). Il cambio della password (`changePassword` di `AuthBackend`, sezione 7)
+  (sezione 6). Offline, una pagina coperta dagli skeleton senza copia salvata (W20,
+  PR #75, sezione 14) mostra lo skeleton fermo, senza pulsazione, sotto il banner
+  offline: la query è in pausa (`fetchStatus` `paused`) e riparte da sola al ritorno
+  della rete; vale anche per il controllo della famiglia senza profilo salvato
+  (`useFamily` espone la pausa). Il cambio della password (`changePassword` di `AuthBackend`, sezione 7)
   non passa dal client supabase-js e non emette eventi: verifica la password attuale con
   un accesso di prova diretto (`/auth/v1/token`), revocato con il suo token e, se la
   revoca fallisce, con un secondo tentativo; se falliscono entrambi per assenza di rete
@@ -2154,14 +2163,21 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Navigazione fra i giorni:** sopra il selettore dei sette giorni il mese e un'icona
   aprono un calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
   senza menu non sono selezionabili.
-  - **Swipe fra le settimane** (decisioni dell'utente del 18 ottobre 2026, W19, PR #72):
-    uno swipe orizzontale sulla fila dei giorni porta alla settimana successiva (verso
-    sinistra) o alla precedente (verso destra), sullo stesso giorno della settimana. La
+  - **Swipe fra le settimane** (decisioni dell'utente del 18 ottobre 2026, W19, PR #72;
+    trascinamento dalla W21, PR #74): uno swipe orizzontale sulla fila dei giorni porta
+    alla settimana successiva (verso sinistra) o alla precedente (verso destra), sullo
+    stesso giorno della settimana. Mentre il dito si muove la fila lo segue e dal lato
+    opposto entrano i giorni della settimana accanto, come in una striscia unica: solo le
+    date, con lo stesso giorno della settimana evidenziato. Al rilascio si cambia
+    settimana oltre un terzo della larghezza della fila o con un colpo veloce anche
+    corto; altrimenti la fila torna al suo posto. Verso una settimana che non esiste la
+    fila segue il dito con resistenza crescente, al posto dei giorni non compare niente,
+    e al rilascio torna sempre al suo posto, senza messaggi (sostituisce il rimbalzo di
+    W19). All'arrivo la settimana di solito è già letta e compare senza attesa. La
     traccia dei pasti sotto resta com'è e scorre solo fra i giorni della settimana
-    mostrata. Se la settimana non esiste la fila fa un piccolo rimbalzo, senza messaggi;
-    un giorno di arrivo senza pasti si apre vuoto. Il calendario resta l'alternativa,
-    anche per tastiera e lettore di schermo (con VoiceOver lo swipe a un dito è del
-    sistema). Particolari tecnici nella sezione 14.
+    mostrata; un giorno di arrivo senza pasti si apre vuoto. Il calendario resta
+    l'alternativa, anche per tastiera e lettore di schermo (con VoiceOver lo swipe a un
+    dito è del sistema). Particolari tecnici nella sezione 14.
 - **Azioni sullo slot**, confermate nel secondo giro del prototipo (6 ottobre 2026):
   cambia porzioni; cambia ricetta (cinque suggerimenti, "proponimene altri", ricerca con
   filtri), che raccoglie anche segna libero con testo, non proporre più e scambia con un
@@ -2185,7 +2201,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     il tipo di pasto dello slot e si attiva anche con i soli filtri; i risultati, come i
     suggerimenti, mostrano il voto in sola lettura e tolgono il piatto attuale. La
     ricerca distingue caricamento, nessun risultato ed errore, con «Riprova» anche
-    sopra risultati già mostrati. Se la ricetta o il pasto non sono più disponibili
+    sopra risultati già mostrati. Dalla W20 (PR #75) i risultati della ricerca precedente
+    restano visibili finché arrivano i nuovi, così la lista non crolla a ogni lettera;
+    suggerimenti e prima ricerca in attesa sono skeleton (sezione 14). Se la ricetta o il pasto non sono più disponibili
     (`not_found`), il foglio si chiude, la settimana si rilegge e un avviso resta nel
     Menu finché l'utente non lo chiude.
   - **Pasto libero:** testo fino a 60 caratteri, conservato come scritto; le proposte
@@ -3491,7 +3509,9 @@ generale).
 | Dominio `cosasimangia.app` | PR #56 (dominio personalizzato del Worker, `workers_dev` spento) unita e rilasciata il 17 ottobre 2026 alle 04:23 UTC; PR #57 (controllo del rilascio) unita dopo, senza nuovo rilascio (versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); il vecchio indirizzo risponde 404. Dominio verificato in Resend, *Site URL* e *Redirect URLs* solo sul nuovo dominio, SMTP di Supabase Auth su Resend con una prova riuscita, PWA reinstallata sull'iPhone e agente MCP di Claude Code ricollegato a `https://cosasimangia.app/mcp` |
 | Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra). Parte software (W15, spec `2026-10-17-email.md`) unita il 17 ottobre 2026 con la PR #64 e la migrazione `20261017100000_email.sql`: email «Scegli la password» dal server dopo l'accettazione di un invito, `/password` e «password dimenticata», etichetta «Non ha ancora confermato l'email», email operative di job, esportazione e cancellazioni (sezioni 4, 7 e 8), fine del rischio accettato delle email non verificate negli inviti. **Rilasciata** il 17 ottobre 2026 alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`), dopo i segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, il template di recupero e `mailer_otp_exp` 86400 in produzione; collaudata dall'utente: invito di prova, «password dimenticata», allarme di prova e prova sull'iPhone riusciti (runbook nella spec di dettaglio, sezione 9) |
 | Skill per Claude (W17) | Unita (PR #68) e **rilasciata** il 18 ottobre 2026 alle 09:22 UTC (versione del Worker `03721d89-5d69-4ed3-92fb-a2de8746f751`, commit `cdbd7fe`), senza migrazioni, segreti né risorse nuove; zip verificato in produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`). Collaudata dall'utente il 18 ottobre: zip caricato su claude.ai e skill provata dall'app Claude, funziona (sezione 13) |
-| Swipe fra le settimane (W19) | Unito il 18 ottobre 2026 (PR #72, merge `160d83b`), senza migrazioni, segreti né operazioni nuove; rilascio in preparazione. Da provare dall'utente sull'iPhone dopo il rilascio: la sensazione del gesto (sezioni 5 e 14) |
+| Swipe fra le settimane (W19) | Unito (PR #72, merge `160d83b`) e **rilasciato** il 18 ottobre 2026 alle 12:09 UTC (versione del Worker `3260a367-c445-490d-abd3-359614a19f61`, commit `160d83b`), senza migrazioni, segreti né operazioni nuove. Rimbalzo e transizione sostituiti dalla W21 (riga sotto) |
+| Fila dei giorni che segue il dito (W21) | Correzione chiesta dall'utente dopo il rilascio di W19. Unita (PR #74, merge `341bdb1`) e **rilasciata** il 18 ottobre 2026 alle 13:49 UTC (versione del Worker `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`), senza migrazioni, segreti né operazioni nuove; provata con agent-browser ed eventi touch veri sul server di sviluppo. Collaudo sull'iPhone dell'utente ancora da fare: soglia e colpo veloce, resistenza, nessun rimbalzo verticale della pagina, arrivo senza lampeggi, «Riduci movimento», gesto «indietro» di Safari (sezioni 5 e 14) |
+| Skeleton nei caricamenti (W20, issue #49) | Unito il 18 ottobre 2026 (PR #75, merge `bb523a2`), senza migrazioni, segreti, operazioni né dipendenze nuove; rilascio in preparazione. Da provare dall'utente sull'iPhone dopo il rilascio: «Cambia ricetta» su un pasto mai aperto, Cerca, «Riduci movimento», VoiceOver, avvio a freddo della PWA, Spesa con spunte fatte offline (spec `2026-10-18-skeleton.md`; sezione 14) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -4159,24 +4179,90 @@ dipende dall'etichetta, perché iOS non ingrandisca la pagina al tocco; lo zoom 
 viewport resta libero (17 ottobre 2026, issue #51, PR #60). Lo controlla il test del CSS
 `web/src/design/fieldFontSize.test.ts`.
 
-**Swipe sulla fila dei giorni** (W19, PR #72, unita il 18 ottobre 2026; particolari nel
-piano `progetto/superpowers/plans/2026-10-18-swipe-settimane.md`; prodotto nella sezione 5).
-Eventi touch della piattaforma, passivi: lo scorrimento verticale e i gesti di sistema
-restano nativi e con il mouse non c'è gesto. Lo swipe vale al rilascio di un solo dito, con
-uno spostamento orizzontale di almeno 48 px e almeno il doppio di quello verticale; un
-secondo dito, anche fuori dalla fila, lo annulla. Il clic sintetico sul giorno sotto il dito
-dopo uno swipe si ignora (entro 400 ms, una volta); tastiera e mouse scelgono sempre il
-giorno. La settimana esiste se un suo giorno qualsiasi è nelle letture `menu.getDates` dei
-mesi toccati dalle due settimane vicine, lette in anticipo con la stessa query del
-calendario, oppure se la settimana è nella copia salvata. La navigazione è quella del
-calendario, con una voce nella cronologia. Offline, se le date salvate indicano che la
-settimana esiste ma la settimana non è salvata, il Menu resta su «Caricamento…»; una
-settimana già salvata si raggiunge anche senza le date del mese. Se mancano entrambe, la
-fila rimbalza. Una settimana senza alcuno slot non compare in `getDates` e, senza copia salvata,
-conta come inesistente. Rimbalzo (12 px, 200 ms) e ingresso della settimana nuova (24 px,
-180 ms) con la Web Animations API, assenti con `prefers-reduced-motion`. Nessuna libreria e
-nessuna operazione nuova. Da provare dall'utente sull'iPhone dopo il rilascio: la sensazione
-del gesto (soglia e rapporto), rimbalzo e ingresso, il bordo sinistro in Safari.
+**Swipe sulla fila dei giorni** (W19, PR #72, e W21, PR #74, rilasciate il 18 ottobre
+2026; particolari nei piani `progetto/superpowers/plans/2026-10-18-swipe-settimane.md` e
+`2026-10-18-swipe-trascinamento.md`; prodotto nella sezione 5). Trascinamento diretto, non
+uno scorrimento: la fila (`.day-links`, `DaySelector`) contiene una striscia di tre
+settimane, quella mostrata nel flusso e le due accanto in posizione assoluta ai lati, e a
+ogni `touchmove` la pagina scrive `translateX` sulla striscia nel DOM, senza rendering
+React. Le settimane accanto hanno solo le date calcolate, senza collegamenti né fuoco e
+`aria-hidden`: lettore di schermo e tastiera vedono solo la settimana mostrata; dal lato di
+una settimana inesistente la striscia è vuota. Eventi touch della piattaforma su un solo
+effetto: `touchstart`, `touchend` e `touchcancel` passivi, `touchmove` non passivo con
+`preventDefault` solo dopo che il gesto è diventato orizzontale, così Safari non somma il
+rimbalzo verticale della pagina; `touch-action: pan-y pinch-zoom` sulla fila lascia al
+sistema scorrimento verticale e zoom. Con il mouse non c'è gesto. L'asse si decide a 10 px:
+orizzontale se prevale lo spostamento orizzontale, altrimenti il gesto si abbandona fino al
+tocco successivo. Al rilascio si cambia settimana oltre un terzo della larghezza o con un
+colpo veloce (almeno 0,5 px/ms negli ultimi 100 ms e almeno 20 px); un colpo veloce nel
+verso opposto annulla anche uno spostamento oltre il terzo. Verso una settimana inesistente
+la fila segue il dito con la curva dei bordi di iOS (coefficiente 0,55), senza superare mai
+la larghezza, e torna sempre indietro. Completamento in 220 ms e ritorno in 200 ms con la
+Web Animations API, istantanei con `prefers-reduced-motion` (il trascinamento segue comunque
+il dito); un tocco durante il ritorno riprende la fila da dove si trova, dalla distanza del
+dito prima della resistenza. Un secondo dito, anche fuori dalla fila, annulla il gesto. Il
+clic sintetico sul giorno sotto il dito dopo un trascinamento si ignora (entro 400 ms, una
+volta); un tocco durante il completamento non è né gesto né scelta del giorno e anche il suo
+clic si ignora; tastiera e mouse scelgono sempre il giorno. La settimana esiste se un suo
+giorno qualsiasi è nelle letture `menu.getDates` dei mesi toccati dalle due settimane
+vicine, lette con la stessa query del calendario, oppure se la settimana è nella copia
+salvata; una settimana senza alcuno slot non compare in `getDates` e, senza copia salvata,
+conta come inesistente. Le due settimane accanto che esistono e non sono salvate si leggono
+in anticipo una volta, senza osservatori (`prefetchQuery` con `staleTime: Infinity`):
+all'apertura fino a due `menu.getWeek` in più, mai ripetute al ritorno in primo piano, alla
+riconnessione o alle invalidazioni; all'arrivo la lettura normale della settimana ne
+controlla la versione. Alla fine del completamento la striscia resta sulla settimana
+accanto finché arrivano i giorni nuovi, poi un `useLayoutEffect` toglie la trasformazione
+prima del disegno: niente lampeggi né salti. La navigazione è quella del calendario, con una
+voce nella cronologia. Se la settimana di arrivo non è nella copia locale (lettura anticipata
+non finita, oppure offline e non salvata) il Menu mostra l'attesa come dal calendario; una
+settimana già salvata si raggiunge anche offline senza le date del mese. Scartato lo
+scorrimento nativo con snap: soglia di un terzo e movimento ridotto non si controllano.
+Nessuna libreria e nessuna operazione nuova. Da provare dall'utente sull'iPhone: soglia e
+colpo veloce, durate, resistenza paragonata alla fine di un elenco, pagina che non rimbalza
+in verticale, arrivo senza lampeggi, «Riduci movimento», gesto «indietro» di Safari.
+
+**Caricamenti (skeleton)** (W20, issue #49, PR #75 unita il 18 ottobre 2026, rilascio in
+preparazione; spec `progetto/superpowers/specs/2026-10-18-skeleton.md`, piano
+`progetto/superpowers/plans/2026-10-18-skeleton.md`; regole visive in `design/design.md`,
+sezione «Caricamenti (skeleton)»). Durante le attese dei dati, al posto del contenuto ci sono
+blocchi pieni della sua forma e della sua altezza, così la pagina non si sposta all'arrivo
+(il caso segnalato: in «Cambia ricetta» «Oppure cerca nel ricettario» saltava). Ogni scheda
+è un blocco unico `#EBE7DE`, senza testo; pulsanti, campi e righe isolate sono blocchi con
+raggio 8 px. I blocchi riusano elementi, classi globali e classi dei moduli CSS del
+contenuto, con righe vuote alte una riga di testo, e sono sempre a blocco: nel caso comune
+(schede con foto 3:1, nome su una riga, tre schede) lo spostamento è zero. **Variante B,
+scelta dall'utente il 18 ottobre 2026** fra tre provate sull'iPhone: pulsazione lenta
+dell'opacità da 1 a 0,5 in 1,6 s e ritorno, ripetuta, solo sui blocchi esterni. È
+un'eccezione approvata alla regola di `design/design.md` sulle animazioni decorative; si
+ferma con `prefers-reduced-motion` e in pausa offline. Lo spazio si riserva subito e i
+blocchi compaiono dopo **200 ms**: un'attesa più breve non mostra nulla e non sposta nulla;
+la soglia riparte a ogni attesa nuova. Pagine coperte: «Cambia ricetta» (suggerimenti, prima
+ricerca, proposte del pasto libero), Menu, Spesa, Ricetta, Ricettario, controllo della
+famiglia (`FamilyGate`) e avvio dell'app (prima schermo vuoto); le pagine rare (profilo,
+impostazioni, membri, esclusioni, agenti, amministrazione, bozze, eliminazioni, inviti,
+`/password`) restano invariate, con i rispettivi stati di attesa. Attese coperte: controllo dell'accesso, ripristino
+della copia salvata quando dura più di 200 ms (ammesso anche con copia salvata, decisione
+del coordinatore), lettura della coda della Spesa (la lista non si mostra prima, per non far
+sparire le spunte fatte sul telefono, PR #22) e lettura dal server senza dati; con dati
+disponibili il contenuto compare subito e l'aggiornamento in background non mostra
+skeleton. Offline senza copia salvata lo skeleton resta fermo sotto il banner offline
+(sezione 1). Ogni pagina coperta ha un layout di attesa completo, con gli stessi
+contenitori e la stessa intestazione, condiviso con `FamilyGate`; link indietro, titoli e
+filtri che non dipendono dai dati sono veri (Spesa, Ricetta, Ricettario; nel Menu mese e
+fila dei giorni quando la settimana è nota). Nel Ricettario titolo e filtri non si
+rimontano durante le attese; le sezioni dei curatori (Bozze, Archiviate) non hanno skeleton
+né spazio riservato e compaiono quando ruolo e riepilogo sono disponibili: lo spostamento
+è ammesso perché riguarda solo i curatori (decisione del coordinatore). Nei suggerimenti
+errore e «nessun suggerimento» prendono lo spazio delle schede; nelle pagine restano le
+schede di stato. Accessibilità: area dei dati con `aria-busy`, un solo `role="status"` per
+pagina o area che annuncia «Caricamento…» quando i blocchi compaiono, blocchi `aria-hidden`
+e mai toccabili. Componente condiviso `web/src/components/Skeleton.tsx` (`LoadingScope`
+con una sola attesa per pagina, anche per i blocchi dell'intestazione, `Skeleton`,
+`BusyArea`, `LoadingArea`), stili in `web/src/design/global.css`, nessuna dipendenza
+nuova. Da provare dall'utente sull'iPhone dopo il rilascio: «Cambia ricetta» su un pasto
+mai aperto, Cerca che non crolla a ogni lettera, «Riduci movimento», un solo annuncio con
+VoiceOver, avvio a freddo della PWA, Spesa con spunte fatte offline.
 
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
@@ -4317,6 +4403,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 18 ottobre 2026, skill per Claude e attività D rilasciata | Riportate le decisioni del piano `2026-10-18-skill-claude.md` (W17, PR #68 unita il 18 ottobre; rilascio nella riga sotto). Decisioni dell'utente: una sola skill `cosa-si-mangia` per tutti i ruoli, un solo `SKILL.md` in inglese che rimanda a `catalogue_getGuide` senza copiarne le regole, menu, famiglia, ricettario e amministrazione senza la spesa, conferme esplicite prima delle azioni irreversibili, zip con la cartella in cima da caricare su claude.ai, sezione visibile a tutti, niente prototipo. Tecniche: sorgente in `agent-skill/`, zip generato da `sync-assets` in `web/public/downloads/`, non versionato e servito come file statico anche a una navigazione, `/downloads/` fuori dalla cache del service worker, versione della pagina letta dalla skill, test che legano i nomi degli strumenti al contratto. Stato dell'attività D: rilasciata il 17 ottobre alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`) e collaudata dall'utente. Intestazione, Parte 1 e sezioni 1, 10, 13, 14 e 16 aggiornate per W17; per D anche 2, 4, 7, 8 e 15 |
 | 18 ottobre 2026, skill per Claude rilasciata | Rilascio della skill per Claude (W17, PR #68) il 18 ottobre alle 09:22 UTC (versione del Worker `03721d89-5d69-4ed3-92fb-a2de8746f751`, commit `cdbd7fe`), senza migrazioni né segreti; zip verificato in produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`). Collaudata dall'utente lo stesso giorno: zip caricato su claude.ai e skill provata dall'app Claude, funziona. Intestazione, Parte 1 e sezioni 1, 10, 13, 14 e 16 aggiornate |
 | 18 ottobre 2026, swipe fra le settimane | Riportate le decisioni del piano `2026-10-18-swipe-settimane.md` (W19, PR #72 unita il 18 ottobre, merge `160d83b`; rilascio in preparazione). Decisioni dell'utente: swipe orizzontale solo sulla fila dei giorni del Menu, verso sinistra la settimana successiva e verso destra la precedente, sullo stesso giorno della settimana; settimana inesistente con un piccolo rimbalzo e nessun messaggio; giorno di arrivo senza pasti aperto vuoto; calendario invariato come alternativa (sezione 5). Tecniche: eventi touch passivi, soglia di 48 px e prevalenza 2:1 sul verticale, un solo dito, clic sintetico dopo lo swipe ignorato; esistenza della settimana da `menu.getDates` dei mesi toccati o dalla copia salvata, con la navigazione del calendario anche offline; animazioni brevi con la Web Animations API, assenti con `prefers-reduced-motion`; nessuna libreria nuova (sezione 14) |
+| 18 ottobre 2026, swipe rilasciato, trascinamento (W21) e skeleton (W20) | Swipe fra le settimane (W19) rilasciato alle 12:09 UTC (versione del Worker `3260a367-c445-490d-abd3-359614a19f61`, commit `160d83b`). Riportate le decisioni del piano `2026-10-18-swipe-trascinamento.md` (W21, PR #74, merge `341bdb1`, rilasciata alle 13:49 UTC, versione `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`; collaudo sull'iPhone da fare). Decisioni dell'utente: la fila segue il dito e mostra i giorni della settimana accanto (solo date); cambio oltre un terzo della larghezza o con un colpo veloce; resistenza verso una settimana inesistente al posto del rimbalzo; arrivo senza salti. Tecniche: striscia di tre settimane con trasformazioni scritte nel DOM, `touchmove` non passivo con `preventDefault` solo a gesto orizzontale e `touch-action: pan-y pinch-zoom`, asse a 10 px, colpo veloce da 0,5 px/ms e 20 px, curva dei bordi di iOS, 220/200 ms con la Web Animations API, letture anticipate non osservate delle settimane accanto (`prefetchQuery`, `staleTime: Infinity`, decisione del coordinatore dopo la revisione della PR #74), scartato lo scorrimento nativo con snap. Riportate le decisioni della spec `2026-10-18-skeleton.md` (W20, issue #49, PR #75, merge `bb523a2`, rilascio in preparazione). Decisioni dell'utente: variante B con pulsazione lenta, eccezione approvata alla regola sulle animazioni decorative; pagine coperte e pagine rare invariate; in Cerca i risultati precedenti restano. Decisioni del coordinatore: skeleton anche in un ripristino locale oltre 200 ms; skeleton fermo offline; sezioni dei curatori senza skeleton, con lo spostamento ammesso. Tecniche: soglia di 200 ms, attesa della coda della Spesa, una sola attesa e un solo annuncio per pagina, layout di attesa condiviso con `FamilyGate`, componente `Skeleton.tsx` senza dipendenze nuove. Intestazione e sezioni 1, 5, 10 e 14 aggiornate; percorso 1 di `design/percorsi.md` |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
