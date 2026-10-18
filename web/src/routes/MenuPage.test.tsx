@@ -182,6 +182,16 @@ describe('menu', () => {
       fireEvent.click(monday, { detail: 0 });
       await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
     });
+    it('lets a mouse press choose a day right after a swipe, with a click without pointer type', async () => {
+      const { history } = renderApp('/menu?day=2026-10-15');
+      const monday = await screen.findByRole('link', { name: 'lunedì 12 ottobre' });
+      await settle();
+      swipe(-80);
+      fireEvent.pointerDown(monday, { pointerType: 'mouse' });
+      // A plain MouseEvent, without pointerType, as older Safari sends it.
+      fireEvent.click(monday, { detail: 1 });
+      await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
+    });
     it('replaces a running bounce and stops it when the days go away', async () => {
       const cancel = vi.fn();
       // jsdom has no Web Animations API: the test lends one to the elements.

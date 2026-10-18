@@ -70,6 +70,11 @@ export function DaySelector({ dates, selected, onSelect, onSwipe }: Props) {
       onTouchMove={onSwipe && onTouchMove}
       onTouchEnd={onSwipe && onTouchEnd}
       onTouchCancel={onSwipe && cancel}
+      // A new mouse press is a new interaction: its click is never the swipe's (Safari before 18.2
+      // sends that click without a pointer type).
+      onPointerDown={(event) => {
+        if (event.pointerType === 'mouse') swipedUntil.current = 0;
+      }}
       onClickCapture={(event) => {
         // Keyboard activation (detail 0) and the mouse are never the swipe's click.
         const pointerType = (event.nativeEvent as Partial<PointerEvent>).pointerType;

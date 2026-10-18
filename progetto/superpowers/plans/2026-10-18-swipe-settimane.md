@@ -24,7 +24,9 @@ dall'utente il 18/10/2026 (brief); qui solo come realizzarle. Specifica principa
 - Dopo uno swipe riconosciuto, il clic sintetico che alcuni browser emettono sul giorno sotto
   il dito viene ignorato (cattura del clic sulla fila entro 400 ms, una volta sola), così uno
   swipe non seleziona anche il giorno. La protezione si azzera a ogni nuovo `touchstart` e non
-  vale per tastiera (`detail` 0) e mouse (`pointerType` `mouse`): un nuovo tocco o un tasto
+  vale per tastiera (`detail` 0) e mouse (`pointerType` `mouse`, oppure azzeramento a un
+  `pointerdown` del mouse per Safari prima della 18.2, che manda il clic senza `pointerType`):
+  un nuovo tocco, un clic del mouse o un tasto
   subito dopo scelgono il giorno (rilievo 3).
 - La classificazione è una funzione pura (`swipeStep(dx, dy)` → `-1 | 1 | 0`), con i suoi test.
 
