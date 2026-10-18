@@ -5,21 +5,18 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 18 ottobre 2026, mattina)
 
-- **Attività in corso:** nessuna. **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle
+- **Attività in corso:** W18 (test instabile di Bring!). **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle
   09:22 UTC (PR #68, `cdbd7fe`, versione `03721d89-5d69-4ed3-92fb-a2de8746f751`, tre
   revisioni Codex in `revisioni/w17-pr68*.md`), collaudata dall'utente (zip caricato su
   claude.ai, funziona dall'app Claude). Specifica aggiornata con la PR #69 (unita).
-- **PR di documentazione:** #70 (`docs/rilascio-w17`, worktree `.worktrees/doc-rilascio-w17`),
-  specifica con W17 rilasciata e collaudata; revisione `revisioni/spec-w17-pr70.md`
-  APPROVABILE. Attende il «mergia» dell'utente.
+- **PR di documentazione:** #70 unita il 18/10 (W17 rilasciata e collaudata nella specifica).
 - **Worker attivi:** W18, tab «W18 test Bring» (pane `w1:p55` al 18/10), branch
   `correzioni/test-bring`, worktree `.worktrees/test-bring`, brief `brief/w18-test-bring.md`
   (test instabile `asset-routing` › Bring!; l'utente consente di toglierlo se la correzione è
   complessa). **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** nessuna. «Mergia» della #70 dato dall'utente (18/10): si unisce
-  appena la CI è verde.
+- **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `03721d89-5d69-4ed3-92fb-a2de8746f751` (commit `cdbd7fe`, 18/10
   09:22 UTC, W17). Precedente per un ritorno: `21616921-3cfe-4390-b19c-9e42d824cebe`.
