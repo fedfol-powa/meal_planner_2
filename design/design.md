@@ -389,8 +389,10 @@ pulsazione lenta.
   e le stesse classi del contenuto con righe vuote, così l'altezza coincide nel caso
   comune (schede con foto, titolo su una riga, descrizione piena).
 - **Pulsazione:** opacità da 1 a 0,5 in 1,6 s e ritorno, ripetuta; animano solo le
-  schede e i blocchi esterni, mai elementi annidati. È l'unica animazione dell'app ed è
-  un'eccezione approvata alla regola sulle animazioni decorative. Si ferma con «riduci
+  schede e i blocchi esterni, mai elementi annidati. È l'unica animazione decorativa
+  dell'app ed è un'eccezione approvata alla regola sulle animazioni decorative (il
+  completamento e il ritorno della fila dei giorni, W21, sono manipolazione diretta, non
+  decorazione). Si ferma con «riduci
   movimento» e offline, quando la lettura aspetta la rete.
 - **Soglia:** lo spazio si riserva subito, i blocchi compaiono dopo 200 ms; un
   caricamento più breve non mostra nulla e non sposta nulla.
