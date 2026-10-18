@@ -165,3 +165,18 @@ html { height: 100%; }
 .stepper-button:disabled { opacity: 0.4; cursor: not-allowed; }
 .stepper-value { min-width: 9ch; text-align: center; font-weight: 700; }
 .row-link:disabled { color: var(--muted); cursor: not-allowed; }
+/* Skeletons while loading (W20, issue #49): blocks of the content's shape, built with the content's own
+   elements and classes, so heights match. The slow pulse is an exception to the guide's rule on decorative
+   animation, approved by the user on 18 October 2026; it stops with reduced motion and when offline. */
+.skeleton:not([data-visible='true']) { visibility: hidden; }
+.skeleton-card { display: block; background: #ebe7de; box-shadow: none; border-color: transparent; pointer-events: none; }
+.skeleton-card * { background: transparent; border-color: transparent; box-shadow: none; }
+.skeleton-line { display: block; height: 1.5em; height: 1lh; }
+.skeleton-block { display: block; border-radius: 8px; background: #ebe7de; pointer-events: none; }
+.skeleton-card { animation: skeleton-pulse 1.6s ease-in-out infinite alternate; }
+.skeleton-block { animation: skeleton-pulse 1.6s ease-in-out infinite alternate; }
+@keyframes skeleton-pulse { from { opacity: 1; } to { opacity: 0.5; } }
+:is(.skeleton-card, .skeleton-block):is(.skeleton[data-paused='true'], .skeleton[data-paused='true'] *) { animation: none; }
+@media (prefers-reduced-motion: reduce) { .skeleton-card, .skeleton-block { animation: none; } }
+/* A block inside an animated card never animates on its own (no nested pulses). */
+.skeleton-card :is(.skeleton-card, .skeleton-block) { animation: none; }
