@@ -12,6 +12,7 @@
 .accordion details[open] { padding-bottom: 12px; }
 .steps { margin: 0; padding-left: 20px; }
 .steps li { margin: 0 0 8px; }
+.download { margin: 4px 0 16px; }
 .note { margin: 4px 0 0; color: var(--muted); font-size: 0.8125rem; }
 .examples { margin: 4px 0 12px; padding-left: 20px; }
 .examples li { margin: 4px 0; }

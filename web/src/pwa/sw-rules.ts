@@ -18,6 +18,8 @@ export function strategyFor(request: { url: string; method: string; mode: string
   const url = new URL(request.url);
   if (url.origin !== request.origin) return 'passthrough';
   if (SERVER_PREFIXES.some((p) => url.pathname === p || url.pathname.startsWith(`${p}/`))) return 'passthrough';
+  // Files to download (the skill zip, W17): a download may come as a navigation; never cached, as each build may change them.
+  if (url.pathname.startsWith('/downloads/')) return 'passthrough';
   // A photo opened as a page goes to the Worker, never to the shell.
   if (url.pathname.startsWith('/photos/')) return request.mode === 'navigate' ? 'passthrough' : 'photo';
   if (request.mode === 'navigate') return 'shell';

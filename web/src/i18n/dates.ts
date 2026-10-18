@@ -25,6 +25,10 @@ export function formatDayMonth(locale: Locale, date: IsoDate): string {
   return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(asUtc(date));
 }
 
+export function formatDayMonthYear(locale: Locale, date: IsoDate): string {
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(asUtc(date));
+}
+
 export function formatMonthYear(locale: Locale, date: IsoDate): string {
   return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(asUtc(date));
 }

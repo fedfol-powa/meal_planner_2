@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { loadEnv, type Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -8,6 +8,9 @@ import { assertSelfContained, injectPrecache, precacheList } from './src/pwa/pre
 // One value per build: cache names, the version checked at install and the build of sw.js.
 const buildVersion = new Date().toISOString();
 const fontsDir = fileURLToPath(new URL('./public/assets/fonts', import.meta.url));
+// «Collega un agente» shows the version written in the skill it offers (W17), so the two never differ.
+const skillVersion = /^Skill version: (\d{4}-\d{2}-\d{2})$/m.exec(readFileSync(new URL('../agent-skill/cosa-si-mangia/SKILL.md', import.meta.url), 'utf8'))?.[1];
+if (!skillVersion) throw new Error('agent-skill/cosa-si-mangia/SKILL.md: no "Skill version: YYYY-MM-DD" line');
 
 /**
  * The worker and the page carry their build (spec W8): sw.js gets the list of files it installs,
@@ -36,6 +39,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), pwaBuild()],
     define: {
       __BUILD_VERSION__: JSON.stringify(buildVersion),
+      __SKILL_VERSION__: JSON.stringify(skillVersion),
       // «Collega un agente» shows `${origin}/mcp`: in production the Worker serves SPA and /mcp on one
       // origin; the Vite dev server forwards only /api, so the page shows the Worker's origin there.
       __SERVICE_ORIGIN__: JSON.stringify(mode === 'development' ? new URL(apiTarget).origin : null)
@@ -54,7 +58,7 @@ export default defineConfig(({ mode }) => {
       // Node 26 has its own localStorage, undefined without a file, that hides jsdom's.
       execArgv: ['--no-experimental-webstorage'],
       setupFiles: ['./src/test/setup.ts'],
-      include: ['src/**/*.test.{ts,tsx}']
+      include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts']
     }
   };
 });
