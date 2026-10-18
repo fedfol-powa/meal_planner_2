@@ -21,8 +21,15 @@ Skill version: 2026-10-18
   (`session_whoami` tells it); notes and free texts written by the family stay as written.
 - Parameters are described by each tool's schema: follow it rather than guessing. Leave
   `knownVersion` out of reads: with it, an unchanged read returns no data.
-- Every write that takes an `id` wants a new random UUID for that action. Repeating the same
-  request with the same `id` changes nothing, so retry a failed call with the same `id`.
+- An `id` is either new or existing, and mixing them up hits the wrong thing or nothing:
+  - New ids: generate a random UUID for each new action or entity in `family_create`,
+    `meals_setRecipe`, `meals_setFree`, `meals_swap`, `meals_setServings`, `meals_setNote`,
+    `meals_undo`, `catalogue_createDraft`, `catalogue_startRevision`,
+    `catalogue_createIngredient`, `catalogue_createBook`, `catalogue_setPhotoFromUrl`,
+    `appInvitations_create`, `familyInvitations_create`. Repeating a request with the same
+    `id` changes nothing, so retry a failed call with the same `id`.
+  - Every other `id` names something that exists (a user, an invitation...): take it from a
+    read such as `users_list` or `familyInvitations_list`, never generate it.
 
 ## Who and which family
 
