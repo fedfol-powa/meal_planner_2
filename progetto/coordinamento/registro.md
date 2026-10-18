@@ -3,35 +3,33 @@
 Stato operativo dei worker. Aggiornato dal coordinatore a ogni cambio di fase.
 Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e `cwd`).
 
-## Stato corrente (aggiornato il 18 ottobre 2026, pomeriggio)
+## Stato corrente (aggiornato il 18 ottobre 2026, sera)
 
-- **Attività in corso:**
-  - **W20, skeleton (#49):** variante B scelta dall'utente (eccezione a `design/design.md`);
-    spec e piano approvati alla quarta revisione (`revisioni/w20-spec-piano*.md`); decisioni
-    del coordinatore: skeleton ammesso in un ripristino locale oltre 200 ms, fermo offline
-    senza copia, sezioni dei curatori senza skeleton (spostamento ammesso). In
-    implementazione, Menu per ultimo dopo l'aggiornamento su `origin/main`.
+- **Attività in corso:** nessun worker. Collaudi dell'utente sull'iPhone.
 - **Rilasciate oggi:**
-  - **W21, la fila dei giorni segue il dito:** PR #74 (merge `341bdb1`, due revisioni
-    `revisioni/w21-pr74*.md`), rilasciata alle 13:49 UTC, versione
-    `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`. Collaudo sull'iPhone dell'utente da fare.
-  - **W19, swipe fra le settimane:** PR #72, rilasciata alle 12:09 UTC (versione
-    `3260a367`), specifica con la PR #73.
-  - **W17 skill per Claude** (PR #68, #69, #70) e **W18 test di Bring!** (PR #71): chiuse.
-- **Specifica da aggiornare** (prossima PR di documentazione): W19 «rilascio in preparazione»
-  → rilasciata; decisioni di W21 (piano `plans/2026-10-18-swipe-trascinamento.md`, «Decisioni
-  da riportare nella specifica»), con le letture anticipate non osservate.
-- **Worker attivi:** W20, tab «W20 skeleton» (pane `w1:p5B` al 18/10), branch
-  `evolutive/skeleton`, worktree `.worktrees/skeleton`. **Revisori attivi:** nessuno.
+  - **W20, skeleton (#49):** PR #75 (merge `bb523a2`, revisioni `revisioni/w20-spec-piano*.md`
+    e `revisioni/w20-pr75*.md`), rilasciata alle 16:39 UTC, versione
+    `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`. Variante B (eccezione approvata a
+    `design/design.md`). Tab, worktree e branch rimossi.
+  - **W21, la fila dei giorni segue il dito:** PR #74, rilasciata alle 13:49 UTC (versione
+    `c3a72b02`).
+  - **W19, swipe fra le settimane:** PR #72, rilasciata alle 12:09 UTC (versione `3260a367`).
+  - **W17 skill per Claude** (PR #68, #69, #70) e **W18 test di Bring!** (PR #71).
+- **PR di documentazione:** #76 (`docs/specifica-w19-w21-w20`, worktree
+  `.worktrees/doc-skeleton`): specifica, `design/percorsi.md` e `design/design.md` per W19,
+  W21 e W20; revisione `revisioni/spec-w20-pr76.md` con un rilievo minore, corretto in
+  `dcc92f4`. Attende il «mergia» dell'utente; dopo il merge W20 va segnata rilasciata (oggi
+  dice «rilascio in preparazione»).
+- **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** per l'utente, collaudo del trascinamento sull'iPhone.
+- **Domande in sospeso:** per l'utente, «mergia» della #76; collaudi sull'iPhone del
+  trascinamento (W21) e dello skeleton (W20).
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
-- **In produzione:** versione `c3a72b02-bf2f-4100-8628-b8ce61bcadd0` (commit `cbe5869`, 18/10
-  13:49 UTC, W21). Precedente per un ritorno: `3260a367-c445-490d-abd3-359614a19f61`.
-- **Prossimo passo:** PR di W20 → revisione → merge → rilascio; PR di specifica per W19, W21 e
-  W20 insieme. In coda: E, ricettario esteso, issue #55, #39, #62, #67, pulizia dei worktree
-  di PR già unite, R26 rimandata.
+- **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
+  16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
+- **Prossimo passo:** merge della #76, esito dei collaudi. In coda: E, ricettario esteso,
+  issue #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26 rimandata.
 
 ## Storico
 
