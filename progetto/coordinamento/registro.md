@@ -5,7 +5,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 18 ottobre 2026, sera)
 
-- **Attività in corso:** nessun worker. Collaudi dell'utente sull'iPhone.
+- **Attività in corso:** nessuna. Collaudi di W20 e W21 fatti dall'utente il 18/10.
 - **Rilasciate oggi:**
   - **W20, skeleton (#49):** PR #75 (merge `bb523a2`, revisioni `revisioni/w20-spec-piano*.md`
     e `revisioni/w20-pr75*.md`), rilasciata alle 16:39 UTC, versione
@@ -15,18 +15,16 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
     `c3a72b02`).
   - **W19, swipe fra le settimane:** PR #72, rilasciata alle 12:09 UTC (versione `3260a367`).
   - **W17 skill per Claude** (PR #68, #69, #70) e **W18 test di Bring!** (PR #71).
-- **PR di documentazione:** #76 unita (specifica per W19, W21, W20); #77
-  (`docs/rilascio-w20`, worktree `.worktrees/doc-rilascio-w20`): W20 rilasciata e W20/W21
-  collaudate; revisione `revisioni/spec-w20-pr77.md` APPROVABILE. Attende il «mergia».
+- **PR di documentazione:** #76 e #77 unite: specifica aggiornata con W19, W21 e W20 rilasciate
+  e collaudate.
 - **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** per l'utente, «mergia» della #77. Collaudi di W20 e W21 fatti
-  dall'utente (18/10: «funziona»).
+- **Domande in sospeso:** nessuna.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
-- **Prossimo passo:** merge della #76, esito dei collaudi. In coda: E, ricettario esteso,
+- **Prossimo passo:** a scelta dell'utente: E (ricetta da un link), ricettario esteso,
   issue #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26 rimandata.
 
 ## Storico
