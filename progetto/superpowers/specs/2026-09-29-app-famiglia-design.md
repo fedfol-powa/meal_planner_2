@@ -4169,9 +4169,10 @@ dopo uno swipe si ignora (entro 400 ms, una volta); tastiera e mouse scelgono se
 giorno. La settimana esiste se un suo giorno qualsiasi è nelle letture `menu.getDates` dei
 mesi toccati dalle due settimane vicine, lette in anticipo con la stessa query del
 calendario, oppure se la settimana è nella copia salvata. La navigazione è quella del
-calendario, con una voce nella cronologia; offline vale lo stesso comportamento: con le date
-salvate e la settimana non salvata il Menu resta su «Caricamento…», senza date salvate
-rimbalza. Una settimana senza alcuno slot non compare in `getDates` e, senza copia salvata,
+calendario, con una voce nella cronologia. Offline, se le date salvate indicano che la
+settimana esiste ma la settimana non è salvata, il Menu resta su «Caricamento…»; una
+settimana già salvata si raggiunge anche senza le date del mese. Se mancano entrambe, la
+fila rimbalza. Una settimana senza alcuno slot non compare in `getDates` e, senza copia salvata,
 conta come inesistente. Rimbalzo (12 px, 200 ms) e ingresso della settimana nuova (24 px,
 180 ms) con la Web Animations API, assenti con `prefers-reduced-motion`. Nessuna libreria e
 nessuna operazione nuova. Da provare dall'utente sull'iPhone dopo il rilascio: la sensazione
