@@ -6,5 +6,7 @@ export const env = {
   supabase: url && publishableKey ? { url, publishableKey } : null,
   buildVersion: __BUILD_VERSION__,
   /** Origin of the service (MCP) when it is not the page's: the Worker behind the Vite dev server; null elsewhere. */
-  serviceOrigin: __SERVICE_ORIGIN__
+  serviceOrigin: __SERVICE_ORIGIN__,
+  /** Version of the Claude skill, read from its SKILL.md at build time (W17). */
+  skillVersion: __SKILL_VERSION__
 };

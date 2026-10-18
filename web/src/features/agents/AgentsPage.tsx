@@ -9,7 +9,7 @@ import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
 import { QueryError } from '../../components/QueryError';
 import { env } from '../../env';
-import { formatDayMonth } from '../../i18n/dates';
+import { formatDayMonth, formatDayMonthYear } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { BackToProfile } from '../../routes/profile/BackToProfile';
 import { useProfile } from '../../session/useFamily';
@@ -20,7 +20,10 @@ import { CopyField } from './CopyField';
 import { formatRenewal } from './format';
 import styles from './AgentsPage.module.css';
 
-/** «Collega un agente» (spec section 13, round 6): address, clients, sign-in, examples, connected agents. */
+const SKILL_ZIP = '/downloads/cosa-si-mangia.zip';
+const SKILL_STEPS = ['agents.skillStep1', 'agents.skillStep2', 'agents.skillStep3', 'agents.skillStep4'] as const;
+
+/** «Collega un agente» (spec section 13, round 6): address, clients, sign-in, examples, the Claude skill (W17), connected agents. */
 export function AgentsPage() {
   const t = useT();
   const { locale } = useLocale();
@@ -97,6 +100,17 @@ export function AgentsPage() {
             </>
           )}
           <p className="meta-line">{t('agents.familyDeletion')}</p>
+        </section>
+
+        <section className="settings-card" aria-labelledby="skill-title">
+          <h2 id="skill-title">{t('agents.skill')}</h2>
+          <p>{t('agents.skillBody')}</p>
+          {/* Built from agent-skill/ by sync-assets; outside the service worker's cache (sw-rules). */}
+          <a className={`text-button ${styles.download}`} href={SKILL_ZIP} download>{t('agents.skillDownload')}</a>
+          <ol className={styles.steps}>
+            {SKILL_STEPS.map((key) => <li key={key}>{t(key)}</li>)}
+          </ol>
+          <p className="meta-line">{t('agents.skillVersion', { date: formatDayMonthYear(locale, env.skillVersion) })}</p>
         </section>
 
         <section className="settings-card" aria-labelledby="connected-title">

@@ -140,4 +140,26 @@ describe('«Collega un agente»', () => {
     renderApp('/profile/agents', { api });
     expect(await screen.findByText('Le istruzioni sugli ingredienti l’agente le legge dal servizio.')).toBeTruthy();
   });
+
+  it('offers the Claude skill to everyone, with the claude.ai steps and the version to reload (W17)', async () => {
+    renderApp('/profile/agents');
+    const section = (await screen.findByRole('heading', { name: 'Skill per Claude' })).closest('section')!;
+    const link = within(section).getByRole('link', { name: 'Scarica la skill' });
+    expect(link.getAttribute('href')).toBe('/downloads/cosa-si-mangia.zip');
+    expect(link.hasAttribute('download')).toBe(true);
+    expect(within(section).getByText(/Code execution and file creation/)).toBeTruthy();
+    expect(within(section).getByText(/Upload a skill/)).toBeTruthy();
+    expect(within(section).getByText(/app Claude sul telefono/)).toBeTruthy();
+    expect(within(section).getByText(`Versione del ${new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${__SKILL_VERSION__}T00:00:00Z`))}: quando cambia, scaricala e caricala di nuovo.`)).toBeTruthy();
+  });
+
+  it('gives the skill section in British English', async () => {
+    const api = createFakeApi({ getLocale: () => 'en-GB', latencyMs: 0 });
+    await api.profile.update({ locale: 'en-GB' });
+    renderApp('/profile/agents', { api, locale: 'en-GB' });
+    const section = (await screen.findByRole('heading', { name: 'Skill for Claude' })).closest('section')!;
+    expect(within(section).getByRole('link', { name: 'Download the skill' }).getAttribute('href')).toBe('/downloads/cosa-si-mangia.zip');
+    expect(within(section).getByText(/Claude app on your phone/)).toBeTruthy();
+    expect(within(section).getByText(/^Version of .*: when it changes, download it and upload it again\.$/)).toBeTruthy();
+  });
 });

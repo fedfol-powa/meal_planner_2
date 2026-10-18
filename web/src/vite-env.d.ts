@@ -2,6 +2,8 @@
 
 declare const __BUILD_VERSION__: string;
 declare const __SERVICE_ORIGIN__: string | null;
+/** Date of the Claude skill offered on «Collega un agente», YYYY-MM-DD (W17). */
+declare const __SKILL_VERSION__: string;
 
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
