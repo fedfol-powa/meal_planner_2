@@ -8,7 +8,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Attività in corso:** W19, swipe sulla fila dei giorni per cambiare settimana (richiesta
   dell'utente del 18/10), brief `brief/w19-swipe-settimane.md`; decisioni: stesso giorno
   della settimana, settimana inesistente → rimbalzo senza messaggio, niente prototipo. Dopo
-  W19: W20, skeleton (#49), brief `brief/w20-skeleton.md` da approvare, con varianti nel
+  W19: W20, skeleton (#49), brief `brief/w20-skeleton.md` approvato, con varianti nel
   prototipo (scelta dell'utente).
   - **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle 09:22 UTC (PR #68, `cdbd7fe`,
     versione `03721d89-5d69-4ed3-92fb-a2de8746f751`, revisioni `revisioni/w17-pr68*.md`),
@@ -24,7 +24,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** per l'utente, approvazione del brief W20 (skeleton).
+- **Domande in sospeso:** nessuna. Brief W20 approvato dall'utente il 18/10: si avvia dopo il merge di W19.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `03721d89-5d69-4ed3-92fb-a2de8746f751` (commit `cdbd7fe`, 18/10
   09:22 UTC, W17). Precedente per un ritorno: `21616921-3cfe-4390-b19c-9e42d824cebe`.
