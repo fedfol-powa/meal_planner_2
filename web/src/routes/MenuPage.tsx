@@ -8,7 +8,6 @@ import { DatePicker } from '../components/DatePicker';
 import { DaySelector } from '../components/DaySelector';
 import { FamilyGate } from '../components/FamilyGate';
 import { Icon } from '../components/Icon';
-import { Loading } from '../components/Loading';
 import { useOnline } from '../components/OfflineBanner';
 import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
@@ -22,15 +21,19 @@ import type { Locale } from '../i18n/translate';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { addDays, isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTime } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
+import { MenuSkeleton } from './menu/MenuSkeleton';
 import { pickSelected } from './menu/selection';
 import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
 
 export function MenuPage() {
+  const { day } = route.useSearch();
+  const navigate = route.useNavigate();
+  const select = (date: IsoDate) => void navigate({ search: { day: date } });
   // The undo offer outlives a change of week (the toast follows the action, not the week shown).
   return (
-    <FamilyGate>
+    <FamilyGate waiting={(paused) => <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={select} paused={paused} />}>
       {(family) => (
         <UndoProvider familyId={family.id}>
           <MenuView family={family} />
@@ -181,10 +184,14 @@ function MenuView({ family }: { family: FamilyView }) {
 
   // A requested day needs no opening: its week is enough (offline after the day changed).
   if (!requested && opening.isError && isBlocking(opening.error, !!opening.data)) return notice(<QueryError error={opening.error} onRetry={() => void opening.refetch()} />);
-  if (!requested && !opening.data) return notice(<Loading />);
+  // Week not known yet (first start, no saved opening): the menu's shape with blocks for month and days.
+  if (!requested && !opening.data) return <MenuSkeleton paused={opening.fetchStatus === 'paused'} />;
   if (opening.data?.kind === 'no_weeks') return notice(<StateNotice title={t('menu.noWeeks.title')} body={t('menu.noWeeks.body')} />);
   if (week.isError && !weekMissing && isBlocking(week.error, !!week.data)) return notice(<QueryError error={week.error} onRetry={() => void week.refetch()} />);
-  if (!week.data || !selected) return notice(<Loading />);
+  // The week is known: real month and days, the meals as blocks until the week arrives (W20).
+  if (!week.data || !selected) {
+    return <MenuSkeleton weekStartsOn={weekStart} selected={selected ?? requested ?? openingDay?.date ?? weekStart} onSelect={select} paused={week.fetchStatus === 'paused'} />;
+  }
 
   const now = localNow(family.timeZone);
   return (

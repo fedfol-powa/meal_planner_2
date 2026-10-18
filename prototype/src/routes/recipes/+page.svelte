@@ -5,7 +5,9 @@
 	import RecipeCard from '#lib/components/RecipeCard.svelte';
 	import type { RecipeCardView } from '#lib/operations/views.ts';
 	import RecipeFilters from '#lib/components/RecipeFilters.svelte';
+	import LoadingRegion from '#lib/components/LoadingRegion.svelte';
 	import StateNotice from '#lib/components/StateNotice.svelte';
+	import { simulatedLoad } from '#lib/store/loading.svelte.ts';
 	import type { MealType, ProteinGroup } from '#lib/domain/types.ts';
 	import { getCurationOverview } from '#lib/operations/curation.ts';
 	import { searchRecipes, type RecipeListItem, type RecipeQuery, type RecipeSort } from '#lib/operations/recipes.ts';
@@ -31,6 +33,8 @@
 		const r = getCurationOverview(app.db, app.ctx, query.text);
 		return r.ok ? r.value : null;
 	});
+	// Round 7: simulated loading of the list, once per search.
+	const listLoad = simulatedLoad(() => `recipes:${page.url.search}`);
 	let draftsOpen = $state(true);
 	let archivedOpen = $state(false);
 
@@ -82,18 +86,37 @@
 			{/if}
 		</section>
 	{/if}
-	{#if !result.ok}
-		<StateNotice title={app.t('error.forbidden')} />
-	{:else if result.value.length === 0}
-		<StateNotice title={app.t('recipes.noResults.title')} body={app.t('recipes.noResults.body')}>
-			<button type="button" class="text-button" onclick={() => update({})}>{app.t('recipes.reset')}</button>
-		</StateNotice>
-	{:else}
-		<p class="meta-line" role="status">{app.t('recipes.count', { count: result.value.length })}</p>
-		<div class="recipe-list">
-			{#each result.value as item (item.recipe.id)}<RecipeCard card={toCard(item)} system={app.family?.measurementSystem ?? 'metric'} />{/each}
-		</div>
-	{/if}
+	<LoadingRegion load={listLoad} label={app.t('loading.recipes')}>
+		{#snippet skeleton()}
+			<p class="meta-line sk-line" style="--w: 30%"></p>
+			<div class="recipe-list">
+				{#each [0, 1, 2] as i (i)}
+					<article class="meal sk-card">
+						<!-- Most catalogue cards have no photo: the label sits where the photo would be. -->
+						<div class="meal-heading" style="height: 47px"><span class="meal-label sk-media" style="width: 96px; height: 1lh; border-radius: 4px; box-sizing: content-box">&nbsp;</span></div>
+						<div class="meal-content" style="padding-bottom: 14px">
+							<p class="sk-line sk-title" style="--w: 60%; margin: 0 0 12px; font: 400 1.25rem/1.3 var(--meal-title-font)"></p>
+							<div class="description"><span class="sk-line"></span><span class="sk-line"></span><span class="sk-line" style="--w: 45%"></span></div>
+							<p class="meal-meta sk-line" style="--w: 40%; margin: 0; height: 24px"></p>
+						</div>
+						<div style="height: 49px; border-top: 1px solid var(--rule)"></div>
+					</article>
+				{/each}
+			</div>
+		{/snippet}
+		{#if !result.ok}
+			<StateNotice title={app.t('error.forbidden')} />
+		{:else if result.value.length === 0}
+			<StateNotice title={app.t('recipes.noResults.title')} body={app.t('recipes.noResults.body')}>
+				<button type="button" class="text-button" onclick={() => update({})}>{app.t('recipes.reset')}</button>
+			</StateNotice>
+		{:else}
+			<p class="meta-line" role="status">{app.t('recipes.count', { count: result.value.length })}</p>
+			<div class="recipe-list">
+				{#each result.value as item (item.recipe.id)}<RecipeCard card={toCard(item)} system={app.family?.measurementSystem ?? 'metric'} />{/each}
+			</div>
+		{/if}
+	</LoadingRegion>
 	{#if curation && curation.archived.length}
 		<section class="curation archived" aria-labelledby="archived-title">
 			<h2 id="archived-title"><button type="button" class="section-toggle" aria-expanded={archivedOpen} onclick={() => (archivedOpen = !archivedOpen)}>

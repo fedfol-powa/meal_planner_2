@@ -11,6 +11,9 @@ import { FAMILY, grams, item, listView, MONDAY, ops, RICE, TOMATO } from './fixt
 import { queueKey } from './storage';
 import { createShoppingServer } from './testServer';
 
+// The list is shown: its «…» menu exists only then (the title is already there while loading, W20).
+const listShown = () => screen.findByRole('button', { name: 'Azioni della lista' });
+
 const PATH = `/shopping/${MONDAY}?day=2026-10-14`;
 const withOptionalRice = () =>
   listView({
@@ -38,7 +41,8 @@ const backLink = () => within(document.querySelector('.page-header') as HTMLElem
 describe('shopping page', () => {
   it('shows the departments in the order of the domain, with names, quantities and optional items', async () => {
     open({ base: withOptionalRice });
-    await screen.findByRole('heading', { level: 1, name: 'Settimana 12–18 ottobre' });
+    await listShown();
+    expect(screen.getByRole('heading', { level: 1, name: 'Settimana 12–18 ottobre' })).toBeTruthy();
     expect(screen.getByText('3 pasti')).toBeTruthy();
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['Frutta e verdura', 'Pasta, riso e cereali', 'Altro']);
@@ -50,7 +54,7 @@ describe('shopping page', () => {
 
   it('ticks at once with the sync mark, sends the quantity shown, and clears the mark once confirmed', async () => {
     const { server } = open();
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     server.holdNextWrite();
     fireEvent.click(tomatoBox());
     await waitFor(() => expect(tomatoBox().checked).toBe(true));
@@ -66,7 +70,7 @@ describe('shopping page', () => {
 
   it('shows «prima» when the item grew, also while the tick is still queued', async () => {
     const { server } = open();
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     setOnline(false);
     fireEvent.click(tomatoBox());
     await waitFor(() => expect(tomatoBox().checked).toBe(true));
@@ -81,7 +85,7 @@ describe('shopping page', () => {
 
   it('adds a free item with Enter, ignores an empty one and limits the length', async () => {
     const { server } = open();
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     const field = screen.getByRole('textbox', { name: 'Aggiungi una voce' }) as HTMLInputElement;
     expect(field.maxLength).toBe(60);
     fireEvent.change(field, { target: { value: '   ' } });
@@ -96,7 +100,7 @@ describe('shopping page', () => {
 
   it('puts an item back from «Non in lista»', async () => {
     const { server } = open();
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     expect(screen.getByText('Non in lista (2)')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Rimetti in lista: Olio' }));
     await screen.findByRole('checkbox', { name: 'Preso o già in casa: Olio' });
@@ -106,7 +110,7 @@ describe('shopping page', () => {
 
   it('shows a refused change until «Ok»', async () => {
     const { server } = open();
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     server.failNext(new ApiError('invalid'));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Preso o già in casa: Detersivo' }));
     await screen.findByText('Modifica non salvata: Detersivo');
@@ -120,7 +124,7 @@ describe('shopping page', () => {
     // A session that could not be renewed (unverified), the list read once, then no network in the shop.
     backend.setCheck({ status: 'unverified', user: DEMO_USER });
     renderApp(PATH, { createApi: () => (locale) => server.api(locale), backend });
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     setOnline(false);
     backend.refreshResult = { kind: 'network' };
     const calls = server.calls.length;
@@ -144,7 +148,8 @@ describe('shopping page', () => {
     renderApp(PATH, { createApi: () => (locale) => server.api(locale), backend: createStubBackend(DEMO_USER), store });
     await waitFor(() => expect(server.reads).toHaveBeenCalled());
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    // The title is real while waiting (W20); the list and its menu are not there yet.
+    expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Azioni della lista' })).toBeNull();
     act(() => release());
     await waitFor(() => expect(tomatoBox().checked).toBe(true));
@@ -167,7 +172,7 @@ describe('shopping page', () => {
       } as typeof base;
     };
     renderApp(PATH, { createApi: () => (locale) => api(locale), backend: createStubBackend(DEMO_USER) });
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     expect(server.reads).toHaveBeenCalledWith(expect.objectContaining({ familyId: FAMILY, weekStartsOn: MONDAY }));
     fireEvent.click(tomatoBox());
     await waitFor(() => expect(server.applied[0]).toMatchObject({ input: { familyId: FAMILY } }));
@@ -181,7 +186,7 @@ describe('shopping page', () => {
 
   it('goes back to the menu day it was opened from', async () => {
     open();
-    await screen.findByRole('heading', { level: 1 });
+    await listShown();
     expect(backLink().getAttribute('href')).toBe('/menu?day=2026-10-14');
   });
 });

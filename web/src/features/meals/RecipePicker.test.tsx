@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setOnline } from '../../test/connectivity';
 import { SERVER_RECIPE } from '../../test/rpcServer';
 import { DINNER, realMealsApp } from './testApp';
 
@@ -18,6 +19,214 @@ async function openPicker(card: RegExp, labels = { edit: 'Modifica il pasto', ch
   fireEvent.click(within(article).getByRole('button', { name: labels.change }));
   return { article, sheet: await screen.findByRole('dialog') };
 }
+
+/** A server answer held until the test releases it. */
+function held<T>() {
+  let release!: (value: T) => void;
+  const promise = new Promise<T>((done) => (release = done));
+  return { promise, release };
+}
+
+const suggestionsOf = (sheet: HTMLElement) => within(sheet).getByRole('region', { name: 'Suggerimenti' });
+const visibleSkeleton = (root: HTMLElement) => root.querySelector('.skeleton[data-visible="true"]');
+const page = (offset: number) => ({
+  recipes: [{ recipe: { ...SERVER_RECIPE.recipe, id: `0b6f7c38-9f6e-4c51-9a3e-00000000000${offset}`, name: `Ricetta ${offset}` }, rating: SERVER_RECIPE.rating }],
+  nextOffset: offset === 0 ? 5 : 0,
+  freeTexts: []
+});
+
+describe('change recipe: suggestions while loading (W20)', () => {
+  it('suggestions: skeleton of three cards while loading, cards on arrival', async () => {
+    const { server } = realMealsApp();
+    const answer = held<ReturnType<typeof page>>();
+    server.answerMeals({ getSuggestions: () => answer.promise });
+    const { sheet } = await openPicker(/Pizza/);
+    const section = suggestionsOf(sheet);
+    await waitFor(() => expect(visibleSkeleton(section)).not.toBeNull());
+    expect(section.querySelector('[aria-busy="true"]')).not.toBeNull();
+    expect(section.querySelectorAll('.skeleton .skeleton-card')).toHaveLength(3);
+    expect(within(sheet).getAllByRole('status').filter((s) => s.textContent === 'Caricamento…')).toHaveLength(1);
+    await act(async () => answer.release(page(0)));
+    expect(await within(section).findByRole('button', { name: 'Scegli Ricetta 0' })).toBeTruthy();
+    expect(section.querySelector('.skeleton')).toBeNull();
+    expect(section.querySelector('[aria-busy]')).toBeNull();
+  });
+
+  it('suggestions: no skeleton with the cached copy', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: () => page(0) });
+    const { article, sheet } = await openPicker(/Pizza/);
+    await within(sheet).findByRole('button', { name: 'Scegli Ricetta 0' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    server.answerMeals({ getSuggestions: () => new Promise(() => undefined) });
+    if (!within(article).queryByRole('button', { name: 'Cambia ricetta' })) fireEvent.click(within(article).getByRole('button', { name: 'Modifica il pasto' }));
+    fireEvent.click(within(article).getByRole('button', { name: 'Cambia ricetta' }));
+    const again = await screen.findByRole('dialog');
+    expect(within(again).getByRole('button', { name: 'Scegli Ricetta 0' })).toBeTruthy();
+    expect(suggestionsOf(again).querySelector('.skeleton')).toBeNull();
+  });
+
+  it('«Proponimene altri» to an unsaved page shows the skeleton, not an empty list', async () => {
+    const { server } = realMealsApp();
+    const next = held<ReturnType<typeof page>>();
+    server.answerMeals({ getSuggestions: (input) => (input.offset === 0 ? page(0) : next.promise) });
+    const { sheet } = await openPicker(/Pizza/);
+    fireEvent.click(await within(sheet).findByRole('button', { name: 'Proponimene altri' }));
+    const section = suggestionsOf(sheet);
+    expect(section.querySelectorAll('.skeleton .skeleton-card')).toHaveLength(3);
+    await waitFor(() => expect(visibleSkeleton(section)).not.toBeNull());
+    await act(async () => next.release(page(5)));
+    expect(await within(section).findByRole('button', { name: 'Scegli Ricetta 5' })).toBeTruthy();
+  });
+
+  it('no suggestions: the message keeps the space of the cards', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: () => ({ recipes: [], nextOffset: 0, freeTexts: [] }) });
+    const { sheet } = await openPicker(/Pizza/);
+    const section = suggestionsOf(sheet);
+    const message = await within(section).findByText(/Nessun/);
+    const reserve = message.closest('[data-reserve]')!;
+    expect(reserve).not.toBeNull();
+    expect(reserve.querySelectorAll('[aria-hidden="true"] .skeleton-card')).toHaveLength(3);
+    expect(section.querySelector('[aria-busy]')).toBeNull();
+    expect(within(sheet).queryAllByRole('status').some((s) => s.textContent === 'Caricamento…')).toBe(false);
+  });
+
+  it('suggestions error: the message keeps the space and the status is cleared', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({
+      getSuggestions: () => {
+        throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+      }
+    });
+    const { sheet } = await openPicker(/Pizza/);
+    const section = suggestionsOf(sheet);
+    const alert = await within(section).findByRole('alert');
+    expect(alert.closest('[data-reserve]')).not.toBeNull();
+    expect(section.querySelector('.skeleton')).toBeNull();
+    expect(section.querySelector('[aria-busy]')).toBeNull();
+    expect(within(sheet).queryAllByRole('status').some((s) => s.textContent === 'Caricamento…')).toBe(false);
+  });
+
+  it('a failed reread with cards in the cache keeps the cards, with the error and no reserved space', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: () => page(0) });
+    const { article, sheet } = await openPicker(/Pizza/);
+    await within(sheet).findByRole('button', { name: 'Scegli Ricetta 0' });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Chiudi' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    server.answerMeals({
+      getSuggestions: () => {
+        throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+      }
+    });
+    if (!within(article).queryByRole('button', { name: 'Cambia ricetta' })) fireEvent.click(within(article).getByRole('button', { name: 'Modifica il pasto' }));
+    fireEvent.click(within(article).getByRole('button', { name: 'Cambia ricetta' }));
+    const again = await screen.findByRole('dialog');
+    const section = suggestionsOf(again);
+    expect(await within(section).findByRole('alert')).toBeTruthy();
+    expect(within(section).getByRole('button', { name: 'Scegli Ricetta 0' })).toBeTruthy();
+    expect(section.querySelector('[data-reserve]')).toBeNull();
+    expect(section.querySelector('.skeleton')).toBeNull();
+  });
+
+  it('suggestions offline without a saved copy keep a still skeleton', async () => {
+    const { server } = realMealsApp();
+    server.answerMeals({ getSuggestions: (input) => page(Number(input.offset)) });
+    const { sheet } = await openPicker(/Pizza/);
+    await within(sheet).findByRole('button', { name: 'Scegli Ricetta 0' });
+    // Reading stays possible offline: the next page waits for the network.
+    act(() => setOnline(false));
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Proponimene altri' }));
+    const section = suggestionsOf(sheet);
+    await waitFor(() => expect(section.querySelector('.skeleton[data-paused="true"]')).not.toBeNull());
+    act(() => setOnline(true));
+    expect(await within(section).findByRole('button', { name: 'Scegli Ricetta 5' })).toBeTruthy();
+    expect(section.querySelector('.skeleton')).toBeNull();
+  });
+});
+
+const versioned = (items: unknown[]) => ({ unchanged: false, version: 'v1', data: { items } });
+const named = (name: string) => ({ ...SERVER_RECIPE, recipe: { ...SERVER_RECIPE.recipe, id: `0b6f7c38-9f6e-4c51-9a3e-${name.length.toString().padStart(12, '0')}`, name } });
+const searchArea = (sheet: HTMLElement) => within(sheet).getByRole('region', { name: 'Cerca nel ricettario' });
+
+describe('change recipe: search while loading (W20)', () => {
+  it('search: rows skeleton on the first search only', async () => {
+    const { server } = realMealsApp();
+    const answer = held<unknown>();
+    server.answerSearch(() => answer.promise);
+    const { sheet } = await openPicker(/Pizza/);
+    fireEvent.change(within(sheet).getByRole('searchbox'), { target: { value: 'p' } });
+    const area = searchArea(sheet);
+    await waitFor(() => expect(visibleSkeleton(area)).not.toBeNull());
+    expect(area.querySelectorAll('.skeleton .skeleton-card')).toHaveLength(3);
+    // The old «Caricamento…» line is gone: one announcement, from the loading area.
+    expect(area.querySelector('p.meta-line[role="status"]')).toBeNull();
+    expect(within(area).getAllByRole('status')).toHaveLength(1);
+    await act(async () => answer.release(versioned([named('Pasta')])));
+    expect(await within(area).findByRole('button', { name: 'Scegli Pasta' })).toBeTruthy();
+    expect(area.querySelector('.skeleton')).toBeNull();
+  });
+
+  it('search: previous results stay while the next search loads', async () => {
+    const { server } = realMealsApp();
+    server.answerSearch(() => versioned([named('Pasta')]));
+    const { sheet } = await openPicker(/Pizza/);
+    const box = within(sheet).getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'p' } });
+    const area = searchArea(sheet);
+    await within(area).findByRole('button', { name: 'Scegli Pasta' });
+    server.answerSearch(() => new Promise(() => undefined));
+    fireEvent.change(box, { target: { value: 'pa' } });
+    await waitFor(() => expect(server.recipeCalls.filter((c) => c.op === 'recipes.search')).toHaveLength(2));
+    await new Promise((done) => setTimeout(done, 250));
+    expect(within(area).getByRole('button', { name: 'Scegli Pasta' })).toBeTruthy();
+    expect(area.querySelector('.skeleton')).toBeNull();
+  });
+
+  it('search: a saved search shows its rows at once', async () => {
+    const { server } = realMealsApp();
+    server.answerSearch(() => versioned([named('Ceci')]));
+    const { sheet } = await openPicker(/Pizza/);
+    const box = within(sheet).getByRole('searchbox');
+    fireEvent.change(box, { target: { value: 'ceci' } });
+    const area = searchArea(sheet);
+    await within(area).findByRole('button', { name: 'Scegli Ceci' });
+    fireEvent.change(box, { target: { value: '' } });
+    server.answerSearch(() => new Promise(() => undefined));
+    fireEvent.change(box, { target: { value: 'ceci' } });
+    expect(within(area).getByRole('button', { name: 'Scegli Ceci' })).toBeTruthy();
+    expect(area.querySelector('.skeleton')).toBeNull();
+  });
+
+  it('search error on the first search clears the status and shows the message', async () => {
+    const { server } = realMealsApp();
+    server.answerSearch(() => {
+      throw new ORPCError('INTERNAL_SERVER_ERROR', { status: 500 });
+    });
+    const { sheet } = await openPicker(/Pizza/);
+    fireEvent.change(within(sheet).getByRole('searchbox'), { target: { value: 'ceci' } });
+    const area = searchArea(sheet);
+    expect(await within(area).findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    expect(area.querySelector('.skeleton')).toBeNull();
+    expect(area.querySelector('[aria-busy]')).toBeNull();
+    expect(within(sheet).queryAllByRole('status').some((st) => st.textContent === 'Caricamento…')).toBe(false);
+  });
+
+  it('search offline without a saved copy keeps a still skeleton', async () => {
+    const { server } = realMealsApp();
+    server.answerSearch(() => versioned([named('Zuppa')]));
+    const { sheet } = await openPicker(/Pizza/);
+    act(() => setOnline(false));
+    fireEvent.change(within(sheet).getByRole('searchbox'), { target: { value: 'zuppa' } });
+    const area = searchArea(sheet);
+    await waitFor(() => expect(area.querySelector('.skeleton[data-paused="true"]')).not.toBeNull());
+    act(() => setOnline(true));
+    expect(await within(area).findByRole('button', { name: 'Scegli Zuppa' })).toBeTruthy();
+    expect(area.querySelector('.skeleton')).toBeNull();
+  });
+});
 
 describe('change recipe', () => {
   it('suggestions show the 3:1 photo banner when the recipe has a photo, and stay as before without', async () => {

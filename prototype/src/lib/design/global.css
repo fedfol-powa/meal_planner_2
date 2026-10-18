@@ -167,3 +167,20 @@ a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visibl
 .choice { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 400; }
 .choice input { width: 20px; height: 20px; margin: 0; accent-color: var(--green); }
 .danger-zone { margin: 28px 0 8px; }
+
+/* Round 7: skeleton while loading, as chosen by the user (blocks with a slow pulse, 18 October 2026). */
+.sk { --sk-fill: #ebe7de; --sk-media: #e6e2d7; }
+.sk-waiting { visibility: hidden; }
+.sk-card { pointer-events: none; }
+.sk-media { display: block; background: var(--sk-media); }
+/* One text line: the box is as tall as the line it replaces. */
+.sk-line { display: flex; align-items: center; height: 1lh; }
+.sk-box { display: block; }
+/* Each card is one plain block of its final size. */
+.sk-pulse .sk-card.sk-card.sk-card { background: var(--sk-fill); box-shadow: none; border-color: transparent; }
+.sk-pulse .sk-card :is(.sk-media, .sk-media.sk-media, *) { background: transparent; border-color: transparent; }
+.sk-pulse .sk-clip { background-clip: content-box; }
+.sk-pulse .sk-box { border-radius: 8px; background: var(--sk-fill); }
+.sk-pulse .sk-card, .sk-pulse .sk-box { animation: sk-pulse 1.6s ease-in-out infinite alternate; }
+@keyframes sk-pulse { from { opacity: 1; } to { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .sk-pulse .sk-card, .sk-pulse .sk-box { animation: none; } }

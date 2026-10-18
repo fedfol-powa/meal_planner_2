@@ -254,6 +254,8 @@ istruzioni MCP si raggiungono dalla quarta voce; i loro flussi sono descritti in
   controlli espandibili devono mantenere semantica nativa o ARIA appropriata.
 - Gli scorrimenti sono quelli nativi del dispositivo. Non servono animazioni
   decorative per riprodurre questo linguaggio.
+  Unica eccezione approvata (18 ottobre 2026): la pulsazione lenta degli skeleton nei
+  caricamenti, sezione «Caricamenti (skeleton)».
 - Il riferimento approvato è in tema chiaro; altri temi non sono definiti da questa guida.
 
 ## Confini del riferimento
@@ -374,3 +376,35 @@ Visibile solo ai curatori; ai membri il ricettario non cambia.
   `settings-card` per gruppo (tornano com'erano, archiviate, tornano nel ricettario,
   restano come sono) con le prime cinque ricette come collegamenti e «e altre N» che
   apre il resto; in fondo cosa non cambia, la copia di sicurezza e il pulsante rosso.
+
+## Caricamenti (skeleton, approvato il 18 ottobre 2026)
+
+Scelta dell'utente fra tre varianti provate sull'iPhone (issue #49): blocchi con
+pulsazione lenta.
+
+- **Forma:** mentre i dati arrivano, al posto del contenuto ci sono blocchi pieni della
+  sua forma e della sua altezza: ogni scheda è un blocco unico `#EBE7DE` (un tono sopra il
+  fondo delle foto mancanti `#E6E2D7`), senza ombra né bordi e senza testo; pulsanti,
+  campi e righe isolate sono blocchi con raggio 8 px. I blocchi usano gli stessi elementi
+  e le stesse classi del contenuto con righe vuote, così l'altezza coincide nel caso
+  comune (schede con foto, titolo su una riga, descrizione piena).
+- **Pulsazione:** opacità da 1 a 0,5 in 1,6 s e ritorno, ripetuta; animano solo le
+  schede e i blocchi esterni, mai elementi annidati. È l'unica animazione dell'app ed è
+  un'eccezione approvata alla regola sulle animazioni decorative. Si ferma con «riduci
+  movimento» e offline, quando la lettura aspetta la rete.
+- **Soglia:** lo spazio si riserva subito, i blocchi compaiono dopo 200 ms; un
+  caricamento più breve non mostra nulla e non sposta nulla.
+- **Solo attese vere:** quando i dati sono già disponibili sul telefono (e, per la Spesa,
+  le modifiche non ancora inviate sono state lette) il contenuto compare subito. Restano
+  due attese locali ammesse: il ripristino della copia salvata quando dura più di 200 ms
+  e la lettura delle modifiche della Spesa salvate sul telefono.
+- **Intestazioni vere:** link indietro, titoli e filtri che non dipendono dai dati sono
+  quelli veri anche durante l'attesa (Spesa, Ricetta, Ricettario; nel Menu mese e fila dei
+  giorni quando la settimana è nota); solo le parti dei dati sono blocchi.
+- **Accessibilità:** un solo «Caricamento…» annunciato per pagina o area, area dei dati
+  con `aria-busy`, blocchi nascosti ai lettori di schermo e mai toccabili.
+- **Errori e liste vuote:** nei suggerimenti di «Cambia ricetta» il messaggio prende lo
+  spazio delle schede; nelle pagine restano le schede di stato.
+- **Dove:** «Cambia ricetta» (suggerimenti, ricerca, proposte del pasto libero), Menu,
+  Spesa, Ricetta, Ricettario e avvio dell'app. Le pagine rare restano come sono. Nella
+  ricerca i risultati precedenti restano finché arrivano i nuovi.

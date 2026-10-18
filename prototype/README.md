@@ -49,6 +49,8 @@ voce di una lista della spesa aperta (giro 3). Dal giro 4: utente «nessuno» e 
 «Primo accesso», apertura dei link d'invito demo e del link di eliminazione della famiglia.
 Dal giro 5: un'altra curatrice che salva la bozza aperta (conflitto). Dal giro 6: un agente che
 chiede l'accesso (schermata di autorizzazione) e gli inviti all'app demo.
+Dal giro 7: un caricamento simulato (brevissimo, medio, lungo, senza fine) per vedere lo
+skeleton scelto dall'utente in «Cambia ricetta» e nel Ricettario, e «Svuota la cache simulata».
 
 ## Struttura
 

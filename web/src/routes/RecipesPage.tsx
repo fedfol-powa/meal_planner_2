@@ -1,43 +1,66 @@
 import { useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { isBlocking } from '../api/errors';
 import { keepPreviousWithin, searchQuery, useQueryDeps } from '../api/queries';
 import type { FamilyView, RecipeQuery } from '../api/types';
-import { FamilyGate } from '../components/FamilyGate';
-import { Loading } from '../components/Loading';
+import { FamilyNotice } from '../components/FamilyGate';
+import { RecipeListSkeleton } from '../components/PageSkeletons';
 import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { RecipeFilters } from '../components/RecipeFilters';
+import { LoadingArea } from '../components/Skeleton';
 import { StateNotice } from '../components/StateNotice';
 import { ArchivedRecipesSection } from '../features/catalogue/ArchivedRecipesSection';
 import { CatalogueDraftsSection } from '../features/catalogue/CatalogueDraftsSection';
 import { useLocale, useT } from '../i18n/LocaleProvider';
 import { resortByLastEaten } from '../lib/mealTime';
 import { useMealClock } from '../lib/useMealClock';
+import { useFamily } from '../session/useFamily';
 import { toRecipeQuery, toRecipesSearch } from './search';
 
 const route = getRouteApi('/_app/recipes');
 
 export function RecipesPage() {
-  // The curator's sections do not depend on the family (spec of W3, section 1): also next to «no family».
-  const before = <CatalogueDraftsSection />;
-  const after = <ArchivedRecipesSection />;
-  return <FamilyGate before={before} after={after}>{(family) => <RecipesView family={family} before={before} after={after} />}</FamilyGate>;
-}
-
-/** `before`: after the filters; `after`: at the end of the column (the curator's sections, W3). */
-function RecipesView({ family, before, after }: { family: FamilyView; before?: ReactNode; after?: ReactNode }) {
   const t = useT();
-  const { locale } = useLocale();
+  const state = useFamily();
   const search = route.useSearch();
   const navigate = route.useNavigate();
   const query = toRecipeQuery(search);
+  const update = (next: RecipeQuery) => void navigate({ search: toRecipesSearch(next), replace: true });
+  // One tree in every state (W20): title, filters and the curator's sections never remount while the
+  // profile and the results load, so an open filter panel and a field being typed in stay as they are.
+  // The curator's sections do not depend on the family (spec of W3, section 1): also next to «no family».
+  const waitingOrReady = state.status === 'loading' || state.status === 'ready';
+  return (
+    <section className="secondary-view app-view">
+      <div className="page-column wide">
+        <header className="page-header">
+          <h1 className="page-title">{t('recipes.title')}</h1>
+        </header>
+        {waitingOrReady && <RecipeFilters query={query} onChange={update} />}
+        <CatalogueDraftsSection />
+        {state.status === 'ready' ? (
+          <RecipesResults family={state.family} query={query} update={update} />
+        ) : state.status === 'loading' ? (
+          <LoadingArea loading paused={state.paused} skeleton={<RecipeListSkeleton />} />
+        ) : (
+          <FamilyNotice state={state} />
+        )}
+        <ArchivedRecipesSection />
+      </div>
+    </section>
+  );
+}
+
+/** The results of the recipe book for the family: the only part that changes with the reads. */
+function RecipesResults({ family, query, update }: { family: FamilyView; query: RecipeQuery; update: (next: RecipeQuery) => void }) {
+  const t = useT();
+  const { locale } = useLocale();
   const deps = useQueryDeps();
   const options = searchQuery(deps, family.id, query);
   // Previous results only while filters or sorting change (second review, C7).
   const results = useQuery({ ...options, placeholderData: keepPreviousWithin(options.queryKey, ['familyId', 'locale']) });
-  const update = (next: RecipeQuery) => void navigate({ search: toRecipesSearch(next), replace: true });
   // Cached recipes stay visible only when the device is offline (review, finding 2).
   const blocked = results.isError && isBlocking(results.error, !!results.data);
   const read = blocked ? undefined : results.data?.items;
@@ -46,15 +69,9 @@ function RecipesView({ family, before, after }: { family: FamilyView; before?: R
   const items = read && query.sort === 'lastEaten' ? resortByLastEaten(read, now, !!query.reversed, locale) : read;
 
   return (
-    <section className="secondary-view app-view">
-      <div className="page-column wide">
-        <header className="page-header">
-          <h1 className="page-title">{t('recipes.title')}</h1>
-        </header>
-        <RecipeFilters query={query} onChange={update} />
-        {before}
-        {blocked && <QueryError error={results.error} onRetry={() => void results.refetch()} />}
-        {!blocked && results.isPending && <Loading />}
+    <>
+      {blocked && <QueryError error={results.error} onRetry={() => void results.refetch()} />}
+      <LoadingArea loading={!blocked && results.isPending} paused={results.fetchStatus === 'paused'} skeleton={<RecipeListSkeleton />}>
         {items?.length === 0 && (
           <StateNotice title={t('recipes.noResults.title')} body={t('recipes.noResults.body')}>
             <button type="button" className="text-button" onClick={() => update({})}>{t('recipes.reset')}</button>
@@ -82,8 +99,7 @@ function RecipesView({ family, before, after }: { family: FamilyView; before?: R
             ))}
           </div>
         )}
-        {after}
-      </div>
-    </section>
+      </LoadingArea>
+    </>
   );
 }

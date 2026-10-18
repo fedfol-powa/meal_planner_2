@@ -2,13 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useApi } from '../../api/ApiProvider';
 import { useAreaMutation } from '../../api/mutations';
-import { searchQuery, useQueryDeps } from '../../api/queries';
+import { keepPreviousWithin, searchQuery, useQueryDeps } from '../../api/queries';
 import type { MealView, RecipeQuery, RecipeSummary } from '../../api/types';
 import { Icon } from '../../components/Icon';
 import { useOnline } from '../../components/OfflineBanner';
 import { RatingStars } from '../../components/RatingStars';
 import { RecipeFilters } from '../../components/RecipeFilters';
 import { RecipePhoto, usePhotoLoad } from '../../components/RecipePhoto';
+import { LoadingArea } from '../../components/Skeleton';
+import ratingStyles from '../../components/RatingStars.module.css';
 import { useT } from '../../i18n/LocaleProvider';
 import type { EditorStage } from './MealEditor';
 import { suggestionsQuery } from './queries';
@@ -36,7 +38,9 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
     !!query.text || query.mealType !== meal.mealType || !!query.maxMinutes || !!query.proteinGroup || !!query.minStars || !!query.sort || !!query.reversed;
   const [excluded, setExcluded] = useState<{ id: string; name: string } | null>(null);
   const suggestions = useQuery(suggestionsQuery(deps, familyId, meal.slotId, offset));
-  const search = useQuery({ ...searchQuery(deps, familyId, query), enabled: searching });
+  const searchOptions = searchQuery(deps, familyId, query);
+  // The previous results stay while the next search loads: the list does not collapse at each key (W20).
+  const search = useQuery({ ...searchOptions, enabled: searching, placeholderData: keepPreviousWithin(searchOptions.queryKey, ['familyId', 'locale']) });
   const setRecipe = useMealMutation<{ recipeId: string }>('meals.setRecipe', familyId, weekStartsOn, ({ recipeId, id }) =>
     api.meals.setRecipe({ familyId, slotId: meal.slotId, recipeId, id })
   );
@@ -101,26 +105,38 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
       {failure != null && <p className="meta-line" role="alert">{message(failure)}</p>}
       <section className={styles.suggestions} aria-labelledby={`${meal.slotId}-suggestions`} ref={suggestionsSection}>
         <h3 id={`${meal.slotId}-suggestions`} className={styles.title}>{t('meals.suggestions')}</h3>
-        {suggestions.data?.recipes.length === 0 && <p className="meta-line">{t('meals.noSuggestions')}</p>}
-        {suggestions.isError && <p className="meta-line" role="alert">{message(suggestions.error)}</p>}
-        <ul className={styles.cards}>
-          {suggestions.data?.recipes.map(({ recipe, rating }) => (
-            <li key={recipe.id} className={styles.card}>
-              <button type="button" aria-label={t('meals.pick', { recipe: recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(recipe.id)}>
-                {recipe.photoUrl && <SuggestionPhoto url={recipe.photoUrl} />}
-                <span className={styles.name}>{recipe.name}</span>
-                {recipe.description && <span className={styles.description}>{recipe.description}</span>}
-                <span className={styles.meta}>{meta(recipe)}</span>
-              </button>
-              <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={familyId} readOnly />
-            </li>
-          ))}
-        </ul>
-        {!!suggestions.data?.recipes.length && (suggestions.data.nextOffset !== 0 || offset !== 0) && (
-          <button type="button" className={`text-button ${styles.more}`} onClick={() => more(suggestions.data!.nextOffset)}>
-            <Icon name="shuffle" />{t('meals.more')}
-          </button>
-        )}
+        {/* Until the suggestions arrive, blocks of their shape (W20); an empty or failed read keeps their space. */}
+        <LoadingArea loading={suggestions.isPending} paused={suggestions.fetchStatus === 'paused'} skeleton={<SuggestionsSkeleton />}>
+          {/* The reserved space replaces the cards only when there are none; cards kept from the cache stay, with the error above. */}
+          {!suggestions.data?.recipes.length ? (
+            <div className={styles.reserve} data-reserve>
+              <div className={styles.reserved} aria-hidden="true"><SuggestionsSkeleton /></div>
+              {suggestions.isError ? <p className="meta-line" role="alert">{message(suggestions.error)}</p> : <p className="meta-line">{t('meals.noSuggestions')}</p>}
+            </div>
+          ) : (
+            suggestions.isError && <p className="meta-line" role="alert">{message(suggestions.error)}</p>
+          )}
+          {!!suggestions.data?.recipes.length && (
+            <ul className={styles.cards}>
+              {suggestions.data.recipes.map(({ recipe, rating }) => (
+                <li key={recipe.id} className={styles.card}>
+                  <button type="button" className={styles.cardBody} aria-label={t('meals.pick', { recipe: recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(recipe.id)}>
+                    {recipe.photoUrl && <SuggestionPhoto url={recipe.photoUrl} />}
+                    <span className={styles.name}>{recipe.name}</span>
+                    {recipe.description && <span className={styles.description}>{recipe.description}</span>}
+                    <span className={styles.meta}>{meta(recipe)}</span>
+                  </button>
+                  <RatingStars summary={rating} recipeId={recipe.id} recipeName={recipe.name} familyId={familyId} readOnly />
+                </li>
+              ))}
+            </ul>
+          )}
+          {!!suggestions.data?.recipes.length && (suggestions.data.nextOffset !== 0 || offset !== 0) && (
+            <button type="button" className={`text-button ${styles.more}`} onClick={() => more(suggestions.data!.nextOffset)}>
+              <Icon name="shuffle" />{t('meals.more')}
+            </button>
+          )}
+        </LoadingArea>
       </section>
       <section className={styles.search} aria-labelledby={`${meal.slotId}-search`}>
         <h3 id={`${meal.slotId}-search`} className={styles.title}>{t('meals.search')}</h3>
@@ -132,26 +148,76 @@ export function RecipePicker({ familyId, weekStartsOn, meal, onStage, onDone }: 
             <button type="button" className="text-button" onClick={() => void search.refetch()}>{t('common.retry')}</button>
           </p>
         )}
-        {searching &&
-          (results.length > 0 ? (
-            <ul className={styles.rows} aria-label={t('meals.results')}>
-              {results.map((item) => (
-                <li key={item.recipe.id}>
-                  <button type="button" aria-label={t('meals.pick', { recipe: item.recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(item.recipe.id)}>
-                    <span className={styles.name}>{item.recipe.name}</span>
-                    <span className={styles.meta}>{meta(item.recipe)}</span>
-                  </button>
-                  <RatingStars summary={item.rating} recipeId={item.recipe.id} recipeName={item.recipe.name} familyId={familyId} readOnly />
-                </li>
-              ))}
-            </ul>
-          ) : search.isError ? null : search.isSuccess ? (
-            <p className="meta-line">{t('meals.noResults')}</p>
-          ) : (
-            <p className="meta-line" role="status">{t('common.loading')}</p>
-          ))}
+        {searching && (
+          <LoadingArea loading={search.isPending} paused={search.fetchStatus === 'paused'} skeleton={<SearchSkeleton />}>
+            {results.length > 0 ? (
+              <ul className={styles.rows} aria-label={t('meals.results')}>
+                {results.map((item) => (
+                  <li key={item.recipe.id}>
+                    <button type="button" className={styles.rowBody} aria-label={t('meals.pick', { recipe: item.recipe.name })} disabled={setRecipe.isPending || !online} onClick={() => choose(item.recipe.id)}>
+                      <span className={styles.name}>{item.recipe.name}</span>
+                      <span className={styles.meta}>{meta(item.recipe)}</span>
+                    </button>
+                    <RatingStars summary={item.rating} recipeId={item.recipe.id} recipeName={item.recipe.name} familyId={familyId} readOnly />
+                  </li>
+                ))}
+              </ul>
+            ) : search.isSuccess ? (
+              <p className="meta-line">{t('meals.noResults')}</p>
+            ) : null}
+          </LoadingArea>
+        )}
       </section>
     </div>
+  );
+}
+
+/**
+ * Three suggestion cards of the common case (photo, one-line name, two-line description, meta, rating) and
+ * the «Proponimene altri» button, built with the cards' own classes so the heights match.
+ */
+function SuggestionsSkeleton() {
+  return (
+    <>
+      <ul className={styles.cards}>
+        {[0, 1, 2].map((i) => (
+          <li key={i} className={`${styles.card} skeleton-card`}>
+            <span className={styles.cardBody}>
+              <span className={`meal-media ${styles.photo}`} style={{ aspectRatio: '3 / 1' }} />
+              <span className={`${styles.name} skeleton-line`} />
+              <span className={styles.description}>
+                <span className="skeleton-line" />
+                <span className="skeleton-line" />
+              </span>
+              <span className={`${styles.meta} skeleton-line`} />
+            </span>
+            <div className={`${ratingStyles.rating} ${ratingStyles.readOnly}`}>
+              <div className={ratingStyles.row}><span className="skeleton-line" /></div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <span className={`skeleton-block ${styles.more}`} style={{ height: 44 }} />
+    </>
+  );
+}
+
+/** Three result rows (name, meta, rating) for the first search, with the rows' own classes. */
+function SearchSkeleton() {
+  return (
+    <ul className={styles.rows}>
+      {[0, 1, 2].map((i) => (
+        <li key={i} className={`skeleton-card ${styles.rowSkeleton}`}>
+          <span className={styles.rowBody}>
+            <span className={`${styles.name} skeleton-line`} />
+            <span className={`${styles.meta} skeleton-line`} />
+          </span>
+          <div className={`${ratingStyles.rating} ${ratingStyles.readOnly}`}>
+            <div className={ratingStyles.row}><span className="skeleton-line" /></div>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
