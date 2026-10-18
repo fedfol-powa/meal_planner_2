@@ -151,6 +151,20 @@ Valutate due strade.
 - Verifica con agent-browser a larghezza da telefono, eventi touch veri via CDP, sul server di
   sviluppo con dati finti; screenshot a metà trascinamento per la PR.
 
+## Verifica nel browser (18/10/2026)
+
+Server di sviluppo con dati finti, Chromium di agent-browser con profilo «iPhone 14» (fila di
+358 px, terzo a 119 px), eventi touch veri con `Input.dispatchTouchEvent` via CDP:
+- 120–150 px lenti verso una settimana esistente: la fila segue il dito, entrano i giorni
+  accanto, al rilascio si arriva allo stesso giorno della settimana senza «Caricamento…»;
+- 80 e 100 px lenti: la fila torna al suo posto;
+- 100 px in quattro fotogrammi (circa 0,6 px/ms, sotto il terzo): cambia settimana. Il
+  Chromium senza schermo consegna i `touchmove` a circa 30 al secondo, quindi un colpo da
+  40 px non si riesce a simulare veloce: va provato sull'iPhone;
+- 130 px verso una settimana inesistente: la fila si sposta di 59 px, al posto dei giorni
+  c'è lo sfondo, al rilascio torna e non naviga;
+- gesto verticale (30 px orizzontali, 120 verticali): la fila non si muove.
+
 ## Da provare a mano sull'iPhone
 
 - Sensazione: soglia di un terzo, colpo veloce a 0,5 px/ms, durata di 220/200 ms.
