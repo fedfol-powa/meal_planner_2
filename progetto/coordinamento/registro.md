@@ -5,29 +5,25 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 18 ottobre 2026, mattina)
 
-- **Attività in corso:** nessuna. **W17, skill per Claude, rilasciata** il 18/10 alle 09:22
-  UTC: PR #68 unita (`cdbd7fe`) dopo tre revisioni Codex (`revisioni/w17-pr68*.md`, l'ultima
-  APPROVABILE), versione `03721d89-5d69-4ed3-92fb-a2de8746f751`; zip verificato in
-  produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`, `Skill version:
-  2026-10-18`). Tab, worktree e branch di W17 rimossi.
-- **PR di documentazione:** #69 (`docs/specifica-w17`, worktree `.worktrees/doc-skill`):
-  specifica principale con la skill per Claude e lo stato di D; revisione
-  `revisioni/spec-w17-pr69.md` con un rilievo minore, corretto in `743303d`. Attende il
-  «mergia» dell'utente; dopo il merge va scritto «rilasciata il 18 ottobre» al posto di
-  «rilascio in preparazione» per W17.
+- **Attività in corso:** nessuna. **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle
+  09:22 UTC (PR #68, `cdbd7fe`, versione `03721d89-5d69-4ed3-92fb-a2de8746f751`, tre
+  revisioni Codex in `revisioni/w17-pr68*.md`), collaudata dall'utente (zip caricato su
+  claude.ai, funziona dall'app Claude). Specifica aggiornata con la PR #69 (unita).
+- **PR di documentazione:** #70 (`docs/rilascio-w17`, worktree `.worktrees/doc-rilascio-w17`),
+  specifica con W17 rilasciata e collaudata; revisione `revisioni/spec-w17-pr70.md`
+  APPROVABILE. Attende il «mergia» dell'utente.
 - **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** per l'utente, il «mergia» della #69; la prova della skill (zip su
-  claude.ai, uso dall'iPhone, nomi dei menu di claude.ai in italiano); se aprire una issue
-  per il test instabile `asset-routing` › «Bring! page» (`Body has already been read`,
-  CI rossa su `bd73019`, solo documenti).
+- **Domande in sospeso:** per l'utente, il «mergia» della #70 e se aprire una issue per il
+  test instabile `asset-routing` › «Bring! page» (`Body has already been read`, CI rossa su
+  `bd73019`, commit di soli documenti).
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `03721d89-5d69-4ed3-92fb-a2de8746f751` (commit `cdbd7fe`, 18/10
   09:22 UTC, W17). Precedente per un ritorno: `21616921-3cfe-4390-b19c-9e42d824cebe`.
-- **Prossimo passo:** merge della #69 e collaudo della skill; poi, a scelta dell'utente, E
-  (ricetta da un link), ricettario esteso, issue #49, #55, #39, #62, #67, test instabile,
-  pulizia dei worktree di PR già unite, R26 rimandata.
+- **Prossimo passo:** a scelta dell'utente: E (ricetta da un link), ricettario esteso,
+  issue #49, #55, #39, #62, #67, test instabile, pulizia dei worktree di PR già unite, R26
+  rimandata.
 
 ## Storico
 
