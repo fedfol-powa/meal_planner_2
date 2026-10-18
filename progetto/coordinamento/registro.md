@@ -3,17 +3,19 @@
 Stato operativo dei worker. Aggiornato dal coordinatore a ogni cambio di fase.
 Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e `cwd`).
 
-## Stato corrente (aggiornato il 18 ottobre 2026, mattina)
+## Stato corrente (aggiornato il 18 ottobre 2026, mezzogiorno)
 
-- **Attività in corso:** W18 (test instabile di Bring!). **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle
-  09:22 UTC (PR #68, `cdbd7fe`, versione `03721d89-5d69-4ed3-92fb-a2de8746f751`, tre
-  revisioni Codex in `revisioni/w17-pr68*.md`), collaudata dall'utente (zip caricato su
-  claude.ai, funziona dall'app Claude). Specifica aggiornata con la PR #69 (unita).
-- **PR di documentazione:** #70 unita il 18/10 (W17 rilasciata e collaudata nella specifica).
-- **Worker attivi:** W18, tab «W18 test Bring» (pane `w1:p55` al 18/10), branch
-  `correzioni/test-bring`, worktree `.worktrees/test-bring`, brief `brief/w18-test-bring.md`
-  (test instabile `asset-routing` › Bring!; l'utente consente di toglierlo se la correzione è
-  complessa). **Revisori attivi:** nessuno.
+- **Attività in corso:** nessuna.
+  - **W17, skill per Claude, chiusa:** rilasciata il 18/10 alle 09:22 UTC (PR #68, `cdbd7fe`,
+    versione `03721d89-5d69-4ed3-92fb-a2de8746f751`, revisioni `revisioni/w17-pr68*.md`),
+    collaudata dall'utente (zip su claude.ai, funziona dall'app Claude); specifica
+    aggiornata con le PR #69 e #70 (unite).
+  - **W18, test instabile di Bring!, chiusa:** PR #71 unita il 18/10 (revisione
+    `revisioni/w18-pr71.md`, APPROVABILE). Causa nel banco di prova: `dispatchFetch` di
+    Miniflare riavvolge lo stream di undici, che il GC può annullare prima della lettura;
+    i corpi si leggono appena arriva la risposta. Solo test, nessun rilascio. Tab, worktree
+    e branch rimossi.
+- **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Domande in sospeso:** nessuna.
@@ -21,8 +23,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **In produzione:** versione `03721d89-5d69-4ed3-92fb-a2de8746f751` (commit `cdbd7fe`, 18/10
   09:22 UTC, W17). Precedente per un ritorno: `21616921-3cfe-4390-b19c-9e42d824cebe`.
 - **Prossimo passo:** a scelta dell'utente: E (ricetta da un link), ricettario esteso,
-  issue #49, #55, #39, #62, #67, test instabile, pulizia dei worktree di PR già unite, R26
-  rimandata.
+  issue #49, #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26 rimandata.
 
 ## Storico
 
