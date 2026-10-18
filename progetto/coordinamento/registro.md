@@ -6,37 +6,32 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 ## Stato corrente (aggiornato il 18 ottobre 2026, pomeriggio)
 
 - **Attività in corso:**
-  - **W19, swipe fra le settimane:** PR #72 unita (`160d83b`) dopo tre revisioni Codex
-    (`revisioni/w19-pr72*.md`), **rilasciata** il 18/10 alle 12:09 UTC, versione
-    `3260a367-c445-490d-abd3-359614a19f61`. Specifica aggiornata con la PR #73 (unita,
-    revisione `revisioni/spec-w19-pr73.md`), che dice ancora «rilascio in preparazione»: da
-    aggiornare con la prossima PR di documentazione. Collaudo sull'iPhone dell'utente
-    (sensazione del gesto) da fare.
-  - **W21, la fila dei giorni segue il dito** (correzione chiesta dall'utente dopo il rilascio
-    di W19): brief `brief/w21-swipe-trascinamento.md`; decisioni: trascinamento diretto con
-    la settimana accanto visibile, cambio oltre un terzo o con colpo veloce, resistenza verso
-    una settimana inesistente.
-  - **W20, skeleton (#49):** prototipo con varianti pronto (commit `adf621e`, anteprima sulla
-    porta 8766 del Mac, rete di casa o Tailscale); W20 fermo su `STATO: DOMANDA`: variante
-    A (blocchi statici), B (pulsazione lenta, eccezione a design.md) o C (sagoma con titolo)
-    e pagine da coprire (proposta: alta Suggerimenti, Cerca, Menu; media pasto libero,
-    FamilyGate, Spesa, Ricetta, Ricettario, avvio; Cerca tiene i risultati precedenti).
-    Censimento in `plans/2026-10-18-skeleton.md` nel branch.
-- **Worker attivi:** W21, tab «W21 trascinamento» (pane `w1:p5D` al 18/10), branch
-  `correzioni/swipe-trascinamento`, worktree `.worktrees/swipe-trascinamento`. W20 (fermo), tab «W20 skeleton» (pane `w1:p5B` al 18/10), branch
+  - **W20, skeleton (#49):** variante B scelta dall'utente (eccezione a `design/design.md`);
+    spec e piano approvati alla quarta revisione (`revisioni/w20-spec-piano*.md`); decisioni
+    del coordinatore: skeleton ammesso in un ripristino locale oltre 200 ms, fermo offline
+    senza copia, sezioni dei curatori senza skeleton (spostamento ammesso). In
+    implementazione, Menu per ultimo dopo l'aggiornamento su `origin/main`.
+- **Rilasciate oggi:**
+  - **W21, la fila dei giorni segue il dito:** PR #74 (merge `341bdb1`, due revisioni
+    `revisioni/w21-pr74*.md`), rilasciata alle 13:49 UTC, versione
+    `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`. Collaudo sull'iPhone dell'utente da fare.
+  - **W19, swipe fra le settimane:** PR #72, rilasciata alle 12:09 UTC (versione
+    `3260a367`), specifica con la PR #73.
+  - **W17 skill per Claude** (PR #68, #69, #70) e **W18 test di Bring!** (PR #71): chiuse.
+- **Specifica da aggiornare** (prossima PR di documentazione): W19 «rilascio in preparazione»
+  → rilasciata; decisioni di W21 (piano `plans/2026-10-18-swipe-trascinamento.md`, «Decisioni
+  da riportare nella specifica»), con le letture anticipate non osservate.
+- **Worker attivi:** W20, tab «W20 skeleton» (pane `w1:p5B` al 18/10), branch
   `evolutive/skeleton`, worktree `.worktrees/skeleton`. **Revisori attivi:** nessuno.
-- **Chiuse oggi:** W17 skill per Claude (rilasciata e collaudata, PR #68, #69, #70), W18 test
-  instabile di Bring! (PR #71).
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** per l'utente, variante dello skeleton e pagine; collaudo dello
-  swipe sull'iPhone.
+- **Domande in sospeso:** per l'utente, collaudo del trascinamento sull'iPhone.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
-- **In produzione:** versione `3260a367-c445-490d-abd3-359614a19f61` (commit `160d83b`, 18/10
-  12:09 UTC, W19). Precedente per un ritorno: `03721d89-5d69-4ed3-92fb-a2de8746f751`.
-- **Prossimo passo:** scelta dello skeleton → spec e piano di W20 → revisione. In coda: E,
-  ricettario esteso, issue #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26
-  rimandata.
+- **In produzione:** versione `c3a72b02-bf2f-4100-8628-b8ce61bcadd0` (commit `cbe5869`, 18/10
+  13:49 UTC, W21). Precedente per un ritorno: `3260a367-c445-490d-abd3-359614a19f61`.
+- **Prossimo passo:** PR di W20 → revisione → merge → rilascio; PR di specifica per W19, W21 e
+  W20 insieme. In coda: E, ricettario esteso, issue #55, #39, #62, #67, pulizia dei worktree
+  di PR già unite, R26 rimandata.
 
 ## Storico
 
