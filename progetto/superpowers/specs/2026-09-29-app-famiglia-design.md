@@ -1,7 +1,8 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 18 ottobre 2026 (rilascio e collaudo della skill per Claude in
+Ultimo aggiornamento: 18 ottobre 2026 (swipe fra le settimane nel Menu, W19, PR #72,
+unito e in attesa di rilascio; rilascio e collaudo della skill per Claude in
 «Collega un agente», W17, PR #68; rilascio e collaudo delle email dell'app, attività D)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
@@ -21,7 +22,8 @@ esterni dell'attività D (DNS, dominio in Resend, SMTP di Supabase Auth) sono fa
 parte software, le email dell'app (PR #64), è unita e rilasciata lo stesso giorno alle
 17:54 UTC e collaudata dall'utente: l'attività D è chiusa. Il 18 ottobre la
 skill per Claude (W17, PR #68) è unita, rilasciata alle 09:22 UTC e collaudata
-dall'utente.
+dall'utente. Lo stesso giorno è unito lo swipe fra le settimane nel Menu (W19, PR #72),
+con il rilascio in preparazione.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -2152,6 +2154,14 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Navigazione fra i giorni:** sopra il selettore dei sette giorni il mese e un'icona
   aprono un calendario per scegliere qualunque giorno che abbia un menu, anche passato; i giorni
   senza menu non sono selezionabili.
+  - **Swipe fra le settimane** (decisioni dell'utente del 18 ottobre 2026, W19, PR #72):
+    uno swipe orizzontale sulla fila dei giorni porta alla settimana successiva (verso
+    sinistra) o alla precedente (verso destra), sullo stesso giorno della settimana. La
+    traccia dei pasti sotto resta com'è e scorre solo fra i giorni della settimana
+    mostrata. Se la settimana non esiste la fila fa un piccolo rimbalzo, senza messaggi;
+    un giorno di arrivo senza pasti si apre vuoto. Il calendario resta l'alternativa,
+    anche per tastiera e lettore di schermo (con VoiceOver lo swipe a un dito è del
+    sistema). Particolari tecnici nella sezione 14.
 - **Azioni sullo slot**, confermate nel secondo giro del prototipo (6 ottobre 2026):
   cambia porzioni; cambia ricetta (cinque suggerimenti, "proponimene altri", ricerca con
   filtri), che raccoglie anche segna libero con testo, non proporre più e scambia con un
@@ -3481,6 +3491,7 @@ generale).
 | Dominio `cosasimangia.app` | PR #56 (dominio personalizzato del Worker, `workers_dev` spento) unita e rilasciata il 17 ottobre 2026 alle 04:23 UTC; PR #57 (controllo del rilascio) unita dopo, senza nuovo rilascio (versione del Worker `8d4763ec-b29d-4d09-941b-9411c22fa3f9`); il vecchio indirizzo risponde 404. Dominio verificato in Resend, *Site URL* e *Redirect URLs* solo sul nuovo dominio, SMTP di Supabase Auth su Resend con una prova riuscita, PWA reinstallata sull'iPhone e agente MCP di Claude Code ricollegato a `https://cosasimangia.app/mcp` |
 | Dominio di invio ed email (ondata 3, attività D) | Passi esterni fatti il 17 ottobre 2026 (righe sopra). Parte software (W15, spec `2026-10-17-email.md`) unita il 17 ottobre 2026 con la PR #64 e la migrazione `20261017100000_email.sql`: email «Scegli la password» dal server dopo l'accettazione di un invito, `/password` e «password dimenticata», etichetta «Non ha ancora confermato l'email», email operative di job, esportazione e cancellazioni (sezioni 4, 7 e 8), fine del rischio accettato delle email non verificate negli inviti. **Rilasciata** il 17 ottobre 2026 alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`), dopo i segreti `RESEND_API_KEY` e `OPS_ALERT_EMAIL`, il template di recupero e `mailer_otp_exp` 86400 in produzione; collaudata dall'utente: invito di prova, «password dimenticata», allarme di prova e prova sull'iPhone riusciti (runbook nella spec di dettaglio, sezione 9) |
 | Skill per Claude (W17) | Unita (PR #68) e **rilasciata** il 18 ottobre 2026 alle 09:22 UTC (versione del Worker `03721d89-5d69-4ed3-92fb-a2de8746f751`, commit `cdbd7fe`), senza migrazioni, segreti né risorse nuove; zip verificato in produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`). Collaudata dall'utente il 18 ottobre: zip caricato su claude.ai e skill provata dall'app Claude, funziona (sezione 13) |
+| Swipe fra le settimane (W19) | Unito il 18 ottobre 2026 (PR #72, merge `160d83b`), senza migrazioni, segreti né operazioni nuove; rilascio in preparazione. Da provare dall'utente sull'iPhone dopo il rilascio: la sensazione del gesto (sezioni 5 e 14) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -4148,6 +4159,24 @@ dipende dall'etichetta, perché iOS non ingrandisca la pagina al tocco; lo zoom 
 viewport resta libero (17 ottobre 2026, issue #51, PR #60). Lo controlla il test del CSS
 `web/src/design/fieldFontSize.test.ts`.
 
+**Swipe sulla fila dei giorni** (W19, PR #72, unita il 18 ottobre 2026; particolari nel
+piano `progetto/superpowers/plans/2026-10-18-swipe-settimane.md`; prodotto nella sezione 5).
+Eventi touch della piattaforma, passivi: lo scorrimento verticale e i gesti di sistema
+restano nativi e con il mouse non c'è gesto. Lo swipe vale al rilascio di un solo dito, con
+uno spostamento orizzontale di almeno 48 px e almeno il doppio di quello verticale; un
+secondo dito, anche fuori dalla fila, lo annulla. Il clic sintetico sul giorno sotto il dito
+dopo uno swipe si ignora (entro 400 ms, una volta); tastiera e mouse scelgono sempre il
+giorno. La settimana esiste se un suo giorno qualsiasi è nelle letture `menu.getDates` dei
+mesi toccati dalle due settimane vicine, lette in anticipo con la stessa query del
+calendario, oppure se la settimana è nella copia salvata. La navigazione è quella del
+calendario, con una voce nella cronologia; offline vale lo stesso comportamento: con le date
+salvate e la settimana non salvata il Menu resta su «Caricamento…», senza date salvate
+rimbalza. Una settimana senza alcuno slot non compare in `getDates` e, senza copia salvata,
+conta come inesistente. Rimbalzo (12 px, 200 ms) e ingresso della settimana nuova (24 px,
+180 ms) con la Web Animations API, assenti con `prefers-reduced-motion`. Nessuna libreria e
+nessuna operazione nuova. Da provare dall'utente sull'iPhone dopo il rilascio: la sensazione
+del gesto (soglia e rapporto), rimbalzo e ingresso, il bordo sinistro in Safari.
+
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
 scorrere lateralmente, con selettore superiore sincronizzato; il giorno attivo è
@@ -4286,6 +4315,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 17 ottobre 2026, email dell'app | Riportate le decisioni della spec `2026-10-17-email.md` (W15, parte software dell'attività D dell'ondata 3, PR #64 unita il 17 ottobre con la migrazione `20261017100000_email.sql`; rilasciata lo stesso giorno alle 17:54 UTC con la versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe` e collaudata dall'utente). Decisioni dell'utente: verifica dell'email negli inviti con un solo meccanismo per inviti all'app e alla famiglia (pagina con email e nome, account con l'email da confermare, email «Scegli la password» con il nome della famiglia solo nella prima, password scelta su `/password`, prenotazione e chiusura invariate), fine del rischio accettato; link d'invito all'app non spedito per email; account creati prima di D invariati; attesa con la persona subito visibile e l'etichetta «Non ha ancora confermato l'email», «Controlla la posta», «Rimanda l'email» ed «Email sbagliata? Ricomincia»; «password dimenticata» dalla pagina di accesso con risposta sempre uguale, link di 24 ore e «Accedi» dopo il salvataggio, senza ingresso automatico; email nella lingua della persona; quattro email operative, un'email per evento. Decisioni del coordinatore: prima email e reinvio spediti dal server con Resend e il link di `generate_link` di tipo `recovery`, template di Supabase solo per il recupero, nei metadati di Auth solo nome e `locale`; allarmi registrati fuori dalle transazioni del lavoro, riconciliazione oraria su 7 giorni di stati persistiti, consegna atomica con corpo immutabile, ogni `409` di idempotenza ambiguo tranne `concurrent_idempotent_requests`, transitorio e ritentato, e scadenza a 24 ore senza rispedizione; non enumerazione nella UI con il rischio residuo dell'endpoint pubblico di Supabase; correzione in avanti come ritorno indietro. Tecniche: segreti `RESEND_API_KEY` (obbligatorio, distinto dall'SMTP) e `OPS_ALERT_EMAIL`, `MAILPIT_API_URL` solo in locale e in CI; `mailer_otp_exp` 86400; `/password` con chiamate dirette e nessuna adozione della sessione; `accept` senza password con `passwordEmail`, `resendPasswordEmail` pubbliche, `emailUnconfirmed` nelle viste e ambito di versione `emailUnconfirmed`; tabelle `ops_alerts` e `password_emails`; un invio al minuto per persona dalla pagina dell'invito; Mailpit nella CI e prova obbligatoria con «Require current password» su un secondo servizio di Auth; nessuno strumento MCP nuovo. Chiusi in sezione 15 i dettagli tecnici del link per scegliere la password. Intestazione, Parte 1 e sezioni 1, 2, 4, 7, 8, 9, 10, 12, 13, 14 e 15 aggiornate |
 | 18 ottobre 2026, skill per Claude e attività D rilasciata | Riportate le decisioni del piano `2026-10-18-skill-claude.md` (W17, PR #68 unita il 18 ottobre; rilascio nella riga sotto). Decisioni dell'utente: una sola skill `cosa-si-mangia` per tutti i ruoli, un solo `SKILL.md` in inglese che rimanda a `catalogue_getGuide` senza copiarne le regole, menu, famiglia, ricettario e amministrazione senza la spesa, conferme esplicite prima delle azioni irreversibili, zip con la cartella in cima da caricare su claude.ai, sezione visibile a tutti, niente prototipo. Tecniche: sorgente in `agent-skill/`, zip generato da `sync-assets` in `web/public/downloads/`, non versionato e servito come file statico anche a una navigazione, `/downloads/` fuori dalla cache del service worker, versione della pagina letta dalla skill, test che legano i nomi degli strumenti al contratto. Stato dell'attività D: rilasciata il 17 ottobre alle 17:54 UTC (versione del Worker `21616921-3cfe-4390-b19c-9e42d824cebe`, commit `4e1483e`) e collaudata dall'utente. Intestazione, Parte 1 e sezioni 1, 10, 13, 14 e 16 aggiornate per W17; per D anche 2, 4, 7, 8 e 15 |
 | 18 ottobre 2026, skill per Claude rilasciata | Rilascio della skill per Claude (W17, PR #68) il 18 ottobre alle 09:22 UTC (versione del Worker `03721d89-5d69-4ed3-92fb-a2de8746f751`, commit `cdbd7fe`), senza migrazioni né segreti; zip verificato in produzione (`/downloads/cosa-si-mangia.zip`, 200 `application/zip`). Collaudata dall'utente lo stesso giorno: zip caricato su claude.ai e skill provata dall'app Claude, funziona. Intestazione, Parte 1 e sezioni 1, 10, 13, 14 e 16 aggiornate |
+| 18 ottobre 2026, swipe fra le settimane | Riportate le decisioni del piano `2026-10-18-swipe-settimane.md` (W19, PR #72 unita il 18 ottobre, merge `160d83b`; rilascio in preparazione). Decisioni dell'utente: swipe orizzontale solo sulla fila dei giorni del Menu, verso sinistra la settimana successiva e verso destra la precedente, sullo stesso giorno della settimana; settimana inesistente con un piccolo rimbalzo e nessun messaggio; giorno di arrivo senza pasti aperto vuoto; calendario invariato come alternativa (sezione 5). Tecniche: eventi touch passivi, soglia di 48 px e prevalenza 2:1 sul verticale, un solo dito, clic sintetico dopo lo swipe ignorato; esistenza della settimana da `menu.getDates` dei mesi toccati o dalla copia salvata, con la navigazione del calendario anche offline; animazioni brevi con la Web Animations API, assenti con `prefers-reduced-motion`; nessuna libreria nuova (sezione 14) |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
