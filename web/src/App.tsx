@@ -8,6 +8,7 @@ import { LocaleProvider } from './i18n/LocaleProvider';
 import { initialLocale, type Locale } from './i18n/translate';
 import type { SessionChannel } from './session/channel';
 import { createAppRouter } from './router';
+import { MenuSkeleton } from './routes/menu/MenuSkeleton';
 import { SessionScope, type CreateApi } from './session/SessionScope';
 
 export interface AppRootProps {
@@ -27,13 +28,19 @@ export function AppRoot({ backend, store, createApi, channel, history, initialLo
   return (
     <LocaleProvider initial={locale ?? initialLocale(navigator.languages)}>
       <AuthProvider backend={backend}>
-        <SessionScope store={store} createApi={createApi} channel={channel}>
+        <SessionScope store={store} createApi={createApi} channel={channel} waiting={<StartupSkeleton history={history} />}>
           <AppRouter history={history} exit={exit.current} />
           {children}
         </SessionScope>
       </AuthProvider>
     </LocaleProvider>
   );
+}
+
+/** Before the router runs: the menu's shape on the menu (the usual start), a generic page elsewhere (W20). */
+function StartupSkeleton({ history }: { history?: RouterHistory }) {
+  const path = history?.location.pathname ?? window.location.pathname;
+  return path === '/' || path === '/menu' ? <MenuSkeleton /> : <GenericPageSkeleton />;
 }
 
 /** `pending`: a session just closed and the redirect it causes has not reached the sign-in page yet. */
@@ -57,7 +64,7 @@ function AppRouter({ history, exit }: { history?: RouterHistory; exit: ExitMemor
   useEffect(() => {
     void router.invalidate();
   }, [state, router]);
-  // While the access is checked, a generic page skeleton instead of a blank screen (W20).
-  if (state.status === 'loading') return <GenericPageSkeleton />;
+  // While the access is checked, the page's shape instead of a blank screen (W20).
+  if (state.status === 'loading') return <StartupSkeleton history={history} />;
   return <RouterProvider router={router} context={{ auth: state, exit }} />;
 }

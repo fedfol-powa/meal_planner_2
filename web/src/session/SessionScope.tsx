@@ -44,9 +44,11 @@ interface Props {
   /** Revocations and sign-outs shared with the other tabs (second review, C4). */
   channel: SessionChannel;
   children: ReactNode;
+  /** Shown while the identity is not known yet (W20); a generic page skeleton by default. */
+  waiting?: ReactNode;
 }
 
-export function SessionScope({ store, createApi, channel, children }: Props) {
+export function SessionScope({ store, createApi, channel, children, waiting }: Props) {
   const { state, backend, signOut: endIdentity, markSignedOut } = useAuth();
   // undefined: identity not known yet, so no session and nothing deleted (second review, C1).
   const identity = state.status === 'loading' ? undefined : state.status === 'signedIn' ? state.user.id : null;
@@ -214,7 +216,7 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
   // A write in flight keeps the page from reloading into a new version (spec W8).
   useBusyCheck(() => (session ? session.queryClient.isMutating() > 0 : false));
   // Identity not known yet: the same generic skeleton as the access check, never a blank screen (W20).
-  if (!session || !api || !value) return <GenericPageSkeleton />;
+  if (!session || !api || !value) return <>{waiting ?? <GenericPageSkeleton />}</>;
 
   const content = (
     <ApiProvider api={api}>
