@@ -743,12 +743,13 @@ impostarla la mostra al curatore e procede solo dopo un sì esplicito, come per 
 pubblicazione (decisione dell'utente del 16 ottobre 2026). L'agente può anche
 sostituirla o toglierla; caricare un file dal telefono si fa invece dall'app.
 
-Dal 18 ottobre 2026 «Collega un agente» offre anche una **skill per Claude** da
-scaricare: un file da caricare una volta su claude.ai, che insegna a Claude a usare l'app
-secondo i ruoli della persona (menu, famiglia, ricettario e amministrazione, non la
-spesa) e a chiedere un sì prima delle azioni difficili da annullare. Dopo il caricamento
-c'è anche nell'app Claude sul telefono, con il connettore già collegato. Quando la
-versione mostrata nella pagina cambia, la si scarica e la si carica di nuovo.
+Con la PR #68, unita il 18 ottobre 2026 e in attesa di rilascio, «Collega un agente»
+offrirà anche una **skill per Claude** da scaricare: un file da caricare una volta su
+claude.ai, che insegna a Claude a usare l'app secondo i ruoli della persona (menu,
+famiglia, ricettario e amministrazione, non la spesa) e a chiedere un sì prima delle
+azioni difficili da annullare. Dopo il caricamento ci sarà anche nell'app Claude sul
+telefono, con il connettore già collegato. Quando la versione mostrata nella pagina
+cambia, la si scarica e la si carica di nuovo.
 
 Il browser può servire per collegare l'account o autenticarsi nuovamente; l'uso quotidiano
 deve poter avvenire tramite l'agente. Una pagina dell'app, «Collega un agente» nel
@@ -883,7 +884,7 @@ configurato per workspace.
   | `/mcp` | Agenti | Strumenti MCP generati dal contratto (sezione 13) |
   | `/shopping-lists/<token>` | Bring! | Pagina HTML con JSON-LD resa dal server (sezione 6) |
   | `/photos/<chiave>` | App web, agenti, curatori | Foto corrente di una ricetta, senza autenticazione, dal bucket delle foto (dal 16 ottobre 2026, sotto) |
-  | `/downloads/cosa-si-mangia.zip` | Chi collega Claude | Zip della skill per Claude: file statico degli asset, non una rotta del Worker (dal 18 ottobre 2026, sotto) |
+  | `/downloads/cosa-si-mangia.zip` | Chi collega Claude | Zip della skill per Claude: file statico degli asset, non una rotta del Worker (PR #68, rilascio in preparazione; sotto) |
 
   La SPA arriva dagli asset statici di Workers con ripiego su `index.html`; il Worker
   si esegue per primo solo sulle rotte del server (`/api/*`, `/mcp`, `/.well-known/*`,
@@ -4111,7 +4112,7 @@ il pulsante. Gli altri utenti non vedono comandi; offline i comandi sono disabil
 Nessuna riga sulla provenienza della foto.
 
 **Skill per Claude in «Collega un agente»** (decisione dell'utente del 18 ottobre 2026,
-PR #68; sezione 13): sezione nuova senza prototipo, fatta con i componenti già presenti
+PR #68, rilascio in preparazione; sezione 13): sezione nuova senza prototipo, fatta con i componenti già presenti
 nella pagina (scheda, link di testo per scaricare, passaggi numerati, riga di metadati
 per la versione), fra gli esempi e «Agenti collegati».
 
