@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { KeyValueStore } from './api/persister';
 import type { AuthBackend } from './auth/backend';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { GenericPageSkeleton } from './components/PageSkeletons';
 import { LocaleProvider } from './i18n/LocaleProvider';
 import { initialLocale, type Locale } from './i18n/translate';
 import type { SessionChannel } from './session/channel';
@@ -56,6 +57,7 @@ function AppRouter({ history, exit }: { history?: RouterHistory; exit: ExitMemor
   useEffect(() => {
     void router.invalidate();
   }, [state, router]);
-  if (state.status === 'loading') return null;
+  // While the access is checked, a generic page skeleton instead of a blank screen (W20).
+  if (state.status === 'loading') return <GenericPageSkeleton />;
   return <RouterProvider router={router} context={{ auth: state, exit }} />;
 }

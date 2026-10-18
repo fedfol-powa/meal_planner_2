@@ -13,10 +13,11 @@ describe('offline banner (second PR)', () => {
   it('shows the text of the route only while offline', async () => {
     renderWithProviders(<OfflineBanner pathname="/shopping/2026-10-05" />);
     act(() => setOnline(false));
-    expect((await screen.findByRole('status')).textContent).toBe(
-      'Sei offline: le modifiche alla lista restano su questo telefono e si sincronizzano quando torni in linea.'
-    );
+    // Found by its text: the startup skeleton (W20) has its own, empty, status while the session starts.
+    const text = 'Sei offline: le modifiche alla lista restano su questo telefono e si sincronizzano quando torni in linea.';
+    expect((await screen.findByText(text)).getAttribute('role')).toBe('status');
     act(() => setOnline(true));
+    expect(screen.queryByText(text)).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

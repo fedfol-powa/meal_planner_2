@@ -19,6 +19,7 @@ import { clearPreference, readPreference, userScope, writePreference } from './l
 import { createSession, persisterOf, wrapApi, type Session } from './session';
 import { trackBusy, useBusyCheck } from '../pwa/busy';
 import { clearPhotos, registerPhotoCleanup } from '../pwa/photos';
+import { GenericPageSkeleton } from '../components/PageSkeletons';
 
 /**
  * Called once per session, then once per language: the clients share what the session knows
@@ -212,7 +213,8 @@ export function SessionScope({ store, createApi, channel, children }: Props) {
   );
   // A write in flight keeps the page from reloading into a new version (spec W8).
   useBusyCheck(() => (session ? session.queryClient.isMutating() > 0 : false));
-  if (!session || !api || !value) return null;
+  // Identity not known yet: the same generic skeleton as the access check, never a blank screen (W20).
+  if (!session || !api || !value) return <GenericPageSkeleton />;
 
   const content = (
     <ApiProvider api={api}>

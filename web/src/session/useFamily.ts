@@ -6,7 +6,7 @@ import type { FamilyView, ProfileView } from '../api/types';
 import { useSession, useSessionRevision } from './SessionScope';
 
 export type FamilyState =
-  | { status: 'loading' }
+  | { status: 'loading'; paused: boolean }
   | { status: 'error'; error: unknown; retry: () => void }
   | { status: 'none' }
   | { status: 'revoked' }
@@ -22,7 +22,8 @@ export function useFamily(): FamilyState {
   const session = useSession();
   useSessionRevision();
   if (profile.isError && isBlocking(profile.error, !!profile.data)) return { status: 'error', error: profile.error, retry: () => void profile.refetch() };
-  if (!profile.data) return { status: 'loading' };
+  // Offline with no saved profile the read waits for the network: the page's skeleton stands still (W20).
+  if (!profile.data) return { status: 'loading', paused: profile.fetchStatus === 'paused' };
   const family = profile.data.families.find((f) => f.id === profile.data.currentFamilyId);
   if (!family) return { status: 'none' };
   if (session.isRevoked(family.id)) return { status: 'revoked' };
