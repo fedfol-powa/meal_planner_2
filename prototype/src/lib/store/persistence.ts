@@ -4,6 +4,13 @@ import { createSeedDatabase } from '#lib/demo-data/seed.ts';
 export const SCENARIOS = ['standard', 'new_family', 'empty_today', 'new_user'] as const;
 export type ScenarioId = (typeof SCENARIOS)[number];
 
+/** Round 7: skeleton shapes compared on the phone; 'none' is the app as it is today. */
+export const SKELETON_VARIANTS = ['none', 'blocks', 'pulse', 'outline'] as const;
+export type SkeletonVariant = (typeof SKELETON_VARIANTS)[number];
+/** Round 7: simulated loading time of suggestions, search and the recipe list. */
+export const SLOW_LOADS = ['off', 'brief', 'medium', 'long', 'endless'] as const;
+export type SlowLoad = (typeof SLOW_LOADS)[number];
+
 export interface PrototypeSettings {
 	/** null when signed out (simulated sign-in, round 4). */
 	userId: string | null;
@@ -14,16 +21,18 @@ export interface PrototypeSettings {
 	now: LocalDateTime;
 	offline: boolean;
 	scenario: ScenarioId;
+	skeleton: SkeletonVariant;
+	slowLoad: SlowLoad;
 }
 
 export interface Persisted {
-	version: 25;
+	version: 26;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
 // Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
-export const STORAGE_KEY = 'app-famiglia-prototype-v25';
+export const STORAGE_KEY = 'app-famiglia-prototype-v26';
 
 /** First language (round 4 default): Italian browsers get it-IT, every other browser en-GB. */
 export function detectLocale(languages: readonly string[] | undefined): Locale {
@@ -36,7 +45,7 @@ function browserLanguages(): readonly string[] | undefined {
 
 export function createInitial(): Persisted {
 	return {
-		version: 25,
+		version: 26,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -44,14 +53,16 @@ export function createInitial(): Persisted {
 			guestLocale: detectLocale(browserLanguages()),
 			now: '2026-10-06T12:00',
 			offline: false,
-			scenario: 'standard'
+			scenario: 'standard',
+			skeleton: 'pulse',
+			slowLoad: 'long'
 		}
 	};
 }
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	if (!v || v.version !== 25 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	if (!v || v.version !== 26 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
 	const s = v.settings;
 	return (
 		!!s &&
@@ -60,6 +71,8 @@ function isPersisted(value: unknown): value is Persisted {
 		(LOCALES as readonly string[]).includes(s.guestLocale) &&
 		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
+		(SKELETON_VARIANTS as readonly string[]).includes(s.skeleton) &&
+		(SLOW_LOADS as readonly string[]).includes(s.slowLoad) &&
 		Array.isArray(v.db.connectedAgents) &&
 		Array.isArray(v.db.appInvitations) &&
 		Array.isArray(v.db.recipeStatusChanges) &&

@@ -2,7 +2,8 @@
 	import { app } from '#lib/store/app.svelte.ts';
 	import { AGENT_CLIENTS, LOCALES, type AgentClient, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
 	import { goto } from '$app/navigation';
-	import { SCENARIOS, type ScenarioId } from '#lib/store/persistence.ts';
+	import { SCENARIOS, SKELETON_VARIANTS, SLOW_LOADS, type ScenarioId, type SkeletonVariant, type SlowLoad } from '#lib/store/persistence.ts';
+	import { clearSimulatedCache } from '#lib/store/loading.svelte.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
 	import { getWeekShoppingList, toggleShoppingItem } from '#lib/operations/shopping-lists.ts';
@@ -92,6 +93,20 @@
 		<button type="button" class="text-button" onclick={() => dialog.close()}>{app.t('common.close')}</button>
 	</header>
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
+
+	<!-- Round 7: skeleton variants with a simulated slow load, compared on the phone. -->
+	<label>{app.t('dev.skeleton')}
+		<select value={app.settings.skeleton} onchange={(e) => { const v = e.currentTarget.value as SkeletonVariant; app.update((s) => (s.settings.skeleton = v)); clearSimulatedCache(); }}>
+			{#each SKELETON_VARIANTS as id (id)}<option value={id}>{app.t(`dev.skeleton.${id}` as const)}</option>{/each}
+		</select>
+	</label>
+	<label>{app.t('dev.slowLoad')}
+		<select value={app.settings.slowLoad} onchange={(e) => { const v = e.currentTarget.value as SlowLoad; app.update((s) => (s.settings.slowLoad = v)); clearSimulatedCache(); }}>
+			{#each SLOW_LOADS as id (id)}<option value={id}>{app.t(`dev.slowLoad.${id}` as const)}</option>{/each}
+		</select>
+	</label>
+	<p class="meta-line">{app.t('dev.slowLoad.note')}</p>
+	<button type="button" class="text-button" onclick={clearSimulatedCache}>{app.t('dev.clearCache')}</button>
 
 	<label>{app.t('dev.user')}
 		<select value={app.user.id} onchange={(e) => { const id = e.currentTarget.value; if (id) app.signIn(id); else app.signOut(); }}>

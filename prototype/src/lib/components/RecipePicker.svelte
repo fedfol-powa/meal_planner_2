@@ -6,6 +6,8 @@
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
 	import type { RatingSummary, RecipeSummary } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
+	import { simulatedLoad } from '#lib/store/loading.svelte.ts';
+	import LoadingRegion from './LoadingRegion.svelte';
 	import RecipeFilters from './RecipeFilters.svelte';
 
 	let { slotId, mealType, currentRecipeId, onPick, actions }: {
@@ -46,6 +48,10 @@
 		const average = rating.familyAverage != null ? `★ ${formatAverage(app.locale, rating.familyAverage)} (${rating.familyCount})` : app.t('rating.none');
 		return `${average} · ${rating.myStars != null ? app.t('rating.you', { stars: rating.myStars }) : app.t('rating.notRated')}`;
 	}
+	// Round 7: simulated loading of suggestions (each page of five) and of each search.
+	const suggestionsLoad = simulatedLoad(() => `suggestions:${slotId}:${offset}`);
+	const searchLoad = simulatedLoad(() => (searching ? `search:${JSON.stringify(query)}` : 'search:none'));
+
 	const metaText = (recipe: RecipeSummary) => [recipe.durationMinutes ? app.t('meal.minutes', { count: recipe.durationMinutes }) : null, recipe.proteinGroup ? app.t(`group.${recipe.proteinGroup}` as const) : null].filter(Boolean).join(' · ');
 </script>
 
@@ -66,30 +72,51 @@
 
 <section class="suggestions" aria-labelledby="{slotId}-suggestions" bind:this={suggestionSection}>
 	<h3 id="{slotId}-suggestions" class="picker-title">{app.t('revision.suggestions')}</h3>
-	{#if suggestions.length === 0}
-		<p class="meta-line">{app.t('revision.noCandidates')}</p>
-	{:else}
-		<ul class="cards" bind:this={suggestionList}>
-			{#each suggestions as s (s.recipe.id)}
-				<li>
-					<button type="button" class="card" aria-label={app.t('revision.pick', { recipe: s.recipe.name })} onclick={() => onPick(s.recipe.id)}>
-						{#if s.recipe.photo}<img src={s.recipe.photo} alt="" loading="lazy" />{:else}<span class="card-no-photo" aria-hidden="true"></span>{/if}
-						<span class="card-text">
-							<span class="name">{s.recipe.name}</span>
-							<span class="description">{s.recipe.description}</span>
-							<span class="meta">{metaText(s.recipe)}</span>
-							<span class="meta">{ratingText(s.rating)}</span>
-						</span>
-					</button>
-				</li>
-			{/each}
-		</ul>
-	{/if}
-	{#if suggestions.length && (page.nextOffset !== 0 || offset !== 0)}
-		<button type="button" class="text-button more" onclick={more}>
-			<svg class="icon" aria-hidden="true"><use href="#icon-shuffle" /></svg>{app.t('revision.another')}
-		</button>
-	{/if}
+	<LoadingRegion load={suggestionsLoad} label={app.t('loading.suggestions')}>
+		{#snippet skeleton()}
+			<ul class="cards">
+				{#each [0, 1, 2] as i (i)}
+					<li>
+						<div class="card sk-card">
+							<span class="card-no-photo sk-media"></span>
+							<span class="card-text">
+								<span class="name sk-line sk-title" style="--w: 70%"></span>
+								<span class="description sk-line"></span>
+								<span class="description sk-line" style="--w: 55%"></span>
+								<span class="meta sk-line" style="--w: 45%"></span>
+								<span class="meta sk-line" style="--w: 60%"></span>
+							</span>
+						</div>
+					</li>
+				{/each}
+			</ul>
+			<span class="more sk-box" style="height: 44px"></span>
+		{/snippet}
+		{#if suggestions.length === 0}
+			<p class="meta-line">{app.t('revision.noCandidates')}</p>
+		{:else}
+			<ul class="cards" bind:this={suggestionList}>
+				{#each suggestions as s (s.recipe.id)}
+					<li>
+						<button type="button" class="card" aria-label={app.t('revision.pick', { recipe: s.recipe.name })} onclick={() => onPick(s.recipe.id)}>
+							{#if s.recipe.photo}<img src={s.recipe.photo} alt="" loading="lazy" />{:else}<span class="card-no-photo" aria-hidden="true"></span>{/if}
+							<span class="card-text">
+								<span class="name">{s.recipe.name}</span>
+								<span class="description">{s.recipe.description}</span>
+								<span class="meta">{metaText(s.recipe)}</span>
+								<span class="meta">{ratingText(s.rating)}</span>
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if suggestions.length && (page.nextOffset !== 0 || offset !== 0)}
+			<button type="button" class="text-button more" onclick={more}>
+				<svg class="icon" aria-hidden="true"><use href="#icon-shuffle" /></svg>{app.t('revision.another')}
+			</button>
+		{/if}
+	</LoadingRegion>
 	<p class="simulated">{app.t('revision.simulated')}</p>
 </section>
 
@@ -97,11 +124,27 @@
 	<h3 id="{slotId}-search" class="picker-title">{app.t('revision.search')}</h3>
 	<RecipeFilters {query} onChange={(next) => (query = next)} />
 	{#if searching}
-		{#if results.length}
-			<ul class="rows">{#each results.slice(0, MAX_RESULTS) as item (item.recipe.id)}{@render row(item.recipe, item.rating)}{/each}</ul>
-		{:else}
-			<p class="meta-line">{app.t('recipes.noResults.body')}</p>
-		{/if}
+		<LoadingRegion load={searchLoad} label={app.t('loading.results')}>
+			{#snippet skeleton()}
+				<ul class="rows">
+					{#each [0, 1, 2] as i (i)}
+						<li><div class="row sk-card sk-clip">
+							<span class="no-photo sk-media"></span>
+							<span class="row-text">
+								<span class="name sk-line sk-title" style="--w: 65%"></span>
+								<span class="meta sk-line" style="--w: 40%"></span>
+								<span class="meta sk-line" style="--w: 55%"></span>
+							</span>
+						</div></li>
+					{/each}
+				</ul>
+			{/snippet}
+			{#if results.length}
+				<ul class="rows">{#each results.slice(0, MAX_RESULTS) as item (item.recipe.id)}{@render row(item.recipe, item.rating)}{/each}</ul>
+			{:else}
+				<p class="meta-line">{app.t('recipes.noResults.body')}</p>
+			{/if}
+		</LoadingRegion>
 	{/if}
 </section>
 
@@ -123,6 +166,8 @@
 	.description { color: var(--body-text); font-size: 0.875rem; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 	.suggestions { scroll-margin-top: 72px; }
 	.more { width: 100%; margin-top: 8px; }
+	/* Skeleton cards keep the height of a card whose description fills both lines. */
+	.card-text .description.sk-line { display: flex; }
 	.other-actions { margin: 0 0 8px; border-bottom: 1px solid var(--rule); }
 	.simulated { margin: 6px 0 0; color: var(--muted); font-size: 0.75rem; font-style: italic; }
 	.search { margin-top: 16px; padding-top: 4px; border-top: 1px solid var(--rule); }
