@@ -20,7 +20,11 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Domande in sospeso:** nessuna.
+- **Spunti da Cuicuit (22/10):** analisi dell'importer e decisioni dell'utente (LLM per
+  curatori con permesso, scheda ricetta strutturata con tempi e procedimento riscritto,
+  ordine scheda → E → AI) in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
+  **in sospeso**, l'utente ci vuole pensare prima del via al piano.
+- **Domande in sospeso:** via al piano degli spunti da Cuicuit.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
