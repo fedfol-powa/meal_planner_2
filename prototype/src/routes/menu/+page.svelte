@@ -74,9 +74,10 @@
 		selected ? new Intl.DateTimeFormat(app.locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${selected}T00:00:00Z`)) : ''
 	);
 
-	// W23: the «Oggi» button returns to the same day as a tap on Menu (today, or the first day with meals).
+	// W23: the «Oggi» button returns to today, as a tap on Menu; when today has no meals the opening
+	// is another day, so the button is not shown (decision of 2026-10-23).
 	let monthButton: HTMLButtonElement | undefined = $state();
-	const todayTarget = $derived(openingDay?.date ?? null);
+	const todayTarget = $derived(openingDay?.date === app.settings.now.slice(0, 10) ? openingDay.date : null);
 	function goToday() {
 		if (!todayTarget) return;
 		app.selectedDate = todayTarget;
@@ -129,8 +130,8 @@
 				<button type="button" class="month-button" bind:this={monthButton} data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
 				<div class="toolbar-actions">
 					{#if todayTarget && selected !== todayTarget}
-						<button type="button" class="today-button today-{app.settings.todayButton}" aria-label={app.t('menu.todayLabel')} onclick={goToday}>
-							{#if app.settings.todayButton === 'icon'}<svg class="icon" aria-hidden="true"><use href="#icon-today" /></svg>{/if}
+						<button type="button" class="today-button" aria-label={app.t('menu.todayLabel')} onclick={goToday}>
+							<svg class="icon" aria-hidden="true"><use href="#icon-today" /></svg>
 							<span>{app.t('menu.today')}</span>
 						</button>
 					{/if}
@@ -179,11 +180,7 @@
 	.toolbar-actions { display: flex; align-items: center; gap: 4px; }
 	.toolbar-link { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--ink); }
 	.toolbar-link .icon { width: 26px; height: 26px; }
-	/* W23 variants: the button sits left of the calendar; the month stays put and the bar keeps its height. */
-	.today-button { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); white-space: nowrap; cursor: pointer; }
-	.today-text { color: var(--green); font-size: 1rem; }
-	.today-pill { padding: 0 4px; }
-	.today-pill span { padding: 8px 12px; border: 1px solid var(--ink); border-radius: 8px; }
-	.today-icon { padding: 0 6px; }
-	.today-icon .icon { width: 22px; height: 22px; }
+	/* W23: icon with label left of the calendar; the month stays put and the bar keeps its height. */
+	.today-button { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); white-space: nowrap; cursor: pointer; }
+	.today-button .icon { width: 22px; height: 22px; }
 </style>

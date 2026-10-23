@@ -7,9 +7,6 @@ export type ScenarioId = (typeof SCENARIOS)[number];
 /** Round 7: simulated loading time of suggestions, search and the recipe list. */
 export const SLOW_LOADS = ['off', 'brief', 'medium', 'long', 'endless'] as const;
 export type SlowLoad = (typeof SLOW_LOADS)[number];
-/** W23: shapes of the «Oggi» button in the menu bar, compared on the phone. */
-export const TODAY_BUTTONS = ['text', 'pill', 'icon'] as const;
-export type TodayButton = (typeof TODAY_BUTTONS)[number];
 
 export interface PrototypeSettings {
 	/** null when signed out (simulated sign-in, round 4). */
@@ -22,7 +19,6 @@ export interface PrototypeSettings {
 	offline: boolean;
 	scenario: ScenarioId;
 	slowLoad: SlowLoad;
-	todayButton: TodayButton;
 }
 
 export interface Persisted {
@@ -54,8 +50,7 @@ export function createInitial(): Persisted {
 			now: '2026-10-06T12:00',
 			offline: false,
 			scenario: 'standard',
-			slowLoad: 'long',
-			todayButton: 'text'
+			slowLoad: 'long'
 		}
 	};
 }
@@ -72,7 +67,6 @@ function isPersisted(value: unknown): value is Persisted {
 		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
 		(SLOW_LOADS as readonly string[]).includes(s.slowLoad) &&
-		(TODAY_BUTTONS as readonly string[]).includes(s.todayButton) &&
 		Array.isArray(v.db.connectedAgents) &&
 		Array.isArray(v.db.appInvitations) &&
 		Array.isArray(v.db.recipeStatusChanges) &&

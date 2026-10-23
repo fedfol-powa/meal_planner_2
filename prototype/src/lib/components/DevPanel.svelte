@@ -2,7 +2,7 @@
 	import { app } from '#lib/store/app.svelte.ts';
 	import { AGENT_CLIENTS, LOCALES, type AgentClient, type Locale, type MeasurementSystem } from '#lib/domain/types.ts';
 	import { goto } from '$app/navigation';
-	import { SCENARIOS, SLOW_LOADS, TODAY_BUTTONS, type ScenarioId, type SlowLoad, type TodayButton } from '#lib/store/persistence.ts';
+	import { SCENARIOS, SLOW_LOADS, type ScenarioId, type SlowLoad } from '#lib/store/persistence.ts';
 	import { clearSimulatedCache } from '#lib/store/loading.svelte.ts';
 	import { replaceMealRecipe } from '#lib/operations/revision.ts';
 	import { getSuggestions } from '#lib/operations/suggestions.ts';
@@ -94,13 +94,6 @@
 	</header>
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
-	<!-- W23: shapes of the «Oggi» button in the menu bar, compared on the phone. -->
-	<label>{app.t('dev.todayButton')}
-		<select value={app.settings.todayButton} onchange={(e) => { const v = e.currentTarget.value as TodayButton; app.update((s) => (s.settings.todayButton = v)); }}>
-			{#each TODAY_BUTTONS as id (id)}<option value={id}>{app.t(`dev.todayButton.${id}` as const)}</option>{/each}
-		</select>
-	</label>
-	<p class="meta-line">{app.t('dev.todayButton.note')}</p>
 
 	<!-- Round 7: a simulated slow load, to see the skeleton chosen by the user (blocks with a slow pulse). -->
 	<label>{app.t('dev.slowLoad')}
