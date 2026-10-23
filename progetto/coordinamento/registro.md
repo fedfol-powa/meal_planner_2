@@ -14,7 +14,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `c725262`); revisione 2 APPROVABILE CON CORREZIONI, correzioni in
   `messaggi/w22-02-revisione-spec-2.md`; revisione 3 con un solo rilievo minore (etichetta
   del ruolo negli Inviti): spec e piano approvati dal coordinatore con quella correzione;
-  corretto (commit `1843993`); `PR_APERTA` #79, in revisione.
+  corretto (commit `1843993`); `PR_APERTA` #79; revisione APPROVABILE CON CORREZIONI
+  (`revisioni/w22-pr79.md`, soglia saltata fra pagine diverse), correzioni in corso.
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
@@ -31,7 +32,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Unite, in attesa del rilascio unico:** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
   revisioni `revisioni/w23-*.md`); tab, worktree e branch rimossi. Decisioni da riportare
   nella specifica: nella spec `2026-10-23-bottone-oggi.md`, da riportare insieme a W22 e W24.
-- **Revisori attivi:** «R W22 PR», rapporto atteso `revisioni/w22-pr79.md`.
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
