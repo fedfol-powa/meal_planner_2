@@ -5,7 +5,6 @@ import type { ProfileView } from '@app/contract';
 import { toApiError } from '../../api/errors';
 import { profileQuery } from '../../api/profile';
 import { familyAccessOf, useQueryDeps, type QueryDeps } from '../../api/queries';
-import { Loading } from '../../components/Loading';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
@@ -129,24 +128,27 @@ export function useAdminAccess(): AdminAccess {
 /**
  * The content of an administration page, only with access settled and app_admin in the profile
  * (or, after a forbidden, in the check's outcome);
- * otherwise loading, the check's error with «Riprova», or «Non hai accesso a questa pagina».
+ * otherwise the page's waiting layout (W22: `waiting`, also during the check after a forbidden, paused when
+ * the profile waits for the network), the check's error with «Riprova», or «Non hai accesso a questa pagina».
  * A new generation remounts the content, so nothing of the earlier answers stays in the page.
  * The profile is read here: when a check ends, this render must see the profile it read, not
  * the one a parent got before (that would mount the content again and repeat the forbidden).
  */
-export function AdminAccessGate({ fallbackHeader, children }: {
-  /** Shown above loading, the check's error and «Non hai accesso» (the detail page's header). */
+export function AdminAccessGate({ fallbackHeader, waiting, children }: {
+  /** Shown above the check's error and «Non hai accesso» (the detail page's header). */
   fallbackHeader?: ReactNode;
+  /** The page's waiting layout, with its own header. */
+  waiting: (paused: boolean) => ReactNode;
   children: ReactNode;
 }) {
   const t = useT();
   const profile = useProfile();
   const { state, generation, retry } = useAdminAccess();
   const instead = (content: ReactNode) => <>{fallbackHeader}{content}</>;
-  if (state.status === 'checking') return instead(<Loading />);
+  if (state.status === 'checking') return <>{waiting(false)}</>;
   if (state.status === 'error') return instead(<QueryError error={state.error} onRetry={retry} />);
   if (state.status === 'profile' && !profile.data) {
-    return instead(profile.isError ? <QueryError error={profile.error} onRetry={() => void profile.refetch()} /> : <Loading />);
+    return profile.isError ? instead(<QueryError error={profile.error} onRetry={() => void profile.refetch()} />) : <>{waiting(profile.fetchStatus === 'paused')}</>;
   }
   if (state.status === 'verified' ? !state.admin : !hasAppAdmin(profile.data)) {
     return instead(

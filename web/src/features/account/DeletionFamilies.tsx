@@ -1,4 +1,5 @@
 import type { DeletionFamily } from '@app/contract';
+import { ButtonSkeleton } from '../../components/PageSkeletons';
 import { useT } from '../../i18n/LocaleProvider';
 import styles from './Deletion.module.css';
 
@@ -64,4 +65,26 @@ export function validSuccessors(families: readonly DeletionFamily[], successors:
 export function successorsComplete(families: readonly DeletionFamily[], successors: Readonly<Record<string, string>>): boolean {
   const valid = validSuccessors(families, successors);
   return families.every((family) => family.outcome !== 'needs_successor' || family.familyId in valid);
+}
+
+/** A family of the deletion while the plan loads (W22): name and outcome. */
+export function DeletionFamilySkeleton() {
+  return (
+    <section className={`settings-card ${styles.card} skeleton-card`}>
+      <h3 className="skeleton-line" />
+      <p><span className="skeleton-line" /></p>
+    </section>
+  );
+}
+
+/** «Cosa sparisce» while the plan loads (W22): title, two lines, the note and the red button. */
+export function WhatGoesSkeleton() {
+  return (
+    <section className={`settings-card ${styles.card} skeleton-card`}>
+      <h2 className={`${styles.cardTitle} skeleton-line`} />
+      <p><span className="skeleton-line" /><span className="skeleton-line" /></p>
+      <p className="meta-line"><span className="skeleton-line" /></p>
+      <ButtonSkeleton wide className={styles.confirm} />
+    </section>
+  );
 }
