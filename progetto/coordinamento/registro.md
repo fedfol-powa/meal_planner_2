@@ -23,7 +23,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w23-spec-piano.md`), correzioni in
   `messaggi/w23-01-revisione-spec.md`; revisione 2 APPROVABILE CON CORREZIONI, correzioni
   in `messaggi/w23-02-revisione-spec-2.md`; revisione 3 con due rilievi sul focus: spec e
-  piano approvati dal coordinatore (commit `b349664`); `PR_APERTA` #78, in revisione.
+  piano approvati dal coordinatore (commit `b349664`); `PR_APERTA` #78; revisione APPROVABILE CON CORREZIONI
+  (`revisioni/w23-pr78.md`, due rilievi), correzioni in corso.
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
@@ -35,7 +36,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `fc71121`, anteprima sulla porta 8768), secondo giro in corso.
   Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
   della PR.
-- **Revisori attivi:** «R W23 PR», rapporto atteso `revisioni/w23-pr78.md`; «R W24 spec 2»,
+- **Revisori attivi:** «R W24 spec 2»,
   rapporto atteso `revisioni/w24-spec-piano-2.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
