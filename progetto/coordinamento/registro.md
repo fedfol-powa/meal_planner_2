@@ -5,18 +5,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 23 ottobre 2026)
 
-- **Attività in corso:** W22 (skeleton nelle pagine rare e nelle sezioni dei curatori,
-  seguito della issue #49) e W24 (avviso del menu pronto), entrambi in implementazione.
-- **Worker attivi:** W22, tab «W22 skeleton pagine rare» (`w1:t5R`, pane `w1:p5R`), branch
-  `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
-  revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w22-spec-piano.md`), correzioni
-  e decisioni del coordinatore in `messaggi/w22-01-revisione-spec.md`; corrette (commit
-  `c725262`); revisione 2 APPROVABILE CON CORREZIONI, correzioni in
-  `messaggi/w22-02-revisione-spec-2.md`; revisione 3 con un solo rilievo minore (etichetta
-  del ruolo negli Inviti): spec e piano approvati dal coordinatore con quella correzione;
-  corretto (commit `1843993`); `PR_APERTA` #79; revisione APPROVABILE CON CORREZIONI
-  (`revisioni/w22-pr79.md`, soglia saltata fra pagine diverse); `PR_CORRETTA`, secondo giro
-  in corso.
+- **Attività in corso:** W24 (avviso del menu pronto), in implementazione.
+- **Worker attivi:**
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
@@ -33,20 +23,23 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Unite, in attesa del rilascio unico:** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
   revisioni `revisioni/w23-*.md`); tab, worktree e branch rimossi. Decisioni da riportare
   nella specifica: nella spec `2026-10-23-bottone-oggi.md`, da riportare insieme a W22 e W24.
-- **Revisori attivi:** «R W22 PR 2», rapporto atteso `revisioni/w22-pr79-2.md`.
+  W22, skeleton nelle pagine rare e nelle sezioni dei curatori, PR #79 (merge `9790f07`,
+  revisioni `revisioni/w22-*.md`); tab, worktree e branch rimossi; decisioni nella spec
+  `2026-10-23-skeleton-pagine-rare.md`. Issue #49 da chiudere dopo il rilascio.
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
-- **Domande in sospeso:** via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
-  rilasciata) dopo W22.
+- **Domande in sospeso:** via al piano degli spunti da Cuicuit; chiudere la issue #49 dopo il
+  rilascio.
 - **Rilascio:** decisione dell'utente (23/10): un unico rilascio quando W22, W23 e W24 sono
   tutti uniti. Comprende la migrazione di W24 e la variabile `APP_ORIGIN`; meglio prima di un
   mercoledì sera (prima email col menu nuovo).
 - **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
-- **Prossimo passo:** revisione delle PR di W22 e W24 quando arrivano; dopo i merge, PR di
+- **Prossimo passo:** revisione della PR di W24 quando arriva; dopo i merge, PR di
   documentazione con le decisioni di W22, W23 e W24 nella specifica; poi anteprima del
   rilascio unico.
 
