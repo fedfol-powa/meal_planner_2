@@ -30,8 +30,10 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
   pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
-  puntini), email B a righe compatte; anteprima confermata dall'utente; in fase 3 (spec e piano).
-- **Revisori attivi:** nessuno.
+  puntini), email B a righe compatte; anteprima confermata dall'utente; `SPEC_E_PIANO_PRONTI` (commit `b62119c`), in revisione.
+  Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
+  della PR.
+- **Revisori attivi:** «R W24 spec», rapporto atteso `revisioni/w24-spec-piano.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
