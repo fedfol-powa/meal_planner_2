@@ -28,7 +28,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
   pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
-  puntini), email B a righe compatte; anteprima aggiornata, conferma dell'utente sull'iPhone in attesa, poi spec e piano.
+  puntini), email B a righe compatte; anteprima confermata dall'utente; in fase 3 (spec e piano).
 - **Revisori attivi:** «R W23 spec 3», rapporto atteso `revisioni/w23-spec-piano-3.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
