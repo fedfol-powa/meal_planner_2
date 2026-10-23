@@ -10,7 +10,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   (censimento, spec e piano). Avviato il 23/10 su richiesta dell'utente.
 - **Worker attivi:** W22, tab «W22 skeleton pagine rare» (`w1:t5R`, pane `w1:p5R`), branch
   `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
-  `SPEC_E_PIANO_PRONTI` (commit `f9643c8`, spec e piano `2026-10-23-skeleton-pagine-rare.md`).
+  revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w22-spec-piano.md`), correzioni
+  e decisioni del coordinatore in `messaggi/w22-01-revisione-spec.md`; poi secondo giro.
   W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
   «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
@@ -20,8 +21,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente via Remote Control); ultimo STATO: nessuno.
-- **Revisori attivi:** «R W22 spec» (pane `w1:p5T`), rapporto atteso
-  `revisioni/w22-spec-piano.md`.
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
