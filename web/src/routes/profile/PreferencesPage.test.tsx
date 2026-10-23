@@ -134,10 +134,14 @@ describe('preferences', () => {
       renderApp('/profile/preferences', { api });
       const field = await box();
       expect(field.checked).toBe(true);
-      expect(screen.getByText('Il mercoledì sera, quando è pronto il menu della settimana dopo')).toBeTruthy();
+      const hint = screen.getByText('Il mercoledì sera, quando è pronto il menu della settimana dopo');
+      expect(hint.id).not.toBe('');
+      expect(field.getAttribute('aria-describedby')).toBe(hint.id);
       fireEvent.click(field);
       await waitFor(() => expect(api.profile.update).toHaveBeenCalledWith({ menuEmails: false }, expect.anything()));
       expect((await screen.findByText('Salvataggio…')).getAttribute('role')).toBe('status');
+      // The value sent stays shown while saving, not the one still in the cache (final review, finding 1).
+      expect((await box()).checked).toBe(false);
       await act(async () => release());
       expect(await screen.findByText('Salvato')).toBeTruthy();
       expect(screen.queryByText('Salvataggio…')).toBeNull();

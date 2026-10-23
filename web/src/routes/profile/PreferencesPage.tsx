@@ -126,13 +126,15 @@ export function PreferencesPage() {
               <label className="choice">
                 <input
                   type="checkbox"
-                  checked={profile.user.menuEmails}
+                  // The value sent while saving; the saved one again after an error.
+                  checked={menuEmails.isPending ? menuEmails.variables : profile.user.menuEmails}
                   disabled={!online || menuEmails.isPending}
+                  aria-describedby="menu-emails-hint"
                   onChange={(event) => menuEmails.mutate(event.target.checked)}
                 />
                 <span id="menu-emails-title">{t('preferences.menuEmails')}</span>
               </label>
-              <p className="meta-line">{t('preferences.menuEmailsHint')}</p>
+              <p id="menu-emails-hint" className="meta-line">{t('preferences.menuEmailsHint')}</p>
               {menuEmails.isPending && <p className="meta-line" role="status">{t('settings.saving')}</p>}
               {menuEmails.isSuccess && <p className="meta-line" role="status">{t('preferences.menuEmailsSaved')}</p>}
               {menuEmails.isError && <p className="meta-line" role="alert">{t(errorKey(menuEmails.error))}</p>}
