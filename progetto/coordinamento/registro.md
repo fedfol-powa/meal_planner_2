@@ -5,31 +5,19 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 23 ottobre 2026)
 
-- **Attività in corso:** W24 (avviso del menu pronto), in implementazione.
-- **Worker attivi:**
-  W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
-  brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
-  `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
-  con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
-  pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
-  puntini), email B a righe compatte; anteprima confermata dall'utente; revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w24-spec-piano.md`), correzioni in
-  `messaggi/w24-01-revisione-spec.md`; rilievo 7: l'utente sceglie un fondo verde chiaro
-  dietro i giorni nuovi (`messaggi/w24-02-segnale-calendario.md`). Corrette (commit
-  `fc71121`, anteprima sulla porta 8768); revisione 2 APPROVABILE CON CORREZIONI (quattro
-  rilievi tecnici), corrette; revisione 3 con due rilievi minori: spec e piano approvati
-  dal coordinatore (commit `6d8b786`); `PR_APERTA` #80 (migrazione
-  `20261023100000_menu_ready_notice.sql`); revisione APPROVABILE CON CORREZIONI
-  (`revisioni/w24-pr80.md`, due rilievi sul link con `family`); corrette, CI verde;
-  secondo giro: un rilievo residuo (risposta tardiva non applicata + secondo link), correzione
-  in corso.
-  Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
-  della PR.
+- **Attività in corso:** nessun worker. PR di documentazione `docs/w22-w23-w24` (sottoagente del
+  coordinatore, worktree `.worktrees/docs-w22-w24`) con le decisioni di W22, W23 e W24 nella
+  specifica; serve il «mergia» dell'utente. Anteprima del rilascio unico in preparazione.
+- **Worker attivi:** nessuno.
 - **Unite, in attesa del rilascio unico:** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
   revisioni `revisioni/w23-*.md`); tab, worktree e branch rimossi. Decisioni da riportare
   nella specifica: nella spec `2026-10-23-bottone-oggi.md`, da riportare insieme a W22 e W24.
   W22, skeleton nelle pagine rare e nelle sezioni dei curatori, PR #79 (merge `9790f07`,
   revisioni `revisioni/w22-*.md`); tab, worktree e branch rimossi; decisioni nella spec
   `2026-10-23-skeleton-pagine-rare.md`. Issue #49 da chiudere dopo il rilascio.
+  W24, avviso del menu pronto (email e pallino in app, preferenza nelle Preferenze), PR #80
+  (merge `f56f257`, migrazione `20261023100000_menu_ready_notice.sql`, variabile `APP_ORIGIN`;
+  revisioni `revisioni/w24-*.md`); stack locale fermato, tab, worktree e branch rimossi.
 - **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
@@ -43,9 +31,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
-- **Prossimo passo:** revisione della PR di W24 quando arriva; dopo i merge, PR di
-  documentazione con le decisioni di W22, W23 e W24 nella specifica; poi anteprima del
-  rilascio unico.
+- **Prossimo passo:** «mergia» della PR di documentazione; anteprima del rilascio unico e
+  «vai» dell'utente (migrazione W24 prima del deploy); collaudi sull'iPhone; chiudere #49.
 
 ## Storico
 
