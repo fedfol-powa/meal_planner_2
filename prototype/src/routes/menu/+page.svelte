@@ -17,6 +17,8 @@
 	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart } from '#lib/operations/meals.ts';
 	import type { MealView, RecipeCardView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
+	import { newWeekNotice } from '#lib/store/new-week-notice.svelte.ts';
+	import { addDays } from '#lib/domain/calendar.ts';
 
 	let track: HTMLDivElement | undefined = $state();
 	const isAdmin = $derived(!!app.family && roleOf(app.family, app.user.id) === 'family_admin');
@@ -91,6 +93,13 @@
 	const editingMeal = $derived(editing ? week?.days.flatMap((d) => d.meals).find((m) => m.slotId === editing?.slotId) ?? null : null);
 	const openEditor = (slotId: string, stage: EditorStage) => (editing = { slotId, stage });
 
+	// W24: the new week ready and not seen yet; showing any of its days in the Menu marks it seen.
+	const pendingWeek = $derived(newWeekNotice.pendingWeek(app.db, app.ctx));
+	const freshDays = $derived(pendingWeek ? Array.from({ length: 7 }, (_, i) => addDays(pendingWeek, i)) : []);
+	$effect(() => {
+		if (pendingWeek && selected && freshDays.includes(selected)) newWeekNotice.markSeen(app.ctx, pendingWeek);
+	});
+
 	// Remember the shown day (also when it came from `?day=` or the opening), e.g. for the Prova panel.
 	$effect(() => {
 		if (selected && app.selectedDate === null) app.selectedDate = selected;
@@ -118,11 +127,14 @@
 			<div class="menu-toolbar">
 				<button type="button" class="month-button" data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
 				<div class="toolbar-actions">
-					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} />
+					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} dot={newWeekNotice.variant === 'calendar' && !!pendingWeek} fresh={newWeekNotice.variant === 'calendar' ? freshDays : []} />
 					<a class="toolbar-link" href="/shopping/{week.startsOn}" aria-label={app.t('menu.shopping')}><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg></a>
 				</div>
 			</div>
-			<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
+			<div class="day-row">
+				<DaySelector dates={week.days.map((d) => d.date)} {selected} onSelect={select} />
+				{#if newWeekNotice.variant === 'day_row' && pendingWeek}<span class="edge-dot" role="img" aria-label={app.t('menu.newWeekReady')}></span>{/if}
+			</div>
 		</nav>
 		<!-- Scrollable region must be focusable for keyboard scrolling, as in the approved reference. -->
 		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -163,4 +175,6 @@
 	.toolbar-actions { display: flex; align-items: center; gap: 4px; }
 	.toolbar-link { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--ink); }
 	.toolbar-link .icon { width: 26px; height: 26px; }
+	.day-row { position: relative; }
+	.edge-dot { position: absolute; top: 50%; right: -12px; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--green); }
 </style>

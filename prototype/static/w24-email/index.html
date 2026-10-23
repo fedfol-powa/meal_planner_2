@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anteprima email menu pronto</title>
+<style>
+body { margin: 0; padding: 16px; background: #e9e6df; font: 15px/1.5 -apple-system, Helvetica, Arial, sans-serif; color: #232323; }
+h1 { margin: 0 0 4px; font-size: 20px; }
+p { margin: 0 0 12px; color: #555; }
+nav a { display: inline-block; margin: 0 12px 12px 0; color: #067a46; font-weight: 700; }
+.frames { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+figure { margin: 0; }
+figcaption { font-size: 13px; color: #555; margin-bottom: 6px; }
+iframe { border: 1px solid #bbb; border-radius: 8px; background: #fff; height: 900px; }
+.phone { width: 375px; max-width: 100%; }
+.wide { width: 760px; max-width: 100%; }
+</style>
+</head>
+<body>
+<h1>Email «menu della settimana pronto» (W24)</h1>
+<p>Anteprima statica. Oggetto IT: «Il menu della settimana 26 ottobre – 1 novembre è pronto». Oggetto EN: «The menu for 26 October – 1 November is ready». Sul telefono apri direttamente l'email per vederla a schermo intero.</p>
+<p><strong>A, schede:</strong> come nell'app, foto in una fascia larga. <strong>B, righe compatte:</strong> miniatura quadrata a sinistra, email lunga circa la metà.</p>
+<nav><a href="it.html">A in italiano</a><a href="en.html">A in inglese</a><a href="it-compact.html">B in italiano</a><a href="en-compact.html">B in inglese</a><a href="/menu">Torna al prototipo</a></nav>
+<div class="frames">
+<figure><figcaption>A, telefono 375 px</figcaption><iframe class="phone" src="it.html" title="A su telefono"></iframe></figure>
+<figure><figcaption>B, telefono 375 px</figcaption><iframe class="phone" src="it-compact.html" title="B su telefono"></iframe></figure>
+<figure><figcaption>A, computer 760 px</figcaption><iframe class="wide" src="it.html" title="A su computer"></iframe></figure>
+<figure><figcaption>B, computer 760 px</figcaption><iframe class="wide" src="it-compact.html" title="B su computer"></iframe></figure>
+</div>
+</body>
+</html>
