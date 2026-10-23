@@ -2186,8 +2186,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   persona senza email, l'avviso in app resta. Ogni riga si acquisisce in modo atomico
   (una sola esecuzione la spedisce, con il recupero di un'acquisizione abbandonata dopo
   15 minuti), con oggetto e corpo salvati e la chiave di idempotenza
-  `menu-email/{familyId}/{weekStart}/{userId}`; vale finché mancano almeno 1 minuto alla
-  mezzanotte locale del lunedì della settimana e 23 ore dal primo tentativo (un'ora di
+  `menu-email/{familyId}/{weekStart}/{userId}`; si può inviare finché manca più di un
+  minuto alla mezzanotte locale del lunedì della settimana e sono trascorse meno di 23 ore
+  dal primo tentativo (un'ora di
   margine sulle 24 in cui Resend conserva la chiave), condizione ricontrollata
   nell'acquisizione e subito prima della richiesta, con un unico orologio passato anche
   alle query, mai `now()` di Postgres. Prima della richiesta `app.menu_email_address`
@@ -2300,7 +2301,8 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     solo quando il Menu mostra un giorno diverso da oggi **e** oggi ha almeno un pasto
     con contenuto (ricetta o pasto libero); su oggi non c'è, e nemmeno quando oggi ha
     solo slot vuoti o non ci sono i dati della settimana di oggi (lettura in corso,
-    errore, offline senza copia), perché l'apertura porterebbe a un altro giorno. Un
+    errore, offline senza copia), perché non è accertata la presenza di un pasto con
+    contenuto oggi. Un
     tocco porta a oggi come la scelta di un giorno dal selettore o dal calendario. Oggi è
     la data locale della famiglia (`families.time_zone`). Non c'è nello skeleton del
     Menu, in «Ancora nessun menu» e negli errori. Il secondo tocco su Menu nella navbar

@@ -1212,7 +1212,10 @@ rilascio in preparazione (specifica, sezioni 7 e 14; testi e stati in
   un invito all'app non passa più dal wizard: dopo la password entra e trova «Crea la tua
   famiglia»;
 - **`/password`**: si apre dal link dell'email «Scegli la password» o della «Password
-  dimenticata», in Safari. «Scegli la password», «Account: {email}», password e
+  dimenticata», in Safari. Mentre verifica il link (dalla W22, PR #79, unita, rilascio in
+  preparazione) mostra lo skeleton del modulo, annunciato con «Verifico il link…»; offline
+  la verifica non parte, lo skeleton resta fermo sotto il banner con «Caricamento…» e la
+  verifica parte da sola al ritorno della rete (prima la pagina restava vuota). «Scegli la password», «Account: {email}», password e
   ripetizione con le regole del Profilo, la riga sugli altri dispositivi e agenti che
   dovranno accedere di nuovo, «Salva la password»; poi «Password salvata.», «Ora entra
   con la tua email e la nuova password.» e **«Accedi»** verso `/login` con l'email già
@@ -1233,6 +1236,21 @@ Le pagine nuove hanno la forma delle pagine d'ingresso del prototipo (marchio, c
 stretta, cambio di lingua, «Sei offline» con i comandi disattivati). Restano le prove a
 mano sull'iPhone dopo il rilascio (email aperta dall'app Mail con la PWA installata,
 «Password dimenticata» dalla PWA, resa delle email in italiano e in inglese).
+
+### Skeleton nelle pagine rare (23 ottobre 2026)
+
+Con la W22 (PR #79, unita, rilascio in preparazione; specifica, sezione 14) lo skeleton
+di W20 copre anche le pagine rare: profilo, preferenze, membri, impostazioni, esclusioni,
+agenti, amministrazione, dettaglio ed eliminazione di un utente, bozze, eliminazioni
+della famiglia e dell'account, inviti, autorizzazione e verifica del link in `/password`
+(sopra, «Email dell'app»), più le sezioni dei curatori del Ricettario (Bozze e
+Archiviate). Una sola attesa e un solo annuncio «Caricamento…» per pagina, anche con più
+letture. Le sezioni condizionali, cioè parti di una pagina aperta a tutti che compaiono
+solo per un ruolo (sezioni dei curatori, schede degli amministratori nei Membri), hanno
+blocchi solo quando il ruolo è noto; le pagine riservate a un ruolo (bozze,
+amministrazione) hanno lo skeleton anche prima, seguito dall'avviso se il ruolo manca.
+Offline lo skeleton resta fermo sotto il banner; inviti e autorizzazione, senza copia
+salvata, mostrano l'errore con «Riprova». Il prototipo non aveva questi stati.
 
 ### Avviso del menu pronto nell'app (23 ottobre 2026)
 
