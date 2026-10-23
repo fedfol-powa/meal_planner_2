@@ -5,6 +5,8 @@ import { withDbOn } from './db.ts';
 import { diagnosticOf } from './errors.ts';
 import type { Env } from './env.ts';
 import { logEvent } from './log.ts';
+import { announceMenus } from './menu-emails/announce.ts';
+import { deliverMenuEmails } from './menu-emails/deliver.ts';
 import { runWeeklyJob } from './menu/job.ts';
 import { deliverAlerts } from './ops-alerts/index.ts';
 import { reconcileAlerts } from './ops-alerts/reconcile.ts';
@@ -29,6 +31,7 @@ export async function dispatchScheduled(cron: string, env: Env, time: Date): Pro
 				logEvent('account_deletion_resume_crashed', { ...diagnosticOf(error) }, 'error');
 				failures.push(error);
 			});
+			await runMenuEmailSteps(env, time).catch((error: unknown) => logEvent('menu_email_steps_crashed', { ...diagnosticOf(error) }, 'error'));
 			// A synchronous throw (a bad connection string) must not hide the job or resume failure.
 			await runAlertSteps(env, time).catch((error: unknown) => logEvent('ops_alert_steps_crashed', { ...diagnosticOf(error) }, 'error'));
 			if (failures.length > 0) throw failures[0];
@@ -39,6 +42,17 @@ export async function dispatchScheduled(cron: string, env: Env, time: Date): Pro
 			return;
 		default:
 			logEvent('scheduled_unknown_cron', { cron }, 'error');
+	}
+}
+
+/** Announcement of the new weeks and delivery of their emails (spec W24, section 5.2), each in its own try. */
+async function runMenuEmailSteps(env: Env, time: Date): Promise<void> {
+	const sql = postgres(env.HYPERDRIVE.connectionString, { max: 1, fetch_types: false, connect_timeout: 10 });
+	try {
+		await announceMenus(sql, env, time).catch((error: unknown) => logEvent('menu_email_announce_crashed', { ...diagnosticOf(error) }, 'error'));
+		await deliverMenuEmails(sql, env).catch((error: unknown) => logEvent('menu_email_delivery_crashed', { ...diagnosticOf(error) }, 'error'));
+	} finally {
+		await sql.end().catch(() => {});
 	}
 }
 

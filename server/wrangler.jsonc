@@ -21,7 +21,9 @@
 		// Publishable key of the project (public value): Project Settings › API Keys.
 		"SUPABASE_PUBLISHABLE_KEY": "sb_publishable_ZN5AmAKDK-_xVuKSINnLnw_EZa3ns7f",
 		// Id of BACKUP_ENCRYPTION_KEY (a Worker secret), written in each export header.
-		"BACKUP_KEY_ID": "k1"
+		"BACKUP_KEY_ID": "k1",
+		// Origin of the links the cron writes in emails (spec W24, section 11); no trailing slash.
+		"APP_ORIGIN": "https://cosasimangia.app"
 	},
 	"version_metadata": { "binding": "CF_VERSION_METADATA" },
 	"assets": {
