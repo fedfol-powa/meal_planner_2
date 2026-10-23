@@ -233,7 +233,12 @@ async function deliverOne(
 	);
 	if (result.ok) {
 		const at = clock().toISOString();
-		await job((tx) => tx`update app.menu_emails set sent_at = ${at}::timestamptz where ${isOpen(tx, row)}`);
+		const saved = await job((tx) => tx`update app.menu_emails set sent_at = ${at}::timestamptz where ${isOpen(tx, row)} returning 1`);
+		if (saved.length === 0) {
+			// Closed by another round while the request was in flight: the email left, the row stays as it was closed.
+			logEvent('menu_email_sent_after_close', ids(row));
+			return 'next';
+		}
 		logEvent('menu_email_sent', ids(row));
 		return 'sent';
 	}

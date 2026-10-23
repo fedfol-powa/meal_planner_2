@@ -331,6 +331,22 @@ describe.skipIf(!hasDatabase)('menu email delivery', () => {
 		expect(await reserved('2026-10-22')).toBe(2);
 	});
 
+	it('a row closed while its request was in flight logs the late send and counts no send (final review, finding 4)', async () => {
+		const log = logs();
+		const { familyId, users } = await seed();
+		const userId = users[0]!;
+		const resend = fakeResend(async () => {
+			await db.admin`update app.menu_emails set closed_at = ${NOW}, closed_reason = 'expired' where family_id = ${familyId} and user_id = ${userId}`;
+			return { status: 200 };
+		});
+		expect(await deliver([familyId], resend)).toEqual({ sent: 0 });
+		expect(resend.requests).toHaveLength(1);
+		expect(await row(familyId, userId)).toMatchObject({ sentAt: null, closedReason: 'expired' });
+		const info = events(log.info);
+		expect(info).toContainEqual({ event: 'menu_email_sent_after_close', familyId, weekStart: WEEK, userId });
+		expect(info.map((e) => e.event)).not.toContain('menu_email_sent');
+	});
+
 	it('does not claim a row that left its window while the round sent the one before', async () => {
 		logs();
 		const { familyId, users } = await seed(2);
