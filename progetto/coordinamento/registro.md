@@ -35,7 +35,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   dietro i giorni nuovi (`messaggi/w24-02-segnale-calendario.md`). Corrette (commit
   `fc71121`, anteprima sulla porta 8768); revisione 2 APPROVABILE CON CORREZIONI (quattro
   rilievi tecnici), corrette; revisione 3 con due rilievi minori: spec e piano approvati
-  dal coordinatore con quelle correzioni; poi `/clear` e implementazione.
+  dal coordinatore (commit `6d8b786`); `/clear` e implementazione in corso.
   Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
   della PR.
 - **Revisori attivi:** «R W23 PR 2», rapporto atteso `revisioni/w23-pr78-2.md`.
