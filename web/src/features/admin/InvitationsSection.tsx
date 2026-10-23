@@ -5,9 +5,10 @@ import { errorKey } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
 import { useQueryDeps } from '../../api/queries';
 import { BottomSheet } from '../../components/BottomSheet';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
+import { ButtonSkeleton, SettingsCardSkeleton } from '../../components/PageSkeletons';
 import { QueryError } from '../../components/QueryError';
+import { LoadingArea } from '../../components/Skeleton';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { appInvitationsQuery } from './api';
 import { InviteSheet } from './InviteSheet';
@@ -51,7 +52,18 @@ export function InvitationsSection() {
         <button type="button" className="text-button primary" disabled={!online} onClick={() => open()}>{t('admin.new')}</button>
       </div>
       {list.isError && <QueryError error={list.error} onRetry={() => void list.refetch()} />}
-      {!list.data && !list.isError && <Loading />}
+      {!list.data && !list.isError && (
+        <LoadingArea
+          loading
+          paused={list.fetchStatus === 'paused'}
+          skeleton={
+            <ul className={styles.list}>
+              <InvitationItemSkeleton filled />
+              <InvitationItemSkeleton filled />
+            </ul>
+          }
+        />
+      )}
       {list.data && (
         <ul className={styles.list}>
           {list.data.invitations.map((invitation) => {
@@ -92,5 +104,40 @@ export function InvitationsSection() {
         </button>
       </BottomSheet>
     </section>
+  );
+}
+
+/**
+ * An invitation while the list loads (W22), with the children and classes of an accepted one (the most
+ * frequent in a growing list): email, a role label, state and author. One structure for the two phases:
+ * inside the card of blocks of the access check (transparent) and inside the real card (`filled`).
+ */
+export function InvitationItemSkeleton({ filled = false }: { filled?: boolean }) {
+  const block = filled ? ' skeleton-block' : '';
+  return (
+    <li className={styles.item}>
+      <span className={`${styles.email} skeleton-line${block}`} />
+      <span className={styles.roles}>
+        <span className={`${styles.role}${block}`} style={{ width: '6em' }}><span className="skeleton-line" /></span>
+      </span>
+      <span className={`meta-line skeleton-line${block}`} />
+      <span className={`meta-line skeleton-line${block}`} />
+    </li>
+  );
+}
+
+/** The invitations' card while the access is checked: heading with the button, two invitations. */
+export function InvitationsCardSkeleton() {
+  return (
+    <SettingsCardSkeleton title={false}>
+      <div className={styles.heading}>
+        <h2 className="skeleton-line" />
+        <ButtonSkeleton className="primary" />
+      </div>
+      <ul className={styles.list}>
+        <InvitationItemSkeleton />
+        <InvitationItemSkeleton />
+      </ul>
+    </SettingsCardSkeleton>
   );
 }

@@ -5,8 +5,9 @@ import { errorKey, toApiError } from '../../api/errors';
 import { useAreaMutation } from '../../api/mutations';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AuthUser } from '../../auth/backend';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
+import { ButtonSkeleton, FieldSkeleton } from '../../components/PageSkeletons';
+import { LoadingArea } from '../../components/Skeleton';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../../i18n/messages';
 import { trackBusy } from '../../pwa/busy';
@@ -181,7 +182,29 @@ export function InvitePage() {
         </div>
       </div>
       {!online && <p className="offline-banner" role="status">{t('offline.banner')}</p>}
-      {phase.kind === 'loading' && <Loading />}
+      {phase.kind === 'loading' && (
+        // The shape of what usually arrives (W22): the form without an account, the join button with one.
+        <LoadingArea
+          loading
+          skeleton={
+            <>
+              <span className="entry-title skeleton-block" style={{ width: '70%', height: '1lh' }} />
+              <p><span className="skeleton-line" /></p>
+              {identity ? (
+                <ButtonSkeleton wide />
+              ) : (
+                <>
+                  <FieldSkeleton />
+                  <FieldSkeleton hint={styles.help} />
+                  <p className={styles.help}><span className="skeleton-line" /></p>
+                  <ButtonSkeleton wide />
+                  <p><span className="skeleton-line" /></p>
+                </>
+              )}
+            </>
+          }
+        />
+      )}
       {phase.kind === 'unavailable' && (
         <>
           <h1 className="entry-title">{t('invite.unavailable')}</h1>

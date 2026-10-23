@@ -73,6 +73,18 @@ export function useOverview(enabled: boolean) {
   return useCatalogueQuery({ queryKey: catalogueKeys.overview(locale), queryFn: () => api.catalogue.overview({}) }, enabled);
 }
 
+/**
+ * The counts of an overview already in memory, of any language (W22): how many draft cards the skeleton
+ * reserves. In practice the one of another language; null when none is in memory.
+ */
+export function useCachedOverviewCounts(): { drafts: number; archived: number } | null {
+  const queryClient = useQueryClient();
+  const view = queryClient
+    .getQueriesData<{ drafts: unknown[]; archived: unknown[] }>({ queryKey: ['catalogue', 'overview'] })
+    .find(([, data]) => data !== undefined)?.[1];
+  return view ? { drafts: view.drafts.length, archived: view.archived.length } : null;
+}
+
 export function useDraft(draftId: string, enabled: boolean) {
   const api = useApi();
   const { locale } = useLocale();

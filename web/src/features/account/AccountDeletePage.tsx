@@ -8,14 +8,14 @@ import { useQueryDeps, type QueryDeps } from '../../api/queries';
 import type { Api } from '../../api/types';
 import danger from '../../components/Danger.module.css';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { LoadingArea } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
 import { useSignOut } from '../../session/SessionScope';
-import { DeletionFamilies, successorsComplete, validSuccessors } from './DeletionFamilies';
+import { DeletionFamilies, DeletionFamilySkeleton, successorsComplete, validSuccessors, WhatGoesSkeleton } from './DeletionFamilies';
 import styles from './Deletion.module.css';
 
 type DeletionPlanView = Awaited<ReturnType<Api['account']['getDeletionPlan']>>;
@@ -39,7 +39,22 @@ export function AccountDeletePage() {
 
   let body;
   if (plan.isError && isBlocking(plan.error, !!plan.data)) body = <QueryError error={plan.error} onRetry={() => void plan.refetch()} />;
-  else if (!plan.data) body = <Loading />;
+  else if (!plan.data) {
+    // While the plan loads (W22): the families' title, a family and «Cosa sparisce» with the red button.
+    body = (
+      <LoadingArea
+        loading
+        paused={plan.fetchStatus === 'paused'}
+        skeleton={
+          <>
+            <h2 className={`${styles.sectionTitle} skeleton-line`} />
+            <DeletionFamilySkeleton />
+            <WhatGoesSkeleton />
+          </>
+        }
+      />
+    );
+  }
   else body = <Plan plan={plan.data} readAgain={() => void plan.refetch()} />;
 
   return (

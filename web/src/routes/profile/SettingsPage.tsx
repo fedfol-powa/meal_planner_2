@@ -2,7 +2,7 @@ import { GROUP_MAX, KNOWN_NEW_MAX } from '@app/domain/family';
 import { CREA_RANGES, FOOD_GROUPS } from '@app/domain/planner';
 import { useQuery, type UseMutationResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { errorKey, isBlocking } from '../../api/errors';
 import { familyQuery, settingsQuery } from '../../api/family';
 import { useAreaMutation } from '../../api/mutations';
@@ -10,13 +10,15 @@ import { useQueryDeps } from '../../api/queries';
 import type { FamilyDetailView, FamilyView, SettingsView } from '../../api/types';
 import danger from '../../components/Danger.module.css';
 import { DinersGrid, type SlotChange } from '../../components/DinersGrid';
+import dinersStyles from '../../components/DinersGrid.module.css';
 import { FamilyGate } from '../../components/FamilyGate';
 import { IngredientRestrictions, type RestrictionChange } from '../../components/IngredientRestrictions';
-import { Loading } from '../../components/Loading';
 import { MealRules, type MealRule } from '../../components/MealRules';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { FieldSkeleton, SettingsCardSkeleton, SkeletonRows, TextSkeleton } from '../../components/PageSkeletons';
 import { QueryError } from '../../components/QueryError';
+import { BusyArea, LoadingScope, Skeleton } from '../../components/Skeleton';
 import { Stepper } from '../../components/Stepper';
 import { useT } from '../../i18n/LocaleProvider';
 import { BackToProfile } from './BackToProfile';
@@ -31,7 +33,57 @@ type FoodGroup = (typeof FOOD_GROUPS)[number];
  * write updates and makes stale is decided by INVALIDATIONS, never by the page.
  */
 export function SettingsPage() {
-  return <FamilyGate>{(family) => <Settings family={family} />}</FamilyGate>;
+  return <FamilyGate waiting={(paused) => <SettingsLayout loading paused={paused} />}>{(family) => <Settings family={family} />}</FamilyGate>;
+}
+
+/**
+ * The page around its content. While loading (profile, family or settings, W22): the intro line and the
+ * name, diners and rules cards, the first screen of the phone; what follows arrives below it.
+ */
+function SettingsLayout({ loading = false, paused = false, children }: { loading?: boolean; paused?: boolean; children?: ReactNode }) {
+  const t = useT();
+  return (
+    <section className="secondary-view app-view" aria-labelledby="settings-title">
+      <div className="page-column">
+        <PageHeader back={<BackToProfile />} title={t('profile.settings')} titleId="settings-title" />
+        {loading ? (
+          <LoadingScope loading paused={paused}>
+            <BusyArea>
+              <Skeleton>
+                {/* Intro and diners hint take two lines on a phone. */}
+                <p className={`meta-line ${styles.intro} skeleton-block`} style={{ width: '90%', height: '2lh' }} />
+                <SettingsCardSkeleton title={false}>
+                  <FieldSkeleton />
+                </SettingsCardSkeleton>
+                <SettingsCardSkeleton>
+                  <TextSkeleton className="meta-line" lines={2} />
+                  <table className={dinersStyles.diners}>
+                    <thead>
+                      <tr><td /><th>{'\u00a0'}</th><th>{'\u00a0'}</th></tr>
+                    </thead>
+                    <tbody>
+                      {Array.from({ length: 7 }, (_, row) => (
+                        <tr key={row}>
+                          <th />
+                          <td><span className={dinersStyles.cell} /></td>
+                          <td><span className={dinersStyles.cell} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </SettingsCardSkeleton>
+                <SettingsCardSkeleton>
+                  <SkeletonRows count={2} small={0} />
+                </SettingsCardSkeleton>
+              </Skeleton>
+            </BusyArea>
+          </LoadingScope>
+        ) : (
+          children
+        )}
+      </div>
+    </section>
+  );
 }
 
 /** The error of a write, next to the control that sent it. */
@@ -49,15 +101,16 @@ function Settings({ family }: { family: FamilyView }) {
   const failed = [detail, settings].find((read) => read.isError && isBlocking(read.error, !!read.data));
   const editable = !!settings.data?.canEdit && online;
 
+  const waiting = [detail, settings].filter((read) => !read.data);
+  if (!failed && waiting.length > 0) return <SettingsLayout loading paused={waiting.every((read) => read.fetchStatus === 'paused')} />;
+
   return (
-    <section className="secondary-view app-view" aria-labelledby="settings-title">
-      <div className="page-column">
-        <PageHeader back={<BackToProfile />} title={t('profile.settings')} titleId="settings-title" />
-        {failed ? (
-          <QueryError error={failed.error} onRetry={() => void Promise.all([detail.refetch(), settings.refetch()])} />
-        ) : !detail.data || !settings.data ? (
-          <Loading />
-        ) : (
+    <SettingsLayout>
+      {failed ? (
+        <QueryError error={failed.error} onRetry={() => void Promise.all([detail.refetch(), settings.refetch()])} />
+      ) : (
+        detail.data &&
+        settings.data && (
           <>
             <p className={`meta-line ${styles.intro}`}>
               {t(!online ? 'settings.offline' : settings.data.canEdit ? 'settings.intro' : 'settings.readOnly')}
@@ -74,9 +127,9 @@ function Settings({ family }: { family: FamilyView }) {
               </div>
             )}
           </>
-        )}
-      </div>
-    </section>
+        )
+      )}
+    </SettingsLayout>
   );
 }
 

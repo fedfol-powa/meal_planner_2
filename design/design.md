@@ -407,11 +407,23 @@ pulsazione lenta.
   e la lettura delle modifiche della Spesa salvate sul telefono.
 - **Intestazioni vere:** link indietro, titoli e filtri che non dipendono dai dati sono
   quelli veri anche durante l'attesa (Spesa, Ricetta, Ricettario; nel Menu mese e fila dei
-  giorni quando la settimana è nota); solo le parti dei dati sono blocchi.
-- **Accessibilità:** un solo «Caricamento…» annunciato per pagina o area, area dei dati
-  con `aria-busy`, blocchi nascosti ai lettori di schermo e mai toccabili.
+  giorni quando la settimana è nota); solo le parti dei dati sono blocchi. I titoli che
+  vengono dai dati (nome nel Profilo, nome dell'utente, titolo della bozza) sono blocchi
+  della stessa attesa del corpo.
+- **Ruoli:** le sezioni condizionali (parti di una pagina aperta a tutti che compaiono solo
+  per un ruolo, come le sezioni dei curatori nel Ricettario e le schede degli
+  amministratori in Membri) hanno blocchi solo quando il ruolo è noto, così chi non ha il
+  ruolo non vede blocchi che poi spariscono. Le pagine riservate a un ruolo (bozze,
+  amministrazione) sono un'eccezione: hanno lo skeleton anche prima, seguito dall'avviso se
+  il ruolo manca. Ruolo noto vuol dire presente nel profilo corrente, anche ripristinato
+  dalla copia salvata; i controlli di revoca non cambiano.
+- **Accessibilità:** un solo annuncio di caricamento per pagina; gli altri annunci
+  (conteggi, conferme, banner offline) restano. Area dei dati con `aria-busy`, blocchi
+  nascosti ai lettori di schermo e mai toccabili.
 - **Errori e liste vuote:** nei suggerimenti di «Cambia ricetta» il messaggio prende lo
   spazio delle schede; nelle pagine restano le schede di stato.
 - **Dove:** «Cambia ricetta» (suggerimenti, ricerca, proposte del pasto libero), Menu,
-  Spesa, Ricetta, Ricettario e avvio dell'app. Le pagine rare restano come sono. Nella
-  ricerca i risultati precedenti restano finché arrivano i nuovi.
+  Spesa, Ricetta, Ricettario con le sezioni dei curatori, avvio dell'app e le pagine rare:
+  profilo, preferenze, membri, impostazioni, esclusioni, agenti, amministrazione, bozze,
+  eliminazioni, inviti, autorizzazione e verifica del link in `/password`. Nella ricerca i
+  risultati precedenti restano finché arrivano i nuovi.

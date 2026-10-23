@@ -3,6 +3,8 @@ import { Link, useRouter, useRouterState } from '@tanstack/react-router';
 import { useAuth } from '../../auth/AuthProvider';
 import { PASSWORD_MIN_LENGTH, validateNewPassword, type PasswordFieldErrors } from '../../auth/passwordChange';
 import { useOnline } from '../../components/OfflineBanner';
+import { ButtonSkeleton, FieldSkeleton } from '../../components/PageSkeletons';
+import { LoadingArea } from '../../components/Skeleton';
 import { useT } from '../../i18n/LocaleProvider';
 import type { MessageKey } from '../../i18n/messages';
 import { useBusyCheck } from '../../pwa/busy';
@@ -161,12 +163,32 @@ function ChooseForm({ state }: { state: Extract<LinkState, { status: 'verified' 
   );
 }
 
+/**
+ * The form's shape while the link is verified (W22), announced as the verification. Offline the code is
+ * not used yet: nothing is in flight, the blocks stand still under the banner and the announcement is the
+ * plain one, since nothing is being verified.
+ */
 function Waiting() {
   const t = useT();
   const online = useOnline();
-  // Offline the code is not used yet: nothing is in flight, the banner says it all.
-  if (!online) return null;
-  return <p className="meta-line" aria-busy="true">{t('password.choose.verifying')}</p>;
+  return (
+    <LoadingArea
+      loading
+      paused={!online}
+      label={online ? t('password.choose.verifying') : undefined}
+      skeleton={
+        <>
+          <span className="entry-title skeleton-block" style={{ width: '70%', height: '1lh' }} />
+          <p><span className="skeleton-line" /></p>
+          <FieldSkeleton hint={styles.help} />
+          <FieldSkeleton />
+          {/* The warning takes two lines on a phone. */}
+          <p className="meta-line"><span className="skeleton-line" /><span className="skeleton-line" /></p>
+          <ButtonSkeleton wide />
+        </>
+      }
+    />
+  );
 }
 
 function AskNew() {

@@ -6,9 +6,10 @@ import { readThrough, useQueryDeps, type QueryDeps, type Versioned } from '../..
 import type { Api } from '../../api/types';
 import danger from '../../components/Danger.module.css';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { ButtonSkeleton } from '../../components/PageSkeletons';
+import { LoadingArea } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
@@ -46,10 +47,10 @@ export function FamilyDeletePage() {
   const summary = useQuery({ ...deletionQuery(useQueryDeps(), familyId ?? ''), enabled: allowed });
 
   let body;
-  if (!familyId && !profile.data) body = <Loading />;
+  if (!familyId && !profile.data) body = <SummarySkeleton paused={profile.fetchStatus === 'paused'} />;
   else if (!familyId || !allowed) body = <StateNotice title={t('errors.forbidden')} />;
   else if (summary.isError && isBlocking(summary.error, !!summary.data)) body = <QueryError error={summary.error} onRetry={() => void summary.refetch()} />;
-  else if (!summary.data) body = <Loading />;
+  else if (!summary.data) body = <SummarySkeleton paused={summary.fetchStatus === 'paused'} />;
   else body = <Summary familyId={familyId} view={summary.data} />;
 
   return (
@@ -67,6 +68,28 @@ export function FamilyDeletePage() {
         {body}
       </div>
     </section>
+  );
+}
+
+/** The summary while the profile or the summary loads (W22): name, text, two facts, the note, the red button. */
+function SummarySkeleton({ paused }: { paused: boolean }) {
+  return (
+    <LoadingArea
+      loading
+      paused={paused}
+      skeleton={
+        <section className="settings-card skeleton-card">
+          <h2 className="skeleton-line" />
+          <p><span className="skeleton-line" /></p>
+          <ul className={styles.facts}>
+            <li><span className="skeleton-line" /></li>
+            <li><span className="skeleton-line" /></li>
+          </ul>
+          <p className="meta-line"><span className="skeleton-line" /></p>
+          <ButtonSkeleton wide className={styles.confirm} />
+        </section>
+      }
+    />
   );
 }
 

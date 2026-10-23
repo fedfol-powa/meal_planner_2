@@ -380,3 +380,35 @@ describe('/invite (family)', () => {
     expect(screen.queryByRole('heading', { name: 'Entra in Rossi' })).toBeNull();
   });
 });
+
+describe('/invite while loading (W22)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const skeleton = () => document.querySelector<HTMLElement>('.entry-page .skeleton');
+  const loadingStatuses = () => screen.queryAllByRole('status').filter((s) => s.textContent === 'Caricamento…');
+
+  it('family invite: the form blocks without an account, the join button with one', async () => {
+    let answer!: () => void;
+    const held = new Promise<void>((done) => (answer = done));
+    setFamilyInvitationClient(publicClient({ get: vi.fn(async () => (await held, { familyName: 'Rossi', invitedBy: 'Federico', accountsAvailable: true })) }));
+    const { unmount } = renderApp(`/invite#${TOKEN}`, { backend: createStubBackend(null) });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    expect(skeleton()!.querySelectorAll('.field')).toHaveLength(2);
+    expect(skeleton()!.querySelector('.entry-title.skeleton-block')).not.toBeNull();
+    await waitFor(() => expect(loadingStatuses()).toHaveLength(1));
+    await act(async () => answer());
+    expect(await screen.findByLabelText('Email')).toBeTruthy();
+    expect(skeleton()).toBeNull();
+    unmount();
+    renderApp(`/invite#${TOKEN}`, { backend: createStubBackend(GIULIA), createApi: withLink({ status: vi.fn<Status>(() => new Promise(() => {})) }) });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    expect(skeleton()!.querySelectorAll('.field')).toHaveLength(0);
+    expect(skeleton()!.querySelector('.text-button.wide.skeleton-block')).not.toBeNull();
+  });
+
+  it('family invite: an error replaces the skeleton', async () => {
+    setFamilyInvitationClient(publicClient({ get: vi.fn(async () => { throw new ApiError('internal'); }) }));
+    renderApp(`/invite#${TOKEN}`, { backend: createStubBackend(null) });
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    expect(skeleton()).toBeNull();
+  });
+});

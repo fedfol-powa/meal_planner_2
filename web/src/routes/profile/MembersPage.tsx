@@ -1,6 +1,6 @@
 import { queryOptions, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { FAMILY_INVITATION_ACCOUNT_LIMIT, type FamilyInvitationView } from '@app/contract';
 import { errorKey, isBlocking, toApiError } from '../../api/errors';
 import { familyQuery } from '../../api/family';
@@ -13,6 +13,8 @@ import { Icon } from '../../components/Icon';
 import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { ButtonSkeleton, SettingsCardSkeleton, SkeletonRows, TextSkeleton } from '../../components/PageSkeletons';
+import { LoadingArea, LoadingScope, Skeleton } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { formatDayMonth } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
@@ -36,33 +38,77 @@ const joinsQuery = ({ api }: QueryDeps, familyId: string) =>
  */
 export function MembersPage() {
   // A new family shown (after leaving) is a new page: no sheet or choice carries over.
-  return <FamilyGate>{(family) => <Members key={family.id} family={family} />}</FamilyGate>;
+  return (
+    <FamilyGate
+      waiting={(paused) => (
+        // The role is not known yet: only the members' card and the button (W22).
+        <MembersLayout>
+          <LoadingArea loading paused={paused} skeleton={<MembersCardSkeleton role={null} />} />
+          <LeaveButton loading paused={paused} />
+        </MembersLayout>
+      )}
+    >
+      {(family) => <Members key={family.id} family={family} />}
+    </FamilyGate>
+  );
 }
 
-function Members({ family }: { family: FamilyView }) {
+/** The page around its content: every wait inside is one wait of the page (W22). */
+function MembersLayout({ children }: { children: ReactNode }) {
   const t = useT();
-  const detail = useQuery(familyQuery(useQueryDeps(), family.id));
-  let body;
-  if (detail.isError && isBlocking(detail.error, !!detail.data)) body = <QueryError error={detail.error} onRetry={() => void detail.refetch()} />;
-  else if (!detail.data) body = <Loading />;
-  else body = <MembersContent view={detail.data} refetch={() => void detail.refetch()} />;
   return (
     <section className="secondary-view app-view" aria-labelledby="members-title">
       <div className="page-column">
         <PageHeader back={<BackToProfile />} title={t('profile.members')} titleId="members-title" />
-        {body}
+        <LoadingScope gather>{children}</LoadingScope>
       </div>
     </section>
   );
 }
 
-function MembersContent({ view, refetch }: { view: FamilyDetailView; refetch: () => void }) {
+/** The members' card while the detail loads: three rows with the role label, and for a member the «ask» line. */
+function MembersCardSkeleton({ role }: { role: FamilyRole | null }) {
+  return (
+    <SettingsCardSkeleton>
+      <SkeletonRows count={3} chip />
+      {role === 'member' && <TextSkeleton className="meta-line" />}
+    </SettingsCardSkeleton>
+  );
+}
+
+function Members({ family }: { family: FamilyView }) {
+  const detail = useQuery(familyQuery(useQueryDeps(), family.id));
+  if (detail.isError && isBlocking(detail.error, !!detail.data)) {
+    return (
+      <MembersLayout>
+        <QueryError error={detail.error} onRetry={() => void detail.refetch()} />
+      </MembersLayout>
+    );
+  }
+  return (
+    <MembersLayout>
+      <MembersContent
+        family={family}
+        view={detail.data}
+        paused={!detail.data && detail.fetchStatus === 'paused'}
+        refetch={() => void detail.refetch()}
+      />
+    </MembersLayout>
+  );
+}
+
+/**
+ * The page with the detail or while it loads. The role of the profile's family only anticipates the layout
+ * until the detail arrives; then the detail's role decides, and only it starts the reads of links and joins.
+ */
+function MembersContent({ family, view, paused, refetch }: { family: FamilyView; view: FamilyDetailView | undefined; paused: boolean; refetch: () => void }) {
   const t = useT();
   const { locale } = useLocale();
   const deps = useQueryDeps();
   const online = useOnline();
-  const isAdmin = view.myRole === 'family_admin';
-  const links = useQuery({ ...linksQuery(deps, view.id), enabled: isAdmin });
+  const role = view ? view.myRole : family.role;
+  const isAdmin = view?.myRole === 'family_admin';
+  const links = useQuery({ ...linksQuery(deps, family.id), enabled: isAdmin });
   const [member, setMember] = useState<Member | null>(null);
   const [leaving, setLeaving] = useState(false);
   // Each opening of «Crea un link d'invito» is its own attempt with its own id.
@@ -72,51 +118,73 @@ function MembersContent({ view, refetch }: { view: FamilyDetailView; refetch: ()
   // Open links per author: only administrators read the list, and a member has no open links (decision 6).
   const counts = isAdmin ? (links.data ? countByAuthor(links.data.invitations) : null) : new Map<string, number>();
   const countOf = (userId: string) => counts?.get(userId) ?? 0;
-  const me = view.members.find((m) => m.isMe);
-  const admins = view.members.filter((m) => m.role === 'family_admin').map((m) => m.displayName);
+  const me = view?.members.find((m) => m.isMe);
+  const admins = view ? view.members.filter((m) => m.role === 'family_admin').map((m) => m.displayName) : [];
+  const timeZone = view?.timeZone ?? null;
 
   return (
     <>
-      <section className="settings-card" aria-labelledby="list-title">
-        <h2 id="list-title">{view.name}</h2>
-        <ul className="row-list">
-          {view.members.map((m) => (
-            <li key={m.userId}>
-              <span className="row-main">
-                {m.isMe ? t('members.you', { name: m.displayName }) : m.displayName}
-                <small>{t('members.since', { time: formatDayMonth(locale, m.joinedAt.slice(0, 10)) })}</small>
-                {m.emailUnconfirmed && <small>{t('members.emailUnconfirmed')}</small>}
-              </span>
-              <span className={m.role === 'member' ? 'label-chip neutral' : 'label-chip'}>{t(`profile.role.${m.role}`)}</span>
-              {isAdmin && !m.isMe && (
-                <button type="button" className={styles.more} aria-label={t('members.actions', { name: m.displayName })} disabled={!online || counts === null} onClick={() => setMember(m)}>
-                  <Icon name="more" />
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-        {!isAdmin && <p className="meta-line">{t('members.askAdmin', { names: admins.join(', ') })}</p>}
-      </section>
+      <LoadingArea loading={!view} paused={paused} skeleton={<MembersCardSkeleton role={role} />}>
+        {view && (
+          <section className="settings-card" aria-labelledby="list-title">
+            <h2 id="list-title">{view.name}</h2>
+            <ul className="row-list">
+              {view.members.map((m) => (
+                <li key={m.userId}>
+                  <span className="row-main">
+                    {m.isMe ? t('members.you', { name: m.displayName }) : m.displayName}
+                    <small>{t('members.since', { time: formatDayMonth(locale, m.joinedAt.slice(0, 10)) })}</small>
+                    {m.emailUnconfirmed && <small>{t('members.emailUnconfirmed')}</small>}
+                  </span>
+                  <span className={m.role === 'member' ? 'label-chip neutral' : 'label-chip'}>{t(`profile.role.${m.role}`)}</span>
+                  {isAdmin && !m.isMe && (
+                    <button type="button" className={styles.more} aria-label={t('members.actions', { name: m.displayName })} disabled={!online || counts === null} onClick={() => setMember(m)}>
+                      <Icon name="more" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {!isAdmin && <p className="meta-line">{t('members.askAdmin', { names: admins.join(', ') })}</p>}
+          </section>
+        )}
+      </LoadingArea>
 
-      {isAdmin && (
+      {role === 'family_admin' && (
         <>
-          <LinksCard view={view} links={links} onCreate={() => setCreating(Date.now())} onRevoke={setRevoking} />
-          <JoinsCard view={view} />
+          <LinksCard timeZone={timeZone} links={links} paused={paused} onCreate={view ? () => setCreating(Date.now()) : null} onRevoke={setRevoking} />
+          <JoinsCard familyId={family.id} timeZone={timeZone} enabled={isAdmin} paused={paused} />
         </>
       )}
 
-      <div className={danger.dangerZone}>
-        <button type="button" className={`text-button wide ${danger.dangerOutline}`} disabled={!online || counts === null} onClick={() => setLeaving(true)}>
-          {t('members.leave')}
-        </button>
-      </div>
+      {view ? (
+        <div className={danger.dangerZone}>
+          <button type="button" className={`text-button wide ${danger.dangerOutline}`} disabled={!online || counts === null} onClick={() => setLeaving(true)}>
+            {t('members.leave')}
+          </button>
+        </div>
+      ) : (
+        <LeaveButton loading paused={paused} />
+      )}
 
-      {member && <MemberSheet familyId={view.id} member={member} links={countOf(member.userId)} onClose={() => setMember(null)} />}
-      {leaving && <LeaveSheet view={view} myLinks={me ? countOf(me.userId) : 0} refetch={refetch} onClose={() => setLeaving(false)} />}
-      {creating !== null && <CreateLinkSheet key={creating} familyId={view.id} familyName={view.name} onClose={() => setCreating(null)} />}
-      {revoking && <RevokeSheet familyId={view.id} invitation={revoking} onClose={() => setRevoking(null)} />}
+      {view && member && <MemberSheet familyId={view.id} member={member} links={countOf(member.userId)} onClose={() => setMember(null)} />}
+      {view && leaving && <LeaveSheet view={view} myLinks={me ? countOf(me.userId) : 0} refetch={refetch} onClose={() => setLeaving(false)} />}
+      {view && creating !== null && <CreateLinkSheet key={creating} familyId={view.id} familyName={view.name} onClose={() => setCreating(null)} />}
+      {view && revoking && <RevokeSheet familyId={view.id} invitation={revoking} onClose={() => setRevoking(null)} />}
     </>
+  );
+}
+
+/** «Lascia la famiglia» as a block while the detail loads. */
+function LeaveButton({ loading, paused }: { loading: boolean; paused: boolean }) {
+  return (
+    <div className={danger.dangerZone}>
+      <LoadingScope loading={loading} paused={paused}>
+        <Skeleton>
+          <ButtonSkeleton wide className={danger.dangerOutline} />
+        </Skeleton>
+      </LoadingScope>
+    </div>
   );
 }
 
@@ -133,22 +201,33 @@ function useInstant(timeZone: string) {
     new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}), timeZone }).format(new Date(iso));
 }
 
-function LinksCard({ view, links, onCreate, onRevoke }: {
-  view: FamilyDetailView;
+/**
+ * Real from the first instant for an administrator (W22): title, hint and button; the button stays off until
+ * the detail arrives (`onCreate` null: the sheet needs the family's name), the rows are blocks until the list
+ * and the family's time zone arrive. `paused`: the detail waits for the network.
+ */
+function LinksCard({ timeZone, links, paused, onCreate, onRevoke }: {
+  timeZone: string | null;
   links: UseQueryResult<{ invitations: FamilyInvitationView[] }>;
-  onCreate: () => void;
+  paused: boolean;
+  onCreate: (() => void) | null;
   onRevoke: (invitation: FamilyInvitationView) => void;
 }) {
   const t = useT();
   const online = useOnline();
-  const instant = useInstant(view.timeZone);
+  const instant = useInstant(timeZone ?? 'UTC');
+  const waiting = !links.isError && (!links.data || !timeZone);
   return (
     <section className="settings-card" aria-labelledby="links-title">
       <h2 id="links-title">{t('familyLinks.title')}</h2>
       <p className="meta-line">{t('familyLinks.hint', { max: FAMILY_INVITATION_ACCOUNT_LIMIT })}</p>
       {links.isError && isBlocking(links.error, !!links.data) && <QueryError error={links.error} onRetry={() => void links.refetch()} />}
-      {!links.data && !links.isError && <Loading />}
-      {links.data && links.data.invitations.length > 0 && (
+      <LoadingArea
+        loading={waiting}
+        paused={paused || links.fetchStatus === 'paused'}
+        skeleton={<SkeletonRows count={1} filled className={styles.link} action={<ButtonSkeleton className={styles.small} />} />}
+      />
+      {!waiting && links.data && links.data.invitations.length > 0 && (
         <ul className="row-list">
           {links.data.invitations.map((invitation) => (
             <li key={invitation.id} className={styles.link}>
@@ -166,7 +245,7 @@ function LinksCard({ view, links, onCreate, onRevoke }: {
           ))}
         </ul>
       )}
-      <button type="button" className={`text-button primary ${styles.create}`} disabled={!online} onClick={onCreate}>
+      <button type="button" className={`text-button primary ${styles.create}`} disabled={!online || !onCreate} onClick={() => onCreate?.()}>
         <Icon name="link" />
         {t('familyLinks.create')}
       </button>
@@ -174,18 +253,19 @@ function LinksCard({ view, links, onCreate, onRevoke }: {
   );
 }
 
-/** «Ingressi con i link» (decision 21): the latest joins, administrators only. */
-function JoinsCard({ view }: { view: FamilyDetailView }) {
+/** «Ingressi con i link» (decision 21): the latest joins, administrators only; blocks as in LinksCard. */
+function JoinsCard({ familyId, timeZone, enabled, paused }: { familyId: string; timeZone: string | null; enabled: boolean; paused: boolean }) {
   const t = useT();
-  const joins = useQuery(joinsQuery(useQueryDeps(), view.id));
-  const instant = useInstant(view.timeZone);
+  const joins = useQuery({ ...joinsQuery(useQueryDeps(), familyId), enabled });
+  const instant = useInstant(timeZone ?? 'UTC');
+  const waiting = !joins.isError && (!joins.data || !timeZone);
   return (
     <section className="settings-card" aria-labelledby="joins-title">
       <h2 id="joins-title">{t('familyJoins.title')}</h2>
       {joins.isError && isBlocking(joins.error, !!joins.data) && <QueryError error={joins.error} onRetry={() => void joins.refetch()} />}
-      {!joins.data && !joins.isError && <Loading />}
-      {joins.data && joins.data.joins.length === 0 && <p className="meta-line">{t('familyJoins.empty')}</p>}
-      {joins.data && joins.data.joins.length > 0 && (
+      <LoadingArea loading={waiting} paused={paused || joins.fetchStatus === 'paused'} skeleton={<SkeletonRows count={1} small={2} filled className={styles.join} />} />
+      {!waiting && joins.data && joins.data.joins.length === 0 && <p className="meta-line">{t('familyJoins.empty')}</p>}
+      {!waiting && joins.data && joins.data.joins.length > 0 && (
         <ul className="row-list">
           {joins.data.joins.map((join) => (
             <li key={`${join.invitationId}:${join.joinedAt}`} className={styles.join}>

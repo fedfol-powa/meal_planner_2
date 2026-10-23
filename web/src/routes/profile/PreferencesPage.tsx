@@ -7,6 +7,8 @@ import { useAuth } from '../../auth/AuthProvider';
 import danger from '../../components/Danger.module.css';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { FieldSkeleton, SettingsCardSkeleton } from '../../components/PageSkeletons';
+import { LoadingArea } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { LOCALES } from '../../i18n/translate';
@@ -59,6 +61,19 @@ export function PreferencesPage() {
       <div className="page-column">
         <PageHeader back={<BackToProfile />} title={t('profile.preferences')} titleId="preferences-title" />
         {blocked && <QueryError error={read.error} onRetry={() => void read.refetch()} />}
+        {!blocked && !read.data && (
+          // The name card in its place while the profile loads (W22): field, then email label and value.
+          <LoadingArea
+            loading
+            paused={read.fetchStatus === 'paused'}
+            skeleton={
+              <SettingsCardSkeleton title={false}>
+                <FieldSkeleton />
+                <p className={styles.static}><span className="skeleton-line" /><em className="skeleton-line" /></p>
+              </SettingsCardSkeleton>
+            }
+          />
+        )}
         {profile && (
           <section className="settings-card">
             <label className="field">

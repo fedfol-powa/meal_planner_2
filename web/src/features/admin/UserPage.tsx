@@ -8,9 +8,10 @@ import { useQueryDeps } from '../../api/queries';
 import { BottomSheet } from '../../components/BottomSheet';
 import danger from '../../components/Danger.module.css';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { ButtonSkeleton, SettingsCardSkeleton, SkeletonRows, TextSkeleton, TitleSkeleton } from '../../components/PageSkeletons';
+import { BusyArea, LoadingScope, Skeleton } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
@@ -38,11 +39,42 @@ export function UserPage() {
     <section className="secondary-view app-view">
       <div className="page-column">
         {/* Loading, check error and «Non hai accesso» keep a header; the detail has its own, with the name. */}
-        <AdminAccessGate fallbackHeader={<PageHeader back={back} title={t('admin.users')} />}>
+        <AdminAccessGate fallbackHeader={<PageHeader back={back} title={t('admin.users')} />} waiting={(paused) => <UserSkeleton back={back} paused={paused} />}>
           <UserDetailView back={back} />
         </AdminAccessGate>
       </div>
     </section>
+  );
+}
+
+/**
+ * While the access is checked or the detail loads (W22): the real back link, the name as a hidden block,
+ * email, roles, families and the red button, all of one wait.
+ */
+function UserSkeleton({ back, paused }: { back: ReactNode; paused: boolean }) {
+  return (
+    <LoadingScope loading paused={paused}>
+      <PageHeader back={back} title={<TitleSkeleton />} titleHidden />
+      <BusyArea>
+        <Skeleton as="p" className={`meta-line ${styles.userEmail} skeleton-block`} style={{ width: '50%', height: '1lh' }} />
+        <Skeleton>
+          <SettingsCardSkeleton>
+            {[0, 1].map((key) => (
+              <label key={key} className={styles.switch}>
+                <span><span className="skeleton-line" /><small className="skeleton-line" /></span>
+              </label>
+            ))}
+          </SettingsCardSkeleton>
+          <SettingsCardSkeleton>
+            <SkeletonRows count={1} />
+            <TextSkeleton className="meta-line" />
+          </SettingsCardSkeleton>
+          <div className={danger.dangerZone}>
+            <ButtonSkeleton wide className={danger.dangerOutline} />
+          </div>
+        </Skeleton>
+      </BusyArea>
+    </LoadingScope>
   );
 }
 
@@ -128,10 +160,10 @@ function UserDetailView({ back }: { back: ReactNode }) {
   const mutationError = setRole.isError && toApiError(setRole.error).code !== 'forbidden';
   const completeError = complete.isError && toApiError(complete.error).code !== 'forbidden';
   const deletion = detail?.user.deletion ?? null;
+  if (!detail && !user.isError) return <UserSkeleton back={back} paused={user.fetchStatus === 'paused'} />;
   return (
     <>
       <PageHeader back={back} title={detail?.user.displayName ?? t('admin.users')} />
-      {!detail && !user.isError && <Loading />}
       {notFound && <StateNotice title={t('errors.not_found')} />}
       {/* A failed (re)read: with a confirmed detail the switches keep it, and the error offers a retry. */}
       {user.isError && !notFound && toApiError(user.error).code !== 'forbidden' && <QueryError error={user.error} onRetry={() => void user.refetch()} />}
