@@ -74,6 +74,15 @@ describe('page skeleton pieces (W22)', () => {
     expect([...bare.container.querySelector('li > .row-link')!.children].map((el) => el.className)).toEqual(['row-main']);
   });
 
+  it('adds the hint line of a field', () => {
+    const { container } = inScope(
+      <Skeleton>
+        <FieldSkeleton hint="help" />
+      </Skeleton>
+    );
+    expect([...container.querySelector('.field')!.children].map((el) => el.className)).toEqual(['skeleton-line', 'skeleton-block', 'help skeleton-line']);
+  });
+
   it('holds the title back for the delay and stops it offline', () => {
     const { container } = inScope(
       <h1>

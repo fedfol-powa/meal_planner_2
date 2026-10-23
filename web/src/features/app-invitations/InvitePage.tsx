@@ -4,6 +4,8 @@ import type { GlobalRole } from '@app/contract';
 import { errorKey, toApiError } from '../../api/errors';
 import { useAuth } from '../../auth/AuthProvider';
 import { useOnline } from '../../components/OfflineBanner';
+import { ButtonSkeleton, FieldSkeleton } from '../../components/PageSkeletons';
+import { LoadingArea } from '../../components/Skeleton';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import { LOCALES, type MessageKey } from '../../i18n/messages';
 import { trackBusy } from '../../pwa/busy';
@@ -157,7 +159,31 @@ export function InvitePage() {
         </div>
       </div>
       {!online && <p className="offline-banner" role="status">{t('offline.banner')}</p>}
-      {phase.kind === 'loading' && <p className="meta-line" aria-busy="true">…</p>}
+      {phase.kind === 'loading' && (
+        // The form's shape while the link is read (W22); with an account open, its line and button.
+        <LoadingArea
+          loading
+          skeleton={
+            <>
+              <span className="entry-title skeleton-block" style={{ width: '70%', height: '1lh' }} />
+              <p><span className="skeleton-line" /></p>
+              {state.status === 'signedIn' ? (
+                <>
+                  <p><span className="skeleton-line" /></p>
+                  <ButtonSkeleton wide />
+                </>
+              ) : (
+                <>
+                  <FieldSkeleton hint={styles.help} />
+                  <FieldSkeleton hint={styles.help} />
+                  <p className={styles.help}><span className="skeleton-line" /></p>
+                  <ButtonSkeleton wide />
+                </>
+              )}
+            </>
+          }
+        />
+      )}
       {phase.kind === 'unavailable' && (
         <>
           <h1 className="entry-title">{t('invite.unavailable')}</h1>

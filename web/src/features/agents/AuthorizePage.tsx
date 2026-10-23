@@ -6,6 +6,7 @@ import { useQueryDeps } from '../../api/queries';
 import { useAuth } from '../../auth/AuthProvider';
 import type { AgentAuthorization, AuthorizationFailure } from '../../auth/backend';
 import { useOnline } from '../../components/OfflineBanner';
+import { LoadingArea } from '../../components/Skeleton';
 import { useT } from '../../i18n/LocaleProvider';
 import { trackBusy } from '../../pwa/busy';
 import { useSession, useSignOut } from '../../session/SessionScope';
@@ -128,7 +129,26 @@ export function AuthorizePage() {
     <main className="entry-page" id="app-content">
       <p className="entry-brand">{t('auth.brand')}</p>
       {!usable && <p className="meta-line">{t('authorize.offline')}</p>}
-      {usable && phase.kind === 'loading' && <p className="meta-line" aria-busy="true">…</p>}
+      {usable && phase.kind === 'loading' && (
+        // The consent's first screen while the request is read (W22).
+        <LoadingArea
+          loading
+          skeleton={
+            <>
+              <span className={`entry-title ${styles.title} skeleton-block`} style={{ width: '85%', height: '2lh' }} />
+              <p className="meta-line skeleton-block" style={{ height: '1lh' }} />
+              <div className={`${styles.account} skeleton-block`}>
+                <span className="skeleton-line" />
+                <span className="skeleton-line" />
+                <span className="skeleton-line" />
+              </div>
+              <h2 className={`${styles.heading} skeleton-block`} style={{ width: '40%', height: '1lh' }} />
+              <p className="skeleton-block" style={{ height: '1lh' }} />
+              <p className="skeleton-block" style={{ height: '1lh' }} />
+            </>
+          }
+        />
+      )}
       {usable && phase.kind === 'leaving' && <p className="meta-line">{t('authorize.leaving')}</p>}
       {usable && phase.kind === 'invalid' && (
         <>

@@ -131,12 +131,13 @@ export function TextSkeleton({ as: Tag = 'p', className, lines = 1 }: { as?: Ele
   );
 }
 
-/** A form field: the label line and the 44 px input. */
-export function FieldSkeleton() {
+/** A form field: the label line and the 44 px input; `hint`: the class of the hint line under it. */
+export function FieldSkeleton({ hint }: { hint?: string } = {}) {
   return (
     <div className="field">
       <span className="skeleton-line" />
       <span className="skeleton-block" style={{ height: 44 }} />
+      {hint && <span className={`${hint} skeleton-line`} />}
     </div>
   );
 }
