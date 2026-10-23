@@ -7,8 +7,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 - **Attività in corso:** nessun worker. PR di documentazione `docs/w22-w23-w24` (sottoagente del
   coordinatore, worktree `.worktrees/docs-w22-w24`) con le decisioni di W22, W23 e W24 nella
-  specifica: PR #81, in revisione Codex («R doc PR81», rapporto atteso
-  `revisioni/spec-w22-w24-pr81.md`); serve il «mergia» dell'utente. Anteprima del rilascio su
+  specifica: PR #81, revisione APPROVABILE CON CORREZIONI (`revisioni/spec-w22-w24-pr81.md`,
+  quattro rilievi minori), corretti in `86d8e13` e controllati dal coordinatore; serve il
+  «mergia» dell'utente. Anteprima del rilascio su
   `bf0494d` riuscita (migrazione pendente `20261023100000_menu_ready_notice.sql`, nessun
   segreto nuovo); da ripetere dopo il merge della #81, perché l'impronta dipende dal commit.
 - **Worker attivi:** nessuno.
