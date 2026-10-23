@@ -1,10 +1,14 @@
 # Cosa si mangia? Requisiti e design
 
 Creato: 29 settembre 2026
-Ultimo aggiornamento: 18 ottobre 2026 (skeleton nei caricamenti, W20, PR #75, rilasciato
-e collaudato; fila dei giorni che segue il dito, W21, PR #74, rilasciata e collaudata;
-swipe fra le settimane, W19, PR #72, rilasciato; rilascio e collaudo della skill per Claude in
-«Collega un agente», W17, PR #68; rilascio e collaudo delle email dell'app, attività D)
+Ultimo aggiornamento: 23 ottobre 2026 (skeleton nelle pagine rare e nelle sezioni dei
+curatori, W22, PR #79; pulsante «Oggi» nella barra del Menu, W23, PR #78; avviso del menu
+della settimana prossima pronto, con email, pallino in app e preferenza, W24, PR #80:
+unite e in attesa di un unico rilascio; prima: skeleton nei caricamenti, W20, PR #75,
+rilasciato e collaudato; fila dei giorni che segue il dito, W21, PR #74, rilasciata e
+collaudata; swipe fra le settimane, W19, PR #72, rilasciato; rilascio e collaudo della
+skill per Claude in «Collega un agente», W17, PR #68; rilascio e collaudo delle email
+dell'app, attività D)
 Stato: base approvata il 29 settembre; requisiti integrati dalle decisioni del 3 ottobre;
 linguaggio visivo definitivo approvato il 4 ottobre e conservato in `design/`.
 Prototipo completo approvato per giri entro il 7 ottobre (`prototype/`, percorsi in
@@ -26,7 +30,11 @@ skill per Claude (W17, PR #68) è unita, rilasciata alle 09:22 UTC e collaudata
 dall'utente. Lo stesso giorno sono rilasciati lo swipe fra le settimane nel Menu (W19,
 PR #72, alle 12:09 UTC) e la sua correzione, la fila dei giorni che segue il dito (W21,
 PR #74, alle 13:49 UTC) e lo skeleton nei caricamenti (W20, PR #75, alle 16:39 UTC);
-l'utente ha collaudato sull'iPhone la fila dei giorni e lo skeleton.
+l'utente ha collaudato sull'iPhone la fila dei giorni e lo skeleton. Il 23 ottobre sono
+unite tre attività: lo skeleton nelle pagine rare e nelle sezioni dei curatori (W22, PR #79), il
+pulsante «Oggi» nella barra del Menu (W23, PR #78) e l'avviso del menu della settimana
+prossima pronto (W24, PR #80, con la migrazione `20261023100000_menu_ready_notice.sql` e
+la variabile `APP_ORIGIN`), con un unico rilascio in preparazione.
 Esito storico della review avversariale indipendente del 3 ottobre 2026: adatto a un
 prototipo esplorativo, non ancora pronto per l'implementazione a quella data; rilievi
 e decisioni conseguenti nella sezione 17.
@@ -67,7 +75,9 @@ sezione 15 e non vanno trattati come decisioni approvate.
   `public` senza utente (lettura e accettazione degli inviti all'app e alla famiglia e,
   dall'attività D, reinvio dell'email per la password), mai esposte, e
   l'eliminazione di una famiglia: esecuzione solo nell'app web e risposta MCP con URL alla pagina
-  dedicata. Browser previsto anche per collegare l'account e riautenticarsi;
+  dedicata. Dal 23 ottobre 2026 (W24) restano fuori da MCP anche le due operazioni
+  dell'avviso del menu pronto, stato di visualizzazione personale nell'app (sezione 13).
+  Browser previsto anche per collegare l'account e riautenticarsi;
 - client MCP obiettivo della prima versione: Codex CLI, Claude Code, ChatGPT e Claude
   Desktop, con istruzioni dedicate e compatibilità da verificare nel design tecnico;
 - ruolo di curatore del ricettario, con aggiunta guidata tramite il proprio agente MCP
@@ -575,6 +585,17 @@ dopo: dodici pasti circa, con i pasti liberi già segnati (per esempio "sabato s
 famiglia appena creata, l'app lo prepara quando lo si apre, con i soli pasti ancora da
 fare.
 
+Quando il menu della settimana dopo è pronto, l'app lo fa sapere a tutta la Famiglia
+(dal 23 ottobre 2026, W24): ogni membro riceve un'**email** nella sua lingua con il menu
+proposto, una riga per pasto con la foto piccola, e il pulsante «Apri il menu». L'email è
+una fotografia del menu com'era quando è stato preparato: il menu si può ancora cambiare
+nell'app. Ne arriva una sola per persona, famiglia e settimana; chi non la vuole la spegne
+dalle proprie Preferenze («Email con il menu della settimana»), anche dal link in fondo
+all'email. Nell'app, finché la persona non ha guardato la settimana nuova, l'icona del
+calendario nel Menu ha un **pallino verde** e nel mese i giorni di quella settimana sono in
+verde; spariscono alla prima visita di un suo giorno, su tutti i dispositivi della
+persona, o il lunedì in cui la settimana comincia.
+
 Da quel momento tutti i membri della Famiglia possono rivederlo e cambiarlo. Non ci sono
 finestre o vincoli per settimana: si può intervenire allo stesso modo sulla settimana
 appena preparata, su quella in corso e su quelle passate, per esempio per correggere
@@ -827,7 +848,9 @@ persona restano nell'elenco senza email, con «account cancellato».
 - Non permette di aggiungere ricette senza il ruolo di curatore.
 - Non carica ricette da file: si aggiungono tramite l'agente o dal modulo dei curatori.
 - Non espone uno storico completo delle modifiche ai pasti (si mostra solo l'ultima).
-- Non manda notifiche sui menu; restano le email per scegliere o recuperare la password
+- Non manda notifiche push né email per le singole modifiche al menu. Le email sono
+  quelle per scegliere o recuperare la password, quella del menu della settimana
+  prossima pronto (dal 23 ottobre 2026, W24; «Una settimana tipo»), che si può spegnere,
   e le segnalazioni all'operatore del servizio (menu in ritardo o abbandonato,
   esportazione notturna mancante, cancellazione di un account bloccata).
 
@@ -873,8 +896,10 @@ configurato per workspace.
   prototipo Svelte si riscrive, mentre la logica di dominio TypeScript e i suoi test si
   riusano. Rotte di TanStack Router definite nel codice, senza plugin delle rotte da
   file; stili in CSS puro con token e moduli CSS. Le attese dei dati usano il componente
-  condiviso `web/src/components/Skeleton.tsx` (W20, PR #75; sezione 14), senza
-  dipendenze nuove.
+  condiviso `web/src/components/Skeleton.tsx` (W20, PR #75, esteso alle pagine rare con
+  la W22, PR #79; sezione 14), senza dipendenze nuove: `LoadingScope` raccoglie anche le
+  attese delle aree interne (`gather`), così una pagina con più letture ha una sola
+  attesa e un solo annuncio, e accetta il testo dell'annuncio (`label`).
 - **Server in un Worker di Cloudflare** (runtime Workers con l'opzione
   `nodejs_compat`), che serve anche la SPA come file statici dallo stesso dominio
   (deciso l'8 ottobre 2026 al posto di Netlify). **Contratto con oRPC, senza Hono**
@@ -1027,8 +1052,12 @@ configurato per workspace.
   invito e «Rimanda l'email» le spedisce il Worker con l'API di Resend
   (`server/src/mail/`, una sola chiamata `fetch`, senza SDK), con il link di
   `generate_link`; la «Password dimenticata» la spedisce Supabase Auth con il suo SMTP e
-  il template `recovery`; le email operative le spedisce il Worker con la stessa API
-  (sezione 4). Segreti del Worker: **`RESEND_API_KEY`**, chiave Resend di solo invio
+  il template `recovery`; le email operative e, dal 23 ottobre 2026 (W24, PR #80), le
+  email del menu della settimana prossima pronto le spedisce il Worker con la stessa API
+  (sezione 4). I link delle email preparate dal cron, che non ha una richiesta da cui
+  ricavare l'origine, usano la variabile non segreta **`APP_ORIGIN`** in `wrangler.jsonc`
+  (`https://cosasimangia.app`; nello stack locale e nei test l'origine locale): senza,
+  l'annuncio non parte e scrive un log di errore. Segreti del Worker: **`RESEND_API_KEY`**, chiave Resend di solo invio
   limitata al dominio e distinta da quella dell'SMTP di Supabase, **obbligatoria per il
   rilascio** (senza, le accettazioni rispondono che l'email non è partita), e
   **`OPS_ALERT_EMAIL`**, l'indirizzo del referente, mai salvato nel database. Mittente
@@ -1061,6 +1090,23 @@ configurato per workspace.
   JPEG con `createImageBitmap` e un `<canvas>`, senza librerie: meno dati su rete mobile
   e niente metadati (posizione GPS compresa). `PHOTOS` e `IMAGES` sono facoltativi
   nell'ambiente: senza, i caricamenti rispondono `internal` e la rotta `404`.
+  **Miniature per le email del menu** (W24, PR #80, 23 ottobre 2026; spec di dettaglio
+  `2026-10-23-avviso-menu-pronto.md`, sezione 5.4): una **seconda trasformazione per
+  foto**, oltre a quella del caricamento, fatta una volta sola all'annuncio e mai alla
+  lettura. Se manca l'oggetto `email/<id>.jpg` nel bucket `PHOTOS`, il Worker legge
+  l'originale e lo trasforma con `IMAGES` in un JPEG 144×144 (`fit: 'cover'`, qualità
+  80), che leggono tutti i programmi di posta; un errore toglie solo quella miniatura.
+  La rotta pubblica `/photos/email/<id>.jpg`, con un ramo proprio accanto a `/photos/*`,
+  serve la miniatura solo se `app.served_photo` trova ancora la foto corrente, con lo
+  stesso limitatore `PHOTO_READ_LIMIT`, `Content-Type: image/jpeg`,
+  `Cache-Control: public, max-age=86400`, `Cross-Origin-Resource-Policy: cross-origin` e
+  `nosniff`. La cache di un giorno è un'**eccezione** alla decisione del W12 «`/photos/*`
+  senza cache HTTP», che resta per le foto dell'app (decisione del coordinatore del 23
+  ottobre 2026). **Limite dichiarato:** il controllo vale solo per le richieste che
+  arrivano al Worker, quindi le copie già scaricate dai programmi di posta o dai loro
+  proxy (per esempio quello di Gmail) possono restare visibili dopo che la foto è stata
+  sostituita o tolta; Outlook classico per Windows potrebbe non mostrarle. Senza `PHOTOS`
+  o `IMAGES` le email partono senza miniature.
 - **Skill per Claude** (W17, PR #68, unita e rilasciata il 18 ottobre 2026;
   prodotto e test nella sezione 13): sorgente unica `agent-skill/cosa-si-mangia/SKILL.md`,
   alla radice del repository perché la leggono i test del server e la build del web, e
@@ -1369,7 +1415,8 @@ di validazione condivisi con `domain/`. Regole:
   `meals.getSuggestions` (la classifica usa anche i voti globali, che nessun contatore
   segue), `agents.list` (i dati cambiano in Supabase Auth) e, dalla gestione della
   famiglia, l'elenco dei link d'invito e il registro degli ingressi (dipendono anche da
-  prenotazioni e scadenze) non sono versionate. Gli
+  prenotazioni e scadenze) non sono versionate; non lo è nemmeno `menu.getNewWeek` (W24,
+  sezione 5), che dipende dalla persona e non dai contatori della famiglia. Gli
   agenti MCP leggono sempre dal server. I contatori (`families.data_version` e
   `catalogue_state.version`) crescono con trigger del database quando una transazione
   cambia i dati da cui dipendono, al massimo una volta per transazione: una scrittura
@@ -1414,7 +1461,14 @@ di validazione condivisi con `domain/`. Regole:
   PR #75, sezione 14) mostra lo skeleton fermo, senza pulsazione, sotto il banner
   offline: la query è in pausa (`fetchStatus` `paused`) e riparte da sola al ritorno
   della rete; vale anche per il controllo della famiglia senza profilo salvato
-  (`useFamily` espone la pausa). Il cambio della password (`changePassword` di `AuthBackend`, sezione 7)
+  (`useFamily` espone la pausa). Dalla W22 (PR #79) vale anche per le pagine rare; in
+  `/password` offline la verifica del link non parte, lo skeleton resta fermo con
+  l'annuncio «Caricamento…» e la verifica parte da sola al ritorno della rete (sezione
+  14). Pallino e giorni verdi dell'avviso del menu pronto (W24) non si mostrano offline,
+  anche con la risposta ancora in memoria, e `menu.markWeekSeen` non si chiama; la
+  lettura di `menu.getNewWeek` non entra nella copia salvata, perché un pallino vecchio,
+  magari già spento da un altro dispositivo, non deve ricomparire all'avvio (sezione 14).
+  Il cambio della password (`changePassword` di `AuthBackend`, sezione 7)
   non passa dal client supabase-js e non emette eventi: verifica la password attuale con
   un accesso di prova diretto (`/auth/v1/token`), revocato con il suo token e, se la
   revoca fallisce, con un secondo tentativo; se falliscono entrambi per assenza di rete
@@ -1584,11 +1638,14 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | Tabella o concetto | Campi principali / responsabilità |
 |---|---|
 | `profiles` | `user_id`, `display_name`, `locale` (`it-IT`/`en-GB`). Dal 16 ottobre 2026 (PR #52) il trigger `profiles_reject_deleted_ids` rifiuta un profilo per un id presente in `account_deletions`, così un account cancellato non si ricrea nemmeno da una richiesta già in volo |
-| `profile_preferences` | `user_id`, `current_family_id`: famiglia mostrata, ricordata sul server; privata (RLS del solo proprietario), perché `profiles` è leggibile dai co-membri; chiave esterna composta verso `family_members` |
+| `profile_preferences` | `user_id`, `current_family_id`: famiglia mostrata, ricordata sul server; privata (RLS del solo proprietario), perché `profiles` è leggibile dai co-membri; chiave esterna composta verso `family_members`. Dal 23 ottobre 2026 (W24, migrazione `20261023100000_menu_ready_notice.sql`) `menu_emails` (`boolean not null default true`): email del menu della settimana prossima pronto, una sola opzione per persona per tutte le sue famiglie; la riga può mancare e si legge `coalesce(menu_emails, true)`; `authenticated` aggiorna solo `menu_emails` e `updated_at` della propria riga |
 | `user_roles` | `user_id`, `role`: permessi globali separati e cumulabili, curatore (`recipe_curator`) e amministratore dell'app (`app_admin`), con `granted_by` e `granted_at`. Nessuna scrittura diretta da `authenticated` (solo `SELECT` delle proprie righe): i ruoli si assegnano all'accettazione di un invito all'app e, dal 16 ottobre 2026, dall'amministrazione con `app.set_user_role` (sotto). Con la PR #52 il trigger `user_roles_require_profile` rifiuta (`P0A07`) un ruolo per chi non ha il profilo, cioè per un account in cancellazione |
 | `account_deletions` | Cancellazioni avviate (PR #52): `user_id` senza chiave esterna (la riga sopravvive all'utente), `requested_by`, `requested_at`, `attempts`, `last_error` (solo un codice), `last_attempt_at`, `completed_at`. Nessun dato personale; le righe completate restano. Lettura solo dalle funzioni |
 | `password_emails` | Ultimo invio dell'email «Scegli la password» per persona (migrazione `20261017100000_email.sql`, PR #64): `user_id` (chiave primaria), `sent_at`. Tiene l'intervallo di 60 secondi fra due invii dalla pagina dell'invito; nessun privilegio diretto, la scrivono solo le funzioni dei reinvii (sotto); righe più vecchie di 7 giorni cancellate dal cron orario |
 | `ops_alerts` | Email operative (PR #64): chiave (`event`, `key`), `event` fra `weekly_job_overdue`, `weekly_job_abandoned`, `backup_export_missing`, `account_deletion_overdue` e `ops_alert_test`; `details` (solo id, codici, numeri e date), `subject` e `body` scritti una volta alla creazione, `created_at`, `claimed_at`, `sent_at`, `closed_at`, `closed_reason` (`expired`/`ambiguous`), `attempts`. Nessun indirizzo. RLS con tutto ad `app_job`, lettura ad `app_backup`, nulla per `authenticated` e `anon`; righe più vecchie di 90 giorni cancellate (sezione 4) |
+| `menu_announcements` | Annunci del menu della settimana prossima pronto (W24, migrazione `20261023100000_menu_ready_notice.sql`, PR #80): `family_id`, `week_start`, `created_at`, una riga per famiglia e settimana annunciata, scritta dal cron orario con i destinatari scelti una volta sola (sezione 4). Al primo rilascio la migrazione inserisce una riga per ogni settimana già esistente, senza email. RLS con tutto ad `app_job`, lettura ad `app_backup`, nulla per `authenticated`; righe più vecchie di 90 giorni cancellate con le loro email |
+| `menu_emails` | Email del menu pronto (W24): chiave (`family_id`, `week_start`, `user_id`), `subject`, `html` e `text` scritti una volta all'annuncio (fotografia del menu), `created_at`, `first_attempt_at`, `claimed_at`, `sent_at`, `closed_at`, `closed_reason` (`expired`/`ambiguous`/`skipped`), `attempts`. Nessun indirizzo: si legge al momento dell'invio. Accessi come `menu_announcements` |
+| `menu_email_budget` | Tetto giornaliero delle email del menu (W24): `day` (giorno UTC, chiave), `reserved`, al massimo 60 prenotazioni al giorno (sezione 4). Accessi come `menu_announcements`; giorni più vecchi di 90 giorni cancellati |
 | `app_invitations` | Inviti gestiti dall'amministrazione dell'app, distinti da quelli a una famiglia (sesto giro; migrazione `20261013100000_app_invitations.sql`, PR #45): `id` scelto dal client, `token_hash` (impronta SHA-256 del token, mai il token in chiaro), `email` normalizzata, `roles` (sottoinsieme di `recipe_curator` e `app_admin`, anche vuoto), `created_by`, `created_at`, `expires_at` (7 giorni), `status` (`pending`/`accepted`/`revoked`, scaduto calcolato), `revoked_at` e `revoked_by`, prenotazione dell'account all'accettazione (`reserved_user_id`, `reserved_at`), `accepted_by` e `accepted_at`. Un solo invito `pending` per email. RLS: lettura solo agli `app_admin`, nessuna scrittura diretta; tutto passa dalle funzioni descritte sotto. Dal 16 ottobre 2026 (PR #52) `email` ammette `null` per gli inviti di un account cancellato, con il vincolo `app_invitations_pending_email` (un invito `pending` ha sempre l'email) |
 | `app.connected_agents()` | Funzione, non tabella (collegamento degli agenti, migrazione `20261011200000_connected_agents.sql`): agenti autorizzati da chi chiama, cioè client, nome registrato, data del collegamento e ultimo rinnovo dell'accesso (massimo di `updated_at` delle sessioni vive del client). `security definer`, legge `auth.oauth_consents`, `auth.oauth_clients` e `auth.sessions`, solo righe dell'utente corrente e grant non revocati; eseguibile solo da `authenticated`. Le autorizzazioni vivono nel server OAuth 2.1 di Supabase Auth (sezione 13): la tabella `agent_authorizations` prevista per l'ondata 3 non serve |
 | `catalogue_state` | Contatore di versione del ricettario, comune a tutte le famiglie (sezione 1) |
@@ -1614,6 +1671,7 @@ scartate, e restano immutabili; ricette, ingredienti e libri si archiviano):
 | `meal_changes` | `meal_slot_id`, `actor_id`, `channel`, `before` (jsonb), `after` (jsonb), `undoes`, `action_id` (nullo solo per righe precedenti alle azioni, come l'import), `created_at`: registro append-only, una riga per slot cambiato. Per gli utenti il registro è veritiero: `before` deve coincidere con lo slot e l'azione deve essere loro e comprendere lo slot |
 | `ratings` | `user_id`, `recipe_id`, `stars` (1-5), `updated_at`. Unico per (`user_id`, `recipe_id`); il voto è personale e contribuisce alle medie delle famiglie di cui l'utente fa parte |
 | `weekly_jobs` | `family_id`, `target_week`, `status` (`pending`/`running`/`done`/`failed`/`abandoned`; `running` non si usa), `attempts`, `error` (solo il codice), `updated_at` |
+| `menu_week_views` | Settimane viste da una persona nel Menu (W24, PR #80): `family_id`, `user_id`, `week_start`, `seen_at`; chiave su tutti e tre, chiave esterna composta verso `family_members` con cascata, quindi uscita, rimozione, eliminazione della famiglia o dell'account cancellano le righe. RLS: `select` e `insert` ad `authenticated` solo per le proprie righe e da membro, nessun aggiornamento né cancellazione dall'app; lettura ad `app_backup`. Spegne il pallino del menu pronto per quella persona su tutti i suoi dispositivi (sezione 14) |
 | `shopping_lists` | `family_id`, `week_id`, `updated_by`, `updated_at`: la lista della settimana, una per (`family_id`, `week_id`), creata alla prima modifica |
 | `shopping_list_checks` | `shopping_list_id`, `ingredient_id`, `variety_key`, `quantity_at_check` (jsonb, nella forma canonica del dominio: massa, volume, conteggi per unità, testi non numerici nelle due lingue del momento della spunta, «q.b.»), `checked_by`, `checked_at`: voce spuntata con la quantità del momento. La voce è identificata da ingrediente e varietà, perché varietà diverse sono voci diverse (sezione 6): `variety_key` è il testo italiano della varietà normalizzato come nel consolidamento, vuoto senza varietà. Se un curatore cambia la grafia in modo che la forma normalizzata cambi, la spunta non corrisponde più a nessuna voce e si perde, come per una voce uscita dalla lista |
 | `shopping_list_items` | `shopping_list_id`, `client_id` (generato dal dispositivo, per l'idempotenza offline), `text`, `checked`, `created_by`, `created_at`: voci libere; più gli ingredienti esclusi rimessi in lista (`shopping_list_added_back`, con la stessa chiave di ingrediente e varietà) |
@@ -2100,6 +2158,63 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   uno script di sola lettura e si gestiscono a mano. Senza `RESEND_API_KEY` o
   `OPS_ALERT_EMAIL` non si acquisisce nulla. Al primo giro dopo il rilascio la
   riconciliazione può segnalare eventi dei 7 giorni precedenti, già noti.
+- **Email del menu pronto** (W24, PR #80 unita il 23 ottobre 2026, rilascio in
+  preparazione; particolari nella spec di dettaglio `2026-10-23-avviso-menu-pronto.md`,
+  sezioni 3-5; prodotto in Parte 1, «Una settimana tipo», e nelle sezioni 7 e 14).
+  **Regola unica della settimana da annunciare**, scritta una volta in
+  `app.menu_week_to_announce(famiglia, istante)` e usata sia dall'email sia dal pallino:
+  nel fuso della famiglia, la settimana dopo quella in corso (`nextWeekStart`) se è
+  passato il mercoledì alle 20:00 (`isNextWeekDue`), se la settimana esiste e se la
+  famiglia esisteva già il mercoledì alle 20:00 che la precede; un test la confronta con
+  le funzioni di `@app/domain/planner` sulle date di confine, ora legale compresa. Dal
+  lunedì della settimana l'avviso scade da solo. Ne derivano i casi decisi dall'utente: la
+  settimana nata dalla generazione pigra (job in ritardo o fallito) si annuncia come
+  quella del job, al giro orario successivo; una famiglia creata dopo il mercoledì alle
+  20:00 non ha né email né pallino per la settimana già pronta; chi entra in famiglia
+  dopo l'annuncio ha il pallino ma non l'email arretrata. **Annuncio**, nel cron orario
+  dopo il job settimanale e la ripresa delle cancellazioni, in un `try` proprio con una
+  connessione propria, una famiglia alla volta: prima le miniature delle foto, fuori da
+  ogni transazione (sezione 1), poi in una transazione `job` propria la riga di
+  `menu_announcements` (`on conflict do nothing`: se c'è già, ha annunciato un'altra
+  esecuzione), i destinatari (`app.menu_email_recipients`: membri con l'opzione attiva e
+  l'email confermata) e i pasti (`app.menu_email_week`, nella versione R1 che il pasto
+  mostra), con una riga di `menu_emails` per persona, oggetto e corpi già composti
+  nella sua lingua (sezione 12). Il pallino non dipende dall'email: c'è anche se l'invio
+  non è configurato o fallisce. **Consegna** sul modello delle email operative, ma con
+  il principio opposto, **meglio nessuna email che un doppione** (decisione del
+  coordinatore del 23 ottobre 2026): una consegna ambigua o scaduta può lasciare una
+  persona senza email, l'avviso in app resta. Ogni riga si acquisisce in modo atomico
+  (una sola esecuzione la spedisce, con il recupero di un'acquisizione abbandonata dopo
+  15 minuti), con oggetto e corpo salvati e la chiave di idempotenza
+  `menu-email/{familyId}/{weekStart}/{userId}`; vale finché mancano almeno 1 minuto alla
+  mezzanotte locale del lunedì della settimana e 23 ore dal primo tentativo (un'ora di
+  margine sulle 24 in cui Resend conserva la chiave), condizione ricontrollata
+  nell'acquisizione e subito prima della richiesta, con un unico orologio passato anche
+  alle query, mai `now()` di Postgres. Prima della richiesta `app.menu_email_address`
+  rilegge l'indirizzo, solo se la persona è ancora membro, ha l'opzione attiva e l'email
+  confermata: altrimenti la riga si chiude come `skipped`. Un `409` di idempotenza
+  diverso da `concurrent_idempotent_requests` chiude come `ambiguous`; un `429` libera
+  l'acquisizione e ferma il giro; gli altri errori, risposta persa compresa, la liberano
+  e la riga riprova entro la finestra. **Tetto giornaliero**: il piano gratuito di Resend
+  dà 100 email al giorno UTC (3.000 al mese), condivise con «Scegli la password» e gli
+  allarmi; le email del menu prenotano in `menu_email_budget` al massimo **60** posti per
+  giorno UTC, nella stessa transazione dell'acquisizione, e ogni tentativo ne consuma
+  uno qualunque sia l'esito, perché Resend potrebbe averlo contato. Budget esaurito o
+  ultimo minuto del giorno UTC fermano il giro, che riprende all'ora dopo; se fra
+  prenotazione e invio cambia il giorno UTC la richiesta non parte, l'acquisizione si
+  libera e la riga riprova con una prenotazione sul giorno nuovo. Invii in sequenza, uno
+  alla volta. Senza `RESEND_API_KEY` né `MAILPIT_API_URL` l'annuncio si fa lo stesso e le
+  righe scadranno; senza `APP_ORIGIN` non si annuncia nulla (sezione 1). Log con soli id,
+  codici e numeri, mai indirizzi, oggetti o corpi: `menu_email_announced`,
+  `menu_email_sent`, `menu_email_skipped`, `menu_email_deferred`,
+  `menu_email_budget_spent` (tetto del giorno raggiunto), `menu_email_sent_after_close`
+  (email partita mentre un altro giro chiudeva la riga, che resta chiusa) e
+  `menu_email_family_gone` a livello `info`; `menu_email_expired` a livello `warn`;
+  `menu_email_ambiguous`, `menu_email_failed`, `menu_email_not_configured`,
+  `menu_email_no_origin`, `menu_email_announce_failed` e `menu_email_delivery_failed` a
+  livello `error`. Con questa attività i log del server (`logEvent`) hanno anche il
+  livello `warn` (`console.warn`), oltre a `info` ed `error`. La pulizia dei 90 giorni
+  toglie annunci, email e giorni del tetto vecchi.
 - **Generazione su richiesta** ("rigenera" se la settimana manca; il wizard non genera,
   deciso l'11 ottobre 2026): stessa funzione, al massimo 3 volte a settimana per famiglia.
   Il wizard è arrivato il 15 ottobre 2026 senza «rigenera», che resta nell'ondata 3
@@ -2178,6 +2293,38 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
     mostrata; un giorno di arrivo senza pasti si apre vuoto. Il calendario resta
     l'alternativa, anche per tastiera e lettore di schermo (con VoiceOver lo swipe a un
     dito è del sistema). Particolari tecnici nella sezione 14.
+  - **Pulsante «Oggi»** (decisioni dell'utente del 23 ottobre 2026, W23, PR #78; spec di
+    dettaglio `2026-10-23-bottone-oggi.md`): nella barra del Menu, a sinistra del
+    calendario, un pulsante «Oggi» / «Today» nella forma «icona con etichetta» (freccia
+    di ritorno e testo, senza riquadro), scelta fra tre varianti nel prototipo. Compare
+    solo quando il Menu mostra un giorno diverso da oggi **e** oggi ha almeno un pasto
+    con contenuto (ricetta o pasto libero); su oggi non c'è, e nemmeno quando oggi ha
+    solo slot vuoti o non ci sono i dati della settimana di oggi (lettura in corso,
+    errore, offline senza copia), perché l'apertura porterebbe a un altro giorno. Un
+    tocco porta a oggi come la scelta di un giorno dal selettore o dal calendario. Oggi è
+    la data locale della famiglia (`families.time_zone`). Non c'è nello skeleton del
+    Menu, in «Ancora nessun menu» e negli errori. Il secondo tocco su Menu nella navbar
+    resta com'è. Particolari tecnici nella sezione 14.
+  - **Avviso del menu della settimana prossima pronto** (decisioni dell'utente del 23
+    ottobre 2026, W24, PR #80): quando la settimana da annunciare (sezione 4) esiste e
+    la persona non l'ha ancora vista, l'icona del calendario ha un pallino verde e nel
+    mese aperto i giorni di quella settimana hanno il numero verde su fondo verde chiaro.
+    L'avviso è per persona, su tutti i suoi dispositivi (stato sul server), e sparisce
+    la prima volta che la persona vede nel Menu un giorno qualsiasi della settimana nuova
+    (calendario, fila dei giorni, swipe, link) o il lunedì in cui la settimana comincia.
+    Operazioni dell'area `menu`, ruolo `familyMember`, `offline: false`, **non
+    versionate e senza MCP** (sezione 13): `menu.getNewWeek`
+    (`GET /families/{familyId}/menu/new-week`, `{ weekStartsOn: lunedì | null }`), che
+    prima esegue la generazione pigra come le altre letture del menu (sezione 4) e poi
+    chiama `app.new_menu_week` (la settimana da annunciare se la persona non l'ha vista,
+    solo per i membri, con l'istante della richiesta); `menu.markWeekSeen`
+    (`PUT /families/{familyId}/menu/weeks/{weekStartsOn}/seen`, `{ ok: true }`), che
+    inserisce la riga in `menu_week_views` in modo idempotente, senza toccare
+    `data_version`, e accetta solo la settimana di `new_menu_week` o una già vista: per
+    le altre risponde senza scrivere. Il test del contratto che voleva ogni operazione
+    del menu letta, versionata ed esposta a MCP vale ora solo per `getOpening`,
+    `getWeek` e `getDates`. Il link «Apri il menu» dell'email porta a
+    `/menu?day=<lunedì>&family=<id>` (sezione 14).
 - **Azioni sullo slot**, confermate nel secondo giro del prototipo (6 ottobre 2026):
   cambia porzioni; cambia ricetta (cinque suggerimenti, "proponimene altri", ricerca con
   filtri), che raccoglie anche segna libero con testo, non proporre più e scambia con un
@@ -2547,6 +2694,14 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   **«Non ha ancora confermato l'email»** (pagina dei membri e `/admin`, sotto), finché
   la verifica del link non conferma l'email; chi apre
   il link e conferma l'email senza salvare la password usa «Password dimenticata».
+  **Mentre `/password` verifica il link** (W22, PR #79, 23 ottobre 2026) la pagina mostra
+  lo skeleton del modulo (titolo, riga dell'account, due campi, avviso, pulsante),
+  annunciato con «Verifico il link…» invece di «Caricamento…»; offline la verifica non
+  parte, lo skeleton resta fermo sotto il banner con l'annuncio «Caricamento…», senza
+  chiamate ad Auth, con il frammento nell'indirizzo e senza un'operazione registrata
+  come in corso, e la verifica parte da sola al ritorno della rete (prima la pagina era
+  vuota). Con un altro account aperto, link non valido, verifica fallita o password già
+  scelta la pagina mostra subito il suo stato, come prima.
   **Chi ha già un account** accetta un invito alla famiglia con la sua password, senza
   verifiche; **gli account creati prima di D restano come sono**. Il passaggio fra
   versioni non alza `CACHE_SCHEMA`; una PWA rimasta indietro che manda ancora la
@@ -2558,6 +2713,12 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
 - **Uscita e revoca sul dispositivo**: «Esci» chiude la sessione solo su questo
   dispositivo e cancella i dati salvati dell'utente anche se il servizio non risponde;
   un accesso revocato a una famiglia ne toglie subito i dati dal dispositivo (sezione 1).
+  Durante le attese (W22, PR #79, sezione 14) le parti di una pagina che compaiono solo
+  per un ruolo, come le schede degli amministratori della famiglia nei Membri, hanno
+  blocchi solo quando il ruolo è noto, cioè presente nel profilo corrente anche se
+  ripristinato dalla copia salvata; le pagine riservate (amministrazione, dettaglio ed
+  eliminazione di un utente) mostrano lo skeleton anche prima, seguito dall'avviso se il
+  ruolo manca. I controlli di revoca non cambiano.
 - **Email con Resend** (deciso l'8 ottobre 2026; dominio e SMTP di Supabase Auth
   configurati il 17 ottobre 2026, email dell'app attive con il rilascio della parte
   software dell'attività D, PR #64),
@@ -2565,7 +2726,9 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   Supabase e API del server; oltre il limite l'invio si sospende, senza addebiti.
   Supabase Auth lo usa come SMTP personalizzato solo per la «password dimenticata»; il
   server lo chiama via API per l'email «Scegli la password» degli inviti, per «Rimanda
-  l'email» e per le proprie email operative (sezioni 4 e 8). Il servizio di default di
+  l'email» e per le proprie email operative (sezioni 4 e 8) e, dal 23 ottobre 2026 (W24),
+  per le email del menu della settimana prossima pronto, che prenotano al massimo 60
+  email per giorno UTC e ne lasciano almeno 40 alle altre (sezione 4). Il servizio di default di
   Supabase non basta: consegna solo agli indirizzi dei membri del team
   dell'organizzazione Supabase, con pochi invii all'ora ed è solo per le prove. Con un
   SMTP personalizzato Supabase parte da 30 email all'ora, configurabile. Il dominio di
@@ -2794,7 +2957,18 @@ Non ci sono avvisi di settimana sulle modifiche a mano (deciso il 6 ottobre 2026
   impostazioni e tramite MCP, indipendentemente dalle impostazioni della famiglia.
   Da qui si esce dall'account e si apre la cancellazione. Dall'attività D un cambio di
   lingua, dal web o via MCP, si copia anche nei metadati di Supabase Auth, così l'email
-  della «password dimenticata» arriva nella lingua scelta (sezioni 1 e 12).
+  della «password dimenticata» arriva nella lingua scelta (sezioni 1 e 12). Dal 23
+  ottobre 2026 (W24, PR #80) sotto la lingua c'è la casella **«Email con il menu della
+  settimana»**, con il sottotitolo «Il mercoledì sera, quando è pronto il menu della
+  settimana dopo» («Menu emails» in inglese): attiva all'inizio, anche per chi entra
+  dopo, una sola opzione per persona per tutte le sue famiglie
+  (`profile_preferences.menu_emails`, sezione 2). Salva subito con
+  `profile.update({ menuEmails })`, anche via MCP (`profile.get` la restituisce in
+  `user.menuEmails`), con l'avviso di conferma degli altri campi; offline è disattivata
+  come gli altri comandi. Il link «Non ricevere più queste email» in fondo all'email apre
+  questa pagina, con l'accesso se serve: niente disiscrizione con un clic senza accesso.
+  Chi la spegne dopo l'annuncio non riceve l'email, perché l'indirizzo si ricontrolla
+  prima dell'invio (sezione 4).
 - **Cancellazione dell'account, regole confermate**: possibile da parte dell'utente
   stesso e degli amministratori dell'app. Entrambe arrivano con l'attività C
   dell'ondata 3 (PR #52, unita e rilasciata il 16 ottobre 2026): la
@@ -2959,7 +3133,9 @@ degli altri; autore e ultima modifica sono visibili. Salvare una bozza non pubbl
 una ricetta: la completezza resta vincolante per l'ingresso nel catalogo utilizzato
 dalle famiglie. Nel traguardo A le sezioni «Bozze» e «Archiviate» (con «Riporta nel
 ricettario») sono visibili ai curatori anche senza famiglia e la bozza si apre in una
-pagina di sola lettura; modifica, archiviazione, versioni e ripristino nell'app arrivano
+pagina di sola lettura (con lo skeleton durante l'attesa, dalla W22, PR #79, anche
+prima che il ruolo sia noto, seguito da «Bozza non disponibile» se manca; le due sezioni
+hanno blocchi solo per chi ha il ruolo di curatore nel profilo: sezione 14); modifica, archiviazione, versioni e ripristino nell'app arrivano
 con l'ondata 3 e intanto si fanno via MCP. I salvataggi di una bozza, anche chiusa, si
 leggono via MCP: un salvataggio sovrascritto si recupera salvandolo di nuovo.
 
@@ -3512,6 +3688,9 @@ generale).
 | Swipe fra le settimane (W19) | Unito (PR #72, merge `160d83b`) e **rilasciato** il 18 ottobre 2026 alle 12:09 UTC (versione del Worker `3260a367-c445-490d-abd3-359614a19f61`, commit `160d83b`), senza migrazioni, segreti né operazioni nuove. Rimbalzo e transizione sostituiti dalla W21 (riga sotto) |
 | Fila dei giorni che segue il dito (W21) | Correzione chiesta dall'utente dopo il rilascio di W19. Unita (PR #74, merge `341bdb1`) e **rilasciata** il 18 ottobre 2026 alle 13:49 UTC (versione del Worker `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`), senza migrazioni, segreti né operazioni nuove; provata con agent-browser ed eventi touch veri sul server di sviluppo. **Collaudata** dall'utente sull'iPhone il 18 ottobre 2026 (sezioni 5 e 14) |
 | Skeleton nei caricamenti (W20, issue #49) | Unito (PR #75, merge `bb523a2`) e **rilasciato** il 18 ottobre 2026 alle 16:39 UTC (versione del Worker `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`, commit `bb523a2`), senza migrazioni, segreti, operazioni né dipendenze nuove. **Collaudato** dall'utente sull'iPhone lo stesso giorno (spec `2026-10-18-skeleton.md`; sezione 14) |
+| Skeleton nelle pagine rare e nelle sezioni dei curatori (W22, issue #49) | Unito il 23 ottobre 2026 (PR #79, merge `9790f07`), senza migrazioni, segreti, operazioni né dipendenze nuove; rilascio in preparazione, insieme a W23 e W24. Da provare dall'utente sull'iPhone dopo il rilascio (spec `2026-10-23-skeleton-pagine-rare.md`, sezione 7; sezione 14) |
+| Pulsante «Oggi» nella barra del Menu (W23) | Unito il 23 ottobre 2026 (PR #78, merge `c9a8be1`), senza migrazioni, segreti, operazioni né dipendenze nuove; rilascio in preparazione, insieme a W22 e W24. Da provare dall'utente sull'iPhone dopo il rilascio (spec `2026-10-23-bottone-oggi.md`; sezioni 5 e 14) |
+| Avviso del menu pronto (W24) | Unito il 23 ottobre 2026 (PR #80, merge `f56f257`) con la migrazione `20261023100000_menu_ready_notice.sql` e la variabile non segreta `APP_ORIGIN` in `wrangler.jsonc`; nessun segreto nuovo (`RESEND_API_KEY` esiste) né risorsa nuova (`PHOTOS`, `IMAGES` e `PHOTO_READ_LIMIT` esistono); operazioni nuove `menu.getNewWeek` e `menu.markWeekSeen`, senza MCP. Rilascio in preparazione, insieme a W22 e W23, da fare prima di un mercoledì sera perché la prima email parta con il job; al primo rilascio tutte le settimane già esistenti risultano annunciate, senza email, e il pallino può ricomparire una volta a chi le aveva già guardate. Da provare dall'utente dopo il rilascio: email vera del mercoledì, link, opzione delle Preferenze e pallino su due dispositivi (spec `2026-10-23-avviso-menu-pronto.md`, sezione 9; sezioni 4, 5, 7, 12, 13 e 14) |
 
 Scelte dell'utente sul traguardo A: accessi diretti con utenze Supabase, primi utenti e
 famiglie creati a mano, con le iscrizioni libere spente (12 ottobre 2026); passi
@@ -3545,9 +3724,11 @@ piano):
   anteprima, impronta e «vai» dell'utente: sezione 1.
 
 Lingue, unità e accesso MCP sono requisiti trasversali: ogni funzione introdotta li
-rispetta dalla sua prima versione, con due eccezioni esplicite: le operazioni `public`
-senza utente, fuori da MCP (sezione 13), e l'eliminazione delle famiglie, per cui MCP
-restituisce il link all'app. La collocazione delle attività nella
+rispetta dalla sua prima versione, con tre eccezioni esplicite: le operazioni `public`
+senza utente, fuori da MCP (sezione 13), l'eliminazione delle famiglie, per cui MCP
+restituisce il link all'app, e dal 23 ottobre 2026 le due operazioni dell'avviso del menu
+pronto (`menu.getNewWeek`, `menu.markWeekSeen`), fuori da MCP perché sono uno stato di
+visualizzazione personale (sezione 13). La collocazione delle attività nella
 roadmap non rinvia la progettazione delle relative dipendenze al termine dello sviluppo.
 La priorità finale riguarda il modulo manuale, non la consultazione delle bozze nell'app,
 richiesta insieme alla gestione del ricettario tramite MCP.
@@ -3681,7 +3862,23 @@ dimenticata», spedita da Supabase Auth, usa `user_metadata.locale`, che il serv
 allinea alla lingua delle Preferenze a ogni cambio (web e MCP), con l'italiano se manca.
 Una scrittura concorrente dei metadati può lasciare al più la lingua precedente nel
 recupero, difetto innocuo accettato. Le email operative al referente sono solo in
-italiano.
+italiano. L'email del menu della settimana prossima pronto (W24, PR #80, 23 ottobre
+2026) usa la lingua del profilo di ogni membro, letta all'annuncio: oggetto «Il menu
+della settimana {intervallo} è pronto» / «The menu for {range} is ready», con
+« · {famiglia}» in fondo solo per chi è in più di una famiglia; date con
+`Intl.DateTimeFormat` nella lingua della persona; nomi delle ricette nella lingua della
+persona o, se manca, nell'altra, come nel Menu; pasti liberi con il loro testo, senza
+traduzione. È una colonna sola larga fino a 600 px, con tabelle e stili in linea, i
+colori di `design/design.md` e i font di sistema: intestazione con il pulsante «Apri il
+menu» e la riga «Il menu si può ancora cambiare nell'app: qui lo vedi com'era quando è
+stato preparato», poi per ogni giorno una riga per pranzo e cena con la miniatura
+quadrata (o un riquadro verde chiaro senza foto), l'etichetta e il nome del piatto (forma
+«righe compatte» scelta dall'utente sull'anteprima); pasti vuoti e giorni senza pasti
+non compaiono. In fondo il pulsante ripetuto, la riga sulla famiglia e il link «Non
+ricevere più queste email» alle Preferenze; c'è anche la versione in testo semplice.
+Ogni valore che viene dal database è escaped nell'HTML; `lang` della persona
+sull'`html`, `role="presentation"` sulle tabelle e testo alternativo vuoto sulle
+miniature.
 
 ### 13. MCP e guida al collegamento
 
@@ -3692,7 +3889,12 @@ una famiglia**, che MCP può soltanto indirizzare alla pagina dell'app. Le opera
 dalla PR #64, reinvio dell'email per la password) restano fuori da MCP
 per costruzione (`mcp: false` imposto da `contract/src/check.ts`). Il caricamento di un
 file di foto (`catalogue.uploadPhoto`, dal 16 ottobre 2026) è solo web perché MCP non
-trasporta file: l'equivalente per l'agente è l'impostazione da un indirizzo (sotto). Il
+trasporta file: l'equivalente per l'agente è l'impostazione da un indirizzo (sotto).
+**Eccezione dal 23 ottobre 2026** (W24, PR #80, confermata dal coordinatore): le due
+operazioni dell'avviso del menu pronto, `menu.getNewWeek` e `menu.markWeekSeen` (sezione
+5), sono `mcp: false`, perché l'avviso è uno stato di visualizzazione personale
+nell'app: un agente che legge il menu non lo spegne e non ne ha bisogno. La preferenza
+delle email resta invece anche via MCP (`profile_update` con `menuEmails`, sezione 7). Il
 server espone operazioni applicative, non accesso generico alle tabelle.
 
 **Architettura decisa l'8 ottobre 2026** (sezione 1):
@@ -3830,7 +4032,7 @@ implicite alla copertura delle operazioni.
 | Revisione | Area `meals` (PR #29): cambiare ricetta e porzioni, chiedere suggerimenti (`meals_getSuggestions`, sola lettura), scambiare pasti, segnare pasti liberi, note ed esclusioni; annullare la propria ultima modifica di un pasto anche in una conversazione nuova, con `menu_getWeek` → `lastChange.actionId` se `lastChange.undoable` → `meals_undo` (sezione 5). Ogni scrittura porta un `id` nuovo scelto dall'agente; ripeterla non cambia nulla |
 | Voti e generazione | Dare, cambiare o togliere il proprio voto (`ratings.set`, a stato assoluto, `null` per toglierlo); richiedere la generazione nei limiti previsti (ondata 3) |
 | Spesa | Leggere la lista di una settimana, spuntare voci (con la quantità letta dalla vista), rimettere ingredienti esclusi, aggiungere voci libere, ottenere testo e collegamento Bring!, poi il PDF |
-| Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`; dal 15 ottobre 2026 creare una famiglia (`family_create`). Con l'attività C (unita e rilasciata il 16 ottobre 2026): creare, elencare e revocare i link d'invito e leggere gli ingressi (`familyInvitations_*`), entrare con un link avendo già un account (`family_join`), cambiare ruolo, rimuovere un membro e uscire (`family_setMemberRole`, `family_removeMember`, `family_leave`); leggere il riepilogo dell'eliminazione (`family_getDeletion`) e richiederla (`family_delete`), ottenendo solo il collegamento alla pagina web; leggere il piano e cancellare il proprio account (`account_getDeletionPlan`, `account_delete`), rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
+| Famiglia e account | Nel traguardo A profilo (nome, lingua, famiglia mostrata; dal 23 ottobre 2026 anche l'opzione delle email del menu, `menuEmails`), famiglia, membri, impostazioni e «non proporre più», sempre con `familyId`; dal 15 ottobre 2026 creare una famiglia (`family_create`). Con l'attività C (unita e rilasciata il 16 ottobre 2026): creare, elencare e revocare i link d'invito e leggere gli ingressi (`familyInvitations_*`), entrare con un link avendo già un account (`family_join`), cambiare ruolo, rimuovere un membro e uscire (`family_setMemberRole`, `family_removeMember`, `family_leave`); leggere il riepilogo dell'eliminazione (`family_getDeletion`) e richiederla (`family_delete`), ottenendo solo il collegamento alla pagina web; leggere il piano e cancellare il proprio account (`account_getDeletionPlan`, `account_delete`), rimandando all'app quando comporterebbe anche l'eliminazione di una famiglia |
 | Gestione del ricettario | Area `catalogue`, ruolo di curatore, senza famiglia: conoscere i requisiti e le istruzioni sugli ingredienti, cercare le ricette pubblicate e archiviate, salvare e riprendere bozze (con la stessa risoluzione dei conflitti del web) e leggerne i salvataggi, controllare una bozza senza pubblicarla, pubblicare ricette complete, scartare bozze, modificare ricette di qualunque autore, cercare, leggere, creare e modificare ingredienti con le equivalenze di ricetta, elencare varietà già usate e controllare una varietà, elencare e creare libri, archiviare e riportare nel ricettario, elencare le versioni e ripristinarne una; dal 16 ottobre 2026 impostare la foto di una ricetta da un indirizzo, sostituirla e toglierla (`catalogue_setPhotoFromUrl`, `catalogue_removePhoto`), mentre il caricamento di un file resta solo web |
 | Amministrazione globale | Dal 15 ottobre 2026 inviti all'app (`appInvitations_create`, `_list`, `_revoke`); dal 16 ottobre cercare e leggere gli utenti, assegnare e togliere i ruoli e nominare amministratori (`users_list`, `users_get`, `users_setRole`). Con l'attività C (unita e rilasciata il 16 ottobre 2026) cancellare utenti con i vincoli previsti (`users_getDeletionPlan`, `users_delete`), restituendo solo un URL quando l'operazione eliminerebbe anche una famiglia. Poi ripristino dell'intero catalogo a una data |
 
@@ -4238,9 +4440,8 @@ ferma con `prefers-reduced-motion` e in pausa offline. Lo spazio si riserva subi
 blocchi compaiono dopo **200 ms**: un'attesa più breve non mostra nulla e non sposta nulla;
 la soglia riparte a ogni attesa nuova. Pagine coperte: «Cambia ricetta» (suggerimenti, prima
 ricerca, proposte del pasto libero), Menu, Spesa, Ricetta, Ricettario, controllo della
-famiglia (`FamilyGate`) e avvio dell'app (prima schermo vuoto); le pagine rare (profilo,
-impostazioni, membri, esclusioni, agenti, amministrazione, bozze, eliminazioni, inviti,
-`/password`) restano invariate, con i rispettivi stati di attesa. Attese coperte: controllo dell'accesso, ripristino
+famiglia (`FamilyGate`) e avvio dell'app (prima schermo vuoto); dalla W22 anche le pagine
+rare e le sezioni dei curatori (paragrafo sotto). Attese coperte: controllo dell'accesso, ripristino
 della copia salvata quando dura più di 200 ms (ammesso anche con copia salvata, decisione
 del coordinatore), lettura della coda della Spesa (la lista non si mostra prima, per non far
 sparire le spunte fatte sul telefono, PR #22) e lettura dal server senza dati; con dati
@@ -4250,9 +4451,8 @@ skeleton. Offline senza copia salvata lo skeleton resta fermo sotto il banner of
 contenitori e la stessa intestazione, condiviso con `FamilyGate`; link indietro, titoli e
 filtri che non dipendono dai dati sono veri (Spesa, Ricetta, Ricettario; nel Menu mese e
 fila dei giorni quando la settimana è nota). Nel Ricettario titolo e filtri non si
-rimontano durante le attese; le sezioni dei curatori (Bozze, Archiviate) non hanno skeleton
-né spazio riservato e compaiono quando ruolo e riepilogo sono disponibili: lo spostamento
-è ammesso perché riguarda solo i curatori (decisione del coordinatore). Nei suggerimenti
+rimontano durante le attese; la decisione di W20 sulle sezioni dei curatori (niente
+skeleton, spostamento ammesso) è superata dalla W22 (sotto). Nei suggerimenti
 errore e «nessun suggerimento» prendono lo spazio delle schede; nelle pagine restano le
 schede di stato. Accessibilità: area dei dati con `aria-busy`, un solo `role="status"` per
 pagina o area che annuncia «Caricamento…» quando i blocchi compaiono, blocchi `aria-hidden`
@@ -4260,6 +4460,150 @@ e mai toccabili. Componente condiviso `web/src/components/Skeleton.tsx` (`Loadin
 con una sola attesa per pagina, anche per i blocchi dell'intestazione, `Skeleton`,
 `BusyArea`, `LoadingArea`), stili in `web/src/design/global.css`, nessuna dipendenza
 nuova.
+
+**Skeleton nelle pagine rare e nelle sezioni dei curatori** (W22, issue #49, PR #79 unita
+il 23 ottobre 2026, rilascio in preparazione; richiesta dell'utente del 23 ottobre: lo
+stesso comportamento ovunque; spec `progetto/superpowers/specs/2026-10-23-skeleton-pagine-rare.md`,
+che estende quella di W20; regole visive in `design/design.md`, «Caricamenti
+(skeleton)»). Valgono tutte le regole di W20 (sopra), con la variante B già scelta e
+senza prototipo. Pagine coperte in più: profilo, preferenze, membri, impostazioni,
+esclusioni, agenti, amministrazione, dettaglio ed eliminazione di un utente, bozze,
+eliminazioni della famiglia e dell'account, inviti all'app e alla famiglia,
+autorizzazione (`/authorize`) e verifica del link in `/password` (sezione 7), più le
+sezioni dei curatori del Ricettario. Restano fuori perché sono operazioni, non
+caricamenti di pagina: la ricerca degli ingredienti nelle Impostazioni, il foglio «Crea
+un link d'invito» (l'unico che usa ancora `Loading`), l'invio del voto e la riga «Leggo i
+tuoi ruoli…» del consenso, attesa voluta anche con il profilo salvato. **Una sola attesa
+anche con più aree**: nelle pagine con più letture (Membri per gli amministratori,
+Amministrazione, Ricettario con le sezioni dei curatori) i blocchi compaiono insieme dopo
+la soglia e si fermano insieme offline; ogni area mostra il contenuto appena arrivano i
+suoi dati e solo le aree ancora in attesa hanno `aria-busy`. **Un solo annuncio di
+caricamento per pagina**, non un solo `role="status"` in assoluto (decisione del
+coordinatore, che è la lettura di W20): conteggi (quello del Ricettario), conferme
+(«{nome} eliminato», «Scollegato», «Salvataggio…») e banner offline restano con i loro
+status. **Intestazioni vere**: link indietro e titoli che non dipendono dai dati sono
+veri; i titoli che vengono dai dati (nome nel Profilo, nome dell'utente, «Elimina
+{nome}», titolo della bozza) sono blocchi della stessa attesa, nascosti ai lettori di
+schermo, con il link indietro fuori dalla parte nascosta. **Ruoli**: le sezioni
+condizionali (parti di una pagina aperta a tutti che compaiono solo per un ruolo: sezioni
+dei curatori nel Ricettario, schede degli amministratori della famiglia nei Membri) hanno
+blocchi solo a ruolo noto, così chi non ha il ruolo non vede mai blocchi che poi
+spariscono; le pagine riservate a un ruolo (bozza, amministrazione, dettaglio ed
+eliminazione di un utente) hanno lo skeleton anche prima, seguito dall'avviso se il ruolo
+manca (approvato dal coordinatore). Ruolo noto vuol dire presente nel profilo corrente,
+anche ripristinato dalla copia salvata; i controlli di revoca non cambiano (sezione 7).
+Senza profilo salvato tutta la pagina è in attesa e all'arrivo del profilo i blocchi del
+ruolo si aggiungono fra gli altri: si spostano solo blocchi, mai contenuto vero o
+controlli. **Layout completo e stessa struttura**: `FamilyGate` e `AdminAccessGate`
+mostrano il layout di attesa della pagina invece di `Loading`; ogni scheda in attesa
+riproduce contenitori, testi statici e pulsanti della scheda vera nello stesso ordine,
+così nel caso comune lo spostamento è zero anche nei passaggi intermedi (profilo →
+dettaglio → liste); dentro una scheda vera che aspetta solo la sua lista ogni riga ha il
+proprio blocco pieno che pulsa. Errori, `StateNotice` e righe «nessun …» prendono il
+posto dello skeleton, come in W20. **Sezioni dei curatori** (supera la decisione di W20):
+per un curatore senza riepilogo del catalogo disponibile Bozze e Archiviate hanno lo
+skeleton nell'attesa della pagina: il titolo delle Bozze come blocco da 44 px con tante
+schede quante le bozze di un riepilogo già in memoria (al massimo 3; in pratica quello di
+un'altra lingua), altrimenti una, e il titolo delle Archiviate, chiusa, in fondo. Durante
+il ripristino dalla copia salvata si usa una scheda, senza leggere il riepilogo dal disco
+(limitazione confermata dal coordinatore). Se numero o forma delle bozze vere sono diversi
+i risultati si spostano, solo per i curatori; altrimenti il loro `top` non cambia. Le
+sezioni mostrate non spariscono nelle attese successive dei risultati. **Inviti e
+autorizzazione** sono chiamate dirette senza copia salvata: ogni apertura aspetta e
+offline mostrano l'errore di oggi con «Riprova», senza pausa. Tecnica: `LoadingScope`
+raccoglie le attese delle aree interne (`gather`) e accetta il testo dell'annuncio
+(`label`, «Verifico il link…» in `/password`); nessun cambiamento a server, contratto o
+MCP e nessuna libreria nuova. Da provare dall'utente sull'iPhone dopo il rilascio:
+Ricettario da curatore dopo un nuovo accesso e da non curatore, Profilo, Membri,
+Impostazioni ed Esclusioni dopo un nuovo accesso, link di `/password` aperto da Mail,
+invito alla famiglia senza accesso, un solo «Caricamento…» con VoiceOver.
+
+**Pulsante «Oggi» nella barra del Menu** (W23, PR #78 unita il 23 ottobre 2026, rilascio
+in preparazione; spec `progetto/superpowers/specs/2026-10-23-bottone-oggi.md`; prodotto
+nella sezione 5; regole visive in `design/design.md`, «Calendario e navigazione»).
+Pulsante senza riquadro alto 44 px, freccia da 22 px (icona `today` nuova in `Icon.tsx`)
+e «Oggi» in Roboto Bold 14 px, colore `#232323`, 6 px fra icona ed etichetta, raggio 8 px
+per il focus, nel gruppo delle azioni a destra prima del calendario: mese, calendario,
+borsa e fila dei giorni non cambiano posizione né dimensioni quando compare o sparisce (a
+375 px, nelle due lingue) e il mese non va a capo. Sotto i 375 px nessun adattamento
+(scelta dell'utente: a 320 px la borsa può uscire dal margine). Nome accessibile «Vai a
+oggi» / «Go to today», icona nascosta ai lettori di schermo. **Visibilità** (decisione del
+coordinatore del 23 ottobre 2026): il pulsante c'è solo se il giorno mostrato è un altro
+e i dati della settimana di oggi (`menu.getWeek` del lunedì di oggi, con la stessa query
+del Menu, dalla cache o letti ora) mostrano oggi almeno un pasto con `kind` diverso da
+`empty`; finché quei dati mancano resta nascosto, anche offline senza copia. Non dipende
+da `menu.getOpening`, che può rispondere oggi anche con soli slot vuoti, e la regola di
+apertura non cambia. **Letture** (decisione del coordinatore): il normale ciclo della
+query del Menu (cache, richieste condivise, riletture al montaggio con dati scaduti, al
+ritorno in primo piano e alla riconnessione), senza opzioni speciali; la settimana di
+oggi resta osservata anche quando se ne mostra un'altra. **Tocco** come la scelta di un
+giorno (`select`): nella stessa settimana la traccia scorre fino a oggi senza una voce
+nuova nella cronologia, da un'altra settimana è una navigazione a `?day=<oggi>`; nessuna
+animazione nuova. **Cambio di giorno** (decisione del coordinatore): nessun timer; la data
+locale della famiglia si ricalcola a ogni disegno, al ritorno in primo piano
+(`visibilitychange` verso `visible`, `pageshow` per la PWA ripresa dalla cache delle
+pagine) con uno stato che forza il disegno, e al tocco; in primo piano continuo a cavallo
+della mezzanotte si aggiorna al primo di questi eventi. Se al tocco la data è cambiata, il
+tocco fa quello del secondo tocco su Menu (Menu senza `?day`, apertura del nuovo giorno),
+così non porta mai a ieri; lo stesso ricalcolo aggiorna la data mandata a
+`menu.getOpening`. **Focus**: dopo il tocco il pulsante sparisce e il focus passa al nome
+del mese solo all'arrivo sulla destinazione, anche con lo skeleton in mezzo: un giorno
+esplicito, oppure l'apertura per una data precisa, risolta solo con la risposta del
+server o con la richiesta in pausa senza rete (ripiego sulla copia salvata), mai
+sull'apertura provvisoria (`savedOpening`) mentre la richiesta è in corso. Un errore della
+richiesta, un'altra navigazione, l'apertura del calendario (dal mese o dall'icona) o un
+nuovo cambio di data annullano l'intento senza spostare il focus. Server, contratto, MCP,
+`Skeleton.tsx` e il secondo tocco su Menu non cambiano; nessuna dipendenza. Da provare
+dall'utente sull'iPhone dopo il rilascio: comparsa da un altro giorno, dallo swipe e dal
+calendario, barra ferma nelle due lingue con un mese lungo, VoiceOver e focus sul mese,
+PWA ripresa dopo la mezzanotte.
+
+**Avviso del menu pronto nel Menu** (W24, PR #80 unita il 23 ottobre 2026, rilascio in
+preparazione; spec `progetto/superpowers/specs/2026-10-23-avviso-menu-pronto.md`, sezione
+6; prodotto nella sezione 5 e in Parte 1; regole visive in `design/design.md`,
+«Calendario e navigazione»; prototipo `prototype/src/routes/menu/+page.svelte`,
+`DatePicker.svelte`, anteprima dell'email in `prototype/static/w24-email/`). Decisioni
+dell'utente: avviso discreto, un **pallino verde sull'icona del calendario** (10 px,
+`#067a46`, bordo del colore di fondo, in alto a destra) e non una scheda; nel mese aperto
+i **giorni della settimana nuova** con il numero `var(--green)` su fondo
+`var(--soft-green)` (`#eef5e8`, lo stesso dello stato attivo della navbar), con forma e
+raggio di 8 px delle celle, senza puntini né spazio in più, e il giorno scelto sempre
+scuro con testo bianco (le regole valgono solo per `:not([aria-pressed='true'])`).
+Contrasto del numero sul fondo 4,86:1. Il fondo è il secondo segnale chiesto dalla
+revisione, perché il numero verde contro l'inchiostro dei numeri normali ha 2,9:1;
+**limite dichiarato**: il fondo contro il bianco del pannello ha 1,11:1, e chi vede poco
+il contrasto lo distingue soprattutto dalla forma della fila di celle piene. Il pallino è
+`aria-hidden`; il nome del pulsante del calendario diventa «Scegli un giorno, menu della
+settimana prossima pronto» e quello dei giorni nuovi aggiunge «, settimana nuova»;
+nessun annuncio `aria-live`. Niente pallino nello skeleton del Menu. **Letture**:
+`MenuPage` legge `menu.getNewWeek` per la famiglia mostrata con una query propria per
+famiglia, `staleTime` breve e rilettura al ritorno in primo piano, e la invalida quando
+`getOpening` o `getWeek` si concludono con dati nuovi, così una settimana nata dalla
+generazione pigra durante la stessa apertura accende il pallino subito. **Visita**:
+appena il giorno mostrato cade nella settimana nuova, con la rete, `MenuPage` chiama
+`menu.markWeekSeen` e mette subito a `null` la risposta in cache di quella famiglia. Lo
+stato delle visite, per coppia (famiglia, settimana), «in corso» o «confermata», vive
+accanto al `QueryClient` e prevale sulle risposte: una lettura consegnata dopo
+l'aggiornamento ottimistico non rimette il pallino. Al successo la cache si riscrive a
+`null` senza invalidazioni; a un errore lo stato si toglie, la query si invalida e la
+chiamata si ripete alla visita successiva, senza coda offline. Alla revoca di una famiglia
+(`session.onRevoke`) le sue voci si cancellano e sale un contatore di generazione, così
+un esito di `markWeekSeen` partito prima non ricrea «confermata». Offline pallino e verde
+non si mostrano e `markWeekSeen` non si chiama; la lettura non si salva nella cache
+persistente (`web/src/api/persister.ts`, sezione 1). **Link dell'email**: «Apri il menu»
+porta a `/menu?day=<lunedì>&family=<id>`; il parametro `family` vale solo per `/menu` (la
+Spesa, che condivide il validatore del giorno, non lo riceve). Se la persona è membro di
+quella famiglia e non è quella mostrata, il Menu la sceglie con
+`profile.setCurrentFamily` prima di aprire il giorno; se non è membro il parametro si
+ignora; dopo l'uso sparisce dall'indirizzo (`replace`). **Primo rilascio** (scelta del
+worker confermata dal coordinatore): la migrazione segna come annunciate tutte le
+settimane già esistenti, senza email, così un rilascio fra giovedì e domenica non manda
+l'email di un menu preparato giorni prima; il pallino di quella settimana compare una
+volta anche a chi l'aveva già guardata, accettato. Meglio rilasciare prima di un
+mercoledì sera (sezione 10). Da provare dall'utente dopo il rilascio: l'email vera del
+mercoledì in Mail e in Gmail sull'iPhone e su un computer (miniature, colori, link), «Apri
+il menu» dalla PWA e da Safari, il link in fondo per spegnere l'opzione, il pallino il
+giovedì mattina e la sua scomparsa dopo la visita anche sull'altro dispositivo.
 
 **Struttura del riferimento approvato:** il Menu si apre direttamente sul calendario,
 senza header introduttivo o footer decorativo. I giorni restano in colonne da
@@ -4270,7 +4614,8 @@ per famiglia, account, cambio di famiglia e funzioni dei ruoli (gestione del
 ricettario, amministrazione, istruzioni MCP), con etichetta «Profilo» / «Profile» (rinominata
 nella review del quarto giro); la Spesa esce dalla navbar e si apre dal Menu (terzo giro). Sopra il
 selettore dei giorni una barra con il mese e le icone di azione (calendario e borsa
-della spesa); la scheda del pasto ha un footer a icone
+della spesa; dal 23 ottobre 2026 il pulsante «Oggi» quando serve e il pallino del menu
+pronto sul calendario, sopra); la scheda del pasto ha un footer a icone
 per scheda ricetta, voto, ingredienti e modifica (dal secondo giro; "non cucinato" è
 stato tolto); foto in
 banner basso 3:1 e fonte sulla riga del tempo, troncata. Le schede del ricettario usano
@@ -4402,6 +4747,7 @@ viene concordata, si aggiorna la relativa sezione e si chiude la voce qui.
 | 18 ottobre 2026, swipe fra le settimane | Riportate le decisioni del piano `2026-10-18-swipe-settimane.md` (W19, PR #72 unita il 18 ottobre, merge `160d83b`; rilascio in preparazione). Decisioni dell'utente: swipe orizzontale solo sulla fila dei giorni del Menu, verso sinistra la settimana successiva e verso destra la precedente, sullo stesso giorno della settimana; settimana inesistente con un piccolo rimbalzo e nessun messaggio; giorno di arrivo senza pasti aperto vuoto; calendario invariato come alternativa (sezione 5). Tecniche: eventi touch passivi, soglia di 48 px e prevalenza 2:1 sul verticale, un solo dito, clic sintetico dopo lo swipe ignorato; esistenza della settimana da `menu.getDates` dei mesi toccati o dalla copia salvata, con la navigazione del calendario anche offline; animazioni brevi con la Web Animations API, assenti con `prefers-reduced-motion`; nessuna libreria nuova (sezione 14) |
 | 18 ottobre 2026, swipe rilasciato, trascinamento (W21) e skeleton (W20) | Swipe fra le settimane (W19) rilasciato alle 12:09 UTC (versione del Worker `3260a367-c445-490d-abd3-359614a19f61`, commit `160d83b`). Riportate le decisioni del piano `2026-10-18-swipe-trascinamento.md` (W21, PR #74, merge `341bdb1`, rilasciata alle 13:49 UTC, versione `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`, commit `cbe5869`; collaudo sull'iPhone da fare). Decisioni dell'utente: la fila segue il dito e mostra i giorni della settimana accanto (solo date); cambio oltre un terzo della larghezza o con un colpo veloce; resistenza verso una settimana inesistente al posto del rimbalzo; arrivo senza salti. Tecniche: striscia di tre settimane con trasformazioni scritte nel DOM, `touchmove` non passivo con `preventDefault` solo a gesto orizzontale e `touch-action: pan-y pinch-zoom`, asse a 10 px, colpo veloce da 0,5 px/ms e 20 px, curva dei bordi di iOS, 220/200 ms con la Web Animations API, letture anticipate non osservate delle settimane accanto (`prefetchQuery`, `staleTime: Infinity`, decisione del coordinatore dopo la revisione della PR #74), scartato lo scorrimento nativo con snap. Riportate le decisioni della spec `2026-10-18-skeleton.md` (W20, issue #49, PR #75, merge `bb523a2`, rilascio in preparazione). Decisioni dell'utente: variante B con pulsazione lenta, eccezione approvata alla regola sulle animazioni decorative; pagine coperte e pagine rare invariate; in Cerca i risultati precedenti restano. Decisioni del coordinatore: skeleton anche in un ripristino locale oltre 200 ms; skeleton fermo offline; sezioni dei curatori senza skeleton, con lo spostamento ammesso. Tecniche: soglia di 200 ms, attesa della coda della Spesa, una sola attesa e un solo annuncio per pagina, layout di attesa condiviso con `FamilyGate`, componente `Skeleton.tsx` senza dipendenze nuove. Intestazione e sezioni 1, 5, 10 e 14 aggiornate; percorso 1 di `design/percorsi.md` |
 | 18 ottobre 2026, skeleton rilasciato e collaudi | Rilascio dello skeleton nei caricamenti (W20, issue #49, PR #75, merge `bb523a2`) il 18 ottobre alle 16:39 UTC (versione del Worker `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`, commit `bb523a2`), senza migrazioni né segreti. Collaudato dall'utente sull'iPhone lo stesso giorno: funziona. Collaudata dall'utente anche la fila dei giorni che segue il dito (W21, PR #74), provata dopo il suo rilascio: funziona. Intestazione e sezioni 10, 14 e 16 aggiornate |
+| 23 ottobre 2026, skeleton nelle pagine rare (W22), pulsante «Oggi» (W23) e avviso del menu pronto (W24) | Riportate le decisioni delle spec `2026-10-23-skeleton-pagine-rare.md` (W22, issue #49, PR #79, merge `9790f07`), `2026-10-23-bottone-oggi.md` (W23, PR #78, merge `c9a8be1`) e `2026-10-23-avviso-menu-pronto.md` (W24, PR #80, merge `f56f257`, migrazione `20261023100000_menu_ready_notice.sql`, variabile `APP_ORIGIN`), unite il 23 ottobre e in attesa di un unico rilascio. W22, decisione dell'utente: skeleton anche nelle pagine rare, nella verifica del link di `/password` e nelle sezioni dei curatori; decisioni del coordinatore: un solo annuncio di caricamento per pagina (gli altri status restano), sezioni condizionali con blocchi solo a ruolo noto e pagine riservate con lo skeleton anche prima, schede delle bozze dal riepilogo già in memoria (massimo 3, altrimenti una, nessuna lettura dal disco), che supera la decisione di W20 sulle sezioni dei curatori; tecniche: `LoadingScope` con `gather` e `label`, `FamilyGate` e `AdminAccessGate` con il layout di attesa. W23, decisioni dell'utente: pulsante «Oggi» con icona ed etichetta a sinistra del calendario, assente su oggi e se oggi non ha pasti, nessun adattamento sotto i 375 px; decisioni del coordinatore: visibilità dai dati della settimana di oggi con la query del Menu e il suo ciclo normale, data ricalcolata senza timer al ritorno in primo piano e al tocco, focus sul mese solo all'arrivo sulla destinazione. W24, decisioni dell'utente: email a tutti i membri nella loro lingua, attiva all'inizio, opzione per persona nelle Preferenze, righe compatte con miniatura, fotografia del menu, una per persona, famiglia e settimana; pallino verde sul calendario e giorni nuovi con numero verde su fondo verde chiaro fino alla prima visita o al lunedì; casi della generazione pigra, della famiglia nuova e di chi entra dopo. Decisioni del coordinatore: `menu.getNewWeek` e `menu.markWeekSeen` senza MCP (eccezione alla sezione 13), miniature con cache di un giorno (eccezione alla decisione del W12 sulle cache HTTP) senza garanzia sulle copie già scaricate, meglio nessuna email che un doppione con gli esiti incerti contati nel tetto di 60 email per giorno UTC, primo rilascio senza email per le settimane già preparate, W23 unito prima di W24. Tecniche: regola unica `app.menu_week_to_announce`, tabelle `menu_week_views`, `menu_announcements`, `menu_emails` e `menu_email_budget`, colonna `profile_preferences.menu_emails`, annuncio e consegna nel cron orario con un orologio unico, seconda trasformazione per foto, rotta `/photos/email/<id>.jpg`, parametro `family` del link al Menu, log nuovi fra cui `menu_email_budget_spent` e `menu_email_sent_after_close`, livello `warn` nei log del server. Intestazione, Parte 1 («Una settimana tipo», «Cosa l'app non fa (per ora)», requisiti MCP) e sezioni 1, 2, 4, 5, 7, 8, 10, 12, 13 e 14 aggiornate; percorsi 1 e 5 di `design/percorsi.md`; «Interfacce decise» del piano generale |
 
 ### 17. Review avversariale del 3 ottobre 2026
 
