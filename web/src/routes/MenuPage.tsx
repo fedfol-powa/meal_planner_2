@@ -1,5 +1,5 @@
 import { useQueries, useQuery, type QueryClient } from '@tanstack/react-query';
-import { getRouteApi, Link } from '@tanstack/react-router';
+import { getRouteApi, Link, useLocation } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isBlocking, toApiError } from '../api/errors';
 import { useAreaMutation } from '../api/mutations';
@@ -38,16 +38,24 @@ type FamilyLinkState = { status: 'none' } | { status: 'waiting'; paused: boolean
  * and it is not the one shown, it is chosen on the server before the day opens. The parameter goes away
  * (`replace`) once the family is the current one in the profile, or at once when the person is not in it.
  * A failed choice never falls back to the previous family: the link stays, with the error and a retry;
- * offline the choice waits for the network the same way (PR #80 review, finding 1).
+ * offline the choice waits for the network the same way (PR #80 review, finding 1). Each navigation is a
+ * destination of its own (history entry and family), and only one choice runs at a time: a later link
+ * waits for the earlier answer, which then neither drops nor answers for it (finding 2).
  */
 function useFamilyLink(linked: string | undefined): FamilyLinkState {
   const { api } = useQueryDeps();
   const navigate = route.useNavigate();
   const online = useOnline();
   const profile = useProfile().data;
-  const destination = linked;
+  const entry = useLocation({ select: (location) => location.state.__TSR_key });
+  const destination = linked ? `${entry}:${linked}` : undefined;
   const choose = useAreaMutation('profile.setCurrentFamily', undefined, (familyId: string) => api.profile.setCurrentFamily({ familyId }));
   const { mutate, isPending } = choose;
+  // The destination of the address now, for the answers of a choice started for an earlier one.
+  const latest = useRef(destination);
+  useLayoutEffect(() => {
+    latest.current = destination;
+  });
   const tried = useRef<string | undefined>(undefined);
   // A retry clears it, and the effect starts the choice again.
   const [failed, setFailed] = useState<{ destination: string; error: unknown } | null>(null);
@@ -61,10 +69,10 @@ function useFamilyLink(linked: string | undefined): FamilyLinkState {
       // Applied, the profile now shows the family and the next run drops the parameter; not applied, a
       // later choice of the person won and the link has nothing left to choose.
       onSuccess: ({ applied }) => {
-        if (!applied) drop();
+        if (!applied && latest.current === destination) drop();
       },
       onError: (error) => {
-        setFailed({ destination, error });
+        if (latest.current === destination) setFailed({ destination, error });
       }
     });
   }, [linked, destination, profile, online, isPending, failed, mutate, navigate]);

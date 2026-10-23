@@ -104,6 +104,12 @@ describe('menu', () => {
       }
       return { api, home, seen, choose };
     }
+    /** setCurrentFamily answers only when the test resolves its call (in order). */
+    function heldChoices(api: Api, choose: (familyId: string) => unknown) {
+      const held: { familyId: string; resolve: () => void }[] = [];
+      api.profile.setCurrentFamily = vi.fn(({ familyId }: { familyId: string }) => new Promise((resolve) => held.push({ familyId, resolve: () => resolve(choose(familyId)) }))) as unknown as typeof api.profile.setCurrentFamily;
+      return held;
+    }
     it('chooses the family of the link, opens its day and drops the parameter', async () => {
       const { api, home, seen } = await twoFamilies();
       const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
@@ -148,6 +154,58 @@ describe('menu', () => {
       expect(seen).not.toContain(home.id);
       expect(seen).toContain(OTHER);
       expect(history.location.search).not.toContain('family');
+    });
+    it('follows a second link on the same page, also to the family already shown', async () => {
+      const { api, home } = await twoFamilies();
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
+      await weekShown('lunedì 12 ottobre');
+      expect(history.location.search).not.toContain('family');
+      act(() => history.push(`/menu?day=2026-10-13&family=${home.id}`));
+      await weekShown('martedì 13 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      expect(api.profile.setCurrentFamily).toHaveBeenLastCalledWith({ familyId: home.id }, expect.anything());
+      // Twice the family already shown: no choice, the link goes away each time.
+      act(() => history.push(`/menu?day=2026-10-14&family=${home.id}`));
+      await weekShown('mercoledì 14 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      act(() => history.push(`/menu?day=2026-10-15&family=${home.id}`));
+      await weekShown('giovedì 15 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(2);
+    });
+    it('a late answer of an earlier link does not take the newer one', async () => {
+      const { api, home, seen, choose } = await twoFamilies();
+      const held = heldChoices(api, choose);
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
+      await waitFor(() => expect(held).toHaveLength(1));
+      // A second link, to the family still shown on the server, while the first choice is under way.
+      act(() => history.push(`/menu?day=2026-10-13&family=${home.id}`));
+      await act(async () => held[0]!.resolve());
+      // The first answer leaves the newer link in place: it chooses its own family in turn.
+      await waitFor(() => expect(held).toHaveLength(2));
+      expect(held[1]!.familyId).toBe(home.id);
+      expect(history.location.search).toContain(`family=${home.id}`);
+      expect(seen).toEqual([]);
+      await act(async () => held[1]!.resolve());
+      await weekShown('martedì 13 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      expect(seen).not.toContain(OTHER);
+    });
+    it('a new link to the same family after a failed choice tries again', async () => {
+      const { api, choose } = await twoFamilies();
+      let refuse = true;
+      api.profile.setCurrentFamily = vi.fn(async ({ familyId }: { familyId: string }) => {
+        if (refuse) throw new ApiError('network');
+        return choose(familyId);
+      }) as unknown as typeof api.profile.setCurrentFamily;
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
+      await screen.findByRole('button', { name: 'Riprova' });
+      refuse = false;
+      // The email's button tapped again: the same address, a navigation of its own.
+      act(() => history.push(`/menu?day=2026-10-12&family=${OTHER}`));
+      await weekShown('lunedì 12 ottobre');
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
     });
     it('offline waits for the network with the link of a family of the person, then chooses it', async () => {
       const { api, home, seen } = await twoFamilies();
