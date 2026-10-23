@@ -5,9 +5,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 23 ottobre 2026)
 
-- **Attività in corso:** W22, skeleton nelle pagine rare e nelle sezioni dei curatori
-  (seguito della issue #49), brief `brief/w22-skeleton-pagine-rare.md`, fase 1-2
-  (censimento, spec e piano). Avviato il 23/10 su richiesta dell'utente.
+- **Attività in corso:** W22 (skeleton nelle pagine rare e nelle sezioni dei curatori,
+  seguito della issue #49) e W24 (avviso del menu pronto), entrambi in implementazione.
 - **Worker attivi:** W22, tab «W22 skeleton pagine rare» (`w1:t5R`, pane `w1:p5R`), branch
   `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w22-spec-piano.md`), correzioni
@@ -16,15 +15,6 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `messaggi/w22-02-revisione-spec-2.md`; revisione 3 con un solo rilievo minore (etichetta
   del ruolo negli Inviti): spec e piano approvati dal coordinatore con quella correzione;
   corretto (commit `1843993`), `/clear` e implementazione in corso.
-  W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
-  «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
-  `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
-  LAN porta 8766); scelte dell'utente: variante C, 320 px ignorati, niente pulsante su oggi senza pasti;
-  revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w23-spec-piano.md`), correzioni in
-  `messaggi/w23-01-revisione-spec.md`; revisione 2 APPROVABILE CON CORREZIONI, correzioni
-  in `messaggi/w23-02-revisione-spec-2.md`; revisione 3 con due rilievi sul focus: spec e
-  piano approvati dal coordinatore (commit `b349664`); `PR_APERTA` #78; revisione APPROVABILE CON CORREZIONI
-  (`revisioni/w23-pr78.md`, due rilievi); `PR_CORRETTA`, secondo giro in corso.
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
@@ -38,12 +28,15 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   dal coordinatore (commit `6d8b786`); `/clear` e implementazione in corso.
   Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
   della PR.
-- **Revisori attivi:** «R W23 PR 2», rapporto atteso `revisioni/w23-pr78-2.md`.
+- **Unite, in attesa del rilascio unico:** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
+  revisioni `revisioni/w23-*.md`); tab, worktree e branch rimossi. Decisioni da riportare
+  nella specifica: nella spec `2026-10-23-bottone-oggi.md`, da riportare insieme a W22 e W24.
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
-- **Domande in sospeso:** brainstorming di W24 con l'utente (direttamente nella tab); via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
+- **Domande in sospeso:** via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
   rilasciata) dopo W22.
 - **Rilascio:** decisione dell'utente (23/10): un unico rilascio quando W22, W23 e W24 sono
   tutti uniti. Comprende la migrazione di W24 e la variabile `APP_ORIGIN`; meglio prima di un
@@ -51,8 +44,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
-- **Prossimo passo:** revisione Codex di spec e piano di W22 a `STATO: SPEC_E_PIANO_PRONTI`;
-  varianti del prototipo di W23 da girare all'utente a `STATO: DOMANDA`.
+- **Prossimo passo:** revisione delle PR di W22 e W24 quando arrivano; dopo i merge, PR di
+  documentazione con le decisioni di W22, W23 e W24 nella specifica; poi anteprima del
+  rilascio unico.
 
 ## Storico
 
