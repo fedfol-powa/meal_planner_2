@@ -1,8 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { OverviewView } from '@app/contract';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { cacheKey, createMemoryStore, type KeyValueStore } from '../api/persister';
+import { catalogueKeys } from '../features/catalogue/queries';
 import { catalogueApi, LUCIA } from '../features/catalogue/test-support';
 import { setOnline } from '../test/connectivity';
 import { gate, holdCalls } from '../test/holdCalls';
@@ -141,6 +143,139 @@ describe('recipe book while loading (W20)', () => {
     act(() => setOnline(true));
     expect((await screen.findAllByRole('article', {}, { timeout: 3000 })).length).toBeGreaterThan(0);
     expect(document.querySelector('.skeleton')).toBeNull();
+  });
+});
+
+/** An overview already in memory, read in another language. */
+function CachedOverview({ locale, view }: { locale: string; view: OverviewView }) {
+  const client = useQueryClient();
+  if (!client.getQueryData(catalogueKeys.overview(locale))) client.setQueryData(catalogueKeys.overview(locale), view);
+  return null;
+}
+
+const common: OverviewView = { ...overview, drafts: overview.drafts.map((d) => ({ ...d, missing: ['source'] })) };
+const sectionBlocks = () => [...document.querySelectorAll<HTMLElement>('.secondary-view .skeleton')].filter((el) => el.querySelector('h2'));
+const draftCards = () => document.querySelectorAll('.secondary-view .skeleton .skeleton-card:not(.meal)');
+const loadingStatuses = () => screen.queryAllByRole('status').filter((s) => s.textContent === 'Caricamento…');
+const resultsArea = () => document.querySelector('.secondary-view .recipe-grid, .secondary-view [aria-busy]');
+
+describe('curator sections while loading (W22)', () => {
+  it('curator: one draft card and the archived title while the overview loads', async () => {
+    const api = catalogueApi({ overview: async () => common });
+    const held = holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api });
+    await waitFor(() => expect(sectionBlocks()).toHaveLength(2));
+    expect(draftCards()).toHaveLength(1);
+    const [drafts, archived] = sectionBlocks();
+    const results = (await screen.findAllByRole('article'))[0]!;
+    expect(drafts!.compareDocumentPosition(results) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(archived!.compareDocumentPosition(results) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    await held.open();
+    expect(await screen.findByText('Zuppa di farro')).toBeTruthy();
+  });
+
+  it('curator: the count of a cached overview in another language', async () => {
+    const two: OverviewView = { ...common, drafts: [common.drafts[0]!, { ...common.drafts[0]!, draftId: '1d7c3b1e-0000-4000-8000-000000000002', name: 'Torta' }] };
+    const api = catalogueApi({ overview: async () => two });
+    holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api, extra: <CachedOverview locale="en-GB" view={two} /> });
+    await waitFor(() => expect(draftCards()).toHaveLength(2));
+  });
+
+  it('curator: no drafts in a cached overview, no drafts section of blocks', async () => {
+    const none: OverviewView = { ...common, drafts: [] };
+    const api = catalogueApi({ overview: async () => none });
+    holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api, extra: <CachedOverview locale="en-GB" view={none} /> });
+    await waitFor(() => expect(sectionBlocks()).toHaveLength(1));
+    expect(draftCards()).toHaveLength(0);
+  });
+
+  it('curator: the recipe count and one loading announcement', async () => {
+    const api = catalogueApi({ overview: async () => common });
+    const held = holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api });
+    await screen.findAllByRole('article');
+    await waitFor(() => expect(loadingStatuses()).toHaveLength(1));
+    expect(screen.getAllByRole('status').some((s) => /ricett/.test(s.textContent ?? ''))).toBe(true);
+    await held.open();
+    await screen.findByText('Zuppa di farro');
+    expect(loadingStatuses()).toHaveLength(0);
+  });
+
+  it('curator: sections replace their blocks', async () => {
+    const api = catalogueApi({ overview: async () => common });
+    const held = holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api });
+    await waitFor(() => expect(draftCards()).toHaveLength(1));
+    await held.open();
+    expect(await screen.findByText('Zuppa di farro')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Archiviate/ })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: /Zuppa di farro/ })).toHaveLength(1);
+    await waitFor(() => expect(document.querySelector('.skeleton')).toBeNull());
+  });
+
+  it('curator: no drafts removes the section on arrival', async () => {
+    const api = catalogueApi({ overview: async () => ({ drafts: [], archived: [] }) });
+    const held = holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api });
+    await waitFor(() => expect(sectionBlocks()).toHaveLength(2));
+    await held.open();
+    await waitFor(() => expect(document.querySelector('.skeleton')).toBeNull());
+    expect(screen.queryByRole('button', { name: /Bozze/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Archiviate/ })).toBeNull();
+  });
+
+  it('role arrives during the wait: blocks join, filters stay', async () => {
+    const api = catalogueApi({ overview: async () => common });
+    const profile = holdCalls(api, 'profile', 'get');
+    holdCalls(api, 'catalogue', 'overview');
+    renderApp('/recipes', { api });
+    const box = await screen.findByRole('searchbox');
+    expect(sectionBlocks()).toHaveLength(0);
+    await profile.open();
+    await waitFor(() => expect(draftCards()).toHaveLength(1));
+    expect(screen.getByRole('searchbox')).toBe(box);
+    await waitFor(() => expect(loadingStatuses()).toHaveLength(1));
+  });
+
+  it('not a curator: never a block of the sections', async () => {
+    const api = catalogueApi({ overview: async () => common }, []);
+    const search = holdCalls(api, 'recipes', 'search');
+    renderApp('/recipes', { api });
+    await screen.findByRole('searchbox');
+    expect(sectionBlocks()).toHaveLength(0);
+    await new Promise((done) => setTimeout(done, 250));
+    expect(sectionBlocks()).toHaveLength(0);
+    expect(resultsArea()).not.toBeNull();
+    await search.open();
+    await screen.findAllByRole('article');
+    expect(sectionBlocks()).toHaveLength(0);
+    expect(document.querySelector('.skeleton')).toBeNull();
+  });
+
+  it('not a curator with the profile held: never a block of the sections', async () => {
+    const api = catalogueApi({ overview: async () => common }, []);
+    const profile = holdCalls(api, 'profile', 'get');
+    renderApp('/recipes', { api });
+    await screen.findByRole('searchbox');
+    expect(sectionBlocks()).toHaveLength(0);
+    await profile.open();
+    expect(sectionBlocks()).toHaveLength(0);
+    await screen.findAllByRole('article');
+    expect(sectionBlocks()).toHaveLength(0);
+  });
+
+  it('curator: no section blocks with the overview cached', async () => {
+    const api = catalogueApi({ overview: async () => common });
+    const { history } = renderApp('/recipes', { api });
+    await screen.findByText('Zuppa di farro');
+    act(() => history.push('/profile'));
+    await screen.findByRole('heading', { level: 1, name: 'Federico' });
+    holdCalls(api, 'catalogue', 'overview');
+    act(() => history.push('/recipes'));
+    expect(await screen.findByText('Zuppa di farro')).toBeTruthy();
+    expect(sectionBlocks()).toHaveLength(0);
   });
 });
 

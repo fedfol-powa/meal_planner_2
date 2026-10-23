@@ -9,7 +9,7 @@ import { RecipeListSkeleton } from '../components/PageSkeletons';
 import { QueryError } from '../components/QueryError';
 import { RecipeCard } from '../components/RecipeCard';
 import { RecipeFilters } from '../components/RecipeFilters';
-import { LoadingArea } from '../components/Skeleton';
+import { LoadingArea, LoadingScope } from '../components/Skeleton';
 import { StateNotice } from '../components/StateNotice';
 import { ArchivedRecipesSection } from '../features/catalogue/ArchivedRecipesSection';
 import { CatalogueDraftsSection } from '../features/catalogue/CatalogueDraftsSection';
@@ -31,6 +31,7 @@ export function RecipesPage() {
   // One tree in every state (W20): title, filters and the curator's sections never remount while the
   // profile and the results load, so an open filter panel and a field being typed in stay as they are.
   // The curator's sections do not depend on the family (spec of W3, section 1): also next to «no family».
+  // Results and sections are one wait (W22): one announcement, each part shown when its data arrives.
   const waitingOrReady = state.status === 'loading' || state.status === 'ready';
   return (
     <section className="secondary-view app-view">
@@ -39,15 +40,17 @@ export function RecipesPage() {
           <h1 className="page-title">{t('recipes.title')}</h1>
         </header>
         {waitingOrReady && <RecipeFilters query={query} onChange={update} />}
-        <CatalogueDraftsSection />
-        {state.status === 'ready' ? (
-          <RecipesResults family={state.family} query={query} update={update} />
-        ) : state.status === 'loading' ? (
-          <LoadingArea loading paused={state.paused} skeleton={<RecipeListSkeleton />} />
-        ) : (
-          <FamilyNotice state={state} />
-        )}
-        <ArchivedRecipesSection />
+        <LoadingScope gather>
+          <CatalogueDraftsSection />
+          {state.status === 'ready' ? (
+            <RecipesResults family={state.family} query={query} update={update} />
+          ) : state.status === 'loading' ? (
+            <LoadingArea loading paused={state.paused} skeleton={<RecipeListSkeleton />} />
+          ) : (
+            <FamilyNotice state={state} />
+          )}
+          <ArchivedRecipesSection />
+        </LoadingScope>
       </div>
     </section>
   );
