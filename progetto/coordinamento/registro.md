@@ -11,6 +11,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **Worker attivi:** W22, tab «W22 skeleton pagine rare» (`w1:t5R`, pane `w1:p5R`), branch
   `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
   nessuno (appena avviato).
+  W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
+  «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
+  `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti); ultimo STATO: nessuno.
 - **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
@@ -18,11 +21,11 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
 - **Domande in sospeso:** via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
   rilasciata) dopo W22.
-- **Limite:** 1 worker Claude; revisori Codex senza limite.
+- **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
-- **Prossimo passo:** revisione Codex di spec e piano di W22 quando il worker scrive
-  `STATO: SPEC_E_PIANO_PRONTI`.
+- **Prossimo passo:** revisione Codex di spec e piano di W22 a `STATO: SPEC_E_PIANO_PRONTI`;
+  varianti del prototipo di W23 da girare all'utente a `STATO: DOMANDA`.
 
 ## Storico
 
