@@ -29,14 +29,20 @@ solo quando serve.
 
 Dopo la revisione di spec e piano (`progetto/coordinamento/revisioni/w23-spec-piano.md`) il
 coordinatore ha deciso il 23/10 come accertare i pasti di oggi e quando ricalcolare il giorno
-(messaggio `w23-01-revisione-spec.md`); i punti 1, 6 e 7 lo riportano.
+(messaggio `w23-01-revisione-spec.md`); i punti 1, 6 e 7 lo riportano. Dopo il secondo giro
+(`revisioni/w23-spec-piano-2.md`, messaggio `w23-02-revisione-spec-2.md`) ha deciso il ciclo
+delle letture (punto 1) e chiesto di precisare il focus dopo mezzanotte (punto 3).
 
 1. **Quando compare.** Il pulsante c'è se e solo se il giorno mostrato non è oggi **e** è
    accertato che oggi ha almeno un pasto con contenuto (ricetta o pasto libero: `kind` diverso
    da `empty`). L'accertamento viene dai dati della settimana di oggi (`menu.getWeek` del lunedì
-   di oggi, con la stessa query del Menu): dalla cache se c'è, altrimenti letti ora, una volta.
-   Spesso è la settimana mostrata o una accanto già letta per lo swipe, e la lettura non si
-   ripete. Finché quei dati non ci sono (lettura in corso, errore, settimana inesistente,
+   di oggi, con la stessa query del Menu). Vale il normale ciclo di quella query, come per le
+   altre settimane osservate dal Menu: riuso della cache, richieste condivise con la stessa
+   chiave (spesso è la settimana mostrata o una accanto già letta per lo swipe), riletture con
+   verifica della versione al montaggio con dati scaduti, al ritorno in primo piano e alla
+   riconnessione. Una settimana accanto che contiene oggi, prima solo letta in anticipo per lo
+   swipe, diventa così osservata. Nessuna opzione speciale oltre a quelle del Menu (decisione
+   del coordinatore del 23/10). Finché quei dati non ci sono (lettura in corso, errore, settimana inesistente,
    offline senza copia) il pulsante non c'è. Non dipende da `menu.getOpening`, che può
    rispondere oggi anche con soli slot vuoti (sezione 5) e, dalla copia salvata, anche senza
    guardare i pasti: la regola di apertura del Menu resta com'è. «Oggi» è la data locale della
@@ -49,10 +55,21 @@ coordinatore ha deciso il 23/10 come accertare i pasti di oggi e quando ricalcol
    giorni di W21 resta legato al dito e alle settimane accanto, mentre «Oggi» può saltare di
    molte settimane, come il calendario.
 3. **Focus.** Dopo il tocco il pulsante sparisce: il focus passa al nome del mese quando il Menu
-   mostra davvero la destinazione del tocco (oggi, o l'apertura del nuovo giorno nel caso del
-   punto 6), anche se in mezzo c'è lo skeleton. L'intento è legato a quella destinazione: se
-   prima dell'arrivo l'utente va altrove (un giorno dello skeleton, il calendario, un'altra
-   vista) si annulla e il focus non si sposta.
+   mostra davvero la destinazione del tocco, anche se in mezzo c'è lo skeleton. L'intento
+   ricorda quale destinazione:
+   - **un giorno esplicito** (oggi, tocco normale): arrivata quando il Menu mostra quel giorno
+     con la sua settimana;
+   - **l'apertura per una data precisa della famiglia** (tocco dopo il cambio di giorno, punto
+     6): la destinazione è il giorno che risponde `menu.getOpening` per quella data. Un'apertura
+     provvisoria, cioè la copia salvata (`savedOpening`) mostrata mentre la richiesta è in
+     corso, non conta: può essere il giorno di ieri, e il focus non si sposta lì. L'apertura è
+     risolta quando arriva la risposta del server, oppure quando la richiesta si ferma senza
+     rete (in pausa) o fallisce: allora vale il giorno che il Menu mostra con la copia salvata,
+     cioè il ripiego offline che esiste già. La regola di apertura non cambia. Poi l'arrivo è
+     come per il giorno esplicito.
+   L'intento si annulla se prima dell'arrivo l'utente va altrove (un giorno, anche dello
+   skeleton o dell'apertura provvisoria, il calendario, un'altra vista) o se la data della
+   famiglia cambia ancora; allora il focus non si sposta.
 4. **Forma e misure.** Pulsante senza riquadro alto 44 px (area di tocco), freccia da 22 px e
    «Oggi» in Roboto Bold 14 px, colore del testo `#232323`, spazio di 6 px fra icona ed
    etichetta, raggio 8 px per il focus. Sta nel gruppo delle azioni a destra, prima del
@@ -115,14 +132,19 @@ coordinatore ha deciso il 23/10 come accertare i pasti di oggi e quando ricalcol
 - Visibilità (decisione del coordinatore del 23/10): il pulsante compare solo quando i dati
   della settimana di oggi, dalla cache o letti ora con la query `menu.getWeek` del Menu,
   mostrano almeno un pasto con contenuto oggi, e il giorno mostrato è un altro; finché quei
-  dati mancano resta nascosto, anche offline senza copia. Non usa `menu.getOpening`. Una
-  lettura in più al massimo, della settimana di oggi quando non è né mostrata né accanto.
-  Sezioni 5 e 14.
+  dati mancano resta nascosto, anche offline senza copia. Non usa `menu.getOpening`. Letture
+  (decisione del coordinatore del 23/10): il normale ciclo della query del Menu (cache,
+  richieste condivise, riletture al montaggio con dati scaduti, al ritorno in primo piano e
+  alla riconnessione), senza opzioni speciali; la settimana di oggi resta osservata anche
+  quando se ne mostra un'altra. Sezioni 5 e 14.
 - Cambio di giorno (decisione del coordinatore del 23/10): nessun timer; la data locale della
   famiglia si ricalcola a ogni disegno, al ritorno in primo piano (`visibilitychange` verso
   `visible`, `pageshow`) con uno stato che forza il disegno, e al tocco; in primo piano continuo
   a cavallo della mezzanotte si aggiorna al primo di questi eventi. Sezione 14.
 - Tocco come la scelta di un giorno (`select`), o come il secondo tocco su Menu se la data è
   cambiata; nessuna animazione nuova. Focus sul mese solo all'arrivo sulla destinazione del
-  tocco, intento annullato da un'altra navigazione. Sezione 14.
+  tocco: un giorno esplicito, oppure l'apertura per una data precisa, che si considera risolta
+  solo con la risposta del server o con la richiesta in pausa o fallita (ripiego sulla copia
+  salvata), mai sull'apertura provvisoria mentre la richiesta è in corso; intento annullato da
+  un'altra navigazione o da un nuovo cambio di data. Sezione 14.
 - Icona `today` nuova in `Icon.tsx`; nessuna dipendenza. Sezione 14.

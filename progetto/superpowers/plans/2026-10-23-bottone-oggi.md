@@ -37,7 +37,8 @@ Nessun cambiamento a server, contratto, MCP o regola di apertura.
 - Ritorno in primo piano dopo mezzanotte con risposte invariate, pulsante prima assente (Task 2
   per l'hook, Task 3 per il Menu).
 - Tocco dopo mezzanotte senza nuovi disegni: mai a ieri (Task 3).
-- Focus spostato su una navigazione successiva diversa dal tocco (Task 4, interruzione).
+- Focus spostato su una navigazione successiva diversa dal tocco, o consumato sull'apertura
+  provvisoria dopo mezzanotte (Task 4, due promesse controllate e interruzioni).
 
 ## Contesto dei test
 
@@ -55,6 +56,8 @@ const toForeground = () => act(() => { document.dispatchEvent(new Event('visibil
 // If jsdom does not report `visibilityState === 'visible'`, define it on `document` in the test.
 /** getWeek of one week waits for `release`; the others answer as usual. */
 function holdWeek(api: Api, held: IsoDate) { /* wraps api.menu.getWeek; returns { release(): void } */ }
+/** getOpening for one family date waits for `release`; the others answer as usual. */
+function holdOpening(api: Api, today: IsoDate) { /* wraps api.menu.getOpening; returns { release(): void } */ }
 ```
 
 ---
@@ -157,7 +160,8 @@ function holdWeek(api: Api, held: IsoDate) { /* wraps api.menu.getWeek; returns 
 - [ ] **Step 2:** `npx vitest run src/routes/MenuPage.test.tsx -t "Today button"` → FAIL.
 - [ ] **Step 3: implementa in `MenuView`**
   - `const todayWeek = useQuery({ ...weekQuery(deps, familyId, mondayOf(today)), retry: false });`
-    (stessa chiave della settimana mostrata quando coincidono).
+    con le stesse opzioni della query della settimana mostrata, niente di più (stessa chiave
+    quando coincidono; normale ciclo di letture, spec punto 1).
   - `const todayHasMeals = !!todayWeek.data?.days.find((d) => d.date === today)?.meals.some((m) => m.kind !== 'empty');`
   - `const showToday = todayHasMeals && selected !== today;`
   - `goToday()`: se `localNow(family.timeZone).slice(0, 10) !== today` →
@@ -178,26 +182,46 @@ function holdWeek(api: Api, held: IsoDate) { /* wraps api.menu.getWeek; returns 
 
 **Interfaces:**
 - Consumes: `goToday`, ref `month` (Task 3); `requested` (search `day`), `selected`, `week.data`.
-- Produces: ref `focusOnArrival = useRef<{ day: IsoDate | undefined } | null>(null)`.
+- Produces: tipo `FocusIntent = { kind: 'day'; day: IsoDate } | { kind: 'opening'; date: IsoDate }`
+  e ref `focusOnArrival = useRef<FocusIntent | null>(null)`.
 
-Regola: `goToday` imposta `focusOnArrival.current = { day }`, con `day` = `today` per `select`
-e `undefined` per `navigate({ search: {} })`. Un `useEffect` a ogni disegno: se c'è un intento
-e `requested !== intent.day` → annulla (l'utente è andato altrove); se `requested === intent.day`,
-`week.data` c'è, `selected` è definito (per `day` definito, `selected === day`) e `month.current`
-esiste → `month.current.focus()` e annulla.
+Regola (spec, punto 3):
+- `goToday` imposta `{ kind: 'day', day: today }` prima di `select(today)`, oppure
+  `{ kind: 'opening', date: <nuova data> }` prima di `navigate({ search: {} })`.
+- Un `useEffect` a ogni disegno calcola la destinazione dell'intento:
+  - annulla se `kind === 'day'` e `requested !== day`, o se `kind === 'opening'` e
+    (`requested !== undefined` o `today !== date`);
+  - `kind === 'day'` → destinazione `day`;
+  - `kind === 'opening'` → destinazione `openingDay.date` solo se l'apertura è risolta:
+    `opening.data` c'è e (`!opening.isPlaceholderData` o `opening.fetchStatus === 'paused'` o
+    `opening.isError`); altrimenti nessuna destinazione e si aspetta (con `today === date`, la
+    chiave della query è già quella della nuova data);
+  - con una destinazione: se `week.data` c'è, `selected === destinazione` e `month.current`
+    esiste → `month.current.focus()` e annulla.
 
 - [ ] **Step 1: test che falliscono**
   - Aggiungi a «goes back to today from another day of the week» e «…from another week already
     read»: `await waitFor(() => expect(document.activeElement).toBe(month()))`.
-  - `it('moves the focus to the month only once the new day has arrived')`: ora domenica
-    `2026-10-11T10:00:00Z` prima di `renderApp`; `const held = holdWeek(api, '2026-10-12')`;
-    `?day=2026-10-06`, `weekShown` (pulsante presente: domenica ha pasti); ora lunedì
-    `2026-10-12T08:00:00Z`; click → `document.querySelector('.calendar [aria-busy="true"]')`
-    non null, `todayButton()` null, `document.activeElement` non è un pulsante del mese;
-    `held.release()` → `weekShown('lunedì 12 ottobre')`, `current()` lunedì 12, focus su `month()`.
-  - `it('drops the focus intent when another day is chosen while waiting')`: come sopra fino
-    allo skeleton; click su `martedì 13 ottobre` nella fila dello skeleton; `held.release()` →
+  Preparazione comune dei test dopo mezzanotte: ora domenica `2026-10-11T10:00:00Z` prima di
+  `renderApp`; `const week = holdWeek(api, '2026-10-12')`, `const opening = holdOpening(api, '2026-10-12')`;
+  `?day=2026-10-06`, `weekShown` (l'apertura di domenica 11 e la settimana del 5 sono salvate,
+  quella del 12 no; pulsante presente perché domenica ha pasti); ora lunedì
+  `2026-10-12T08:00:00Z`, nessun evento; click su «Vai a oggi».
+  - `it('waits for the real opening before moving the focus')`: dopo il click il Menu mostra
+    l'apertura provvisoria salvata (`current()` domenica 11) e `document.activeElement` non è
+    `month()`; `opening.release()` → compare lo skeleton
+    (`document.querySelector('.calendar [aria-busy="true"]')` non null), focus ancora non sul
+    mese, `todayButton()` null; `week.release()` → `weekShown('lunedì 12 ottobre')`,
+    `current()` lunedì 12, `await waitFor(() => expect(document.activeElement).toBe(month()))`.
+  - `it('drops the focus intent when a day is chosen on the provisional opening')`: dopo il
+    click, sull'apertura provvisoria click su `sabato 10 ottobre`; `opening.release()`,
+    `week.release()` → `current()` sabato 10, `document.activeElement` diverso da `month()`.
+  - `it('drops the focus intent when another day is chosen while waiting')`: dopo il click,
+    `opening.release()`; nello skeleton click su `martedì 13 ottobre`; `week.release()` →
     `current()` martedì 13, `document.activeElement` diverso da `month()`.
+  - `it('moves the focus on the saved opening when offline')`: come la preparazione, ma
+    `setOnline(false)` prima del click; dopo il click il Menu resta sull'apertura salvata
+    (domenica 11, richiesta in pausa) e il focus va su `month()`.
 - [ ] **Step 2:** `npx vitest run src/routes/MenuPage.test.tsx -t "Today button"` → FAIL sui focus.
 - [ ] **Step 3:** implementa la regola sopra.
 - [ ] **Step 4:** `npx vitest run src/routes/MenuPage.test.tsx` → PASS, compresi i test di focus
