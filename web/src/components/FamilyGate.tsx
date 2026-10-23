@@ -4,6 +4,7 @@ import type { FamilyView } from '../api/types';
 import { useT } from '../i18n/LocaleProvider';
 import { useFamily, type FamilyState } from '../session/useFamily';
 import { QueryError } from './QueryError';
+import { LoadingContinuity } from './Skeleton';
 import { StateNotice } from './StateNotice';
 
 /**
@@ -14,6 +15,11 @@ import { StateNotice } from './StateNotice';
  * the recipe book), placed around the notice.
  */
 export function FamilyGate({ children, waiting, before, after }: { children: (family: FamilyView) => ReactNode; waiting: (paused: boolean) => ReactNode; before?: ReactNode; after?: ReactNode }) {
+  // One continuity for the page (W22): from the waiting layout to the page's own, the visible wait goes on.
+  return <LoadingContinuity><FamilyGateContent waiting={waiting} before={before} after={after}>{children}</FamilyGateContent></LoadingContinuity>;
+}
+
+function FamilyGateContent({ children, waiting, before, after }: { children: (family: FamilyView) => ReactNode; waiting: (paused: boolean) => ReactNode; before?: ReactNode; after?: ReactNode }) {
   const state = useFamily();
   if (state.status === 'ready') return <>{children(state.family)}</>;
   if (state.status === 'loading') return <>{waiting(state.paused)}</>;

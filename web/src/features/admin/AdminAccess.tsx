@@ -6,6 +6,7 @@ import { toApiError } from '../../api/errors';
 import { profileQuery } from '../../api/profile';
 import { familyAccessOf, useQueryDeps, type QueryDeps } from '../../api/queries';
 import { QueryError } from '../../components/QueryError';
+import { LoadingContinuity } from '../../components/Skeleton';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
@@ -134,7 +135,12 @@ export function useAdminAccess(): AdminAccess {
  * The profile is read here: when a check ends, this render must see the profile it read, not
  * the one a parent got before (that would mount the content again and repeat the forbidden).
  */
-export function AdminAccessGate({ fallbackHeader, waiting, children }: {
+export function AdminAccessGate(props: Parameters<typeof AdminAccessContent>[0]) {
+  // One continuity for the page (W22): from the check's waiting layout to the page's own, the wait goes on.
+  return <LoadingContinuity><AdminAccessContent {...props} /></LoadingContinuity>;
+}
+
+function AdminAccessContent({ fallbackHeader, waiting, children }: {
   /** Shown above the check's error and «Non hai accesso» (the detail page's header). */
   fallbackHeader?: ReactNode;
   /** The page's waiting layout, with its own header. */

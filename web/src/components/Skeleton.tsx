@@ -12,35 +12,47 @@ import { useT } from '../i18n/LocaleProvider';
 export const SKELETON_DELAY_MS = 200;
 
 /**
- * A visible wait unmounted while still waiting, in the commit being applied (W22): its layout gave way to
- * the next layout of the same wait (FamilyGate or AdminAccessGate to the page, the profile to the detail).
- * A wait starting in the same commit shows its blocks at once instead of hiding them for another delay.
+ * The continuity of one page's wait (W22): its gate (FamilyGate, AdminAccessGate) shows the waiting layout,
+ * then the page shows its own layout of the same wait, and the scope remounts. A visible wait unmounted
+ * while still waiting hands over to a wait starting in the same commit inside the same continuity, which
+ * shows its blocks at once. A new page mounts a new continuity: its wait starts the delay again.
  */
-let handingOff = false;
+interface Continuity { handingOff: boolean }
+
+const ContinuityContext = createContext<Continuity | null>(null);
+
+export function LoadingContinuity({ children }: { children: ReactNode }) {
+  const [continuity] = useState<Continuity>(() => ({ handingOff: false }));
+  return <ContinuityContext.Provider value={continuity}>{children}</ContinuityContext.Provider>;
+}
 
 /**
  * True once `active` has lasted `delayMs`; false as soon as it ends. Each new wait starts again, except one
- * that takes over from a visible wait unmounted in the same commit.
+ * that takes over from a visible wait of the same continuity unmounted in the same commit.
  */
 export function useShowAfter(active: boolean, delayMs = SKELETON_DELAY_MS): boolean {
+  const continuity = useContext(ContinuityContext);
   const [shown, setShown] = useState(false);
   useEffect(() => {
     setShown(false);
     if (!active) return;
-    if (handingOff) return setShown(true);
+    if (continuity?.handingOff) return setShown(true);
     const timer = setTimeout(() => setShown(true), delayMs);
     return () => clearTimeout(timer);
-  }, [active, delayMs]);
+  }, [active, delayMs, continuity]);
   const visible = active && shown;
-  const last = useRef(visible);
-  last.current = visible;
+  // Read at unmount: whether the blocks were visible in the last committed render.
+  const last = useRef(false);
+  useEffect(() => {
+    last.current = visible;
+  }, [visible]);
   useEffect(
     () => () => {
-      if (!last.current) return;
-      handingOff = true;
-      queueMicrotask(() => (handingOff = false));
+      if (!continuity || !last.current) return;
+      continuity.handingOff = true;
+      queueMicrotask(() => (continuity.handingOff = false));
     },
-    []
+    [continuity]
   );
   return visible;
 }

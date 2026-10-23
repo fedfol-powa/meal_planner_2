@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n/LocaleProvider';
-import { LoadingArea, LoadingScope, Skeleton } from './Skeleton';
+import { LoadingArea, LoadingContinuity, LoadingScope, Skeleton } from './Skeleton';
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
@@ -179,39 +179,83 @@ describe('LoadingScope gather', () => {
   });
 });
 
-describe('LoadingScope handoff (W22)', () => {
-  it('a wait that takes over from a visible one, unmounted while waiting, shows at once', () => {
-    const view = (which: 'gate' | 'page') =>
-      wrap(which === 'gate' ? <LoadingArea key="gate" loading skeleton={<span className="skeleton-card" />} /> : <LoadingArea key="page" loading skeleton={<span className="skeleton-card" />} />);
-    const { container, rerender } = render(view('gate'));
+describe('LoadingContinuity (W22)', () => {
+  const block = <span className="skeleton-card" />;
+  // One page: its gate shows the waiting layout, then the page's own layout of the same wait.
+  const page = (phase: 'gate' | 'detail', gather = false) =>
+    wrap(
+      <LoadingContinuity>
+        {phase === 'gate' ? (
+          <LoadingArea key="gate" loading skeleton={block} />
+        ) : gather ? (
+          <LoadingScope gather key="detail">
+            <LoadingArea loading skeleton={block} />
+          </LoadingScope>
+        ) : (
+          <LoadingArea key="detail" loading skeleton={block} />
+        )}
+      </LoadingContinuity>
+    );
+  // Two pages: each with its own continuity (a route change mounts a new one).
+  const route = (name: string, loading = true) =>
+    wrap(
+      <LoadingContinuity key={name}>
+        <LoadingArea loading={loading} skeleton={block} />
+      </LoadingContinuity>
+    );
+
+  it('the same page keeps its visible wait from the gate to the detail', () => {
+    const { container, rerender } = render(page('gate'));
     act(() => void vi.advanceTimersByTime(200));
     expect(skeleton(container)?.dataset.visible).toBe('true');
-    rerender(view('page'));
+    rerender(page('detail'));
     expect(skeleton(container)?.dataset.visible).toBe('true');
     expect(status().textContent).toBe('Caricamento…');
   });
 
-  it('a gathered wait that takes over from a visible one shows at once', () => {
-    const view = (which: string) =>
-      wrap(
-        <LoadingScope gather key={which}>
-          <LoadingArea loading skeleton={<span className="skeleton-card" />} />
-        </LoadingScope>
-      );
-    const { container, rerender } = render(view('gate'));
+  it('the same page keeps it also when the detail gathers its areas', () => {
+    const { container, rerender } = render(page('gate'));
     act(() => void vi.advanceTimersByTime(200));
-    expect(skeleton(container)?.dataset.visible).toBe('true');
-    rerender(view('page'));
+    rerender(page('detail', true));
     expect(skeleton(container)?.dataset.visible).toBe('true');
   });
 
-  it('a wait that ended with its data does not hand off', () => {
-    const { container, rerender, unmount } = render(area(true));
+  it('a new page waits the whole delay again', () => {
+    const { container, rerender } = render(route('members'));
     act(() => void vi.advanceTimersByTime(200));
-    rerender(area(false));
-    unmount();
-    const next = render(area(true));
-    expect(skeleton(next.container)?.dataset.visible).toBe('false');
-    void container;
+    expect(skeleton(container)?.dataset.visible).toBe('true');
+    rerender(route('exclusions'));
+    expect(skeleton(container)?.dataset.visible).toBe('false');
+    act(() => void vi.advanceTimersByTime(199));
+    expect(skeleton(container)?.dataset.visible).toBe('false');
+    act(() => void vi.advanceTimersByTime(1));
+    expect(skeleton(container)?.dataset.visible).toBe('true');
+  });
+
+  it('a new page answered within the delay never shows its blocks', () => {
+    const { container, rerender } = render(route('members'));
+    act(() => void vi.advanceTimersByTime(200));
+    rerender(route('exclusions'));
+    act(() => void vi.advanceTimersByTime(150));
+    expect(skeleton(container)?.dataset.visible).toBe('false');
+    rerender(route('exclusions', false));
+    expect(skeleton(container)).toBeNull();
+    expect(status().textContent).toBe('');
+  });
+
+  it('without a continuity a remounted wait starts again', () => {
+    const view = (key: string) => wrap(<LoadingArea key={key} loading skeleton={block} />);
+    const { container, rerender } = render(view('a'));
+    act(() => void vi.advanceTimersByTime(200));
+    rerender(view('b'));
+    expect(skeleton(container)?.dataset.visible).toBe('false');
+  });
+
+  it('a wait that ended with its data does not carry over', () => {
+    const { container, rerender } = render(page('gate'));
+    act(() => void vi.advanceTimersByTime(200));
+    rerender(wrap(<LoadingContinuity><LoadingArea key="gate" loading={false} skeleton={block} /></LoadingContinuity>));
+    rerender(page('detail'));
+    expect(skeleton(container)?.dataset.visible).toBe('false');
   });
 });

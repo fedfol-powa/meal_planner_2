@@ -169,3 +169,54 @@ describe('members while loading (W22)', () => {
     expect(document.querySelector('.secondary-view .skeleton')).toBeNull();
   });
 });
+
+describe('one wait per page, not across pages (W22, PR #79 review)', () => {
+  const visibleNow = () => document.querySelector<HTMLElement>('.secondary-view .skeleton')?.dataset.visible;
+
+  it('members: from the profile to the detail the visible blocks go on', async () => {
+    const { api, backend } = setup();
+    const profile = holdCalls(api, 'profile', 'get');
+    holdCalls(api, 'family', 'get');
+    renderApp(PATH, { api, backend });
+    await waitFor(() => expect(blockCards()).toHaveLength(1));
+    await waitFor(() => expect(visibleNow()).toBe('true'));
+    await profile.open();
+    // The page's own layout of the same wait: the admin cards are there, the blocks never hid.
+    await waitFor(() => expect(heading(LINKS)).not.toBeNull());
+    expect(skeletons().every((el) => el.dataset.visible === 'true')).toBe(true);
+  });
+
+  it('members → exclusions: the new page waits the whole delay again', async () => {
+    const { api, backend } = setup();
+    holdCalls(api, 'family', 'get');
+    const { history } = renderApp(PATH, { api, backend });
+    await waitFor(() => expect(skeletons().length).toBeGreaterThan(0));
+    await waitFor(() => expect(skeletons().every((el) => el.dataset.visible === 'true')).toBe(true));
+    holdCalls(api, 'family', 'listExclusions');
+    act(() => history.push('/profile/family/exclusions'));
+    await screen.findByRole('heading', { level: 1, name: 'Non proporre più' });
+    expect(skeletons().length).toBeGreaterThan(0);
+    expect(skeletons().every((el) => el.dataset.visible === 'false')).toBe(true);
+    await waitFor(() => expect(skeletons().every((el) => el.dataset.visible === 'true')).toBe(true));
+  });
+
+  it('members → exclusions answered within the delay: no block ever shows', async () => {
+    const { api, backend } = setup();
+    holdCalls(api, 'family', 'get');
+    const { history } = renderApp(PATH, { api, backend });
+    await waitFor(() => expect(skeletons().every((el) => el.dataset.visible === 'true') && skeletons().length > 0).toBe(true));
+    const list = holdCalls(api, 'family', 'listExclusions');
+    const seen: string[] = [];
+    const observer = new MutationObserver(() => skeletons().forEach((el) => seen.push(el.dataset.visible ?? '')));
+    act(() => history.push('/profile/family/exclusions'));
+    await screen.findByRole('heading', { level: 1, name: 'Non proporre più' });
+    observer.observe(document.body, { subtree: true, childList: true, attributes: true });
+    expect(skeletons().every((el) => el.dataset.visible === 'false')).toBe(true);
+    await new Promise((done) => setTimeout(done, 100));
+    await list.open();
+    expect(await screen.findByRole('link', { name: 'Pasta classica con pomodoro fresco, melanzane e ricotta' })).toBeTruthy();
+    observer.disconnect();
+    expect(seen).not.toContain('true');
+    expect(document.querySelector('.skeleton')).toBeNull();
+  });
+});
