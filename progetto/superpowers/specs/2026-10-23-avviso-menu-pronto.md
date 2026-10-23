@@ -592,7 +592,9 @@ nomi degli eventi, `staleTime` della query del pallino.
   `menu_email_address`, `menu_email_week`. Sezione 2.
 - Annuncio e consegna nel cron orario, dopo il job, in transazioni proprie; consegna sul modello degli
   allarmi (acquisizione atomica, chiave di idempotenza, `409` ambiguo, scadenza al lunedì o 24 ore dopo
-  il primo tentativo con margine di un'ora e ricontrollata a ogni acquisizione, stop al `429`, budget
+  il primo tentativo con margine di un'ora, un minuto di margine sulle mezzanotti, ricontrollata a ogni
+  acquisizione e prima della richiesta con un orologio unico passato anche alle query, nessun invio se
+  il giorno UTC cambia dopo la prenotazione, stop al `429`, budget
   di 60 prenotazioni per giorno UTC in `menu_email_budget` consumato da ogni tentativo, per la quota
   gratuita di Resend). Meglio nessuna email che un doppione: una consegna ambigua o scaduta può
   lasciare una persona senza email. Sezione 4 («Email operative» diventa «Email del servizio» o una

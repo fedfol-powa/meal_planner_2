@@ -30,7 +30,10 @@ cominciare; le sezioni citate sotto sono di quella spec).
 - Valori fissi: budget `MENU_EMAILS_PER_UTC_DAY = 60` prenotazioni per giorno UTC in
   `app.menu_email_budget`, consumate da ogni tentativo; acquisizione libera dopo 15 minuti; finestra di
   invio fino al lunedì della settimana (data locale della famiglia) e fino a 23 ore dopo
-  `first_attempt_at`, ricontrollata a ogni acquisizione e prima della richiesta; pulizia dopo 90 giorni;
+  `first_attempt_at`, con 1 minuto di margine sulla mezzanotte locale del lunedì, ricontrollata a ogni
+  acquisizione e prima della richiesta; nessuna prenotazione nell'ultimo minuto del giorno UTC e
+  nessun invio se il giorno UTC è cambiato dopo la prenotazione; orologio iniettabile usato anche nei
+  predicati SQL della consegna (mai `now()`); pulizia dopo 90 giorni;
   miniature 144×144 JPEG qualità 80, mostrate 72×72; `cache-control: public, max-age=86400`; chiave di
   idempotenza `menu-email/{familyId}/{weekStart}/{userId}`.
 - Meglio nessuna email che un doppione (decisione del coordinatore del 23 ottobre 2026).
@@ -282,18 +285,31 @@ cominciare; le sezioni citate sotto sono di quella spec).
 
 **Interfaces:**
 - Consumes: Task 1, `sendEmail` di `server/src/mail/transport.ts`.
-- Produces: `deliverMenuEmails(sql: postgres.Sql, env: Pick<Env, 'RESEND_API_KEY' | 'MAILPIT_API_URL'>, options?: { fetch?: typeof fetch; families?: readonly string[] }): Promise<{ sent: number }>`;
+- Produces: `deliverMenuEmails(sql: postgres.Sql, env: Pick<Env, 'RESEND_API_KEY' | 'MAILPIT_API_URL'>, options?: { fetch?: typeof fetch; families?: readonly string[]; clock?: () => Date }): Promise<{ sent: number }>`;
+  `emailAddressOf(sql: postgres.Sql, familyId: string, userId: string): Promise<string | null>` in
+  `server/src/menu-emails/address.ts` (chiama `menu_email_address` in una transazione `job`; modulo a
+  parte perché i test lo sostituiscono con `vi.mock` per far passare il tempo fra acquisizione e
+  richiesta); funzione pura `sendCheck(row: { firstAttemptAt: Date; weekStart: string; timeZone: string; reservedDay: string }, at: Date): 'send' | 'expired' | 'defer'`;
   costante `MENU_EMAILS_PER_UTC_DAY = 60`. Mai eccezioni. Ordine: pulizia (annunci e giorni di budget
   > 90 giorni), scadenze, candidate, poi per ogni candidata: una transazione `job` con prenotazione del
   budget e acquisizione condizionata alla validità (spec 5.5, testo SQL della prenotazione lì; budget
-  esaurito → rollback e fine del giro; riga non più valida → rollback e prossima), controllo
-  dell'indirizzo, controllo delle 23 ore su `first_attempt_at` restituito, invio, esito in una
-  transazione propria.
+  esaurito o ultimo minuto del giorno UTC → rollback e fine del giro; riga non più valida → rollback e
+  prossima), `emailAddressOf`, `sendCheck` con l'orologio letto di nuovo (`expired` → chiusa;
+  `defer` → acquisizione liberata, log `menu_email_deferred`), invio, esito in una transazione
+  propria. **Ogni** istante delle query viene da `clock()` letto nella fase, passato come parametro.
 
+- [ ] **Step 1a: test puri di `sendCheck`** (senza database): `'send'` a 22 h 59 min da
+  `firstAttemptAt`; `'expired'` a 23 h; con `weekStart: '2026-10-26'`, `timeZone: 'Europe/Rome'`,
+  `'send'` a `2026-10-25T22:58:59Z` e `'expired'` a `2026-10-25T22:59:00Z` (ultimo minuto prima della
+  mezzanotte locale, ora solare); con `reservedDay: '2026-10-22'` `'defer'` a `2026-10-23T00:00:00Z` e
+  a `2026-10-22T23:59:00Z` (ultimo minuto), `'send'` a `2026-10-22T23:58:59Z`; con
+  `America/Los_Angeles` la scadenza segue la mezzanotte di Los Angeles, non quella UTC.
 - [ ] **Step 1: test che falliscono** (database, Resend finto sul modello di `fakeResend` di
   `server/test/ops-alerts.test.ts` ma con due contatori: `requests` (ogni chiamata) e `accepted`
   (un'email per chiave di idempotenza, la prima), righe create con `announceMenus` o inserite
-  direttamente):
+  direttamente; **tempo controllato solo con l'orologio iniettato** `clock`, un oggetto mutabile del
+  test, mai con `vi.setSystemTime`, che non cambia l'ora di Postgres; i valori di `first_attempt_at` e
+  `claimed_at` si preparano nel database di prova rispetto a quell'orologio):
   - successo → `sent_at` valorizzato, una chiamata con chiave `menu-email/{f}/{w}/{u}`, destinatario
     preso da `menu_email_address`; seconda esecuzione → nessuna chiamata;
   - due consegne concorrenti → una sola chiamata per riga;
@@ -314,16 +330,27 @@ cominciare; le sezioni citate sotto sono di quella spec).
   - salvataggio di `sent_at` che fallisce (mock della transazione di esito) → riga acquisita; dopo
     `claimed_at` spostato indietro di 16 minuti la riprende un altro giro, stessa chiave, una email
     accettata, `reserved` aumentato di 2 in tutto;
-  - scadenza durante il giro: due righe, la seconda con `first_attempt_at` a 22 ore e 59 minuti e il
-    finto `fetch` della prima che avanza l'orologio di 2 minuti (`vi.setSystemTime`) → la seconda non
-    viene acquisita né spedita; il giro dopo la chiude `expired`;
+  - **controllo atomico** (acquisizione): due righe; il finto `fetch` della prima, prima di rispondere,
+    scrive nel database di prova (`db.admin`) `first_attempt_at` della seconda a 23 ore e 1 minuto prima
+    dell'orologio iniettato → la seconda non viene acquisita (`attempts` invariato), nessuna richiesta
+    per lei; il giro dopo la chiude `expired`;
+  - **controllo finale**, ogni confine attraversato fra acquisizione e richiesta: `emailAddressOf`
+    sostituito con `vi.mock` che, prima di restituire l'indirizzo, avanza l'orologio iniettato
+    (a) oltre le 23 ore da `first_attempt_at` → `expired`, nessuna richiesta, prenotazione consumata;
+    (b) oltre la mezzanotte locale del lunedì meno 1 minuto → `expired`, nessuna richiesta;
+    (c) oltre la mezzanotte UTC → nessuna richiesta, `claimed_at` nullo, `reserved` del giorno prima
+    aumentato di 1; il giro successivo (orologio al giorno nuovo) prenota sul giorno nuovo e spedisce
+    **una** email; (d) dentro l'ultimo minuto del giorno UTC → come (c);
+  - ultimo minuto del giorno UTC all'inizio della prenotazione → nessuna prenotazione, nessuna
+    acquisizione, giro fermo;
   - lunedì: riga di una famiglia `America/Los_Angeles` con `week_start` uguale alla sua data locale
     quando in UTC è già martedì e viceversa → valida solo finché la data **locale** precede `week_start`;
   - riprova dopo la mezzanotte UTC: prenota sul giorno nuovo (`menu_email_budget.day` nuovo);
   - senza `RESEND_API_KEY` né `MAILPIT_API_URL` → nessuna acquisizione, log `menu_email_not_configured`.
 - [ ] **Step 2:** → FAIL.
 - [ ] **Step 3:** implementare (stesse query a stati di `ops-alerts/index.ts`, colonne di
-  `menu_emails`; `first_attempt_at = coalesce(first_attempt_at, now())` all'acquisizione).
+  `menu_emails`, ma con l'istante dell'orologio come parametro al posto di `now()`;
+  `first_attempt_at = coalesce(first_attempt_at, ${at}::timestamptz)` all'acquisizione).
 - [ ] **Step 4:** → PASS.
 - [ ] **Step 5: commit** «Avviso del menu pronto: consegna delle email con quota e idempotenza».
 
@@ -361,7 +388,11 @@ cominciare; le sezioni citate sotto sono di quella spec).
 - Consumes: Task 2.
 - Produces: `queryKeys.newWeek(familyId)`; `newWeekQuery(deps, familyId)`; hook
   `useNewWeek(familyId: string, selected: IsoDate | null): { weekStartsOn: IsoDate | null }` in
-  `web/src/routes/menu/newWeek.ts` (lettura, guardia per coppia, aggiornamento ottimistico, solo online);
+  `web/src/routes/menu/newWeek.ts` (lettura, stato delle visite, aggiornamento ottimistico e
+  riconciliazione, solo online); stato delle visite per `QueryClient`:
+  `weekVisits(queryClient): { get(familyId, week): 'pending' | 'done' | undefined; set(familyId, week, state): void; clear(familyId, week): void }`
+  (una `WeakMap` per client, come `attachFamilyAccess` in `api/queries.ts`); `newWeekQuery` filtra la
+  risposta con `weekVisits` **dopo** averla ricevuta;
   `DatePicker` props in più
   `dot: boolean`, `fresh: readonly IsoDate[]`; testi `'menu.newWeekReady'` («menu della settimana
   prossima pronto» / «next week's menu is ready»), `'menu.newWeekDay'` («settimana nuova» / «new week»).
@@ -386,21 +417,30 @@ cominciare; le sezioni citate sotto sono di quella spec).
     rimontare `MenuView`, visita in B → due chiamate, una per famiglia;
   - lettura in corso: `getNewWeek` lenta che risponderebbe la settimana, visita del 26 nel frattempo →
     dopo la risposta il pallino resta spento (`cancelQueries` prima dell'aggiornamento ottimistico);
+  - lettura avviata **dopo** l'aggiornamento ottimistico: il finto backend tiene `markWeekSeen` in
+    sospeso; il test invalida `newWeek` (come farebbe la fine di `getOpening`), il finto `getNewWeek`
+    calcola subito `'2026-10-26'` (il server non ha ancora registrato la visita) ma consegna la risposta
+    solo dopo che il test ha fatto riuscire `markWeekSeen` → la cache resta `{ weekStartsOn: null }` e
+    pallino e verde restano spenti;
   - generazione pigra: `getNewWeek` risponde prima `null`, poi la lettura di `getOpening` si conclude
     con dati nuovi → `getNewWeek` si rilegge e il pallino compare;
   - offline: con il pallino caricato si va offline (`connectivity` dei test) → pallino e verde
-    spariscono; offline si apre il 26 → nessuna chiamata; riconnessione → la query si rilegge e il
-    pallino torna;
+    spariscono; offline si apre il 26 → nessuna chiamata;
+  - riconnessione mentre si mostra la settimana **precedente** (offline si torna al 22): la query si
+    rilegge e il pallino torna;
+  - riconnessione mentre si mostra la settimana **nuova** (offline si apre il 26): parte
+    `markWeekSeen`, e quando è completata il pallino è assente e nessun giorno è verde;
   - `persistOptions(...).dehydrateOptions.shouldDehydrateQuery` è `false` per `queryKeys.newWeek(...)`.
 - [ ] **Step 2:** `npm test -w web -- MenuPage persister` → FAIL.
 - [ ] **Step 3:** implementare come il prototipo (`prototype/src/lib/components/DatePicker.svelte`):
   pallino 10 px `var(--green)` con bordo 2 px del fondo, `top: 7px; right: 6px`; `.day.fresh { color: var(--green) }`
   e `background: var(--soft-green)` su `.day.fresh:not([aria-pressed='true'])` e sul suo `:hover`
-  (stesso fondo), così il giorno scelto resta scuro anche al passaggio del mouse. `useNewWeek`: guardia `Map<string, 'pending' | 'done'>` con chiave
-  `${familyId}:${weekStartsOn}` (in un `useRef`); alla visita: `cancelQueries` della query della
-  famiglia, `setQueryData({ weekStartsOn: null })`, mutazione; errore → cancellare la chiave e
-  `invalidateQueries`; invalidare `newWeek` quando `getOpening`/`getWeek` della famiglia cambiano
-  `dataUpdatedAt`; restituire `null` se `!useOnline()`.
+  (stesso fondo), così il giorno scelto resta scuro anche al passaggio del mouse. `useNewWeek`: alla
+  visita (online, coppia senza stato): `weekVisits.set(…, 'pending')`, `cancelQueries` della query
+  della famiglia, `setQueryData({ weekStartsOn: null })`, mutazione; successo → `'done'` e di nuovo
+  `setQueryData({ weekStartsOn: null })` (riconciliazione, nessuna invalidazione); errore →
+  `weekVisits.clear` e `invalidateQueries`; invalidare `newWeek` quando `getOpening`/`getWeek` della
+  famiglia cambiano `dataUpdatedAt`; restituire `null` se `!useOnline()`.
 - [ ] **Step 4:** → PASS.
 - [ ] **Step 5: commit** «Avviso del menu pronto: pallino sul calendario e giorni nuovi in verde».
 
