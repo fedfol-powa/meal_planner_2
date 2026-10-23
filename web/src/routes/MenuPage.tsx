@@ -23,6 +23,7 @@ import { addDays, isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTi
 import { rememberMenuDay } from './menu/lastDay';
 import { MenuSkeleton } from './menu/MenuSkeleton';
 import { pickSelected } from './menu/selection';
+import { useFamilyToday } from './menu/today';
 import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
@@ -80,7 +81,7 @@ function MenuView({ family }: { family: FamilyView }) {
   const familyId = family.id;
 
   // The family's local date, sent with the opening: the server validates it and answers for that day.
-  const today = localNow(family.timeZone).slice(0, 10);
+  const today = useFamilyToday(family.timeZone);
   const opening = useQuery({ ...openingQuery(deps, familyId, today), placeholderData: () => savedOpening(deps.queryClient, familyId, today, locale) });
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
