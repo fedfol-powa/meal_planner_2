@@ -3,35 +3,32 @@
 Stato operativo dei worker. Aggiornato dal coordinatore a ogni cambio di fase.
 Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e `cwd`).
 
-## Stato corrente (aggiornato il 18 ottobre 2026, sera)
+## Stato corrente (aggiornato il 23 ottobre 2026)
 
-- **Attività in corso:** nessuna. Collaudi di W20 e W21 fatti dall'utente il 18/10.
-- **Rilasciate oggi:**
-  - **W20, skeleton (#49):** PR #75 (merge `bb523a2`, revisioni `revisioni/w20-spec-piano*.md`
-    e `revisioni/w20-pr75*.md`), rilasciata alle 16:39 UTC, versione
-    `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`. Variante B (eccezione approvata a
-    `design/design.md`). Tab, worktree e branch rimossi.
-  - **W21, la fila dei giorni segue il dito:** PR #74, rilasciata alle 13:49 UTC (versione
-    `c3a72b02`).
-  - **W19, swipe fra le settimane:** PR #72, rilasciata alle 12:09 UTC (versione `3260a367`).
-  - **W17 skill per Claude** (PR #68, #69, #70) e **W18 test di Bring!** (PR #71).
-- **PR di documentazione:** #76 e #77 unite: specifica aggiornata con W19, W21 e W20 rilasciate
-  e collaudate.
-- **Worker attivi:** nessuno. **Revisori attivi:** nessuno.
+- **Attività in corso:** W22, skeleton nelle pagine rare e nelle sezioni dei curatori
+  (seguito della issue #49), brief `brief/w22-skeleton-pagine-rare.md`, fase 1-2
+  (censimento, spec e piano). Avviato il 23/10 su richiesta dell'utente.
+- **Worker attivi:** W22, tab «W22 skeleton pagine rare» (`w1:t5R`, pane `w1:p5R`), branch
+  `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
+  nessuno (appena avviato).
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
-- **Spunti da Cuicuit (22/10):** analisi dell'importer e decisioni dell'utente (LLM per
-  curatori con permesso, scheda ricetta strutturata con tempi e procedimento riscritto,
-  ordine scheda → E → AI) in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
+- **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
-- **Domande in sospeso:** via al piano degli spunti da Cuicuit.
+- **Domande in sospeso:** via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
+  rilasciata) dopo W22.
 - **Limite:** 1 worker Claude; revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
-- **Prossimo passo:** a scelta dell'utente: E (ricetta da un link), ricettario esteso,
-  issue #55, #39, #62, #67, pulizia dei worktree di PR già unite, R26 rimandata.
+- **Prossimo passo:** revisione Codex di spec e piano di W22 quando il worker scrive
+  `STATO: SPEC_E_PIANO_PRONTI`.
 
 ## Storico
+
+- **18/10, sera:** collaudi di W20 (skeleton, PR #75, versione `507c4662`) e W21 (PR #74)
+  fatti dall'utente; W19 (PR #72), W17 (PR #68-#70) e W18 (PR #71) rilasciati; PR di
+  documentazione #76 e #77 unite.
 
 ### Worker e attività (fino al 17/10)
 
