@@ -59,10 +59,13 @@ function useFamilyLink(linked: string | undefined): FamilyLinkState {
   const tried = useRef<string | undefined>(undefined);
   // A retry clears it, and the effect starts the choice again.
   const [failed, setFailed] = useState<{ destination: string; error: unknown } | null>(null);
-  // A new run once the profile is read again after an answer that was not written.
+  // An answer not written, of this destination or an earlier one: the server may have chosen all the
+  // same, so no destination is decided on the cached profile until it is read again (re-review, round 2).
+  const reconciling = useRef(false);
+  // A new run once the profile is read again.
   const [round, setRound] = useState(0);
   useEffect(() => {
-    if (!linked || !destination || !profile || isPending) return;
+    if (!linked || !destination || !profile || isPending || reconciling.current) return;
     const drop = () => void navigate({ search: (s) => ({ ...s, family: undefined }), replace: true });
     if (linked === profile.currentFamilyId || !profile.families.some((f) => f.id === linked)) return drop();
     if (!online || tried.current === destination) return;
@@ -71,12 +74,14 @@ function useFamilyLink(linked: string | undefined): FamilyLinkState {
       // Applied, the profile now shows the family and the next run drops the parameter. Not applied, the
       // answer was superseded on the device (another write of the profile, a change of language) while
       // the server may well have chosen: the profile is read again and decides, never the cached one
-      // (PR #80 re-review, 1); still another family there, the link chooses again.
+      // (PR #80 re-review, 1); still another family there, the link chooses again. Also for an earlier
+      // destination: the address is then not its own, but the current one waits for the same read.
       onSuccess: ({ applied }) => {
-        if (applied || latest.current !== destination) return;
-        void readProfile({ cancelRefetch: false }).then(() => {
-          if (latest.current !== destination) return;
-          tried.current = undefined;
+        if (applied) return;
+        reconciling.current = true;
+        void readProfile({ cancelRefetch: false }).finally(() => {
+          reconciling.current = false;
+          if (latest.current === destination) tried.current = undefined;
           setRound((n) => n + 1);
         });
       },

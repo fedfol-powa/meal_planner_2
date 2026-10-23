@@ -240,6 +240,45 @@ describe('menu', () => {
       expect(seen).not.toContain(HOME);
       expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(1);
     });
+    it('a late answer not written for an earlier link waits for the profile before the newer link', async () => {
+      const { api, seen, choose } = await twoFamilies();
+      const held = heldChoices(api, choose);
+      const read = api.profile.get;
+      let hold: (() => void) | null = null;
+      let holding = false;
+      api.profile.get = (async (...args: Parameters<typeof read>) => {
+        if (holding) await new Promise<void>((resolve) => (hold = resolve));
+        return read(...args);
+      }) as typeof read;
+      const captured: { session: Session | null } = { session: null };
+      function Capture() {
+        captured.session = useSession();
+        return null;
+      }
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api, extra: <Capture /> });
+      await waitFor(() => expect(held).toHaveLength(1));
+      holding = true;
+      act(() => void captured.session!.track('profile'));
+      // A second link, back to the family still current on the device, while the first choice is under way.
+      act(() => history.push(`/menu?day=2026-10-13&family=${HOME}`));
+      // The server chooses the first link's family; its answer is not written, the profile read is held.
+      await act(async () => held[0]!.resolve());
+      await waitFor(() => expect(hold).not.toBeNull());
+      expect(history.location.search).toContain(`family=${HOME}`);
+      expect(seen).toEqual([]);
+      holding = false;
+      await act(async () => hold!());
+      // The profile read again says the first family: the newer link chooses its own.
+      await waitFor(() => expect(held).toHaveLength(2));
+      expect(held[1]!.familyId).toBe(HOME);
+      expect(history.location.search).toContain(`family=${HOME}`);
+      expect(seen).toEqual([]);
+      await act(async () => held[1]!.resolve());
+      await weekShown('martedì 13 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      expect(seen).not.toContain(OTHER);
+      expect(seen).toContain(HOME);
+    });
     it('a family refused by the server is read again and the link is ignored', async () => {
       const { api, seen } = await twoFamilies();
       const read = api.profile.get;
