@@ -7,6 +7,9 @@ export type ScenarioId = (typeof SCENARIOS)[number];
 /** Round 7: simulated loading time of suggestions, search and the recipe list. */
 export const SLOW_LOADS = ['off', 'brief', 'medium', 'long', 'endless'] as const;
 export type SlowLoad = (typeof SLOW_LOADS)[number];
+/** W23: shapes of the «Oggi» button in the menu bar, compared on the phone. */
+export const TODAY_BUTTONS = ['text', 'pill', 'icon'] as const;
+export type TodayButton = (typeof TODAY_BUTTONS)[number];
 
 export interface PrototypeSettings {
 	/** null when signed out (simulated sign-in, round 4). */
@@ -19,16 +22,17 @@ export interface PrototypeSettings {
 	offline: boolean;
 	scenario: ScenarioId;
 	slowLoad: SlowLoad;
+	todayButton: TodayButton;
 }
 
 export interface Persisted {
-	version: 27;
+	version: 28;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
 // Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
-export const STORAGE_KEY = 'app-famiglia-prototype-v27';
+export const STORAGE_KEY = 'app-famiglia-prototype-v28';
 
 /** First language (round 4 default): Italian browsers get it-IT, every other browser en-GB. */
 export function detectLocale(languages: readonly string[] | undefined): Locale {
@@ -41,7 +45,7 @@ function browserLanguages(): readonly string[] | undefined {
 
 export function createInitial(): Persisted {
 	return {
-		version: 27,
+		version: 28,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -50,14 +54,15 @@ export function createInitial(): Persisted {
 			now: '2026-10-06T12:00',
 			offline: false,
 			scenario: 'standard',
-			slowLoad: 'long'
+			slowLoad: 'long',
+			todayButton: 'text'
 		}
 	};
 }
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	if (!v || v.version !== 27 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	if (!v || v.version !== 28 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
 	const s = v.settings;
 	return (
 		!!s &&
@@ -67,6 +72,7 @@ function isPersisted(value: unknown): value is Persisted {
 		/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.now) &&
 		(SCENARIOS as readonly string[]).includes(s.scenario) &&
 		(SLOW_LOADS as readonly string[]).includes(s.slowLoad) &&
+		(TODAY_BUTTONS as readonly string[]).includes(s.todayButton) &&
 		Array.isArray(v.db.connectedAgents) &&
 		Array.isArray(v.db.appInvitations) &&
 		Array.isArray(v.db.recipeStatusChanges) &&
