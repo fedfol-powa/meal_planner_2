@@ -15,7 +15,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `c725262`); revisione 2 APPROVABILE CON CORREZIONI, correzioni in
   `messaggi/w22-02-revisione-spec-2.md`; revisione 3 con un solo rilievo minore (etichetta
   del ruolo negli Inviti): spec e piano approvati dal coordinatore con quella correzione;
-  poi `/clear` e implementazione.
+  corretto (commit `1843993`), `/clear` e implementazione in corso.
   W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
   «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
