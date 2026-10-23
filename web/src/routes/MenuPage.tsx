@@ -23,6 +23,7 @@ import { addDays, isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTi
 import { rememberMenuDay } from './menu/lastDay';
 import { MenuSkeleton } from './menu/MenuSkeleton';
 import { pickSelected } from './menu/selection';
+import { useFamilyToday } from './menu/today';
 import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
@@ -63,6 +64,9 @@ function savedOpening(queryClient: QueryClient, familyId: string, today: IsoDate
   return saved[0]?.[1];
 }
 
+/** Where the Today button's tap lands: a day, or the opening of a family date (tap after midnight). */
+type FocusIntent = { kind: 'day'; day: IsoDate } | { kind: 'opening'; date: IsoDate };
+
 const notice = (content: ReactNode) => <section className="secondary-view app-view">{content}</section>;
 
 function MenuView({ family }: { family: FamilyView }) {
@@ -80,15 +84,26 @@ function MenuView({ family }: { family: FamilyView }) {
   const familyId = family.id;
 
   // The family's local date, sent with the opening: the server validates it and answers for that day.
-  const today = localNow(family.timeZone).slice(0, 10);
+  const { today, recheck: recheckToday } = useFamilyToday(family.timeZone);
   const opening = useQuery({ ...openingQuery(deps, familyId, today), placeholderData: () => savedOpening(deps.queryClient, familyId, today, locale) });
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
   const week = useQuery({ ...weekQuery(deps, familyId, weekStart ?? ''), enabled: !!weekStart, retry: false });
+  // Today's week, with the menu's own query (the same key when it is the week shown): the button
+  // shows only when it says today has a meal, never from the opening. It starts with the week shown,
+  // so that both observers share one read when they are the same week.
+  const todayWeek = useQuery({ ...weekQuery(deps, familyId, mondayOf(today)), enabled: !!weekStart, retry: false });
+  // A blocking error (not found, refused) counts as no data, as for the week shown; offline the copy stays.
+  const todayWeekBlocked = todayWeek.isError && isBlocking(todayWeek.error, !!todayWeek.data);
+  const todayHasMeals = !todayWeekBlocked && !!todayWeek.data?.days.find((d) => d.date === today)?.meals.some((m) => m.kind !== 'empty');
   const track = useRef<HTMLDivElement>(null);
   // Day the track is already moving to (smooth tap or user scroll): no instant jump over it.
   const settling = useRef<IsoDate | null>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // The month gets the focus when the Today button's tap arrives (the button is gone by then).
+  const month = useRef<HTMLButtonElement>(null);
+  const focusOnArrival = useRef<FocusIntent | null>(null);
 
   // One path to open and close the calendar, remembering who opened it (review, finding 13).
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -99,6 +114,7 @@ function MenuView({ family }: { family: FamilyView }) {
   }, []);
   const togglePicker = (element: HTMLElement) => {
     if (pickerOpen) return closePicker();
+    focusOnArrival.current = null;
     opener.current = element;
     setPickerOpen(true);
   };
@@ -170,6 +186,38 @@ function MenuView({ family }: { family: FamilyView }) {
     }
   }
 
+  /** Today as a chosen day; after midnight, what the second tap on Menu does (the new day's opening). */
+  function goToday() {
+    const now = localNow(family.timeZone).slice(0, 10);
+    if (now !== today) {
+      focusOnArrival.current = { kind: 'opening', date: now };
+      // With no day asked the address does not change: the new date has to render by itself.
+      if (requested === undefined) recheckToday();
+      else void navigate({ search: {} });
+    } else {
+      focusOnArrival.current = { kind: 'day', day: today };
+      select(today);
+    }
+  }
+
+  // The intent is dropped by another navigation, a new family date or a failed opening. An opening
+  // counts once the server answers or the read waits offline, never as the provisional saved copy.
+  useEffect(() => {
+    const intent = focusOnArrival.current;
+    if (!intent) return;
+    const dropped = intent.kind === 'day' ? requested !== intent.day || today !== intent.day : requested !== undefined || today !== intent.date || opening.isError;
+    if (dropped) {
+      focusOnArrival.current = null;
+      return;
+    }
+    const openingResolved = !!opening.data && (!opening.isPlaceholderData || opening.fetchStatus === 'paused');
+    const target = intent.kind === 'day' ? intent.day : openingResolved ? openingDay?.date : undefined;
+    if (target && week.data && selected === target && month.current) {
+      month.current.focus();
+      focusOnArrival.current = null;
+    }
+  });
+
   // Debounced instead of `scrollend`, which older iOS Safari versions do not fire.
   function onScroll() {
     clearTimeout(scrollTimer.current);
@@ -200,10 +248,16 @@ function MenuView({ family }: { family: FamilyView }) {
       {welcome && <WelcomeCard onClose={closeWelcome} />}
       <nav className="day-navigation" aria-label={t('menu.days')}>
         <div className={styles.toolbar}>
-          <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
+          <button type="button" ref={month} className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
             {formatMonthYear(locale, selected)}
           </button>
           <div className={styles.actions}>
+            {todayHasMeals && selected !== today && (
+              <button type="button" className={styles.today} aria-label={t('menu.todayLabel')} onClick={goToday}>
+                <Icon name="today" />
+                <span>{t('menu.today')}</span>
+              </button>
+            )}
             <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onToggle={togglePicker} onClose={closePicker} onSelect={select} />
             <Link to="/shopping/$weekStartsOn" params={{ weekStartsOn: week.data.startsOn }} search={{ day: selected }} className={styles.action} aria-label={t('menu.shopping')}>
               <Icon name="bag" />

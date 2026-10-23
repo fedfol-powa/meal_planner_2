@@ -14,6 +14,7 @@
 	<symbol id="icon-filter" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></symbol>
 	<symbol id="icon-sort" viewBox="0 0 24 24"><path d="M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4"/></symbol>
 	<symbol id="icon-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16Zm9-13 4 4"/></symbol>
+	<symbol id="icon-today" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
 	<symbol id="icon-swap" viewBox="0 0 24 24"><path d="M7 4 3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/></symbol>
 	<symbol id="icon-shuffle" viewBox="0 0 24 24"><path d="M3 7h4l10 10h4M3 17h4l3-3M14 10l3-3h4M18 4l3 3-3 3M18 14l3 3-3 3"/></symbol>
 	<symbol id="icon-note" viewBox="0 0 24 24"><path d="M5 4h14v11l-5 5H5ZM14 20v-5h5M8 9h8M8 13h4"/></symbol>

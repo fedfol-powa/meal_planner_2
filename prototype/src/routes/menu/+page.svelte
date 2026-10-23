@@ -74,6 +74,17 @@
 		selected ? new Intl.DateTimeFormat(app.locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${selected}T00:00:00Z`)) : ''
 	);
 
+	// W23: the «Oggi» button returns to today, as a tap on Menu; when today has no meals the opening
+	// is another day, so the button is not shown (decision of 2026-10-23).
+	let monthButton: HTMLButtonElement | undefined = $state();
+	const todayTarget = $derived(openingDay?.date === app.settings.now.slice(0, 10) ? openingDay.date : null);
+	function goToday() {
+		if (!todayTarget) return;
+		app.selectedDate = todayTarget;
+		// The button disappears once on today: keep the focus in the bar.
+		monthButton?.focus();
+	}
+
 	// The chosen day lives in app.selectedDate; `?day=` only seeds it when arriving from a link.
 	function pickDate(date: string) {
 		app.selectedDate = date;
@@ -116,8 +127,14 @@
 		<nav class="day-navigation" aria-label={app.t('menu.days')}>
 			<SetupCard />
 			<div class="menu-toolbar">
-				<button type="button" class="month-button" data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
+				<button type="button" class="month-button" bind:this={monthButton} data-date-picker-toggle aria-expanded={pickerOpen} onclick={() => (pickerOpen = !pickerOpen)}>{monthLabel}</button>
 				<div class="toolbar-actions">
+					{#if todayTarget && selected !== todayTarget}
+						<button type="button" class="today-button" aria-label={app.t('menu.todayLabel')} onclick={goToday}>
+							<svg class="icon" aria-hidden="true"><use href="#icon-today" /></svg>
+							<span>{app.t('menu.today')}</span>
+						</button>
+					{/if}
 					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} />
 					<a class="toolbar-link" href="/shopping/{week.startsOn}" aria-label={app.t('menu.shopping')}><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg></a>
 				</div>
@@ -158,9 +175,12 @@
 
 <style>
 	.menu-toolbar { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 0 8px; }
-	.month-button { min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); text-transform: capitalize; cursor: pointer; }
+	.month-button { min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); text-transform: capitalize; white-space: nowrap; cursor: pointer; }
 	.month-button[aria-expanded='true'] { color: var(--green); }
 	.toolbar-actions { display: flex; align-items: center; gap: 4px; }
 	.toolbar-link { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; color: var(--ink); }
 	.toolbar-link .icon { width: 26px; height: 26px; }
+	/* W23: icon with label left of the calendar; the month stays put and the bar keeps its height. */
+	.today-button { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); white-space: nowrap; cursor: pointer; }
+	.today-button .icon { width: 22px; height: 22px; }
 </style>

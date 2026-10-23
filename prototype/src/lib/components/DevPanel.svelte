@@ -94,6 +94,7 @@
 	</header>
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
+
 	<!-- Round 7: a simulated slow load, to see the skeleton chosen by the user (blocks with a slow pulse). -->
 	<label>{app.t('dev.slowLoad')}
 		<select value={app.settings.slowLoad} onchange={(e) => { const v = e.currentTarget.value as SlowLoad; app.update((s) => (s.settings.slowLoad = v)); clearSimulatedCache(); }}>

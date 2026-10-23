@@ -223,6 +223,11 @@ borsa che apre la lista della spesa della settimana mostrata, dal terzo giro), s
 scegliere qualunque giorno con menu, anche passato; il giorno scelto è scuro come nel
 selettore e i giorni senza menu sono disattivati. Il selettore resta a tutta larghezza.
 Non ci sono frecce o intervalli di settimana, né etichette di stato della settimana.
+Dal 23 ottobre 2026, quando il Menu mostra un giorno diverso da oggi e oggi ha pasti, a
+sinistra del calendario compare un pulsante «Oggi» senza riquadro: freccia di ritorno da
+22 px e la parola in Roboto Bold 14 px, nel colore del testo, area di tocco di 44 px, nome
+accessibile «Vai a oggi». Un tocco riporta a oggi; su oggi, o se oggi non ha pasti, non
+c'è. Il mese resta fermo e la barra non cambia altezza; sotto i 375 px non si adatta.
 
 Un giorno occupa una colonna della larghezza disponibile. Le colonne si scorrono
 orizzontalmente con aggancio al giorno; il tocco sul selettore porta alla stessa

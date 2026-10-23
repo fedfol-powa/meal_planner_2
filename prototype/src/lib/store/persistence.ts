@@ -22,13 +22,13 @@ export interface PrototypeSettings {
 }
 
 export interface Persisted {
-	version: 27;
+	version: 28;
 	db: DemoDatabase;
 	settings: PrototypeSettings;
 }
 
 // Bump version and key whenever seed ids or settings change, so testers get fresh demo data.
-export const STORAGE_KEY = 'app-famiglia-prototype-v27';
+export const STORAGE_KEY = 'app-famiglia-prototype-v28';
 
 /** First language (round 4 default): Italian browsers get it-IT, every other browser en-GB. */
 export function detectLocale(languages: readonly string[] | undefined): Locale {
@@ -41,7 +41,7 @@ function browserLanguages(): readonly string[] | undefined {
 
 export function createInitial(): Persisted {
 	return {
-		version: 27,
+		version: 28,
 		db: createSeedDatabase(),
 		settings: {
 			userId: 'user-federico',
@@ -57,7 +57,7 @@ export function createInitial(): Persisted {
 
 function isPersisted(value: unknown): value is Persisted {
 	const v = value as Persisted | null;
-	if (!v || v.version !== 27 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
+	if (!v || v.version !== 28 || !Array.isArray(v.db?.users) || !Array.isArray(v.db?.families) || !Array.isArray(v.db?.weeks)) return false;
 	const s = v.settings;
 	return (
 		!!s &&
