@@ -8,14 +8,16 @@ import { announceMenus, type MenuEmailEnv } from '../../src/menu-emails/announce
 import { hasDatabase, setupDatabase, type TestDatabase } from '../support/db.ts';
 import { menuFixtures } from '../support/menu.ts';
 
-// The controlled point of the announcement: composing these families' emails fails, inside their transaction.
+// The controlled point of the announcement: composing these families' emails fails, inside their transaction,
+// with the error given (a plain one by default).
 const failing = vi.hoisted(() => new Set<string>());
+const failure = vi.hoisted(() => ({ error: null as unknown }));
 vi.mock('../../src/menu-emails/content.ts', async (original) => {
 	const actual = await original<typeof import('../../src/menu-emails/content.ts')>();
 	return {
 		...actual,
 		menuEmail: (input: Parameters<typeof actual.menuEmail>[0]) => {
-			if ([...failing].some((familyId) => input.menuUrl.includes(familyId))) throw new Error('compose failure');
+			if ([...failing].some((familyId) => input.menuUrl.includes(familyId))) throw failure.error ?? new Error('compose failure');
 			return actual.menuEmail(input);
 		},
 	};
@@ -54,6 +56,7 @@ describe.skipIf(!hasDatabase)('menu announcement', () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		failing.clear();
+		failure.error = null;
 		thumbnails.ready.clear();
 		thumbnails.calls.length = 0;
 	});
@@ -177,6 +180,25 @@ describe.skipIf(!hasDatabase)('menu announcement', () => {
 		failing.clear();
 		expect(await announceMenus(sql, env, THURSDAY, { families: [broken.familyId, healthy.familyId] })).toEqual({ announced: 1, emails: 1 });
 		expect(await announcements(broken.familyId)).toEqual(['2026-10-26']);
+	});
+
+	it('calls the family gone only for the foreign key of the announcement to the family (final review, finding 5)', async () => {
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const info = vi.spyOn(console, 'log').mockImplementation(() => {});
+		const gone = await family(['it-IT']);
+		const other = await family(['it-IT']);
+		const violation = (constraint: string) => Object.assign(new Error('foreign key violation'), { code: '23503', constraint_name: constraint });
+		failing.add(gone.familyId);
+		failure.error = violation('menu_announcements_family_id_fkey');
+		await announceMenus(sql, env, THURSDAY, { families: [gone.familyId] });
+		failing.clear();
+		failing.add(other.familyId);
+		failure.error = violation('menu_emails_user_id_fkey');
+		await announceMenus(sql, env, THURSDAY, { families: [other.familyId] });
+		const lines = (spy: typeof info) => spy.mock.calls.map(([line]) => JSON.parse(String(line)) as Record<string, unknown>);
+		expect(lines(info)).toContainEqual({ event: 'menu_email_family_gone', familyId: gone.familyId });
+		expect(lines(info)).not.toContainEqual({ event: 'menu_email_family_gone', familyId: other.familyId });
+		expect(lines(errors)).toContainEqual({ event: 'menu_email_announce_failed', familyId: other.familyId, code: '23503' });
 	});
 
 	it('sends a person in two families one email for each, named and linked to its family', async () => {

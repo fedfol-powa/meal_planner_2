@@ -115,12 +115,12 @@ export async function announceMenus(sql: postgres.Sql, env: MenuEmailEnv, now: D
 			result.announced++;
 			result.emails += recipients;
 		} catch (error) {
-			// The family was deleted after the selection: nothing to announce.
-			if (errorCode(error) === '23503') {
+			// The family was deleted after the selection: nothing to announce. Any other violation is a failure.
+			if (errorCode(error) === '23503' && (error as { constraint_name?: unknown }).constraint_name === 'menu_announcements_family_id_fkey') {
 				logEvent('menu_email_family_gone', { familyId });
 				continue;
 			}
-			logEvent('menu_email_announce_failed', { familyId, code: errorCode(error).slice(0, 500) }, 'error');
+			logEvent('menu_email_announce_failed', { familyId, code: errorCode(error) }, 'error');
 		}
 	}
 	return result;
