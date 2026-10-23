@@ -46,7 +46,7 @@ function useFamilyLink(linked: string | undefined): FamilyLinkState {
   const { api } = useQueryDeps();
   const navigate = route.useNavigate();
   const online = useOnline();
-  const profile = useProfile().data;
+  const { data: profile, refetch: readProfile } = useProfile();
   const entry = useLocation({ select: (location) => location.state.__TSR_key });
   const destination = linked ? `${entry}:${linked}` : undefined;
   const choose = useAreaMutation('profile.setCurrentFamily', undefined, (familyId: string) => api.profile.setCurrentFamily({ familyId }));
@@ -59,6 +59,8 @@ function useFamilyLink(linked: string | undefined): FamilyLinkState {
   const tried = useRef<string | undefined>(undefined);
   // A retry clears it, and the effect starts the choice again.
   const [failed, setFailed] = useState<{ destination: string; error: unknown } | null>(null);
+  // A new run once the profile is read again after an answer that was not written.
+  const [round, setRound] = useState(0);
   useEffect(() => {
     if (!linked || !destination || !profile || isPending) return;
     const drop = () => void navigate({ search: (s) => ({ ...s, family: undefined }), replace: true });
@@ -66,16 +68,27 @@ function useFamilyLink(linked: string | undefined): FamilyLinkState {
     if (!online || tried.current === destination) return;
     tried.current = destination;
     mutate(linked, {
-      // Applied, the profile now shows the family and the next run drops the parameter; not applied, a
-      // later choice of the person won and the link has nothing left to choose.
+      // Applied, the profile now shows the family and the next run drops the parameter. Not applied, the
+      // answer was superseded on the device (another write of the profile, a change of language) while
+      // the server may well have chosen: the profile is read again and decides, never the cached one
+      // (PR #80 re-review, 1); still another family there, the link chooses again.
       onSuccess: ({ applied }) => {
-        if (!applied && latest.current === destination) drop();
+        if (applied || latest.current !== destination) return;
+        void readProfile({ cancelRefetch: false }).then(() => {
+          if (latest.current !== destination) return;
+          tried.current = undefined;
+          setRound((n) => n + 1);
+        });
       },
       onError: (error) => {
-        if (latest.current === destination) setFailed({ destination, error });
+        if (latest.current !== destination) return;
+        setFailed({ destination, error });
+        // Refused: the saved profile may still list a family the person has left; read again, it no
+        // longer does and the link is ignored (re-review, 2).
+        if (toApiError(error).code === 'forbidden') void readProfile({ cancelRefetch: false });
       }
     });
-  }, [linked, destination, profile, online, isPending, failed, mutate, navigate]);
+  }, [linked, destination, profile, online, isPending, failed, round, mutate, navigate, readProfile]);
   if (!linked || !profile) return { status: 'none' };
   if (failed && failed.destination === destination) {
     const retry = () => {

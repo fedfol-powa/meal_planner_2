@@ -13,6 +13,8 @@ import { setOnline } from '../test/connectivity';
 import { createRpcTestServer, SERVER_PROFILE, SERVER_RECIPE } from '../test/rpcServer';
 import { createStubBackend } from '../test/stubBackend';
 import { renderApp } from '../test/renderApp';
+import type { Session } from '../session/session';
+import { useSession } from '../session/SessionScope';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -206,6 +208,57 @@ describe('menu', () => {
       await weekShown('lunedì 12 ottobre');
       expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(2);
       await waitFor(() => expect(history.location.search).not.toContain('family'));
+    });
+    it('a choice made on the server but superseded on the device waits for the profile, never the previous menu', async () => {
+      const { api, seen, choose } = await twoFamilies();
+      const held = heldChoices(api, choose);
+      const read = api.profile.get;
+      let hold: (() => void) | null = null;
+      let holding = false;
+      api.profile.get = (async (...args: Parameters<typeof read>) => {
+        if (holding) await new Promise<void>((resolve) => (hold = resolve));
+        return read(...args);
+      }) as typeof read;
+      const captured: { session: Session | null } = { session: null };
+      function Capture() {
+        captured.session = useSession();
+        return null;
+      }
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api, extra: <Capture /> });
+      await waitFor(() => expect(held).toHaveLength(1));
+      // Another write of the profile starts meanwhile (a name, the language): the answer is not written.
+      holding = true;
+      act(() => void captured.session!.track('profile'));
+      await act(async () => held[0]!.resolve());
+      await waitFor(() => expect(hold).not.toBeNull());
+      expect(history.location.search).toContain(`family=${OTHER}`);
+      expect(seen).toEqual([]);
+      holding = false;
+      await act(async () => hold!());
+      await weekShown('lunedì 12 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      expect(seen).not.toContain(HOME);
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(1);
+    });
+    it('a family refused by the server is read again and the link is ignored', async () => {
+      const { api, seen } = await twoFamilies();
+      const read = api.profile.get;
+      let removed = false;
+      api.profile.get = (async (...args: Parameters<typeof read>) => {
+        const view = await read(...args);
+        return removed ? { ...view, families: view.families.filter((f) => f.id !== OTHER) } : view;
+      }) as typeof read;
+      api.profile.setCurrentFamily = vi.fn(async () => {
+        // Removed from the family on the server; the saved profile still lists it.
+        removed = true;
+        throw new ApiError('forbidden');
+      }) as unknown as typeof api.profile.setCurrentFamily;
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
+      await weekShown('lunedì 12 ottobre');
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(1);
+      expect(seen).not.toContain(OTHER);
+      expect(seen).toContain(HOME);
     });
     it('offline waits for the network with the link of a family of the person, then chooses it', async () => {
       const { api, home, seen } = await twoFamilies();
