@@ -31,32 +31,59 @@ import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
 
+type FamilyLinkState = { status: 'none' } | { status: 'waiting'; paused: boolean } | { status: 'failed'; error: unknown; retry: () => void };
+
 /**
  * The link of the «next week's menu» email carries the family (spec W24, 6.2): when the person is in it
  * and it is not the one shown, it is chosen on the server before the day opens. The parameter goes away
- * after the use (`replace`), also when ignored. Resolves true while the choice is still pending.
+ * (`replace`) once the family is the current one in the profile, or at once when the person is not in it.
+ * A failed choice never falls back to the previous family: the link stays, with the error and a retry;
+ * offline the choice waits for the network the same way (PR #80 review, finding 1).
  */
-function useFamilyLink(linked: string | undefined): boolean {
+function useFamilyLink(linked: string | undefined): FamilyLinkState {
   const { api } = useQueryDeps();
   const navigate = route.useNavigate();
   const online = useOnline();
   const profile = useProfile().data;
+  const destination = linked;
   const choose = useAreaMutation('profile.setCurrentFamily', undefined, (familyId: string) => api.profile.setCurrentFamily({ familyId }));
-  const started = useRef(false);
+  const { mutate, isPending } = choose;
+  const tried = useRef<string | undefined>(undefined);
+  // A retry clears it, and the effect starts the choice again.
+  const [failed, setFailed] = useState<{ destination: string; error: unknown } | null>(null);
   useEffect(() => {
-    if (!linked || !profile || started.current) return;
-    started.current = true;
-    const done = () => void navigate({ search: (s) => ({ ...s, family: undefined }), replace: true });
-    if (online && linked !== profile.currentFamilyId && profile.families.some((f) => f.id === linked)) choose.mutate(linked, { onSettled: done });
-    else done();
-  }, [linked, profile, online, choose, navigate]);
-  return !!linked && !!profile;
+    if (!linked || !destination || !profile || isPending) return;
+    const drop = () => void navigate({ search: (s) => ({ ...s, family: undefined }), replace: true });
+    if (linked === profile.currentFamilyId || !profile.families.some((f) => f.id === linked)) return drop();
+    if (!online || tried.current === destination) return;
+    tried.current = destination;
+    mutate(linked, {
+      // Applied, the profile now shows the family and the next run drops the parameter; not applied, a
+      // later choice of the person won and the link has nothing left to choose.
+      onSuccess: ({ applied }) => {
+        if (!applied) drop();
+      },
+      onError: (error) => {
+        setFailed({ destination, error });
+      }
+    });
+  }, [linked, destination, profile, online, isPending, failed, mutate, navigate]);
+  if (!linked || !profile) return { status: 'none' };
+  if (failed && failed.destination === destination) {
+    const retry = () => {
+      tried.current = undefined;
+      setFailed(null);
+    };
+    return { status: 'failed', error: failed.error, retry };
+  }
+  return { status: 'waiting', paused: !online };
 }
 
 /** Until the family of the link is chosen the menu of the previous one must not start reading. */
 function FamilyLink({ day, onSelect, children }: { day: IsoDate | undefined; onSelect: (date: IsoDate) => void; children: ReactNode }) {
-  const arriving = useFamilyLink(route.useSearch().family);
-  if (arriving) return <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={onSelect} />;
+  const link = useFamilyLink(route.useSearch().family);
+  if (link.status === 'failed') return notice(<QueryError error={link.error} onRetry={link.retry} />);
+  if (link.status === 'waiting') return <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={onSelect} paused={link.paused} />;
   return <>{children}</>;
 }
 

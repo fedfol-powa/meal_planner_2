@@ -73,31 +73,36 @@ describe('menu', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
   describe('link of the menu email', () => {
+    const HOME = '5a3c2b1d-4e6f-4a7b-8c9d-0e1f2a3b4c5d';
     const OTHER = '0b0e5f0e-6f3e-4a55-9d1a-3f7f9a1c2b4d';
-    /** The person is also in a second family; its menu is answered by the demo one. */
+    /** The person is also in a second family; both menus are answered by the demo one. */
     async function twoFamilies() {
       const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
       const base = await api.profile.get({});
-      const home = base.families[0]!;
+      // The family of the demo, under a uuid as in a real link.
+      const demo = base.families[0]!.id;
+      const home = { ...base.families[0]!, id: HOME };
       const other = { ...home, id: OTHER, name: 'Casa al mare', role: 'member' as const };
-      let currentFamilyId = base.currentFamilyId;
+      let currentFamilyId = HOME;
       const view = () => ({ ...base, families: [home, other], currentFamilyId });
       api.profile.get = async () => view();
-      api.profile.setCurrentFamily = vi.fn(async ({ familyId }: { familyId: string }) => {
+      /** The server's side of the choice; a test may answer it later or refuse it first. */
+      const choose = (familyId: string) => {
         currentFamilyId = familyId;
         return view();
-      }) as unknown as typeof api.profile.setCurrentFamily;
-      const asHome = <T extends { familyId: string }>(input: T) => ({ ...input, familyId: home.id });
+      };
+      api.profile.setCurrentFamily = vi.fn(async ({ familyId }: { familyId: string }) => choose(familyId)) as unknown as typeof api.profile.setCurrentFamily;
+      const asHome = <T extends { familyId: string }>(input: T) => ({ ...input, familyId: demo });
       const seen: string[] = [];
       const menu = api.menu;
-      for (const name of ['getOpening', 'getWeek', 'getDates', 'getNewWeek'] as const) {
+      for (const name of ['getOpening', 'getWeek', 'getDates', 'getNewWeek', 'markWeekSeen'] as const) {
         const call = menu[name] as (input: { familyId: string }, ...rest: unknown[]) => unknown;
         (menu as Record<string, unknown>)[name] = (input: { familyId: string }, ...rest: unknown[]) => {
           if (name === 'getWeek') seen.push(input.familyId);
           return call(asHome(input), ...rest);
         };
       }
-      return { api, home, seen };
+      return { api, home, seen, choose };
     }
     it('chooses the family of the link, opens its day and drops the parameter', async () => {
       const { api, home, seen } = await twoFamilies();
@@ -123,6 +128,43 @@ describe('menu', () => {
       renderApp(`/menu?day=2026-10-12&family=${home.id}`, { api });
       await weekShown('lunedì 12 ottobre');
       expect(api.profile.setCurrentFamily).not.toHaveBeenCalled();
+    });
+    it('after a failed choice keeps the link, shows the error without the previous menu, and tries again', async () => {
+      const { api, home, seen, choose } = await twoFamilies();
+      let refuse = true;
+      api.profile.setCurrentFamily = vi.fn(async ({ familyId }: { familyId: string }) => {
+        if (refuse) throw new ApiError('network');
+        return choose(familyId);
+      }) as unknown as typeof api.profile.setCurrentFamily;
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
+      const retry = await screen.findByRole('button', { name: 'Riprova' });
+      expect(screen.getByText('Sei offline o il servizio non risponde: riprova quando torni in linea.')).toBeTruthy();
+      expect(seen).not.toContain(home.id);
+      expect(history.location.search).toContain(`family=${OTHER}`);
+      refuse = false;
+      fireEvent.click(retry);
+      await weekShown('lunedì 12 ottobre');
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(2);
+      expect(seen).not.toContain(home.id);
+      expect(seen).toContain(OTHER);
+      expect(history.location.search).not.toContain('family');
+    });
+    it('offline waits for the network with the link of a family of the person, then chooses it', async () => {
+      const { api, home, seen } = await twoFamilies();
+      const { history } = renderApp('/menu?day=2026-10-12', { api });
+      await weekShown('lunedì 12 ottobre');
+      act(() => setOnline(false));
+      const reads = seen.length;
+      act(() => history.push(`/menu?day=2026-10-13&family=${OTHER}`));
+      await waitFor(() => expect(document.querySelector('.calendar .skeleton[data-paused="true"]')).not.toBeNull());
+      expect(api.profile.setCurrentFamily).not.toHaveBeenCalled();
+      expect(seen.slice(reads)).not.toContain(home.id);
+      expect(history.location.search).toContain(`family=${OTHER}`);
+      act(() => setOnline(true));
+      await weekShown('martedì 13 ottobre');
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledWith({ familyId: OTHER }, expect.anything());
+      expect(seen.slice(reads)).not.toContain(home.id);
+      await waitFor(() => expect(history.location.search).not.toContain('family'));
     });
   });
   describe('dragging the days', () => {
