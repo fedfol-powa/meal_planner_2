@@ -22,14 +22,15 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   LAN porta 8766); scelte dell'utente: variante C, 320 px ignorati, niente pulsante su oggi senza pasti;
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w23-spec-piano.md`), correzioni in
   `messaggi/w23-01-revisione-spec.md`; revisione 2 APPROVABILE CON CORREZIONI, correzioni
-  in `messaggi/w23-02-revisione-spec-2.md`; corrette, terzo giro in corso.
+  in `messaggi/w23-02-revisione-spec-2.md`; revisione 3 con due rilievi sul focus: spec e
+  piano approvati dal coordinatore con quelle correzioni; poi `/clear` e implementazione.
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
   pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
   puntini), email B a righe compatte; anteprima confermata dall'utente; in fase 3 (spec e piano).
-- **Revisori attivi:** «R W23 spec 3», rapporto atteso `revisioni/w23-spec-piano-3.md`.
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
