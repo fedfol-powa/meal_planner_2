@@ -19,8 +19,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   rilievi tecnici), corrette; revisione 3 con due rilievi minori: spec e piano approvati
   dal coordinatore (commit `6d8b786`); `PR_APERTA` #80 (migrazione
   `20261023100000_menu_ready_notice.sql`); revisione APPROVABILE CON CORREZIONI
-  (`revisioni/w24-pr80.md`, due rilievi sul link con `family`); corrette, CI verde,
-  secondo giro in corso.
+  (`revisioni/w24-pr80.md`, due rilievi sul link con `family`); corrette, CI verde;
+  secondo giro: un rilievo residuo (risposta tardiva non applicata + secondo link), correzione
+  in corso.
   Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
   della PR.
 - **Unite, in attesa del rilascio unico:** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
@@ -29,7 +30,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   W22, skeleton nelle pagine rare e nelle sezioni dei curatori, PR #79 (merge `9790f07`,
   revisioni `revisioni/w22-*.md`); tab, worktree e branch rimossi; decisioni nella spec
   `2026-10-23-skeleton-pagine-rare.md`. Issue #49 da chiudere dopo il rilascio.
-- **Revisori attivi:** «R W24 PR 2», rapporto atteso `revisioni/w24-pr80-2.md`.
+- **Revisori attivi:** nessuno.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
