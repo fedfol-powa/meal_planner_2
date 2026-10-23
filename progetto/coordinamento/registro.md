@@ -5,13 +5,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 ## Stato corrente (aggiornato il 23 ottobre 2026)
 
-- **Attività in corso:** nessun worker. PR di documentazione `docs/w22-w23-w24` (sottoagente del
-  coordinatore, worktree `.worktrees/docs-w22-w24`) con le decisioni di W22, W23 e W24 nella
-  specifica: PR #81, revisione APPROVABILE CON CORREZIONI (`revisioni/spec-w22-w24-pr81.md`,
-  quattro rilievi minori), corretti in `86d8e13` e controllati dal coordinatore; serve il
-  «mergia» dell'utente. Anteprima del rilascio su
-  `bf0494d` riuscita (migrazione pendente `20261023100000_menu_ready_notice.sql`, nessun
-  segreto nuovo); da ripetere dopo il merge della #81, perché l'impronta dipende dal commit.
+- **Attività in corso:** rilascio unico di W22, W23 e W24 in preparazione (anteprima da
+  ripetere sul `main` attuale, poi «vai» dell'utente). PR di documentazione #81 unita
+  (`mergia` dell'utente il 23/10).
 - **Worker attivi:** nessuno.
 - **Unite, in attesa del rilascio unico:** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
   revisioni `revisioni/w23-*.md`); tab, worktree e branch rimossi. Decisioni da riportare
