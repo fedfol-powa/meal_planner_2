@@ -315,10 +315,18 @@ Stesso schema degli allarmi operativi (`ops-alerts/index.ts`), in `server/src/me
 **Principio** (confermato dal coordinatore il 23 ottobre 2026): **meglio nessuna email che un
 doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email; l'avviso in app resta.
 
-- **Finestra di invio di una riga** («valida»): `sent_at is null and closed_at is null`, la settimana
-  non è ancora cominciata (`week_start` > data locale della famiglia, con `families.time_zone`) e
-  `first_attempt_at is null or first_attempt_at > now() - interval '23 hours'`. Le 23 ore lasciano
-  un'ora di margine sulle 24 in cui Resend conserva la chiave di idempotenza.
+**Orologio unico:** la consegna riceve un orologio (`clock: () => Date`, predefinito `() => new Date()`)
+e lo legge **a ogni fase** (scadenze, candidate, prenotazione e acquisizione, controllo finale). Ogni
+predicato temporale delle sue query usa quell'istante come parametro (`${at}::timestamptz`), **mai**
+`now()` di Postgres; anche `claimed_at`, `first_attempt_at` e `sent_at` si scrivono con quell'istante.
+Così l'ora del Worker e quella delle query coincidono e i test la controllano tutta (sezione 8). Nel
+seguito «adesso» è il valore dell'orologio letto in quella fase.
+
+- **Finestra di invio di una riga** («valida» a un istante `t`): `sent_at is null and closed_at is null`,
+  `t` precede di almeno **1 minuto** la mezzanotte locale del lunedì `week_start` (con
+  `families.time_zone`), e `first_attempt_at is null or first_attempt_at > t - interval '23 hours'`.
+  Le 23 ore lasciano un'ora di margine sulle 24 in cui Resend conserva la chiave di idempotenza; il
+  minuto copre il timeout di 10 secondi del trasporto.
 - **Candidate:** righe valide con acquisizione libera o più vecchia di 15 minuti, in ordine di
   `created_at`.
 - **Scadenza:** prima del giro si chiudono come `expired` (log `menu_email_expired`, livello `warn`) le
@@ -326,13 +334,16 @@ doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email
   acquisizione di ogni riga, come negli allarmi: una riga che diventa non valida mentre il giro elabora
   le precedenti non si acquisisce (e la chiude il giro successivo).
 - **Acquisizione e budget, in un'unica transazione `job` breve** per riga:
-  1. prenotazione del budget del giorno UTC corrente:
+  1. prenotazione del budget del giorno UTC di «adesso» (`d`), salvo che «adesso» sia nell'ultimo
+     minuto del giorno UTC: in quel caso il giro si ferma senza prenotare (riprende all'ora dopo):
      `insert into app.menu_email_budget (day, reserved) values (d, 1) on conflict (day) do update set reserved = menu_email_budget.reserved + 1 where menu_email_budget.reserved < 60 returning reserved`;
      nessuna riga restituita → budget esaurito: la transazione si annulla e il giro **si ferma** (le
      altre righe aspettano il giorno UTC dopo, entro la loro finestra);
-  2. acquisizione atomica della riga, solo se ancora valida (`claimed_at = now()`, `attempts + 1`,
-     `first_attempt_at = coalesce(first_attempt_at, now())`), `returning` anche `first_attempt_at`;
-     nessuna riga → la transazione si annulla (la prenotazione con lei) e si passa alla successiva.
+  2. acquisizione atomica della riga, solo se ancora valida a «adesso» (`claimed_at = adesso`,
+     `attempts + 1`, `first_attempt_at = coalesce(first_attempt_at, adesso)`), `returning` anche
+     `first_attempt_at` e il fuso della famiglia; nessuna riga → la transazione si annulla (la
+     prenotazione con lei) e si passa alla successiva. La transazione restituisce anche `d`, il giorno
+     della prenotazione.
   Il conflitto sulla chiave primaria di `menu_email_budget` serializza le consegne concorrenti: con 59
   prenotazioni due giri insieme ne ottengono una sola.
 - **Ogni tentativo consuma una prenotazione, qualunque esito**: anche un successo con la risposta
@@ -343,9 +354,17 @@ doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email
 - **Controllo dell'indirizzo:** dopo l'acquisizione, `menu_email_address`: se `null`, la riga si chiude
   come `skipped` (persona uscita, opzione spenta o email non confermata) senza inviare; la prenotazione
   di quel giro resta consumata (prudenza, costo trascurabile).
-- **Controllo prima della richiesta:** subito prima di `sendEmail` il codice ricontrolla che
-  `first_attempt_at` restituito dall'acquisizione sia più recente di 23 ore rispetto all'ora del
-  Worker; se no, non chiama Resend e chiude la riga come `expired`.
+- **Controllo finale, subito prima di `sendEmail`**, con l'orologio letto in quel momento (`t`), in
+  codice e senza query:
+  - la riga è ancora valida a `t` (23 ore da `first_attempt_at` e lunedì locale con il minuto di
+    margine, calcolato con il fuso restituito dall'acquisizione); se no, non chiama Resend e chiude la
+    riga come `expired`;
+  - `t` è ancora nel giorno UTC `d` della prenotazione e non nel suo ultimo minuto; se no, **non usa**
+    la prenotazione di `d`: non chiama Resend, libera l'acquisizione (`claimed_at = null`, in una
+    transazione propria) e la riga riprova a un giro successivo con una prenotazione nuova sul suo
+    giorno. La prenotazione di `d` resta consumata (prudenza).
+  Il controllo dell'indirizzo sta fra acquisizione e controllo finale: è il tratto in cui il tempo può
+  passare un confine.
 - **Invio** con `sendEmail` (`mail/transport.ts`), corpo e oggetto salvati, chiave di idempotenza
   `menu-email/{familyId}/{weekStart}/{userId}`. Esiti: successo → `sent_at`; `409` di idempotenza
   diverso da `concurrent_idempotent_requests` → chiusa come `ambiguous` (log di errore, nessun nuovo
@@ -361,7 +380,8 @@ doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email
 - **Velocità:** Resend accetta 10 richieste al secondo per team; il giro spedisce in sequenza, una
   richiesta alla volta, e si ferma al primo `429`.
 - **Log:** `menu_email_announced` (famiglia, settimana, destinatari), `menu_email_sent`,
-  `menu_email_skipped`, `menu_email_expired`, `menu_email_ambiguous`, `menu_email_failed`; solo id,
+  `menu_email_skipped`, `menu_email_expired`, `menu_email_ambiguous`, `menu_email_failed`,
+  `menu_email_deferred` (cambio di giorno UTC fra prenotazione e invio); solo id,
   codici e numeri, mai indirizzi, oggetti o corpi (regola di `sendEmail`).
 
 ## 6. Web
@@ -388,12 +408,22 @@ doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email
   `menu.markWeekSeen` e mette subito a `null` la cache di `getNewWeek` di quella famiglia (pallino e
   verde spariscono senza attendere). Vale per ogni modo di arrivarci: calendario, fila dei giorni,
   swipe, link con `?day=`.
-  - **Guardia** per coppia (`familyId`, `weekStartsOn`), non per sola settimana: `MenuView` non si
-    rimonta cambiando famiglia, e la stessa settimana va registrata in ogni famiglia. Due stati: «in
-    corso» (non si richiama) e «confermata» (non si richiama più in questa sessione).
-  - **Aggiornamento ottimistico:** prima di scrivere `null` nella cache, `cancelQueries` sulla query
-    di quella famiglia, così una lettura già partita non rimette il pallino.
-  - **Errore:** la guardia della coppia si libera e la query si invalida (il pallino torna se il server
+  - **Stato delle visite** per coppia (`familyId`, `weekStartsOn`), non per sola settimana: `MenuView`
+    non si rimonta cambiando famiglia, e la stessa settimana va registrata in ogni famiglia. Due stati:
+    «in corso» (non si richiama) e «confermata» (non si richiama più in questa sessione). Lo stato vive
+    accanto al `QueryClient` (una mappa per client, come l'accesso alle famiglie in `api/queries.ts`),
+    non nel componente.
+  - **Lo stato della visita prevale sulle risposte:** la funzione di lettura di `getNewWeek`, **dopo**
+    aver ricevuto la risposta, la confronta con lo stato delle visite: se la coppia (famiglia, settimana
+    restituita) è «in corso» o «confermata», restituisce `{ weekStartsOn: null }`. Il confronto avviene
+    alla consegna della risposta, non alla partenza della richiesta: così anche una lettura partita
+    **dopo** l'aggiornamento ottimistico, che ha letto il server prima del commit di `markWeekSeen`, non
+    rimette il pallino.
+  - **Aggiornamento ottimistico:** alla visita, stato «in corso», `cancelQueries` sulla query della
+    famiglia, poi `null` nella cache.
+  - **Successo:** stato «confermata» e **riconciliazione**: `null` di nuovo nella cache della famiglia
+    (sovrascrive qualunque risposta arrivata nel frattempo) e nessuna invalidazione.
+  - **Errore:** lo stato della coppia si toglie e la query si invalida (il pallino torna se il server
     lo conferma); la chiamata si ripete alla visita successiva della settimana (anche dopo esserne
     usciti). Nessuna coda offline.
 - Il pallino non c'è nello skeleton del Menu.
@@ -459,8 +489,16 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
   - famiglia nuova creata il giovedì → nessun annuncio per quella settimana, annuncio la settimana
     dopo;
   - membro entrato dopo l'annuncio → nessuna email, `getNewWeek` sì;
-  - scadenza al lunedì e dopo 23 ore dal primo tentativo, anche quando la soglia arriva **durante** il
-    giro; `429` ferma il giro;
+  - scadenza al lunedì e dopo 23 ore dal primo tentativo, con l'orologio iniettato (anche nelle query);
+    `429` ferma il giro;
+  - **controllo atomico** (acquisizione), separato: mentre la richiesta della prima riga è sospesa nel
+    Resend finto, il test porta nel database di prova `first_attempt_at` della seconda riga oltre le
+    23 ore rispetto all'orologio iniettato → l'acquisizione della seconda non riesce, nessuna richiesta;
+  - **controllo finale**, separato, attraversando ciascun confine **fra acquisizione e richiesta**
+    (l'orologio avanza durante il controllo dell'indirizzo): 23 ore → `expired`, nessuna richiesta;
+    mezzanotte locale del lunedì → `expired`; mezzanotte UTC → nessuna richiesta, acquisizione
+    liberata, prenotazione del giorno prima consumata, al giro dopo nuova prenotazione sul giorno nuovo
+    e un'email; ultimo minuto del giorno UTC → nessuna prenotazione;
   - budget: con 59 prenotazioni due consegne concorrenti spediscono una sola email; un invio accettato
     con la risposta persa consuma la prenotazione; un errore nel salvataggio di `sent_at` consuma la
     prenotazione e la ripresa dopo 15 minuti usa la stessa chiave, lo stesso oggetto e lo stesso corpo;
@@ -480,10 +518,14 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
   fila dei giorni, swipe, `?day=`); giorni nuovi con numero verde e fondo verde chiaro, giorno scelto
   scuro anche al passaggio del mouse; nomi accessibili; errore di
   `markWeekSeen` → uscita dalla settimana → nuova visita richiama; stessa settimana in due famiglie senza
-  rimontare la pagina → due chiamate; `getNewWeek` che risponde `null` prima della generazione pigra e
+  rimontare la pagina → due chiamate; lettura di `getNewWeek` avviata **dopo** l'aggiornamento
+  ottimistico, con il risultato preso dal server prima del commit di `markWeekSeen` e consegnato dopo il
+  successo → il pallino resta spento; `getNewWeek` che risponde `null` prima della generazione pigra e
   poi si aggiorna alla fine della lettura del menu; passaggio online → offline con il pallino caricato
-  (sparisce, nessuna chiamata navigando offline) e riconnessione (torna); parametro `family`; casella
-  delle Preferenze.
+  (sparisce, nessuna chiamata navigando offline); riconnessione mentre si mostra la settimana
+  **precedente** (il pallino torna, se non vista); riconnessione mentre si mostra la settimana **nuova**
+  (`markWeekSeen` parte e, completata, il pallino resta assente); parametro `family`; casella delle
+  Preferenze.
 - **Primo rilascio:** prova ripetibile sullo stack locale (database alla migrazione precedente,
   settimane inserite per famiglie in fusi ai due lati della mezzanotte UTC, poi la migrazione W24):
   nessuna email al primo giro.
