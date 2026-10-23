@@ -18,13 +18,14 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
   LAN porta 8766); scelte dell'utente: variante C, 320 px ignorati, niente pulsante su oggi senza pasti;
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w23-spec-piano.md`), correzioni in
-  `messaggi/w23-01-revisione-spec.md`; poi secondo giro.
+  `messaggi/w23-01-revisione-spec.md`; corrette, secondo giro in corso.
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente via Remote Control); ultimo STATO: nessuno.
 - **Revisori attivi:** «R W22 spec 2» (pane `w1:p5X`), rapporto atteso
-  `revisioni/w22-spec-piano-2.md`.
+  `revisioni/w22-spec-piano-2.md`; «R W23 spec 2», rapporto atteso
+  `revisioni/w23-spec-piano-2.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
