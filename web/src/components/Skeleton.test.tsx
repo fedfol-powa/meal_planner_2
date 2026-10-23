@@ -113,3 +113,68 @@ describe('LoadingScope', () => {
     expect(screen.getAllByRole('status')).toHaveLength(1);
   });
 });
+
+describe('LoadingScope gather', () => {
+  const gathered = (first: boolean, second: boolean, paused: [boolean, boolean] = [false, false]) =>
+    wrap(
+      <LoadingScope gather>
+        <LoadingArea loading={first} paused={paused[0]} className="first" skeleton={<span className="skeleton-card" />}>
+          <p>Primo</p>
+        </LoadingArea>
+        <LoadingArea loading={second} paused={paused[1]} className="second" skeleton={<span className="skeleton-card" />}>
+          <p>Secondo</p>
+        </LoadingArea>
+      </LoadingScope>
+    );
+  const loadingStatuses = () => screen.getAllByRole('status').filter((s) => s.textContent === 'Caricamento…');
+
+  it('gathers the waits of inner areas into one status', () => {
+    const { container } = render(gathered(true, true));
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    act(() => void vi.advanceTimersByTime(200));
+    expect(loadingStatuses()).toHaveLength(1);
+    const all = [...container.querySelectorAll<HTMLElement>('.skeleton')];
+    expect(all).toHaveLength(2);
+    expect(all.map((el) => el.dataset.visible)).toEqual(['true', 'true']);
+  });
+
+  it('shows an inner area as soon as its data arrives', () => {
+    const { container, rerender } = render(gathered(true, true));
+    act(() => void vi.advanceTimersByTime(200));
+    rerender(gathered(false, true));
+    expect(screen.getByText('Primo')).toBeTruthy();
+    expect(container.querySelector('.first')?.getAttribute('aria-busy')).toBeNull();
+    expect(container.querySelector('.second')?.getAttribute('aria-busy')).toBe('true');
+    expect(container.querySelector<HTMLElement>('.second .skeleton')?.dataset.visible).toBe('true');
+    expect(loadingStatuses()).toHaveLength(1);
+    rerender(gathered(false, false));
+    expect(screen.getByText('Secondo')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('');
+  });
+
+  it('pauses the gathered wait only when every wait is paused', () => {
+    const { container, rerender } = render(gathered(true, true, [true, false]));
+    const all = () => [...container.querySelectorAll<HTMLElement>('.skeleton')];
+    expect(all().map((el) => el.dataset.paused)).toEqual([undefined, undefined]);
+    rerender(gathered(true, true, [true, true]));
+    expect(all().map((el) => el.dataset.paused)).toEqual(['true', 'true']);
+  });
+
+  it('keeps a nested scope without gather independent', () => {
+    render(
+      wrap(
+        <LoadingScope loading>
+          <LoadingArea loading skeleton={<span className="skeleton-card" />} />
+        </LoadingScope>
+      )
+    );
+    act(() => void vi.advanceTimersByTime(200));
+    expect(loadingStatuses()).toHaveLength(2);
+  });
+
+  it('announces the given label', () => {
+    render(wrap(<LoadingArea loading label="Verifico il link…" skeleton={<span className="skeleton-card" />} />));
+    act(() => void vi.advanceTimersByTime(200));
+    expect(screen.getByRole('status').textContent).toBe('Verifico il link…');
+  });
+});
