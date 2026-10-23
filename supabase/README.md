@@ -61,8 +61,8 @@ Funzioni eseguibili per ruolo:
 | Ruolo | Funzioni |
 |---|---|
 | `anon` | `temporary_list_by_token` |
-| `authenticated` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `has_role`, `session_is_active`, `is_member`, `is_family_admin`, `shares_family`, `can_access_week`, `can_access_slot`, `can_access_list`, `catalogue_author_names`, `meal_passed_at`, `recipe_version_at` |
-| `app_job` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `meal_passed_at`, `recipe_version_at` |
+| `authenticated` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `has_role`, `session_is_active`, `is_member`, `is_family_admin`, `shares_family`, `can_access_week`, `can_access_slot`, `can_access_list`, `catalogue_author_names`, `meal_passed_at`, `recipe_version_at`, `new_menu_week` |
+| `app_job` | `is_localized_text`, `is_localized_list`, `unit_dimension`, `meal_passed_at`, `recipe_version_at`, `menu_week_to_announce`, `menu_email_recipients`, `menu_email_address`, `menu_email_week` |
 | `app_backup` | `backup_auth_rows` |
 | PUBLIC, `app_server` | nessuna |
 
