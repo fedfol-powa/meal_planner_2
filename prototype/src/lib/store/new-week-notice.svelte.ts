@@ -3,14 +3,10 @@ import type { DemoDatabase, IsoDate } from '#lib/domain/types.ts';
 import type { OperationContext } from '#lib/operations/context.ts';
 
 /**
- * W24 (avviso del menu pronto): where the discreet dot sits, switchable from the Prova panel, and the
- * weeks each person has already seen. Kept outside the persisted demo state on purpose (its own keys),
- * so the variants do not bump STORAGE_KEY; in the app "seen" lives on the server, per person.
+ * W24 (avviso del menu pronto): the weeks each person has already seen, behind the dot on the calendar
+ * icon. Kept outside the persisted demo state (its own key), so STORAGE_KEY does not change; in the app
+ * "seen" lives on the server, per person.
  */
-export const DOT_VARIANTS = ['calendar', 'navbar', 'day_row'] as const;
-export type DotVariant = (typeof DOT_VARIANTS)[number];
-
-const VARIANT_KEY = 'app-famiglia-prototype-w24-dot';
 const SEEN_KEY = 'app-famiglia-prototype-w24-seen';
 
 function read<T>(key: string, fallback: T): T {
@@ -31,13 +27,7 @@ function write(key: string, value: unknown) {
 }
 
 class NewWeekNotice {
-	variant = $state<DotVariant>(typeof localStorage === 'undefined' ? 'calendar' : read<DotVariant>(VARIANT_KEY, 'calendar'));
 	seen = $state<string[]>(typeof localStorage === 'undefined' ? [] : read<string[]>(SEEN_KEY, []));
-
-	setVariant(variant: DotVariant) {
-		this.variant = variant;
-		write(VARIANT_KEY, variant);
-	}
 
 	/** Monday of the next week when it is ready and this person has not looked at it yet; it expires on that Monday. */
 	pendingWeek(db: DemoDatabase, ctx: OperationContext): IsoDate | null {

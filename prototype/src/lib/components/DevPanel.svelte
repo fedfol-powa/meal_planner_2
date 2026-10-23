@@ -10,7 +10,7 @@
 	import { page } from '$app/state';
 	import { contentOf } from '#lib/domain/recipe-content.ts';
 	import { saveDraft } from '#lib/operations/curation.ts';
-	import { DOT_VARIANTS, newWeekNotice, type DotVariant } from '#lib/store/new-week-notice.svelte.ts';
+	import { newWeekNotice } from '#lib/store/new-week-notice.svelte.ts';
 
 	// W24: Thursday morning after the Wednesday job, with no week seen yet, back on the opening day.
 	function newWeekReady() {
@@ -104,12 +104,7 @@
 	</header>
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
-	<!-- W24: where the dot of the new week sits, and a quick way to see it. -->
-	<label>{app.t('dev.newWeekDot')}
-		<select value={newWeekNotice.variant} onchange={(e) => newWeekNotice.setVariant(e.currentTarget.value as DotVariant)}>
-			{#each DOT_VARIANTS as id (id)}<option value={id}>{app.t(`dev.newWeekDot.${id}` as const)}</option>{/each}
-		</select>
-	</label>
+	<!-- W24: a quick way to see the dot of the new week on the calendar icon, and the email. -->
 	<button type="button" class="text-button" onclick={newWeekReady}>{app.t('dev.newWeekReady')}</button>
 	<p class="meta-line">{app.t('dev.newWeekReady.note')}</p>
 	<a class="text-button" href="/w24-email/" target="_blank" rel="noopener" data-sveltekit-reload>{app.t('dev.newWeekEmail')}</a>

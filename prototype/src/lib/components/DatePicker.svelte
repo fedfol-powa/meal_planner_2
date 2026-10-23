@@ -4,7 +4,7 @@
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	// W24: `dot` marks a new week not seen yet on the icon; `fresh` are its days, marked in the grid.
+	// W24: `dot` marks a new week not seen yet on the icon; `fresh` are its days, with the number in green.
 	let { dates, selected, onSelect, open = $bindable(false), dot = false, fresh = [] }: { dates: IsoDate[]; selected: IsoDate; onSelect: (date: IsoDate) => void; open?: boolean; dot?: boolean; fresh?: IsoDate[] } = $props();
 	// Month browsed in the panel; empty means "the month of the selected day".
 	let browsedMonth = $state('');
@@ -82,7 +82,7 @@
 				{#each weekdays as weekday, i (i)}<span class="weekday" aria-hidden="true">{weekday}</span>{/each}
 				{#each cells as date (date)}
 					{#if date.slice(0, 7) === month}
-						<button type="button" class="day" class:fresh={fresh.includes(date)} aria-pressed={date === selected} aria-label={formatDayLong(app.locale, date)} disabled={!available.has(date)} onclick={() => choose(date)}>
+						<button type="button" class="day" class:fresh={fresh.includes(date)} aria-label={fresh.includes(date) ? `${formatDayLong(app.locale, date)}, ${app.t('menu.newWeekDay')}` : formatDayLong(app.locale, date)} aria-pressed={date === selected} disabled={!available.has(date)} onclick={() => choose(date)}>
 							{Number(date.slice(8, 10))}
 						</button>
 					{:else}
@@ -100,9 +100,7 @@
 	.toggle { position: relative; }
 	.toggle .icon { width: 26px; height: 26px; }
 	.new-dot { position: absolute; top: 7px; right: 6px; width: 10px; height: 10px; border: 2px solid var(--canvas); border-radius: 50%; background: var(--green); }
-	.day.fresh { position: relative; }
-	.day.fresh::after { content: ''; position: absolute; left: 50%; bottom: 5px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--green); }
-	.day.fresh[aria-pressed='true']::after { background: #fff; }
+
 	.toggle[aria-expanded='true'] { color: var(--green); }
 	.panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; width: min(320px, calc(100vw - 32px)); padding: 16px; background: var(--paper); box-shadow: 0 4px 16px rgb(0 0 0 / 15%); border-radius: 8px; }
 	.month { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
@@ -113,6 +111,8 @@
 	.weekday { padding: 4px 0; color: var(--muted); font-size: 0.75rem; text-align: center; text-transform: uppercase; }
 	.day { min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); cursor: pointer; }
 	.day:hover:not(:disabled) { background: #f0ede5; }
+	/* W24: days of the new week not seen yet; the chosen day stays dark with white text. */
+	.day.fresh { color: var(--green); }
 	.day[aria-pressed='true'] { color: #fff; background: var(--ink); }
 	.day:disabled { color: var(--rule); font-weight: 400; cursor: not-allowed; }
 </style>
