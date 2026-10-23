@@ -12,7 +12,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w22-spec-piano.md`), correzioni
   e decisioni del coordinatore in `messaggi/w22-01-revisione-spec.md`; corrette (commit
-  `c725262`), secondo giro in corso.
+  `c725262`); revisione 2 APPROVABILE CON CORREZIONI, correzioni in
+  `messaggi/w22-02-revisione-spec-2.md`; poi terzo giro.
   W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
   «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
@@ -23,8 +24,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente via Remote Control); ultimo STATO: nessuno.
-- **Revisori attivi:** «R W22 spec 2» (pane `w1:p5X`), rapporto atteso
-  `revisioni/w22-spec-piano-2.md`; «R W23 spec 2», rapporto atteso
+- **Revisori attivi:** «R W23 spec 2», rapporto atteso
   `revisioni/w23-spec-piano-2.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
