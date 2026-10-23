@@ -31,10 +31,12 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
   puntini), email B a righe compatte; anteprima confermata dall'utente; revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w24-spec-piano.md`), correzioni in
   `messaggi/w24-01-revisione-spec.md`; rilievo 7: l'utente sceglie un fondo verde chiaro
-  dietro i giorni nuovi (`messaggi/w24-02-segnale-calendario.md`).
+  dietro i giorni nuovi (`messaggi/w24-02-segnale-calendario.md`). Corrette (commit
+  `fc71121`, anteprima sulla porta 8768), secondo giro in corso.
   Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
   della PR.
-- **Revisori attivi:** «R W23 PR», rapporto atteso `revisioni/w23-pr78.md`.
+- **Revisori attivi:** «R W23 PR», rapporto atteso `revisioni/w23-pr78.md`; «R W24 spec 2»,
+  rapporto atteso `revisioni/w24-spec-piano-2.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
