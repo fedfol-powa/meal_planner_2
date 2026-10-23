@@ -125,6 +125,18 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
   accanto; si cambia oltre un terzo della larghezza o con un colpo veloce. Se la
   settimana non esiste la fila segue il dito con resistenza e torna al suo posto, senza
   messaggi (specifica, sezione 5).
+  Dal 23 ottobre 2026 (W23, PR #78), quando il Menu mostra un giorno diverso da oggi e
+  oggi ha pasti, a sinistra dell'icona del calendario compare il pulsante «Oggi» (freccia
+  di ritorno e parola, senza riquadro, scelto dall'utente fra tre varianti nel
+  prototipo): un tocco riporta a oggi come la scelta di un giorno; su oggi, o se oggi non
+  ha pasti, il pulsante non c'è (specifica, sezioni 5 e 14).
+  Dal 23 ottobre 2026 (W24, PR #80), quando il menu della settimana prossima è pronto e la
+  persona non l'ha ancora guardato, l'icona del calendario ha un pallino verde e nel mese
+  i giorni di quella settimana hanno il numero verde su fondo verde chiaro; spariscono
+  alla prima visita di un suo giorno (calendario, fila dei giorni, swipe, link), su tutti
+  i dispositivi della persona, o il lunedì. Insieme arriva l'email del menu,
+  con «Apri il menu» verso il lunedì di quella settimana nella famiglia giusta (sotto,
+  «Avviso del menu pronto»).
 - **Nessuno stato della settimana** (sezione 2, decisione della tappa intermedia):
   nessuna etichetta o messaggio di stato; "non cucinato" su ogni pasto passato.
 - **Schede dei pasti:** con foto, senza foto, pasto libero, slot vuoto "nessuna ricetta
@@ -1221,3 +1233,29 @@ Le pagine nuove hanno la forma delle pagine d'ingresso del prototipo (marchio, c
 stretta, cambio di lingua, «Sei offline» con i comandi disattivati). Restano le prove a
 mano sull'iPhone dopo il rilascio (email aperta dall'app Mail con la PWA installata,
 «Password dimenticata» dalla PWA, resa delle email in italiano e in inglese).
+
+### Avviso del menu pronto nell'app (23 ottobre 2026)
+
+Con la W24 (PR #80, specifica, Parte 1 e sezioni 4, 5, 7, 12 e 14) l'app avvisa quando il
+mercoledì sera è pronto il menu della settimana dopo. Il prototipo ne ha il riferimento
+(`prototype/src/routes/menu/+page.svelte`, `DatePicker.svelte`) e l'anteprima dell'email
+in `prototype/static/w24-email/`.
+
+- **Email** a ogni membro, nella sua lingua: oggetto «Il menu della settimana
+  {intervallo} è pronto», con il nome della famiglia solo per chi ne ha più di una; una
+  riga per pasto con la miniatura quadrata, l'etichetta Pranzo/Cena e il nome del piatto
+  (forma «righe compatte» scelta dall'utente); il pulsante «Apri il menu», che porta al
+  lunedì di quella settimana nella famiglia dell'email, scegliendola come famiglia
+  mostrata se la persona ne è membro; la riga che dice che il menu si può ancora cambiare
+  nell'app; in fondo «Non ricevere più queste email», che apre le Preferenze (con
+  l'accesso, se serve).
+- **Menu**: pallino verde sull'icona del calendario e giorni della settimana nuova in
+  verde nel mese, fino alla prima visita o al lunedì (percorso 1, «Calendario»). Offline
+  non si mostrano.
+- **Preferenze** (percorso 5): sotto la lingua la casella «Email con il menu della
+  settimana», con il sottotitolo «Il mercoledì sera, quando è pronto il menu della
+  settimana dopo», attiva all'inizio; salva subito, una sola opzione per tutte le
+  famiglie della persona.
+
+Restano le prove a mano dopo il rilascio: l'email vera del mercoledì in Mail e in Gmail,
+«Apri il menu» dalla PWA e da Safari, il link in fondo, il pallino su due dispositivi.
