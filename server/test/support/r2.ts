@@ -4,7 +4,7 @@ export class MemoryBucket {
 	failPut = false;
 	failDelete = false;
 	pageSize = 2;
-	calls = { put: 0, get: 0 };
+	calls = { put: 0, get: 0, head: 0 };
 
 	async put(
 		key: string,
@@ -28,6 +28,12 @@ export class MemoryBucket {
 			httpEtag: `"etag-${key.length}-${object.body.byteLength}"`,
 			body: new Response(object.body).body!,
 		};
+	}
+
+	async head(key: string) {
+		this.calls.head++;
+		const object = this.objects.get(key);
+		return object ? { key, size: object.body.byteLength } : null;
 	}
 
 	async list(options: { prefix?: string; cursor?: string; limit?: number } = {}) {
