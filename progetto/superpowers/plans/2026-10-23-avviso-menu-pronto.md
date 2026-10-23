@@ -35,8 +35,8 @@ cominciare; le sezioni citate sotto sono di quella spec).
   idempotenza `menu-email/{familyId}/{weekStart}/{userId}`.
 - Meglio nessuna email che un doppione (decisione del coordinatore del 23 ottobre 2026).
 - Ordine dei merge: W23 prima di W24; riallineamento a `main` nel Task 11.
-- Secondo segnale visibile dei giorni verdi: **aperto** (rilievo 7, scelta dell'utente attesa); il
-  Task 9 lo implementa quando la spec lo fissa.
+- Giorni della settimana nuova nel mese: numero `var(--green)` su fondo `var(--soft-green)` (`#eef5e8`),
+  raggio 8 px, solo per `:not([aria-pressed='true'])` (scelta dell'utente del 23 ottobre 2026, spec 6.1).
 
 ## Review Focus
 
@@ -374,8 +374,11 @@ cominciare; le sezioni citate sotto sono di quella spec).
   - toccando il 26 nel calendario → una chiamata `markWeekSeen({ familyId, weekStartsOn: '2026-10-26' })`,
     il pulsante torna «Scegli un giorno», nessun giorno verde;
   - stesso effetto con lo swipe alla settimana dopo e aprendo `/menu?day=2026-10-28`;
+  - i giorni 26–31 hanno la classe dei giorni nuovi (numero verde, fondo verde chiaro: test sul CSS
+    module, che la regola esista con `:not([aria-pressed='true'])` per `color` e `background`);
   - con `selected` sul 26 il giorno ha `aria-pressed="true"` e la regola del giorno scelto (sfondo
-    `var(--ink)`, testo bianco) vince sul verde (test sul CSS module o sullo stile calcolato);
+    `var(--ink)`, testo bianco) vince sul verde, anche con `:hover` (test sul CSS module o sullo stile
+    calcolato);
   - `getNewWeek` = `{ weekStartsOn: null }` → nessun pallino, nessuna chiamata;
   - errore: `markWeekSeen` che risponde errore → pallino di nuovo visibile dopo l'invalidazione; si
     torna a una settimana precedente e poi al 26 → seconda chiamata;
@@ -392,8 +395,8 @@ cominciare; le sezioni citate sotto sono di quella spec).
 - [ ] **Step 2:** `npm test -w web -- MenuPage persister` → FAIL.
 - [ ] **Step 3:** implementare come il prototipo (`prototype/src/lib/components/DatePicker.svelte`):
   pallino 10 px `var(--green)` con bordo 2 px del fondo, `top: 7px; right: 6px`; `.day.fresh { color: var(--green) }`
-  prima della regola `aria-pressed`, più il secondo segnale visibile **quando la spec lo fissa**
-  (rilievo 7). `useNewWeek`: guardia `Map<string, 'pending' | 'done'>` con chiave
+  e `background: var(--soft-green)` su `.day.fresh:not([aria-pressed='true'])` e sul suo `:hover`
+  (stesso fondo), così il giorno scelto resta scuro anche al passaggio del mouse. `useNewWeek`: guardia `Map<string, 'pending' | 'done'>` con chiave
   `${familyId}:${weekStartsOn}` (in un `useRef`); alla visita: `cancelQueries` della query della
   famiglia, `setQueryData({ weekStartsOn: null })`, mutazione; errore → cancellare la chiave e
   `invalidateQueries`; invalidare `newWeek` quando `getOpening`/`getWeek` della famiglia cambiano

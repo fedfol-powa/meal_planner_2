@@ -26,9 +26,10 @@ operativo.
 
 1. L'avviso in app si deve vedere quando si apre l'app, ma è **discreto**: un **pallino verde
    sull'icona del calendario** nella barra del Menu, non una scheda che ruba spazio.
-2. Aprendo il mese, i **giorni della settimana nuova hanno il numero in verde** (colore d'accento)
-   finché la settimana non è stata vista; niente puntini sotto i giorni. Il giorno scelto resta scuro
-   con testo bianco, anche se è della settimana nuova.
+2. Aprendo il mese, i **giorni della settimana nuova hanno il numero in verde** (colore d'accento) **su
+   un fondo verde chiaro** (lo stesso dello stato attivo della navbar, scelta dell'utente del 23 ottobre
+   2026 dopo la revisione) finché la settimana non è stata vista; niente puntini sotto i giorni. Il
+   giorno scelto resta scuro con testo bianco, anche se è della settimana nuova.
 3. **Quando sparisce:** la prima volta che la persona vede nel Menu un giorno qualsiasi della settimana
    nuova (calendario, fila dei giorni, swipe, link). Vale **per persona**, su tutti i suoi dispositivi
    (stato sul server). Se la settimana non viene mai guardata, sparisce il lunedì in cui comincia.
@@ -376,11 +377,13 @@ doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email
   - `dot`: pallino verde 10 px con bordo del colore di fondo, in alto a destra dell'icona del
     calendario; il nome accessibile del pulsante diventa «Scegli un giorno, menu della settimana
     prossima pronto» / «Choose a day, next week's menu is ready»;
-  - `fresh`: i sette giorni della settimana nuova, con il numero in `var(--green)`
-    (`#067a46`: contrasto 5,4:1 sul bianco del pannello, 4,6:1 sul grigio del passaggio del mouse;
-    entrambi sopra AA). Il giorno scelto resta `var(--ink)` con testo bianco (la regola
-    `aria-pressed` vince). Il nome accessibile dei giorni verdi aggiunge «, settimana nuova» / «, new
-    week».
+  - `fresh`: i sette giorni della settimana nuova, con il numero in `var(--green)` (`#067a46`) su fondo
+    `var(--soft-green)` (`#eef5e8`, il fondo dello stato attivo della navbar), stessa forma e raggio di
+    8 px delle celle del calendario e del giorno scelto, nessuno spazio in più; il fondo resta uguale
+    al passaggio del mouse. Contrasto del numero sul fondo: **4,86:1** (sopra 4,5:1). Il giorno scelto
+    resta `var(--ink)` con testo bianco: le regole dei giorni nuovi valgono solo per
+    `:not([aria-pressed='true'])`, così né il fondo né il passaggio del mouse lo coprono. Il nome
+    accessibile dei giorni nuovi aggiunge «, settimana nuova» / «, new week».
 - Appena il giorno mostrato (`selected`) cade nella settimana nuova, con la rete, `MenuPage` chiama
   `menu.markWeekSeen` e mette subito a `null` la cache di `getNewWeek` di quella famiglia (pallino e
   verde spariscono senza attendere). Vale per ogni modo di arrivarci: calendario, fila dei giorni,
@@ -400,11 +403,12 @@ doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email
   il server lo conferma. Inoltre la query di `getNewWeek` **non** si salva nella cache persistente
   (`web/src/api/persister.ts`): un pallino vecchio, magari già spento da un altro dispositivo, non deve
   ricomparire all'avvio.
-- **Secondo segnale visibile dei giorni nuovi** (rilievo 7 della revisione): **aperto**, in attesa della
-  scelta dell'utente. Il verde `#067a46` contro l'inchiostro `#232323` dei numeri normali ha contrasto
-  2,9:1, sotto la soglia di 3:1 del criterio WCAG 1.4.1 per distinguere con il solo colore; serve un
-  segno visibile in più compatibile con «numeri verdi, senza puntini». Il giorno scelto resta scuro con
-  testo bianco.
+- **Secondo segnale visibile dei giorni nuovi** (rilievo 7 della revisione, scelta dell'utente del 23
+  ottobre 2026): il fondo verde chiaro della cella, oltre al numero verde. Il numero verde da solo,
+  contro l'inchiostro `#232323` dei numeri normali, ha contrasto 2,9:1, sotto la soglia di 3:1 del
+  criterio WCAG 1.4.1. Il fondo aggiunge un'area piena con la forma della cella. **Limite dichiarato:**
+  il fondo `#eef5e8` contro il bianco del pannello ha contrasto 1,11:1, quindi chi vede poco il
+  contrasto lo distingue soprattutto dalla forma della fila di celle piene, non dalla luminosità.
 
 Prototipo di riferimento: `prototype/src/routes/menu/+page.svelte`, `DatePicker.svelte`,
 `store/new-week-notice.svelte.ts` (commit `06d30da`).
@@ -429,8 +433,9 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
 
 - Il pallino è decorativo (`aria-hidden`); l'informazione sta nel nome accessibile del pulsante del
   calendario. Niente annunci `aria-live`: l'avviso non deve interrompere chi usa un lettore di schermo.
-- I giorni verdi hanno il nome accessibile con «settimana nuova». Questo non basta per chi vede il
-  calendario senza lettore di schermo: il secondo segnale visibile è aperto (sezione 6.1).
+- I giorni nuovi hanno il nome accessibile con «settimana nuova» e, per chi vede il calendario, due
+  segnali: numero verde e fondo verde chiaro della cella (sezione 6.1, con il limite di contrasto del
+  fondo).
 - Email: `lang` della persona sull'`html`, `role="presentation"` sulle tabelle, testo alternativo vuoto
   sulle miniature (decorative), contrasto dei testi come nell'app, versione in testo semplice.
 
@@ -472,7 +477,8 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
 - **Contratto:** convenzioni (`checkContract`), `getNewWeek` e `markWeekSeen` senza MCP,
   `profile.update` con `menuEmails`.
 - **Web:** pallino presente fino alla prima visita della settimana nuova e assente dopo (calendario,
-  fila dei giorni, swipe, `?day=`); giorni verdi e giorno scelto scuro; nomi accessibili; errore di
+  fila dei giorni, swipe, `?day=`); giorni nuovi con numero verde e fondo verde chiaro, giorno scelto
+  scuro anche al passaggio del mouse; nomi accessibili; errore di
   `markWeekSeen` → uscita dalla settimana → nuova visita richiama; stessa settimana in due famiglie senza
   rimontare la pagina → due chiamate; `getNewWeek` che risponde `null` prima della generazione pigra e
   poi si aggiorna alla fine della lettura del menu; passaggio online → offline con il pallino caricato
@@ -528,7 +534,8 @@ nomi degli eventi, `staleTime` della query del pallino.
   «Email con il menu della settimana», link in fondo alle Preferenze; righe compatte con miniatura;
   fotografia del menu; una per persona, famiglia e settimana. Sezioni: «Una settimana tipo», 7
   (Preferenze), 12 («Lingua delle email»).
-- Pallino verde sull'icona del calendario e giorni della settimana nuova in verde nel mese, per persona,
+- Pallino verde sull'icona del calendario e giorni della settimana nuova con numero verde su fondo verde
+  chiaro nel mese, per persona,
   fino alla prima visita della settimana o al lunedì. Sezioni: 14, `design/design.md` («Calendario e
   navigazione»).
 - Casi: generazione pigra annunciata come il job; famiglia creata dopo il mercoledì alle 20:00 senza

@@ -111,8 +111,9 @@
 	.weekday { padding: 4px 0; color: var(--muted); font-size: 0.75rem; text-align: center; text-transform: uppercase; }
 	.day { min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); cursor: pointer; }
 	.day:hover:not(:disabled) { background: #f0ede5; }
-	/* W24: days of the new week not seen yet; the chosen day stays dark with white text. */
-	.day.fresh { color: var(--green); }
+	/* W24: days of the new week not seen yet, green number on the light green of the navbar's active item;
+	   the chosen day stays dark with white text. */
+	.day.fresh:not([aria-pressed='true']), .day.fresh:not([aria-pressed='true']):hover:not(:disabled) { color: var(--green); background: var(--soft-green); }
 	.day[aria-pressed='true'] { color: #fff; background: var(--ink); }
 	.day:disabled { color: var(--rule); font-weight: 400; cursor: not-allowed; }
 </style>

@@ -227,8 +227,9 @@ Non ci sono frecce o intervalli di settimana, né etichette di stato della setti
 **Menu della settimana prossima pronto** (W24, approvato dall'utente il 23 ottobre 2026): quando il
 menu della settimana dopo è pronto e la persona non l'ha ancora guardato, l'icona del calendario ha un
 pallino verde (`#067a46`, 10 px, bordo del colore di fondo) in alto a destra; nessuna scheda né
-testo in più. Nel mese aperto i giorni di quella settimana hanno il numero in verde, senza puntini; il
-giorno scelto resta scuro con testo bianco. Pallino e verde spariscono alla prima visita di un giorno
+testo in più. Nel mese aperto i giorni di quella settimana hanno il numero in verde su un fondo verde
+chiaro (`#eef5e8`, lo stesso dello stato attivo della navbar), con la forma e il raggio di 8 px delle
+celle e senza puntini; il giorno scelto resta scuro con testo bianco. Pallino e verde spariscono alla prima visita di un giorno
 della settimana nuova (per persona, su tutti i dispositivi) o il lunedì in cui comincia. Il nome
 accessibile del calendario aggiunge «menu della settimana prossima pronto», quello dei giorni verdi
 «settimana nuova». L'email dello stesso avviso è a righe compatte (miniatura quadrata, etichetta
