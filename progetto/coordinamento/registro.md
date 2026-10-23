@@ -24,7 +24,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
-  con l'utente via Remote Control); ultimo STATO: nessuno.
+  con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
+  pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
+  puntini), email B a righe compatte; conferma del verde sull'iPhone, poi spec e piano.
 - **Revisori attivi:** «R W22 spec 3», rapporto atteso `revisioni/w22-spec-piano-3.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
