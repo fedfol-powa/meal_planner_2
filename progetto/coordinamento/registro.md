@@ -14,7 +14,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
   «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
-  LAN porta 8766); ultimo STATO: `DOMANDA` forma A/B/C e 320 px, girata all'utente.
+  LAN porta 8766); scelte dell'utente: variante C, 320 px ignorati, niente pulsante su oggi senza pasti;
+  in fase 2 (spec e piano).
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
@@ -25,8 +26,7 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
-- **Domande in sospeso:** W23, forma del pulsante (A/B/C), 320 px, niente pulsante su oggi
-  senza pasti (proposta del worker); via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
+- **Domande in sospeso:** brainstorming di W24 con l'utente (direttamente nella tab); via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
   rilasciata) dopo W22.
 - **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
