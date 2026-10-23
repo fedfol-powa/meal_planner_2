@@ -16,6 +16,11 @@ describe('profile and family tools', () => {
 		expect(tools.get('family_setMeal')).toBe(false);
 		expect(tools.get('family_addExclusion')).toBe(false);
 	});
+
+	it('tells agents that profile_update switches the weekly menu email (spec W24)', () => {
+		const update = collectTools(contract).find((tool) => tool.name === 'profile_update');
+		expect(update?.description).toContain('weekly menu email');
+	});
 });
 
 describe.skipIf(!hasDatabase)('profile and family over MCP and REST', () => {
@@ -37,6 +42,13 @@ describe.skipIf(!hasDatabase)('profile and family over MCP and REST', () => {
 		} finally {
 			auth.restore();
 		}
+	});
+
+	it('lets an agent switch off the menu email for the person', async () => {
+		const agent = await actors.user({ agent: true });
+		const result = await call(agent.token, 'profile_update', { menuEmails: false });
+		expect(result.body.result.isError).toBeFalsy();
+		expect(toolBody(await call(agent.token, 'profile_get', {})).user.menuEmails).toBe(false);
 	});
 
 	it('lets an administrator agent write and read back', async () => {

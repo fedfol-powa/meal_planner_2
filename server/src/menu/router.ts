@@ -2,6 +2,7 @@ import { daysBetween } from '@app/domain/planner';
 import { appError } from '../errors.ts';
 import { fresh, type Implementer, type Prepare } from '../pipeline.ts';
 import { ensureWeeks } from './generation.ts';
+import { markWeekSeen, newWeekOf } from './new-week.ts';
 import { datesOf, effectiveDate, openingOf } from './opening.ts';
 import { mealPassedCount } from './versions.ts';
 import { weekViewOf } from './week-view.ts';
@@ -41,5 +42,11 @@ export function menuRouter(os: Implementer) {
 		}),
 		getDates: os.menu.getDates.handler(async ({ context, input }) => fresh(context, await datesOf(context, input.familyId, input.month))),
 		getWeek: os.menu.getWeek.handler(async ({ context, input }) => fresh(context, await weekViewOf(context, input.familyId, input.weekStartsOn))),
+		/** Personal, not versioned (spec W24, section 5.1). */
+		getNewWeek: os.menu.getNewWeek.handler(async ({ context, input }) => ({ weekStartsOn: await newWeekOf(context.tx, input.familyId, context.now) })),
+		markWeekSeen: os.menu.markWeekSeen.handler(async ({ context, input }) => {
+			await markWeekSeen(context.tx, input.familyId, input.weekStartsOn, context.now);
+			return { ok: true as const };
+		}),
 	};
 }
