@@ -4,8 +4,9 @@ import { getRouteApi, Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { toApiError } from '../../api/errors';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
 import { PageHeader } from '../../components/PageHeader';
+import { TextSkeleton, TitleSkeleton } from '../../components/PageSkeletons';
+import { BusyArea, LoadingScope, Skeleton } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { safeSourceUrl } from '../../components/source';
@@ -89,8 +90,9 @@ export function DraftPage() {
   );
   const unavailable = <StateNotice title={t('catalogue.draft.unavailable')} body={t('catalogue.draft.unavailableBody')} />;
 
+  // A page reserved to curators: its skeleton also while the role is not known yet (W22).
   if (profile.data === undefined) {
-    return page(profile.isError ? <QueryError error={profile.error} onRetry={() => void profile.refetch()} /> : <Loading />);
+    return profile.isError ? page(<QueryError error={profile.error} onRetry={() => void profile.refetch()} />) : <DraftSkeleton back={back} paused={profile.fetchStatus === 'paused'} />;
   }
   if (!isCurator) return page(unavailable);
   if (blocked) {
@@ -99,8 +101,45 @@ export function DraftPage() {
     if (code === 'forbidden') return page(<StateNotice title={t('catalogue.forbidden')} />);
     return page(<QueryError error={query.error} onRetry={() => void query.refetch()} />);
   }
-  if (!data) return page(<Loading />);
+  if (!data) return <DraftSkeleton back={back} paused={query.fetchStatus === 'paused'} />;
   return <DraftView draft={data} back={back} />;
+}
+
+/**
+ * The draft while the profile or the draft loads (W22): real back link, the name as a hidden block, then
+ * kind, description, time, the ingredients and the attributes, all of one wait.
+ */
+function DraftSkeleton({ back, paused }: { back: ReactNode; paused: boolean }) {
+  return (
+    <section className="secondary-view app-view">
+      <article className="page-column">
+        <LoadingScope loading paused={paused}>
+          <PageHeader back={back} title={<TitleSkeleton />} titleHidden />
+          <BusyArea>
+            <Skeleton>
+              <p className={styles.kind}><span className="label-chip">{'\u00a0'}</span></p>
+              <TextSkeleton className="description" lines={2} />
+              <TextSkeleton className="meal-meta" />
+              <section className={`${styles.block} skeleton-card`}>
+                <h2 className={`${styles.blockHeading} skeleton-line`} />
+                <ul className={styles.lines}>
+                  {[0, 1, 2, 3].map((key) => <li key={key}><span className="skeleton-line" /></li>)}
+                </ul>
+              </section>
+              <section className={`${styles.block} skeleton-card`}>
+                <h2 className={`${styles.blockHeading} skeleton-line`} />
+                <dl className={styles.attributes}>
+                  {[0, 1, 2, 3].map((key) => (
+                    <div key={key}><dt><span className="skeleton-line" /></dt><dd><span className="skeleton-line" /></dd></div>
+                  ))}
+                </dl>
+              </section>
+            </Skeleton>
+          </BusyArea>
+        </LoadingScope>
+      </article>
+    </section>
+  );
 }
 
 function DraftView({ draft, back }: { draft: DraftView; back: ReactNode }) {

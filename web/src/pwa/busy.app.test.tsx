@@ -334,7 +334,8 @@ describe('no reload into a new version during operations outside TanStack Query 
     const backend = createStubBackend(DEMO_USER);
     const answer = backend.holdAuthorization();
     renderApp('/authorize?authorization_id=auth-1', { backend });
-    await screen.findByText('…');
+    // The request is being read: the consent's blocks (W22).
+    await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).not.toBeNull());
     const update = newVersionWaiting();
     await update.resume();
     expect(update.reload).not.toHaveBeenCalled();

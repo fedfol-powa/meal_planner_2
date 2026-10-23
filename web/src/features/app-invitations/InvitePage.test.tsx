@@ -450,3 +450,43 @@ describe('/invite/app', () => {
     expect(screen.queryByRole('heading', { name: 'Controlla la posta' })).toBeNull();
   });
 });
+
+describe('/invite/app while loading (W22)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const skeleton = () => document.querySelector<HTMLElement>('.entry-page .skeleton');
+  const loadingStatuses = () => screen.queryAllByRole('status').filter((s) => s.textContent === 'Caricamento…');
+
+  it('app invite: the form as blocks while the link is read, then the form', async () => {
+    let answer!: () => void;
+    const held = new Promise<void>((done) => (answer = done));
+    setInvitationClient(valid({ get: vi.fn(async () => (await held, { invitedBy: 'Federico', roles: [] as GlobalRole[] })) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    expect(skeleton()!.querySelector('.entry-title.skeleton-block')).not.toBeNull();
+    expect(skeleton()!.querySelectorAll('.field')).toHaveLength(2);
+    expect(skeleton()!.querySelector('.text-button.wide.skeleton-block')).not.toBeNull();
+    expect(screen.queryByText('…')).toBeNull();
+    await waitFor(() => expect(skeleton()!.dataset.visible).toBe('true'));
+    expect(loadingStatuses()).toHaveLength(1);
+    expect(document.querySelector('.entry-page [aria-busy="true"]')).not.toBeNull();
+    await act(async () => answer());
+    expect(await screen.findByLabelText('Email')).toBeTruthy();
+    expect(skeleton()).toBeNull();
+    expect(loadingStatuses()).toHaveLength(0);
+  });
+
+  it('app invite: with an account open, the line and the button as blocks', async () => {
+    setInvitationClient(valid({ get: vi.fn(() => new Promise<never>(() => {})) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend({ id: 'user-other', email: 'bruno@example.test' }) });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    expect(skeleton()!.querySelectorAll('.field')).toHaveLength(0);
+    expect(skeleton()!.querySelector('.text-button.wide.skeleton-block')).not.toBeNull();
+  });
+
+  it('app invite: an error replaces the skeleton', async () => {
+    setInvitationClient(valid({ get: vi.fn(async () => { throw new ApiError('internal'); }) }));
+    renderApp(`/invite/app#${TOKEN}`, { backend: createStubBackend(null) });
+    expect(await screen.findByRole('button', { name: 'Riprova' })).toBeTruthy();
+    expect(skeleton()).toBeNull();
+  });
+});

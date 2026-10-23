@@ -4,9 +4,10 @@ import { errorKey, isBlocking } from '../../api/errors';
 import { useQueryDeps } from '../../api/queries';
 import type { ConnectedAgent } from '@app/contract';
 import { BottomSheet } from '../../components/BottomSheet';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { ButtonSkeleton, SkeletonRows } from '../../components/PageSkeletons';
+import { LoadingArea } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { env } from '../../env';
 import { formatDayMonth, formatDayMonthYear } from '../../i18n/dates';
@@ -117,7 +118,13 @@ export function AgentsPage() {
           <h2 id="connected-title">{t('agents.connected')}</h2>
           {done && <p className="meta-line" role="status">{done}</p>}
           {blocked && <QueryError error={agents.error} onRetry={() => void agents.refetch()} />}
-          {!blocked && !agents.data && <Loading />}
+          {!blocked && !agents.data && (
+            <LoadingArea
+              loading
+              paused={agents.fetchStatus === 'paused'}
+              skeleton={<SkeletonRows count={1} filled className={styles.agent} action={<ButtonSkeleton />} />}
+            />
+          )}
           {agents.data && agents.data.length === 0 && <p className="meta-line">{t('agents.none')}</p>}
           {agents.data && agents.data.length > 0 && (
             <ul className="row-list">

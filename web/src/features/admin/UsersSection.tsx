@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { USER_QUERY_MAX } from '@app/contract';
 import { useQueryDeps } from '../../api/queries';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
+import { SettingsCardSkeleton, SkeletonRows } from '../../components/PageSkeletons';
 import { QueryError } from '../../components/QueryError';
+import { LoadingArea } from '../../components/Skeleton';
 import { useT } from '../../i18n/LocaleProvider';
 import { useProfile } from '../../session/useFamily';
 import { usersQuery } from './api';
@@ -43,7 +44,9 @@ export function UsersSection() {
         onChange={(event) => setText(event.target.value)}
       />
       {list.isError && <QueryError error={list.error} onRetry={() => void list.refetch()} />}
-      {!list.data && !list.isError && <Loading />}
+      {!list.data && !list.isError && (
+        <LoadingArea loading paused={list.fetchStatus === 'paused'} skeleton={<SkeletonRows count={3} link trail filled />} />
+      )}
       {list.data && list.data.users.length === 0 && <p className="meta-line">{t('admin.noUsers')}</p>}
       {list.data && list.data.users.length > 0 && (
         <ul className="row-list">
@@ -69,5 +72,16 @@ export function UsersSection() {
       )}
       {list.data?.more && <p className="meta-line">{t('admin.moreUsers')}</p>}
     </section>
+  );
+}
+
+/** The users' card while the access is checked (W22): title, search field, three rows with name and email. */
+export function UsersCardSkeleton() {
+  return (
+    <SettingsCardSkeleton>
+      {/* Inline-block like the input: its top margin does not collapse with the title's. */}
+      <span className={`${styles.search} skeleton-block`} style={{ display: 'inline-block', verticalAlign: 'top', height: 44 }} />
+      <SkeletonRows count={3} link trail />
+    </SettingsCardSkeleton>
   );
 }

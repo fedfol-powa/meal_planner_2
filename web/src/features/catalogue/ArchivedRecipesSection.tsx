@@ -1,22 +1,39 @@
 import { useState } from 'react';
 import { errorKey, toApiError } from '../../api/errors';
 import { Icon } from '../../components/Icon';
+import { LoadingArea } from '../../components/Skeleton';
 import { formatInstantShort } from '../../i18n/dates';
 import { useLocale, useT } from '../../i18n/LocaleProvider';
 import styles from './catalogue.module.css';
-import { useBringBack, useIsCurator, useOverview } from './queries';
+import { useBringBack, useCachedOverviewCounts, useIsCurator, useOverview } from './queries';
 
 /**
  * «Archiviate» at the end of the recipe book, closed at first; a recipe comes back only after the server says so,
  * and a failure says why (a refusal is left to the revocation). A failed overview is said by the drafts section.
+ * While the overview loads (W22) its closed title is a block, for curators only.
  */
 export function ArchivedRecipesSection() {
   const t = useT();
   const { locale } = useLocale();
   const isCurator = useIsCurator();
   const [open, setOpen] = useState(false);
-  const { data } = useOverview(isCurator);
+  const { query, data, blocked } = useOverview(isCurator);
+  const cached = useCachedOverviewCounts();
   const bringBack = useBringBack();
+  if (isCurator && query.isPending && !blocked) {
+    if (cached?.archived === 0) return null;
+    return (
+      <LoadingArea
+        loading
+        paused={query.fetchStatus === 'paused'}
+        skeleton={
+          <section className={`${styles.section} ${styles.archived}`}>
+            <h2 className={styles.heading}><span className={`${styles.toggle} skeleton-block`} style={{ width: '30%' }} /></h2>
+          </section>
+        }
+      />
+    );
+  }
   if (!isCurator || !data || data.archived.length === 0) return null;
   const failed = bringBack.isError && toApiError(bringBack.error).code !== 'forbidden';
   return (

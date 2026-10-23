@@ -127,16 +127,21 @@ describe('/password', () => {
     expect(registeredBusy()).toBe(true);
   });
 
-  it('before the verification (offline) the page is free and the fragment stays', async () => {
+  it('before the verification (offline) nothing is in flight, the blocks stand still and the fragment stays', async () => {
     setOnline(false);
     const server = authServer();
     const { history } = renderApp(PATH, { backend: createStubBackend(null) });
     expect(await screen.findByText('Sei offline: puoi consultare i dati già caricati.')).toBeTruthy();
     expect(server.calls).toHaveLength(0);
     expect(registeredBusy()).toBe(false);
-    // Nothing is in flight: no «Verifica del link…», nothing busy.
+    // Nothing is in flight: the form's blocks stand still (W22), never «Verifica del link…».
+    const area = document.querySelector('.entry-page [aria-busy="true"]');
+    expect(area).not.toBeNull();
+    await waitFor(() => expect(screen.getAllByRole('status').some((s) => s.textContent === 'Caricamento…')).toBe(true));
+    expect(area!.querySelector<HTMLElement>('.skeleton')!.dataset.paused).toBe('true');
     expect(screen.queryByText(/Verifica del link/)).toBeNull();
-    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(server.calls).toHaveLength(0);
+    expect(registeredBusy()).toBe(false);
     expect(history.location.hash).toBe('#token_hash=hash-1&type=recovery');
     setOnline(true);
     expect(await screen.findByRole('heading', { name: 'Scegli la password' })).toBeTruthy();
@@ -371,5 +376,53 @@ describe('/password', () => {
     authServer();
     renderApp(PATH, { backend: createStubBackend(null), locale: 'en-GB' });
     expect(await screen.findByRole('heading', { name: 'Choose your password' })).toBeTruthy();
+  });
+});
+
+describe('/password while loading (W22)', () => {
+  beforeEach(() => vi.mocked(needsHomeScreenHint).mockReturnValue(false));
+  afterEach(() => {
+    cleanup();
+    forgetLink();
+    resetBusy();
+    setOnline(true);
+  });
+  const skeleton = () => document.querySelector<HTMLElement>('.entry-page .skeleton');
+  const statusText = () => screen.getAllByRole('status').map((s) => s.textContent).filter(Boolean);
+
+  it('password: the form as blocks during the verification, announced as the verification', async () => {
+    const server = authServer();
+    const release = server.holdVerify();
+    renderApp(PATH, { backend: createStubBackend(null) });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    expect(skeleton()!.querySelectorAll('.field')).toHaveLength(2);
+    expect(skeleton()!.querySelector('.text-button.wide.skeleton-block')).not.toBeNull();
+    await waitFor(() => expect(skeleton()!.dataset.visible).toBe('true'));
+    expect(statusText()).toContain('Verifica del link…');
+    release();
+    expect(await screen.findByRole('heading', { name: 'Scegli la password' })).toBeTruthy();
+    expect(skeleton()).toBeNull();
+  });
+
+  it('password: back online the verification starts and the blocks pulse', async () => {
+    setOnline(false);
+    const server = authServer();
+    const release = server.holdVerify();
+    renderApp(PATH, { backend: createStubBackend(null) });
+    await waitFor(() => expect(skeleton()?.dataset.paused).toBe('true'));
+    act(() => setOnline(true));
+    await waitFor(() => expect(server.calls).toHaveLength(1));
+    expect(skeleton()!.dataset.paused).toBeUndefined();
+    await waitFor(() => expect(statusText()).toContain('Verifica del link…'));
+    release();
+    expect(await screen.findByRole('heading', { name: 'Scegli la password' })).toBeTruthy();
+  });
+
+  it('password: an invalid link replaces the skeleton', async () => {
+    const server = authServer();
+    server.verify = json(403, { error_code: 'otp_expired', msg: 'expired' });
+    renderApp(PATH, { backend: createStubBackend(null) });
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1 })).toBeTruthy());
+    expect(skeleton()).toBeNull();
   });
 });

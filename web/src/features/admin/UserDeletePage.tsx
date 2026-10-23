@@ -8,13 +8,14 @@ import { useQueryDeps, type QueryDeps } from '../../api/queries';
 import type { Api } from '../../api/types';
 import danger from '../../components/Danger.module.css';
 import { Icon } from '../../components/Icon';
-import { Loading } from '../../components/Loading';
 import { useOnline } from '../../components/OfflineBanner';
 import { PageHeader } from '../../components/PageHeader';
+import { TitleSkeleton } from '../../components/PageSkeletons';
+import { BusyArea, LoadingScope, Skeleton } from '../../components/Skeleton';
 import { QueryError } from '../../components/QueryError';
 import { StateNotice } from '../../components/StateNotice';
 import { useT } from '../../i18n/LocaleProvider';
-import { DeletionFamilies, successorsComplete, validSuccessors } from '../account/DeletionFamilies';
+import { DeletionFamilies, DeletionFamilySkeleton, successorsComplete, validSuccessors, WhatGoesSkeleton } from '../account/DeletionFamilies';
 import styles from '../account/Deletion.module.css';
 import { AdminAccessGate, useAdminAccess } from './AdminAccess';
 import adminStyles from './AdminPage.module.css';
@@ -44,11 +45,34 @@ export function UserDeletePage() {
   return (
     <section className="secondary-view app-view" aria-labelledby="user-delete-title">
       <div className="page-column">
-        <AdminAccessGate fallbackHeader={<PageHeader back={backTo(t('admin.users'))} title={t('admin.deleteUser')} titleId="user-delete-title" />}>
+        <AdminAccessGate
+          fallbackHeader={<PageHeader back={backTo(t('admin.users'))} title={t('admin.deleteUser')} titleId="user-delete-title" />}
+          waiting={(paused) => <UserDeleteSkeleton back={backTo(t('admin.users'))} paused={paused} />}
+        >
           <UserDeleteView userId={userId} backTo={backTo} />
         </AdminAccessGate>
       </div>
     </section>
+  );
+}
+
+/**
+ * While the access is checked or the plan loads (W22): back «Utenti» real (it becomes the name, only its
+ * width changes), the title as a hidden block, email, a family and «Cosa sparisce», all of one wait.
+ */
+function UserDeleteSkeleton({ back, paused }: { back: ReactNode; paused: boolean }) {
+  return (
+    <LoadingScope loading paused={paused}>
+      <PageHeader back={back} title={<TitleSkeleton />} titleId="user-delete-title" titleHidden />
+      <BusyArea>
+        <Skeleton as="p" className={`meta-line ${adminStyles.userEmail} skeleton-block`} style={{ width: '50%', height: '1lh' }} />
+        <Skeleton>
+          <h2 className={`${styles.sectionTitle} skeleton-line`} />
+          <DeletionFamilySkeleton />
+          <WhatGoesSkeleton />
+        </Skeleton>
+      </BusyArea>
+    </LoadingScope>
   );
 }
 
@@ -70,7 +94,7 @@ function UserDeleteView({ userId, backTo }: { userId: string; backTo: (label: st
   } else if (code === 'not_found') body = <StateNotice title={t('errors.not_found')} />;
   // forbidden: the access check takes over the page.
   else if (plan.isError && code !== 'forbidden') body = <QueryError error={plan.error} onRetry={() => void plan.refetch()} />;
-  else body = <Loading />;
+  else return <UserDeleteSkeleton back={backTo(t('admin.users'))} paused={plan.fetchStatus === 'paused'} />;
 
   const name = plan.data?.user.displayName;
   return (

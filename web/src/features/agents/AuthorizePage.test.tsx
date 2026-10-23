@@ -221,7 +221,7 @@ describe('agent consent page', () => {
       const second = backend.holdAuthorization();
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       const { history } = renderApp('/authorize?authorization_id=auth-1', { backend });
-      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).toBeTruthy());
       history.push('/authorize?authorization_id=auth-2');
       second(consent({ id: 'auth-2', clientName: 'Codex' }));
       expect(await screen.findByRole('heading', { name: 'Codex vuole usare Cosa si mangia con il tuo account' })).toBeTruthy();
@@ -236,7 +236,7 @@ describe('agent consent page', () => {
       const answer = backend.holdAuthorization();
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       const { history } = renderApp('/authorize?authorization_id=auth-1', { backend });
-      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).toBeTruthy());
       history.push('/profile');
       answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=late' } });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -249,7 +249,7 @@ describe('agent consent page', () => {
       const decided = backend.holdDecision();
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       const { history } = renderApp('/authorize?authorization_id=auth-1', { backend });
-      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).toBeTruthy());
       history.replace('/authorize?authorization_id=auth-1');
       read(consent());
       const allow = await screen.findByRole('button', { name: 'Consenti' });
@@ -279,7 +279,7 @@ describe('agent consent page', () => {
       const answer = backend.holdAuthorization();
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       renderApp('/authorize?authorization_id=auth-1', { backend });
-      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).toBeTruthy());
       backend.setUser(null);
       answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=late' } });
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -292,7 +292,7 @@ describe('agent consent page', () => {
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       const hub = createMemoryHub();
       renderApp('/authorize?authorization_id=auth-1', { backend, channel: hub.channel() });
-      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).toBeTruthy());
       // Same tick, no React update in between.
       hub.channel().post({ type: 'signedOut', userId: DEMO_USER.id });
       answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=old' } });
@@ -320,7 +320,7 @@ describe('agent consent page', () => {
       const answer = backend.holdAuthorization();
       const leave = vi.spyOn(leavePage, 'to').mockImplementation(() => undefined);
       renderApp('/authorize?authorization_id=auth-1', { backend });
-      await waitFor(() => expect(screen.getByText('…')).toBeTruthy());
+      await waitFor(() => expect(document.querySelector('.entry-page .skeleton')).toBeTruthy());
       // Same tick, no React update in between: the session closed by the event is enough.
       backend.setUser(OTHER);
       answer({ ok: true, value: { kind: 'redirect', url: 'http://127.0.0.1:9/callback?code=of-the-first' } });
@@ -388,5 +388,35 @@ describe('agent consent page', () => {
     renderApp('/authorize?authorization_id=auth-1', { backend: createStubBackend(DEMO_USER) });
     expect(await screen.findByText('Serve la connessione per collegare un agente.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Consenti' })).toBeNull();
+  });
+});
+
+describe('agent consent while loading (W22)', () => {
+  afterEach(() => vi.restoreAllMocks());
+  const skeleton = () => document.querySelector<HTMLElement>('.entry-page .skeleton');
+  const loadingStatuses = () => screen.queryAllByRole('status').filter((s) => s.textContent === 'Caricamento…');
+
+  it('authorize: the consent as blocks while the request is read, then the consent', async () => {
+    const backend = createStubBackend(DEMO_USER);
+    const answer = backend.holdAuthorization();
+    renderApp('/authorize?authorization_id=auth-1', { backend });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    const title = skeleton()!.querySelector<HTMLElement>('.entry-title.skeleton-block')!;
+    expect(title.style.height).toBe('2lh');
+    await waitFor(() => expect(skeleton()!.dataset.visible).toBe('true'));
+    expect(loadingStatuses()).toHaveLength(1);
+    act(() => answer(consent()));
+    expect(await screen.findByRole('heading', { name: 'Claude Code vuole usare Cosa si mangia con il tuo account' })).toBeTruthy();
+    expect(skeleton()).toBeNull();
+    expect(loadingStatuses()).toHaveLength(0);
+  });
+
+  it('authorize: an invalid request replaces the skeleton', async () => {
+    const backend = createStubBackend(DEMO_USER);
+    const answer = backend.holdAuthorization();
+    renderApp('/authorize?authorization_id=auth-1', { backend });
+    await waitFor(() => expect(skeleton()).not.toBeNull());
+    act(() => answer({ ok: false, reason: 'not_found' }));
+    await waitFor(() => expect(skeleton()).toBeNull());
   });
 });
