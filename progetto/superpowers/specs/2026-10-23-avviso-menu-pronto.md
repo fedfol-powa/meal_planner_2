@@ -52,7 +52,9 @@ operativo.
      che la precede): né email né pallino per quella settimana; dal mercoledì seguente tutto normale;
    - chi entra in famiglia a settimana nuova già annunciata: niente email arretrata, il pallino sì.
 8. Limiti accettati delle foto: Outlook classico per Windows potrebbe non mostrarle; una foto sostituita
-   o tolta da un curatore non compare più nelle email vecchie.
+   o tolta da un curatore smette di essere servita alle email vecchie, ma le copie già scaricate o messe
+   in cache dai programmi di posta possono restare visibili fino a un giorno, o più a lungo nei
+   programmi che le conservano (decisione del coordinatore del 23 ottobre 2026; sezione 5.4).
 
 ## 3. Regola unica: la settimana da annunciare
 
@@ -136,15 +138,31 @@ RLS attiva su entrambe, policy `for all to app_job using (true) with check (true
 `grant select, insert, update, delete` ad `app_job`, come `ops_alerts`; la lettura di `app_backup` viene
 dai privilegi predefiniti di `20261012110000_backup.sql`.
 
-**Primo rilascio** (scelta del worker): la migrazione inserisce in `menu_announcements` una riga per
-ogni settimana esistente con `starts_on > current_date`, senza email. Così un rilascio fatto fra
-giovedì e domenica non manda l'email di un menu preparato giorni prima. Il pallino per quella settimana
-compare comunque (anche a chi l'aveva già guardata, perché prima nessuno registrava le visite) e sparisce
-alla prima visita: difetto di un giorno, accettato. Meglio comunque rilasciare prima di un mercoledì
-sera (sezione 11).
 Nessun privilegio ad `authenticated`. Gli indirizzi email **non** si salvano: si leggono al momento
 dell'invio (4.4). Pulizia: il giro di consegna cancella le righe di `menu_announcements` (e con loro le
 email) più vecchie di 90 giorni, come `ops_alerts`.
+
+**Primo rilascio** (scelta del worker, confermata dal coordinatore il 23 ottobre 2026): la migrazione
+inserisce in `menu_announcements` una riga per **ogni settimana già esistente**, passate comprese,
+senza email; le righe vecchie le toglie la pulizia dei 90 giorni. Così un rilascio fatto fra giovedì e
+domenica non manda l'email di un menu preparato giorni prima, in qualunque fuso sia la famiglia (un
+filtro sulla data del database sbaglierebbe a cavallo della mezzanotte UTC). Il pallino per quella
+settimana compare comunque, anche a chi l'aveva già guardata (prima nessuno registrava le visite), e
+sparisce alla prima visita: accettato. Meglio comunque rilasciare prima di un mercoledì sera
+(sezione 11).
+
+### 4.3 bis Budget giornaliero delle email
+
+```sql
+-- Menu emails reserved per UTC day: the cap of section 5.5, shared by concurrent deliveries.
+create table app.menu_email_budget (
+	day date primary key,
+	reserved int not null check (reserved >= 0)
+);
+```
+
+RLS attiva, policy `for all to app_job`, `grant select, insert, update, delete` ad `app_job`. La
+pulizia dei 90 giorni toglie anche i giorni vecchi.
 
 ### 4.4 Funzioni (`security definer`, `set search_path = ''`)
 
@@ -187,7 +205,11 @@ pgTAP nuovo `menu_ready_notice_test.sql` copre RLS, la regola della sezione 3 e 
   strumento aggiornata.
 - `menu.getNewWeek` (nuova, `GET /families/{familyId}/menu/new-week`): `role: 'familyMember'`,
   `mcp: false`, `offline: false`, **non versionata** (dipende dalla persona, non dai contatori della
-  famiglia). Output `{ weekStartsOn: monday | null }`. Chiama `app.new_menu_week`.
+  famiglia). Output `{ weekStartsOn: monday | null }`. Prima esegue `ensureWeeks` come le altre
+  letture del menu (generazione pigra, sezione 4 della specifica principale), poi chiama
+  `app.new_menu_week`: così non risponde `null` per una settimana che la stessa lettura avrebbe
+  generato. Il lucchetto per famiglia di `ensureWeeks` serializza questa lettura con le letture del
+  menu in parallelo: chi arriva dopo trova la settimana già creata.
 - `menu.markWeekSeen` (nuova, `PUT /families/{familyId}/menu/weeks/{weekStartsOn}/seen`):
   `role: 'familyMember'`, `mcp: false`, `offline: false`. Inserisce la riga in `menu_week_views` con
   `on conflict do nothing`; idempotente; non tocca `data_version` della famiglia. Accetta solo la
@@ -196,7 +218,8 @@ pgTAP nuovo `menu_ready_notice_test.sql` copre RLS, la regola della sezione 3 e 
 - Il test del contratto del menu oggi pretende che ogni operazione del menu sia una lettura versionata
   esposta a MCP: va ristretto alle tre letture esistenti.
 
-Perché niente MCP sulle due operazioni nuove: l'avviso riguarda ciò che la persona ha visto nell'app;
+Perché niente MCP sulle due operazioni nuove (confermato dal coordinatore il 23 ottobre 2026, eccezione
+alla parità della sezione 13): l'avviso è uno stato di visualizzazione personale nell'app;
 un agente che legge il menu non lo spegne e non ne ha bisogno (decisione del worker, coerente con la
 decisione 3).
 
@@ -270,37 +293,70 @@ le email:
   smistata in `server/src/app.ts` accanto a `/photos/*` (già in `run_worker_first`), con un ramo
   proprio: `servePhoto` accetta solo `PHOTO_KEY`. Serve la miniatura solo se
   `app.served_photo('photos/{id}.webp')` trova ancora la foto corrente
-  (una foto tolta sparisce anche dalle email), con `content-type: image/jpeg`,
-  `cache-control: public, max-age=604800`, `cross-origin-resource-policy: cross-origin`,
+  (una foto tolta non viene più servita), con `content-type: image/jpeg`,
+  `cache-control: public, max-age=86400`, `cross-origin-resource-policy: cross-origin`,
   `x-content-type-options: nosniff`; stesso limitatore per IP `PHOTO_READ_LIMIT` (300 al minuto);
 - l'email usa `{APP_ORIGIN}/photos/email/{id}.jpg` con `width="72" height="72"` e `alt=""` (il nome
   del piatto è già nel testo accanto).
 
 Senza `PHOTOS` o `IMAGES` le email partono senza miniature.
 
+**Limite dichiarato** (decisione del coordinatore del 23 ottobre 2026): la cache pubblica di un giorno è
+un'**eccezione** alla decisione del W12 «`/photos/*` senza cache HTTP» (le foto dell'app restano senza
+cache). Il controllo di `served_photo` vale solo per le richieste che arrivano al Worker: le copie già
+scaricate dai programmi di posta o dai loro proxy (per esempio quello di Gmail) possono restare
+visibili anche dopo che la foto è stata tolta. Non c'è garanzia di scomparsa per le email già lette.
+
 ### 5.5 Consegna
 
 Stesso schema degli allarmi operativi (`ops-alerts/index.ts`), in `server/src/menu-emails/deliver.ts`:
 
-- **Candidate:** righe con `sent_at is null and closed_at is null`, acquisizione libera o più vecchia
-  di 15 minuti, in ordine di `created_at`.
+**Principio** (confermato dal coordinatore il 23 ottobre 2026): **meglio nessuna email che un
+doppione**. Una consegna ambigua o scaduta può lasciare una persona senza email; l'avviso in app resta.
+
+- **Finestra di invio di una riga** («valida»): `sent_at is null and closed_at is null`, la settimana
+  non è ancora cominciata (`week_start` > data locale della famiglia, con `families.time_zone`) e
+  `first_attempt_at is null or first_attempt_at > now() - interval '23 hours'`. Le 23 ore lasciano
+  un'ora di margine sulle 24 in cui Resend conserva la chiave di idempotenza.
+- **Candidate:** righe valide con acquisizione libera o più vecchia di 15 minuti, in ordine di
+  `created_at`.
 - **Scadenza:** prima del giro si chiudono come `expired` (log `menu_email_expired`, livello `warn`) le
-  righe non spedite quando è già cominciata la settimana (`week_start` ≤ data locale della famiglia)
-  oppure con il primo tentativo più vecchio di 24 ore (`first_attempt_at`): oltre la finestra della
-  chiave di idempotenza di Resend un nuovo tentativo potrebbe dare un doppione.
-- **Acquisizione atomica** di una riga alla volta (`claimed_at = now()`, `attempts + 1`,
-  `first_attempt_at = coalesce(first_attempt_at, now())`), poi `menu_email_address`: se `null`, la riga
-  si chiude come `skipped` (persona uscita, opzione spenta o email non confermata) senza inviare.
+  righe aperte non più valide. La stessa condizione di validità sta **anche** nell'`update` di
+  acquisizione di ogni riga, come negli allarmi: una riga che diventa non valida mentre il giro elabora
+  le precedenti non si acquisisce (e la chiude il giro successivo).
+- **Acquisizione e budget, in un'unica transazione `job` breve** per riga:
+  1. prenotazione del budget del giorno UTC corrente:
+     `insert into app.menu_email_budget (day, reserved) values (d, 1) on conflict (day) do update set reserved = menu_email_budget.reserved + 1 where menu_email_budget.reserved < 60 returning reserved`;
+     nessuna riga restituita → budget esaurito: la transazione si annulla e il giro **si ferma** (le
+     altre righe aspettano il giorno UTC dopo, entro la loro finestra);
+  2. acquisizione atomica della riga, solo se ancora valida (`claimed_at = now()`, `attempts + 1`,
+     `first_attempt_at = coalesce(first_attempt_at, now())`), `returning` anche `first_attempt_at`;
+     nessuna riga → la transazione si annulla (la prenotazione con lei) e si passa alla successiva.
+  Il conflitto sulla chiave primaria di `menu_email_budget` serializza le consegne concorrenti: con 59
+  prenotazioni due giri insieme ne ottengono una sola.
+- **Ogni tentativo consuma una prenotazione, qualunque esito**: anche un successo con la risposta
+  persa, un errore di rete, un `5xx`, un `409` o un `429`, perché Resend potrebbe averlo contato. Una
+  riprova dopo la mezzanotte UTC prenota dal giorno nuovo. Una riprova della stessa riga entro la
+  finestra usa la stessa chiave di idempotenza e lo stesso oggetto e corpo salvati: Resend non
+  spedisce una seconda volta.
+- **Controllo dell'indirizzo:** dopo l'acquisizione, `menu_email_address`: se `null`, la riga si chiude
+  come `skipped` (persona uscita, opzione spenta o email non confermata) senza inviare; la prenotazione
+  di quel giro resta consumata (prudenza, costo trascurabile).
+- **Controllo prima della richiesta:** subito prima di `sendEmail` il codice ricontrolla che
+  `first_attempt_at` restituito dall'acquisizione sia più recente di 23 ore rispetto all'ora del
+  Worker; se no, non chiama Resend e chiude la riga come `expired`.
 - **Invio** con `sendEmail` (`mail/transport.ts`), corpo e oggetto salvati, chiave di idempotenza
   `menu-email/{familyId}/{weekStart}/{userId}`. Esiti: successo → `sent_at`; `409` di idempotenza
   diverso da `concurrent_idempotent_requests` → chiusa come `ambiguous` (log di errore, nessun nuovo
   invio, come gli allarmi); `429` → si libera l'acquisizione e il giro **si ferma** (quota o velocità:
-  le altre righe riprovano all'ora dopo); altri errori → si libera l'acquisizione, la riga riprova.
+  le altre righe riprovano all'ora dopo); altri errori, risposta persa compresa → si libera
+  l'acquisizione, la riga riprova entro la finestra. Se fallisce il salvataggio di `sent_at` dopo un
+  successo, la riga resta acquisita: dopo 15 minuti un giro la riprende e la rispedisce con la stessa
+  chiave (Resend risponde senza un secondo invio), consumando un'altra prenotazione.
 - **Quota giornaliera:** il piano gratuito di Resend dà 100 email al giorno (giorno UTC) e 3.000 al
-  mese, condivise con le email «Scegli la password» e gli allarmi. Il giro non spedisce più di
-  **60 email del menu per giorno UTC** (conta le righe con `sent_at` dalla mezzanotte UTC): le
-  altre restano in coda e partono il giorno dopo, entro la scadenza. Con l'uso attuale (una famiglia,
-  pochi membri) il limite non si raggiunge; il numero sta in una costante con il commento sul perché.
+  mese, condivise con le email «Scegli la password» e gli allarmi. Il budget di **60 prenotazioni per
+  giorno UTC** lascia almeno 40 email alle altre. Con l'uso attuale (una famiglia, pochi membri) il
+  limite non si raggiunge; il numero sta in una costante con il commento sul perché.
 - **Velocità:** Resend accetta 10 richieste al secondo per team; il giro spedisce in sequenza, una
   richiesta alla volta, e si ferma al primo `429`.
 - **Log:** `menu_email_announced` (famiglia, settimana, destinatari), `menu_email_sent`,
@@ -311,8 +367,12 @@ Stesso schema degli allarmi operativi (`ops-alerts/index.ts`), in `server/src/me
 
 ### 6.1 Pallino e giorni in verde
 
-- `MenuPage` legge `menu.getNewWeek` per la famiglia mostrata (query propria, `staleTime` breve, di
-  nuovo al ritorno in primo piano come le altre letture del menu) e passa al `DatePicker`:
+- `MenuPage` legge `menu.getNewWeek` per la famiglia mostrata (query propria con chiave per famiglia,
+  `staleTime` breve, di nuovo al ritorno in primo piano come le altre letture del menu). Inoltre la
+  ricarica (invalida) ogni volta che la lettura del menu che può generare (`getOpening` o `getWeek`)
+  si conclude con dati nuovi: se la settimana nasce dalla generazione pigra durante la stessa apertura,
+  il pallino compare senza aspettare il ritorno in primo piano. Passa al `DatePicker`, **solo con la
+  rete** (`useOnline()`):
   - `dot`: pallino verde 10 px con bordo del colore di fondo, in alto a destra dell'icona del
     calendario; il nome accessibile del pulsante diventa «Scegli un giorno, menu della settimana
     prossima pronto» / «Choose a day, next week's menu is ready»;
@@ -321,15 +381,30 @@ Stesso schema degli allarmi operativi (`ops-alerts/index.ts`), in `server/src/me
     entrambi sopra AA). Il giorno scelto resta `var(--ink)` con testo bianco (la regola
     `aria-pressed` vince). Il nome accessibile dei giorni verdi aggiunge «, settimana nuova» / «, new
     week».
-- Appena il giorno mostrato (`selected`) cade nella settimana nuova, `MenuPage` chiama
-  `menu.markWeekSeen` e mette subito a `null` la cache di `getNewWeek` (pallino e verde spariscono
-  senza attendere). Vale per ogni modo di arrivarci: calendario, fila dei giorni, swipe, link con
-  `?day=`. Se la chiamata fallisce (rete), il pallino ritorna alla lettura successiva e la chiamata si
-  ripete alla visita successiva: nessuna coda offline.
+- Appena il giorno mostrato (`selected`) cade nella settimana nuova, con la rete, `MenuPage` chiama
+  `menu.markWeekSeen` e mette subito a `null` la cache di `getNewWeek` di quella famiglia (pallino e
+  verde spariscono senza attendere). Vale per ogni modo di arrivarci: calendario, fila dei giorni,
+  swipe, link con `?day=`.
+  - **Guardia** per coppia (`familyId`, `weekStartsOn`), non per sola settimana: `MenuView` non si
+    rimonta cambiando famiglia, e la stessa settimana va registrata in ogni famiglia. Due stati: «in
+    corso» (non si richiama) e «confermata» (non si richiama più in questa sessione).
+  - **Aggiornamento ottimistico:** prima di scrivere `null` nella cache, `cancelQueries` sulla query
+    di quella famiglia, così una lettura già partita non rimette il pallino.
+  - **Errore:** la guardia della coppia si libera e la query si invalida (il pallino torna se il server
+    lo conferma); la chiamata si ripete alla visita successiva della settimana (anche dopo esserne
+    usciti). Nessuna coda offline.
 - Il pallino non c'è nello skeleton del Menu.
-- La query di `getNewWeek` **non** si salva nella cache persistente (`web/src/api/persister.ts`): un
-  pallino vecchio, magari già spento da un altro dispositivo, non deve ricomparire offline. Offline il
-  pallino semplicemente non c'è (scelta del worker).
+- **Offline** (scelta del worker): pallino e giorni verdi non si mostrano e `markWeekSeen` non si
+  chiama, anche se la risposta è ancora nella cache in memoria della sessione aperta (TanStack Query
+  non la toglie quando cade la rete); al ritorno della rete la query si aggiorna e il pallino torna se
+  il server lo conferma. Inoltre la query di `getNewWeek` **non** si salva nella cache persistente
+  (`web/src/api/persister.ts`): un pallino vecchio, magari già spento da un altro dispositivo, non deve
+  ricomparire all'avvio.
+- **Secondo segnale visibile dei giorni nuovi** (rilievo 7 della revisione): **aperto**, in attesa della
+  scelta dell'utente. Il verde `#067a46` contro l'inchiostro `#232323` dei numeri normali ha contrasto
+  2,9:1, sotto la soglia di 3:1 del criterio WCAG 1.4.1 per distinguere con il solo colore; serve un
+  segno visibile in più compatibile con «numeri verdi, senza puntini». Il giorno scelto resta scuro con
+  testo bianco.
 
 Prototipo di riferimento: `prototype/src/routes/menu/+page.svelte`, `DatePicker.svelte`,
 `store/new-week-notice.svelte.ts` (commit `06d30da`).
@@ -354,7 +429,8 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
 
 - Il pallino è decorativo (`aria-hidden`); l'informazione sta nel nome accessibile del pulsante del
   calendario. Niente annunci `aria-live`: l'avviso non deve interrompere chi usa un lettore di schermo.
-- Il verde non è l'unico segnale: i giorni hanno anche il nome accessibile con «settimana nuova».
+- I giorni verdi hanno il nome accessibile con «settimana nuova». Questo non basta per chi vede il
+  calendario senza lettore di schermo: il secondo segnale visibile è aperto (sezione 6.1).
 - Email: `lang` della persona sull'`html`, `role="presentation"` sulle tabelle, testo alternativo vuoto
   sulle miniature (decorative), contrasto dei testi come nell'app, versione in testo semplice.
 
@@ -378,7 +454,16 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
   - famiglia nuova creata il giovedì → nessun annuncio per quella settimana, annuncio la settimana
     dopo;
   - membro entrato dopo l'annuncio → nessuna email, `getNewWeek` sì;
-  - scadenza al lunedì e dopo 24 ore dal primo tentativo; `429` ferma il giro; tetto di 60 al giorno;
+  - scadenza al lunedì e dopo 23 ore dal primo tentativo, anche quando la soglia arriva **durante** il
+    giro; `429` ferma il giro;
+  - budget: con 59 prenotazioni due consegne concorrenti spediscono una sola email; un invio accettato
+    con la risposta persa consuma la prenotazione; un errore nel salvataggio di `sent_at` consuma la
+    prenotazione e la ripresa dopo 15 minuti usa la stessa chiave, lo stesso oggetto e lo stesso corpo;
+    recupero di un'acquisizione abbandonata; riprova dopo la mezzanotte UTC sul budget del giorno nuovo.
+    Il Resend finto distingue le **richieste ricevute** dalle **email accettate** (una per chiave):
+    nelle riprove le richieste possono essere più d'una, le email accettate mai;
+  - `getNewWeek` con il job fallito genera la settimana (generazione pigra) e la restituisce; con
+    `getOpening` in parallelo, nessuno dei due vede uno stato a metà;
   - un errore di una famiglia non ferma le altre; senza configurazione nessun invio;
   - miniature: create una volta, servite solo per foto correnti, intestazioni, errore di Images senza
     miniatura;
@@ -387,8 +472,15 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
 - **Contratto:** convenzioni (`checkContract`), `getNewWeek` e `markWeekSeen` senza MCP,
   `profile.update` con `menuEmails`.
 - **Web:** pallino presente fino alla prima visita della settimana nuova e assente dopo (calendario,
-  fila dei giorni, swipe, `?day=`); giorni verdi e giorno scelto scuro; nomi accessibili; parametro
-  `family`; casella delle Preferenze.
+  fila dei giorni, swipe, `?day=`); giorni verdi e giorno scelto scuro; nomi accessibili; errore di
+  `markWeekSeen` → uscita dalla settimana → nuova visita richiama; stessa settimana in due famiglie senza
+  rimontare la pagina → due chiamate; `getNewWeek` che risponde `null` prima della generazione pigra e
+  poi si aggiorna alla fine della lettura del menu; passaggio online → offline con il pallino caricato
+  (sparisce, nessuna chiamata navigando offline) e riconnessione (torna); parametro `family`; casella
+  delle Preferenze.
+- **Primo rilascio:** prova ripetibile sullo stack locale (database alla migrazione precedente,
+  settimane inserite per famiglie in fusi ai due lati della mezzanotte UTC, poi la migrazione W24):
+  nessuna email al primo giro.
 - Prove sullo stack locale con Mailpit (`MAILPIT_API_URL`): **nessuna email vera** e nessuna chiave di
   produzione.
 
@@ -403,8 +495,14 @@ guardato la settimana, anche sull'altro dispositivo.
 
 - **W23** (pulsante «Oggi» nella barra del Menu) tocca la stessa barra di `MenuPage` dove sta l'icona
   del calendario; questa attività cambia `DatePicker` (pallino, giorni verdi) e aggiunge una query in
-  `MenuPage`. Conflitti attesi piccoli, nella barra; il coordinatore decide l'ordine dei merge.
-- **W22** (skeleton nelle pagine rare): nessun file in comune previsto.
+  `MenuPage`. **Ordine deciso dal coordinatore (23 ottobre 2026): W23 prima di W24.** Dopo il merge di
+  W23 questo branch si riallinea a `main` prima della verifica finale e della PR, e si controlla la
+  barra completa: «Oggi», calendario con il pallino e borsa, con il focus e l'aggiornamento della data
+  introdotti da W23.
+- **W22** (skeleton nelle pagine rare): il suo piano tocca anche `web/src/routes/profile/PreferencesPage.tsx`
+  (skeleton delle Preferenze) e `design/design.md`. Se W22 è già unito al riallineamento, lo skeleton
+  delle Preferenze si adegua alla nuova riga «Email con il menu della settimana»; in `design/design.md`
+  i due testi stanno in sezioni diverse.
 
 ## 11. Rilascio
 
@@ -440,21 +538,29 @@ nomi degli eventi, `staleTime` della query del pallino.
 
 - Regola unica della settimana da annunciare (sezione 3 di questa spec) in `app.menu_week_to_announce`,
   allineata a `@app/domain/planner`. Sezione 4.
-- Tabelle `menu_week_views`, `menu_announcements`, `menu_emails`; colonna
+- Tabelle `menu_week_views`, `menu_announcements`, `menu_emails`, `menu_email_budget`; colonna
   `profile_preferences.menu_emails`; funzioni `new_menu_week`, `menu_email_recipients`,
   `menu_email_address`, `menu_email_week`. Sezione 2.
 - Annuncio e consegna nel cron orario, dopo il job, in transazioni proprie; consegna sul modello degli
   allarmi (acquisizione atomica, chiave di idempotenza, `409` ambiguo, scadenza al lunedì o 24 ore dopo
-  il primo tentativo, stop al `429`, massimo 60 email del menu per giorno UTC per la quota gratuita di
-  Resend). Sezione 4 («Email operative» diventa «Email del servizio» o una voce accanto).
+  il primo tentativo con margine di un'ora e ricontrollata a ogni acquisizione, stop al `429`, budget
+  di 60 prenotazioni per giorno UTC in `menu_email_budget` consumato da ogni tentativo, per la quota
+  gratuita di Resend). Meglio nessuna email che un doppione: una consegna ambigua o scaduta può
+  lasciare una persona senza email. Sezione 4 («Email operative» diventa «Email del servizio» o una
+  voce accanto).
 - Una **seconda trasformazione per foto**, oltre a quella del caricamento: la miniatura delle email,
   fatta una volta sola e mai alla lettura (cambia «una trasformazione per caricamento» delle sezioni 2
   e 8).
 - Miniature JPEG 144×144 in R2 (`email/{id}.jpg`) create una volta con il binding Images, rotta
-  pubblica `/photos/email/{id}.jpg` con cache pubblica di 7 giorni e CORP `cross-origin`, servite solo
-  per foto correnti. Sezioni 2 (foto) e 8.
-- Operazioni `menu.getNewWeek` e `menu.markWeekSeen` senza MCP e non versionate;
+  pubblica `/photos/email/{id}.jpg` con `cache-control: public, max-age=86400` e CORP `cross-origin`,
+  servite solo per foto correnti; **eccezione** alla decisione del W12 «`/photos/*` senza cache HTTP»,
+  con il limite dichiarato che le copie già scaricate dai programmi di posta possono restare. Sezioni 2
+  (foto) e 8.
+- Operazioni `menu.getNewWeek` (con generazione pigra, come le altre letture del menu) e
+  `menu.markWeekSeen` senza MCP e non versionate: **eccezione alla parità web/MCP della sezione 13**,
+  perché sono uno stato di visualizzazione personale (confermata dal coordinatore il 23 ottobre 2026);
   `profile.update.menuEmails` anche via MCP. Sezioni 5 e 13.
 - Variabile `APP_ORIGIN` per i link generati dal cron. Sezione 1.
-- Primo rilascio: le settimane future già esistenti risultano annunciate, senza email. Sezione 10.
+- Primo rilascio: tutte le settimane già esistenti risultano annunciate, senza email; il pallino può
+  ricomparire una volta a chi le aveva già guardate. Sezione 10.
 - Parametro `family` del link al Menu. Sezione 14 / `design/percorsi.md`.

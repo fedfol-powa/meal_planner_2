@@ -27,10 +27,16 @@ cominciare; le sezioni citate sotto sono di quella spec).
 - Log: solo id, codici e numeri; mai indirizzi, oggetti o corpi.
 - Prove solo sullo stack locale con Mailpit (`MAILPIT_API_URL`); nessuna email vera, nessuna chiave di
   produzione. Le prove web con il server di sviluppo o con le variabili dello stack locale.
-- Valori fissi: tetto `MENU_EMAILS_PER_UTC_DAY = 60`; acquisizione libera dopo 15 minuti; scadenza al
-  lunedì della settimana o 24 ore dopo `first_attempt_at`; pulizia degli annunci dopo 90 giorni;
-  miniature 144×144 JPEG qualità 80, mostrate 72×72; `cache-control: public, max-age=604800`; chiave di
+- Valori fissi: budget `MENU_EMAILS_PER_UTC_DAY = 60` prenotazioni per giorno UTC in
+  `app.menu_email_budget`, consumate da ogni tentativo; acquisizione libera dopo 15 minuti; finestra di
+  invio fino al lunedì della settimana (data locale della famiglia) e fino a 23 ore dopo
+  `first_attempt_at`, ricontrollata a ogni acquisizione e prima della richiesta; pulizia dopo 90 giorni;
+  miniature 144×144 JPEG qualità 80, mostrate 72×72; `cache-control: public, max-age=86400`; chiave di
   idempotenza `menu-email/{familyId}/{weekStart}/{userId}`.
+- Meglio nessuna email che un doppione (decisione del coordinatore del 23 ottobre 2026).
+- Ordine dei merge: W23 prima di W24; riallineamento a `main` nel Task 11.
+- Secondo segnale visibile dei giorni verdi: **aperto** (rilievo 7, scelta dell'utente attesa); il
+  Task 9 lo implementa quando la spec lo fissa.
 
 ## Review Focus
 
@@ -62,7 +68,9 @@ cominciare; le sezioni citate sotto sono di quella spec).
   `app.menu_email_recipients(uuid) → table(user_id uuid, locale text, family_count int)`,
   `app.menu_email_address(uuid, uuid) → text`,
   `app.menu_email_week(uuid, date) → table(date date, meal_type text, recipe_name jsonb, free_text text, photo_key text)`
-  (le ultime tre solo `app_job`). Tutte `security definer set search_path = ''`.
+  (le ultime tre solo `app_job`). Tutte `security definer set search_path = ''`. Tabella
+  `app.menu_email_budget (day date primary key, reserved int not null check (reserved >= 0))` con RLS e
+  privilegi ad `app_job` (spec 4.3 bis).
 
 - [ ] **Step 1: test pgTAP che falliscono** in `menu_ready_notice_test.sql` (modello: `email_test.sql`,
   fixture di `helpers/fixtures.psql`). Casi, con l'istante passato esplicitamente:
@@ -85,19 +93,22 @@ cominciare; le sezioni citate sotto sono di quella spec).
     persona o con l'opzione spenta;
   - `menu_email_week`: nome della versione pubblicata corrente, `free_text` dei pasti liberi,
     `photo_key` solo con foto non rimossa;
-  - cascata: cancellare la famiglia toglie annunci, email e visite.
+  - cascata: cancellare la famiglia toglie annunci, email e visite;
+  - `menu_email_budget`: `authenticated` senza privilegi; `app_job` inserisce e aggiorna.
   (Il seme del primo rilascio non si prova in pgTAP, dove i dati nascono dopo la migrazione: si
   controlla nel Task 11 sullo stack locale.)
 - [ ] **Step 2:** `supabase test db` → i nuovi test falliscono (funzioni mancanti).
 - [ ] **Step 3: migrazione.** Calcolo di «mercoledì 20:00 locale» in SQL:
   `(date_trunc('week', (p_now at time zone tz)::date) + interval '2 days 20 hours')` confrontato con
   `p_now at time zone tz`; `W = date_trunc('week', local)::date + 7`; condizione sulla famiglia:
-  `f.created_at < ((W - 5) + time '20:00') at time zone tz`. Seme finale:
-  `insert into app.menu_announcements (family_id, week_start) select family_id, starts_on from app.weeks where starts_on > current_date on conflict do nothing`.
+  `f.created_at < ((W - 5) + time '20:00') at time zone tz`. Seme finale, **tutte** le settimane
+  esistenti (spec 4.3, decisione del coordinatore):
+  `insert into app.menu_announcements (family_id, week_start) select family_id, starts_on from app.weeks on conflict do nothing`.
   Grant come in spec 4.1–4.4; `menu_email_recipients` legge `auth.users`.
 - [ ] **Step 4:** aggiornare `coverage_test.sql`: le nuove funzioni negli elenchi di `authenticated`
   (`new_menu_week`) e di `app_job` (le altre quattro), nessuna a `anon`/PUBLIC.
-- [ ] **Step 5:** `supabase test db` → PASS tutti.
+- [ ] **Step 5:** applicare la migrazione al database locale: `supabase migration up --local` (o
+  `supabase db reset` se lo stack è usa e getta), poi `supabase test db` → PASS tutti.
 - [ ] **Step 6: commit** «Avviso del menu pronto: migrazione con settimane viste, annunci, email e preferenza».
 
 ### Task 2: Contratto
@@ -137,7 +148,8 @@ cominciare; le sezioni citate sotto sono di quella spec).
 
 **Interfaces:**
 - Consumes: Task 1 (`new_menu_week`), Task 2 (contratto).
-- Produces: `newWeekOf(tx: Tx, familyId: string, now: Date): Promise<string | null>` e
+- Produces: `newWeekOf(tx: Tx, familyId: string, now: Date): Promise<string | null>` (prima
+  `ensureWeeks(tx, familyId, now)` di `menu/generation.ts`, poi `new_menu_week`) e
   `markWeekSeen(tx: Tx, familyId: string, weekStartsOn: string, now: Date): Promise<void>` in
   `new-week.ts`; fixture `menuFixtures(db).setFamilyCreatedAt(familyId: string, at: string)` (le
   famiglie dei test nascono «adesso», dopo le date fisse dei test: senza questa fixture la regola non
@@ -149,7 +161,10 @@ cominciare; le sezioni citate sotto sono di quella spec).
   `{ weekStartsOn: null }`; `markWeekSeen` su un'altra settimana non scrive righe
   (`select count(*) from app.menu_week_views` invariato); un altro membro vede ancora il pallino;
   `getWeek` della famiglia mantiene la stessa `version` prima e dopo `markWeekSeen`; un non membro
-  riceve `forbidden`. In `profile.test.ts`: `menuEmails` vale `true` senza riga, `false` dopo
+  riceve `forbidden`. Generazione pigra: famiglia con il job fallito e nessuna settimana del 26,
+  giovedì → `getNewWeek` restituisce `'2026-10-26'` e la settimana esiste dopo la chiamata;
+  `getNewWeek` e `getOpening` lanciati insieme (`Promise.all`) → la settimana esiste una volta sola e
+  `getNewWeek` restituisce `'2026-10-26'` (il lucchetto per famiglia li serializza). In `profile.test.ts`: `menuEmails` vale `true` senza riga, `false` dopo
   `update({ menuEmails: false })`, di nuovo `true` dopo il contrario; cambiare solo `menuEmails` non
   tocca `display_name`.
 - [ ] **Step 2:** `npm test -w server -- new-week profile` → FAIL.
@@ -211,7 +226,7 @@ cominciare; le sezioni citate sotto sono di quella spec).
 - [ ] **Step 1: test che falliscono:** con R2 e Images finti (modello dei test delle foto del W12):
   prima chiamata → una `transform({ width: 144, height: 144, fit: 'cover' })`, `output({ format: 'image/jpeg', quality: 80 })`,
   `put('email/{id}.jpg')`; seconda chiamata → nessuna trasformazione; Images che lancia → `false`.
-  Rotta: foto corrente → 200 con `content-type: image/jpeg`, `cache-control: public, max-age=604800`,
+  Rotta: foto corrente → 200 con `content-type: image/jpeg`, `cache-control: public, max-age=86400`,
   `cross-origin-resource-policy: cross-origin`, `x-content-type-options: nosniff`; foto rimossa → 404;
   id non valido (`../x`, 21 caratteri) → 404; limitatore negativo → 429; `POST` → 405.
 - [ ] **Step 2:** → FAIL.
@@ -268,11 +283,17 @@ cominciare; le sezioni citate sotto sono di quella spec).
 **Interfaces:**
 - Consumes: Task 1, `sendEmail` di `server/src/mail/transport.ts`.
 - Produces: `deliverMenuEmails(sql: postgres.Sql, env: Pick<Env, 'RESEND_API_KEY' | 'MAILPIT_API_URL'>, options?: { fetch?: typeof fetch; families?: readonly string[] }): Promise<{ sent: number }>`;
-  costante `MENU_EMAILS_PER_UTC_DAY = 60`. Mai eccezioni. Ordine: pulizia (annunci > 90 giorni),
-  scadenze, candidate, una alla volta come `deliverOne` di `ops-alerts/index.ts`.
+  costante `MENU_EMAILS_PER_UTC_DAY = 60`. Mai eccezioni. Ordine: pulizia (annunci e giorni di budget
+  > 90 giorni), scadenze, candidate, poi per ogni candidata: una transazione `job` con prenotazione del
+  budget e acquisizione condizionata alla validità (spec 5.5, testo SQL della prenotazione lì; budget
+  esaurito → rollback e fine del giro; riga non più valida → rollback e prossima), controllo
+  dell'indirizzo, controllo delle 23 ore su `first_attempt_at` restituito, invio, esito in una
+  transazione propria.
 
-- [ ] **Step 1: test che falliscono** (database, Resend finto come `fakeResend` di
-  `server/test/ops-alerts.test.ts`, righe create con `announceMenus` o inserite direttamente):
+- [ ] **Step 1: test che falliscono** (database, Resend finto sul modello di `fakeResend` di
+  `server/test/ops-alerts.test.ts` ma con due contatori: `requests` (ogni chiamata) e `accepted`
+  (un'email per chiave di idempotenza, la prima), righe create con `announceMenus` o inserite
+  direttamente):
   - successo → `sent_at` valorizzato, una chiamata con chiave `menu-email/{f}/{w}/{u}`, destinatario
     preso da `menu_email_address`; seconda esecuzione → nessuna chiamata;
   - due consegne concorrenti → una sola chiamata per riga;
@@ -284,7 +305,21 @@ cominciare; le sezioni citate sotto sono di quella spec).
   - `500` → acquisizione liberata, `attempts = 1`, `first_attempt_at` valorizzato;
   - scadenza: riga con `week_start` uguale alla data locale (lunedì) → `expired`; riga con
     `first_attempt_at` di 25 ore fa → `expired`;
-  - tetto: con 60 righe `sent_at` di oggi (UTC) già presenti, nessuna chiamata; il giorno UTC dopo sì;
+  - budget: `menu_email_budget` del giorno con `reserved = 60` → nessuna richiesta, giro fermo; il
+    giorno UTC dopo sì; con `reserved = 59` due `deliverMenuEmails` concorrenti su due righe diverse →
+    una sola richiesta, `reserved = 60`;
+  - risposta persa: il finto `fetch` registra l'email come accettata e poi lancia → riga ancora aperta,
+    acquisizione liberata, `reserved` aumentato di 1; il giro dopo rispedisce con la stessa chiave e lo
+    stesso `subject`/`text`/`html` e il finto conta **una** email accettata per quella chiave;
+  - salvataggio di `sent_at` che fallisce (mock della transazione di esito) → riga acquisita; dopo
+    `claimed_at` spostato indietro di 16 minuti la riprende un altro giro, stessa chiave, una email
+    accettata, `reserved` aumentato di 2 in tutto;
+  - scadenza durante il giro: due righe, la seconda con `first_attempt_at` a 22 ore e 59 minuti e il
+    finto `fetch` della prima che avanza l'orologio di 2 minuti (`vi.setSystemTime`) → la seconda non
+    viene acquisita né spedita; il giro dopo la chiude `expired`;
+  - lunedì: riga di una famiglia `America/Los_Angeles` con `week_start` uguale alla sua data locale
+    quando in UTC è già martedì e viceversa → valida solo finché la data **locale** precede `week_start`;
+  - riprova dopo la mezzanotte UTC: prenota sul giorno nuovo (`menu_email_budget.day` nuovo);
   - senza `RESEND_API_KEY` né `MAILPIT_API_URL` → nessuna acquisizione, log `menu_email_not_configured`.
 - [ ] **Step 2:** → FAIL.
 - [ ] **Step 3:** implementare (stesse query a stati di `ops-alerts/index.ts`, colonne di
@@ -324,7 +359,10 @@ cominciare; le sezioni citate sotto sono di quella spec).
 
 **Interfaces:**
 - Consumes: Task 2.
-- Produces: `queryKeys.newWeek(familyId)`; `newWeekQuery(deps, familyId)`; `DatePicker` props in più
+- Produces: `queryKeys.newWeek(familyId)`; `newWeekQuery(deps, familyId)`; hook
+  `useNewWeek(familyId: string, selected: IsoDate | null): { weekStartsOn: IsoDate | null }` in
+  `web/src/routes/menu/newWeek.ts` (lettura, guardia per coppia, aggiornamento ottimistico, solo online);
+  `DatePicker` props in più
   `dot: boolean`, `fresh: readonly IsoDate[]`; testi `'menu.newWeekReady'` («menu della settimana
   prossima pronto» / «next week's menu is ready»), `'menu.newWeekDay'` («settimana nuova» / «new week»).
 
@@ -339,13 +377,27 @@ cominciare; le sezioni citate sotto sono di quella spec).
   - con `selected` sul 26 il giorno ha `aria-pressed="true"` e la regola del giorno scelto (sfondo
     `var(--ink)`, testo bianco) vince sul verde (test sul CSS module o sullo stile calcolato);
   - `getNewWeek` = `{ weekStartsOn: null }` → nessun pallino, nessuna chiamata;
+  - errore: `markWeekSeen` che risponde errore → pallino di nuovo visibile dopo l'invalidazione; si
+    torna a una settimana precedente e poi al 26 → seconda chiamata;
+  - due famiglie: stessa settimana del 26 nuova in A e B; visita in A, cambio di famiglia senza
+    rimontare `MenuView`, visita in B → due chiamate, una per famiglia;
+  - lettura in corso: `getNewWeek` lenta che risponderebbe la settimana, visita del 26 nel frattempo →
+    dopo la risposta il pallino resta spento (`cancelQueries` prima dell'aggiornamento ottimistico);
+  - generazione pigra: `getNewWeek` risponde prima `null`, poi la lettura di `getOpening` si conclude
+    con dati nuovi → `getNewWeek` si rilegge e il pallino compare;
+  - offline: con il pallino caricato si va offline (`connectivity` dei test) → pallino e verde
+    spariscono; offline si apre il 26 → nessuna chiamata; riconnessione → la query si rilegge e il
+    pallino torna;
   - `persistOptions(...).dehydrateOptions.shouldDehydrateQuery` è `false` per `queryKeys.newWeek(...)`.
 - [ ] **Step 2:** `npm test -w web -- MenuPage persister` → FAIL.
 - [ ] **Step 3:** implementare come il prototipo (`prototype/src/lib/components/DatePicker.svelte`):
   pallino 10 px `var(--green)` con bordo 2 px del fondo, `top: 7px; right: 6px`; `.day.fresh { color: var(--green) }`
-  prima della regola `aria-pressed`. In `MenuPage` un effetto: se `selected` è nei sette giorni da
-  `weekStartsOn`, `setQueryData(newWeek, { weekStartsOn: null })` e la mutazione (una volta per
-  settimana e montaggio).
+  prima della regola `aria-pressed`, più il secondo segnale visibile **quando la spec lo fissa**
+  (rilievo 7). `useNewWeek`: guardia `Map<string, 'pending' | 'done'>` con chiave
+  `${familyId}:${weekStartsOn}` (in un `useRef`); alla visita: `cancelQueries` della query della
+  famiglia, `setQueryData({ weekStartsOn: null })`, mutazione; errore → cancellare la chiave e
+  `invalidateQueries`; invalidare `newWeek` quando `getOpening`/`getWeek` della famiglia cambiano
+  `dataUpdatedAt`; restituire `null` se `!useOnline()`.
 - [ ] **Step 4:** → PASS.
 - [ ] **Step 5: commit** «Avviso del menu pronto: pallino sul calendario e giorni nuovi in verde».
 
@@ -377,7 +429,22 @@ cominciare; le sezioni citate sotto sono di quella spec).
   **Step 4:** → PASS.
 - [ ] **Step 5: commit** «Avviso del menu pronto: link dell'email alla famiglia giusta e opzione nelle Preferenze».
 
-### Task 11: Verifica finale
+### Task 11: Riallineamento dopo W23 (e W22)
+
+Si fa quando il coordinatore comunica il merge di W23 (ordine deciso: W23 prima di W24).
+
+- [ ] **Step 1:** `git fetch origin && git rebase origin/main` (o merge di `origin/main`, come preferisce
+  il coordinatore), risolvendo i conflitti in `web/src/routes/MenuPage.tsx`, `MenuPage.module.css` e
+  `DatePicker.tsx` conservando il pulsante «Oggi» di W23, il suo focus e l'aggiornamento della data.
+- [ ] **Step 2:** test del Menu di W23 e di W24 insieme (`npm test -w web -- MenuPage DatePicker`) →
+  PASS; controllo visivo della barra con agent-browser sul server di sviluppo: «Oggi», calendario con
+  il pallino, borsa, a 375 px e a 1024 px.
+- [ ] **Step 3:** se W22 è unito: lo skeleton delle Preferenze (`PreferencesPage.tsx` o il file che W22
+  ha introdotto) include la riga della nuova casella; test dello skeleton aggiornato; in
+  `design/design.md` nessun conflitto fra le due sezioni.
+- [ ] **Step 4: commit** della risoluzione, se serve.
+
+### Task 12: Verifica finale
 
 - [ ] **Step 1:** `npm run typecheck` → nessun errore; `npm test` → tutto verde (con `TEST_DATABASE_URL`
   dello stack locale); `supabase test db` → verde; `npm run build -w web` con le variabili dello stack
@@ -387,10 +454,16 @@ cominciare; le sezioni citate sotto sono di quella spec).
   script di prova o dal test di stack): le due email in Mailpit con miniature, oggetti e link giusti;
   aprire il link nel server di sviluppo → Menu sul lunedì, pallino spento; nel mese i giorni non sono
   più verdi. Screenshot con agent-browser allegati al rapporto.
-- [ ] **Step 3: seme del primo rilascio:** sullo stack locale, con una settimana futura creata prima
-  della migrazione (`supabase migration up` dopo averla inserita, o `db reset` con i dati di prova),
-  `select count(*) from app.weeks w where starts_on > current_date and not exists (select 1 from app.menu_announcements a where a.family_id = w.family_id and a.week_start = w.starts_on)` = 0
-  e nessuna riga in `menu_emails`.
+- [ ] **Step 3: seme del primo rilascio**, sequenza ripetibile sullo stack locale, senza dati né
+  credenziali di produzione:
+  1. `supabase db reset --version 20261017100000` (database alla migrazione precedente a W24);
+  2. con `psql` sullo stack locale: due famiglie (`Europe/Rome`, `America/Los_Angeles`) con
+     `created_at` di un mese prima e la settimana del lunedì prossimo in `app.weeks`;
+  3. `supabase migration up --local`;
+  4. eseguire `announceMenus` con l'istante di domenica 23:30 UTC (lunedì per Roma, ancora domenica a
+     Los Angeles) e di giovedì → nessuna riga in `menu_emails`;
+  5. `supabase db reset` per tornare allo stato normale.
+  Scrivere la sequenza nel rapporto della PR.
 - [ ] **Step 4:** scrivere nella descrizione della PR cosa resta da provare a mano sull'iPhone (spec,
   sezione 9) e i passi del rilascio (spec, sezione 11: migrazione, `APP_ORIGIN`).
 - [ ] **Step 5: commit** di eventuali correzioni, push, PR.
