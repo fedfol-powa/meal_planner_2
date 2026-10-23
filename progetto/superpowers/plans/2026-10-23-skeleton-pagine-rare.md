@@ -399,7 +399,9 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
   della voce vera di un invito accettato (il caso più frequente in una lista che cresce:
   gli inviti aperti sono pochi e hanno in più i pulsanti): `<li className={styles.item}>`
   con `<span className={`${styles.email} skeleton-line`} />`,
-  `<span className={styles.roles}><span className={`${styles.role} skeleton-line`} style={{ width: '6em' }} /></span>`,
+  `<span className={styles.roles}><span className={styles.role} style={{ width: '6em' }}><span className="skeleton-line" /></span></span>`
+  (l'etichetta `.role` resta ad altezza automatica, con i suoi 2 + 2 px di padding, e la
+  riga vuota sta dentro: come l'etichetta vera con il testo),
   e due `<span className="meta-line skeleton-line" />` (stato, autore): la griglia di
   `.item` mette gli stessi intervalli di 4 px in entrambe le fasi. Con `filled` ognuno dei
   quattro figli ha anche `skeleton-block` (blocchi pieni nella scheda vera); senza, sono
@@ -610,8 +612,11 @@ dentro lo `Skeleton` del `LoadingArea`, non un `TitleSkeleton` (che è a sua vol
   (`npm run dev`, modalità fake), a 390 × 844 e 320 px: per Profilo, Preferenze (il
   `top` della scheda Lingua prima e dopo l'arrivo del profilo), Membri (da
   amministratore), Impostazioni, Esclusioni, Ricettario da curatore, Amministrazione (a
-  parte il passaggio intermedio degli Inviti: altezza della lista nel controllo
-  dell'accesso, con la lista ancora in attesa e con un invito accettato) e `/password`, con le risposte rallentate come nel Task 8 di W20 (in locale, senza commit,
+  parte gli Inviti nelle tre fasi, controllo dell'accesso → lista in attesa → contenuto,
+  con lo stesso numero di voci: le due voci a blocchi e due inviti accettati con autore e
+  ruoli su una riga; misura l'altezza di ogni voce e della lista nelle tre fasi, che deve
+  essere uguale: il controllo delle classi nei test non rileva differenze di pochi px) e
+  `/password`, con le risposte rallentate come nel Task 8 di W20 (in locale, senza commit,
   alza `latencyMs` dei `fakeClients` in `web/src/main.tsx` da 150 a 2000 ms; per `/password`
   la verifica del link finto), dopo aver svuotato i dati del sito: confronta coordinate e
   dimensioni di intestazione, prima scheda e controlli sotto **in ogni passaggio** (attesa
