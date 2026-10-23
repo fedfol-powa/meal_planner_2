@@ -45,6 +45,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
 - **Domande in sospeso:** brainstorming di W24 con l'utente (direttamente nella tab); via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
   rilasciata) dopo W22.
+- **Rilascio:** decisione dell'utente (23/10): un unico rilascio quando W22, W23 e W24 sono
+  tutti uniti. Comprende la migrazione di W24 e la variabile `APP_ORIGIN`; meglio prima di un
+  mercoledì sera (prima email col menu nuovo).
 - **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
   16:39 UTC, W20). Precedente per un ritorno: `c3a72b02-bf2f-4100-8628-b8ce61bcadd0`.
