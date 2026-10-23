@@ -7,8 +7,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 
 - **Attività in corso:** nessuna. Rilascio unico di W22, W23 e W24 fatto il 23/10 alle 20:06
   UTC (commit `9e39229`, versione `3949828c-8319-4661-b54d-78bd4a60c1c1`, migrazione
-  `20261023100000_menu_ready_notice.sql` applicata, database allineato). Collaudi sull'iPhone
-  da fare; prima email del menu attesa mercoledì 28/10 sera.
+  `20261023100000_menu_ready_notice.sql` applicata, database allineato). Collaudo dell'utente
+  il 23/10: funziona (skeleton, «Oggi», Preferenze); pallino ed email da verificare con la
+  settimana prossima (prima email attesa mercoledì 28/10 sera). Issue #49 chiusa.
 - **Worker attivi:** nessuno.
 - **Rilasciate il 23/10 (collaudo da fare):** W23, pulsante «Oggi», PR #78 (merge `c9a8be1`,
   revisioni `revisioni/w23-*.md`); tab, worktree e branch rimossi. Decisioni da riportare
@@ -33,9 +34,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
 - **In produzione:** versione `3949828c-8319-4661-b54d-78bd4a60c1c1` (commit `9e39229`, 23/10
   20:06 UTC, W22+W23+W24). Precedente per un ritorno: `507c4662-e2c0-4c03-8811-b2b0ea5e67f0`
   (la migrazione W24 resta: correzione in avanti).
-- **Prossimo passo:** collaudi sull'iPhone (skeleton nelle pagine rare, pulsante «Oggi»,
-  pallino e giorni verdi, opzione nelle Preferenze); controllare la prima email mercoledì
-  28/10; PR di documentazione per segnare «rilasciato» nella specifica; chiudere #49.
+- **Prossimo passo:** PR di documentazione per segnare «rilasciato e collaudato» nella
+  specifica; verificare pallino ed email con la settimana prossima (mercoledì 28/10).
 
 ## Storico
 
