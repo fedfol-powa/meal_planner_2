@@ -317,10 +317,11 @@ export function useAreaMutation<I, T>(name: MutationName, familyId: string | und
  * updates its own read before and after (routes/menu/newWeek.ts). A mutation all the same, so that
  * the session sees a refusal of the family like for the other writes.
  */
-export function useMarkWeekSeen(familyId: string) {
+export function useMarkWeekSeen() {
   const api = useApi();
   return useMutation({
-    meta: { familyId, operation: 'menu.markWeekSeen' },
-    mutationFn: (weekStartsOn: IsoDate) => api.menu.markWeekSeen({ familyId, weekStartsOn })
+    // The family travels with each call, not with the render that created it (final review, finding 3).
+    meta: { familyInVariables: true, operation: 'menu.markWeekSeen' },
+    mutationFn: (input: { familyId: string; weekStartsOn: IsoDate }) => api.menu.markWeekSeen(input)
   });
 }

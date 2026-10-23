@@ -318,8 +318,9 @@ export function createQueryClient(handlers: { onError?: ErrorHandler } = {}): Qu
       }
     }),
     mutationCache: new MutationCache({
-      onError: (error, _variables, _result, mutation) => {
-        const { familyId, operation } = mutation.options.meta ?? {};
+      onError: (error, variables, _result, mutation) => {
+        const { familyInVariables, operation, ...meta } = mutation.options.meta ?? {};
+        const familyId = familyInVariables ? (variables as { familyId?: unknown }).familyId : meta.familyId;
         report(error, { familyId: typeof familyId === 'string' ? familyId : undefined, operation: typeof operation === 'string' ? operation : undefined });
       }
     }),

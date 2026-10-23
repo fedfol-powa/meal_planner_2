@@ -382,6 +382,33 @@ describe('notice of the new week', () => {
       await dotGone();
     });
 
+    it('a revocation while the reads are being cancelled sends no visit (final review, finding 3)', async () => {
+      const { api, seen } = newWeekApi();
+      const app = captureSession();
+      renderApp('/menu', { api, extra: app.extra });
+      await dotShown();
+      const client = app.queryClient();
+      const cancel = client.cancelQueries.bind(client);
+      vi.spyOn(client, 'cancelQueries').mockImplementation(async (...args: Parameters<QueryClient['cancelQueries']>) => {
+        await cancel(...args);
+        app.session().revoke(DEMO_FAMILY_ID);
+      });
+      await chooseInCalendar(/^lunedì 26 ottobre/);
+      await tick();
+      expect(seen()).toEqual([]);
+    });
+
+    it('a visit refused for the family revokes it, like the other writes', async () => {
+      const { api, seen } = newWeekApi({ markWeekSeen: async () => { throw new ApiError('forbidden'); } });
+      const app = captureSession();
+      renderApp('/menu', { api, extra: app.extra });
+      await dotShown();
+      const revoke = vi.spyOn(app.session(), 'revoke');
+      await chooseInCalendar(/^lunedì 26 ottobre/);
+      await waitFor(() => expect(seen()).toHaveLength(1));
+      await waitFor(() => expect(revoke).toHaveBeenCalledWith(DEMO_FAMILY_ID));
+    });
+
     it('a visit answered after the revocation does not count as confirmed', async () => {
       const marking = deferred<{ ok: true }>();
       const { api, seen } = newWeekApi({ markWeekSeen: () => marking.promise });

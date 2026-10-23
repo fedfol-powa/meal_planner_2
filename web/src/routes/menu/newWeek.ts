@@ -14,7 +14,7 @@ export function useNewWeek(familyId: string, selected: IsoDate | null): { weekSt
   const { queryClient } = deps;
   const online = useOnline();
   const notice = useQuery(newWeekQuery(deps, familyId));
-  const { mutateAsync: markWeekSeen } = useMarkWeekSeen(familyId);
+  const { mutateAsync: markWeekSeen } = useMarkWeekSeen();
   const weekStartsOn = online ? (notice.data?.weekStartsOn ?? null) : null;
   const shown = selected ? mondayOf(selected) : null;
 
@@ -47,9 +47,11 @@ export function useNewWeek(familyId: string, selected: IsoDate | null): { weekSt
     void (async () => {
       // A read running now would put back the state before it once cancelled: cancelled first.
       await queryClient.cancelQueries({ queryKey });
-      if (current()) queryClient.setQueryData(queryKey, seen());
+      // Revoked while cancelling: nothing to send for it.
+      if (!current()) return;
+      queryClient.setQueryData(queryKey, seen());
       try {
-        await markWeekSeen(shown);
+        await markWeekSeen({ familyId, weekStartsOn: shown });
       } catch {
         // The dot comes back if the server says so; an answer for a family revoked meanwhile counts no more.
         if (!current()) return;
