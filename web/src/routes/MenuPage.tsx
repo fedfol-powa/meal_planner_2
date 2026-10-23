@@ -2,6 +2,7 @@ import { useQueries, useQuery, type QueryClient } from '@tanstack/react-query';
 import { getRouteApi, Link } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isBlocking, toApiError } from '../api/errors';
+import { useAreaMutation } from '../api/mutations';
 import { datesQuery, openingQuery, queryKeys, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
 import type { FamilyView, MealView, OpeningView, WeekView } from '../api/types';
 import { DatePicker } from '../components/DatePicker';
@@ -19,6 +20,7 @@ import { UndoProvider } from '../features/meals/UndoProvider';
 import { formatDayLong, formatMonthYear } from '../i18n/dates';
 import type { Locale } from '../i18n/translate';
 import { useLocale, useT } from '../i18n/LocaleProvider';
+import { useProfile } from '../session/useFamily';
 import { addDays, isMealPast, localNow, mondayOf, weekDates, type IsoDate, type LocalDateTime } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
 import { MenuSkeleton } from './menu/MenuSkeleton';
@@ -28,6 +30,35 @@ import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
 
+/**
+ * The link of the «next week's menu» email carries the family (spec W24, 6.2): when the person is in it
+ * and it is not the one shown, it is chosen on the server before the day opens. The parameter goes away
+ * after the use (`replace`), also when ignored. Resolves true while the choice is still pending.
+ */
+function useFamilyLink(linked: string | undefined): boolean {
+  const { api } = useQueryDeps();
+  const navigate = route.useNavigate();
+  const online = useOnline();
+  const profile = useProfile().data;
+  const choose = useAreaMutation('profile.setCurrentFamily', undefined, (familyId: string) => api.profile.setCurrentFamily({ familyId }));
+  const started = useRef(false);
+  useEffect(() => {
+    if (!linked || !profile || started.current) return;
+    started.current = true;
+    const done = () => void navigate({ search: (s) => ({ ...s, family: undefined }), replace: true });
+    if (online && linked !== profile.currentFamilyId && profile.families.some((f) => f.id === linked)) choose.mutate(linked, { onSettled: done });
+    else done();
+  }, [linked, profile, online, choose, navigate]);
+  return !!linked && !!profile;
+}
+
+/** Until the family of the link is chosen the menu of the previous one must not start reading. */
+function FamilyLink({ day, onSelect, children }: { day: IsoDate | undefined; onSelect: (date: IsoDate) => void; children: ReactNode }) {
+  const arriving = useFamilyLink(route.useSearch().family);
+  if (arriving) return <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={onSelect} />;
+  return <>{children}</>;
+}
+
 export function MenuPage() {
   const { day } = route.useSearch();
   const navigate = route.useNavigate();
@@ -36,9 +67,11 @@ export function MenuPage() {
   return (
     <FamilyGate waiting={(paused) => <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={select} paused={paused} />}>
       {(family) => (
-        <UndoProvider familyId={family.id}>
-          <MenuView family={family} />
-        </UndoProvider>
+        <FamilyLink day={day} onSelect={select}>
+          <UndoProvider familyId={family.id}>
+            <MenuView family={family} />
+          </UndoProvider>
+        </FamilyLink>
       )}
     </FamilyGate>
   );

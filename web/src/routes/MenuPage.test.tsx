@@ -72,6 +72,59 @@ describe('menu', () => {
     await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('lunedì 12 ottobre'));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+  describe('link of the menu email', () => {
+    const OTHER = '0b0e5f0e-6f3e-4a55-9d1a-3f7f9a1c2b4d';
+    /** The person is also in a second family; its menu is answered by the demo one. */
+    async function twoFamilies() {
+      const api = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
+      const base = await api.profile.get({});
+      const home = base.families[0]!;
+      const other = { ...home, id: OTHER, name: 'Casa al mare', role: 'member' as const };
+      let currentFamilyId = base.currentFamilyId;
+      const view = () => ({ ...base, families: [home, other], currentFamilyId });
+      api.profile.get = async () => view();
+      api.profile.setCurrentFamily = vi.fn(async ({ familyId }: { familyId: string }) => {
+        currentFamilyId = familyId;
+        return view();
+      }) as unknown as typeof api.profile.setCurrentFamily;
+      const asHome = <T extends { familyId: string }>(input: T) => ({ ...input, familyId: home.id });
+      const seen: string[] = [];
+      const menu = api.menu;
+      for (const name of ['getOpening', 'getWeek', 'getDates', 'getNewWeek'] as const) {
+        const call = menu[name] as (input: { familyId: string }, ...rest: unknown[]) => unknown;
+        (menu as Record<string, unknown>)[name] = (input: { familyId: string }, ...rest: unknown[]) => {
+          if (name === 'getWeek') seen.push(input.familyId);
+          return call(asHome(input), ...rest);
+        };
+      }
+      return { api, home, seen };
+    }
+    it('chooses the family of the link, opens its day and drops the parameter', async () => {
+      const { api, home, seen } = await twoFamilies();
+      const { history } = renderApp(`/menu?day=2026-10-12&family=${OTHER}`, { api });
+      await weekShown('lunedì 12 ottobre');
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledTimes(1);
+      expect(api.profile.setCurrentFamily).toHaveBeenCalledWith({ familyId: OTHER }, expect.anything());
+      expect(seen).not.toContain(home.id);
+      expect(seen).toContain(OTHER);
+      expect(history.location.search).toContain('2026-10-12');
+      expect(history.location.search).not.toContain('family');
+    });
+    it('ignores the family of a family that is not the person\'s', async () => {
+      const { api, home, seen } = await twoFamilies();
+      const { history } = renderApp('/menu?day=2026-10-12&family=7c1d2e3f-0000-4000-8000-000000000000', { api });
+      await weekShown('lunedì 12 ottobre');
+      expect(api.profile.setCurrentFamily).not.toHaveBeenCalled();
+      expect(seen).toEqual(expect.arrayContaining([home.id]));
+      expect(history.location.search).not.toContain('family');
+    });
+    it('does not choose again when the family is already the one shown', async () => {
+      const { api, home } = await twoFamilies();
+      renderApp(`/menu?day=2026-10-12&family=${home.id}`, { api });
+      await weekShown('lunedì 12 ottobre');
+      expect(api.profile.setCurrentFamily).not.toHaveBeenCalled();
+    });
+  });
   describe('dragging the days', () => {
     // jsdom lays nothing out: the row is 350 px wide and the test drives the clock.
     let clock = 0;

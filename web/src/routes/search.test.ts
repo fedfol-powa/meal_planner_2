@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { toRecipeQuery, toRecipesSearch, validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './search';
+import { toRecipeQuery, toRecipesSearch, validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch, validateShoppingSearch } from './search';
 
 describe('search params', () => {
   it('keeps only real days for the menu', () => {
     expect(validateMenuSearch({ day: '2026-10-06' })).toEqual({ day: '2026-10-06' });
     expect(validateMenuSearch({ day: '2026-02-30' })).toEqual({});
     expect(validateMenuSearch({ day: 20261006 })).toEqual({});
+  });
+  it('keeps the family of the email link for the menu only when it is a uuid', () => {
+    const family = '0b0e5f0e-6f3e-4a55-9d1a-3f7f9a1c2b4d';
+    expect(validateMenuSearch({ day: '2026-10-26', family })).toEqual({ day: '2026-10-26', family });
+    expect(validateMenuSearch({ day: '2026-10-26', family: 'casa' }).family).toBeUndefined();
+    expect(validateMenuSearch({ family: 42 }).family).toBeUndefined();
+    expect(validateShoppingSearch({ day: '2026-10-26', family })).toEqual({ day: '2026-10-26' });
+    expect('family' in validateShoppingSearch({ family })).toBe(false);
   });
   it('validates catalogue filters, accepting numbers parsed as text or numbers', () => {
     expect(validateRecipesSearch({ q: ' riso ', meal: 'lunch', time: '30', group: 'fish', rating: 4, sort: 'rating', dir: 'reverse' }))

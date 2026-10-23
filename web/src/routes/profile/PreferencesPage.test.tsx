@@ -124,4 +124,40 @@ describe('preferences', () => {
     const link = await screen.findByRole('link', { name: 'Cancella l’account' });
     expect(link.getAttribute('href')).toBe('/profile/account/delete');
   });
+  describe('menu emails', () => {
+    const box = () => screen.findByRole('checkbox', { name: /Email con il menu della settimana/ }) as Promise<HTMLInputElement>;
+    it('shows the choice and saves it at once, with the sending notice and then the confirmation', async () => {
+      const api = fakeApi();
+      const update = api.profile.update;
+      let release: () => void = () => {};
+      api.profile.update = vi.fn((input) => new Promise<ProfileView>((resolve) => (release = () => resolve(update(input))))) as unknown as typeof update;
+      renderApp('/profile/preferences', { api });
+      const field = await box();
+      expect(field.checked).toBe(true);
+      expect(screen.getByText('Il mercoledì sera, quando è pronto il menu della settimana dopo')).toBeTruthy();
+      fireEvent.click(field);
+      await waitFor(() => expect(api.profile.update).toHaveBeenCalledWith({ menuEmails: false }, expect.anything()));
+      expect((await screen.findByText('Salvataggio…')).getAttribute('role')).toBe('status');
+      await act(async () => release());
+      expect(await screen.findByText('Salvato')).toBeTruthy();
+      expect(screen.queryByText('Salvataggio…')).toBeNull();
+      expect((await box()).checked).toBe(false);
+    });
+    it('is disabled offline', async () => {
+      renderApp('/profile/preferences');
+      const field = await box();
+      act(() => setOnline(false));
+      await waitFor(() => expect(field.disabled).toBe(true));
+    });
+    it('shows the error and keeps the saved value when saving fails', async () => {
+      const api = fakeApi();
+      api.profile.update = (async () => {
+        throw new ApiError('invalid');
+      }) as unknown as typeof api.profile.update;
+      renderApp('/profile/preferences', { api });
+      fireEvent.click(await box());
+      expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Dati non validi.');
+      expect((await box()).checked).toBe(true);
+    });
+  });
 });

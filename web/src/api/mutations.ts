@@ -40,6 +40,8 @@ export const INVALIDATIONS = {
   // The name shows in the attributions of every family of the person (a rare gesture).
   'profile.updateName': { target: 'profile', stale: ['all'] },
   'profile.updateLocale': { target: 'profile', stale: [] },
+  // The preference is only read by the person's own email round (spec W24, 6.3).
+  'profile.updateMenuEmails': { target: 'profile', stale: [] },
   'profile.setCurrentFamily': { target: 'profile', stale: [] },
   // The answer is the profile with the new family shown (spec W9).
   'family.create': { target: 'profile', stale: [] },

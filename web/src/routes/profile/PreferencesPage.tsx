@@ -52,6 +52,7 @@ export function PreferencesPage() {
       .catch(setLanguageError)
       .finally(() => setSendingLocale(false));
   };
+  const menuEmails = useAreaMutation('profile.updateMenuEmails', undefined, (value: boolean) => api.profile.update({ menuEmails: value }));
   const email = profile?.user.email ?? (state.status === 'signedIn' ? state.user.email : '');
 
   return (
@@ -88,6 +89,23 @@ export function PreferencesPage() {
           {sendingLocale && <p className="meta-line" role="status">{t('settings.saving')}</p>}
           {languageError !== null && <p className="meta-line" role="alert">{t(errorKey(languageError))}</p>}
         </section>
+        {profile && (
+          <section className="settings-card" aria-labelledby="menu-emails-title">
+            <label className="choice">
+              <input
+                type="checkbox"
+                checked={profile.user.menuEmails}
+                disabled={!online || menuEmails.isPending}
+                onChange={(event) => menuEmails.mutate(event.target.checked)}
+              />
+              <span id="menu-emails-title">{t('preferences.menuEmails')}</span>
+            </label>
+            <p className="meta-line">{t('preferences.menuEmailsHint')}</p>
+            {menuEmails.isPending && <p className="meta-line" role="status">{t('settings.saving')}</p>}
+            {menuEmails.isSuccess && <p className="meta-line" role="status">{t('preferences.menuEmailsSaved')}</p>}
+            {menuEmails.isError && <p className="meta-line" role="alert">{t(errorKey(menuEmails.error))}</p>}
+          </section>
+        )}
         {backend.mode === 'supabase' && (
           <button type="button" className="text-button" onClick={() => void signOut()}>{t('profile.signOut')}</button>
         )}
