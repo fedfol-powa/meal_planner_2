@@ -10,16 +10,18 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   (censimento, spec e piano). Avviato il 23/10 su richiesta dell'utente.
 - **Worker attivi:** W22, tab «W22 skeleton pagine rare» (`w1:t5R`, pane `w1:p5R`), branch
   `evolutive/skeleton-pagine-rare`, worktree `.worktrees/skeleton-rare`; ultimo STATO:
-  nessuno (appena avviato).
+  `SPEC_E_PIANO_PRONTI` (commit `f9643c8`, spec e piano `2026-10-23-skeleton-pagine-rare.md`).
   W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
   «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti); ultimo STATO: nessuno.
-- **Revisori attivi:** nessuno.
+- **Revisori attivi:** «R W22 spec» (pane `w1:p5T`), rapporto atteso
+  `revisioni/w22-spec-piano.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
   **in sospeso**, l'utente ci vuole pensare prima del via al piano.
-- **Domande in sospeso:** via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
+- **Domande in sospeso:** via dell'utente al brief di W24 (`brief/w24-avviso-menu-pronto.md`,
+  avviso del menu pronto via email e in app); via al piano degli spunti da Cuicuit; chiudere la issue #49 (W20
   rilasciata) dopo W22.
 - **Limite:** 3 worker Claude (portato da 1 a 3 dall'utente il 23/10); revisori Codex senza limite.
 - **In produzione:** versione `507c4662-e2c0-4c03-8811-b2b0ea5e67f0` (commit `bb523a2`, 18/10
