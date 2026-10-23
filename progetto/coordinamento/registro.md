@@ -23,7 +23,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w23-spec-piano.md`), correzioni in
   `messaggi/w23-01-revisione-spec.md`; revisione 2 APPROVABILE CON CORREZIONI, correzioni
   in `messaggi/w23-02-revisione-spec-2.md`; revisione 3 con due rilievi sul focus: spec e
-  piano approvati dal coordinatore con quelle correzioni; poi `/clear` e implementazione.
+  piano approvati dal coordinatore con quelle correzioni (commit `b349664`); `/clear` e
+  implementazione in corso.
   W24, avviso del menu pronto (email e in app, preferenza per non ricevere le email),
   brief `brief/w24-avviso-menu-pronto.md`, tab «W24 avviso menu» (pane `w1:p5V`), branch
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
