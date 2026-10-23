@@ -3,29 +3,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { OverviewView } from '@app/contract';
 import { createFakeApi } from '../api/fake/fakeApi';
 import { cacheKey, createMemoryStore, type KeyValueStore } from '../api/persister';
-import type { Api } from '../api/types';
 import { catalogueApi, LUCIA } from '../features/catalogue/test-support';
 import { setOnline } from '../test/connectivity';
+import { gate, holdCalls } from '../test/holdCalls';
 import { renderApp } from '../test/renderApp';
 import { DEMO_USER } from '../auth/backend';
 import { createStubBackend } from '../test/stubBackend';
 
 afterEach(() => setOnline(true));
-
-/** A gate the test opens: calls made before it wait, later calls go through. */
-function gate() {
-  let open!: () => void;
-  const opened = new Promise<void>((done) => (open = done));
-  return { opened, open: () => act(async () => open()) };
-}
-
-/** Holds `method` of `area` until the gate opens. */
-function holdCalls<A extends keyof Api, M extends keyof Api[A]>(api: Api, area: A, method: M) {
-  const g = gate();
-  const original = api[area][method] as unknown as (...args: unknown[]) => Promise<unknown>;
-  (api[area] as Record<M, unknown>)[method] = (...args: unknown[]) => g.opened.then(() => original(...args));
-  return g;
-}
 
 const fakeApi = () => createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
 const busyArea = () => document.querySelector('.secondary-view [aria-busy="true"]');
