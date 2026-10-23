@@ -50,12 +50,13 @@ function SettingsLayout({ loading = false, paused = false, children }: { loading
           <LoadingScope loading paused={paused}>
             <BusyArea>
               <Skeleton>
-                <p className={`meta-line ${styles.intro} skeleton-block`} style={{ width: '70%', height: '1lh' }} />
+                {/* Intro and diners hint take two lines on a phone. */}
+                <p className={`meta-line ${styles.intro} skeleton-block`} style={{ width: '90%', height: '2lh' }} />
                 <SettingsCardSkeleton title={false}>
                   <FieldSkeleton />
                 </SettingsCardSkeleton>
                 <SettingsCardSkeleton>
-                  <TextSkeleton className="meta-line" />
+                  <TextSkeleton className="meta-line" lines={2} />
                   <table className={dinersStyles.diners}>
                     <thead>
                       <tr><td /><th>{'\u00a0'}</th><th>{'\u00a0'}</th></tr>

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useState, type CSSProperties, type ElementType, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ElementType, type ReactNode } from 'react';
 import { useT } from '../i18n/LocaleProvider';
 
 /**
@@ -11,16 +11,38 @@ import { useT } from '../i18n/LocaleProvider';
 /** Below this wait nothing shows: the space is reserved at once, the blocks only after it (no grey flash). */
 export const SKELETON_DELAY_MS = 200;
 
-/** True once `active` has lasted `delayMs`; false as soon as it ends. Each new wait starts again. */
+/**
+ * A visible wait unmounted while still waiting, in the commit being applied (W22): its layout gave way to
+ * the next layout of the same wait (FamilyGate or AdminAccessGate to the page, the profile to the detail).
+ * A wait starting in the same commit shows its blocks at once instead of hiding them for another delay.
+ */
+let handingOff = false;
+
+/**
+ * True once `active` has lasted `delayMs`; false as soon as it ends. Each new wait starts again, except one
+ * that takes over from a visible wait unmounted in the same commit.
+ */
 export function useShowAfter(active: boolean, delayMs = SKELETON_DELAY_MS): boolean {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     setShown(false);
     if (!active) return;
+    if (handingOff) return setShown(true);
     const timer = setTimeout(() => setShown(true), delayMs);
     return () => clearTimeout(timer);
   }, [active, delayMs]);
-  return active && shown;
+  const visible = active && shown;
+  const last = useRef(visible);
+  last.current = visible;
+  useEffect(
+    () => () => {
+      if (!last.current) return;
+      handingOff = true;
+      queueMicrotask(() => (handingOff = false));
+    },
+    []
+  );
+  return visible;
 }
 
 interface ScopeState { loading: boolean; shown: boolean; paused: boolean }
@@ -59,7 +81,8 @@ export function LoadingScope({ loading = false, paused = false, gather = false, 
       return next;
     }), []);
   const rootJoin = root?.join;
-  useEffect(() => {
+  // In the commit of the area: the gathered wait starts with it (and takes over a handoff, see above).
+  useLayoutEffect(() => {
     if (!rootJoin) return;
     rootJoin(id, { loading, paused });
     return () => rootJoin(id, null);

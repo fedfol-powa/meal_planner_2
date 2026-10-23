@@ -174,6 +174,9 @@ html { height: 100%; }
 .skeleton-card.skeleton-card.skeleton-card * { background: transparent; border-color: transparent; box-shadow: none; }
 .skeleton-line { display: block; height: 1.5em; height: 1lh; }
 .skeleton-block.skeleton-block { display: block; border-radius: 8px; background: #ebe7de; pointer-events: none; }
+/* A button as a block (W22): no outline, and outside a wide row the width of a short label. */
+.text-button.skeleton-block.skeleton-block { border-color: transparent; }
+.text-button.skeleton-block:not(.wide) { min-width: 6em; }
 .skeleton-card { animation: skeleton-pulse 1.6s ease-in-out infinite alternate; }
 .skeleton-block { animation: skeleton-pulse 1.6s ease-in-out infinite alternate; }
 @keyframes skeleton-pulse { from { opacity: 1; } to { opacity: 0.5; } }

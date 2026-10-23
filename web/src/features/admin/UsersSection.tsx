@@ -79,7 +79,8 @@ export function UsersSection() {
 export function UsersCardSkeleton() {
   return (
     <SettingsCardSkeleton>
-      <span className={`${styles.search} skeleton-block`} style={{ height: 44 }} />
+      {/* Inline-block like the input: its top margin does not collapse with the title's. */}
+      <span className={`${styles.search} skeleton-block`} style={{ display: 'inline-block', verticalAlign: 'top', height: 44 }} />
       <SkeletonRows count={3} link trail />
     </SettingsCardSkeleton>
   );

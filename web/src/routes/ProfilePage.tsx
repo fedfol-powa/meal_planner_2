@@ -10,7 +10,7 @@ import type { FamilyView } from '../api/types';
 import { useAuth } from '../auth/AuthProvider';
 import { useOnline } from '../components/OfflineBanner';
 import { Icon } from '../components/Icon';
-import { SettingsCardSkeleton, SkeletonRows, TextSkeleton, TitleSkeleton } from '../components/PageSkeletons';
+import { SettingsCardSkeleton, SkeletonRows, TitleSkeleton } from '../components/PageSkeletons';
 import { BusyArea, LoadingScope, Skeleton } from '../components/Skeleton';
 import { QueryError } from '../components/QueryError';
 import { useT } from '../i18n/LocaleProvider';
@@ -50,7 +50,8 @@ export function ProfilePage() {
                 </SettingsCardSkeleton>
                 <SettingsCardSkeleton>
                   <SkeletonRows count={1} link className={styles.family} />
-                  <TextSkeleton as="span" className="link-inline" />
+                  {/* An inline link in the real card: an invisible space keeps its line box. */}
+                  <span className="link-inline">{'\u00a0'}</span>
                 </SettingsCardSkeleton>
               </Skeleton>
             </BusyArea>

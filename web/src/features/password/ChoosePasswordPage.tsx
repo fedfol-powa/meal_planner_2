@@ -182,7 +182,8 @@ function Waiting() {
           <p><span className="skeleton-line" /></p>
           <FieldSkeleton hint={styles.help} />
           <FieldSkeleton />
-          <p className="meta-line"><span className="skeleton-line" /></p>
+          {/* The warning takes two lines on a phone. */}
+          <p className="meta-line"><span className="skeleton-line" /><span className="skeleton-line" /></p>
           <ButtonSkeleton wide />
         </>
       }

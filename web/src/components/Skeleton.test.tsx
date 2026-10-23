@@ -178,3 +178,40 @@ describe('LoadingScope gather', () => {
     expect(screen.getByRole('status').textContent).toBe('Verifico il link…');
   });
 });
+
+describe('LoadingScope handoff (W22)', () => {
+  it('a wait that takes over from a visible one, unmounted while waiting, shows at once', () => {
+    const view = (which: 'gate' | 'page') =>
+      wrap(which === 'gate' ? <LoadingArea key="gate" loading skeleton={<span className="skeleton-card" />} /> : <LoadingArea key="page" loading skeleton={<span className="skeleton-card" />} />);
+    const { container, rerender } = render(view('gate'));
+    act(() => void vi.advanceTimersByTime(200));
+    expect(skeleton(container)?.dataset.visible).toBe('true');
+    rerender(view('page'));
+    expect(skeleton(container)?.dataset.visible).toBe('true');
+    expect(status().textContent).toBe('Caricamento…');
+  });
+
+  it('a gathered wait that takes over from a visible one shows at once', () => {
+    const view = (which: string) =>
+      wrap(
+        <LoadingScope gather key={which}>
+          <LoadingArea loading skeleton={<span className="skeleton-card" />} />
+        </LoadingScope>
+      );
+    const { container, rerender } = render(view('gate'));
+    act(() => void vi.advanceTimersByTime(200));
+    expect(skeleton(container)?.dataset.visible).toBe('true');
+    rerender(view('page'));
+    expect(skeleton(container)?.dataset.visible).toBe('true');
+  });
+
+  it('a wait that ended with its data does not hand off', () => {
+    const { container, rerender, unmount } = render(area(true));
+    act(() => void vi.advanceTimersByTime(200));
+    rerender(area(false));
+    unmount();
+    const next = render(area(true));
+    expect(skeleton(next.container)?.dataset.visible).toBe('false');
+    void container;
+  });
+});
