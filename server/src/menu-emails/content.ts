@@ -58,6 +58,8 @@ const formatDate = (locale: Locale, date: Date, options: Intl.DateTimeFormatOpti
 	new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(date);
 
 const capitalise = (value: string) => value.charAt(0).toLocaleUpperCase() + value.slice(1);
+/** An empty or blank text counts as missing. */
+const present = (value: string | null) => (value !== null && value.trim() !== '' ? value : null);
 
 interface Row {
 	label: string;
@@ -69,7 +71,8 @@ interface Row {
 /**
  * The "next week's menu is ready" email (spec W24, section 5.3): HTML with tables, inline styles and
  * the colours of design/design.md, plus a plain-text version. Names arrive already in the person's
- * language; meals with neither a name nor a free text are skipped; every value is escaped in the HTML.
+ * language; meals with neither a name nor a free text (empty or blank counts as missing) are skipped;
+ * every value is escaped in the HTML.
  */
 export function menuEmail(input: MenuEmailInput): { subject: string; html: string; text: string } {
 	const { locale } = input;
@@ -82,8 +85,9 @@ export function menuEmail(input: MenuEmailInput): { subject: string; html: strin
 	const days = new Map<string, Row[]>();
 	const ordered = [...input.meals].sort((a, b) => a.date.localeCompare(b.date) || (a.mealType === b.mealType ? 0 : a.mealType === 'lunch' ? -1 : 1));
 	for (const meal of ordered) {
-		const free = meal.name === null;
-		const title = meal.name ?? meal.freeText;
+		const name = present(meal.name);
+		const free = name === null;
+		const title = name ?? present(meal.freeText);
 		if (title === null) continue;
 		const slot = meal.mealType === 'lunch' ? t.lunch : t.dinner;
 		const rows = days.get(meal.date) ?? [];

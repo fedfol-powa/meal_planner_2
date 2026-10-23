@@ -66,6 +66,25 @@ describe('menuEmail', () => {
 		expect(text).not.toContain('Mercoledì 28 ottobre');
 	});
 
+	it('treats empty or blank names and free texts as missing (final review, finding 2)', () => {
+		const { html, text } = menuEmail(input({
+			meals: [
+				{ date: '2026-10-28', mealType: 'lunch', name: '', freeText: '  ', thumbnailUrl: null },
+				{ date: '2026-10-29', mealType: 'dinner', name: null, freeText: '', thumbnailUrl: null },
+				{ date: '2026-10-30', mealType: 'dinner', name: ' ', freeText: 'Pizza', thumbnailUrl: 'https://app.test/photos/email/x.jpg' },
+			],
+		}));
+		for (const day of ['Mercoledì 28 ottobre', 'Giovedì 29 ottobre']) {
+			expect(html).not.toContain(day);
+			expect(text).not.toContain(day);
+		}
+		expect(text).toContain('Venerdì 30 ottobre');
+		expect(text).toContain('Pizza');
+		// A blank name falls back to the free text, shown as a free meal without the recipe's photo.
+		expect(html).toContain('Cena · Pasto libero');
+		expect(html).not.toContain('x.jpg');
+	});
+
 	it('writes one plain-text line per meal and both links', () => {
 		const { text } = menuEmail(input());
 		expect(text).toContain('Lunedì 26 ottobre – Pranzo: Pasta con crema di peperoni');
