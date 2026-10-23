@@ -125,6 +125,18 @@ Fondamenta e Menu, per un controllo veloce prima del Ricettario.
   accanto; si cambia oltre un terzo della larghezza o con un colpo veloce. Se la
   settimana non esiste la fila segue il dito con resistenza e torna al suo posto, senza
   messaggi (specifica, sezione 5).
+  Dal 23 ottobre 2026 (W23, PR #78), quando il Menu mostra un giorno diverso da oggi e
+  oggi ha pasti, a sinistra dell'icona del calendario compare il pulsante «Oggi» (freccia
+  di ritorno e parola, senza riquadro, scelto dall'utente fra tre varianti nel
+  prototipo): un tocco riporta a oggi come la scelta di un giorno; su oggi, o se oggi non
+  ha pasti, il pulsante non c'è (specifica, sezioni 5 e 14).
+  Dal 23 ottobre 2026 (W24, PR #80), quando il menu della settimana prossima è pronto e la
+  persona non l'ha ancora guardato, l'icona del calendario ha un pallino verde e nel mese
+  i giorni di quella settimana hanno il numero verde su fondo verde chiaro; spariscono
+  alla prima visita di un suo giorno (calendario, fila dei giorni, swipe, link), su tutti
+  i dispositivi della persona, o il lunedì. Insieme arriva l'email del menu,
+  con «Apri il menu» verso il lunedì di quella settimana nella famiglia giusta (sotto,
+  «Avviso del menu pronto»).
 - **Nessuno stato della settimana** (sezione 2, decisione della tappa intermedia):
   nessuna etichetta o messaggio di stato; "non cucinato" su ogni pasto passato.
 - **Schede dei pasti:** con foto, senza foto, pasto libero, slot vuoto "nessuna ricetta
@@ -1200,7 +1212,10 @@ rilascio in preparazione (specifica, sezioni 7 e 14; testi e stati in
   un invito all'app non passa più dal wizard: dopo la password entra e trova «Crea la tua
   famiglia»;
 - **`/password`**: si apre dal link dell'email «Scegli la password» o della «Password
-  dimenticata», in Safari. «Scegli la password», «Account: {email}», password e
+  dimenticata», in Safari. Mentre verifica il link (dalla W22, PR #79, unita, rilascio in
+  preparazione) mostra lo skeleton del modulo, annunciato con «Verifico il link…»; offline
+  la verifica non parte, lo skeleton resta fermo sotto il banner con «Caricamento…» e la
+  verifica parte da sola al ritorno della rete (prima la pagina restava vuota). «Scegli la password», «Account: {email}», password e
   ripetizione con le regole del Profilo, la riga sugli altri dispositivi e agenti che
   dovranno accedere di nuovo, «Salva la password»; poi «Password salvata.», «Ora entra
   con la tua email e la nuova password.» e **«Accedi»** verso `/login` con l'email già
@@ -1221,3 +1236,44 @@ Le pagine nuove hanno la forma delle pagine d'ingresso del prototipo (marchio, c
 stretta, cambio di lingua, «Sei offline» con i comandi disattivati). Restano le prove a
 mano sull'iPhone dopo il rilascio (email aperta dall'app Mail con la PWA installata,
 «Password dimenticata» dalla PWA, resa delle email in italiano e in inglese).
+
+### Skeleton nelle pagine rare (23 ottobre 2026)
+
+Con la W22 (PR #79, unita, rilascio in preparazione; specifica, sezione 14) lo skeleton
+di W20 copre anche le pagine rare: profilo, preferenze, membri, impostazioni, esclusioni,
+agenti, amministrazione, dettaglio ed eliminazione di un utente, bozze, eliminazioni
+della famiglia e dell'account, inviti, autorizzazione e verifica del link in `/password`
+(sopra, «Email dell'app»), più le sezioni dei curatori del Ricettario (Bozze e
+Archiviate). Una sola attesa e un solo annuncio «Caricamento…» per pagina, anche con più
+letture. Le sezioni condizionali, cioè parti di una pagina aperta a tutti che compaiono
+solo per un ruolo (sezioni dei curatori, schede degli amministratori nei Membri), hanno
+blocchi solo quando il ruolo è noto; le pagine riservate a un ruolo (bozze,
+amministrazione) hanno lo skeleton anche prima, seguito dall'avviso se il ruolo manca.
+Offline lo skeleton resta fermo sotto il banner; inviti e autorizzazione, senza copia
+salvata, mostrano l'errore con «Riprova». Il prototipo non aveva questi stati.
+
+### Avviso del menu pronto nell'app (23 ottobre 2026)
+
+Con la W24 (PR #80, specifica, Parte 1 e sezioni 4, 5, 7, 12 e 14) l'app avvisa quando il
+mercoledì sera è pronto il menu della settimana dopo. Il prototipo ne ha il riferimento
+(`prototype/src/routes/menu/+page.svelte`, `DatePicker.svelte`) e l'anteprima dell'email
+in `prototype/static/w24-email/`.
+
+- **Email** a ogni membro, nella sua lingua: oggetto «Il menu della settimana
+  {intervallo} è pronto», con il nome della famiglia solo per chi ne ha più di una; una
+  riga per pasto con la miniatura quadrata, l'etichetta Pranzo/Cena e il nome del piatto
+  (forma «righe compatte» scelta dall'utente); il pulsante «Apri il menu», che porta al
+  lunedì di quella settimana nella famiglia dell'email, scegliendola come famiglia
+  mostrata se la persona ne è membro; la riga che dice che il menu si può ancora cambiare
+  nell'app; in fondo «Non ricevere più queste email», che apre le Preferenze (con
+  l'accesso, se serve).
+- **Menu**: pallino verde sull'icona del calendario e giorni della settimana nuova in
+  verde nel mese, fino alla prima visita o al lunedì (percorso 1, «Calendario»). Offline
+  non si mostrano.
+- **Preferenze** (percorso 5): sotto la lingua la casella «Email con il menu della
+  settimana», con il sottotitolo «Il mercoledì sera, quando è pronto il menu della
+  settimana dopo», attiva all'inizio; salva subito, una sola opzione per tutte le
+  famiglie della persona.
+
+Restano le prove a mano dopo il rilascio: l'email vera del mercoledì in Mail e in Gmail,
+«Apri il menu» dalla PWA e da Safari, il link in fondo, il pallino su due dispositivi.
