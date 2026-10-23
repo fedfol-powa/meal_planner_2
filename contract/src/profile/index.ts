@@ -12,6 +12,8 @@ export const profileViewSchema = z.object({
 		displayName: z.string(),
 		email: z.string(),
 		locale: localeSchema,
+		/** Whether the person gets the weekly "menu is ready" email. */
+		menuEmails: z.boolean(),
 		globalRoles: z.array(z.enum(['recipe_curator', 'app_admin'])),
 	}),
 	/** By name in the caller's language. */
@@ -35,11 +37,14 @@ export const profileContract = {
 		.input(z.object({}))
 		.output(profileViewSchema),
 	update: op({ mcp: { readOnly: false }, offline: false, role: 'user' })
-		.route({ method: 'PATCH', path: '/profile', summary: 'Change your display name or your language (it-IT or en-GB)' })
+		.route({ method: 'PATCH', path: '/profile', summary: 'Change your display name, your language (it-IT or en-GB) or whether you get the weekly menu email' })
 		.input(
 			z
-				.object({ displayName: displayNameSchema.optional(), locale: localeSchema.optional() })
-				.refine((value) => value.displayName !== undefined || value.locale !== undefined, { message: 'empty', path: ['displayName'] }),
+				.object({ displayName: displayNameSchema.optional(), locale: localeSchema.optional(), menuEmails: z.boolean().optional() })
+				.refine((value) => value.displayName !== undefined || value.locale !== undefined || value.menuEmails !== undefined, {
+					message: 'empty',
+					path: ['displayName'],
+				}),
 		)
 		.output(profileViewSchema),
 	setCurrentFamily: op({ mcp: { readOnly: false }, offline: false, role: 'user' })
