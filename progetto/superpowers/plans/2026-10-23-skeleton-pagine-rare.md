@@ -151,12 +151,14 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
 - **schede, campi, pulsanti e titoli**, che compongono il layout nell'ordine del contenuto
   vero: nessun pezzo impone un ordine ai figli.
 
-- `SkeletonRows({ count, small = true, chip = false, link = false, lead = false, trail = false, filled = false, action, className }: { count: number; small?: boolean; chip?: boolean; link?: boolean; lead?: boolean; trail?: boolean; filled?: boolean; action?: ReactNode; className?: string })`:
+- `SkeletonRows({ count, small = 1, chip = false, link = false, lead = false, trail = false, filled = false, action, className }: { count: number; small?: number; chip?: boolean; link?: boolean; lead?: boolean; trail?: boolean; filled?: boolean; action?: ReactNode; className?: string })`:
   `<ul className="row-list">` con `count` `<li>`. Ogni `li` contiene: con `link` uno
   `<span className={`row-link ${className ?? ''}`}>` (struttura delle righe-collegamento
   di Profilo e Utenti) con, se `lead`, un `<svg className="icon" />` iniziale, il testo e,
   se `trail`, un `<svg className="icon" />` finale; senza `link` il testo direttamente e
-  `className` va sul `li` (righe con `styles.wrap`, `styles.link`, …); il testo è `<span className="row-main"><span className="skeleton-line" />{small && <small className="skeleton-line" />}</span>`;
+  `className` va sul `li` (righe con `styles.wrap`, `styles.link`, …); il testo è `<span className="row-main">` con una `skeleton-line` e `small` righe
+  secondarie `<small className="skeleton-line" />` (0 nessuna; 2 per gli Ingressi, che hanno
+  sempre data e provenienza del link);
   con `chip` uno `<span className="label-chip">` con ` `; in fondo `action`. Con
   `filled` la `row-main` ha anche `skeleton-block` (blocco pieno arrotondato che pulsa,
   alto quanto il testo della riga dentro l'altezza minima di 52 px del `li`), e `action`
@@ -238,7 +240,7 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
     `FieldSkeleton`; scheda dei commensali con `TextSkeleton className="meta-line"` e una
     `<table className={dinersStyles.diners}>` con intestazione vuota e 7 righe da 2 celle
     `<span className={dinersStyles.cell} />` (importa `DinersGrid.module.css` nella
-    pagina); scheda delle regole con `SkeletonRows count={2} small={false}`.
+    pagina); scheda delle regole con `SkeletonRows count={2} small={0}`.
 - [ ] **Passo 4:** i due file e `npm test` → verde.
 - [ ] **Passo 5:** commit «Skeleton: Esclusioni e Impostazioni».
 
@@ -249,22 +251,31 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
 - Test: `web/src/routes/profile/MembersPage.skeleton.test.tsx`, `web/src/components/FamilyGate.test.tsx`
 
 **Interfacce:**
-- Consuma: Task 1-3. Il ruolo è `family.role` della `FamilyView` (dal profilo), noto prima
-  del dettaglio.
+- Consuma: Task 1-3.
+- **Quale ruolo decide.** `const role = detail.data ? detail.data.myRole : family.role`:
+  il ruolo della `FamilyView` del profilo serve solo ad anticipare il layout finché il
+  dettaglio manca; quando il dettaglio c'è decide `detail.myRole`, come oggi, per le
+  schede degli amministratori, per i pulsanti «…» dei membri e per la riga «Chiedi a …».
+  Le letture restano abilitate come oggi, solo dal ruolo del dettaglio: `links` con
+  `enabled: detail.data?.myRole === 'family_admin'`, e `joins` (dentro `JoinsCard`) con lo
+  stesso `enabled` passato come prop `enabled: boolean`; prima del dettaglio nessuna delle
+  due parte. La gestione degli errori bloccanti del dettaglio resta quella di oggi
+  (`QueryError` al posto del contenuto).
 - `MembersLayout` con `<LoadingScope gather>` attorno al contenuto della colonna; il
   contenuto ha la stessa struttura in ogni momento dopo il profilo, e solo le aree cambiano:
   - scheda dei membri: `LoadingArea` con `SettingsCardSkeleton` contenente
     `SkeletonRows count={3} chip` e, per un `member`, `TextSkeleton className="meta-line"`
     («Chiedi a …»), finché `detail` non ha dati e non ha errore bloccante;
-  - solo con `family.role === 'family_admin'`: `LinksCard` e `JoinsCard` **vere dal primo
+  - solo con `role === 'family_admin'`: `LinksCard` e `JoinsCard` **vere dal primo
     istante** (titolo, suggerimento, pulsante «Crea un link»). Cambiano firma:
     `LinksCard({ familyId, timeZone, links, onCreate, onRevoke }: { familyId: string; timeZone: string | null; links: UseQueryResult<…>; onCreate: (() => void) | null; onRevoke: … })`
     con il pulsante spento quando `onCreate` è `null` (dettaglio non arrivato: il foglio
     vuole il nome della famiglia) e
-    `JoinsCard({ familyId, timeZone }: { familyId: string; timeZone: string | null })`;
+    `JoinsCard({ familyId, timeZone, enabled }: { familyId: string; timeZone: string | null; enabled: boolean })`;
     le query usano `familyId` (lo stesso id del dettaglio). In ciascuna `Loading` diventa
     un `LoadingArea` con `SkeletonRows count={1} filled` (link: `action={<ButtonSkeleton className={styles.small} />}`,
-    `className={styles.link}`; ingressi: `className={styles.join}`) finché manca la lista
+    `className={styles.link}`; ingressi: `small={2} className={styles.join}`, come le voci
+    vere con nome, data e provenienza) finché manca la lista
     o `timeZone` (righe formattate nel fuso della famiglia), senza errore bloccante;
   - «Lascia la famiglia»: nella `danger.dangerZone`, `Skeleton` con
     `ButtonSkeleton wide className={danger.dangerOutline}` finché manca il dettaglio;
@@ -288,6 +299,15 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
     nelle due aree delle liste; liberati, nessuno status «Caricamento…».
   - `it('members: no admin cards while the profile is unknown')`: profilo trattenuto →
     una sola scheda a blocchi, nessun titolo «Link d'invito».
+  - `it('members: the detail decides when profile and detail disagree (admin → member)')`:
+    profilo con la famiglia da `family_admin`, dettaglio trattenuto che risponde con
+    `myRole: 'member'` → durante l'attesa le due schede degli amministratori; all'arrivo
+    spariscono, nessun pulsante «…» sui membri, c'è «Chiedi a …», e
+    `familyInvitations.list`/`listJoins` non sono mai chiamati.
+  - `it('members: the detail decides when profile and detail disagree (member → admin)')`:
+    profilo da `member`, dettaglio `family_admin` → durante l'attesa nessuna scheda degli
+    amministratori e nessuna lettura di link o ingressi; all'arrivo le due schede, i
+    pulsanti «…» e le due letture partite.
   - In `FamilyGate.test.tsx` togli o adatta il caso che si aspetta `Loading` senza
     `waiting`.
 - [ ] **Passo 2:** esegui → fallisce.
@@ -312,7 +332,7 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
   con `aria-hidden` durante l'attesa contiene `<TitleSkeleton width="50%" />`; la riga
   dell'email è `<Skeleton as="p" className={`${styles.email} skeleton-block`} style={{ width: '40%', height: '1lh' }} />`.
   Poi `BusyArea` con due schede nell'ordine vero:
-  - famiglia: `SettingsCardSkeleton` con `SkeletonRows count={3} link lead trail small={false}`
+  - famiglia: `SettingsCardSkeleton` con `SkeletonRows count={3} link lead trail small={0}`
     (righe `row-link` con icona, testo, freccia; i conteggi arrivano dopo senza skeleton:
     la riga resta alta 52 px, spec, censimento);
   - Famiglie: `SettingsCardSkeleton` con `SkeletonRows count={1} link className={styles.family}`
@@ -321,10 +341,11 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
   La scheda Account resta vera, fuori da ogni `Skeleton`.
 - Preferenze: al posto di `{profile && …}` in attesa un `LoadingArea` con
   `SettingsCardSkeleton title={false}` contenente `FieldSkeleton` e
-  `<p className={styles.static}><span className="skeleton-line" /><div className="skeleton-line" /></p>`
-  (etichetta con la dimensione di `.static span`, valore con quella del paragrafo, distanza
-  6 px della griglia; usa `div` per il valore perché il selettore `.static span` non lo
-  tocchi, e quindi `p` diventa un `div` con la stessa classe). Le altre schede vere.
+  `<p className={styles.static}><span className="skeleton-line" /><em className="skeleton-line" /></p>`:
+  resta un `p` figlio diretto della scheda, quindi conserva il margine di 12 px di
+  `.settings-card > p`; l'etichetta è uno `span` (dimensione di `.static span`), il valore
+  un `em` (contenuto di frase valido dentro `p`, non toccato da `.static span`, quindi con
+  la dimensione del paragrafo); distanza di 6 px della griglia. Le altre schede vere.
 - Agenti: nella scheda «Agenti collegati» `Loading` diventa `LoadingArea` con
   `SkeletonRows count={1} filled className={styles.agent} action={<ButtonSkeleton />}`;
   `paused` dal `fetchStatus` di `agents`.
@@ -368,12 +389,21 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
     `SkeletonRows count={3} link trail` (nome ed email);
   - scheda Inviti: `SettingsCardSkeleton title={false}` con `<div className={styles.heading}>`
     (`h2` come `skeleton-line` e `ButtonSkeleton className="primary"`) e `<ul className={styles.list}>`
-    con due `<li className={styles.item}>` di quattro `skeleton-line` (email, ruoli, stato,
-    autore).
+    con due `InvitationItemSkeleton`.
   Nelle sezioni vere `Loading` diventa un `LoadingArea`, sotto il campo e sotto
   l'intestazione come oggi: `SkeletonRows count={3} link trail filled` per gli utenti; due
-  `<li className={styles.item}>` con un `<span className="skeleton-block">` di quattro
-  `skeleton-line` per gli inviti. Si uniscono all'attesa della pagina.
+  `InvitationItemSkeleton filled` per gli inviti. Si uniscono all'attesa della pagina.
+- `InvitationItemSkeleton({ filled = false }: { filled?: boolean })` in
+  `InvitationsSection.tsx`, **una sola struttura per le due fasi** (dentro la scheda a
+  blocchi del controllo e dentro la scheda vera), con gli stessi figli e le stesse classi
+  della voce vera di un invito accettato (il caso più frequente in una lista che cresce:
+  gli inviti aperti sono pochi e hanno in più i pulsanti): `<li className={styles.item}>`
+  con `<span className={`${styles.email} skeleton-line`} />`,
+  `<span className={styles.roles}><span className={`${styles.role} skeleton-line`} style={{ width: '6em' }} /></span>`,
+  e due `<span className="meta-line skeleton-line" />` (stato, autore): la griglia di
+  `.item` mette gli stessi intervalli di 4 px in entrambe le fasi. Con `filled` ognuno dei
+  quattro figli ha anche `skeleton-block` (blocchi pieni nella scheda vera); senza, sono
+  trasparenti e il blocco è la scheda.
 - Dettaglio utente: `waiting` e attesa del dettaglio rendono, dentro un `LoadingScope`
   (radice della pagina, che contiene anche l'intestazione),
   `PageHeader back={back} title={<TitleSkeleton />} titleHidden`, la riga dell'email
@@ -396,6 +426,9 @@ skeleton), **copia salvata → contenuto subito** (nessun `.skeleton` mentre la 
     solo «Caricamento…»; profilo libero, `users.list` e `appInvitations.list` trattenuti →
     campo di ricerca vero, righe a blocchi pieni (`.row-main.skeleton-block`) sotto il
     campo, un solo «Caricamento…»; liberati → nessuno skeleton né «Caricamento…».
+  - `it('admin: invitation items keep their structure from the check to the list')`: la
+    voce in attesa ha gli stessi figli con le stesse classi nelle due fasi (controllo
+    trattenuto, poi lista trattenuta): `.email`, `.roles > .role`, due `.meta-line`.
   - `it('admin: the deleted notice stays next to the loading announcement')`: apertura con
     `state.userDeleted` e liste trattenute → lo status «… eliminato» c'è e c'è un solo
     «Caricamento…».
@@ -574,22 +607,29 @@ dentro lo `Skeleton` del `LoadingArea`, non un `TitleSkeleton` (che è a sua vol
 - [ ] **Passo 2:** da `web/`: `npm run typecheck`, `npm test`, `npm run build` con le
   variabili dello stack locale (`AGENTS.md`) → tutto verde.
 - [ ] **Passo 3:** con la skill agent-browser, sul server di sviluppo con dati finti
-  (`npm run dev`, modalità fake), a 390 × 844 e 320 px: per Profilo, Membri (da
-  amministratore), Impostazioni, Esclusioni, Ricettario da curatore, Amministrazione e
-  `/password`, con le risposte rallentate come nel Task 8 di W20 (in locale, senza commit,
+  (`npm run dev`, modalità fake), a 390 × 844 e 320 px: per Profilo, Preferenze (il
+  `top` della scheda Lingua prima e dopo l'arrivo del profilo), Membri (da
+  amministratore), Impostazioni, Esclusioni, Ricettario da curatore, Amministrazione (a
+  parte il passaggio intermedio degli Inviti: altezza della lista nel controllo
+  dell'accesso, con la lista ancora in attesa e con un invito accettato) e `/password`, con le risposte rallentate come nel Task 8 di W20 (in locale, senza commit,
   alza `latencyMs` dei `fakeClients` in `web/src/main.tsx` da 150 a 2000 ms; per `/password`
   la verifica del link finto), dopo aver svuotato i dati del sito: confronta coordinate e
   dimensioni di intestazione, prima scheda e controlli sotto **in ogni passaggio** (attesa
   del profilo → attesa del dettaglio → attesa delle liste → contenuto; in Amministrazione
   controllo dell'accesso → liste → contenuto), non solo all'inizio e alla fine; controlla
   a occhio che le righe in attesa dentro le schede vere (Utenti, Inviti, Agenti, Link,
-  Ingressi) siano blocchi pieni che pulsano. Ricettario da curatore: il finto ha due
-  bozze, quindi apri prima il Ricettario in inglese (riepilogo in memoria con due bozze),
-  passa all'italiano con l'overview rallentata e misura il `top` del primo risultato con lo
-  skeleton e dopo l'arrivo: deve essere uguale; poi, dopo aver svuotato i dati, annota lo
-  spostamento atteso con una scheda di skeleton e due bozze vere. Annota gli spostamenti
-  residui e la loro causa (contenuto diverso dal caso comune). Riporta `latencyMs` a 150
-  prima del commit.
+  Ingressi) siano blocchi pieni che pulsano. Ricettario da curatore:
+  - **caso comune, deve restare fermo:** in locale, senza commit, riduci le bozze del
+    catalogo finto (`web/src/api/fake/fakeCatalogue.ts`) a una sola, con nome su una riga
+    e una sola mancanza; dopo aver svuotato i dati del sito lo skeleton ha una scheda:
+    misura il `top` del primo risultato con lo skeleton e dopo l'arrivo, devono essere
+    uguali. Ripeti con due bozze di quella forma, aprendo prima il Ricettario in inglese
+    (riepilogo in memoria con due bozze) e poi in italiano con l'overview rallentata;
+  - **spostamento ammesso, a parte:** con il catalogo finto com'è (due bozze, una con
+    quattro mancanze e una senza) e con un numero di bozze diverso da quello dello
+    skeleton annota lo spostamento e la causa (forma o numero diversi).
+  Annota gli spostamenti residui delle altre pagine e la loro causa (contenuto diverso dal
+  caso comune). Riporta `latencyMs` e il catalogo finto com'erano prima del commit.
 - [ ] **Passo 4:** commit «Design: skeleton anche nelle pagine rare e nelle sezioni dei curatori».
 - [ ] **Passo 5:** push e PR verso `main` (descrizione in italiano: cosa fa, come è stato
   verificato, cosa resta da provare sull'iPhone dalla spec, sezione 7; sezioni della

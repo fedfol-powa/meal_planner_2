@@ -176,11 +176,11 @@ isolate, titoli), «scheda» è `skeleton-card`.
 |---|---|---|
 | Profilo | intestazione: nome come blocco, riga dell'email come blocco; scheda della famiglia (titolo e 3 righe `row-link` con icona, testo e freccia); scheda Famiglie (titolo, 1 riga `row-link` con testo e ruolo, riga del link «Crea un'altra famiglia»); scheda Account vera | la scheda Account resta usabile durante l'attesa; i conteggi arrivano dopo senza skeleton e senza spostamento (censimento); senza famiglia le due schede spariscono all'arrivo (caso raro) |
 | Preferenze | scheda del nome al suo posto: campo (etichetta e campo come blocco), poi la griglia dell'email con etichetta e valore su due righe (`styles.static`, distanza 6 px); Lingua, «Esci» ed «Elimina account» veri | |
-| Membri | scheda dei membri (titolo e 3 righe con etichetta del ruolo, e per i membri la riga «Chiedi a …»); per gli amministratori della famiglia, schede «Link d'invito» (titolo, suggerimento e pulsante «Crea un link» veri, il pulsante spento finché arriva la famiglia) e «Ingressi» (titolo vero), ciascuna con una riga a blocchi finché arrivano famiglia e lista; «Lascia la famiglia» come blocco | ruolo dalla famiglia del profilo; tutto nella stessa attesa; le parti vere delle due schede non dipendono dal dettaglio |
+| Membri | scheda dei membri (titolo e 3 righe con etichetta del ruolo, e per i membri la riga «Chiedi a …»); il ruolo della famiglia nel profilo anticipa il layout solo finché manca il dettaglio, poi decide il ruolo del dettaglio come oggi (anche per le letture di link e ingressi, che partono solo con il dettaglio); per gli amministratori della famiglia, schede «Link d'invito» (titolo, suggerimento e pulsante «Crea un link» veri, il pulsante spento finché arriva la famiglia) e «Ingressi» (titolo vero), ciascuna con una riga a blocchi finché arrivano famiglia e lista (negli Ingressi la riga ha nome, data e provenienza, come le voci vere); «Lascia la famiglia» come blocco | ruolo dalla famiglia del profilo; tutto nella stessa attesa; le parti vere delle due schede non dipendono dal dettaglio |
 | Impostazioni | riga dell'introduzione; scheda del nome (campo); scheda dei commensali (titolo, suggerimento, griglia 7 × 2 di celle da 48 px); scheda delle regole (titolo e 2 righe) | il resto arriva oltre la prima schermata |
 | Esclusioni | una scheda con 3 righe (nome, autore, pulsante «Riproponi») | vuota: `StateNotice` |
 | Agenti | nella scheda «Agenti collegati» una riga (nome, data, pulsante) al posto di `Loading` | il resto della pagina è statico e vero |
-| Amministrazione | mentre il controllo dell'accesso aspetta: scheda Utenti (titolo, campo di ricerca, poi 3 righe) e scheda Inviti (riga del titolo con il pulsante, poi 2 voci), tutte a blocchi; poi le schede vere con le righe a blocchi (punto 7) sotto il campo e sotto l'intestazione finché arrivano le liste | anche durante la verifica dopo un rifiuto; la ricerca tiene già i risultati precedenti |
+| Amministrazione | mentre il controllo dell'accesso aspetta: scheda Utenti (titolo, campo di ricerca, poi 3 righe) e scheda Inviti (riga del titolo con il pulsante, poi 2 voci), tutte a blocchi; poi le schede vere con le righe a blocchi (punto 7) sotto il campo e sotto l'intestazione finché arrivano le liste. Le voci degli inviti in attesa hanno la stessa struttura nelle due fasi (email, ruoli, stato, autore di un invito accettato) | anche durante la verifica dopo un rifiuto; la ricerca tiene già i risultati precedenti |
 | Dettaglio utente | titolo come blocco; riga dell'email; scheda dei ruoli (titolo e 2 interruttori); scheda delle famiglie (titolo, 1 riga, nota); blocco della zona rossa | anche mentre il controllo dell'accesso aspetta |
 | Eliminazione utente | indietro «Utenti» vero, titolo come blocco; riga dell'email; titolo delle famiglie e una scheda famiglia; scheda «Cosa sparisce» con il pulsante a blocco | |
 | Bozza | intestazione con il link indietro vero e il titolo come blocco; etichetta del tipo; descrizione su due righe; riga del tempo; blocco degli ingredienti (titolo e 4 righe); blocco degli attributi | anche mentre il profilo arriva (punto 3) |
@@ -247,8 +247,9 @@ offline) restano».
 ## 7. Da provare a mano sull'iPhone
 
 - Ricettario da curatore dopo l'uscita e un nuovo accesso: le sezioni Bozze e Archiviate
-  hanno i blocchi; i risultati non saltano quando il numero di bozze è quello dello
-  skeleton (una scheda senza riepilogo salvato), saltano solo se è diverso.
+  hanno i blocchi; i risultati non saltano quando le bozze sono quante le schede dello
+  skeleton (una senza riepilogo in memoria) e hanno la forma del caso comune (nome su una
+  riga, una riga di mancanze); saltano solo se numero o forma sono diversi.
 - Ricettario da non curatore: nessun blocco delle sezioni, mai.
 - Profilo, Membri, Impostazioni ed Esclusioni dopo un nuovo accesso: intestazioni ferme,
   la scheda Account del Profilo non salta.
@@ -272,10 +273,13 @@ offline) restano».
   nel profilo corrente, anche ripristinato; revoca invariata. Sezioni 7, 8 e 14.
 - Un solo annuncio di caricamento per pagina; conteggi, conferme e banner offline restano
   con i loro status (decisione del coordinatore). Sezione 14.
-- Sezioni dei curatori: skeleton con tante schede di bozze quante nel riepilogo salvato
-  (al massimo 3, altrimenti una) e il titolo delle archiviate; se il numero vero è diverso
-  i risultati si spostano, solo per i curatori. Supera la decisione di W20 «niente
-  skeleton e spostamento ammesso». Sezioni 8 e 14.
+- Sezioni dei curatori: skeleton con tante schede di bozze quante in un riepilogo già in
+  memoria (al massimo 3; in pratica quello di un'altra lingua), altrimenti una, e il titolo
+  delle archiviate. Durante il ripristino dalla copia salvata si usa una scheda, senza
+  leggere il riepilogo dal disco (limitazione confermata dal coordinatore, 23/10). Se
+  numero o forma delle bozze vere sono diversi i risultati si spostano, solo per i
+  curatori. Supera la decisione di W20 «niente skeleton e spostamento ammesso». Sezioni 8
+  e 14.
 - `/password`: lo skeleton del modulo durante la verifica, annunciato con «Verifico il
   link…»; offline fermo sotto il banner con l'annuncio «Caricamento…», senza verifica
   partita (prima pagina vuota). Sezione 7 (W15) e 14.
