@@ -109,14 +109,14 @@ export function PreferencesPage() {
             {languageError !== null && <p className="meta-line" role="alert">{t(errorKey(languageError))}</p>}
           </section>
           {loading && (
-            // The menu emails card in its place (W24): the checkbox row, then the hint.
+            // The menu emails card in its place (W24): the checkbox row, then the hint (two lines on a phone).
             <LoadingArea
               loading
               paused={paused}
               skeleton={
                 <SettingsCardSkeleton title={false}>
-                  <TextSkeleton className="choice" />
-                  <TextSkeleton className="meta-line" />
+                  <TextSkeleton as="div" className="choice" />
+                  <TextSkeleton className="meta-line" lines={2} />
                 </SettingsCardSkeleton>
               }
             />

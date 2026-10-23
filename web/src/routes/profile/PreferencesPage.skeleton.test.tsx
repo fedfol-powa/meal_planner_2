@@ -30,7 +30,9 @@ describe('preferences while loading (W22)', () => {
     expect(language.closest('.skeleton')).toBeNull();
     // W24: the menu emails card after the language card, the checkbox row and the hint.
     const emails = skeletons()[1]!.querySelector('.settings-card.skeleton-card')!;
-    expect([...emails.children].map((el) => el.className)).toEqual(['choice', 'meta-line']);
+    expect([...emails.children].map((el) => `${el.tagName.toLowerCase()}.${el.className}`)).toEqual(['div.choice', 'p.meta-line']);
+    // The hint takes two lines on a phone.
+    expect(emails.querySelectorAll(':scope > .meta-line > .skeleton-line')).toHaveLength(2);
     expect(language.compareDocumentPosition(emails) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByRole('checkbox')).toBeNull();
     await waitFor(() => expect(skeletons().every((s) => s.dataset.visible === 'true')).toBe(true));
