@@ -390,9 +390,12 @@ cominciare; le sezioni citate sotto sono di quella spec).
   `useNewWeek(familyId: string, selected: IsoDate | null): { weekStartsOn: IsoDate | null }` in
   `web/src/routes/menu/newWeek.ts` (lettura, stato delle visite, aggiornamento ottimistico e
   riconciliazione, solo online); stato delle visite per `QueryClient`:
-  `weekVisits(queryClient): { get(familyId, week): 'pending' | 'done' | undefined; set(familyId, week, state): void; clear(familyId, week): void }`
-  (una `WeakMap` per client, come `attachFamilyAccess` in `api/queries.ts`); `newWeekQuery` filtra la
-  risposta con `weekVisits` **dopo** averla ricevuta;
+  `weekVisits(queryClient): { get(familyId, week): 'pending' | 'done' | undefined; set(familyId, week, state): void; clear(familyId, week): void; revokeFamily(familyId): void; generation(familyId): number }`
+  (una `WeakMap` per client, come `attachFamilyAccess` in `api/queries.ts`; `revokeFamily` cancella
+  tutte le voci della famiglia e incrementa la sua generazione); collegamento alla sessione con
+  `session.onRevoke((familyId) => weekVisits(session.queryClient).revokeFamily(familyId))` dove la
+  sessione crea il client (`web/src/session/session.ts` o chi già registra gli altri `onRevoke`);
+  `newWeekQuery` filtra la risposta con `weekVisits` **dopo** averla ricevuta;
   `DatePicker` props in più
   `dot: boolean`, `fresh: readonly IsoDate[]`; testi `'menu.newWeekReady'` («menu della settimana
   prossima pronto» / «next week's menu is ready»), `'menu.newWeekDay'` («settimana nuova» / «new week»).
@@ -430,15 +433,21 @@ cominciare; le sezioni citate sotto sono di quella spec).
     rilegge e il pallino torna;
   - riconnessione mentre si mostra la settimana **nuova** (offline si apre il 26): parte
     `markWeekSeen`, e quando è completata il pallino è assente e nessun giorno è verde;
+  - revoca e rientro, stesso `QueryClient`: visita del 26 (→ «confermata»), `session.revoke(familyId)`
+    e poi `session.restore(familyId, …)` (come uscita e rientro), il finto `getNewWeek` risponde di
+    nuovo `'2026-10-26'` → il pallino torna; una nuova visita richiama `markWeekSeen`;
+  - revoca durante la mutazione: `markWeekSeen` in sospeso, `session.revoke(familyId)`, poi la mutazione
+    riesce → `weekVisits.get(familyId, '2026-10-26')` resta `undefined` (generazione cambiata);
   - `persistOptions(...).dehydrateOptions.shouldDehydrateQuery` è `false` per `queryKeys.newWeek(...)`.
 - [ ] **Step 2:** `npm test -w web -- MenuPage persister` → FAIL.
 - [ ] **Step 3:** implementare come il prototipo (`prototype/src/lib/components/DatePicker.svelte`):
   pallino 10 px `var(--green)` con bordo 2 px del fondo, `top: 7px; right: 6px`; `.day.fresh { color: var(--green) }`
   e `background: var(--soft-green)` su `.day.fresh:not([aria-pressed='true'])` e sul suo `:hover`
   (stesso fondo), così il giorno scelto resta scuro anche al passaggio del mouse. `useNewWeek`: alla
-  visita (online, coppia senza stato): `weekVisits.set(…, 'pending')`, `cancelQueries` della query
-  della famiglia, `setQueryData({ weekStartsOn: null })`, mutazione; successo → `'done'` e di nuovo
-  `setQueryData({ weekStartsOn: null })` (riconciliazione, nessuna invalidazione); errore →
+  visita (online, coppia senza stato): legge `generation(familyId)`, `weekVisits.set(…, 'pending')`,
+  `cancelQueries` della query della famiglia, `setQueryData({ weekStartsOn: null })`, mutazione;
+  successo → solo se la generazione è la stessa: `'done'` e di nuovo `setQueryData({ weekStartsOn: null })`
+  (riconciliazione, nessuna invalidazione); errore → solo se la generazione è la stessa:
   `weekVisits.clear` e `invalidateQueries`; invalidare `newWeek` quando `getOpening`/`getWeek` della
   famiglia cambiano `dataUpdatedAt`; restituire `null` se `!useOnline()`.
 - [ ] **Step 4:** → PASS.

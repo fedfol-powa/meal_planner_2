@@ -426,6 +426,12 @@ seguito «adesso» è il valore dell'orologio letto in quella fase.
   - **Errore:** lo stato della coppia si toglie e la query si invalida (il pallino torna se il server
     lo conferma); la chiamata si ripete alla visita successiva della settimana (anche dopo esserne
     usciti). Nessuna coda offline.
+  - **Revoca della famiglia** (uscita, rimozione, eliminazione: `session.onRevoke`, lo stesso
+    `QueryClient` resta): si cancellano **tutte** le voci di quella famiglia e sale un contatore di
+    generazione per famiglia. Sul server la cascata ha già cancellato le visite: se la persona rientra
+    nella stessa sessione, la settimana torna «non vista» anche qui. Gli esiti di `markWeekSeen` partiti
+    **prima** della revoca (successo o errore) si applicano solo se la generazione della famiglia non è
+    cambiata: una risposta in ritardo non ricrea «confermata».
 - Il pallino non c'è nello skeleton del Menu.
 - **Offline** (scelta del worker): pallino e giorni verdi non si mostrano e `markWeekSeen` non si
   chiama, anche se la risposta è ancora nella cache in memoria della sessione aperta (TanStack Query
@@ -498,7 +504,10 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
     (l'orologio avanza durante il controllo dell'indirizzo): 23 ore → `expired`, nessuna richiesta;
     mezzanotte locale del lunedì → `expired`; mezzanotte UTC → nessuna richiesta, acquisizione
     liberata, prenotazione del giorno prima consumata, al giro dopo nuova prenotazione sul giorno nuovo
-    e un'email; ultimo minuto del giorno UTC → nessuna prenotazione;
+    e un'email; ultimo minuto del giorno UTC raggiunto **dopo** l'acquisizione → nessun invio,
+    acquisizione liberata, prenotazione consumata (come la mezzanotte);
+  - ultimo minuto del giorno UTC già raggiunto **prima** della prenotazione → nessuna prenotazione,
+    giro fermo;
   - budget: con 59 prenotazioni due consegne concorrenti spediscono una sola email; un invio accettato
     con la risposta persa consuma la prenotazione; un errore nel salvataggio di `sent_at` consuma la
     prenotazione e la ripresa dopo 15 minuti usa la stessa chiave, lo stesso oggetto e lo stesso corpo;
@@ -518,7 +527,10 @@ come gli altri campi delle Preferenze; offline il controllo è disattivato come 
   fila dei giorni, swipe, `?day=`); giorni nuovi con numero verde e fondo verde chiaro, giorno scelto
   scuro anche al passaggio del mouse; nomi accessibili; errore di
   `markWeekSeen` → uscita dalla settimana → nuova visita richiama; stessa settimana in due famiglie senza
-  rimontare la pagina → due chiamate; lettura di `getNewWeek` avviata **dopo** l'aggiornamento
+  rimontare la pagina → due chiamate; visita → uscita (o rimozione) dalla famiglia → rientro con lo
+  stesso `QueryClient` → il pallino torna e una nuova visita richiama `markWeekSeen`; una risposta di
+  `markWeekSeen` partita prima della revoca e arrivata dopo non ricrea «confermata»; lettura di
+  `getNewWeek` avviata **dopo** l'aggiornamento
   ottimistico, con il risultato preso dal server prima del commit di `markWeekSeen` e consegnato dopo il
   successo → il pallino resta spento; `getNewWeek` che risponde `null` prima della generazione pigra e
   poi si aggiorna alla fine della lettura del menu; passaggio online → offline con il pallino caricato
