@@ -229,6 +229,17 @@ sinistra del calendario compare un pulsante «Oggi» senza riquadro: freccia di 
 accessibile «Vai a oggi». Un tocco riporta a oggi; su oggi, o se oggi non ha pasti, non
 c'è. Il mese resta fermo e la barra non cambia altezza; sotto i 375 px non si adatta.
 
+**Menu della settimana prossima pronto** (W24, approvato dall'utente il 23 ottobre 2026): quando il
+menu della settimana dopo è pronto e la persona non l'ha ancora guardato, l'icona del calendario ha un
+pallino verde (`#067a46`, 10 px, bordo del colore di fondo) in alto a destra; nessuna scheda né
+testo in più. Nel mese aperto i giorni di quella settimana hanno il numero in verde su un fondo verde
+chiaro (`#eef5e8`, lo stesso dello stato attivo della navbar), con la forma e il raggio di 8 px delle
+celle e senza puntini; il giorno scelto resta scuro con testo bianco. Pallino e verde spariscono alla prima visita di un giorno
+della settimana nuova (per persona, su tutti i dispositivi) o il lunedì in cui comincia. Il nome
+accessibile del calendario aggiunge «menu della settimana prossima pronto», quello dei giorni verdi
+«settimana nuova». L'email dello stesso avviso è a righe compatte (miniatura quadrata, etichetta
+Pranzo/Cena, nome del piatto): riferimento `prototype/static/w24-email/`.
+
 Un giorno occupa una colonna della larghezza disponibile. Le colonne si scorrono
 orizzontalmente con aggancio al giorno; il tocco sul selettore porta alla stessa
 colonna. Dentro il giorno si scorre in verticale. Pranzo e cena sono in colonna

@@ -76,6 +76,8 @@ export const queryKeys = {
   opening: (familyId: string, today: IsoDate, locale: Locale) => ['menu', 'getOpening', { familyId, today, locale }] as const,
   week: (familyId: string, weekStartsOn: IsoDate, locale: Locale) => ['menu', 'getWeek', { familyId, weekStartsOn, locale }] as const,
   dates: (familyId: string, month: string, locale: Locale) => ['menu', 'getDates', { familyId, month, locale }] as const,
+  /** W24: the same in every language, never saved on the device. */
+  newWeek: (familyId: string) => ['menu', 'getNewWeek', { familyId }] as const,
   search: (familyId: string, query: RecipeQuery, locale: Locale) => ['recipes', 'search', { familyId, query, locale }] as const,
   recipe: (familyId: string, recipeId: string, locale: Locale, servings?: number, slotId?: string) =>
     ['recipes', 'get', { familyId, recipeId, locale, servings, slotId }] as const
@@ -126,6 +128,65 @@ export function weekQuery({ api, queryClient, locale }: QueryDeps, familyId: str
 export function datesQuery({ api, queryClient, locale }: QueryDeps, familyId: string, month: string) {
   const queryKey = queryKeys.dates(familyId, month, locale);
   return queryOptions({ queryKey, queryFn: () => readThrough(queryClient, queryKey, (knownVersion) => api.menu.getDates({ familyId, month, knownVersion })), select });
+}
+
+/**
+ * The visits of the new week (W24, spec 6.1), per family and week: «pending» while `markWeekSeen` is
+ * running, «done» once confirmed (not sent again in this session). Next to the QueryClient like the
+ * family access: the menu does not remount when the family changes.
+ */
+export interface WeekVisits {
+  get(familyId: string, weekStartsOn: IsoDate): 'pending' | 'done' | undefined;
+  set(familyId: string, weekStartsOn: IsoDate, state: 'pending' | 'done'): void;
+  clear(familyId: string, weekStartsOn: IsoDate): void;
+  /** The family was revoked: its visits are forgotten and the answers of the calls already sent no longer count. */
+  revokeFamily(familyId: string): void;
+  generation(familyId: string): number;
+}
+
+const visitsByClient = new WeakMap<QueryClient, WeekVisits>();
+
+export function weekVisits(queryClient: QueryClient): WeekVisits {
+  let visits = visitsByClient.get(queryClient);
+  if (visits) return visits;
+  const states = new Map<string, Map<IsoDate, 'pending' | 'done'>>();
+  const generations = new Map<string, number>();
+  visits = {
+    get: (familyId, weekStartsOn) => states.get(familyId)?.get(weekStartsOn),
+    set(familyId, weekStartsOn, state) {
+      if (!states.has(familyId)) states.set(familyId, new Map());
+      states.get(familyId)!.set(weekStartsOn, state);
+    },
+    clear: (familyId, weekStartsOn) => void states.get(familyId)?.delete(weekStartsOn),
+    revokeFamily(familyId) {
+      states.delete(familyId);
+      generations.set(familyId, (generations.get(familyId) ?? 0) + 1);
+    },
+    generation: (familyId) => generations.get(familyId) ?? 0
+  };
+  visitsByClient.set(queryClient, visits);
+  return visits;
+}
+
+/** The notice as cached: not versioned, with `producedAt` like every view of a family (spec W11). */
+export interface NewWeek { weekStartsOn: IsoDate | null; producedAt: number }
+
+/**
+ * The new week not seen yet. The visits prevail over the answer, compared when it arrives: a read
+ * started before `markWeekSeen` was recorded never brings the dot back (spec W24, 6.1).
+ */
+export function newWeekQuery({ api, queryClient }: QueryDeps, familyId: string) {
+  return queryOptions({
+    queryKey: queryKeys.newWeek(familyId),
+    queryFn: async (): Promise<NewWeek> => {
+      const access = familyAccessOf(queryClient);
+      const startedAt = access.now();
+      const { weekStartsOn } = await api.menu.getNewWeek({ familyId });
+      checkStarted(access, familyId, startedAt);
+      const visited = !!weekStartsOn && !!weekVisits(queryClient).get(familyId, weekStartsOn);
+      return { weekStartsOn: visited ? null : weekStartsOn, producedAt: startedAt };
+    }
+  });
 }
 
 export function searchQuery({ api, queryClient, locale }: QueryDeps, familyId: string, query: RecipeQuery) {

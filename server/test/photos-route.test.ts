@@ -5,7 +5,7 @@ import { newPhotoKey } from '../src/catalogue/photos/key.ts';
 import type { Env, RateLimiter } from '../src/env.ts';
 import { router } from '../src/router.ts';
 import { hasDatabase, setupDatabase, type TestDatabase } from './support/db.ts';
-import { webpOf } from './support/images.ts';
+import { jpegOf, webpOf } from './support/images.ts';
 import { createTestKeys } from './support/keys.ts';
 import { MemoryBucket } from './support/r2.ts';
 import { refuseAll, testEnv } from './support/requests.ts';
@@ -45,6 +45,52 @@ describe('photo route without a database', () => {
 		expect(response.status).toBe(429);
 		expect(await response.json()).toMatchObject({ code: 'rate_limited' });
 		expect(limited).toEqual(['203.0.113.9']);
+	});
+});
+
+const EMAIL_HEADERS = {
+	'content-type': 'image/jpeg',
+	'cache-control': 'public, max-age=86400',
+	'x-content-type-options': 'nosniff',
+	'cross-origin-resource-policy': 'cross-origin',
+};
+
+describe('email thumbnail route without a database', () => {
+	it('answers 404 to a malformed id without reaching the database', async () => {
+		const keys = await createTestKeys();
+		const app = createApp({ contract, router, keys: () => keys.keys, resourceName: 'test' });
+		const bucket = new MemoryBucket();
+		const env = { ...testEnv(), PHOTOS: bucket.asBucket() };
+		const paths = [
+			'/photos/email/%2E%2E%2Fx.jpg',
+			'/photos/email/..%2Fx.jpg',
+			`/photos/email/${'a'.repeat(21)}.jpg`,
+			`/photos/email/${'a'.repeat(23)}.jpg`,
+			`/photos/email/${'a'.repeat(22)}.webp`,
+			`/photos/email/${'a'.repeat(22)}.jpg/more`,
+			'/photos/email/',
+		];
+		for (const path of paths) {
+			const response = await app.fetch(new Request(`https://app.test${path}`), env);
+			expect(response.status, path).toBe(404);
+			expect(await response.json()).toMatchObject({ code: 'not_found' });
+		}
+		expect(bucket.calls.get).toBe(0);
+	});
+
+	it('answers 429 when the limiter refuses, and 405 to other methods', async () => {
+		const keys = await createTestKeys();
+		const app = createApp({ contract, router, keys: () => keys.keys, resourceName: 'test' });
+		const limited: string[] = [];
+		const limiter: RateLimiter = { limit: async ({ key }) => (limited.push(key), refuseAll.limit({ key })) };
+		const path = `https://app.test/photos/email/${'a'.repeat(22)}.jpg`;
+		const response = await app.fetch(new Request(path, { headers: { 'cf-connecting-ip': '203.0.113.9' } }), { ...testEnv(), PHOTO_READ_LIMIT: limiter });
+		expect(response.status).toBe(429);
+		expect(await response.json()).toMatchObject({ code: 'rate_limited' });
+		expect(limited).toEqual(['203.0.113.9']);
+		const post = await app.fetch(new Request(path, { method: 'POST' }), testEnv());
+		expect(post.status).toBe(405);
+		expect(post.headers.get('allow')).toBe('GET, HEAD');
 	});
 });
 
@@ -125,5 +171,37 @@ describe.skipIf(!hasDatabase)('photo route', () => {
 	it('without the bucket the route is 404', async () => {
 		const { key } = await photo();
 		expect((await app.fetch(new Request(`https://app.test/${key}`), { ...env, PHOTOS: undefined })).status).toBe(404);
+	});
+
+	describe('email thumbnails', () => {
+		const thumbnailOf = (key: string) => key.replace(/^photos\/(.+)\.webp$/, 'email/$1.jpg');
+		const pathOf = (key: string) => key.replace(/^photos\/(.+)\.webp$/, '/photos/email/$1.jpg');
+
+		it('serves the thumbnail of a current photo, cached and readable from other origins', async () => {
+			const { key } = await photo();
+			const thumbnail = jpegOf(144, 144);
+			await bucket.put(thumbnailOf(key), thumbnail, { httpMetadata: { contentType: 'image/jpeg' } });
+			const response = await app.fetch(new Request(`https://app.test${pathOf(key)}`), env);
+			expect(response.status).toBe(200);
+			expect(Object.fromEntries([...response.headers].filter(([name]) => name in EMAIL_HEADERS))).toEqual(EMAIL_HEADERS);
+			expect(new Uint8Array(await response.arrayBuffer())).toEqual(thumbnail);
+		});
+
+		it('a removed photo has no thumbnail any more', async () => {
+			const { key } = await photo();
+			await bucket.put(thumbnailOf(key), jpegOf(144, 144));
+			await photo();
+			bucket.calls.get = 0;
+			expect((await app.fetch(new Request(`https://app.test${pathOf(key)}`), env)).status).toBe(404);
+			expect(bucket.calls.get).toBe(0);
+		});
+
+		it('a photo without a thumbnail, an unknown id or no bucket is 404', async () => {
+			const { key } = await photo();
+			expect((await app.fetch(new Request(`https://app.test${pathOf(key)}`), env)).status).toBe(404);
+			expect((await app.fetch(new Request(`https://app.test${pathOf(newPhotoKey())}`), env)).status).toBe(404);
+			await bucket.put(thumbnailOf(key), jpegOf(144, 144));
+			expect((await app.fetch(new Request(`https://app.test${pathOf(key)}`), { ...env, PHOTOS: undefined })).status).toBe(404);
+		});
 	});
 });

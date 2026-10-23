@@ -2,6 +2,7 @@ import { persistQueryClientRestore, persistQueryClientSave } from '@tanstack/rea
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from './errors';
 import 'fake-indexeddb/auto';
+import { queryKeys } from './queries';
 import { CACHE_SCHEMA, cacheKey, createIndexedDbStore, registerUserKeyPrefix, resetUserKeyPrefixes, createMemoryStore, createPersister, createQueryClient, markRestored, markRevoked, persistOptions, readMarks, purgeOtherCopies, revokedKey, type KeyValueStore } from './persister';
 
 const week = ['menu', 'getWeek', { familyId: 'f', weekStartsOn: '2026-10-05', locale: 'it-IT' }];
@@ -36,6 +37,14 @@ function slowStore() {
 }
 
 describe('persister', () => {
+  it('never saves the notice of the new week (W24): an old dot must not come back at startup', () => {
+    const client = createQueryClient();
+    client.setQueryData(queryKeys.newWeek('f'), { weekStartsOn: '2026-10-26', producedAt: 1 });
+    client.setQueryData(week, { version: 'v1', data: 'week' });
+    const query = (key: readonly unknown[]) => client.getQueryCache().find({ queryKey: key, exact: true })!;
+    expect(options('b')!.shouldDehydrateQuery!(query(queryKeys.newWeek('f')))).toBe(false);
+    expect(options('b')!.shouldDehydrateQuery!(query(week))).toBe(true);
+  });
   it('saves one entry per user and restores it', async () => {
     const { store, persister } = await saved();
     expect([...store.entries.keys()]).toEqual([cacheKey('user-a')]);

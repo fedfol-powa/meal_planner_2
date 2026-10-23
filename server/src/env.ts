@@ -33,6 +33,8 @@ export interface Env {
 	OPS_ALERT_EMAIL?: string;
 	/** Local stack and CI only, never in production: send emails to Mailpit's API instead of Resend. */
 	MAILPIT_API_URL?: string;
+	/** Origin of the links the cron writes in emails; no request to derive it from. */
+	APP_ORIGIN?: string;
 	/** Tests only: replaces the global fetch of setPhotoFromUrl. */
 	PHOTO_FETCH?: typeof fetch;
 }

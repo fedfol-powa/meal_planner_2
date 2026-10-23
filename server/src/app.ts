@@ -19,6 +19,7 @@ import type { Env } from './env.ts';
 import { mapErrors, mapUnreadableRequest, normalizeError } from './errors.ts';
 import { buildMcpServer, collectTools } from './mcp.ts';
 import { servePhoto } from './photos/serve.ts';
+import { serveEmailThumbnail } from './photos/serve-email.ts';
 import { bufferUploadBody, needsUploadLimit, rejectOversizedUpload, UPLOAD_BODY_LIMIT } from './photos/upload-limit.ts';
 import type { RequestContext } from './pipeline.ts';
 import { serveBringPage } from './shopping/bring-page.ts';
@@ -145,6 +146,10 @@ export function createApp(options: AppOptions) {
 		}
 		const bring = /^\/shopping-lists\/([^/]+)$/.exec(url.pathname);
 		if (bring) return serveBringPage(request, env, bring[1]!);
+		if (url.pathname.startsWith('/photos/email/')) {
+			// Its own branch: servePhoto accepts only photo keys (spec W24, section 5.4).
+			return serveEmailThumbnail(request, env, /^\/photos\/email\/(.*)\.jpg$/.exec(url.pathname)?.[1] ?? '');
+		}
 		if (url.pathname.startsWith('/photos/')) return servePhoto(request, env, url.pathname.slice(1));
 		return env.ASSETS.fetch(request);
 	}

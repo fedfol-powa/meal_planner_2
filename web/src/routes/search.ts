@@ -2,8 +2,13 @@ import { PROTEIN_GROUPS, type ProteinGroup, type RecipeQuery } from '../api/type
 import { isIsoDate, type IsoDate, type MealType } from '../lib/calendar';
 
 // TanStack Router parses search values as JSON: numbers may arrive as numbers or strings.
-/** `welcome`: just after the wizard of a new family (spec W9), until the card is closed. */
-export interface MenuSearch { day?: IsoDate; welcome?: true }
+/**
+ * `welcome`: just after the wizard of a new family (spec W9), until the card is closed.
+ * `family`: the family of the «next week's menu» email link, chosen and dropped on arrival (spec W24, 6.2).
+ */
+export interface MenuSearch { day?: IsoDate; welcome?: true; family?: string }
+/** `day`: the menu day the list was opened from, where «Menu» goes back to. */
+export interface ShoppingSearch { day?: IsoDate }
 export interface RecipesSearch {
   q?: string; meal?: MealType; time?: number; group?: ProteinGroup; rating?: number;
   sort?: 'rating' | 'added' | 'lastEaten'; dir?: 'reverse';
@@ -18,6 +23,7 @@ export interface FamilyDeleteSearch { family?: string }
 
 const SORTS = ['rating', 'added', 'lastEaten'] as const;
 const MEALS = ['lunch', 'dinner'] as const;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function positiveInt(value: unknown, max: number): number | undefined {
   const n = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
@@ -32,7 +38,16 @@ const compact = <T extends object>(value: T): T =>
 // Validators keep every key, undefined when invalid: the router merges the raw search of the
 // parent route into the child's, so a dropped key would let the raw value through.
 export function validateMenuSearch(raw: Record<string, unknown>): MenuSearch {
-  return { day: isIsoDate(raw.day) ? raw.day : undefined, welcome: raw.welcome === true || raw.welcome === 'true' ? true : undefined };
+  return {
+    day: isIsoDate(raw.day) ? raw.day : undefined,
+    welcome: raw.welcome === true || raw.welcome === 'true' ? true : undefined,
+    family: typeof raw.family === 'string' && UUID.test(raw.family) ? raw.family : undefined
+  };
+}
+
+// The shopping list shares the day with the menu but never receives `family`.
+export function validateShoppingSearch(raw: Record<string, unknown>): ShoppingSearch {
+  return { day: isIsoDate(raw.day) ? raw.day : undefined };
 }
 
 export function validateRecipesSearch(raw: Record<string, unknown>): RecipesSearch {

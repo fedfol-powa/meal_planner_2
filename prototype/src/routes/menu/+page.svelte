@@ -17,6 +17,8 @@
 	import { getMenuDates, getOpeningTarget, getWeekView, pickSelectedDate, resolveWeekStart } from '#lib/operations/meals.ts';
 	import type { MealView, RecipeCardView } from '#lib/operations/views.ts';
 	import { app } from '#lib/store/app.svelte.ts';
+	import { newWeekNotice } from '#lib/store/new-week-notice.svelte.ts';
+	import { addDays } from '#lib/domain/calendar.ts';
 
 	let track: HTMLDivElement | undefined = $state();
 	const isAdmin = $derived(!!app.family && roleOf(app.family, app.user.id) === 'family_admin');
@@ -102,6 +104,13 @@
 	const editingMeal = $derived(editing ? week?.days.flatMap((d) => d.meals).find((m) => m.slotId === editing?.slotId) ?? null : null);
 	const openEditor = (slotId: string, stage: EditorStage) => (editing = { slotId, stage });
 
+	// W24: the new week ready and not seen yet; showing any of its days in the Menu marks it seen.
+	const pendingWeek = $derived(newWeekNotice.pendingWeek(app.db, app.ctx));
+	const freshDays = $derived(pendingWeek ? Array.from({ length: 7 }, (_, i) => addDays(pendingWeek, i)) : []);
+	$effect(() => {
+		if (pendingWeek && selected && freshDays.includes(selected)) newWeekNotice.markSeen(app.ctx, pendingWeek);
+	});
+
 	// Remember the shown day (also when it came from `?day=` or the opening), e.g. for the Prova panel.
 	$effect(() => {
 		if (selected && app.selectedDate === null) app.selectedDate = selected;
@@ -135,7 +144,7 @@
 							<span>{app.t('menu.today')}</span>
 						</button>
 					{/if}
-					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} />
+					<DatePicker dates={menuDates} {selected} onSelect={pickDate} bind:open={pickerOpen} dot={!!pendingWeek} fresh={freshDays} />
 					<a class="toolbar-link" href="/shopping/{week.startsOn}" aria-label={app.t('menu.shopping')}><svg class="icon" aria-hidden="true"><use href="#icon-bag" /></svg></a>
 				</div>
 			</div>

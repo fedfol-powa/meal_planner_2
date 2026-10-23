@@ -44,7 +44,7 @@ function deferred<T>() {
 }
 
 const profileWith = (...families: string[]): ProfileView => ({
-  user: { id: USER, displayName: 'Anna', email: 'anna@example.com', locale: 'it-IT', globalRoles: [] },
+  user: { id: USER, displayName: 'Anna', email: 'anna@example.com', locale: 'it-IT', menuEmails: true, globalRoles: [] },
   families: families.map((id) => ({ id, name: id, role: 'member', timeZone: 'Europe/Rome', measurementSystem: 'metric' })),
   currentFamilyId: families[0] ?? null
 });

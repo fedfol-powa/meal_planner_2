@@ -10,6 +10,8 @@ const runNightlyExport = vi.hoisted(() => vi.fn(async () => 'done' as const));
 const resumeAccountDeletions = vi.hoisted(() => vi.fn(async () => void steps.push('resume')));
 const reconcileAlerts = vi.hoisted(() => vi.fn(async () => void steps.push('reconcile')));
 const deliverAlerts = vi.hoisted(() => vi.fn(async () => void steps.push('deliver')));
+const announceMenus = vi.hoisted(() => vi.fn(async () => (steps.push('announce'), { announced: 0, emails: 0 })));
+const deliverMenuEmails = vi.hoisted(() => vi.fn(async () => (steps.push('menu-deliver'), { sent: 0 })));
 /** The database of the alert steps: each transaction records its statement. */
 const fakeSql = vi.hoisted(() => ({ end: vi.fn(async () => {}) }));
 const withDbOn = vi.hoisted(() =>
@@ -24,6 +26,8 @@ vi.mock('../src/menu/job.ts', () => ({ runWeeklyJob }));
 vi.mock('../src/backup/export.ts', () => ({ runNightlyExport }));
 vi.mock('../src/ops-alerts/reconcile.ts', () => ({ reconcileAlerts }));
 vi.mock('../src/ops-alerts/index.ts', () => ({ deliverAlerts }));
+vi.mock('../src/menu-emails/announce.ts', () => ({ announceMenus }));
+vi.mock('../src/menu-emails/deliver.ts', () => ({ deliverMenuEmails }));
 
 const { dispatchScheduled, HOURLY_CRON, NIGHTLY_EXPORT_CRON } = await import('../src/scheduled.ts');
 const env = { HYPERDRIVE: { connectionString: 'postgres://unused' } } as unknown as Env;
@@ -47,12 +51,15 @@ describe('scheduled dispatch', () => {
 		expect(config.images).toEqual({ binding: 'IMAGES' });
 		expect(config.ratelimits).toContainEqual({ name: 'PHOTO_READ_LIMIT', namespace_id: '9103', simple: { limit: 300, period: 60 } });
 		expect(config.vars.BACKUP_KEY_ID).toBe('k1');
+		expect(config.vars.APP_ORIGIN).toBe('https://cosasimangia.app');
 	});
 
-	it('the hourly cron runs job, resume, reconciliation, delivery and the password-email pruning, in order, not the export', async () => {
+	it('the hourly cron runs job, resume, menu announcement and delivery, reconciliation, delivery and the password-email pruning, in order, not the export', async () => {
 		vi.spyOn(console, 'log').mockImplementation(() => {});
 		await dispatchScheduled(HOURLY_CRON, env, time);
-		expect(steps).toEqual(['job', 'resume', 'reconcile', 'deliver', 'job: select app.prune_password_emails()']);
+		expect(steps).toEqual(['job', 'resume', 'announce', 'menu-deliver', 'reconcile', 'deliver', 'job: select app.prune_password_emails()']);
+		expect(announceMenus).toHaveBeenCalledWith(fakeSql, env, time);
+		expect(deliverMenuEmails).toHaveBeenCalledWith(fakeSql, env);
 		expect(runWeeklyJob).toHaveBeenCalledWith('postgres://unused', time, { env });
 		expect(resumeAccountDeletions).toHaveBeenCalledWith(env, time);
 		expect(connect).toHaveBeenCalledWith('postgres://unused', expect.objectContaining({ max: 1, fetch_types: false }));
@@ -69,14 +76,14 @@ describe('scheduled dispatch', () => {
 		runWeeklyJob.mockRejectedValueOnce(new Error('down'));
 		resumeAccountDeletions.mockRejectedValueOnce(new Error('auth down'));
 		await expect(dispatchScheduled(HOURLY_CRON, env, time)).rejects.toThrow('down');
-		expect(steps).toEqual(['reconcile', 'deliver', 'job: select app.prune_password_emails()']);
+		expect(steps).toEqual(['announce', 'menu-deliver', 'reconcile', 'deliver', 'job: select app.prune_password_emails()']);
 		steps.length = 0;
 		errors.mockClear();
 		reconcileAlerts.mockRejectedValueOnce(new Error('x'));
 		deliverAlerts.mockRejectedValueOnce(new Error('y'));
 		withDbOn.mockRejectedValueOnce(Object.assign(new Error('z'), { code: '57P01' }));
 		await expect(dispatchScheduled(HOURLY_CRON, env, time)).resolves.toBeUndefined();
-		expect(steps).toEqual(['job', 'resume']);
+		expect(steps).toEqual(['job', 'resume', 'announce', 'menu-deliver']);
 		expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['ops_alert_reconcile_crashed', 'ops_alert_delivery_crashed', 'password_emails_prune_failed']);
 		vi.restoreAllMocks();
 	});
@@ -84,14 +91,13 @@ describe('scheduled dispatch', () => {
 	it('a synchronous throw of the alert steps is logged and never hides the job failure', async () => {
 		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
 		runWeeklyJob.mockRejectedValueOnce(new Error('down'));
-		connect.mockImplementationOnce(() => {
+		const badConnection = () => {
 			throw new Error('bad connection string');
-		});
+		};
+		connect.mockImplementationOnce(badConnection).mockImplementationOnce(badConnection);
 		await expect(dispatchScheduled(HOURLY_CRON, env, time)).rejects.toThrow('down');
-		expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['weekly_job_crashed', 'ops_alert_steps_crashed']);
-		connect.mockImplementationOnce(() => {
-			throw new Error('bad connection string');
-		});
+		expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['weekly_job_crashed', 'menu_email_steps_crashed', 'ops_alert_steps_crashed']);
+		connect.mockImplementationOnce(badConnection).mockImplementationOnce(badConnection);
 		await expect(dispatchScheduled(HOURLY_CRON, env, time)).resolves.toBeUndefined();
 		vi.restoreAllMocks();
 	});
@@ -107,6 +113,22 @@ describe('scheduled dispatch', () => {
 		expect(spy.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['weekly_job_crashed', 'account_deletion_resume_crashed']);
 		expect(deliverAlerts).toHaveBeenCalledTimes(2);
 		spy.mockRestore();
+	});
+
+	it('a failing announcement does not stop the delivery, the alerts or the run', async () => {
+		const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+		vi.spyOn(console, 'log').mockImplementation(() => {});
+		announceMenus.mockRejectedValueOnce(new Error('listing failed'));
+		await expect(dispatchScheduled(HOURLY_CRON, env, time)).resolves.toBeUndefined();
+		expect(steps).toEqual(['job', 'resume', 'menu-deliver', 'reconcile', 'deliver', 'job: select app.prune_password_emails()']);
+		expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['menu_email_announce_crashed']);
+		errors.mockClear();
+		steps.length = 0;
+		deliverMenuEmails.mockRejectedValueOnce(new Error('x'));
+		await expect(dispatchScheduled(HOURLY_CRON, env, time)).resolves.toBeUndefined();
+		expect(steps).toEqual(['job', 'resume', 'announce', 'reconcile', 'deliver', 'job: select app.prune_password_emails()']);
+		expect(errors.mock.calls.map(([line]) => JSON.parse(String(line)).event)).toEqual(['menu_email_delivery_crashed']);
+		vi.restoreAllMocks();
 	});
 
 	it('runs only the export on the nightly cron', async () => {

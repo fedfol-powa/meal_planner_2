@@ -1,6 +1,8 @@
 import { useMutation, type Query, type QueryClient } from '@tanstack/react-query';
 import { useCurrentLocale, useSession } from '../session/SessionScope';
 import type { Session } from '../session/session';
+import type { IsoDate } from '../lib/calendar';
+import { useApi } from './ApiProvider';
 import { familyAccessOf, familyOfKey } from './queries';
 import type { MealActionResult, ProfileView } from './types';
 
@@ -38,6 +40,8 @@ export const INVALIDATIONS = {
   // The name shows in the attributions of every family of the person (a rare gesture).
   'profile.updateName': { target: 'profile', stale: ['all'] },
   'profile.updateLocale': { target: 'profile', stale: [] },
+  // The preference is only read by the person's own email round (spec W24, 6.3).
+  'profile.updateMenuEmails': { target: 'profile', stale: [] },
   'profile.setCurrentFamily': { target: 'profile', stale: [] },
   // The answer is the profile with the new family shown (spec W9).
   'family.create': { target: 'profile', stale: [] },
@@ -305,5 +309,19 @@ export function useAreaMutation<I, T>(name: MutationName, familyId: string | und
   return useMutation({
     meta: familyId ? { familyId, operation: name } : { operation: name },
     mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input), options)
+  });
+}
+
+/**
+ * W24: a visit of the new week. Not in INVALIDATIONS: it writes no view, and the menu's notice
+ * updates its own read before and after (routes/menu/newWeek.ts). A mutation all the same, so that
+ * the session sees a refusal of the family like for the other writes.
+ */
+export function useMarkWeekSeen() {
+  const api = useApi();
+  return useMutation({
+    // The family travels with each call, not with the render that created it (final review, finding 3).
+    meta: { familyInVariables: true, operation: 'menu.markWeekSeen' },
+    mutationFn: (input: { familyId: string; weekStartsOn: IsoDate }) => api.menu.markWeekSeen(input)
   });
 }

@@ -64,6 +64,10 @@ export function menuFixtures(db: TestDatabase) {
 		async setTimeZone(familyId: string, timeZone: string) {
 			await admin`update app.families set time_zone = ${timeZone} where id = ${familyId}`;
 		},
+		/** Test families are born "now", after the fixed instants of the tests: the notice needs an older one (spec W24). */
+		async setFamilyCreatedAt(familyId: string, at: string) {
+			await admin`update app.families set created_at = ${at} where id = ${familyId}`;
+		},
 		/** A new user, member of a new family, with the claims of a verified web token. */
 		async member(options: { locale?: 'it-IT' | 'en-GB' } = {}) {
 			const { userId, sessionId } = await db.createUser(options);

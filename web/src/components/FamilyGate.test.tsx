@@ -10,7 +10,7 @@ function withProfile(get: () => Promise<ProfileView>): Api {
   return { ...base, profile: { ...base.profile, get } };
 }
 const profile = (patch: Partial<ProfileView>): ProfileView => ({
-  user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', globalRoles: [] },
+  user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', menuEmails: true, globalRoles: [] },
   families: [{ id: 'family-main', name: 'Famiglia Folloni', timeZone: 'Europe/Rome', measurementSystem: 'metric', role: 'family_admin' }],
   currentFamilyId: 'family-main',
   ...patch

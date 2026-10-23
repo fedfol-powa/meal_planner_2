@@ -1,7 +1,8 @@
 import { useQueries, useQuery, type QueryClient } from '@tanstack/react-query';
-import { getRouteApi, Link } from '@tanstack/react-router';
+import { getRouteApi, Link, useLocation } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { isBlocking, toApiError } from '../api/errors';
+import { useAreaMutation } from '../api/mutations';
 import { datesQuery, openingQuery, queryKeys, useQueryDeps, weekQuery, type Versioned } from '../api/queries';
 import type { FamilyView, MealView, OpeningView, WeekView } from '../api/types';
 import { DatePicker } from '../components/DatePicker';
@@ -19,14 +20,98 @@ import { UndoProvider } from '../features/meals/UndoProvider';
 import { formatDayLong, formatMonthYear } from '../i18n/dates';
 import type { Locale } from '../i18n/translate';
 import { useLocale, useT } from '../i18n/LocaleProvider';
-import { addDays, isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTime } from '../lib/calendar';
+import { useProfile } from '../session/useFamily';
+import { addDays, isMealPast, localNow, mondayOf, weekDates, type IsoDate, type LocalDateTime } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
 import { MenuSkeleton } from './menu/MenuSkeleton';
+import { useNewWeek } from './menu/newWeek';
 import { pickSelected } from './menu/selection';
 import { useFamilyToday } from './menu/today';
 import styles from './MenuPage.module.css';
 
 const route = getRouteApi('/_app/menu');
+
+type FamilyLinkState = { status: 'none' } | { status: 'waiting'; paused: boolean } | { status: 'failed'; error: unknown; retry: () => void };
+
+/**
+ * The link of the «next week's menu» email carries the family (spec W24, 6.2): when the person is in it
+ * and it is not the one shown, it is chosen on the server before the day opens. The parameter goes away
+ * (`replace`) once the family is the current one in the profile, or at once when the person is not in it.
+ * A failed choice never falls back to the previous family: the link stays, with the error and a retry;
+ * offline the choice waits for the network the same way (PR #80 review, finding 1). Each navigation is a
+ * destination of its own (history entry and family), and only one choice runs at a time: a later link
+ * waits for the earlier answer, which then neither drops nor answers for it (finding 2).
+ */
+function useFamilyLink(linked: string | undefined): FamilyLinkState {
+  const { api } = useQueryDeps();
+  const navigate = route.useNavigate();
+  const online = useOnline();
+  const { data: profile, refetch: readProfile } = useProfile();
+  const entry = useLocation({ select: (location) => location.state.__TSR_key });
+  const destination = linked ? `${entry}:${linked}` : undefined;
+  const choose = useAreaMutation('profile.setCurrentFamily', undefined, (familyId: string) => api.profile.setCurrentFamily({ familyId }));
+  const { mutate, isPending } = choose;
+  // The destination of the address now, for the answers of a choice started for an earlier one.
+  const latest = useRef(destination);
+  useLayoutEffect(() => {
+    latest.current = destination;
+  });
+  const tried = useRef<string | undefined>(undefined);
+  // A retry clears it, and the effect starts the choice again.
+  const [failed, setFailed] = useState<{ destination: string; error: unknown } | null>(null);
+  // An answer not written, of this destination or an earlier one: the server may have chosen all the
+  // same, so no destination is decided on the cached profile until it is read again (re-review, round 2).
+  const reconciling = useRef(false);
+  // A new run once the profile is read again.
+  const [round, setRound] = useState(0);
+  useEffect(() => {
+    if (!linked || !destination || !profile || isPending || reconciling.current) return;
+    const drop = () => void navigate({ search: (s) => ({ ...s, family: undefined }), replace: true });
+    if (linked === profile.currentFamilyId || !profile.families.some((f) => f.id === linked)) return drop();
+    if (!online || tried.current === destination) return;
+    tried.current = destination;
+    mutate(linked, {
+      // Applied, the profile now shows the family and the next run drops the parameter. Not applied, the
+      // answer was superseded on the device (another write of the profile, a change of language) while
+      // the server may well have chosen: the profile is read again and decides, never the cached one
+      // (PR #80 re-review, 1); still another family there, the link chooses again. Also for an earlier
+      // destination: the address is then not its own, but the current one waits for the same read.
+      onSuccess: ({ applied }) => {
+        if (applied) return;
+        reconciling.current = true;
+        void readProfile({ cancelRefetch: false }).finally(() => {
+          reconciling.current = false;
+          if (latest.current === destination) tried.current = undefined;
+          setRound((n) => n + 1);
+        });
+      },
+      onError: (error) => {
+        if (latest.current !== destination) return;
+        setFailed({ destination, error });
+        // Refused: the saved profile may still list a family the person has left; read again, it no
+        // longer does and the link is ignored (re-review, 2).
+        if (toApiError(error).code === 'forbidden') void readProfile({ cancelRefetch: false });
+      }
+    });
+  }, [linked, destination, profile, online, isPending, failed, round, mutate, navigate, readProfile]);
+  if (!linked || !profile) return { status: 'none' };
+  if (failed && failed.destination === destination) {
+    const retry = () => {
+      tried.current = undefined;
+      setFailed(null);
+    };
+    return { status: 'failed', error: failed.error, retry };
+  }
+  return { status: 'waiting', paused: !online };
+}
+
+/** Until the family of the link is chosen the menu of the previous one must not start reading. */
+function FamilyLink({ day, onSelect, children }: { day: IsoDate | undefined; onSelect: (date: IsoDate) => void; children: ReactNode }) {
+  const link = useFamilyLink(route.useSearch().family);
+  if (link.status === 'failed') return notice(<QueryError error={link.error} onRetry={link.retry} />);
+  if (link.status === 'waiting') return <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={onSelect} paused={link.paused} />;
+  return <>{children}</>;
+}
 
 export function MenuPage() {
   const { day } = route.useSearch();
@@ -36,9 +121,11 @@ export function MenuPage() {
   return (
     <FamilyGate waiting={(paused) => <MenuSkeleton weekStartsOn={day ? mondayOf(day) : undefined} selected={day} onSelect={select} paused={paused} />}>
       {(family) => (
-        <UndoProvider familyId={family.id}>
-          <MenuView family={family} />
-        </UndoProvider>
+        <FamilyLink day={day} onSelect={select}>
+          <UndoProvider familyId={family.id}>
+            <MenuView family={family} />
+          </UndoProvider>
+        </FamilyLink>
       )}
     </FamilyGate>
   );
@@ -123,6 +210,7 @@ function MenuView({ family }: { family: FamilyView }) {
   const selected = pickSelected(days, requested, openingDay?.date);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  const newWeek = useNewWeek(familyId, selected);
 
   // The weeks either side, for the swipe on the days: every month they touch is read in advance
   // with the calendar's own query (usually the month already shown, one read).
@@ -258,7 +346,16 @@ function MenuView({ family }: { family: FamilyView }) {
                 <span>{t('menu.today')}</span>
               </button>
             )}
-            <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onToggle={togglePicker} onClose={closePicker} onSelect={select} />
+            <DatePicker
+              familyId={familyId}
+              selected={selected}
+              open={pickerOpen}
+              onToggle={togglePicker}
+              onClose={closePicker}
+              onSelect={select}
+              dot={!!newWeek.weekStartsOn}
+              fresh={newWeek.weekStartsOn ? weekDates(newWeek.weekStartsOn) : []}
+            />
             <Link to="/shopping/$weekStartsOn" params={{ weekStartsOn: week.data.startsOn }} search={{ day: selected }} className={styles.action} aria-label={t('menu.shopping')}>
               <Icon name="bag" />
             </Link>

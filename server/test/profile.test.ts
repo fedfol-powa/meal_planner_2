@@ -50,6 +50,27 @@ describe.skipIf(!hasDatabase)('profile', () => {
 		expect((await bruno.client.profile.update({ locale: 'it-IT' })).user).toMatchObject({ displayName: 'Bruno', locale: 'it-IT' });
 	});
 
+	it('turns the menu email on and off without touching the name (spec W24)', async () => {
+		const gino = await actors.user();
+		await gino.client.profile.update({ displayName: 'Gino' });
+		expect((await gino.client.profile.get({})).user.menuEmails).toBe(true); // no preferences row yet
+		expect((await gino.client.profile.update({ menuEmails: false })).user).toMatchObject({ menuEmails: false, displayName: 'Gino' });
+		expect((await gino.client.profile.get({})).user.menuEmails).toBe(false);
+		expect((await gino.client.profile.update({ menuEmails: true })).user).toMatchObject({ menuEmails: true, displayName: 'Gino' });
+		const [row] = await actors.db.admin<{ name: string; emails: boolean }[]>`
+			select p.display_name as name, pp.menu_emails as emails
+			from app.profiles p join app.profile_preferences pp on pp.user_id = p.user_id where p.user_id = ${gino.userId}`;
+		expect(row).toEqual({ name: 'Gino', emails: true });
+	});
+
+	it('a change of the menu email alone changes no family counter', async () => {
+		const ivo = await actors.user();
+		const familyId = await actors.db.createFamily([{ userId: ivo.userId, role: 'member' }]);
+		const before = await versionOf(familyId);
+		await ivo.client.profile.update({ menuEmails: false });
+		expect(await versionOf(familyId)).toBe(before);
+	});
+
 	describe('the language of the Auth emails (spec W15, section 2)', () => {
 		it('a change of language puts only the locale in Auth, after the commit', async () => {
 			const dora = await actors.user();

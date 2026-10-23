@@ -31,7 +31,7 @@ const A = { id: 'a', email: 'a@example.com' };
 const B = { id: 'b', email: 'b@example.com' };
 
 const meOf = (id: string | null, locale: 'it-IT' | 'en-GB' = 'it-IT'): ProfileView => ({
-  user: { id: id ?? 'anon', displayName: (id ?? 'anon').toUpperCase(), email: '', locale, globalRoles: [] },
+  user: { id: id ?? 'anon', displayName: (id ?? 'anon').toUpperCase(), email: '', locale, menuEmails: true, globalRoles: [] },
   families: [],
   currentFamilyId: null
 });

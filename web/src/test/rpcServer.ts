@@ -8,7 +8,7 @@ export const WHOAMI = { userId: '7c1f2e7e-3a7b-4f0a-9d55-1b2c3d4e5f60', channel:
 
 /** A profile only the server knows: nothing like the demo data of the fake client. */
 export const SERVER_PROFILE: ProfileView = {
-  user: { id: WHOAMI.userId, displayName: 'Persona dal server', email: 'server@example.test', locale: 'it-IT', globalRoles: [] },
+  user: { id: WHOAMI.userId, displayName: 'Persona dal server', email: 'server@example.test', locale: 'it-IT', menuEmails: true, globalRoles: [] },
   families: [{ id: '3b7e8f00-1d2c-4e5f-8a9b-0c1d2e3f4a5b', name: 'Famiglia dal server', role: 'member', timeZone: 'Europe/Rome', measurementSystem: 'metric' }],
   currentFamilyId: '3b7e8f00-1d2c-4e5f-8a9b-0c1d2e3f4a5b'
 };
@@ -106,6 +106,7 @@ export function createRpcTestServer() {
   /** The weeks the menu answers, by Monday; the meals area writes into them. */
   const weeks = new Map<string, WeekView>();
   const weekReads: { weekStartsOn: string }[] = [];
+  const weeksSeen: { familyId: string; weekStartsOn: string }[] = [];
   const mealCalls: { op: string; input: Record<string, unknown> }[] = [];
   /** The answer of `recipes.search` after recording the call: a value or a thrown ORPCError. */
   let search: () => unknown = () => ({ unchanged: false as const, version: 'v1', data: { items: [SERVER_RECIPE] } });
@@ -209,7 +210,13 @@ export function createRpcTestServer() {
         unchanged: false as const,
         version: 'dates-1',
         data: [...weeks.values()].flatMap((w) => w.days).filter((d) => d.meals.length && d.date.startsWith(input.month)).map((d) => d.date)
-      }))
+      })),
+      // W24: no new week unless a test says otherwise.
+      getNewWeek: os.menu.getNewWeek.handler(() => ({ weekStartsOn: null })),
+      markWeekSeen: os.menu.markWeekSeen.handler(({ input }) => {
+        weeksSeen.push(input);
+        return { ok: true as const };
+      })
     },
     meals: {
       getSuggestions: mealHandler('getSuggestions'),
@@ -270,6 +277,8 @@ export function createRpcTestServer() {
     currentWeek: (startsOn: string) => structuredClone(weeks.get(startsOn)!),
     /** Inputs of menu.getWeek, in order. */
     weekReads,
+    /** Inputs of menu.markWeekSeen, in order. */
+    weeksSeen,
     /** Calls of the meals area, with their input as the Worker received it. */
     mealCalls,
     defaultMeals,

@@ -63,7 +63,9 @@ export interface FakeData {
   /** Grows at every rating: stands for the family counter of the real versions. */
   revision: number;
   /** What the person changed in the profile; missing values come from the demo people. */
-  readonly profile: { displayName?: string; locale?: Locale };
+  readonly profile: { displayName?: string; locale?: Locale; menuEmails?: boolean };
+  /** Weeks seen in the Menu (W24), as `userId:familyId:weekStartsOn`. */
+  readonly seenWeeks: Set<string>;
   /** The demo family's name, units, time zone, settings and exclusions. */
   readonly family: FakeFamilyData;
   /** The archived recipes the curator can bring back. */
@@ -124,7 +126,8 @@ export function createFakeData(user?: { id: string; email: string }): FakeData {
     catalogue: createFakeCatalogueData(recipes),
     photos: new Map(DEMO_PHOTOS.filter((id) => recipes.some((r) => r.id === id)).map((id) => [id, `/assets/recipe-images/${id}.jpg`])),
     agents: createFakeAgentsData(),
-    createdFamilies: []
+    createdFamilies: [],
+    seenWeeks: new Set()
   };
 }
 
@@ -192,6 +195,7 @@ export function createFakeApi(options: FakeApiOptions): Api {
         displayName: state.profile.displayName ?? person?.displayName ?? (fromEmail.charAt(0).toUpperCase() + fromEmail.slice(1)),
         email,
         locale: state.profile.locale ?? person?.locale ?? options.getLocale(),
+        menuEmails: state.profile.menuEmails ?? true,
         globalRoles: state.users!.rolesOf(userId)
       },
       families: [
@@ -415,13 +419,14 @@ export function createFakeApi(options: FakeApiOptions): Api {
       async get() {
         return delayed(profileView());
       },
-      async update({ displayName, locale }) {
+      async update({ displayName, locale, menuEmails }) {
         const name = displayName?.trim();
-        if ((displayName === undefined && locale === undefined) || (name !== undefined && (name.length < 1 || name.length > 60))) {
+        if ((displayName === undefined && locale === undefined && menuEmails === undefined) || (name !== undefined && (name.length < 1 || name.length > 60))) {
           throw new ApiError('invalid');
         }
         if (name !== undefined) state.profile.displayName = name;
         if (locale !== undefined) state.profile.locale = locale;
+        if (menuEmails !== undefined) state.profile.menuEmails = menuEmails;
         return delayed(profileView());
       },
       // The demo family or one created in this session: any other is a family the person is not in.
@@ -464,6 +469,20 @@ export function createFakeApi(options: FakeApiOptions): Api {
         if (!checkAnyFamily(familyId).demo) return respond<IsoDate[]>([]);
         const dates = new Set(visibleWeeks().flatMap((w) => w.slots.map((s) => s.date)).filter((d) => d.startsWith(month)));
         return respond([...dates].sort());
+      },
+      // W24: next week, from the Wednesday at 20:00 before it, while it exists and the person has not seen it.
+      async getNewWeek({ familyId }) {
+        if (!checkAnyFamily(familyId).demo) return delayed({ weekStartsOn: null });
+        const monday = mondayOf(now().slice(0, 10));
+        const next = addDays(monday, 7);
+        const due = now() >= `${addDays(monday, 2)}T20:00`;
+        const ready = due && visibleWeeks().some((w) => w.startsOn === next) && !state.seenWeeks.has(`${userId}:${familyId}:${next}`);
+        return delayed({ weekStartsOn: ready ? next : null });
+      },
+      async markWeekSeen({ familyId, weekStartsOn }) {
+        checkAnyFamily(familyId);
+        state.seenWeeks.add(`${userId}:${familyId}:${weekStartsOn}`);
+        return delayed({ ok: true as const });
       }
     },
     recipes: {

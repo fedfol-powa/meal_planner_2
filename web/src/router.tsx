@@ -28,7 +28,7 @@ import { AccountDeletePage } from './features/account/AccountDeletePage';
 import { ShoppingPage } from './features/shopping/ShoppingPage';
 import { ChoosePasswordPage } from './features/password/ChoosePasswordPage';
 import { ForgotPage } from './features/password/ForgotPage';
-import { validateEmailSearch, validateFamilyDeleteSearch, validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch } from './routes/search';
+import { validateEmailSearch, validateFamilyDeleteSearch, validateLoginSearch, validateMenuSearch, validateRecipeSearch, validateRecipesSearch, validateShoppingSearch } from './routes/search';
 
 /** `exit.pending`: a session just closed here; its redirect to sign-in drops the page, and the next person starts from the menu. */
 export interface RouterContext { auth: AuthState; exit: { pending: boolean } }
@@ -115,7 +115,7 @@ const userRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin/us
 const userDeleteRoute = createRoute({ getParentRoute: () => appRoute, path: '/admin/users/$userId/delete', component: UserDeletePage });
 const agentsRoute = createRoute({ getParentRoute: () => appRoute, path: '/profile/agents', component: AgentsPage });
 // `day`: the menu day the list was opened from, where «Menu» goes back to.
-const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shopping/$weekStartsOn', validateSearch: validateMenuSearch, component: ShoppingPage });
+const shoppingRoute = createRoute({ getParentRoute: () => appRoute, path: '/shopping/$weekStartsOn', validateSearch: validateShoppingSearch, component: ShoppingPage });
 
 const routeTree = rootRoute.addChildren([
   loginRoute,

@@ -1,7 +1,9 @@
 .picker { position: static; flex: none; }
-.toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
+.toggle { position: relative; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
 .toggle :global(.icon) { width: 26px; height: 26px; }
 .toggle[aria-expanded='true'] { color: var(--green); }
+/* W24: the menu of next week is ready and not seen yet. */
+.dot { position: absolute; top: 7px; right: 6px; width: 10px; height: 10px; border: 2px solid var(--canvas); border-radius: 50%; background: var(--green); }
 .panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; width: min(320px, calc(100vw - 32px)); padding: 16px; background: var(--paper); box-shadow: 0 4px 16px rgb(0 0 0 / 15%); border-radius: 8px; }
 .month { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .month strong { text-transform: capitalize; }
@@ -10,6 +12,9 @@
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .weekday { padding: 4px 0; color: var(--muted); font-size: 0.75rem; text-align: center; text-transform: uppercase; }
 .day { min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); cursor: pointer; }
-.day:hover:not(:disabled) { background: #f0ede5; }
+.day:hover:not(:disabled):not([aria-pressed='true']) { background: #f0ede5; }
+/* W24: the days of the new week, green number on the light green of the navbar's active item, also
+   on hover; the chosen day stays dark with white text. */
+.day.fresh:not([aria-pressed='true']), .day.fresh:not([aria-pressed='true']):hover:not(:disabled) { color: var(--green); background: var(--soft-green); }
 .day[aria-pressed='true'] { color: #fff; background: var(--ink); }
 .day:disabled { color: var(--rule); font-weight: 400; cursor: not-allowed; }

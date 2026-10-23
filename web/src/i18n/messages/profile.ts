@@ -22,6 +22,9 @@ export const it = {
   'preferences.name': 'Nome',
   'preferences.email': 'Email',
   'preferences.languageHint': 'Vale solo per te; le unità di misura sono della famiglia.',
+  'preferences.menuEmails': 'Email con il menu della settimana',
+  'preferences.menuEmailsHint': 'Il mercoledì sera, quando è pronto il menu della settimana dopo',
+  'preferences.menuEmailsSaved': 'Salvato',
   'preferences.offline': 'Il nome si cambia online; la lingua scelta offline vale solo su questo dispositivo.'
 };
 
@@ -49,5 +52,8 @@ export const en = {
   'preferences.name': 'Name',
   'preferences.email': 'Email',
   'preferences.languageHint': 'Only for you; units belong to the family.',
+  'preferences.menuEmails': 'Menu emails',
+  'preferences.menuEmailsHint': 'On Wednesday evening, when next week\'s menu is ready',
+  'preferences.menuEmailsSaved': 'Saved',
   'preferences.offline': 'Your name can only be changed online; a language chosen offline applies to this device only.'
 } satisfies Record<keyof typeof it, string>;

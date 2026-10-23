@@ -22,7 +22,7 @@ const A = { id: 'a', email: 'a@example.com' };
 const FAMILY = 'f';
 
 const profileOf = (patch: Partial<ProfileView> = {}): ProfileView => ({
-  user: { id: 'a', displayName: 'Anna', email: 'a@example.com', locale: 'it-IT', globalRoles: [] },
+  user: { id: 'a', displayName: 'Anna', email: 'a@example.com', locale: 'it-IT', menuEmails: true, globalRoles: [] },
   families: [{ id: FAMILY, name: 'Famiglia', role: 'member', timeZone: 'Europe/Rome', measurementSystem: 'metric' }],
   currentFamilyId: FAMILY,
   ...patch

@@ -128,7 +128,7 @@ describe('recipes from the Worker (W6)', () => {
     let current = 'family-main';
     const base = createFakeApi({ getLocale: () => 'it-IT', latencyMs: 0 });
     const profile = (): ProfileView => ({
-      user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', globalRoles: [] },
+      user: { id: 'user-federico', displayName: 'Federico', email: 'federico@example.com', locale: 'it-IT', menuEmails: true, globalRoles: [] },
       families: [
         { id: 'family-main', name: 'Famiglia Folloni', timeZone: 'Europe/Rome', role: 'family_admin', measurementSystem: 'metric' },
         { id: 'family-b', name: 'Famiglia Bianchi', timeZone: 'Europe/Rome', role: 'member', measurementSystem: 'metric' }

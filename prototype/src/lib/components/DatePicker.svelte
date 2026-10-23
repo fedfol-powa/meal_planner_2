@@ -4,7 +4,8 @@
 	import { formatDayLong } from '#lib/i18n/dates.ts';
 	import { app } from '#lib/store/app.svelte.ts';
 
-	let { dates, selected, onSelect, open = $bindable(false) }: { dates: IsoDate[]; selected: IsoDate; onSelect: (date: IsoDate) => void; open?: boolean } = $props();
+	// W24: `dot` marks a new week not seen yet on the icon; `fresh` are its days, with the number in green.
+	let { dates, selected, onSelect, open = $bindable(false), dot = false, fresh = [] }: { dates: IsoDate[]; selected: IsoDate; onSelect: (date: IsoDate) => void; open?: boolean; dot?: boolean; fresh?: IsoDate[] } = $props();
 	// Month browsed in the panel; empty means "the month of the selected day".
 	let browsedMonth = $state('');
 	const month = $derived(browsedMonth || selected.slice(0, 7));
@@ -62,8 +63,9 @@
 <svelte:window onclick={onWindowClick} onkeydown={(e) => open && e.key === 'Escape' && close()} />
 
 <div class="date-picker">
-	<button bind:this={toggle} type="button" class="toggle" aria-expanded={open} aria-label={app.t('menu.pickDate')} onclick={() => (open ? close() : (open = true))}>
+	<button bind:this={toggle} type="button" class="toggle" aria-expanded={open} aria-label={dot ? `${app.t('menu.pickDate')}, ${app.t('menu.newWeekReady')}` : app.t('menu.pickDate')} onclick={() => (open ? close() : (open = true))}>
 		<svg class="icon" aria-hidden="true"><use href="#icon-calendar" /></svg>
+		{#if dot}<span class="new-dot" aria-hidden="true"></span>{/if}
 	</button>
 	{#if open}
 		<div class="panel" bind:this={panel} role="dialog" aria-label={app.t('menu.pickDate')}>
@@ -80,7 +82,7 @@
 				{#each weekdays as weekday, i (i)}<span class="weekday" aria-hidden="true">{weekday}</span>{/each}
 				{#each cells as date (date)}
 					{#if date.slice(0, 7) === month}
-						<button type="button" class="day" aria-pressed={date === selected} aria-label={formatDayLong(app.locale, date)} disabled={!available.has(date)} onclick={() => choose(date)}>
+						<button type="button" class="day" class:fresh={fresh.includes(date)} aria-label={fresh.includes(date) ? `${formatDayLong(app.locale, date)}, ${app.t('menu.newWeekDay')}` : formatDayLong(app.locale, date)} aria-pressed={date === selected} disabled={!available.has(date)} onclick={() => choose(date)}>
 							{Number(date.slice(8, 10))}
 						</button>
 					{:else}
@@ -95,7 +97,10 @@
 <style>
 	.date-picker { position: static; flex: none; }
 	.toggle { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; }
+	.toggle { position: relative; }
 	.toggle .icon { width: 26px; height: 26px; }
+	.new-dot { position: absolute; top: 7px; right: 6px; width: 10px; height: 10px; border: 2px solid var(--canvas); border-radius: 50%; background: var(--green); }
+
 	.toggle[aria-expanded='true'] { color: var(--green); }
 	.panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 15; width: min(320px, calc(100vw - 32px)); padding: 16px; background: var(--paper); box-shadow: 0 4px 16px rgb(0 0 0 / 15%); border-radius: 8px; }
 	.month { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
@@ -106,6 +111,9 @@
 	.weekday { padding: 4px 0; color: var(--muted); font-size: 0.75rem; text-align: center; text-transform: uppercase; }
 	.day { min-height: 44px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); cursor: pointer; }
 	.day:hover:not(:disabled) { background: #f0ede5; }
+	/* W24: days of the new week not seen yet, green number on the light green of the navbar's active item;
+	   the chosen day stays dark with white text. */
+	.day.fresh:not([aria-pressed='true']), .day.fresh:not([aria-pressed='true']):hover:not(:disabled) { color: var(--green); background: var(--soft-green); }
 	.day[aria-pressed='true'] { color: #fff; background: var(--ink); }
 	.day:disabled { color: var(--rule); font-weight: 400; cursor: not-allowed; }
 </style>

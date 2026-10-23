@@ -20,13 +20,20 @@ export function profileRouter(os: Implementer) {
 			const changes = {
 				...(input.displayName !== undefined ? { display_name: input.displayName } : {}),
 				...(input.locale !== undefined ? { locale: input.locale } : {}),
-				updated_at: new Date(),
 			};
-			const rows = await context.tx<{ locale: Locale }[]>`
-				update app.profiles set ${context.tx(changes)}
-				where user_id = auth.uid()
-				returning locale`;
+			const rows = Object.keys(changes).length
+				? await context.tx<{ locale: Locale }[]>`
+					update app.profiles set ${context.tx({ ...changes, updated_at: new Date() })}
+					where user_id = auth.uid()
+					returning locale`
+				: await context.tx<{ locale: Locale }[]>`select locale from app.profiles where user_id = auth.uid()`;
 			if (!rows[0]) throw appError('unauthorized');
+			// A preference, not part of the profile: the menu email (spec W24, section 4.1).
+			if (input.menuEmails !== undefined) {
+				await context.tx`
+					insert into app.profile_preferences (user_id, menu_emails) values (auth.uid(), ${input.menuEmails})
+					on conflict (user_id) do update set menu_emails = excluded.menu_emails, updated_at = now()`;
+			}
 			const view = await profileView(context.tx, rows[0].locale);
 			const locale = input.locale;
 			if (locale === undefined) return view;

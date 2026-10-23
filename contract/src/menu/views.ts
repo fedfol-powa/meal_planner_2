@@ -43,3 +43,6 @@ export const openingView = z.discriminatedUnion('kind', [
 export type MealView = z.infer<typeof mealView>;
 export type WeekView = z.infer<typeof weekView>;
 export type OpeningView = z.infer<typeof openingView>;
+
+/** The week to announce to the caller (spec W24): null when there is nothing new. */
+export const newWeekView = z.object({ weekStartsOn: monday.nullable() });

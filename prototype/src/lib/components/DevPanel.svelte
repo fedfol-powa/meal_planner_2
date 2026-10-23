@@ -10,6 +10,16 @@
 	import { page } from '$app/state';
 	import { contentOf } from '#lib/domain/recipe-content.ts';
 	import { saveDraft } from '#lib/operations/curation.ts';
+	import { newWeekNotice } from '#lib/store/new-week-notice.svelte.ts';
+
+	// W24: Thursday morning after the Wednesday job, with no week seen yet, back on the opening day.
+	function newWeekReady() {
+		newWeekNotice.reset();
+		app.update((s) => (s.settings.now = '2026-10-08T08:00'));
+		app.selectedDate = null;
+		dialog.close();
+		goto('/menu');
+	}
 
 	let dialog: HTMLDialogElement;
 	let scenario = $state<ScenarioId>(app.settings.scenario);
@@ -94,6 +104,10 @@
 	</header>
 	<p class="meta-line">{app.t('dev.disclaimer')}</p>
 
+	<!-- W24: a quick way to see the dot of the new week on the calendar icon, and the email. -->
+	<button type="button" class="text-button" onclick={newWeekReady}>{app.t('dev.newWeekReady')}</button>
+	<p class="meta-line">{app.t('dev.newWeekReady.note')}</p>
+	<a class="text-button" href="/w24-email/" target="_blank" rel="noopener" data-sveltekit-reload>{app.t('dev.newWeekEmail')}</a>
 
 	<!-- Round 7: a simulated slow load, to see the skeleton chosen by the user (blocks with a slow pulse). -->
 	<label>{app.t('dev.slowLoad')}
