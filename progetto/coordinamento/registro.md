@@ -30,8 +30,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
   pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
   puntini), email B a righe compatte; anteprima confermata dall'utente; revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w24-spec-piano.md`), correzioni in
-  `messaggi/w24-01-revisione-spec.md`; rilievo 7 (secondo segnale visibile nel calendario,
-  accessibilità) chiesto all'utente.
+  `messaggi/w24-01-revisione-spec.md`; rilievo 7: l'utente sceglie un fondo verde chiaro
+  dietro i giorni nuovi (`messaggi/w24-02-segnale-calendario.md`).
   Ordine dei merge: W23 prima di W24 (stessa barra del Menu); W24 si riallinea a main prima
   della PR.
 - **Revisori attivi:** «R W23 PR», rapporto atteso `revisioni/w23-pr78.md`.
