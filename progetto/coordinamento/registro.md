@@ -13,7 +13,9 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   revisione 1 APPROVABILE CON CORREZIONI (`revisioni/w22-spec-piano.md`), correzioni
   e decisioni del coordinatore in `messaggi/w22-01-revisione-spec.md`; corrette (commit
   `c725262`); revisione 2 APPROVABILE CON CORREZIONI, correzioni in
-  `messaggi/w22-02-revisione-spec-2.md`; corrette, terzo giro in corso.
+  `messaggi/w22-02-revisione-spec-2.md`; revisione 3 con un solo rilievo minore (etichetta
+  del ruolo negli Inviti): spec e piano approvati dal coordinatore con quella correzione;
+  poi `/clear` e implementazione.
   W23, pulsante «Oggi» nella barra del Menu, brief `brief/w23-bottone-oggi.md`, tab
   «W23 bottone oggi» (pane `w1:p5S`), branch `evolutive/bottone-oggi`, worktree
   `.worktrees/bottone-oggi`; fase 1 (prototipo con varianti, commit `c4d11e8`, anteprima
@@ -26,9 +28,8 @@ Gli id dei pane cambiano: verifica con `herdr pane list` (etichetta della tab e 
   `evolutive/avviso-menu-pronto`, worktree `.worktrees/avviso-menu`; fase 1 (brainstorming
   con l'utente nella tab, poi prototipo `d3464ce` sulla porta 8767); scelte dell'utente:
   pallino sull'icona del calendario, giorni della settimana nuova in verde nel mese (niente
-  puntini), email B a righe compatte; conferma del verde sull'iPhone, poi spec e piano.
-- **Revisori attivi:** «R W22 spec 3», rapporto atteso `revisioni/w22-spec-piano-3.md`;
-  «R W23 spec 3», rapporto atteso `revisioni/w23-spec-piano-3.md`.
+  puntini), email B a righe compatte; anteprima aggiornata, conferma dell'utente sull'iPhone in attesa, poi spec e piano.
+- **Revisori attivi:** «R W23 spec 3», rapporto atteso `revisioni/w23-spec-piano-3.md`.
 - **Evolutiva E, ricetta da un link:** in pausa per scelta dell'utente (17/10); descrizione
   in `progetto/superpowers/specs/2026-10-17-ricetta-da-link-descrizione.md`, da approvare.
 - **Spunti da Cuicuit (22/10):** in `progetto/superpowers/specs/2026-10-22-spunti-cuicuit.md`;
