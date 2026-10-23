@@ -31,7 +31,9 @@ Dopo la revisione di spec e piano (`progetto/coordinamento/revisioni/w23-spec-pi
 coordinatore ha deciso il 23/10 come accertare i pasti di oggi e quando ricalcolare il giorno
 (messaggio `w23-01-revisione-spec.md`); i punti 1, 6 e 7 lo riportano. Dopo il secondo giro
 (`revisioni/w23-spec-piano-2.md`, messaggio `w23-02-revisione-spec-2.md`) ha deciso il ciclo
-delle letture (punto 1) e chiesto di precisare il focus dopo mezzanotte (punto 3).
+delle letture (punto 1) e chiesto di precisare il focus dopo mezzanotte (punto 3). Il terzo
+giro (`revisioni/w23-spec-piano-3.md`, approvato dal coordinatore con queste correzioni) ha
+aggiunto l'annullamento all'apertura del calendario e distinto l'errore dalla pausa (punto 3).
 
 1. **Quando compare.** Il pulsante c'è se e solo se il giorno mostrato non è oggi **e** è
    accertato che oggi ha almeno un pasto con contenuto (ricetta o pasto libero: `kind` diverso
@@ -63,13 +65,16 @@ delle letture (punto 1) e chiesto di precisare il focus dopo mezzanotte (punto 3
      6): la destinazione è il giorno che risponde `menu.getOpening` per quella data. Un'apertura
      provvisoria, cioè la copia salvata (`savedOpening`) mostrata mentre la richiesta è in
      corso, non conta: può essere il giorno di ieri, e il focus non si sposta lì. L'apertura è
-     risolta quando arriva la risposta del server, oppure quando la richiesta si ferma senza
-     rete (in pausa) o fallisce: allora vale il giorno che il Menu mostra con la copia salvata,
-     cioè il ripiego offline che esiste già. La regola di apertura non cambia. Poi l'arrivo è
-     come per il giorno esplicito.
+     risolta quando arriva la risposta del server, oppure quando la richiesta è in pausa senza
+     rete: allora vale il giorno che il Menu mostra con la copia salvata, cioè il ripiego
+     offline che esiste già. Se invece la richiesta fallisce, la copia provvisoria sparisce e il
+     Menu mostra l'errore con «Riprova» (comportamento attuale): l'intento si annulla e il
+     focus non si sposta. La regola di apertura non cambia. Poi l'arrivo è come per il giorno
+     esplicito.
    L'intento si annulla se prima dell'arrivo l'utente va altrove (un giorno, anche dello
-   skeleton o dell'apertura provvisoria, il calendario, un'altra vista) o se la data della
-   famiglia cambia ancora; allora il focus non si sposta.
+   skeleton o dell'apertura provvisoria, un'altra vista), se apre il calendario (dal mese o
+   dall'icona, anche senza scegliere un giorno) o se la data della famiglia cambia ancora;
+   allora il focus non si sposta.
 4. **Forma e misure.** Pulsante senza riquadro alto 44 px (area di tocco), freccia da 22 px e
    «Oggi» in Roboto Bold 14 px, colore del testo `#232323`, spazio di 6 px fra icona ed
    etichetta, raggio 8 px per il focus. Sta nel gruppo delle azioni a destra, prima del
@@ -144,7 +149,9 @@ delle letture (punto 1) e chiesto di precisare il focus dopo mezzanotte (punto 3
 - Tocco come la scelta di un giorno (`select`), o come il secondo tocco su Menu se la data è
   cambiata; nessuna animazione nuova. Focus sul mese solo all'arrivo sulla destinazione del
   tocco: un giorno esplicito, oppure l'apertura per una data precisa, che si considera risolta
-  solo con la risposta del server o con la richiesta in pausa o fallita (ripiego sulla copia
-  salvata), mai sull'apertura provvisoria mentre la richiesta è in corso; intento annullato da
-  un'altra navigazione o da un nuovo cambio di data. Sezione 14.
+  solo con la risposta del server o con la richiesta in pausa senza rete (ripiego sulla copia
+  salvata), mai sull'apertura provvisoria mentre la richiesta è in corso; un errore della
+  richiesta (schermata di errore) annulla l'intento senza spostare il focus; intento annullato
+  anche da un'altra navigazione, dall'apertura del calendario (mese o icona) o da un nuovo
+  cambio di data. Sezione 14.
 - Icona `today` nuova in `Icon.tsx`; nessuna dipendenza. Sezione 14.

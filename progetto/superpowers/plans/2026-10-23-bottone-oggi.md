@@ -57,7 +57,7 @@ const toForeground = () => act(() => { document.dispatchEvent(new Event('visibil
 /** getWeek of one week waits for `release`; the others answer as usual. */
 function holdWeek(api: Api, held: IsoDate) { /* wraps api.menu.getWeek; returns { release(): void } */ }
 /** getOpening for one family date waits for `release`; the others answer as usual. */
-function holdOpening(api: Api, today: IsoDate) { /* wraps api.menu.getOpening; returns { release(): void } */ }
+function holdOpening(api: Api, today: IsoDate) { /* wraps api.menu.getOpening; returns { release(): void; fail(error: Error): void }; only the first call waits */ }
 ```
 
 ---
@@ -190,14 +190,17 @@ Regola (spec, punto 3):
   `{ kind: 'opening', date: <nuova data> }` prima di `navigate({ search: {} })`.
 - Un `useEffect` a ogni disegno calcola la destinazione dell'intento:
   - annulla se `kind === 'day'` e `requested !== day`, o se `kind === 'opening'` e
-    (`requested !== undefined` o `today !== date`);
+    (`requested !== undefined` o `today !== date` o `opening.isError`: l'errore toglie la copia
+    provvisoria e il Menu mostra `QueryError`, quindi niente focus);
   - `kind === 'day'` → destinazione `day`;
   - `kind === 'opening'` → destinazione `openingDay.date` solo se l'apertura è risolta:
-    `opening.data` c'è e (`!opening.isPlaceholderData` o `opening.fetchStatus === 'paused'` o
-    `opening.isError`); altrimenti nessuna destinazione e si aspetta (con `today === date`, la
+    `opening.data` c'è e (`!opening.isPlaceholderData` o `opening.fetchStatus === 'paused'`);
+    altrimenti nessuna destinazione e si aspetta (con `today === date`, la
     chiave della query è già quella della nuova data);
   - con una destinazione: se `week.data` c'è, `selected === destinazione` e `month.current`
     esiste → `month.current.focus()` e annulla.
+- In `togglePicker`, il percorso condiviso da mese e icona del calendario, quando il calendario
+  si apre: `focusOnArrival.current = null`.
 
 - [ ] **Step 1: test che falliscono**
   - Aggiungi a «goes back to today from another day of the week» e «…from another week already
@@ -219,6 +222,16 @@ Regola (spec, punto 3):
   - `it('drops the focus intent when another day is chosen while waiting')`: dopo il click,
     `opening.release()`; nello skeleton click su `martedì 13 ottobre`; `week.release()` →
     `current()` martedì 13, `document.activeElement` diverso da `month()`.
+  - `it('drops the focus intent when the calendar is opened while waiting')`: dopo il click,
+    sull'apertura provvisoria click su `Scegli un giorno` (icona; ripeti in una seconda
+    esecuzione con il mese `ottobre 2026`, `it.each`); nel dialogo dai il focus a
+    `Mese precedente` e cliccalo; `week.release()`, poi `opening.release()` →
+    `document.activeElement` resta un controllo del dialogo `Scegli un giorno`, non `month()`.
+  - `it('drops the focus intent when the opening fails')`: come la preparazione, ma
+    `holdOpening` rifiuta la prima richiesta con `new ApiError('unknown')` (codice non `network`, che
+    non si ritenta) invece di rispondere; dopo il rifiuto compare l'errore con «Riprova»;
+    `week.release()` e click su «Riprova» con `getOpening` che ora risponde lunedì 12 →
+    `current()` lunedì 12 e `document.activeElement` diverso da `month()`.
   - `it('moves the focus on the saved opening when offline')`: come la preparazione, ma
     `setOnline(false)` prima del click; dopo il click il Menu resta sull'apertura salvata
     (domenica 11, richiesta in pausa) e il focus va su `month()`.
