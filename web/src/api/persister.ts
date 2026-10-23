@@ -346,7 +346,8 @@ export function persistOptions(persister: Persister, buster: string): Omit<Persi
     buster,
     maxAge: PERSIST_MAX_AGE,
     dehydrateOptions: {
-      shouldDehydrateQuery: (query) => query.state.status === 'success',
+      // The notice of the new week (W24) is never saved: an old dot, maybe switched off on another device, must not come back at startup.
+      shouldDehydrateQuery: (query) => query.state.status === 'success' && !(query.queryKey[0] === 'menu' && query.queryKey[1] === 'getNewWeek'),
       shouldDehydrateMutation: () => false
     }
   };

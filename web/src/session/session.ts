@@ -13,7 +13,7 @@ import {
   type RevocationMark,
   type SessionPersister
 } from '../api/persister';
-import { attachFamilyAccess, familyOfKey, localeOfKey } from '../api/queries';
+import { attachFamilyAccess, familyOfKey, localeOfKey, weekVisits } from '../api/queries';
 import { trackBusy } from '../pwa/busy';
 import type { Api, ProfileView } from '../api/types';
 import type { RenewResult } from '../auth/backend';
@@ -345,6 +345,8 @@ export function createSession(userId: string | null, store: KeyValueStore, deps:
     revokedAt: (familyId) => marks.get(familyId)?.revokedAt ?? 0,
     profileRead: (previous, next, startedAt, answer) => session.observeProfile(previous, next, startedAt, answer)
   });
+  // Leaving the family deletes its visits on the server too (W24): the new week is unseen again here.
+  session.onRevoke((familyId) => weekVisits(queryClient).revokeFamily(familyId));
   // A new session reads the records of the device first (spec W11): the persister reads them again with the copy.
   if (userId) {
     void readMarks(store, userId).then((saved) => {

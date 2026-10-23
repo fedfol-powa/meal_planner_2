@@ -167,7 +167,7 @@ describe('shopping page', () => {
         ...base,
         profile: {
           ...base.profile,
-          get: async () => ({ user: { id: DEMO_USER.id, displayName: 'Anna', email: DEMO_USER.email, locale, globalRoles: [] }, families: [family], currentFamilyId: FAMILY })
+          get: async () => ({ user: { id: DEMO_USER.id, displayName: 'Anna', email: DEMO_USER.email, locale, menuEmails: true, globalRoles: [] }, families: [family], currentFamilyId: FAMILY })
         }
       } as typeof base;
     };

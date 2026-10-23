@@ -1,6 +1,8 @@
 import { useMutation, type Query, type QueryClient } from '@tanstack/react-query';
 import { useCurrentLocale, useSession } from '../session/SessionScope';
 import type { Session } from '../session/session';
+import type { IsoDate } from '../lib/calendar';
+import { useApi } from './ApiProvider';
 import { familyAccessOf, familyOfKey } from './queries';
 import type { MealActionResult, ProfileView } from './types';
 
@@ -305,5 +307,18 @@ export function useAreaMutation<I, T>(name: MutationName, familyId: string | und
   return useMutation({
     meta: familyId ? { familyId, operation: name } : { operation: name },
     mutationFn: (input: I) => runAreaMutation({ queryClient: session.queryClient, session, currentLocale }, name, familyId, () => call(input), options)
+  });
+}
+
+/**
+ * W24: a visit of the new week. Not in INVALIDATIONS: it writes no view, and the menu's notice
+ * updates its own read before and after (routes/menu/newWeek.ts). A mutation all the same, so that
+ * the session sees a refusal of the family like for the other writes.
+ */
+export function useMarkWeekSeen(familyId: string) {
+  const api = useApi();
+  return useMutation({
+    meta: { familyId, operation: 'menu.markWeekSeen' },
+    mutationFn: (weekStartsOn: IsoDate) => api.menu.markWeekSeen({ familyId, weekStartsOn })
   });
 }

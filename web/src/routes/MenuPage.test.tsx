@@ -63,11 +63,11 @@ describe('menu', () => {
   });
   it('chooses any day with a menu from the calendar', async () => {
     const { history } = renderApp('/menu');
-    fireEvent.click(await screen.findByRole('button', { name: 'Scegli un giorno' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Scegli un giorno/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
-    await waitFor(() => expect((within(dialog).getByRole('button', { name: 'lunedì 12 ottobre' }) as HTMLButtonElement).disabled).toBe(false));
+    await waitFor(() => expect((within(dialog).getByRole('button', { name: /^lunedì 12 ottobre/ }) as HTMLButtonElement).disabled).toBe(false));
     expect((within(dialog).getByRole('button', { name: 'sabato 31 ottobre' }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'lunedì 12 ottobre' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /^lunedì 12 ottobre/ }));
     await waitFor(() => expect(history.location.search).toContain('2026-10-12'));
     await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('lunedì 12 ottobre'));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -465,7 +465,7 @@ describe('menu', () => {
   });
   it('gives focus back to the calendar icon after choosing a day or pressing Escape', async () => {
     renderApp('/menu');
-    const icon = await screen.findByRole('button', { name: 'Scegli un giorno' });
+    const icon = await screen.findByRole('button', { name: /^Scegli un giorno/ });
     icon.focus();
     fireEvent.click(icon);
     const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
@@ -488,7 +488,7 @@ describe('menu', () => {
   });
   it('does not steal focus from the month arrows when the days are read again', async () => {
     renderApp('/menu');
-    fireEvent.click(await screen.findByRole('button', { name: 'Scegli un giorno' }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Scegli un giorno/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
     await waitFor(() => expect(document.activeElement?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Mese successivo' }));

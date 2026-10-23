@@ -19,9 +19,10 @@ import { UndoProvider } from '../features/meals/UndoProvider';
 import { formatDayLong, formatMonthYear } from '../i18n/dates';
 import type { Locale } from '../i18n/translate';
 import { useLocale, useT } from '../i18n/LocaleProvider';
-import { addDays, isMealPast, localNow, mondayOf, type IsoDate, type LocalDateTime } from '../lib/calendar';
+import { addDays, isMealPast, localNow, mondayOf, weekDates, type IsoDate, type LocalDateTime } from '../lib/calendar';
 import { rememberMenuDay } from './menu/lastDay';
 import { MenuSkeleton } from './menu/MenuSkeleton';
+import { useNewWeek } from './menu/newWeek';
 import { pickSelected } from './menu/selection';
 import styles from './MenuPage.module.css';
 
@@ -107,6 +108,7 @@ function MenuView({ family }: { family: FamilyView }) {
   const selected = pickSelected(days, requested, openingDay?.date);
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  const newWeek = useNewWeek(familyId, selected);
 
   // The weeks either side, for the swipe on the days: every month they touch is read in advance
   // with the calendar's own query (usually the month already shown, one read).
@@ -204,7 +206,16 @@ function MenuView({ family }: { family: FamilyView }) {
             {formatMonthYear(locale, selected)}
           </button>
           <div className={styles.actions}>
-            <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onToggle={togglePicker} onClose={closePicker} onSelect={select} />
+            <DatePicker
+              familyId={familyId}
+              selected={selected}
+              open={pickerOpen}
+              onToggle={togglePicker}
+              onClose={closePicker}
+              onSelect={select}
+              dot={!!newWeek.weekStartsOn}
+              fresh={newWeek.weekStartsOn ? weekDates(newWeek.weekStartsOn) : []}
+            />
             <Link to="/shopping/$weekStartsOn" params={{ weekStartsOn: week.data.startsOn }} search={{ day: selected }} className={styles.action} aria-label={t('menu.shopping')}>
               <Icon name="bag" />
             </Link>

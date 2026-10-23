@@ -17,10 +17,14 @@ interface Props {
   /** The only way to close: choice, Escape or a tap outside. */
   onClose: () => void;
   onSelect: (date: IsoDate) => void;
+  /** W24: the menu of next week is ready and not seen yet. */
+  dot: boolean;
+  /** W24: the days of that week, green until it is seen. */
+  fresh: readonly IsoDate[];
 }
 
 /** A browsable month where only days with a menu can be chosen (round 1). */
-export function DatePicker({ familyId, selected, open, onToggle, onClose, onSelect }: Props) {
+export function DatePicker({ familyId, selected, open, onToggle, onClose, onSelect, dot, fresh }: Props) {
   const t = useT();
   const { locale } = useLocale();
   const [browsed, setBrowsed] = useState<string | null>(null);
@@ -69,8 +73,17 @@ export function DatePicker({ familyId, selected, open, onToggle, onClose, onSele
 
   return (
     <div className={styles.picker}>
-      <button type="button" className={styles.toggle} data-date-picker-toggle aria-expanded={open} aria-label={t('menu.pickDate')} onClick={(e) => onToggle(e.currentTarget)}>
+      <button
+        type="button"
+        className={styles.toggle}
+        data-date-picker-toggle
+        aria-expanded={open}
+        aria-label={dot ? `${t('menu.pickDate')}, ${t('menu.newWeekReady')}` : t('menu.pickDate')}
+        onClick={(e) => onToggle(e.currentTarget)}
+      >
         <Icon name="calendar" />
+        {/* Decorative: the button's name says it, with no live announcement (spec W24, 7). */}
+        {dot && <span className={styles.dot} aria-hidden="true" />}
       </button>
       {open && (
         <div ref={panel} className={styles.panel} role="dialog" aria-label={t('menu.pickDate')}>
@@ -90,9 +103,9 @@ export function DatePicker({ familyId, selected, open, onToggle, onClose, onSele
                 <button
                   key={date}
                   type="button"
-                  className={styles.day}
+                  className={fresh.includes(date) ? `${styles.day} ${styles.fresh}` : styles.day}
                   aria-pressed={date === selected}
-                  aria-label={formatDayLong(locale, date)}
+                  aria-label={fresh.includes(date) ? `${formatDayLong(locale, date)}, ${t('menu.newWeekDay')}` : formatDayLong(locale, date)}
                   disabled={!available.has(date)}
                   onClick={() => {
                     onSelect(date);
