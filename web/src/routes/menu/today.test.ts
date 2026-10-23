@@ -14,7 +14,7 @@ function renderCounted(timeZone: string) {
   let renders = 0;
   const hook = renderHook(() => {
     renders += 1;
-    return useFamilyToday(timeZone);
+    return useFamilyToday(timeZone).today;
   });
   return { ...hook, renders: () => renders };
 }
@@ -22,8 +22,8 @@ function renderCounted(timeZone: string) {
 describe('useFamilyToday', () => {
   it('reads the family date, not the device one', () => {
     vi.setSystemTime(new Date('2026-10-08T22:30:00Z'));
-    expect(renderHook(() => useFamilyToday('Europe/Rome')).result.current).toBe('2026-10-09');
-    expect(renderHook(() => useFamilyToday('UTC')).result.current).toBe('2026-10-08');
+    expect(renderHook(() => useFamilyToday('Europe/Rome').today).result.current).toBe('2026-10-09');
+    expect(renderHook(() => useFamilyToday('UTC').today).result.current).toBe('2026-10-08');
   });
   it('renders again when the app comes back on another day', () => {
     const hook = renderCounted('Europe/Rome');

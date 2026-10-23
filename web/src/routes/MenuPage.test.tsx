@@ -842,6 +842,21 @@ describe('menu', () => {
         expect(current()?.getAttribute('aria-label')).toBe('domenica 11 ottobre');
       });
     });
+    it('re-reads the date when tapped after midnight on the opening day', async () => {
+      const api = fakeApi();
+      const getOpening = api.menu.getOpening;
+      // Today had no meals when the opening was read: it answered Tuesday.
+      api.menu.getOpening = (input, options) =>
+        input.today === '2026-10-08' ? Promise.resolve({ unchanged: false, version: 'o1', data: { kind: 'day', date: '2026-10-06', weekStartsOn: '2026-10-05' } }) : getOpening(input, options);
+      const { history } = renderApp('/menu', { api });
+      await weekShown('martedì 6 ottobre');
+      const button = await screen.findByRole('button', { name: 'Vai a oggi' });
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z'));
+      fireEvent.click(button);
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+      expect(history.location.search).not.toContain('day=');
+      await waitFor(() => expect(document.activeElement).toBe(month()));
+    });
     it('speaks English', async () => {
       renderApp('/menu?day=2026-10-06', { api: fakeApi('en-GB'), locale: 'en-GB' });
       await weekShown('Tuesday 6 October');

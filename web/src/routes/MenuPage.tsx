@@ -84,7 +84,7 @@ function MenuView({ family }: { family: FamilyView }) {
   const familyId = family.id;
 
   // The family's local date, sent with the opening: the server validates it and answers for that day.
-  const today = useFamilyToday(family.timeZone);
+  const { today, recheck: recheckToday } = useFamilyToday(family.timeZone);
   const opening = useQuery({ ...openingQuery(deps, familyId, today), placeholderData: () => savedOpening(deps.queryClient, familyId, today, locale) });
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
@@ -189,7 +189,9 @@ function MenuView({ family }: { family: FamilyView }) {
     const now = localNow(family.timeZone).slice(0, 10);
     if (now !== today) {
       focusOnArrival.current = { kind: 'opening', date: now };
-      void navigate({ search: {} });
+      // With no day asked the address does not change: the new date has to render by itself.
+      if (requested === undefined) recheckToday();
+      else void navigate({ search: {} });
     } else {
       focusOnArrival.current = { kind: 'day', day: today };
       select(today);
