@@ -857,6 +857,40 @@ describe('menu', () => {
       expect(history.location.search).not.toContain('day=');
       await waitFor(() => expect(document.activeElement).toBe(month()));
     });
+    it.each([
+      ['hides', 'not_found', false],
+      ['keeps', 'network', true]
+    ] as const)("%s the button when today's week, already saved, fails again with %s", async (_, code, shown) => {
+      const api = fakeApi();
+      const getWeek = api.menu.getWeek;
+      let failing = false;
+      api.menu.getWeek = (input, options) => (failing && input.weekStartsOn === '2026-10-05' ? Promise.reject(new ApiError(code)) : getWeek(input, options));
+      renderApp('/menu?day=2026-10-12', { api });
+      await weekShown('lunedì 12 ottobre');
+      await screen.findByRole('button', { name: 'Vai a oggi' });
+      failing = true;
+      // Back in the foreground: today's week is read again.
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      focusManager.setFocused(undefined);
+      expect(!!todayButton()).toBe(shown);
+    });
+    it('drops the focus intent when the family date changes before the arrival', async () => {
+      renderApp('/menu?day=2026-10-06');
+      await weekShown('martedì 6 ottobre');
+      const button = await screen.findByRole('button', { name: 'Vai a oggi' });
+      // The tap aims at Thursday; the date turns to Friday before the menu shows it.
+      act(() => {
+        fireEvent.click(button);
+        vi.setSystemTime(new Date('2026-10-09T08:00:00Z'));
+      });
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre'));
+      await new Promise((r) => setTimeout(r, 20));
+      expect(document.activeElement).not.toBe(month());
+    });
     it('speaks English', async () => {
       renderApp('/menu?day=2026-10-06', { api: fakeApi('en-GB'), locale: 'en-GB' });
       await weekShown('Tuesday 6 October');

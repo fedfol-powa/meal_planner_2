@@ -93,7 +93,9 @@ function MenuView({ family }: { family: FamilyView }) {
   // shows only when it says today has a meal, never from the opening. It starts with the week shown,
   // so that both observers share one read when they are the same week.
   const todayWeek = useQuery({ ...weekQuery(deps, familyId, mondayOf(today)), enabled: !!weekStart, retry: false });
-  const todayHasMeals = !!todayWeek.data?.days.find((d) => d.date === today)?.meals.some((m) => m.kind !== 'empty');
+  // A blocking error (not found, refused) counts as no data, as for the week shown; offline the copy stays.
+  const todayWeekBlocked = todayWeek.isError && isBlocking(todayWeek.error, !!todayWeek.data);
+  const todayHasMeals = !todayWeekBlocked && !!todayWeek.data?.days.find((d) => d.date === today)?.meals.some((m) => m.kind !== 'empty');
   const track = useRef<HTMLDivElement>(null);
   // Day the track is already moving to (smooth tap or user scroll): no instant jump over it.
   const settling = useRef<IsoDate | null>(null);
@@ -203,7 +205,7 @@ function MenuView({ family }: { family: FamilyView }) {
   useEffect(() => {
     const intent = focusOnArrival.current;
     if (!intent) return;
-    const dropped = intent.kind === 'day' ? requested !== intent.day : requested !== undefined || today !== intent.date || opening.isError;
+    const dropped = intent.kind === 'day' ? requested !== intent.day || today !== intent.day : requested !== undefined || today !== intent.date || opening.isError;
     if (dropped) {
       focusOnArrival.current = null;
       return;
