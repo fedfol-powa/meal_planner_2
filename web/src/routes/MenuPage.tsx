@@ -86,6 +86,11 @@ function MenuView({ family }: { family: FamilyView }) {
   const openingDay = opening.data?.kind === 'day' ? opening.data : null;
   const weekStart = requested ? mondayOf(requested) : openingDay?.weekStartsOn;
   const week = useQuery({ ...weekQuery(deps, familyId, weekStart ?? ''), enabled: !!weekStart, retry: false });
+  // Today's week, with the menu's own query (the same key when it is the week shown): the button
+  // shows only when it says today has a meal, never from the opening. It starts with the week shown,
+  // so that both observers share one read when they are the same week.
+  const todayWeek = useQuery({ ...weekQuery(deps, familyId, mondayOf(today)), enabled: !!weekStart, retry: false });
+  const todayHasMeals = !!todayWeek.data?.days.find((d) => d.date === today)?.meals.some((m) => m.kind !== 'empty');
   const track = useRef<HTMLDivElement>(null);
   // Day the track is already moving to (smooth tap or user scroll): no instant jump over it.
   const settling = useRef<IsoDate | null>(null);
@@ -171,6 +176,12 @@ function MenuView({ family }: { family: FamilyView }) {
     }
   }
 
+  /** Today as a chosen day; after midnight, what the second tap on Menu does (the new day's opening). */
+  function goToday() {
+    if (localNow(family.timeZone).slice(0, 10) !== today) void navigate({ search: {} });
+    else select(today);
+  }
+
   // Debounced instead of `scrollend`, which older iOS Safari versions do not fire.
   function onScroll() {
     clearTimeout(scrollTimer.current);
@@ -205,6 +216,12 @@ function MenuView({ family }: { family: FamilyView }) {
             {formatMonthYear(locale, selected)}
           </button>
           <div className={styles.actions}>
+            {todayHasMeals && selected !== today && (
+              <button type="button" className={styles.today} aria-label={t('menu.todayLabel')} onClick={goToday}>
+                <Icon name="today" />
+                <span>{t('menu.today')}</span>
+              </button>
+            )}
             <DatePicker familyId={familyId} selected={selected} open={pickerOpen} onToggle={togglePicker} onClose={closePicker} onSelect={select} />
             <Link to="/shopping/$weekStartsOn" params={{ weekStartsOn: week.data.startsOn }} search={{ day: selected }} className={styles.action} aria-label={t('menu.shopping')}>
               <Icon name="bag" />

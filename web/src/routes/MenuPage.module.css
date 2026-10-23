@@ -1,5 +1,5 @@
 .toolbar { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px 0 8px; }
-.month { min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); text-transform: capitalize; cursor: pointer; }
+.month { min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 400 1.25rem/1.3 var(--heading-font); text-transform: capitalize; white-space: nowrap; cursor: pointer; }
 .month[aria-expanded='true'] { color: var(--green); }
 /* The month while the week loads (W20): text, not yet the calendar's button, with its height. */
 .monthWaiting { display: flex; align-items: center; margin: 0; cursor: default; }
@@ -7,3 +7,5 @@
 .action { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--ink); }
 .action :global(.icon) { width: 26px; height: 26px; }
 .action:disabled { color: var(--muted); opacity: 0.5; cursor: not-allowed; }
+.today { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 8px; background: none; color: var(--ink); font: 700 0.875rem/1 var(--text-font); white-space: nowrap; cursor: pointer; }
+.today :global(.icon) { width: 22px; height: 22px; }

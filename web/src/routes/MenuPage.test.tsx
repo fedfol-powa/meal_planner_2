@@ -3,8 +3,8 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/errors';
 import { createFakeApi, createFakeData } from '../api/fake/fakeApi';
-import type { Api, RatingSummary } from '../api/types';
-import { addDays } from '../lib/calendar';
+import type { Api, MealView, RatingSummary } from '../api/types';
+import { addDays, type IsoDate } from '../lib/calendar';
 import { resist, stripOffset, unresist } from './menu/weekSwipe';
 import { realClients } from '../api/clients';
 import { createRpcClient } from '../api/rpc';
@@ -595,6 +595,165 @@ describe('menu', () => {
     // The test server answers no_weeks: the menu says so, from the server's answer.
     expect(await screen.findByRole('heading', { name: 'Ancora nessun menu' })).toBeTruthy();
     expect(server.openingSeen).toEqual([{ familyId: SERVER_PROFILE.currentFamilyId, today: '2026-10-09' }]);
+  });
+
+  describe('the Today button', () => {
+    afterEach(() => setOnline(true));
+    const todayButton = () => screen.queryByRole('button', { name: 'Vai a oggi' });
+    const toForeground = () => act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const fakeApi = (locale: 'it-IT' | 'en-GB' = 'it-IT') => {
+      const data = createFakeData();
+      data.profile.locale = locale;
+      return createFakeApi({ getLocale: () => locale, data, latencyMs: 0 });
+    };
+    /** getWeek of one week waits for `release`; the others answer as usual. */
+    function holdWeek(api: Api, held: IsoDate) {
+      const getWeek = api.menu.getWeek;
+      const waiting: (() => void)[] = [];
+      let released = false;
+      api.menu.getWeek = (input, options) => {
+        if (released || input.weekStartsOn !== held) return getWeek(input, options);
+        return new Promise<void>((resolve) => waiting.push(resolve)).then(() => getWeek(input, options));
+      };
+      return {
+        release() {
+          released = true;
+          act(() => waiting.splice(0).forEach((resolve) => resolve()));
+        }
+      };
+    }
+    /** The meals of `date` in its week, rewritten by `change`. */
+    function rewriteDay(api: Api, date: IsoDate, change: (meals: MealView[]) => MealView[]) {
+      const getWeek = api.menu.getWeek;
+      api.menu.getWeek = async (input, options) => {
+        const read = await getWeek(input, options);
+        if (read.unchanged) return read;
+        return { ...read, data: { ...read.data, days: read.data.days.map((d) => (d.date === date ? { ...d, meals: change(d.meals) } : d)) } };
+      };
+    }
+    const emptied = (meals: MealView[]) => meals.map((m) => ({ ...m, kind: 'empty' as const, recipe: null, freeText: null }));
+
+    it('is not shown on today', async () => {
+      renderApp('/menu');
+      await weekShown('giovedì 8 ottobre');
+      expect(todayButton()).toBeNull();
+    });
+    it('goes back to today from another day of the week', async () => {
+      const { history } = renderApp('/menu?day=2026-10-06');
+      await weekShown('martedì 6 ottobre');
+      const button = await screen.findByRole('button', { name: 'Vai a oggi' });
+      expect(button.textContent).toBe('Oggi');
+      fireEvent.click(button);
+      await waitFor(() => expect(history.location.search).toContain('2026-10-08'));
+      expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
+      expect(todayButton()).toBeNull();
+    });
+    it('goes back to today from another week already read', async () => {
+      renderApp('/menu?day=2026-10-12');
+      await weekShown('lunedì 12 ottobre');
+      fireEvent.click(await screen.findByRole('button', { name: 'Vai a oggi' }));
+      await weekShown('giovedì 8 ottobre');
+      expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
+    });
+    it('is not shown when today has only empty slots', async () => {
+      const api = fakeApi();
+      rewriteDay(api, '2026-10-08', emptied);
+      renderApp('/menu?day=2026-10-06', { api });
+      await weekShown('martedì 6 ottobre');
+      expect(todayButton()).toBeNull();
+    });
+    it('is not shown when today has no slots', async () => {
+      const api = fakeApi();
+      rewriteDay(api, '2026-10-08', () => []);
+      renderApp('/menu?day=2026-10-06', { api });
+      await weekShown('martedì 6 ottobre');
+      expect(todayButton()).toBeNull();
+    });
+    it("waits for today's week before showing", async () => {
+      const api = fakeApi();
+      const week = holdWeek(api, '2026-10-05');
+      renderApp('/menu?day=2026-10-12', { api });
+      await weekShown('lunedì 12 ottobre');
+      expect(todayButton()).toBeNull();
+      week.release();
+      expect(await screen.findByRole('button', { name: 'Vai a oggi' })).toBeTruthy();
+    });
+    it('does not need the opening', async () => {
+      const api = fakeApi();
+      api.menu.getOpening = () => new Promise(() => {});
+      renderApp('/menu?day=2026-10-06', { api });
+      await weekShown('martedì 6 ottobre');
+      expect(await screen.findByRole('button', { name: 'Vai a oggi' })).toBeTruthy();
+    });
+    it("uses the saved copy of today's week offline", async () => {
+      const { history } = renderApp('/menu?day=2026-10-06');
+      await weekShown('martedì 6 ottobre');
+      fireEvent.click(screen.getByRole('link', { name: 'Profilo' }));
+      await waitFor(() => expect(history.location.pathname).toBe('/profile'));
+      act(() => setOnline(false));
+      act(() => history.push('/menu?day=2026-10-12'));
+      await weekShown('lunedì 12 ottobre');
+      expect(await screen.findByRole('button', { name: 'Vai a oggi' })).toBeTruthy();
+    });
+    it("stays hidden offline without a copy of today's week", async () => {
+      const api = fakeApi();
+      holdWeek(api, '2026-10-05');
+      renderApp('/menu?day=2026-10-12', { api });
+      await weekShown('lunedì 12 ottobre');
+      act(() => setOnline(false));
+      await new Promise((r) => setTimeout(r, 20));
+      expect(todayButton()).toBeNull();
+    });
+    it('follows the family date, not the device one', async () => {
+      vi.setSystemTime(new Date('2026-10-08T22:30:00Z')); // 00:30 on Friday 9 October in Rome
+      renderApp('/menu?day=2026-10-08');
+      await weekShown('giovedì 8 ottobre');
+      fireEvent.click(await screen.findByRole('button', { name: 'Vai a oggi' }));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+    });
+    it('appears when the app comes back on the next day', async () => {
+      renderApp('/menu?day=2026-10-08');
+      await weekShown('giovedì 8 ottobre');
+      expect(todayButton()).toBeNull();
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z'));
+      toForeground();
+      expect(await screen.findByRole('button', { name: 'Vai a oggi' })).toBeTruthy();
+    });
+    it('follows the next day without a button when no day is asked', async () => {
+      renderApp('/menu');
+      await weekShown('giovedì 8 ottobre');
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z'));
+      toForeground();
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+      expect(todayButton()).toBeNull();
+    });
+    it('stays hidden when the next day has no meals', async () => {
+      const api = fakeApi();
+      rewriteDay(api, '2026-10-09', emptied);
+      renderApp('/menu?day=2026-10-08', { api });
+      await weekShown('giovedì 8 ottobre');
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z'));
+      toForeground();
+      await new Promise((r) => setTimeout(r, 20));
+      expect(todayButton()).toBeNull();
+    });
+    it('re-reads the date when tapped after midnight', async () => {
+      const { history } = renderApp('/menu?day=2026-10-06');
+      await weekShown('martedì 6 ottobre');
+      const button = await screen.findByRole('button', { name: 'Vai a oggi' });
+      vi.setSystemTime(new Date('2026-10-09T08:00:00Z'));
+      fireEvent.click(button);
+      await waitFor(() => expect(history.location.search).not.toContain('day='));
+      await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+    });
+    it('speaks English', async () => {
+      renderApp('/menu?day=2026-10-06', { api: fakeApi('en-GB'), locale: 'en-GB' });
+      await weekShown('Tuesday 6 October');
+      const button = await screen.findByRole('button', { name: 'Go to today' });
+      expect(button.textContent).toBe('Today');
+    });
   });
 
   describe('real client: vote, recipe card and recipe book with the menu', () => {
