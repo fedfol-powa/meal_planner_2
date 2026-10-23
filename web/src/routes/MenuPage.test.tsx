@@ -600,6 +600,7 @@ describe('menu', () => {
   describe('the Today button', () => {
     afterEach(() => setOnline(true));
     const todayButton = () => screen.queryByRole('button', { name: 'Vai a oggi' });
+    const month = () => screen.queryByRole('button', { name: 'ottobre 2026' });
     const toForeground = () => act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
@@ -622,6 +623,21 @@ describe('menu', () => {
           released = true;
           act(() => waiting.splice(0).forEach((resolve) => resolve()));
         }
+      };
+    }
+    /** getOpening for one family date waits for `release`; the others answer as usual. Only the first call waits. */
+    function holdOpening(api: Api, today: IsoDate) {
+      const getOpening = api.menu.getOpening;
+      let settle: { resolve: () => void; reject: (error: Error) => void } | undefined;
+      let held = false;
+      api.menu.getOpening = (input, options) => {
+        if (held || input.today !== today) return getOpening(input, options);
+        held = true;
+        return new Promise<void>((resolve, reject) => (settle = { resolve, reject })).then(() => getOpening(input, options));
+      };
+      return {
+        release: () => act(() => settle?.resolve()),
+        fail: (error: Error) => act(() => settle?.reject(error))
       };
     }
     /** The meals of `date` in its week, rewritten by `change`. */
@@ -648,14 +664,14 @@ describe('menu', () => {
       fireEvent.click(button);
       await waitFor(() => expect(history.location.search).toContain('2026-10-08'));
       expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
-      expect(todayButton()).toBeNull();
+      expect(todayButton()).toBeNull();  await waitFor(() => expect(document.activeElement).toBe(month()));
     });
     it('goes back to today from another week already read', async () => {
       renderApp('/menu?day=2026-10-12');
       await weekShown('lunedì 12 ottobre');
       fireEvent.click(await screen.findByRole('button', { name: 'Vai a oggi' }));
       await weekShown('giovedì 8 ottobre');
-      expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');
+      expect(current()?.getAttribute('aria-label')).toBe('giovedì 8 ottobre');  await waitFor(() => expect(document.activeElement).toBe(month()));
     });
     it('is not shown when today has only empty slots', async () => {
       const api = fakeApi();
@@ -747,6 +763,84 @@ describe('menu', () => {
       fireEvent.click(button);
       await waitFor(() => expect(history.location.search).not.toContain('day='));
       await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('venerdì 9 ottobre'));
+    });
+    describe('after midnight', () => {
+      // Sunday 11 is saved with its week (5 October); Monday's week (12 October) is held.
+      async function tapAfterMidnight(options: { offline?: boolean } = {}) {
+        vi.setSystemTime(new Date('2026-10-11T10:00:00Z'));
+        const api = fakeApi();
+        const week = holdWeek(api, '2026-10-12');
+        const opening = holdOpening(api, '2026-10-12');
+        const view = renderApp('/menu?day=2026-10-06', { api });
+        await weekShown('martedì 6 ottobre');
+        const button = await screen.findByRole('button', { name: 'Vai a oggi' });
+        vi.setSystemTime(new Date('2026-10-12T08:00:00Z'));
+        if (options.offline) act(() => setOnline(false));
+        fireEvent.click(button);
+        // The provisional opening: the saved Sunday.
+        await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('domenica 11 ottobre'));
+        return { ...view, api, week, opening };
+      }
+      it('waits for the real opening before moving the focus', async () => {
+        const { week, opening } = await tapAfterMidnight();
+        expect(document.activeElement).not.toBe(month());
+        opening.release();
+        await waitFor(() => expect(document.querySelector('.calendar [aria-busy="true"]')).not.toBeNull());
+        expect(document.activeElement).not.toBe(month());
+        expect(todayButton()).toBeNull();
+        week.release();
+        await weekShown('lunedì 12 ottobre');
+        expect(current()?.getAttribute('aria-label')).toBe('lunedì 12 ottobre');
+        await waitFor(() => expect(document.activeElement).toBe(month()));
+      });
+      it('drops the focus intent when a day is chosen on the provisional opening', async () => {
+        const { week, opening } = await tapAfterMidnight();
+        fireEvent.click(screen.getByRole('link', { name: 'sabato 10 ottobre' }));
+        opening.release();
+        week.release();
+        await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('sabato 10 ottobre'));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(document.activeElement).not.toBe(month());
+      });
+      it('drops the focus intent when another day is chosen while waiting', async () => {
+        const { week, opening } = await tapAfterMidnight();
+        opening.release();
+        fireEvent.click(await screen.findByRole('link', { name: 'martedì 13 ottobre' }));
+        week.release();
+        await weekShown('martedì 13 ottobre');
+        expect(current()?.getAttribute('aria-label')).toBe('martedì 13 ottobre');
+        await new Promise((r) => setTimeout(r, 20));
+        expect(document.activeElement).not.toBe(month());
+      });
+      it.each(['Scegli un giorno', 'ottobre 2026'])('drops the focus intent when the calendar is opened while waiting (%s)', async (opener) => {
+        const { week, opening } = await tapAfterMidnight();
+        fireEvent.click(screen.getByRole('button', { name: opener }));
+        const dialog = await screen.findByRole('dialog', { name: 'Scegli un giorno' });
+        const previous = within(dialog).getByRole('button', { name: 'Mese precedente' });
+        previous.focus();
+        fireEvent.click(previous);
+        week.release();
+        opening.release();
+        await waitFor(() => expect(current()?.getAttribute('aria-label')).toBe('lunedì 12 ottobre'));
+        await new Promise((r) => setTimeout(r, 20));
+        expect(screen.getByRole('dialog', { name: 'Scegli un giorno' }).contains(document.activeElement)).toBe(true);
+      });
+      it('drops the focus intent when the opening fails', async () => {
+        const { week, opening } = await tapAfterMidnight();
+        opening.fail(new ApiError('unknown'));
+        const retry = await screen.findByRole('button', { name: 'Riprova' });
+        week.release();
+        fireEvent.click(retry);
+        await weekShown('lunedì 12 ottobre');
+        expect(current()?.getAttribute('aria-label')).toBe('lunedì 12 ottobre');
+        await new Promise((r) => setTimeout(r, 20));
+        expect(document.activeElement).not.toBe(month());
+      });
+      it('moves the focus on the saved opening when offline', async () => {
+        await tapAfterMidnight({ offline: true });
+        await waitFor(() => expect(document.activeElement).toBe(month()));
+        expect(current()?.getAttribute('aria-label')).toBe('domenica 11 ottobre');
+      });
     });
     it('speaks English', async () => {
       renderApp('/menu?day=2026-10-06', { api: fakeApi('en-GB'), locale: 'en-GB' });

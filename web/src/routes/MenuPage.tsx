@@ -64,6 +64,9 @@ function savedOpening(queryClient: QueryClient, familyId: string, today: IsoDate
   return saved[0]?.[1];
 }
 
+/** Where the Today button's tap lands: a day, or the opening of a family date (tap after midnight). */
+type FocusIntent = { kind: 'day'; day: IsoDate } | { kind: 'opening'; date: IsoDate };
+
 const notice = (content: ReactNode) => <section className="secondary-view app-view">{content}</section>;
 
 function MenuView({ family }: { family: FamilyView }) {
@@ -96,6 +99,10 @@ function MenuView({ family }: { family: FamilyView }) {
   const settling = useRef<IsoDate | null>(null);
   const scrollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // The month gets the focus when the Today button's tap arrives (the button is gone by then).
+  const month = useRef<HTMLButtonElement>(null);
+  const focusOnArrival = useRef<FocusIntent | null>(null);
+
   // One path to open and close the calendar, remembering who opened it (review, finding 13).
   const [pickerOpen, setPickerOpen] = useState(false);
   const opener = useRef<HTMLElement | null>(null);
@@ -105,6 +112,7 @@ function MenuView({ family }: { family: FamilyView }) {
   }, []);
   const togglePicker = (element: HTMLElement) => {
     if (pickerOpen) return closePicker();
+    focusOnArrival.current = null;
     opener.current = element;
     setPickerOpen(true);
   };
@@ -178,9 +186,33 @@ function MenuView({ family }: { family: FamilyView }) {
 
   /** Today as a chosen day; after midnight, what the second tap on Menu does (the new day's opening). */
   function goToday() {
-    if (localNow(family.timeZone).slice(0, 10) !== today) void navigate({ search: {} });
-    else select(today);
+    const now = localNow(family.timeZone).slice(0, 10);
+    if (now !== today) {
+      focusOnArrival.current = { kind: 'opening', date: now };
+      void navigate({ search: {} });
+    } else {
+      focusOnArrival.current = { kind: 'day', day: today };
+      select(today);
+    }
   }
+
+  // The intent is dropped by another navigation, a new family date or a failed opening. An opening
+  // counts once the server answers or the read waits offline, never as the provisional saved copy.
+  useEffect(() => {
+    const intent = focusOnArrival.current;
+    if (!intent) return;
+    const dropped = intent.kind === 'day' ? requested !== intent.day : requested !== undefined || today !== intent.date || opening.isError;
+    if (dropped) {
+      focusOnArrival.current = null;
+      return;
+    }
+    const openingResolved = !!opening.data && (!opening.isPlaceholderData || opening.fetchStatus === 'paused');
+    const target = intent.kind === 'day' ? intent.day : openingResolved ? openingDay?.date : undefined;
+    if (target && week.data && selected === target && month.current) {
+      month.current.focus();
+      focusOnArrival.current = null;
+    }
+  });
 
   // Debounced instead of `scrollend`, which older iOS Safari versions do not fire.
   function onScroll() {
@@ -212,7 +244,7 @@ function MenuView({ family }: { family: FamilyView }) {
       {welcome && <WelcomeCard onClose={closeWelcome} />}
       <nav className="day-navigation" aria-label={t('menu.days')}>
         <div className={styles.toolbar}>
-          <button type="button" className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
+          <button type="button" ref={month} className={styles.month} data-date-picker-toggle aria-expanded={pickerOpen} onClick={(e) => togglePicker(e.currentTarget)}>
             {formatMonthYear(locale, selected)}
           </button>
           <div className={styles.actions}>
